@@ -24,7 +24,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 code, pre, .mono { font-family: Consolas, "Cascadia Mono", monospace; }
 a { color: var(--gold); }
 
-.shell { display: grid; grid-template-rows: 52px minmax(0, 1fr) auto; height: 100vh; }
+.shell { display: grid; grid-template-rows: 52px minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); height: 100vh; }
 
 /* ---------------------------------------------------------------- topbar */
 
@@ -39,12 +39,12 @@ a { color: var(--gold); }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; }
 .brand b { color: var(--muted); font-weight: 600; }
 .mark { width: 12px; height: 12px; border-radius: 3px; background: linear-gradient(135deg, var(--hot), var(--gold)); box-shadow: 0 0 14px rgba(255, 90, 31, 0.7); }
-.tabs { display: flex; gap: 4px; }
+.tabs { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .tabs button {
   background: none;
   border: 1px solid transparent;
   color: var(--muted);
-  padding: 7px 12px;
+  padding: 7px 10px;
   border-radius: 8px;
   font: 600 12px inherit;
   font-family: inherit;
@@ -54,8 +54,10 @@ a { color: var(--gold); }
 }
 .tabs button:hover { color: var(--text); }
 .tabs button[aria-selected="true"] { color: var(--gold); border-color: var(--line-2); background: rgba(255, 209, 90, 0.08); }
-.status { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
-.pill { font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.status { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; flex: 1 1 0; justify-content: flex-end; align-content: flex-start; height: 22px; min-width: 0; overflow: hidden; }
+.pill { max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+@media (max-width: 1180px) { .status { display: none; } .topbar .btn { margin-left: auto; } .brand b { display: none; } }
+.tabs button { white-space: nowrap; }
 .pill.ok { color: var(--ok); border-color: rgba(126, 226, 160, 0.4); }
 .pill.warn { color: var(--warn); border-color: rgba(255, 196, 107, 0.4); }
 .pill.bad { color: var(--bad); border-color: rgba(255, 125, 107, 0.4); }
@@ -141,6 +143,11 @@ a { color: var(--gold); }
 .hint.warn { color: var(--warn); }
 
 .cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); align-items: start; }
+.cards > .wide-card { grid-column: 1 / -1; }
+.job-detail { display: grid; gap: 8px; padding: 6px 4px 10px; }
+.job-detail .field label { display: block; }
+.job-detail p.text { margin: 2px 0 0; max-width: 90ch; }
+details > summary { cursor: pointer; padding: 4px 0; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; }
 .card > h3 { margin: 0; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
 .card > h3 .spacer { flex: 1; }
@@ -164,7 +171,7 @@ a { color: var(--gold); }
 .field input[type="color"] { padding: 2px; height: 30px; }
 .field input[type="range"] { padding: 0; accent-color: var(--hot); }
 .field .sub { font-size: 11px; color: var(--muted); }
-.check { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.check { display: flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; }
 .check input { accent-color: var(--hot); }
 input:focus, select:focus, textarea:focus { outline: 1px solid var(--gold); }
 
@@ -287,3 +294,20 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--gold); }
 .toast { position: fixed; right: 16px; top: 64px; background: var(--panel-2); border: 1px solid var(--line-2); padding: 8px 12px; border-radius: 8px; z-index: 50; animation: toast 2.4s ease forwards; }
 .toast.error { border-color: var(--bad); color: var(--bad); }
 @keyframes toast { 0% { opacity: 0; transform: translateY(-6px); } 10%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+
+/* Batch generation panel (batch.ts) */
+.batch { position: fixed; right: 16px; bottom: 16px; width: 360px; max-width: calc(100vw - 32px); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; z-index: 40; display: grid; gap: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
+.batch .row { gap: 8px; align-items: center; }
+.batch label { display: flex; align-items: center; gap: 4px; font-size: 11px; }
+.batch input.input { width: 48px; padding: 2px 4px; }
+.batch-track { height: 6px; border-radius: 999px; background: var(--panel-3); overflow: hidden; }
+.batch-fill { height: 100%; width: 0; background: var(--hot); transition: width 0.3s ease; }
+.batch-counts { font-size: 12px; }
+.batch-note { font-size: 11px; min-height: 1em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ------------------------------------------------------------ AI takes */
+
+.editor > .takes { grid-column: 1 / -1; }
+.take-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.take { display: grid; gap: 6px; }
+.take video { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 8px; background: #0f0; }

@@ -12,12 +12,30 @@ export interface Manifest {
   clips: Record<string, Clip>;
 }
 
+/** What made a generated file: saved beside it as .json. */
+export interface Recipe {
+  job: string;
+  type: 'side' | 'i2v' | 'animate';
+  seed: number;
+  prompt: string;
+  negative: string;
+  settings: Record<string, number | string | boolean>;
+  size: number;
+  fps: number;
+  frames?: number;
+  created: number;
+}
+
 export interface FighterState {
   id: string;
   folder: string | null;
   sources: { file: string; size: number; mtime: number }[];
   clipSources: Record<string, { file: string; size: number; mtime: number }>;
   clipOptions: Record<string, ClipOptions>;
+  /** Generated side views: candidates, and the chosen one (_side.png). */
+  sides: { file: string; chosen: boolean; size: number; mtime: number; recipe: Recipe | null }[];
+  /** Generated clip takes waiting in anims/_takes/, newest last. */
+  takes: { clip: string; seed: number; file: string; size: number; mtime: number; recipe: Recipe | null }[];
   manifest: Manifest | null;
   art: { img: number; thumb: boolean; large: boolean };
 }
@@ -57,8 +75,24 @@ async function check<T>(r: Response): Promise<T> {
   } catch {
     body = { error: text };
   }
-  if (!r.ok) throw new Error((body as { error?: string })?.error ?? `${r.status} ${r.statusText}`);
+  if (!r.ok) {
+    const b = body as { error?: string; code?: string; retryAfter?: number } | null;
+    throw new ApiError(b?.error ?? `${r.status} ${r.statusText}`, r.status, b?.code, b?.retryAfter);
+  }
   return body as T;
+}
+
+/** A failed dev-server call. code is set by routes that know more, e.g. throttled, quota or auth. */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  readonly retryAfter?: number;
+  constructor(message: string, status: number, code?: string, retryAfter?: number) {
+    super(message);
+    this.status = status;
+    this.code = code;
+    this.retryAfter = retryAfter;
+  }
 }
 
 export const api = {

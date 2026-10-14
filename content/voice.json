@@ -220,848 +220,1166 @@
       "group": "announcer",
       "who": "announcer",
       "text": "Ready?",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.ready.mp3",
+      "take": {
+        "text": "Ready?",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.go",
       "group": "announcer",
       "who": "announcer",
       "text": "Go!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.go.mp3",
+      "take": {
+        "text": "Go!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.game",
       "group": "announcer",
       "who": "announcer",
       "text": "Game!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.game.mp3",
+      "take": {
+        "text": "Game!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.time",
       "group": "announcer",
       "who": "announcer",
       "text": "Time!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.time.mp3",
+      "take": {
+        "text": "Time!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.versus",
       "group": "announcer",
       "who": "announcer",
       "text": "Versus!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.versus.mp3",
+      "take": {
+        "text": "Versus!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.title",
       "group": "announcer",
       "who": "announcer",
       "text": "Dose of Destruction!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.title.mp3",
+      "take": {
+        "text": "Dose of Destruction!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.wins",
       "group": "announcer",
       "who": "announcer",
       "text": "Wins!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.wins.mp3",
+      "take": {
+        "text": "Wins!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.ball-person",
       "group": "names",
       "who": "announcer",
       "text": "Ball Person!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.ball-person.mp3",
+      "take": {
+        "text": "Ball Person!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.blog-man",
       "group": "names",
       "who": "announcer",
       "text": "Blog Man!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.blog-man.mp3",
+      "take": {
+        "text": "Blog Man!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.break",
       "group": "names",
       "who": "announcer",
       "text": "Break!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.break.mp3",
+      "take": {
+        "text": "Break!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.cel",
       "group": "names",
       "who": "announcer",
       "text": "Cel!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.cel.mp3",
+      "take": {
+        "text": "Cel!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.chooser",
       "group": "names",
       "who": "announcer",
       "text": "Chooser!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.chooser.mp3",
+      "take": {
+        "text": "Chooser!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.crosser",
       "group": "names",
       "who": "announcer",
       "text": "Crosser!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.crosser.mp3",
+      "take": {
+        "text": "Crosser!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.crystalline-intelligences",
       "group": "names",
       "who": "announcer",
       "text": "Crystalline Intelligences!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.crystalline-intelligences.mp3",
+      "take": {
+        "text": "Crystalline Intelligences!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.dj-wont-read",
       "group": "names",
       "who": "announcer",
       "text": "DJ Won't Read!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.dj-wont-read.mp3",
+      "take": {
+        "text": "DJ Won't Read!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.evil-blue-bird",
       "group": "names",
       "who": "announcer",
       "text": "Evil Blue Bird!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.evil-blue-bird.mp3",
+      "take": {
+        "text": "Evil Blue Bird!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.exit-punk",
       "group": "names",
       "who": "announcer",
       "text": "Exit Punk!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.exit-punk.mp3",
+      "take": {
+        "text": "Exit Punk!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.future-man",
       "group": "names",
       "who": "announcer",
       "text": "Future Man!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.future-man.mp3",
+      "take": {
+        "text": "Future Man!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.got-ur-back",
       "group": "names",
       "who": "announcer",
       "text": "Got Ur Back!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.got-ur-back.mp3",
+      "take": {
+        "text": "Got Ur Back!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.kaelen",
       "group": "names",
       "who": "announcer",
       "text": "Kaelen!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.kaelen.mp3",
+      "take": {
+        "text": "Kaelen!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.lapis-man",
       "group": "names",
       "who": "announcer",
       "text": "Lapis Man!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.lapis-man.mp3",
+      "take": {
+        "text": "Lapis Man!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.not-an-old-man-yet",
       "group": "names",
       "who": "announcer",
       "text": "Not an Old Man Yet!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.not-an-old-man-yet.mp3",
+      "take": {
+        "text": "Not an Old Man Yet!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.orchestrator",
       "group": "names",
       "who": "announcer",
       "text": "Orchestrator!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.orchestrator.mp3",
+      "take": {
+        "text": "Orchestrator!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.pyro-singer",
       "group": "names",
       "who": "announcer",
       "text": "Pyro Singer!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.pyro-singer.mp3",
+      "take": {
+        "text": "Pyro Singer!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.shark-dude",
       "group": "names",
       "who": "announcer",
       "text": "Shark Dude!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.shark-dude.mp3",
+      "take": {
+        "text": "Shark Dude!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.shutup-bot",
       "group": "names",
       "who": "announcer",
       "text": "Shutup Bot!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.shutup-bot.mp3",
+      "take": {
+        "text": "Shutup Bot!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.slice",
       "group": "names",
       "who": "announcer",
       "text": "Slice!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.slice.mp3",
+      "take": {
+        "text": "Slice!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.slow-rider",
       "group": "names",
       "who": "announcer",
       "text": "Slow Rider!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.slow-rider.mp3",
+      "take": {
+        "text": "Slow Rider!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.small-weather",
       "group": "names",
       "who": "announcer",
       "text": "Small Weather!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.small-weather.mp3",
+      "take": {
+        "text": "Small Weather!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.spider-bot",
       "group": "names",
       "who": "announcer",
       "text": "Spider Bot!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.spider-bot.mp3",
+      "take": {
+        "text": "Spider Bot!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.ss-boulder",
       "group": "names",
       "who": "announcer",
       "text": "SS Boulder!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.ss-boulder.mp3",
+      "take": {
+        "text": "SS Boulder!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.stratabots",
       "group": "names",
       "who": "announcer",
       "text": "Stratabots!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.stratabots.mp3",
+      "take": {
+        "text": "Stratabots!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.susan",
       "group": "names",
       "who": "announcer",
       "text": "Susan!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.susan.mp3",
+      "take": {
+        "text": "Susan!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.the-mechanic",
       "group": "names",
       "who": "announcer",
       "text": "The Mechanic!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.the-mechanic.mp3",
+      "take": {
+        "text": "The Mechanic!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.try-belt",
       "group": "names",
       "who": "announcer",
       "text": "Try Belt!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.try-belt.mp3",
+      "take": {
+        "text": "Try Belt!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.tt",
       "group": "names",
       "who": "announcer",
       "text": "TT!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.tt.mp3",
+      "take": {
+        "text": "TT!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.uh-me",
       "group": "names",
       "who": "announcer",
       "text": "Uh Me!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.uh-me.mp3",
+      "take": {
+        "text": "Uh Me!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.wallit",
       "group": "names",
       "who": "announcer",
       "text": "Wallit!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.wallit.mp3",
+      "take": {
+        "text": "Wallit!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.yo-bot",
       "group": "names",
       "who": "announcer",
       "text": "Yo Bot!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.yo-bot.mp3",
+      "take": {
+        "text": "Yo Bot!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.name.yooba",
       "group": "names",
       "who": "announcer",
       "text": "Yooba!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.name.yooba.mp3",
+      "take": {
+        "text": "Yooba!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "fighter.ball-person.ko",
       "group": "ko",
       "who": "ball-person",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.ball-person.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
     },
     {
       "id": "fighter.blog-man.ko",
       "group": "ko",
       "who": "blog-man",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.blog-man.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "fighter.break.ko",
       "group": "ko",
       "who": "break",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.break.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "N2lVS1w4EtoT3dr4eOWO"
+      }
     },
     {
       "id": "fighter.cel.ko",
       "group": "ko",
       "who": "cel",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.cel.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "Xb7hH8MSUJpSbSDYk0k2"
+      }
     },
     {
       "id": "fighter.chooser.ko",
       "group": "ko",
       "who": "chooser",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.chooser.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "FGY2WhTYpPnrIDTdsKH5"
+      }
     },
     {
       "id": "fighter.crosser.ko",
       "group": "ko",
       "who": "crosser",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.crosser.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "JBFqnCBsd6RMkjVDRZzb"
+      }
     },
     {
       "id": "fighter.crystalline-intelligences.ko",
       "group": "ko",
       "who": "crystalline-intelligences",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.crystalline-intelligences.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "pFZP5JQG7iQjIQuC4Bku"
+      }
     },
     {
       "id": "fighter.dj-wont-read.ko",
       "group": "ko",
       "who": "dj-wont-read",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.dj-wont-read.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "iP95p4xoKVk53GoZ742B"
+      }
     },
     {
       "id": "fighter.evil-blue-bird.ko",
       "group": "ko",
       "who": "evil-blue-bird",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.evil-blue-bird.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "cgSgspJ2msm6clMCkdW9"
+      }
     },
     {
       "id": "fighter.exit-punk.ko",
       "group": "ko",
       "who": "exit-punk",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.exit-punk.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "bIHbv24MWmeRgasZH58o"
+      }
     },
     {
       "id": "fighter.future-man.ko",
       "group": "ko",
       "who": "future-man",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.future-man.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "fighter.got-ur-back.ko",
       "group": "ko",
       "who": "got-ur-back",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.got-ur-back.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "IKne3meq5aSn9XLyUdCD"
+      }
     },
     {
       "id": "fighter.kaelen.ko",
       "group": "ko",
       "who": "kaelen",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.kaelen.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
     },
     {
       "id": "fighter.lapis-man.ko",
       "group": "ko",
       "who": "lapis-man",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.lapis-man.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "pqHfZKP75CvOlQylNhV4"
+      }
     },
     {
       "id": "fighter.not-an-old-man-yet.ko",
       "group": "ko",
       "who": "not-an-old-man-yet",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.not-an-old-man-yet.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
     },
     {
       "id": "fighter.orchestrator.ko",
       "group": "ko",
       "who": "orchestrator",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.orchestrator.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
     },
     {
       "id": "fighter.pyro-singer.ko",
       "group": "ko",
       "who": "pyro-singer",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.pyro-singer.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "9BWtsMINqrJLrRacOk9x"
+      }
     },
     {
       "id": "fighter.shark-dude.ko",
       "group": "ko",
       "who": "shark-dude",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.shark-dude.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "N2lVS1w4EtoT3dr4eOWO"
+      }
     },
     {
       "id": "fighter.shutup-bot.ko",
       "group": "ko",
       "who": "shutup-bot",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.shutup-bot.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "SAz9YHcvj6GT2YYXdXww"
+      }
     },
     {
       "id": "fighter.slice.ko",
       "group": "ko",
       "who": "slice",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.slice.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "XB0fDUnXU5powFXDhCwa"
+      }
     },
     {
       "id": "fighter.slow-rider.ko",
       "group": "ko",
       "who": "slow-rider",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.slow-rider.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "fighter.small-weather.ko",
       "group": "ko",
       "who": "small-weather",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.small-weather.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "cjVigY5qzO86Huf0OWal"
+      }
     },
     {
       "id": "fighter.spider-bot.ko",
       "group": "ko",
       "who": "spider-bot",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.spider-bot.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "cjVigY5qzO86Huf0OWal"
+      }
     },
     {
       "id": "fighter.ss-boulder.ko",
       "group": "ko",
       "who": "ss-boulder",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.ss-boulder.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "XrExE9yKIg1WjnnlVkGX"
+      }
     },
     {
       "id": "fighter.stratabots.ko",
       "group": "ko",
       "who": "stratabots",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.stratabots.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "pqHfZKP75CvOlQylNhV4"
+      }
     },
     {
       "id": "fighter.susan.ko",
       "group": "ko",
       "who": "susan",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.susan.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "EXAVITQu4vr4xnSDxMaL"
+      }
     },
     {
       "id": "fighter.the-mechanic.ko",
       "group": "ko",
       "who": "the-mechanic",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.the-mechanic.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "iP95p4xoKVk53GoZ742B"
+      }
     },
     {
       "id": "fighter.try-belt.ko",
       "group": "ko",
       "who": "try-belt",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.try-belt.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "IKne3meq5aSn9XLyUdCD"
+      }
     },
     {
       "id": "fighter.tt.ko",
       "group": "ko",
       "who": "tt",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.tt.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "bIHbv24MWmeRgasZH58o"
+      }
     },
     {
       "id": "fighter.uh-me.ko",
       "group": "ko",
       "who": "uh-me",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.uh-me.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "SAz9YHcvj6GT2YYXdXww"
+      }
     },
     {
       "id": "fighter.wallit.ko",
       "group": "ko",
       "who": "wallit",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.wallit.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "fighter.yo-bot.ko",
       "group": "ko",
       "who": "yo-bot",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.yo-bot.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
     },
     {
       "id": "fighter.yooba.ko",
       "group": "ko",
       "who": "yooba",
       "text": "Aaaaagh!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.yooba.ko.mp3",
+      "take": {
+        "text": "Aaaaagh!",
+        "voice": "FGY2WhTYpPnrIDTdsKH5"
+      }
     },
     {
       "id": "fighter.ball-person.win",
       "group": "victory",
       "who": "ball-person",
       "text": "Back of the net.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.ball-person.win.mp3",
+      "take": {
+        "text": "Back of the net.",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
     },
     {
       "id": "fighter.blog-man.win",
       "group": "victory",
       "who": "blog-man",
       "text": "That's going on the front page.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.blog-man.win.mp3",
+      "take": {
+        "text": "That's going on the front page.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "fighter.break.win",
       "group": "victory",
       "who": "break",
       "text": "Rule one. I don't fall off.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.break.win.mp3",
+      "take": {
+        "text": "Rule one. I don't fall off.",
+        "voice": "N2lVS1w4EtoT3dr4eOWO"
+      }
     },
     {
       "id": "fighter.cel.win",
       "group": "victory",
       "who": "cel",
       "text": "You never even saw the sky.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.cel.win.mp3",
+      "take": {
+        "text": "You never even saw the sky.",
+        "voice": "Xb7hH8MSUJpSbSDYk0k2"
+      }
     },
     {
       "id": "fighter.chooser.win",
       "group": "victory",
       "who": "chooser",
       "text": "I chose this. I always choose this.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.chooser.win.mp3",
+      "take": {
+        "text": "I chose this. I always choose this.",
+        "voice": "FGY2WhTYpPnrIDTdsKH5"
+      }
     },
     {
       "id": "fighter.crosser.win",
       "group": "victory",
       "who": "crosser",
       "text": "You came to me. That was the mistake.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.crosser.win.mp3",
+      "take": {
+        "text": "You came to me. That was the mistake.",
+        "voice": "JBFqnCBsd6RMkjVDRZzb"
+      }
     },
     {
       "id": "fighter.crystalline-intelligences.win",
       "group": "victory",
       "who": "crystalline-intelligences",
       "text": "Calculated. Then burned.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.crystalline-intelligences.win.mp3",
+      "take": {
+        "text": "Calculated. Then burned.",
+        "voice": "pFZP5JQG7iQjIQuC4Bku"
+      }
     },
     {
       "id": "fighter.dj-wont-read.win",
       "group": "victory",
       "who": "dj-wont-read",
       "text": "Drop it. Again.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.dj-wont-read.win.mp3",
+      "take": {
+        "text": "Drop it. Again.",
+        "voice": "iP95p4xoKVk53GoZ742B"
+      }
     },
     {
       "id": "fighter.evil-blue-bird.win",
       "group": "victory",
       "who": "evil-blue-bird",
       "text": "Cute, right? Right up until it isn't.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.evil-blue-bird.win.mp3",
+      "take": {
+        "text": "Cute, right? Right up until it isn't.",
+        "voice": "cgSgspJ2msm6clMCkdW9"
+      }
     },
     {
       "id": "fighter.exit-punk.win",
       "group": "victory",
       "who": "exit-punk",
       "text": "I'm out of here.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.exit-punk.win.mp3",
+      "take": {
+        "text": "I'm out of here.",
+        "voice": "bIHbv24MWmeRgasZH58o"
+      }
     },
     {
       "id": "fighter.future-man.win",
       "group": "victory",
       "who": "future-man",
       "text": "I already saw how this ends.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.future-man.win.mp3",
+      "take": {
+        "text": "I already saw how this ends.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "fighter.got-ur-back.win",
       "group": "victory",
       "who": "got-ur-back",
       "text": "No hard feelings. Mostly.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.got-ur-back.win.mp3",
+      "take": {
+        "text": "No hard feelings. Mostly.",
+        "voice": "IKne3meq5aSn9XLyUdCD"
+      }
     },
     {
       "id": "fighter.kaelen.win",
       "group": "victory",
       "who": "kaelen",
       "text": "Hi. Bye.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.kaelen.win.mp3",
+      "take": {
+        "text": "Hi. Bye.",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
     },
     {
       "id": "fighter.lapis-man.win",
       "group": "victory",
       "who": "lapis-man",
       "text": "Respect your elders.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.lapis-man.win.mp3",
+      "take": {
+        "text": "Respect your elders.",
+        "voice": "pqHfZKP75CvOlQylNhV4"
+      }
     },
     {
       "id": "fighter.not-an-old-man-yet.win",
       "group": "victory",
       "who": "not-an-old-man-yet",
       "text": "Not yet. Not today.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.not-an-old-man-yet.win.mp3",
+      "take": {
+        "text": "Not yet. Not today.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
     },
     {
       "id": "fighter.orchestrator.win",
       "group": "victory",
       "who": "orchestrator",
       "text": "And that, is the finale.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.orchestrator.win.mp3",
+      "take": {
+        "text": "And that, is the finale.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
     },
     {
       "id": "fighter.pyro-singer.win",
       "group": "victory",
       "who": "pyro-singer",
       "text": "Encore? I'm just getting warm.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.pyro-singer.win.mp3",
+      "take": {
+        "text": "Encore? I'm just getting warm.",
+        "voice": "9BWtsMINqrJLrRacOk9x"
+      }
     },
     {
       "id": "fighter.shark-dude.win",
       "group": "victory",
       "who": "shark-dude",
       "text": "Smell that? That's fear.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.shark-dude.win.mp3",
+      "take": {
+        "text": "Smell that? That's fear.",
+        "voice": "N2lVS1w4EtoT3dr4eOWO"
+      }
     },
     {
       "id": "fighter.shutup-bot.win",
       "group": "victory",
       "who": "shutup-bot",
       "text": "Fine.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.shutup-bot.win.mp3",
+      "take": {
+        "text": "Fine.",
+        "voice": "SAz9YHcvj6GT2YYXdXww"
+      }
     },
     {
       "id": "fighter.slice.win",
       "group": "victory",
       "who": "slice",
       "text": "Clean.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.slice.win.mp3",
+      "take": {
+        "text": "Clean.",
+        "voice": "XB0fDUnXU5powFXDhCwa"
+      }
     },
     {
       "id": "fighter.slow-rider.win",
       "group": "victory",
       "who": "slow-rider",
       "text": "No rush. Never was.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.slow-rider.win.mp3",
+      "take": {
+        "text": "No rush. Never was.",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "fighter.small-weather.win",
       "group": "victory",
       "who": "small-weather",
       "text": "Forecast says: you lose.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.small-weather.win.mp3",
+      "take": {
+        "text": "Forecast says: you lose.",
+        "voice": "cjVigY5qzO86Huf0OWal"
+      }
     },
     {
       "id": "fighter.spider-bot.win",
       "group": "victory",
       "who": "spider-bot",
       "text": "Eight legs. Zero chances.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.spider-bot.win.mp3",
+      "take": {
+        "text": "Eight legs. Zero chances.",
+        "voice": "cjVigY5qzO86Huf0OWal"
+      }
     },
     {
       "id": "fighter.ss-boulder.win",
       "group": "victory",
       "who": "ss-boulder",
       "text": "The boulder wins. The boulder always wins.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.ss-boulder.win.mp3",
+      "take": {
+        "text": "The boulder wins. The boulder always wins.",
+        "voice": "XrExE9yKIg1WjnnlVkGX"
+      }
     },
     {
       "id": "fighter.stratabots.win",
       "group": "victory",
       "who": "stratabots",
       "text": "Plates locked. Opponent cracked.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.stratabots.win.mp3",
+      "take": {
+        "text": "Plates locked. Opponent cracked.",
+        "voice": "pqHfZKP75CvOlQylNhV4"
+      }
     },
     {
       "id": "fighter.susan.win",
       "group": "victory",
       "who": "susan",
       "text": "Stay in the dark.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.susan.win.mp3",
+      "take": {
+        "text": "Stay in the dark.",
+        "voice": "EXAVITQu4vr4xnSDxMaL"
+      }
     },
     {
       "id": "fighter.the-mechanic.win",
       "group": "victory",
       "who": "the-mechanic",
       "text": "Fixed it.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.the-mechanic.win.mp3",
+      "take": {
+        "text": "Fixed it.",
+        "voice": "iP95p4xoKVk53GoZ742B"
+      }
     },
     {
       "id": "fighter.try-belt.win",
       "group": "victory",
       "who": "try-belt",
       "text": "Told you I'd try.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.try-belt.win.mp3",
+      "take": {
+        "text": "Told you I'd try.",
+        "voice": "IKne3meq5aSn9XLyUdCD"
+      }
     },
     {
       "id": "fighter.tt.win",
       "group": "victory",
       "who": "tt",
       "text": "Slow and steady. Obviously.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.tt.win.mp3",
+      "take": {
+        "text": "Slow and steady. Obviously.",
+        "voice": "bIHbv24MWmeRgasZH58o"
+      }
     },
     {
       "id": "fighter.uh-me.win",
       "group": "victory",
       "who": "uh-me",
       "text": "Uh. Me.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.uh-me.win.mp3",
+      "take": {
+        "text": "Uh. Me.",
+        "voice": "SAz9YHcvj6GT2YYXdXww"
+      }
     },
     {
       "id": "fighter.wallit.win",
       "group": "victory",
       "who": "wallit",
       "text": "Pay up.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.wallit.win.mp3",
+      "take": {
+        "text": "Pay up.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "fighter.yo-bot.win",
       "group": "victory",
       "who": "yo-bot",
       "text": "Uploading victory.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.yo-bot.win.mp3",
+      "take": {
+        "text": "Uploading victory.",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
     },
     {
       "id": "fighter.yooba.win",
       "group": "victory",
       "who": "yooba",
       "text": "Yooba yooba.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/fighter.yooba.win.mp3",
+      "take": {
+        "text": "Yooba yooba.",
+        "voice": "FGY2WhTYpPnrIDTdsKH5"
+      }
     }
   ]
 }

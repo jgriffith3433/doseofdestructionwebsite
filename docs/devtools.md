@@ -38,6 +38,11 @@ other tabs stays put.
   victory lines and all campaign dialogue (editable here). Pick a voice for
   each speaker, then generate or upload takes. Saves `content/voice.json` and
   `content/campaign.json`; files go in `audio/voice/`.
+- **GPU**: the AWS GPU server that generates side views and clips, the
+  regions and quota it can use, and the job queue. See "Generating
+  animations" below.
+- **AI Settings**: every prompt and sampler setting for generation, with
+  per-fighter overrides and a live preview.
 - **Scripts**: buttons for the sim tests, typecheck, production build,
   animation builds, the lineup and image build, and `_recut.py`.
 
@@ -81,6 +86,100 @@ ELEVENLABS_API_KEY=your-key-here
 
 Without a key, everything else still works and you can upload audio files.
 
+## Generating animations
+
+The GPU tab runs ComfyUI on a g6e machine (an NVIDIA L40S, 48 GB) in your
+AWS account with Wan 2.2 Animate, Wan 2.2 image-to-video and
+Qwen-Image-Edit 2511. It needs these in `.env`:
+
+```
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+AWS_DEFAULT_REGION=us-east-1
+```
+
+`node tools/gpu/check.mjs` and `node tools/gpu/regions.mjs` show what the
+keys can see, without creating anything.
+
+**Cost.** About $1.86 an hour for a `g6e.xlarge` while it runs (bigger sizes
+are listed with their prices), and about $27 a month for its 250 GB disk
+until you terminate it. It stops itself after the idle time set at launch
+(30 minutes by default; the tab shows the cost so far). Launch, Start and
+Terminate all ask first.
+
+**Regions and quota.** The server can live in us-east-1, us-east-2 or
+us-west-2. "Region: any" launches in the first one with enough GPU quota and
+a free machine. GPU quota is how many GPU vCPUs the account may run in a
+region (a `g6e.xlarge` needs 4); the Regions card shows it, with open
+requests, and can request more (free; AWS reviews it, usually within a day).
+`node tools/gpu/quota.mjs` does the same from a terminal.
+
+**When AWS is full.** Quota doesn't reserve machines, so a launch or start
+can fail with "capacity": AWS has none free right now. Nothing is charged.
+Tick "keep trying" and the dev server retries every 3 minutes until it
+works or the time runs out (charges start when it succeeds). A failed try
+shows what kind of problem it was (capacity, quota, keys) and every zone it
+tried.
+
+**First launch** installs itself: about 30 to 45 minutes, mostly downloading
+90 GB of models (listed in `comfy/models.json`, set up by
+`comfy/server/bootstrap.sh`). The tab shows each stage. Later starts take a
+couple of minutes. Only this computer's IP can reach the server, through a
+password-protected proxy on port 8189; if your IP changes, use Refresh access.
+The password and SSH keys are in `.cache/gpu/` (gitignored); the tab shows
+the SSH command.
+
+### AI Settings
+
+Every prompt and setting the workflows use is in the AI Settings tab, saved
+to `content/generation.json` (anything not set there uses the defaults in
+`tools/gpu/settings.mjs`):
+
+- **Every job:** clip size, frame rate, takes per job, the background, and
+  the negative prompt.
+- **Side view, From a prompt, Copy the motion library:** each workflow's
+  prompt and its sampler settings (steps, CFG, shift, LoRA strengths, sampler,
+  scheduler, framing). Hints explain each one; Reset puts a section back.
+- **Per fighter:** a description of how they look, how their clips are made
+  (prompt or motion library), extra things to avoid, their own side view
+  prompt, their own action for any clip, and their own sampler settings.
+- **Clips:** what each clip shows and how long it is (`content/anim-clips.json`).
+
+Prompts can use `{name}`, `{description}`, `{action}` and `{background}`.
+A job's own settings win over the fighter's, which win over the defaults.
+The preview at the top shows exactly what a job would send, unsaved edits
+included.
+
+### Making clips
+
+1. **Side view.** In Fighters, "Generate side views" makes candidates in the
+   fighter's `anims/` folder (`_side-<seed>.png`); you can give them their own
+   prompt. "Use this" copies one to `_side.png`, which every clip animates from.
+2. **One clip.** In Animations, **Generate** on a clip card queues it with the
+   AI Settings defaults. **AI…** opens the clip editor, where you can set this
+   job's prompt, things to avoid, seed, number of takes, any sampler setting,
+   and what happens when it's done. "Will send" shows the final prompt.
+3. **Takes.** Generated clips land in `anims/_takes/<clip>-<seed>.mp4`, each with
+   a `.json` recipe (prompt, seed, settings). A clip with no video yet uses
+   the first take straight away; otherwise takes wait in the clip editor.
+   There: **Use** makes a take the clip (the old video moves to `anims/_old/`,
+   and it builds), **More like this** queues two more with the same prompt and
+   settings, **Discard** moves it to `anims/_old/`.
+4. **The motion library.** When a clip looks right, "Add to motion library"
+   in its editor copies it to `<art root>/_motions/<clip>.mp4`. Other
+   people-shaped fighters can then copy it with Wan Animate, so every
+   fighter's jab has the same timing. Bots and creatures default to prompts,
+   since a human skeleton won't drive them.
+5. **In bulk.** In Clips, "Generate with AI" queues every missing clip (or
+   one, or all) for a fighter, with a takes count and what to do when done.
+
+Jobs run one at a time and wait in the queue until the server is ready. In
+the GPU tab, **Details** on a job shows its exact prompt, settings, seeds and
+log, and downloads its ComfyUI workflow (drag the file into ComfyUI to open
+and tweak it there). **Rerun** queues it again with a new seed; **Same seed**
+repeats it exactly, which is how to test one setting at a time. A job left
+running when the dev server stops is marked interrupted; rerun it.
+
 ## Content files
 
 The game reads its data from `content/`:
@@ -92,6 +191,7 @@ The game reads its data from `content/`:
 | `campaign.json` | Chapters, fights and dialogue | Voice (lines) |
 | `sounds.json` | Sound effects and music | Sounds |
 | `voice.json` | Voices and non-campaign lines | Voice |
-| `anim-clips.json` | The clip names animation slots use | (by hand) |
+| `anim-clips.json` | The clip names animation slots use, and each clip's action and length | AI Settings (actions) |
+| `generation.json` | AI prompts and sampler settings, per fighter too | AI Settings |
 
 Stage numbers must be integers; the Maps tab rounds them when it saves.

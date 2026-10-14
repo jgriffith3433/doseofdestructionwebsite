@@ -6,6 +6,7 @@ import { fighter, type CharacterDef, type FighterEntry } from '../../game/sim/fi
 import { h } from '../../game/ui/dom.ts';
 import { api, dropTarget, log, pickFile, runTask, store } from '../api.ts';
 import { attempt, field, fighterList, numberInput, textInput, toast } from '../ui.ts';
+import { gpu, refreshGpu } from '../gpu.ts';
 import type { Tab } from '../main.ts';
 
 let root: HTMLElement;
@@ -208,6 +209,47 @@ function sourcesCard(id: string): HTMLElement {
   );
 }
 
+function sideViewsCard(id: string): HTMLElement {
+  const st = store.fighterState(id);
+  const sides = (st?.sides ?? []).filter((s) => !s.chosen).sort((a, b) => b.mtime - a.mtime);
+  const chosen = st?.sides?.find((s) => s.chosen);
+  return h(
+    'section',
+    { class: 'card' },
+    h('h3', {}, 'Side view', h('span', { class: 'spacer' }), chosen ? h('span', { class: 'badge ok' }, 'chosen') : h('span', { class: 'badge warn' }, 'none yet')),
+    h('p', { class: 'hint' }, 'Animations are side-on, so each fighter needs a side view to animate from. Generate candidates with Qwen-Image-Edit on the GPU server, then pick the one that looks most like them.'),
+    chosen && h('div', { class: 'art-small checker', style: 'height:200px' }, h('img', { src: api.sourceUrl(id, chosen.file, chosen.mtime), alt: 'Chosen side view' })),
+    sides.length
+      ? h('div', { class: 'sources' }, ...sides.map((s) => h('div', { class: 'source' },
+          h('a', { href: api.sourceUrl(id, s.file, s.mtime), target: '_blank', rel: 'noopener', title: s.recipe ? `seed ${s.recipe.seed}\n${s.recipe.prompt}` : s.file }, h('img', { src: api.sourceUrl(id, s.file, s.mtime), alt: s.file, loading: 'lazy' })),
+          h('button', { type: 'button', class: 'btn small', onclick: async () => {
+            if (await attempt(() => gpu.chooseSide(id, s.file.replace(/^anims\//, '')), 'Side view chosen.')) await store.refresh();
+          } }, 'Use this'))))
+      : null,
+    sideControls(id),
+  );
+}
+
+const sideAsk = { count: 4, prompt: '' };
+function sideControls(id: string): HTMLElement {
+  const prompt = h('textarea', { placeholder: 'Blank: the side view prompt from AI Settings (with this fighter’s description). Or say what to change: "same character, but holding the sword in the right hand".', style: 'min-height:54px' });
+  prompt.value = sideAsk.prompt;
+  prompt.addEventListener('input', () => (sideAsk.prompt = prompt.value));
+  return h(
+    'div',
+    {},
+    h('details', {}, h('summary', { class: 'muted' }, 'Prompt for these'), prompt),
+    h('div', { class: 'row' },
+      numberInput(sideAsk.count, (v) => (sideAsk.count = Math.max(1, Math.min(8, v ?? 4))), { min: 1, max: 8, style: 'width:56px' }),
+      h('button', { type: 'button', class: 'btn', onclick: async () => {
+        const n = sideAsk.count;
+        const spec = { type: 'side' as const, fighter: id, prompt: sideAsk.prompt.trim() || undefined, settings: { count: n } };
+        if (await attempt(() => gpu.queue([spec]), `Queued ${n} side view${n > 1 ? 's' : ''}. Progress is in the GPU tab.`)) await refreshGpu();
+      } }, 'Generate side views'),
+      h('a', { class: 'btn small', href: '#ai', title: 'Prompts, settings and this fighter’s description' }, 'AI Settings')),
+  );
+}
+
 function statsCard(f: FighterEntry): HTMLElement {
   const set = <K extends keyof FighterEntry>(k: K, v: FighterEntry[K]) => {
     f[k] = v;
@@ -286,7 +328,7 @@ function render(): void {
       h('button', { type: 'button', class: 'btn', onclick: () => { syncDraft(true); render(); } }, 'Revert'),
       saveBtn,
     ),
-    h('div', { class: 'cards' }, artCard(f.id), statsCard(f), sourcesCard(f.id)),
+    h('div', { class: 'cards' }, artCard(f.id), statsCard(f), sideViewsCard(f.id), sourcesCard(f.id)),
   );
 }
 

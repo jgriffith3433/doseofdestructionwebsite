@@ -6,8 +6,9 @@
 
 import { h, kids } from '../../game/ui/dom.ts';
 import { api, isBusy, onBusy, runTask, store } from '../api.ts';
-import { attempt, select, toast } from '../ui.ts';
+import { attempt, numberInput, select, toast } from '../ui.ts';
 import { clipEditorPanel, clipStatus, type ClipStatus } from './animations.ts';
+import { defaultMethod, gpu, gpuSnapshot, ready, refreshGpu, watchGpu, type GpuState, type JobSpec } from '../gpu.ts';
 import type { Tab } from '../main.ts';
 
 interface Row {
@@ -36,6 +37,14 @@ let query = '';
 let selected = '';
 let stopEditor: (() => void) | null = null;
 let batch = false;
+let gen: { fighter: string; which: string; method: 'auto' | 'animate' | 'i2v'; takes: number | null; use: 'auto' | 'pick' | 'replace' } = { fighter: '', which: 'missing', method: 'auto', takes: null, use: 'auto' };
+/** Each fighter's "Make clips by" choice from AI Settings. */
+let methods: Record<string, string | undefined> = {};
+async function loadMethods(): Promise<void> {
+  const g = await api.content<{ fighters?: Record<string, { method?: string }> }>('generation').catch(() => ({ fighters: {} }));
+  methods = Object.fromEntries(Object.entries(g.fighters ?? {}).map(([id, f]) => [id, (f as { method?: string }).method]));
+}
+let gpuState: GpuState | null = null;
 
 function allClips(): Set<string> {
   const c = store.clips;
@@ -92,6 +101,62 @@ async function rename(r: Row, to: string): Promise<void> {
     selected = `${r.fighter}/${to}`;
     await store.refresh();
   }
+}
+
+/** The jobs a Generate request turns into. */
+function plan(): JobSpec[] {
+  const c = store.clips;
+  const st = store.fighterState(gen.fighter);
+  if (!c || !st) return [];
+  const all = [...c.loops, ...c.once, ...c.moves];
+  const names = gen.which === 'missing' ? all.filter((n) => !st.clipSources[n] && !st.manifest?.clips[n]) : gen.which === 'all' ? all : [gen.which];
+  const motions = gpuState?.motions ?? [];
+  return names.map((clip) => {
+    const type = gen.method === 'auto' ? defaultMethod(gen.fighter, clip, motions, methods[gen.fighter]) : gen.method;
+    return { type, fighter: gen.fighter, clip, takes: gen.takes ?? undefined, use: gen.use };
+  });
+}
+
+function generatePanel(): HTMLElement {
+  if (!gen.fighter) gen.fighter = store.selected || store.fighters[0]?.id || '';
+  const c = store.clips;
+  const jobs = plan();
+  const server = gpuState?.server;
+  const live = ready(server);
+  const motions = new Set((gpuState?.motions ?? []).map((m) => m.clip));
+  const withoutMotion = jobs.filter((j) => j.type === 'animate' && !motions.has(j.clip!)).length;
+  const fromMotion = jobs.filter((j) => j.type === 'animate').length;
+  const side = store.fighterState(gen.fighter)?.sides?.some((s) => s.chosen);
+  const queued = gpuState?.jobs.filter((j) => j.status === 'queued' || j.status === 'running').length ?? 0;
+  return h(
+    'section',
+    { class: 'card', style: 'margin-bottom:14px' },
+    h('h3', {}, 'Generate with AI', h('span', { class: 'spacer' }),
+      h('span', { class: `badge ${live ? 'ok' : 'warn'}` }, live ? 'GPU ready' : server?.exists ? `GPU ${server.state}${server.boot?.stage && server.state === 'running' ? `: ${server.boot.stage}` : ''}` : 'no GPU server'),
+      queued ? h('span', { class: 'badge warn' }, `${queued} in the queue`) : null),
+    h('div', { class: 'row' },
+      select(store.fighters.map((f): [string, string] => [f.id, f.name]), gen.fighter, (v) => { gen.fighter = v; render(); }),
+      select([['missing', 'Every missing clip'], ['all', 'Every clip (replaces)'], ...(c ? [...c.loops, ...c.once, ...c.moves].map((n): [string, string] => [n, c.labels[n] ?? n]) : [])] as [string, string][], gen.which, (v) => { gen.which = v; render(); }),
+      select<typeof gen.method>([['auto', methods[gen.fighter] ? `This fighter’s choice (${methods[gen.fighter] === 'i2v' ? 'prompt' : 'motion library'})` : 'Auto: motion library for people, prompt for creatures'], ['animate', 'Copy the motion library'], ['i2v', 'From a prompt']], gen.method, (v) => { gen.method = v; render(); }),
+      numberInput(gen.takes, (v) => (gen.takes = v), { min: 1, max: 8, placeholder: 'takes', title: 'Takes per clip (blank: AI Settings)', style: 'width:64px' }),
+      select<typeof gen.use>([['auto', 'Use each if the clip is empty'], ['pick', 'Let me pick takes'], ['replace', 'Replace existing clips']], gen.use, (v) => { gen.use = v; }),
+      h('button', {
+        type: 'button', class: 'btn primary', disabled: !jobs.length || withoutMotion > 0,
+        onclick: async () => {
+          const out = await attempt(() => gpu.queue(jobs));
+          if (out) {
+            toast(`Queued ${jobs.length} job${jobs.length > 1 ? 's' : ''}.${live ? '' : ' They run once the GPU server is ready.'}`);
+            await refreshGpu();
+          }
+        },
+      }, `Queue ${jobs.length} clip${jobs.length === 1 ? '' : 's'}`),
+    ),
+    h('p', { class: 'hint' + (withoutMotion ? ' warn' : '') },
+      withoutMotion
+        ? `${withoutMotion} of these would copy the motion library, which has no video for them yet. Pick "From a prompt", or add those clips to the library first.`
+        : `${jobs.length - fromMotion} from a prompt, ${fromMotion} copying the motion library. ${side ? 'Uses the chosen side view.' : 'No side view chosen for this fighter yet: the front art is used, which animates side-on less well. Generate side views in the Fighters tab.'}`),
+    !live && h('p', { class: 'hint' }, 'Jobs wait in the queue until the GPU server is running and set up (GPU tab).'),
+  );
 }
 
 function rowEl(r: Row): HTMLElement {
@@ -177,6 +242,7 @@ function render(): void {
           h('button', { type: 'button', class: 'btn primary', disabled: busy || !waiting.length, onclick: () => processRows(waiting) }, batch ? 'Processing…' : `Process all waiting (${waiting.length})`),
         ),
       ),
+      generatePanel(),
       h('p', { class: 'hint' }, 'Put each animation in ', h('code', {}, `${store.state?.artRoot}\\<Fighter>\\anims\\<clip>.mp4`),
         ` (${folders} fighter folders found). Each anims folder has a reference image and a CLIPS.txt checklist. Processing keys out the background, lines the frames up on the feet and builds the sheet the game plays. Edit a clip to trim it or tune the keying, then Save & rebuild.`),
       h(
@@ -211,6 +277,13 @@ export const clipsTab: Tab = {
   mount(el) {
     root = el;
     el.style.display = 'block';
+    gpuState = gpuSnapshot();
+    watchGpu((s) => {
+      const changed = JSON.stringify([s.server.state, s.server.boot?.stage, s.motions.length, s.jobs.length]) !== JSON.stringify([gpuState?.server.state, gpuState?.server.boot?.stage, gpuState?.motions.length, gpuState?.jobs.length]);
+      gpuState = s;
+      // Don't redraw (and reset an open clip editor) for every poll.
+      if (changed && !root.hidden && !selected) render();
+    });
     onBusy(() => {
       if (!root.hidden && !batch) render();
     });
@@ -219,6 +292,7 @@ export const clipsTab: Tab = {
     });
   },
   show() {
-    void store.refresh();
+    // store.refresh() redraws once the methods are in.
+    void loadMethods().then(() => store.refresh());
   },
 };

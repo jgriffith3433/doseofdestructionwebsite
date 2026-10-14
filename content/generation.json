@@ -1,0 +1,4 @@
+{
+  "_about": "AI generation settings, edited in devtools (AI Settings). Anything left out uses the defaults in tools/gpu/settings.mjs. Prompts can use {name}, {description}, {action} and {background}. Fighter overrides win over these, and a job's own settings win over both.",
+  "fighters": {}
+}

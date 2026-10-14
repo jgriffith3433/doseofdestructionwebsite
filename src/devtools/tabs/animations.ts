@@ -8,7 +8,8 @@ import type { Clip } from '../../game/render/anims.ts';
 import { h, kids } from '../../game/ui/dom.ts';
 import { api, dropTarget, log, pickFile, runTask, store, type ClipOptions, type FighterState } from '../api.ts';
 import { animate, drawFrame, frameAt } from '../sprites.ts';
-import { attempt, checkbox, field, fighterList, numberInput, select } from '../ui.ts';
+import { attempt, checkbox, field, fighterList, numberInput, select, toast } from '../ui.ts';
+import { CREATURES, defaultMethod, gpu, gpuSnapshot, refreshGpu, type JobSpec } from '../gpu.ts';
 import type { Tab } from '../main.ts';
 
 const VIDEO_ACCEPT = 'video/mp4,video/webm,video/quicktime,video/x-matroska,image/gif,.mp4,.mov,.webm,.mkv,.gif,.avi';
@@ -73,6 +74,7 @@ async function deleteClip(name: string): Promise<void> {
 function clipCard(st: FighterState, name: string, ch?: CharacterDef): HTMLElement {
   const built = st.manifest?.clips[name];
   const src = st.clipSources[name];
+  const takeCount = (st.takes ?? []).filter((t) => t.clip === name).length;
   const canvas = built ? h('canvas', { class: 'checker' }) : null;
   const badge = built
     ? h('span', { class: 'badge ok' }, `${built.frames} frames`)
@@ -95,6 +97,16 @@ function clipCard(st: FighterState, name: string, ch?: CharacterDef): HTMLElemen
       }, 'Import'),
       src && h('button', { type: 'button', class: 'btn small', onclick: () => buildClip(name) }, 'Build'),
       (src || built) && h('button', { type: 'button', class: 'btn small', onclick: () => openEditor(name) }, 'Edit'),
+      h('button', {
+        type: 'button', class: 'btn small', title: 'Queue this clip on the GPU server with the AI Settings defaults. Open the editor (AI…) for prompt, seed and takes.',
+        onclick: async () => {
+          const type = defaultMethod(st.id, name, gpuSnapshot()?.motions ?? []);
+          // A clip that already exists gets takes to pick from instead of being replaced.
+          if (await attempt(() => gpu.queue([{ type, fighter: st.id, clip: name, use: src ? 'pick' : 'auto' }]), `Queued ${label(name)} (${type === 'animate' ? 'copying the motion library' : 'from a prompt'}).${src ? ' The takes wait for you to pick.' : ''}`)) await refreshGpu();
+        },
+      }, 'Generate'),
+      h('button', { type: 'button', class: 'btn small', title: 'Prompt, seed, takes and settings for this clip', onclick: () => openEditor(name) }, 'AI…'),
+      takeCount > 0 && h('span', { class: 'badge warn', title: 'Generated takes waiting to be picked (Edit)' }, `${takeCount} take${takeCount > 1 ? 's' : ''}`),
     ),
   );
   dropTarget(card, (file) => importClip(name, file));
@@ -192,6 +204,7 @@ function editor(st: FighterState, name: string, ch: CharacterDef | undefined, on
     ),
   );
   dropTarget(source, (file) => importClip(name, file));
+  source.append(generateBox(st, name));
 
   // ---- in-game side
   let game: HTMLElement;
@@ -262,7 +275,135 @@ function editor(st: FighterState, name: string, ch: CharacterDef | undefined, on
   } else {
     game = h('section', { class: 'card' }, h('h3', {}, 'In game'), h('p', { class: 'hint' }, src ? 'Build the clip to preview it here.' : 'Import a video to start.'));
   }
-  return h('div', { class: 'editor' }, source, game);
+  return h('div', { class: 'editor' }, source, game, takesCard(st, name));
+}
+
+interface GenDraft {
+  type: 'i2v' | 'animate';
+  prompt: string;
+  negative: string;
+  seed: number | null;
+  takes: number | null;
+  use: 'auto' | 'replace' | 'pick';
+  settings: Record<string, number>;
+}
+const drafts = new Map<string, GenDraft>();
+
+/** Generate this clip on the GPU server, with this job's own prompt and settings. */
+function generateBox(st: FighterState, name: string): HTMLElement {
+  const g = gpuSnapshot();
+  const hasMotion = !!g?.motions.some((m) => m.clip === name);
+  const key = `${st.id}:${name}`;
+  const d = drafts.get(key) ?? { type: defaultMethod(st.id, name, g?.motions ?? []), prompt: '', negative: '', seed: null, takes: null, use: st.clipSources[name] ? 'pick' : 'auto', settings: {} };
+  drafts.set(key, d);
+  const spec = (): JobSpec => ({
+    type: d.type, fighter: st.id, clip: name,
+    prompt: d.prompt.trim() || undefined, negative: d.negative.trim() || undefined,
+    seed: d.seed ?? undefined, takes: d.takes ?? undefined, use: d.use,
+    settings: Object.keys(d.settings).length ? d.settings : undefined,
+  });
+
+  // What this job will send, refreshed as the fields change.
+  const sends = h('p', { class: 'hint text' }, '…');
+  const knobs = h('dl', { class: 'form' });
+  let timer = 0;
+  const refresh = () => {
+    clearTimeout(timer);
+    timer = window.setTimeout(async () => {
+      try {
+        const r = await gpu.preview({ ...spec(), settings: undefined });
+        const withMine = await gpu.preview(spec());
+        sends.textContent = withMine.prompt;
+        sends.title = `Negative: ${withMine.negative}`;
+        prompt.placeholder = `Blank: ${r.prompt}`;
+        // One box per number the workflow takes; blank uses AI Settings.
+        if (!knobs.childElementCount) {
+          for (const [k, v] of Object.entries(r.settings)) {
+            if (typeof v !== 'number') continue;
+            knobs.append(field(k, numberInput(d.settings[k] ?? null, (x) => {
+              if (x == null) delete d.settings[k];
+              else d.settings[k] = x;
+              refresh();
+            }, { step: Number.isInteger(v) ? 1 : 0.05, placeholder: String(v) })));
+          }
+        }
+        frames.textContent = `${withMine.frames ?? '?'} frames at ${withMine.fps} fps, ${withMine.size}px`;
+      } catch (e) {
+        sends.textContent = (e as Error).message;
+      }
+    }, 250);
+  };
+  const frames = h('span', { class: 'muted' });
+  const prompt = h('textarea', { style: 'min-height:64px' });
+  prompt.value = d.prompt;
+  prompt.addEventListener('input', () => { d.prompt = prompt.value; refresh(); });
+  const negative = h('input', { type: 'text', value: d.negative, placeholder: 'Extra things to avoid for this job: "cape, second sword"' });
+  negative.addEventListener('input', () => { d.negative = negative.value; refresh(); });
+  const motionOk = hasMotion && !CREATURES.has(st.id);
+  if (d.type === 'animate' && !motionOk) d.type = 'i2v';
+  refresh();
+
+  return h(
+    'div',
+    { class: 'card', style: 'background:var(--panel-2)' },
+    h('h3', {}, 'Generate with AI', h('span', { class: 'spacer' }), h('a', { class: 'btn small', href: '#ai', title: 'Defaults, this fighter’s description and per-clip actions' }, 'AI Settings')),
+    h('div', { class: 'row' },
+      select<GenDraft['type']>([['i2v', 'From a prompt'], ...(motionOk ? [['animate', 'Copy the motion library'] as ['animate', string]] : [])], d.type, (v) => { d.type = v; knobs.replaceChildren(); refresh(); }),
+      !motionOk && h('span', { class: 'hint' }, CREATURES.has(st.id) ? 'Creatures animate from prompts.' : 'No motion library clip for this yet.')),
+    field('Prompt', prompt, { wide: true, sub: 'Blank uses AI Settings. You can use {name}, {description}, {action} and {background} here too.' }),
+    field('Avoid', negative, { wide: true }),
+    h('div', { class: 'form' },
+      field('Takes', numberInput(d.takes, (v) => (d.takes = v), { min: 1, max: 8, placeholder: 'AI Settings' }), { sub: 'Variations to pick from' }),
+      field('Seed', numberInput(d.seed, (v) => (d.seed = v && v > 0 ? Math.round(v) : null), { min: 1, placeholder: 'random' }), { sub: 'Same seed + same settings = same clip' }),
+      field('When done', select<GenDraft['use']>([['auto', 'Use it if there’s no clip yet'], ['replace', 'Use the first take now'], ['pick', 'Let me pick a take']], d.use, (v) => (d.use = v)))),
+    h('details', {}, h('summary', { class: 'muted' }, 'Settings for this job'), h('p', { class: 'hint' }, 'Blank uses AI Settings (shown greyed). What each one does is explained there.'), knobs),
+    h('div', { class: 'field' }, h('label', {}, 'Will send'), sends, frames),
+    h('div', { class: 'row' },
+      h('button', { type: 'button', class: 'btn primary', onclick: async () => {
+        if (await attempt(() => gpu.queue([spec()]), 'Queued. Progress is in the GPU tab; takes show up below when done.')) await refreshGpu();
+      } }, 'Queue'),
+      h('span', { class: 'spacer' }),
+      st.clipSources[name] && h('button', {
+        type: 'button', class: 'btn', title: 'Every fighter copying this clip will move like this one',
+        onclick: async () => {
+          if (hasMotion && !confirm(`Replace the motion library's ${name} with ${store.entry(st.id)?.name}'s?`)) return;
+          if (await attempt(() => gpu.promote(st.id, name), `${name} is now in the motion library.`)) await refreshGpu();
+        },
+      }, 'Add to motion library')),
+  );
+}
+
+/** Generated takes of this clip, to compare, use, discard or make more like. */
+function takesCard(st: FighterState, name: string): HTMLElement | null {
+  const takes = (st.takes ?? []).filter((t) => t.clip === name).sort((a, b) => b.mtime - a.mtime);
+  if (!takes.length) return null;
+  return h(
+    'section',
+    { class: 'card takes' },
+    h('h3', {}, `Takes · ${label(name)}`, h('span', { class: 'spacer' }), h('span', { class: 'muted' }, `${takes.length} waiting in anims/_takes/`)),
+    h('div', { class: 'take-grid' }, ...takes.map((t) => {
+      const r = t.recipe;
+      return h(
+        'div',
+        { class: 'take' },
+        h('video', { src: api.sourceUrl(st.id, t.file, t.mtime), muted: true, loop: true, autoplay: true, playsinline: true, controls: true, class: 'checker' }),
+        h('div', { class: 'muted mono', title: r ? `${r.prompt}\n\n${Object.entries(r.settings).map(([k, v]) => `${k} ${v}`).join(' · ')}` : '' },
+          `seed ${t.seed}${r ? ` · ${r.type === 'animate' ? 'motion' : 'prompt'} · ${r.frames ?? '?'}f` : ''}`),
+        h('div', { class: 'row' },
+          h('button', { type: 'button', class: 'btn small primary', onclick: async () => {
+            if (st.clipSources[name] && !confirm(`Use this take as ${label(name)}? The current video moves to anims/_old/.`)) return;
+            if (await attempt(() => gpu.useTake(st.id, name, t.file), `Seed ${t.seed} is now ${label(name)}.`)) await store.refresh();
+          } }, 'Use'),
+          r && h('button', { type: 'button', class: 'btn small', title: 'Queue more takes with this prompt and these settings (new seeds)', onclick: async () => {
+            const job: JobSpec = { type: r.type === 'animate' ? 'animate' : 'i2v', fighter: st.id, clip: name, prompt: r.prompt, settings: r.settings as Record<string, unknown>, takes: 2, use: 'pick' };
+            if (await attempt(() => gpu.queue([job]), 'Queued 2 more like this.')) await refreshGpu();
+          } }, 'More like this'),
+          h('button', { type: 'button', class: 'btn small', title: 'Move it to anims/_old/', onclick: async () => {
+            if (await attempt(() => gpu.discardTake(st.id, t.file))) await store.refresh();
+          } }, 'Discard')),
+      );
+    })),
+  );
 }
 
 function timelineParts(move: Move): HTMLElement[] {

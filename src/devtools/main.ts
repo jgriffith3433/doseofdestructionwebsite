@@ -11,6 +11,8 @@ import { mapsTab } from './tabs/maps.ts';
 import { soundsTab } from './tabs/sounds.ts';
 import { voiceTab } from './tabs/voice.ts';
 import { scriptsTab } from './tabs/scripts.ts';
+import { gpuTab } from './tabs/gpu.ts';
+import { aiTab } from './tabs/ai.ts';
 
 export interface Tab {
   mount(el: HTMLElement): void;
@@ -25,6 +27,8 @@ const TABS: Record<string, Tab> = {
   maps: mapsTab,
   sounds: soundsTab,
   voice: voiceTab,
+  gpu: gpuTab,
+  ai: aiTab,
   scripts: scriptsTab,
 };
 const mounted = new Set<string>();

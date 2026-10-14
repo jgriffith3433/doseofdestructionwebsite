@@ -7,6 +7,7 @@ import type { VoiceCatalog, VoiceLine } from '../../game/audio.ts';
 import type { ChapterEntry, Line } from '../../game/campaign/story.ts';
 import { h, kids } from '../../game/ui/dom.ts';
 import { api, dropTarget, log, pickFile, store, thumb } from '../api.ts';
+import { batchRunning, runBatch } from '../batch.ts';
 import { attempt, field, preview, select, toast } from '../ui.ts';
 import type { Tab } from '../main.ts';
 
@@ -41,6 +42,9 @@ let filter = '';
 let group = 'all';
 let status: 'all' | 'missing' | 'stale' = 'all';
 let busy = false;
+/** Saves run one after another so a batch never writes an older catalog over a newer one. */
+let saving: Promise<unknown> = Promise.resolve();
+const saveSoon = () => (saving = saving.then(() => save(true)));
 /** The model is part of the cast, saved in content/voice.json. */
 const model = () => catalog.model ?? 'eleven_v4';
 
@@ -103,23 +107,23 @@ function fileId(it: Item): string {
   return it.source === 'voice' ? it.key : `${it.key.replace(/\.(\d+)$/, '')}-${Date.now().toString(36)}`;
 }
 
-async function generate(it: Item): Promise<boolean> {
+/** Voices one line and saves. Throws on failure. */
+async function generateOne(it: Item): Promise<void> {
   const voice = catalog.voices[it.who];
-  if (!voice) {
-    toast(`Pick a voice for ${speakerName(it.who)} first.`, 'error');
-    return false;
-  }
+  if (!voice) throw new Error(`Pick a voice for ${speakerName(it.who)} first.`);
   log(`Voicing ${it.key} as ${speakerName(it.who)}: ${it.line.text}`);
   const old = it.line.audio;
-  const out = await attempt(() => api.post<{ file: string; take: { text: string; voice: string } }>('/voice/generate', { id: fileId(it), text: it.line.text, voice, model: model() }));
-  if (!out) return false;
+  const out = await api.post<{ file: string; take: { text: string; voice: string } }>('/voice/generate', { id: fileId(it), text: it.line.text, voice, model: model() });
   it.line.audio = out.file;
   it.line.take = out.take;
   if (old && old !== out.file) await api.post('/audio/delete', { file: old }).catch(() => undefined);
   markDirty(it.source);
-  await save(true);
+  await saveSoon();
   log(`  saved ${out.file}`, 'ok');
-  return true;
+}
+
+async function generate(it: Item): Promise<boolean> {
+  return (await attempt(() => generateOne(it).then(() => true))) ?? false;
 }
 
 async function upload(it: Item, file: File): Promise<void> {
@@ -134,20 +138,20 @@ async function upload(it: Item, file: File): Promise<void> {
   render();
 }
 
-async function generateAll(list: Item[]): Promise<void> {
-  const todo = list.filter((it) => {
-    const st = stateOf(it);
-    return (st === 'missing' || st === 'stale') && catalog.voices[it.who];
-  });
-  const noVoice = new Set(list.filter((it) => !catalog.voices[it.who]).map((it) => speakerName(it.who)));
+/** Voices every line in list that is in one of the given states, a few at a time, riding out throttling. */
+async function generateAll(list: Item[], which: ('missing' | 'stale')[] = ['missing', 'stale']): Promise<void> {
+  const want = list.filter((it) => (which as string[]).includes(stateOf(it)) && it.line.text.trim());
+  const todo = want.filter((it) => catalog.voices[it.who]);
+  const noVoice = new Set(want.filter((it) => !catalog.voices[it.who]).map((it) => speakerName(it.who)));
   if (!todo.length) {
-    toast(noVoice.size ? `Pick voices first: ${[...noVoice].slice(0, 4).join(', ')}${noVoice.size > 4 ? '…' : ''}` : 'Every shown line is current.', noVoice.size ? 'error' : 'ok');
+    toast(noVoice.size ? `Pick voices first: ${[...noVoice].slice(0, 4).join(', ')}${noVoice.size > 4 ? '…' : ''}` : 'Nothing to generate.', noVoice.size ? 'error' : 'ok');
     return;
   }
-  if (!confirm(`Generate ${todo.length} line${todo.length > 1 ? 's' : ''} with ElevenLabs? Each uses credits.${noVoice.size ? `\n\nSkipping speakers with no voice: ${[...noVoice].join(', ')}` : ''}`)) return;
+  const what = which.length === 2 ? 'missing and out-of-date' : which[0] === 'missing' ? 'missing' : 'out-of-date';
+  if (!confirm(`Generate ${todo.length} ${what} line${todo.length > 1 ? 's' : ''} with ElevenLabs? Each uses credits.${noVoice.size ? `\n\nSkipping speakers with no voice: ${[...noVoice].join(', ')}` : ''}`)) return;
   busy = true;
   render();
-  for (const it of todo) if (!(await generate(it))) break;
+  await runBatch({ label: `Voice (${what})`, items: todo, name: (it) => it.key, run: generateOne, progress: render });
   busy = false;
   render();
 }
@@ -175,6 +179,8 @@ function renderBar(): void {
     h('span', { class: 'muted' }, `${all.length} lines · ${missing} without a take · ${stale} out of date`),
     h('span', { class: 'spacer' }),
     !key && h('span', { class: 'pill warn' }, 'Add ELEVENLABS_API_KEY to .env to generate'),
+    h('button', { type: 'button', class: 'btn', disabled: !key || busy || batchRunning() || !missing, onclick: () => generateAll(items(), ['missing']) }, busy ? 'Generating…' : `Generate missing (${missing})`),
+    stale > 0 && h('button', { type: 'button', class: 'btn', disabled: !key || busy || batchRunning(), onclick: () => generateAll(items(), ['stale']) }, `Regenerate out of date (${stale})`),
     select(MODELS.includes(model()) ? MODELS : [model(), ...MODELS], model(), (v) => {
       catalog.model = v;
       markDirty('voice');
@@ -333,7 +339,7 @@ function render(): void {
             search,
             select(groups.map((g): [string, string] => [g, g === 'all' ? 'All groups' : g]), group, (v) => { group = v; render(); }),
             select<typeof status>([['all', 'Any status'], ['missing', 'No take'], ['stale', 'Out of date']], status, (v) => { status = v; render(); }),
-            h('button', { type: 'button', class: 'btn', disabled: !store.state?.elevenLabs || busy, onclick: () => generateAll(shown) }, busy ? 'Generating…' : `Generate shown (${shown.length})`),
+            h('button', { type: 'button', class: 'btn', disabled: !store.state?.elevenLabs || busy || batchRunning(), onclick: () => generateAll(shown) }, busy ? 'Generating…' : `Generate shown (${shown.length})`),
           ),
           h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
             h('thead', {}, h('tr', {}, h('th', {}, ''), h('th', {}, 'Speaker'), h('th', {}, 'Status'), h('th', {}, 'Line'))),

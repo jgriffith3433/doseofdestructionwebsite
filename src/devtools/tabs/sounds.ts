@@ -5,6 +5,7 @@
 import type { SoundEntry } from '../../game/audio.ts';
 import { h, kids } from '../../game/ui/dom.ts';
 import { api, dropTarget, log, pickFile, store } from '../api.ts';
+import { batchRunning, runBatch } from '../batch.ts';
 import { attempt, checkbox, field, numberInput, preview, select, toast } from '../ui.ts';
 import type { Tab } from '../main.ts';
 
@@ -25,6 +26,9 @@ let dirty = false;
 let filter = '';
 let status: 'all' | 'missing' | 'stale' = 'all';
 let generating = false;
+/** Saves run one after another so a batch never writes an older catalog over a newer one. */
+let saving: Promise<unknown> = Promise.resolve();
+const saveSoon = () => (saving = saving.then(() => save(true)));
 
 function state(s: SoundEntry): 'missing' | 'stale' | 'ok' | 'manual' {
   if (!s.file) return 'missing';
@@ -49,17 +53,18 @@ function markDirty(): void {
   renderBar();
 }
 
-async function generate(s: SoundEntry): Promise<boolean> {
+/** Generates one sound and saves the catalog. Throws on failure. */
+async function generateOne(s: SoundEntry): Promise<void> {
   log(`Generating sound ${s.id}: ${s.text}`);
-  const out = await attempt(() =>
-    api.post<{ file: string; take: SoundEntry['take'] }>('/sfx/generate', { id: s.id, text: s.text, loop: s.loop, duration: s.duration, influence: s.influence }),
-  );
-  if (!out) return false;
+  const out = await api.post<{ file: string; take: SoundEntry['take'] }>('/sfx/generate', { id: s.id, text: s.text, loop: s.loop, duration: s.duration, influence: s.influence });
   s.file = out.file;
   s.take = out.take;
   log(`  saved ${out.file}`, 'ok');
-  await save(true);
-  return true;
+  await saveSoon();
+}
+
+async function generate(s: SoundEntry): Promise<boolean> {
+  return (await attempt(() => generateOne(s).then(() => true))) ?? false;
 }
 
 async function upload(s: SoundEntry, file: File): Promise<void> {
@@ -73,19 +78,22 @@ async function upload(s: SoundEntry, file: File): Promise<void> {
   render();
 }
 
-async function generateMissing(): Promise<void> {
-  const todo = sounds.filter((s) => state(s) === 'missing' || state(s) === 'stale');
+/** Generates every sound in the given states, a few at a time, riding out throttling. */
+async function generateBatch(which: ('missing' | 'stale')[]): Promise<void> {
+  const want = sounds.filter((s) => (which as string[]).includes(state(s)));
+  const todo = want.filter((s) => s.text.trim());
+  const blank = want.length - todo.length;
   if (!todo.length) {
-    toast('Every sound is current.');
+    toast(blank ? `${blank} sound${blank > 1 ? 's need' : ' needs'} a description first.` : 'Nothing to generate.', blank ? 'error' : 'ok');
     return;
   }
-  if (!confirm(`Generate ${todo.length} sound${todo.length > 1 ? 's' : ''} with ElevenLabs? Each one uses credits.`)) return;
+  const what = which.length === 2 ? 'missing and out-of-date' : which[0] === 'missing' ? 'missing' : 'out-of-date';
+  if (!confirm(`Generate ${todo.length} ${what} sound${todo.length > 1 ? 's' : ''} with ElevenLabs? Each one uses credits.${blank ? `
+
+Skipping ${blank} with no description.` : ''}`)) return;
   generating = true;
   render();
-  for (const s of todo) {
-    if (!(await generate(s))) break;
-    render();
-  }
+  await runBatch({ label: `Sounds (${what})`, items: todo, name: (s) => s.id, run: generateOne, progress: render });
   generating = false;
   render();
 }
@@ -105,7 +113,8 @@ function renderBar(): void {
     h('span', { class: 'muted' }, `${sounds.length} sounds · ${counts.missing} without a file · ${counts.stale} out of date`),
     h('span', { class: 'spacer' }),
     !key && h('span', { class: 'pill warn' }, 'Add ELEVENLABS_API_KEY to .env to generate'),
-    h('button', { type: 'button', class: 'btn', disabled: !key || generating, onclick: generateMissing }, generating ? 'Generating…' : 'Generate missing and out of date'),
+    h('button', { type: 'button', class: 'btn', disabled: !key || generating || batchRunning() || !counts.missing, onclick: () => generateBatch(['missing']) }, generating ? 'Generating…' : `Generate missing (${counts.missing})`),
+    counts.stale > 0 && h('button', { type: 'button', class: 'btn', disabled: !key || generating || batchRunning(), onclick: () => generateBatch(['stale']) }, `Regenerate out of date (${counts.stale})`),
     h('button', { type: 'button', class: 'btn', onclick: addSound }, 'Add sound'),
     h('button', { type: 'button', class: 'btn primary', disabled: !dirty, onclick: () => save() }, dirty ? 'Save sounds' : 'Saved'),
   ));

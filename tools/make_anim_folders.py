@@ -25,39 +25,6 @@ ROOT = Path(__file__).resolve().parent.parent
 ART_ROOT = Path(os.environ.get("DOD_ART_ROOT", r"C:\Projects\AllTheCharacters"))
 GREEN = (0, 255, 0)
 
-# What each clip shows, for the checklist and the prompt.
-WHAT = {
-    "idle": "standing in a fighting stance, breathing, ready. A seamless loop",
-    "walk": "walking forward, a seamless walk cycle",
-    "crouch": "crouching low and holding it",
-    "fall": "falling through the air, arms out, a loop",
-    "shield": "guarding behind a glowing energy shield, holding it",
-    "ledge": "hanging from a ledge by the hands",
-    "dizzy": "dazed and wobbling on the spot, a loop",
-    "helpless": "tumbling down out of control, a loop",
-    "hurt": "knocked back by a hit, reeling, a loop",
-    "jumpsquat": "crouching quickly to jump",
-    "jump": "jumping straight up",
-    "land": "landing from a jump with a small crouch",
-    "roll": "rolling forward along the ground",
-    "dodge": "a quick sidestep dodge on the spot",
-    "airdodge": "a quick twisting dodge in midair",
-    "climb": "climbing up over a ledge",
-    "jab": "a quick light punch forward",
-    "ftilt": "a strong forward strike",
-    "utilt": "a strike straight upward",
-    "dtilt": "a low sweeping strike along the ground",
-    "fsmash": "winding up, then a huge forward smash",
-    "usmash": "winding up, then a huge upward smash",
-    "dsmash": "a powerful low strike to both sides",
-    "nair": "a spinning attack in midair",
-    "fair": "a forward strike in midair",
-    "bair": "a strike backward behind them in midair",
-    "uair": "a strike upward above their head in midair",
-    "dair": "a stomping strike downward in midair",
-    "upb": "a rising special move that launches them upward",
-    "nspecial": "a lunging special attack forward",
-}
 
 
 def folder_to_id(name):
@@ -84,7 +51,7 @@ def looks():
     return {m.group(1): html.unescape(m.group(2)).strip() for m in found}
 
 
-def checklist(f, look, clips, labels):
+def checklist(f, look, clips, labels, what):
     lines = [
         f"{f['name']}: animation clips",
         "=" * (len(f["name"]) + 17),
@@ -108,7 +75,7 @@ def checklist(f, look, clips, labels):
     for title, names in (("Loops", clips["loops"]), ("One-shots", clips["once"]), ("Moves", clips["moves"])):
         lines.append(f"{title}")
         for n in names:
-            lines.append(f"  [ ] {n + '.mp4':15} {labels.get(n, n)}: {WHAT.get(n, '')}")
+            lines.append(f"  [ ] {n + '.mp4':15} {labels.get(n, n)}: {what.get(n, '')}")
         lines.append("")
     lines.append("Make idle first: it sets the fighter's size for clips that don't start standing.")
     return "\n".join(lines) + "\n"
@@ -117,6 +84,7 @@ def checklist(f, look, clips, labels):
 def main():
     fighters = json.loads((ROOT / "content" / "fighters.json").read_text(encoding="utf-8"))
     clips = json.loads((ROOT / "content" / "anim-clips.json").read_text(encoding="utf-8"))
+    what = clips["actions"]
     folders = {folder_to_id(p.name): p for p in ART_ROOT.iterdir() if p.is_dir()}
     look = looks()
     for f in fighters:
@@ -128,7 +96,7 @@ def main():
             cutout = Image.open(cutout_path).convert("RGBA")
             cutout.save(anims / "_reference.png")
             green_frame(cutout).save(anims / "_reference-green.png")
-        (anims / "CLIPS.txt").write_text(checklist(f, look.get(f["id"], f["blurb"]), clips, clips["labels"]), encoding="utf-8")
+        (anims / "CLIPS.txt").write_text(checklist(f, look.get(f["id"], f["blurb"]), clips, clips["labels"], what), encoding="utf-8")
         videos = [p.name for p in anims.iterdir() if p.suffix.lower() in {".mp4", ".mov", ".webm", ".mkv", ".gif", ".avi"}]
         print(f"{f['id']:28} {anims}  ({len(videos)} videos)")
 

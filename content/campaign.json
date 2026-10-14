@@ -7,37 +7,77 @@
     "intro": [
       {
         "who": "narrator",
-        "text": "The Foundry. Every night at midnight the furnace floor becomes a stage, and the whole city tunes in."
+        "text": "The Foundry. Every night at midnight the furnace floor becomes a stage, and the whole city tunes in.",
+        "audio": "/audio/voice/campaign.open-mic.intro-mv8h65h8.mp3",
+        "take": {
+          "text": "The Foundry. Every night at midnight the furnace floor becomes a stage, and the whole city tunes in.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
       },
       {
         "who": "orchestrator",
-        "text": "Welcome back to Dose of Destruction. Tonight, a walk-on. No sponsor, no record, one skateboard."
+        "text": "Welcome back to Dose of Destruction. Tonight, a walk-on. No sponsor, no record, one skateboard.",
+        "audio": "/audio/voice/campaign.open-mic.intro-mv8h65qz.mp3",
+        "take": {
+          "text": "Welcome back to Dose of Destruction. Tonight, a walk-on. No sponsor, no record, one skateboard.",
+          "voice": "onwK4e9ZLuTAKqWW03F9"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "I'm not here for the show. I'm here for the exit."
+        "text": "I'm not here for the show. I'm here for the exit.",
+        "audio": "/audio/voice/campaign.open-mic.intro-mv8h674u.mp3",
+        "take": {
+          "text": "I'm not here for the show. I'm here for the exit.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       },
       {
         "who": "orchestrator",
-        "text": "They all say that. The only way out is through everyone else on the card. Kaelen, say hello."
+        "text": "They all say that. The only way out is through everyone else on the card. Kaelen, say hello.",
+        "audio": "/audio/voice/campaign.open-mic.intro-mv8h6795.mp3",
+        "take": {
+          "text": "They all say that. The only way out is through everyone else on the card. Kaelen, say hello.",
+          "voice": "onwK4e9ZLuTAKqWW03F9"
+        }
       },
       {
         "who": "kaelen",
-        "text": "Hi. Bye."
+        "text": "Hi. Bye.",
+        "audio": "/audio/voice/campaign.open-mic.intro-mv8h67w7.mp3",
+        "take": {
+          "text": "Hi. Bye.",
+          "voice": "TX3LPaxmHKxFdv7VOQHJ"
+        }
       }
     ],
     "outro": [
       {
         "who": "kaelen",
-        "text": "You're slow off the ground. That won't last here."
+        "text": "You're slow off the ground. That won't last here.",
+        "audio": "/audio/voice/campaign.open-mic.outro-mv8h68dp.mp3",
+        "take": {
+          "text": "You're slow off the ground. That won't last here.",
+          "voice": "TX3LPaxmHKxFdv7VOQHJ"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Neither will you."
+        "text": "Neither will you.",
+        "audio": "/audio/voice/campaign.open-mic.outro-mv8h68kq.mp3",
+        "take": {
+          "text": "Neither will you.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       },
       {
         "who": "orchestrator",
-        "text": "The crowd likes the kid. Keep him on the card."
+        "text": "The crowd likes the kid. Keep him on the card.",
+        "audio": "/audio/voice/campaign.open-mic.outro-mv8h694r.mp3",
+        "take": {
+          "text": "The crowd likes the kid. Keep him on the card.",
+          "voice": "onwK4e9ZLuTAKqWW03F9"
+        }
       }
     ],
     "fight": {
@@ -68,29 +108,59 @@
     "intro": [
       {
         "who": "narrator",
-        "text": "The Rooftop. One long roof, nowhere to hide, and a long way down."
+        "text": "The Rooftop. One long roof, nowhere to hide, and a long way down.",
+        "audio": "/audio/voice/campaign.house-heavy.intro-mv8h697n.mp3",
+        "take": {
+          "text": "The Rooftop. One long roof, nowhere to hide, and a long way down.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
       },
       {
         "who": "break",
-        "text": "The house has rules. Rule one: I don't fall off."
+        "text": "The house has rules. Rule one: I don't fall off.",
+        "audio": "/audio/voice/campaign.house-heavy.intro-mv8h6a3n.mp3",
+        "take": {
+          "text": "The house has rules. Rule one: I don't fall off.",
+          "voice": "N2lVS1w4EtoT3dr4eOWO"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "You're the size of a building."
+        "text": "You're the size of a building.",
+        "audio": "/audio/voice/campaign.house-heavy.intro-mv8h6afp.mp3",
+        "take": {
+          "text": "You're the size of a building.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       },
       {
         "who": "break",
-        "text": "Correct."
+        "text": "Correct.",
+        "audio": "/audio/voice/campaign.house-heavy.intro-mv8h6b2w.mp3",
+        "take": {
+          "text": "Correct.",
+          "voice": "N2lVS1w4EtoT3dr4eOWO"
+        }
       }
     ],
     "outro": [
       {
         "who": "break",
-        "text": "...I fell off."
+        "text": "...I fell off.",
+        "audio": "/audio/voice/campaign.house-heavy.outro-mv8h6b4u.mp3",
+        "take": {
+          "text": "...I fell off.",
+          "voice": "N2lVS1w4EtoT3dr4eOWO"
+        }
       },
       {
         "who": "orchestrator",
-        "text": "Ratings went up eleven points. Do it again."
+        "text": "Ratings went up eleven points. Do it again.",
+        "audio": "/audio/voice/campaign.house-heavy.outro-mv8h6bie.mp3",
+        "take": {
+          "text": "Ratings went up eleven points. Do it again.",
+          "voice": "onwK4e9ZLuTAKqWW03F9"
+        }
       }
     ],
     "fight": {
@@ -122,37 +192,77 @@
     "intro": [
       {
         "who": "dj-wont-read",
-        "text": "The kid's a hit. Hits get remixed."
+        "text": "The kid's a hit. Hits get remixed.",
+        "audio": "/audio/voice/campaign.bad-signal.intro-mv8h6bn7.mp3",
+        "take": {
+          "text": "The kid's a hit. Hits get remixed.",
+          "voice": "iP95p4xoKVk53GoZ742B"
+        }
       },
       {
         "who": "shutup-bot",
-        "text": "..."
+        "text": "...",
+        "audio": "/audio/voice/campaign.bad-signal.intro-mv8h6cd6.mp3",
+        "take": {
+          "text": "...",
+          "voice": "SAz9YHcvj6GT2YYXdXww"
+        }
       },
       {
         "who": "dj-wont-read",
-        "text": "He says you talk too much."
+        "text": "He says you talk too much.",
+        "audio": "/audio/voice/campaign.bad-signal.intro-mv8h6cfb.mp3",
+        "take": {
+          "text": "He says you talk too much.",
+          "voice": "iP95p4xoKVk53GoZ742B"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "I haven't said anything."
+        "text": "I haven't said anything.",
+        "audio": "/audio/voice/campaign.bad-signal.intro-mv8h6cru.mp3",
+        "take": {
+          "text": "I haven't said anything.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       },
       {
         "who": "dj-wont-read",
-        "text": "Exactly. Keep it that way."
+        "text": "Exactly. Keep it that way.",
+        "audio": "/audio/voice/campaign.bad-signal.intro-mv8h6d3a.mp3",
+        "take": {
+          "text": "Exactly. Keep it that way.",
+          "voice": "iP95p4xoKVk53GoZ742B"
+        }
       }
     ],
     "outro": [
       {
         "who": "shutup-bot",
-        "text": "Fine."
+        "text": "Fine.",
+        "audio": "/audio/voice/campaign.bad-signal.outro-mv8h6dbi.mp3",
+        "take": {
+          "text": "Fine.",
+          "voice": "SAz9YHcvj6GT2YYXdXww"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "He talks?"
+        "text": "He talks?",
+        "audio": "/audio/voice/campaign.bad-signal.outro-mv8h6dq0.mp3",
+        "take": {
+          "text": "He talks?",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       },
       {
         "who": "dj-wont-read",
-        "text": "Only when he loses."
+        "text": "Only when he loses.",
+        "audio": "/audio/voice/campaign.bad-signal.outro-mv8h6drj.mp3",
+        "take": {
+          "text": "Only when he loses.",
+          "voice": "iP95p4xoKVk53GoZ742B"
+        }
       }
     ],
     "fight": {
@@ -189,29 +299,59 @@
     "intro": [
       {
         "who": "small-weather",
-        "text": "The Orchestrator asked for drama, so I brought the weather."
+        "text": "The Orchestrator asked for drama, so I brought the weather.",
+        "audio": "/audio/voice/campaign.low-pressure.intro-mv8h6e9n.mp3",
+        "take": {
+          "text": "The Orchestrator asked for drama, so I brought the weather.",
+          "voice": "cjVigY5qzO86Huf0OWal"
+        }
       },
       {
         "who": "narrator",
-        "text": "The air goes thin. Everything floats a little longer than it should."
+        "text": "The air goes thin. Everything floats a little longer than it should.",
+        "audio": "/audio/voice/campaign.low-pressure.intro-mv8h6ecn.mp3",
+        "take": {
+          "text": "The air goes thin. Everything floats a little longer than it should.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Is that allowed?"
+        "text": "Is that allowed?",
+        "audio": "/audio/voice/campaign.low-pressure.intro-mv8h6f60.mp3",
+        "take": {
+          "text": "Is that allowed?",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       },
       {
         "who": "small-weather",
-        "text": "It's a broadcast. Everything is allowed."
+        "text": "It's a broadcast. Everything is allowed.",
+        "audio": "/audio/voice/campaign.low-pressure.intro-mv8h6fg2.mp3",
+        "take": {
+          "text": "It's a broadcast. Everything is allowed.",
+          "voice": "cjVigY5qzO86Huf0OWal"
+        }
       }
     ],
     "outro": [
       {
         "who": "small-weather",
-        "text": "Huh. You fall like you mean it."
+        "text": "Huh. You fall like you mean it.",
+        "audio": "/audio/voice/campaign.low-pressure.outro-mv8h6fna.mp3",
+        "take": {
+          "text": "Huh. You fall like you mean it.",
+          "voice": "cjVigY5qzO86Huf0OWal"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Turn the gravity back on on your way out."
+        "text": "Turn the gravity back on on your way out.",
+        "audio": "/audio/voice/campaign.low-pressure.outro-mv8h6g45.mp3",
+        "take": {
+          "text": "Turn the gravity back on on your way out.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       }
     ],
     "fight": {
@@ -244,33 +384,68 @@
     "intro": [
       {
         "who": "blog-man",
-        "text": "I've been covering your run. Front page, three nights straight."
+        "text": "I've been covering your run. Front page, three nights straight.",
+        "audio": "/audio/voice/campaign.turn-the-page.intro-mv8h6gd5.mp3",
+        "take": {
+          "text": "I've been covering your run. Front page, three nights straight.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Great. Can you fight?"
+        "text": "Great. Can you fight?",
+        "audio": "/audio/voice/campaign.turn-the-page.intro-mv8h6gwn.mp3",
+        "take": {
+          "text": "Great. Can you fight?",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       },
       {
         "who": "blog-man",
-        "text": "Better than I write. Which is very well."
+        "text": "Better than I write. Which is very well.",
+        "audio": "/audio/voice/campaign.turn-the-page.intro-mv8h6h9q.mp3",
+        "take": {
+          "text": "Better than I write. Which is very well.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "evil-blue-bird",
-        "text": "Aw. Two little friends."
+        "text": "Aw. Two little friends.",
+        "audio": "/audio/voice/campaign.turn-the-page.intro-mv8h6hgw.mp3",
+        "take": {
+          "text": "Aw. Two little friends.",
+          "voice": "cgSgspJ2msm6clMCkdW9"
+        }
       },
       {
         "who": "got-ur-back",
-        "text": "I've got your back. Not theirs. Sorry."
+        "text": "I've got your back. Not theirs. Sorry.",
+        "audio": "/audio/voice/campaign.turn-the-page.intro-mv8h6i2w.mp3",
+        "take": {
+          "text": "I've got your back. Not theirs. Sorry.",
+          "voice": "IKne3meq5aSn9XLyUdCD"
+        }
       }
     ],
     "outro": [
       {
         "who": "blog-man",
-        "text": "Headline: 'Walk-On and Writer Clean House.' Too long?"
+        "text": "Headline: 'Walk-On and Writer Clean House.' Too long?",
+        "audio": "/audio/voice/campaign.turn-the-page.outro-mv8h6i4h.mp3",
+        "take": {
+          "text": "Headline: 'Walk-On and Writer Clean House.' Too long?",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Way too long."
+        "text": "Way too long.",
+        "audio": "/audio/voice/campaign.turn-the-page.outro-mv8h6iy5.mp3",
+        "take": {
+          "text": "Way too long.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       }
     ],
     "fight": {
@@ -313,25 +488,50 @@
     "intro": [
       {
         "who": "orchestrator",
-        "text": "We're running long, so this one is sudden death. Everybody starts at one-fifty."
+        "text": "We're running long, so this one is sudden death. Everybody starts at one-fifty.",
+        "audio": "/audio/voice/campaign.sudden-death.intro-mv8h6j5v.mp3",
+        "take": {
+          "text": "We're running long, so this one is sudden death. Everybody starts at one-fifty.",
+          "voice": "onwK4e9ZLuTAKqWW03F9"
+        }
       },
       {
         "who": "slice",
-        "text": "One clean hit. That's all this needs."
+        "text": "One clean hit. That's all this needs.",
+        "audio": "/audio/voice/campaign.sudden-death.intro-mv8h6jjr.mp3",
+        "take": {
+          "text": "One clean hit. That's all this needs.",
+          "voice": "XB0fDUnXU5powFXDhCwa"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Then don't miss."
+        "text": "Then don't miss.",
+        "audio": "/audio/voice/campaign.sudden-death.intro-mv8h6kcj.mp3",
+        "take": {
+          "text": "Then don't miss.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       }
     ],
     "outro": [
       {
         "who": "slice",
-        "text": "You flinched first. And you still won."
+        "text": "You flinched first. And you still won.",
+        "audio": "/audio/voice/campaign.sudden-death.outro-mv8h6kdj.mp3",
+        "take": {
+          "text": "You flinched first. And you still won.",
+          "voice": "XB0fDUnXU5powFXDhCwa"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "I didn't flinch. I ducked."
+        "text": "I didn't flinch. I ducked.",
+        "audio": "/audio/voice/campaign.sudden-death.outro-mv8h6kv6.mp3",
+        "take": {
+          "text": "I didn't flinch. I ducked.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       }
     ],
     "fight": {
@@ -364,33 +564,68 @@
     "intro": [
       {
         "who": "orchestrator",
-        "text": "The kid is getting too popular. Let's fix that. Boulder, Stratabots: take him off the air."
+        "text": "The kid is getting too popular. Let's fix that. Boulder, Stratabots: take him off the air.",
+        "audio": "/audio/voice/campaign.dead-weight.intro-mv8h6l5q.mp3",
+        "take": {
+          "text": "The kid is getting too popular. Let's fix that. Boulder, Stratabots: take him off the air.",
+          "voice": "onwK4e9ZLuTAKqWW03F9"
+        }
       },
       {
         "who": "ss-boulder",
-        "text": "Nothing personal. The boulder doesn't do personal."
+        "text": "Nothing personal. The boulder doesn't do personal.",
+        "audio": "/audio/voice/campaign.dead-weight.intro-mv8h6lmh.mp3",
+        "take": {
+          "text": "Nothing personal. The boulder doesn't do personal.",
+          "voice": "XrExE9yKIg1WjnnlVkGX"
+        }
       },
       {
         "who": "stratabots",
-        "text": "Plates locked."
+        "text": "Plates locked.",
+        "audio": "/audio/voice/campaign.dead-weight.intro-mv8h6mk6.mp3",
+        "take": {
+          "text": "Plates locked.",
+          "voice": "pqHfZKP75CvOlQylNhV4"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "I don't have to beat them. I just have to still be here when the clock runs out."
+        "text": "I don't have to beat them. I just have to still be here when the clock runs out.",
+        "audio": "/audio/voice/campaign.dead-weight.intro-mv8h6mt8.mp3",
+        "take": {
+          "text": "I don't have to beat them. I just have to still be here when the clock runs out.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       }
     ],
     "outro": [
       {
         "who": "ss-boulder",
-        "text": "He's still standing."
+        "text": "He's still standing.",
+        "audio": "/audio/voice/campaign.dead-weight.outro-mv8h6n3p.mp3",
+        "take": {
+          "text": "He's still standing.",
+          "voice": "XrExE9yKIg1WjnnlVkGX"
+        }
       },
       {
         "who": "stratabots",
-        "text": "Plates... cracked."
+        "text": "Plates... cracked.",
+        "audio": "/audio/voice/campaign.dead-weight.outro-mv8h6noa.mp3",
+        "take": {
+          "text": "Plates... cracked.",
+          "voice": "pqHfZKP75CvOlQylNhV4"
+        }
       },
       {
         "who": "orchestrator",
-        "text": "Fine. I'll do it myself."
+        "text": "Fine. I'll do it myself.",
+        "audio": "/audio/voice/campaign.dead-weight.outro-mv8h6nwf.mp3",
+        "take": {
+          "text": "Fine. I'll do it myself.",
+          "voice": "onwK4e9ZLuTAKqWW03F9"
+        }
       }
     ],
     "fight": {
@@ -431,37 +666,77 @@
     "intro": [
       {
         "who": "orchestrator",
-        "text": "Do you know what the exit is, kid? There isn't one. There's only the next show."
+        "text": "Do you know what the exit is, kid? There isn't one. There's only the next show.",
+        "audio": "/audio/voice/campaign.encore.intro-mv8h6oab.mp3",
+        "take": {
+          "text": "Do you know what the exit is, kid? There isn't one. There's only the next show.",
+          "voice": "onwK4e9ZLuTAKqWW03F9"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Then I'll end the show."
+        "text": "Then I'll end the show.",
+        "audio": "/audio/voice/campaign.encore.intro-mv8h6ong.mp3",
+        "take": {
+          "text": "Then I'll end the show.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       },
       {
         "who": "orchestrator",
-        "text": "Bold. Lights. Music. Everyone, watch this."
+        "text": "Bold. Lights. Music. Everyone, watch this.",
+        "audio": "/audio/voice/campaign.encore.intro-mv8h6p87.mp3",
+        "take": {
+          "text": "Bold. Lights. Music. Everyone, watch this.",
+          "voice": "onwK4e9ZLuTAKqWW03F9"
+        }
       }
     ],
     "outro": [
       {
         "who": "narrator",
-        "text": "The baton hits the furnace floor. For the first time in years, the broadcast goes quiet."
+        "text": "The baton hits the furnace floor. For the first time in years, the broadcast goes quiet.",
+        "audio": "/audio/voice/campaign.encore.outro-mv8h6pig.mp3",
+        "take": {
+          "text": "The baton hits the furnace floor. For the first time in years, the broadcast goes quiet.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
       },
       {
         "who": "orchestrator",
-        "text": "...Ratings?"
+        "text": "...Ratings?",
+        "audio": "/audio/voice/campaign.encore.outro-mv8h6q3n.mp3",
+        "take": {
+          "text": "...Ratings?",
+          "voice": "onwK4e9ZLuTAKqWW03F9"
+        }
       },
       {
         "who": "blog-man",
-        "text": "Highest ever. You're off the air, maestro."
+        "text": "Highest ever. You're off the air, maestro.",
+        "audio": "/audio/voice/campaign.encore.outro-mv8h6qka.mp3",
+        "take": {
+          "text": "Highest ever. You're off the air, maestro.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "I came for the exit. Turns out it was the main event."
+        "text": "I came for the exit. Turns out it was the main event.",
+        "audio": "/audio/voice/campaign.encore.outro-mv8h6r0y.mp3",
+        "take": {
+          "text": "I came for the exit. Turns out it was the main event.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       },
       {
         "who": "narrator",
-        "text": "Dose of Destruction will return. The card is yours now."
+        "text": "Dose of Destruction will return. The card is yours now.",
+        "audio": "/audio/voice/campaign.encore.outro-mv8h6rdd.mp3",
+        "take": {
+          "text": "Dose of Destruction will return. The card is yours now.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
       }
     ],
     "fight": {
