@@ -24,6 +24,8 @@ import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
 import { activeHitboxes, type SimEvent } from '../sim/step.ts';
 import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
+import { StageFx, buildLayers, drawnPlatforms, followLayers, type Follower } from './stageArt.ts';
+import { Constants } from '@babylonjs/core/Engines/constants.js';
 
 /** Sim units to scene units: 100 world units per scene unit. */
 const S = 1 / (100 * FX);
@@ -46,6 +48,9 @@ interface FighterView {
   ring: Mesh;
   shield: Mesh;
   flash: number;
+  /** The fighter's silhouette, shown only where stage art in front covers them. */
+  ghost: Mesh | null;
+  ghostMat: StandardMaterial | null;
 }
 
 interface Spark {
@@ -70,6 +75,12 @@ export class Renderer {
   private stageRoot: TransformNode | null = null;
   private movers: { platform: Platform; node: TransformNode }[] = [];
   private stage: StageDef = STAGES[0];
+  private fx: StageFx | null = null;
+  private followers: Follower[] = [];
+  /** Whether this stage has art in front of the fighters that hides them. */
+  private occluders = false;
+  /** Plays a sound effect for stage effects (main wires it to the audio system). */
+  onSound: ((id: string) => void) | null = null;
   private shake = 0;
   private camPos = new Vector3(0, 1.6, -14);
   private camTarget = new Vector3(0, 1.6, 0);
@@ -91,6 +102,8 @@ export class Renderer {
 
     this.glow = new GlowLayer('glow', this.scene, { mainTextureSamples: 2 });
     this.glow.intensity = 0.6;
+    // Silhouettes draw in group 1 against the depth group 0 left behind.
+    this.scene.setRenderingAutoClearDepthStencil(1, false, false, false);
 
     this.sparkMat = this.flatMaterial('spark', '#ffd15a');
     this.debugMat = this.flatMaterial('dbg-hit', '#ff2a2a', 0.45);
@@ -112,15 +125,30 @@ export class Renderer {
   // ------------------------------------------------------------------ stage
 
   setStage(index: number): void {
+    this.showStage(STAGES[index] ?? STAGES[0]);
+  }
+
+  /** Builds any stage, saved or not (devtools previews unsaved ones). */
+  showStage(stage: StageDef): void {
     this.stageRoot?.dispose(false, true);
+    this.fx?.dispose();
     this.movers = [];
-    this.stage = STAGES[index] ?? STAGES[0];
+    this.stage = stage;
     const root = new TransformNode('stage', this.scene);
     this.stageRoot = root;
     const t = this.stage.theme;
     this.sparkMat.emissiveColor = Color3.FromHexString(t.thinEdge);
 
     this.buildBackdrop(root);
+    const built = buildLayers(this.scene, root, this.stage, this.glow);
+    this.occluders = built.occluders;
+    this.followers = built.followers;
+    // Collision-only platforms whose art isn't painted yet still get a block, so the stage is playable.
+    const drawn = drawnPlatforms(this.stage);
+    this.fx = new StageFx(this.scene, this.stage, {
+      sound: (id) => this.onSound?.(id),
+      shake: (a) => (this.shake = Math.max(this.shake, a)),
+    });
 
     const body = new StandardMaterial('stage-body', this.scene);
     body.diffuseColor = Color3.FromHexString(t.body);
@@ -132,13 +160,18 @@ export class Renderer {
     const thinEdge = this.flatMaterial('edge-thin', t.thinEdge);
     for (const m of [body, under, edge, thinEdge]) this.track(root, m);
 
-    for (const p of this.stage.platforms) {
+    for (const [index, p] of this.stage.platforms.entries()) {
+      const artDraws = p.hidden && drawn.has(index);
+      // Collision-only platforms: the stage art draws them. Moving ones still need a node.
+      if (artDraws && !p.motion) continue;
       const width = (p.x2 - p.x1) * W;
       const cx = ((p.x1 + p.x2) / 2) * W;
       const node = new TransformNode('platform', this.scene);
       node.parent = root;
       node.position.set(cx, p.y * W, 0);
-      if (p.solid) {
+      if (artDraws) {
+        this.movers.push({ platform: p, node });
+      } else if (p.solid) {
         const depth = (p.depth ?? 90) * W;
         const top = CreateBox('block', { width, height: depth, depth: 3 }, this.scene);
         top.position.set(0, -depth / 2, 0.6);
@@ -180,15 +213,19 @@ export class Renderer {
     g.addColorStop(1, t.sky[2]);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 1024, 512);
-    paintProps(ctx, t.props, t.glow, t.thinEdge);
+    // Painted props only when the stage has no art of its own.
+    if (!this.stage.layers?.some((l) => l.image && !l.hidden)) paintProps(ctx, t.props, t.glow, t.thinEdge);
     tex.update();
     const mat = new StandardMaterial('sky', this.scene);
     mat.disableLighting = true;
     mat.emissiveTexture = tex;
     this.track(root, mat);
-    const plane = CreatePlane('sky', { width: 64, height: 32 }, this.scene);
+    // Always behind the farthest art layer, scaled so it still fills the view.
+    const z = Math.max(18, ...(this.stage.layers ?? []).filter((l) => !l.hidden).map((l) => l.z + 6));
+    const k = (16 + z) / (16 + 18);
+    const plane = CreatePlane('sky', { width: 64 * k, height: 32 * k }, this.scene);
     plane.material = mat;
-    plane.position.set(0, 2, 18);
+    plane.position.set(0, 2 * k, z);
     plane.parent = root;
     this.glow.addExcludedMesh(plane);
   }
@@ -196,10 +233,11 @@ export class Renderer {
   // --------------------------------------------------------------- fighters
 
   /** Builds a sprite for each fighter. Still art is cropped to its visible pixels first. */
-  async setFighters(state: GameState): Promise<void> {
+  async setFighters(state: GameState, keepStage = false): Promise<void> {
     for (const v of this.views) v.root.dispose(false, true);
     this.views = [];
-    if (this.stage !== STAGES[state.stage]) this.setStage(state.stage);
+    // keepStage: devtools shows an unsaved stage that isn't in STAGES.
+    if (!keepStage && this.stage !== STAGES[state.stage]) this.setStage(state.stage);
     for (const f of state.fighters) {
       const ch = CHARACTERS[f.char];
       const [art, anims] = await Promise.all([loadArt(`/characters/large/${ch.id}.webp`), loadAnimSet(ch.id)]);
@@ -238,8 +276,30 @@ export class Renderer {
       shield.material = this.flatMaterial(`shield-${f.id}`, color, 0.35);
       shield.parent = root;
 
+      // Behind an occluder, a flat silhouette in the player's color shows where they are.
+      let ghost: Mesh | null = null;
+      let ghostMat: StandardMaterial | null = null;
+      if (this.occluders) {
+        ghostMat = new StandardMaterial(`ghost-${f.id}`, this.scene);
+        ghostMat.disableLighting = true;
+        ghostMat.backFaceCulling = false;
+        ghostMat.diffuseColor = Color3.Black();
+        ghostMat.emissiveColor = Color3.FromHexString(color);
+        ghostMat.useAlphaFromDiffuseTexture = true;
+        ghostMat.alpha = 0.6;
+        ghostMat.depthFunction = Constants.GREATER;
+        ghostMat.disableDepthWrite = true;
+        ghost = CreatePlane(`ghost-${f.id}`, { size: 1 }, this.scene);
+        ghost.material = ghostMat;
+        ghost.parent = pose;
+        ghost.renderingGroupId = 1;
+        ghost.position.z = body.position.z;
+        this.glow.addExcludedMesh(ghost);
+        root.onDisposeObservable.add(() => ghostMat!.dispose());
+      }
+
       this.views.push({
-        root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0,
+        root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, ghost, ghostMat,
       });
     }
   }
@@ -272,6 +332,7 @@ export class Renderer {
         const y = Math.max(b.bottom + 40, Math.min(b.top - 40, e.y / FX)) * W;
         this.burst(x, y, 40, 0.25);
         this.shake = 0.9;
+        this.fx?.trigger('ko', { x, y });
       } else if (e.type === 'shieldbreak') {
         this.burst(e.x * S, e.y * S + 0.6, 24, 0.16);
         this.shake = 0.5;
@@ -300,8 +361,10 @@ export class Renderer {
       const p = platformAt(m.platform, state.frame);
       m.node.position.set(((p.x1 + p.x2) / 2) * S, p.y * S, 0);
     }
+    followLayers(this.followers, state.frame);
     for (const f of state.fighters) this.drawFighter(f, this.views[f.id]);
     this.updateSparks();
+    this.fx?.update();
     this.drawDebug(state);
     this.updateCamera(state);
     this.scene.render();
@@ -346,6 +409,13 @@ export class Renderer {
     v.pose.scaling.set(f.facing * sx, sy, 1);
     v.pose.rotation.z = rot;
     v.pose.position.y = lift;
+
+    if (v.ghost && v.ghostMat) {
+      v.ghost.position.x = v.body.position.x;
+      v.ghost.position.y = v.body.position.y;
+      v.ghost.scaling.copyFrom(v.body.scaling);
+      if (v.ghostMat.diffuseTexture !== v.mat.diffuseTexture) v.ghostMat.diffuseTexture = v.mat.diffuseTexture;
+    }
 
     const flicker = f.intangible > 0 && f.action !== ACT.LEDGE ? (f.frame & 4 ? 0.45 : 0.8) : 1;
     v.mat.alpha = flicker;
@@ -450,6 +520,17 @@ export class Renderer {
     const jy = (Math.random() - 0.5) * this.shake * 0.4;
     this.camera.position.set(this.camPos.x + jx, this.camPos.y + jy, this.camPos.z);
     this.camera.setTarget(new Vector3(this.camTarget.x + jx, this.camTarget.y + jy, 0));
+  }
+
+  /** A match moment the stage's effects can react to: 'start' when play begins, 'end' at Game! */
+  stageEvent(on: 'start' | 'end'): void {
+    this.fx?.trigger(on);
+  }
+
+  /** Frees the engine (devtools previews come and go). */
+  dispose(): void {
+    this.fx?.dispose();
+    this.engine.dispose();
   }
 
   /** Points the camera at the stage, for menus that show it behind them. */

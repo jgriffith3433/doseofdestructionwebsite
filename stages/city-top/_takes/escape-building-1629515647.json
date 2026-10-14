@@ -1,0 +1,33 @@
+{
+ "job": "dc473e3cb07f",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple"
+ },
+ "stage": "city-top",
+ "piece": "escape-building",
+ "kind": "scenery",
+ "layers": [
+  "escape-building"
+ ],
+ "seed": 1629515647,
+ "prompt": "Paint image 1: the gray shape becomes Old brick apartment building, rows of warm lit windows with some dark ones, water-stained cornice, a small rooftop bulkhead, filling the same position and size. Match the art style, palette and lighting of image 2. Style: Moody nighttime cityscape painting with photographic realism softened into painterly strokes. Near-black sky, dark charcoal and brown building masses punctuated by thousands of warm amber window lights, with occasional cool blue accents. Lighting comes from below and from windows, rims of warm gold on edges, deep shadows elsewhere. The background stays plain white. Flat side view, straight on, no perspective tilt. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": 515.504,
+  "x2": 1144.496,
+  "y1": -944.456,
+  "y2": 34.45599999999999
+ },
+ "size": [
+  816,
+  1264
+ ],
+ "x": 830,
+ "y": -455,
+ "width": 629,
+ "created": 1792014859550
+}

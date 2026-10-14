@@ -3,6 +3,8 @@
 //   side     front art -> side-view candidates     anims/_side-<seed>.png
 //   i2v      side view + prompt -> clip takes      anims/_takes/<clip>-<seed>.mp4
 //   animate  side view + motion library clip -> the same motion by this fighter
+//   paint    a stage piece's blockout + concept -> painted art takes
+//            stages/<id>/_takes/<piece>-<seed>.webp (tools/maps/paint.mjs)
 //
 // Prompts and settings come from content/generation.json (settings.mjs), with
 // a job's own overrides on top. Every output keeps a .json beside it with the
@@ -19,8 +21,9 @@ import { spawn } from 'node:child_process';
 import { ROOT } from './env.mjs';
 import { Comfy } from './comfy.mjs';
 import { comfyEndpoint, currentPrice } from './aws.mjs';
-import { animate, imageToVideo, sideView } from './workflows.mjs';
-import { loadGeneration, resolve } from './settings.mjs';
+import { animate, imageToVideo, paintOver, sideView } from './workflows.mjs';
+import { loadGeneration, paintSettings, resolve } from './settings.mjs';
+import { dropTake, finishTake, preparePiece } from '../maps/paint.mjs';
 
 const FILE = path.join(ROOT, '.cache', 'gpu', 'jobs.json');
 const TMP = path.join(ROOT, '.cache', 'gpu', 'tmp');
@@ -28,6 +31,8 @@ export const GRAPHS = path.join(ROOT, '.cache', 'gpu', 'graphs');
 const python = process.platform === 'win32' ? 'python' : 'python3';
 const VIDEO = ['.mp4', '.mov', '.webm', '.mkv', '.gif', '.avi'];
 const MAX_TAKES = 8;
+/** Which models each job type loads: Qwen-Image-Edit, or one of the two Wan setups. */
+const FAMILY = { side: 'qwen', paint: 'qwen', i2v: 'wan-i2v', animate: 'wan-animate' };
 
 export class Jobs {
   /**
@@ -47,8 +52,13 @@ export class Jobs {
   load() {
     try {
       const list = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-      // A job mid-flight when the dev server stopped can't be resumed; waiting ones still wait.
-      for (const j of list) if (j.status === 'running') Object.assign(j, { status: 'interrupted', detail: 'the dev server restarted' });
+      // A job mid-flight when the dev server stopped goes back in the line; it keeps
+      // the outputs it finished and makes only the rest.
+      for (const j of list) {
+        if (j.status !== 'running') continue;
+        Object.assign(j, { status: 'queued', detail: `picked up again after a dev server restart (${j.outputs?.length ?? 0} done)`, resumed: (j.resumed ?? 0) + 1 });
+        j.log.push(j.detail);
+      }
       return list;
     } catch {
       return [];
@@ -86,8 +96,10 @@ export class Jobs {
   }
 
   validate(spec) {
-    if (!['side', 'i2v', 'animate'].includes(spec.type)) throw new Error(`Unknown job type: ${spec.type}`);
-    if (spec.type !== 'side' && !this.clipNames().has(spec.clip)) throw new Error(`Unknown clip: ${spec.clip}`);
+    if (!['side', 'i2v', 'animate', 'paint'].includes(spec.type)) throw new Error(`Unknown job type: ${spec.type}`);
+    if (spec.type === 'paint') {
+      if (!/^[a-z0-9-]+$/.test(spec.stage ?? '') || !/^[a-z0-9-]+$/.test(spec.piece ?? '')) throw new Error('A paint job needs a stage and a piece');
+    } else if (spec.type !== 'side' && !this.clipNames().has(spec.clip)) throw new Error(`Unknown clip: ${spec.clip}`);
     if (spec.seed != null && !(Number.isInteger(spec.seed) && spec.seed > 0 && spec.seed < 2 ** 48)) throw new Error('A seed is a whole number above 0');
     if (spec.use && !['auto', 'replace', 'pick'].includes(spec.use)) throw new Error(`Unknown use: ${spec.use}`);
   }
@@ -97,17 +109,21 @@ export class Jobs {
     const list = Array.isArray(specs) ? specs : [specs];
     for (const spec of list) this.validate(spec);
     const defaultTakes = Number(loadGeneration().takes) || 1;
+    const paint = paintSettings();
     const added = list.map((spec) => ({
       id: crypto.randomBytes(6).toString('hex'),
       type: spec.type,
-      fighter: spec.fighter,
-      clip: spec.type === 'side' ? undefined : spec.clip,
+      fighter: spec.type === 'paint' ? undefined : spec.fighter,
+      stage: spec.type === 'paint' ? spec.stage : undefined,
+      piece: spec.type === 'paint' ? spec.piece : undefined,
+      clip: spec.type === 'side' || spec.type === 'paint' ? undefined : spec.clip,
       prompt: spec.prompt?.trim() || undefined,
       negative: spec.negative?.trim() || undefined,
       settings: spec.settings && typeof spec.settings === 'object' ? spec.settings : undefined,
       seed: spec.seed ?? undefined,
-      takes: spec.type === 'side' ? undefined : Math.max(1, Math.min(MAX_TAKES, Number(spec.takes) || defaultTakes)),
-      use: spec.type === 'side' ? undefined : spec.use ?? 'auto',
+      // The stage piece varies most between seeds (and is scored on fit), so it gets more takes.
+      takes: spec.type === 'side' ? undefined : Math.max(1, Math.min(MAX_TAKES, Number(spec.takes) || (spec.type === 'paint' ? (spec.piece === 'stage' ? paint.stageTakes : paint.takes) : defaultTakes))),
+      use: spec.type === 'side' || spec.type === 'paint' ? undefined : spec.use ?? 'auto',
       seconds: spec.seconds ?? undefined,
       motion: spec.motion ?? undefined,
       status: 'queued',
@@ -126,7 +142,7 @@ export class Jobs {
     const j = this.jobs.find((x) => x.id === id);
     if (!j) throw new Error('No such job');
     const seed = sameSeed ? j.seeds?.[0] ?? j.seed : undefined;
-    return this.add([{ ...pick(j, ['type', 'fighter', 'clip', 'prompt', 'negative', 'settings', 'takes', 'use', 'seconds', 'motion']), seed }])[0];
+    return this.add([{ ...pick(j, ['type', 'fighter', 'stage', 'piece', 'clip', 'prompt', 'negative', 'settings', 'takes', 'use', 'seconds', 'motion']), seed }])[0];
   }
 
   cancel(id) {
@@ -163,11 +179,21 @@ export class Jobs {
     if (this.running || next.status !== 'queued') return void this.pump();
     this.running = next;
     this.abort = new AbortController();
-    Object.assign(next, { status: 'running', started: Date.now(), detail: 'connecting to the GPU server', seeds: [], outputs: [], graphs: [] });
+    // Resumed jobs keep what they already made.
+    Object.assign(next, { status: 'running', started: Date.now(), detail: 'connecting to the GPU server', seeds: (next.seeds ?? []).slice(0, next.outputs?.length ?? 0), outputs: next.outputs ?? [], graphs: next.graphs ?? [] });
     this.save();
     try {
       const comfy = new Comfy(endpoint);
-      next.resolved = resolve(next, this.info(next.fighter, next.clip));
+      // The server keeps models on the GPU between jobs (fast), but image and video models
+      // don't fit together: switching family unloads the last one first.
+      const family = FAMILY[next.type];
+      if (this.family !== family) {
+        this.step(next, 'unloading the last models to make room');
+        await comfy.free().catch(() => undefined);
+      }
+      this.family = family;
+      // Paint jobs work out their own prompt from the stage (tools/maps/paint.mjs).
+      if (next.type !== 'paint') next.resolved = resolve(next, this.info(next.fighter, next.clip));
       await this[next.type](next, comfy);
       Object.assign(next, { status: 'done', finished: Date.now() });
     } catch (e) {
@@ -240,7 +266,7 @@ export class Jobs {
     await prep(['frame', path.join(ROOT, 'characters', 'img', `${job.fighter}.png`), input, res, res, String(s.fill ?? 0.86)]);
     this.step(job, 'uploading the front view');
     const image = await comfy.upload(fs.readFileSync(input), `${job.fighter}-front.png`);
-    for (let i = 0; i < count; i++) {
+    for (let i = job.outputs.length; i < count; i++) {
       const seed = this.seed(job, i);
       this.step(job, `side view ${i + 1} of ${count}`);
       const files = await this.run(job, comfy, sideView({ image, prompt, seed, prefix: `dod/${job.fighter}-side`, s }));
@@ -281,12 +307,84 @@ export class Jobs {
       animate({ reference, motion, prompt: r.prompt, negative: r.negative, width: r.size, height: r.size, frames: job.frames, fps: r.fps, seed, prefix: `dod/${job.fighter}-${job.clip}`, s: r.settings }));
   }
 
+  /**
+   * Paints a stage piece over its blockout, styled on the concept: job.takes
+   * takes. Pieces that sit on the collision are painted in two passes (a
+   * partial repaint of the colored blockout keeps their flat, straight-on
+   * shapes; a lighter one adds detail), keeping whichever pass lands on the
+   * platforms better, and a take that misses the fit target is painted again
+   * with a new seed (up to the retry limit). Settings: AI Settings, Painting
+   * stages (content/generation.json "paint"); a job's settings override them.
+   * See docs/comfyui.md.
+   */
+  async paint(job, comfy) {
+    const prep = await preparePiece(job.stage, job.piece, { prompt: job.prompt, tmpDir: TMP });
+    const P = paintSettings();
+    // The same model and speed LoRA as side views, so their sampler settings apply.
+    const side = loadGeneration().side ?? {};
+    const flat = prep.piece.kind !== 'backdrop';
+    const s = {
+      steps: side.steps, cfg: side.cfg, shift: side.shift, lora: side.lora, sampler: side.sampler, scheduler: side.scheduler,
+      ...(flat ? { denoise: P.pass, refine: P.detail } : {}),
+      ...(job.settings ?? {}),
+    };
+    const fits = prep.piece.kind === 'stage';
+    const target = fits ? Number(s.fitTarget ?? P.fitTarget) : 0;
+    const retries = fits ? Math.round(Number(s.retries ?? P.retries)) : 0;
+    job.resolved = { prompt: prep.prompt, negative: '', settings: s, size: prep.size[0], fps: 0, seconds: 0 };
+    this.step(job, `uploading the ${prep.piece.kind} blockout and the concept`);
+    const blockout = await comfy.upload(fs.readFileSync(prep.blockout), `${job.stage}-${job.piece}-blockout.png`);
+    const reference = await comfy.upload(fs.readFileSync(prep.reference), `${job.stage}-reference${path.extname(prep.reference)}`);
+    const n = job.takes ?? 2;
+    const size = { width: prep.size[0], height: prep.size[1], prefix: `dod/${job.stage}-${job.piece}` };
+    job.fits ??= [];
+    let tries = 0;
+    for (let i = job.outputs.length; i < n; ) {
+      // Spaced so a fixed seed's retries never land on the next take's seed.
+      const seed = this.seed(job, i * 10 + tries);
+      const label = `take ${i + 1} of ${n}${tries ? ` (retry ${tries})` : ''}`;
+      this.step(job, `painting ${job.piece}, ${label} (${prep.size.join('x')})`);
+      const first = await comfy.download((await this.run(job, comfy, paintOver({ images: [blockout, reference], prompt: prep.prompt, seed, s, ...size })))[0]);
+      let buffer = first;
+      if (s.refine > 0 && s.refine < 1) {
+        this.step(job, `adding detail to ${label}`);
+        const up = await comfy.upload(first, `${job.stage}-${job.piece}-pass1.png`);
+        const detail = `Refine image 1 without moving anything: keep every shape, edge, outline and position exactly, and keep it a flat, straight-on side view. Add rich detail, texture, materials and lighting: ${prep.prompt}`;
+        buffer = await comfy.download((await this.run(job, comfy, paintOver({ images: [up, reference], prompt: detail, seed: seed + 1, s: { ...s, denoise: s.refine }, ...size })))[0]);
+      }
+      this.step(job, prep.cutout ? 'cutting it out' : 'saving it');
+      let take = await finishTake(prep, buffer, seed, { job: job.id, settings: s });
+      if (fits && buffer !== first && take.fit !== null) {
+        // The detail pass can tilt the piece off the platforms: keep pass 1 if it lands much better.
+        const plain = await finishTake(prep, first, seed, {}, { scoreOnly: true });
+        if (plain.fit !== null && plain.fit - take.fit > 0.15) {
+          take = await finishTake(prep, first, seed, { job: job.id, settings: { ...s, refine: 0 }, kept: 'pass 1 (the detail pass moved it off the platforms)' });
+          job.log.push(`take ${i + 1}: kept pass 1, it fits ${Math.round(plain.fit * 100)}% vs ${Math.round((take.fit ?? 0) * 100)}%`);
+        }
+      }
+      if (fits && take.fit !== null && take.fit < target && tries < retries) {
+        // Off the collision: paint it again with a new seed (it doesn't count as a take).
+        job.log.push(`${label} fits ${Math.round(take.fit * 100)}%, below ${Math.round(target * 100)}%: trying another seed`);
+        dropTake(job.stage, take.name);
+        tries++;
+        continue;
+      }
+      job.outputs.push(take.name);
+      job.fits.push(take.fit);
+      tries = 0;
+      i++;
+    }
+    const scored = job.fits.filter((f) => f !== null);
+    this.step(job, `${n} take${n > 1 ? 's' : ''} of ${job.piece} ready in the Maps tab${scored.length ? ` (best fits ${Math.round(Math.max(...scored) * 100)}%)` : ''}`);
+  }
+
   /** Makes job.takes takes into anims/_takes/, then uses the first if the job says to. */
   async takes(job, comfy, build) {
     const n = job.takes ?? 1;
     const dir = this.animsDir(job.fighter, '_takes');
-    const made = [];
-    for (let i = 0; i < n; i++) {
+    // Takes a resumed job already saved count.
+    const made = job.outputs.map((f) => path.join(dir, f));
+    for (let i = made.length; i < n; i++) {
       const seed = this.seed(job, i);
       this.step(job, `take ${i + 1} of ${n}: ${job.frames} frames`);
       const files = await this.run(job, comfy, build(seed));

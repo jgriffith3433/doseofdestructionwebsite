@@ -1,0 +1,33 @@
+{
+ "job": "2ecec9740de7",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple"
+ },
+ "stage": "city-top",
+ "piece": "backdrop",
+ "kind": "backdrop",
+ "layers": [
+  "backdrop"
+ ],
+ "seed": 1322424415,
+ "prompt": "Paint a wide, distant background landscape over image 1: the far distance of City Top: Brawl across the LA rooftops while fireworks mark every fall.. Use the colors and light of image 2 (a blurred mood board), but compose the scene yourself from this description. Distant scenery only: no ground, floor, ledge or platform in the foreground. The lower third stays darker and calmer. Style: Moody nighttime cityscape painting with photographic realism softened into painterly strokes. Near-black sky, dark charcoal and brown building masses punctuated by thousands of warm amber window lights, with occasional cool blue accents. Lighting comes from below and from windows, rims of warm gold on edges, deep shadows elsewhere, game environment art. Flat side view, straight on, no perspective tilt. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1600,
+  "x2": 1600,
+  "y1": -435.71428571428567,
+  "y2": 935.7142857142857
+ },
+ "size": [
+  1568,
+  672
+ ],
+ "x": 0,
+ "y": 250,
+ "width": 3200,
+ "created": 1792015157149
+}

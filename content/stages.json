@@ -374,5 +374,483 @@
       "thinEdge": "#d8ff9a",
       "props": "pipes"
     }
+  },
+  {
+    "id": "city-top",
+    "name": "City Top",
+    "blurb": "Brawl across the LA rooftops while fireworks mark every fall.",
+    "platforms": [
+      {
+        "x1": -540,
+        "x2": 540,
+        "y": 0,
+        "solid": true,
+        "depth": 200,
+        "hidden": true
+      },
+      {
+        "x1": -400,
+        "x2": -170,
+        "y": 140,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 170,
+        "x2": 400,
+        "y": 140,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -110,
+        "x2": 110,
+        "y": 280,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 600,
+        "x2": 780,
+        "y": -140,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 600,
+        "x2": 780,
+        "y": -280,
+        "solid": false,
+        "hidden": true
+      }
+    ],
+    "blast": {
+      "left": -1450,
+      "right": 1500,
+      "top": 1200,
+      "bottom": -850
+    },
+    "spawns": [
+      {
+        "x": -380,
+        "y": 0
+      },
+      {
+        "x": 380,
+        "y": 0
+      },
+      {
+        "x": -130,
+        "y": 0
+      },
+      {
+        "x": 130,
+        "y": 0
+      }
+    ],
+    "respawn": {
+      "x": 0,
+      "y": 460
+    },
+    "theme": {
+      "sky": [
+        "#1a1714",
+        "#0b0d10",
+        "#050a0e"
+      ],
+      "glow": "#af7850",
+      "body": "#403730",
+      "under": "#161311",
+      "edge": "#ccac8b",
+      "thinEdge": "#b09072",
+      "props": "skyline"
+    },
+    "layers": [
+      {
+        "id": "backdrop",
+        "image": "stages/city-top/_takes/backdrop-1724508556.webp",
+        "x": 0,
+        "y": 250,
+        "width": 3200,
+        "z": 20,
+        "note": "The far background, painted fresh from the concept.",
+        "prompt": "Aerial night view of a downtown Los Angeles skyline from rooftop height: a cluster of glowing glass skyscrapers in the middle distance, one tall spire tower slightly off center, a sprawling grid of amber city lights stretching to a low horizon, near-black sky with faint smoke trails from distant fireworks, a few golden firework streaks rising.",
+        "aspect": 0.429
+      },
+      {
+        "id": "left-building",
+        "image": "stages/city-top/_takes/left-building-430432051.webp",
+        "x": -1000,
+        "y": -550,
+        "width": 780,
+        "z": 5,
+        "note": "Lower neighboring building far left, scenery only.",
+        "prompt": "Dim mid-rise office block with a blue neon stripe down one edge, scattered lit windows, rooftop HVAC boxes.",
+        "aspect": 1.133,
+        "shape": [
+          {
+            "x1": -350,
+            "x2": 350,
+            "y1": -400,
+            "y2": 350
+          },
+          {
+            "x1": -200,
+            "x2": -50,
+            "y1": 350,
+            "y2": 400
+          },
+          {
+            "x1": 340,
+            "x2": 350,
+            "y1": -400,
+            "y2": 350
+          }
+        ]
+      },
+      {
+        "id": "escape-building",
+        "image": "stages/city-top/_takes/escape-building-1772507782.webp",
+        "x": 830,
+        "y": -455,
+        "width": 629,
+        "z": 3,
+        "note": "Shorter brick apartment building the fire escape is bolted to, behind it on the right.",
+        "prompt": "Old brick apartment building, rows of warm lit windows with some dark ones, water-stained cornice, a small rooftop bulkhead.",
+        "aspect": 1.549,
+        "shape": [
+          {
+            "x1": -270,
+            "x2": 270,
+            "y1": -445,
+            "y2": 385
+          },
+          {
+            "x1": -270,
+            "x2": 270,
+            "y1": 375,
+            "y2": 395
+          },
+          {
+            "x1": -190,
+            "x2": -90,
+            "y1": 395,
+            "y2": 445
+          }
+        ]
+      },
+      {
+        "id": "main-building",
+        "image": "",
+        "x": 0,
+        "y": -400,
+        "width": 1100,
+        "z": 0.3,
+        "hidden": true,
+        "note": "The tall office tower whose flat roof is the main stage; roof top exactly at y 0 with a low parapet lip.",
+        "prompt": "Dark concrete and glass high-rise seen from the side, grid of warm amber lit windows fading down into darkness, tar-and-gravel roof with a pale lit parapet edge, small vents and conduit on the roof surface.",
+        "aspect": 0.727,
+        "shape": [
+          {
+            "x1": -550,
+            "x2": 550,
+            "y1": 380,
+            "y2": 400
+          },
+          {
+            "x1": -510,
+            "x2": 510,
+            "y1": -400,
+            "y2": 380
+          },
+          {
+            "x1": -550,
+            "x2": -510,
+            "y1": 360,
+            "y2": 400
+          },
+          {
+            "x1": 510,
+            "x2": 550,
+            "y1": 360,
+            "y2": 400
+          }
+        ],
+        "platforms": [
+          0
+        ]
+      },
+      {
+        "id": "billboard-catwalk",
+        "image": "",
+        "x": -285,
+        "y": 70,
+        "width": 230,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Steel billboard frame on the left of the roof; the service catwalk along its top is the platform at y 140.",
+        "prompt": "Rusted steel lattice billboard frame with a faded, half-lit advertisement panel, grated metal catwalk on top with a thin railing, small spotlights on arms casting warm light.",
+        "aspect": 0.609,
+        "shape": [
+          {
+            "x1": -115,
+            "x2": 115,
+            "y1": 60,
+            "y2": 70
+          },
+          {
+            "x1": -105,
+            "x2": -85,
+            "y1": -70,
+            "y2": 60
+          },
+          {
+            "x1": 85,
+            "x2": 105,
+            "y1": -70,
+            "y2": 60
+          },
+          {
+            "x1": -95,
+            "x2": 95,
+            "y1": -30,
+            "y2": 50
+          }
+        ],
+        "platforms": [
+          1
+        ]
+      },
+      {
+        "id": "skylight-canopy",
+        "image": "",
+        "x": 285,
+        "y": 70,
+        "width": 230,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Glass skylight canopy on posts on the right of the roof; its flat top is the platform at y 140.",
+        "prompt": "Steel-framed glass skylight canopy, smoky glass panes reflecting city light, warm glow leaking up from inside, flat steel top rail catching amber light.",
+        "aspect": 0.609,
+        "shape": [
+          {
+            "x1": -115,
+            "x2": 115,
+            "y1": 58,
+            "y2": 70
+          },
+          {
+            "x1": -105,
+            "x2": -89,
+            "y1": -70,
+            "y2": 58
+          },
+          {
+            "x1": 89,
+            "x2": 105,
+            "y1": -70,
+            "y2": 58
+          },
+          {
+            "x1": -89,
+            "x2": 89,
+            "y1": -10,
+            "y2": 58
+          }
+        ],
+        "platforms": [
+          2
+        ]
+      },
+      {
+        "id": "water-tower",
+        "image": "",
+        "x": 0,
+        "y": 140,
+        "width": 220,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Classic wooden rooftop water tower in the center; its flat lid at y 280 is the top platform.",
+        "prompt": "Weathered cedar-plank water tank bound with iron hoops, flat wooden lid, on a dark steel trestle with cross-braces, a red aircraft warning light on top glowing softly.",
+        "aspect": 1.273,
+        "shape": [
+          {
+            "x1": -110,
+            "x2": 110,
+            "y1": 130,
+            "y2": 140
+          },
+          {
+            "x1": -95,
+            "x2": 95,
+            "y1": 35,
+            "y2": 130
+          },
+          {
+            "x1": -80,
+            "x2": -66,
+            "y1": -140,
+            "y2": 35
+          },
+          {
+            "x1": 66,
+            "x2": 80,
+            "y1": -140,
+            "y2": 35
+          },
+          {
+            "x1": -80,
+            "x2": 80,
+            "y1": 20,
+            "y2": 35
+          }
+        ],
+        "platforms": [
+          3
+        ]
+      },
+      {
+        "id": "fire-escape",
+        "image": "",
+        "x": 690,
+        "y": -255,
+        "width": 180,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Black iron fire escape hanging off the right of the main tower gap, two landings at y -140 and y -280 to catch falling fighters, ladder between them.",
+        "prompt": "Classic black wrought-iron fire escape with slatted grate landings, thin railings, a diagonal stair and a drop ladder, lit from one side by warm window light.",
+        "aspect": 1.833,
+        "shape": [
+          {
+            "x1": -90,
+            "x2": 90,
+            "y1": 105,
+            "y2": 115
+          },
+          {
+            "x1": -90,
+            "x2": 90,
+            "y1": -35,
+            "y2": -25
+          },
+          {
+            "x1": 50,
+            "x2": 66,
+            "y1": -25,
+            "y2": 115
+          },
+          {
+            "x1": -90,
+            "x2": -82,
+            "y1": 115,
+            "y2": 165
+          },
+          {
+            "x1": 82,
+            "x2": 90,
+            "y1": 115,
+            "y2": 165
+          },
+          {
+            "x1": -90,
+            "x2": -82,
+            "y1": -25,
+            "y2": 25
+          },
+          {
+            "x1": 76,
+            "x2": 86,
+            "y1": -165,
+            "y2": -35
+          }
+        ],
+        "platforms": [
+          4,
+          5
+        ]
+      },
+      {
+        "id": "front-antenna",
+        "image": "stages/city-top/_takes/front-antenna-1701492486.webp",
+        "x": -480,
+        "y": 80,
+        "width": 139,
+        "z": -2,
+        "occluder": true,
+        "note": "Foreground rooftop antenna mast and vent stack at the front left corner of the roof; fighters pass behind it.",
+        "prompt": "Silhouetted steel antenna mast with dish and a squat sheet-metal vent stack, rim-lit in amber from the city below, a tiny blinking red light.",
+        "aspect": 2.233,
+        "shape": [
+          {
+            "x1": -50,
+            "x2": 50,
+            "y1": -140,
+            "y2": -20
+          },
+          {
+            "x1": -10,
+            "x2": 4,
+            "y1": -20,
+            "y2": 140
+          },
+          {
+            "x1": -40,
+            "x2": 30,
+            "y1": 70,
+            "y2": 90
+          }
+        ]
+      },
+      {
+        "id": "stage-art",
+        "image": "stages/city-top/_takes/stage-9500.webp",
+        "x": 115,
+        "y": -255,
+        "width": 1463,
+        "z": 0.3,
+        "note": "The painted stage: every piece that draws platforms.",
+        "aspect": 0.843,
+        "platforms": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      }
+    ],
+    "effects": [
+      {
+        "on": "ko",
+        "kind": "firework",
+        "colors": [
+          "#ffd08a",
+          "#ffb060",
+          "#fff2d8"
+        ],
+        "count": 1,
+        "at": "sky"
+      },
+      {
+        "on": "end",
+        "kind": "firework",
+        "colors": [
+          "#ffd08a",
+          "#ffb060",
+          "#fff2d8",
+          "#6fa8ff",
+          "#ff6a4a"
+        ],
+        "count": 20,
+        "at": "sky"
+      }
+    ],
+    "source": "CityTop",
+    "art": {
+      "style": "Moody nighttime cityscape painting with photographic realism softened into painterly strokes. Near-black sky, dark charcoal and brown building masses punctuated by thousands of warm amber window lights, with occasional cool blue accents. Lighting comes from below and from windows, rims of warm gold on edges, deep shadows elsewhere.",
+      "reference": "stages/city-top/reference.webp"
+    },
+    "notes": "Plays like a standard three-platform stage on a wide rooftop: billboard catwalk and skylight canopy at 140, water tower lid at 280 for vertical play. The right side has a two-landing fire escape below roof level that catches fighters knocked off that side, giving them a climb-back route (lower landing reaches the ledge with a full jump plus air jump); the left side is an open drop, so the stage is mildly asymmetric by design. Every KO launches a firework into the sky; the match end fires a big multicolor finale. Art priority: main-building, water-tower, fire-escape, billboard-catwalk, skylight-canopy, backdrop, escape-building, front-antenna, left-building."
   }
 ]

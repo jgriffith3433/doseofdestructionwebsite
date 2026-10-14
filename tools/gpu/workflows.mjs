@@ -140,3 +140,40 @@ export function animate({ reference, motion, prompt, negative, width = 640, heig
   g.add('SaveVideo', { video: g.out(out), filename_prefix: prefix, format: 'auto', codec: 'auto' });
   return g.nodes;
 }
+
+/**
+ * Qwen-Image-Edit-2511 painting over a blockout: images[0] (scaled to exactly
+ * width x height, which sets the output size) is repainted as the prompt
+ * says, styled on images[1] (and images[2]).
+ */
+export function paintOver({ images, prompt, seed, width, height, prefix = 'dod/map', s = {} }) {
+  // denoise below 1 starts from the blockout itself, which pins the painting to its flat,
+  // straight-on shapes (Qwen otherwise drifts to three-quarter views).
+  const { steps = 4, cfg = 1, shift = 3.1, lora: loraStrength = 1, sampler = 'euler', scheduler = 'simple', denoise = 1 } = s;
+  const g = graph();
+  const unet = g.add('UNETLoader', { unet_name: 'qwen_image_edit_2511_fp8mixed.safetensors', weight_dtype: 'default' });
+  const clip = g.add('CLIPLoader', { clip_name: 'qwen_2.5_vl_7b_fp8_scaled.safetensors', type: 'qwen_image', device: 'default' });
+  const vae = g.add('VAELoader', { vae_name: 'qwen_image_vae.safetensors' });
+  const sampling = g.add('ModelSamplingAuraFlow', { model: g.out(unet), shift });
+  const norm = g.add('CFGNorm', { model: g.out(sampling), strength: 1 });
+  const lora = g.add('LoraLoaderModelOnly', { model: g.out(norm), lora_name: 'Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors', strength_model: loraStrength });
+  const loads = images.slice(0, 3).map((image) => g.add('LoadImage', { image }));
+  const first = g.add('ImageScale', { image: g.out(loads[0]), upscale_method: 'lanczos', width, height, crop: 'disabled' });
+  const refs = { image1: g.out(first) };
+  loads.slice(1).forEach((id, i) => (refs[`image${i + 2}`] = g.out(id)));
+  const enc = (text) =>
+    g.add('FluxKontextMultiReferenceLatentMethod', {
+      conditioning: g.out(g.add('TextEncodeQwenImageEditPlus', { clip: g.out(clip), vae: g.out(vae), ...refs, prompt: text })),
+      reference_latents_method: 'index_timestep_zero',
+    });
+  const pos = enc(prompt);
+  const neg = enc('');
+  const latent = g.add('VAEEncode', { pixels: g.out(first), vae: g.out(vae) });
+  const sample = g.add('KSampler', {
+    model: g.out(lora), positive: g.out(pos), negative: g.out(neg), latent_image: g.out(latent),
+    seed, steps, cfg, sampler_name: sampler, scheduler, denoise,
+  });
+  const decoded = g.add('VAEDecode', { samples: g.out(sample), vae: g.out(vae) });
+  g.add('SaveImage', { images: g.out(decoded), filename_prefix: prefix });
+  return g.nodes;
+}

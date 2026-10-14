@@ -13,6 +13,7 @@ import { voiceTab } from './tabs/voice.ts';
 import { scriptsTab } from './tabs/scripts.ts';
 import { gpuTab } from './tabs/gpu.ts';
 import { aiTab } from './tabs/ai.ts';
+import { mountActivity } from './activity.ts';
 
 export interface Tab {
   mount(el: HTMLElement): void;
@@ -105,6 +106,15 @@ async function boot(): Promise<void> {
     }
   }
   showTab(first);
+  // Links like href="#gpu" switch tabs.
+  window.addEventListener('hashchange', () => {
+    const name = location.hash.slice(1);
+    if (TABS[name]) showTab(name);
+  });
+  // GPU activity, on every tab.
+  const bar = h('span', { class: 'activity-slot' });
+  document.querySelector('.topbar > a.btn')?.before(bar);
+  mountActivity(bar);
 }
 
 void boot();

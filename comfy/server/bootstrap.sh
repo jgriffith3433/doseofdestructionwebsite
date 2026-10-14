@@ -32,6 +32,12 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -y || fail "apt update"
 apt-get install -y nginx apache2-utils ffmpeg git python3-venv python3-dev aria2 jq curl || fail "apt install"
 
+# A little swap, as a cushion for the 32 GB machines while models load (with
+# --disable-pinned-memory RAM stays around 4 GB; see docs/comfyui.md).
+if ! swapon --show | grep -q /swapfile; then
+  fallocate -l 16G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
 # ------------------------------------------------------------------ proxy
 htpasswd -bc /etc/nginx/dod.htpasswd dod '__TOKEN__' || fail "htpasswd"
 chmod 640 /etc/nginx/dod.htpasswd
@@ -160,13 +166,22 @@ while read -r dir file url; do
 done < "$STATE/models.txt"
 
 # ---------------------------------------------------------------- service
+# Memory (see docs/comfyui.md): keep ComfyUI's dynamic VRAM (it keeps fp8 weights fp8;
+# without it they load as 16-bit and Wan runs out of memory), but never stage weights
+# in pinned RAM: on a 32 GB machine that locks up the whole server.
+VRAM_MB=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | head -1)
+RAM_MB=$(free -m | awk '/^Mem:/ {print $2}')
+COMFY_FLAGS=""
+[ "${RAM_MB:-0}" -lt 100000 ] && COMFY_FLAGS="--disable-pinned-memory"
+echo "ComfyUI flags: $COMFY_FLAGS (GPU ${VRAM_MB} MB, RAM ${RAM_MB} MB)"
+
 cat > /etc/systemd/system/comfyui.service <<UNIT
 [Unit]
 Description=ComfyUI
 After=network-online.target
 [Service]
 WorkingDirectory=$COMFY
-ExecStart=$COMFY/venv/bin/python main.py --listen 127.0.0.1 --port 8188 --disable-auto-launch
+ExecStart=$COMFY/venv/bin/python main.py --listen 127.0.0.1 --port 8188 --disable-auto-launch $COMFY_FLAGS
 Restart=always
 RestartSec=5
 [Install]

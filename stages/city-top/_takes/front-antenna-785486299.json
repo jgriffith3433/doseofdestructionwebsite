@@ -1,0 +1,33 @@
+{
+ "job": "a2f34dfb63eb",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple"
+ },
+ "stage": "city-top",
+ "piece": "front-antenna",
+ "kind": "front",
+ "layers": [
+  "front-antenna"
+ ],
+ "seed": 785486299,
+ "prompt": "Paint image 1: the gray shape becomes Silhouetted steel antenna mast with dish and a squat sheet-metal vent stack, rim-lit in amber from the city below, a tiny blinking red light, filling the same position and size. It sits close to the camera, in front of the action: darker, slightly silhouetted, with a crisp outline. Match the art style, palette and lighting of image 2. Style: Moody nighttime cityscape painting with photographic realism softened into painterly strokes. Near-black sky, dark charcoal and brown building masses punctuated by thousands of warm amber window lights, with occasional cool blue accents. Lighting comes from below and from windows, rims of warm gold on edges, deep shadows elsewhere. The background stays plain white. Flat side view, straight on, no perspective tilt. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -549.3,
+  "x2": -410.7,
+  "y1": -74,
+  "y2": 234
+ },
+ "size": [
+  688,
+  1536
+ ],
+ "x": -480,
+ "y": 80,
+ "width": 139,
+ "created": 1792015064263
+}

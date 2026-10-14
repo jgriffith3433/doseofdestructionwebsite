@@ -1,0 +1,49 @@
+{
+ "job": "b2eecccddaf2",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.75
+ },
+ "stage": "city-top",
+ "piece": "stage",
+ "kind": "stage",
+ "layers": [
+  "main-building",
+  "billboard-catwalk",
+  "skylight-canopy",
+  "water-tower",
+  "fire-escape"
+ ],
+ "seed": 7500,
+ "prompt": "Paint image 1 as finished 2D game environment art. Each gray shape becomes the structure described for its place, at exactly the same position, size and outline: center: Dark concrete and glass high-rise seen from the side, grid of warm amber lit windows fading down into darkness, tar-and-gravel roof with a pale lit parapet edge, small vents and conduit on the roof surface; upper left: Rusted steel lattice billboard frame with a faded, half-lit advertisement panel, grated metal catwalk on top with a thin railing, small spotlights on arms casting warm light; upper center: Steel-framed glass skylight canopy, smoky glass panes reflecting city light, warm glow leaking up from inside, flat steel top rail catching amber light; upper center: Weathered cedar-plank water tank bound with iron hoops, flat wooden lid, on a dark steel trestle with cross-braces, a red aircraft warning light on top glowing softly; right: Classic black wrought-iron fire escape with slatted grate landings, thin railings, a diagonal stair and a drop ladder, lit from one side by warm window light. The black horizontal bars are walkable surfaces (rooftop edges, ledges, catwalks, landings): keep each one exactly where it is, flat and level, as the visible top edge of its structure. Match the art style, palette and lighting of image 2. Style: Moody nighttime cityscape painting with photographic realism softened into painterly strokes. Near-black sky, dark charcoal and brown building masses punctuated by thousands of warm amber window lights, with occasional cool blue accents. Lighting comes from below and from windows, rims of warm gold on edges, deep shadows elsewhere. Everything outside the shapes stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -616.5,
+  "x2": 846.5,
+  "y1": -866.3499999999999,
+  "y2": 356.5
+ },
+ "size": [
+  1120,
+  944
+ ],
+ "x": 115,
+ "y": -255,
+ "width": 1463,
+ "created": 1792015871399,
+ "fit": {
+  "score": 0.97,
+  "platforms": [
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   0.95,
+   0.86
+  ]
+ }
+}

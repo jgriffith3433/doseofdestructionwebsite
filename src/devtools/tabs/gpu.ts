@@ -4,7 +4,7 @@
 // want to generate and let it stop itself when idle.
 
 import { h, kids } from '../../game/ui/dom.ts';
-import { store } from '../api.ts';
+import { api, store } from '../api.ts';
 import { GpuFailure, gpu, money, refreshGpu, watchGpu, type Attempt, type Failure, type GpuJob, type GpuServer, type GpuState, type LaunchOptions, type RegionInfo, type RetryState } from '../gpu.ts';
 import { attempt, checkbox, numberInput, select, toast } from '../ui.ts';
 import type { Tab } from '../main.ts';
@@ -14,7 +14,90 @@ let last: GpuState | null = null;
 let busy = false;
 let failure: Failure | null = null;
 const open = new Set<string>();
-const form = { region: 'auto', type: 'g6e.xlarge', idleMinutes: 30, keepTrying: true, minutes: 60 };
+const form = { region: 'auto', type: 'auto', idleMinutes: 30, keepTrying: true, minutes: 60 };
+/** AWS's capacity hints (spot placement scores), when asked for. */
+let capacity: Record<string, Record<string, number>> | null = null;
+let checking = false;
+/** What the page last drew from, so polls that change nothing don't redraw it. */
+let drawn = '';
+/** The server's health (flags, memory, disk; over SSH), checked once it's ready. */
+interface Health { ok: boolean; active: string; flags: string[]; missing: string[]; bad: string[]; ram: string | null; swap: string | null; disk: string | null; gpu: { usedMb: number; totalMb: number } | null }
+let health: Health | null = null;
+let healthFor = '';
+let healthError = '';
+let fixing = false;
+
+async function checkHealth(id: string): Promise<void> {
+  healthFor = id;
+  try {
+    health = await api.get<Health>('/gpu/health');
+    healthError = '';
+  } catch (e) {
+    health = null;
+    healthError = (e as Error).message;
+  }
+  render();
+}
+
+function healthBox(s: GpuServer): HTMLElement | null {
+  if (s.state !== 'running' || s.boot?.stage !== 'ready') return null;
+  // Once per server (and on demand).
+  if (healthFor !== s.id) void checkHealth(s.id!);
+  const gb = (mb: number) => `${(mb / 1024).toFixed(1)} GB`;
+  if (!health) return h('p', { class: healthError ? 'hint warn' : 'hint' }, healthError ? `Health check: ${healthError}` : 'Checking the server’s settings…');
+  return h('div', { class: `health ${health.ok ? 'ok' : 'warn'}` },
+    h('div', { class: 'row' },
+      h('strong', {}, health.ok ? '✓ Server settings are right' : '⚠ Server settings need fixing'),
+      h('span', { class: 'spacer' }),
+      h('button', { type: 'button', class: 'btn small', onclick: () => checkHealth(s.id!) }, 'Check again'),
+      !health.ok && h('button', { type: 'button', class: 'btn small primary', disabled: fixing, title: 'Sets the flags that work and restarts ComfyUI (about 10 seconds; queued jobs wait)', onclick: async () => {
+        fixing = true;
+        render();
+        try {
+          health = await api.post<Health>('/gpu/health/fix', {});
+          toast('ComfyUI restarted with the right settings.');
+        } catch (e) {
+          toast((e as Error).message, 'error');
+        }
+        fixing = false;
+        render();
+      } }, fixing ? 'Fixing…' : 'Fix it')),
+    h('p', { class: 'hint mono' }, `ComfyUI ${health.active} · flags ${health.flags.filter((f) => !['--listen', '--port', '--disable-auto-launch'].includes(f)).join(' ') || '(none)'}`),
+    health.missing.length ? h('p', { class: 'hint warn' }, `Missing ${health.missing.join(', ')}: without it ComfyUI locks most of the RAM while loading models, and the server stops answering.`) : null,
+    health.bad.length ? h('p', { class: 'hint warn' }, `${health.bad.join(', ')} makes Wan video run out of GPU memory (fp8 weights load as 16-bit, or two models stay loaded).`) : null,
+    h('p', { class: 'hint' }, [health.gpu && `GPU ${gb(health.gpu.usedMb)} of ${gb(health.gpu.totalMb)} in use`, health.ram && `RAM ${health.ram} MB`, health.swap && `swap ${health.swap} MB`, health.disk && `disk ${health.disk}`].filter(Boolean).join(' · ')),
+    h('p', { class: 'hint' }, 'Why these settings: docs/comfyui.md.'),
+  );
+}
+
+/** The server's log (over SSH), when asked for. */
+let serverLogText: string | null = null;
+let readingLog = false;
+
+/** First-launch setup, in order, matched against what the server reports. */
+const SETUP = [
+  { label: 'System packages', match: /system packages/ },
+  { label: 'ComfyUI', match: /^ComfyUI v/ },
+  { label: 'PyTorch', match: /PyTorch/ },
+  { label: 'ComfyUI requirements', match: /requirements/ },
+  { label: 'Custom nodes', match: /custom nodes/ },
+  { label: 'Models (about 90 GB)', match: /^model / },
+  { label: 'Starting ComfyUI', match: /waiting for ComfyUI/ },
+];
+
+function setupList(s: GpuServer): HTMLElement | null {
+  const boot = s.boot;
+  if (!boot || boot.stage === 'ready' || s.state !== 'running') return null;
+  const at = SETUP.findIndex((x) => x.match.test(boot.detail ?? ''));
+  const mins = s.launched ? Math.round((Date.now() - new Date(s.launched).getTime()) / 60000) : 0;
+  return h('div', { class: 'card', style: 'background:var(--panel-2)' },
+    h('h3', {}, 'Setting up', h('span', { class: 'spacer' }), h('span', { class: 'muted' }, `${mins} min since launch`)),
+    h('ol', { class: 'setup-steps' }, ...SETUP.map((x, i) => h('li', { class: i < at ? 'done' : i === at ? 'now' : '' },
+      x.label, i === at && boot.stage === 'downloading' ? h('span', { class: 'muted' }, ` · ${boot.detail}`) : null))),
+    h('p', { class: 'hint' }, 'First launch only: usually 10 to 25 minutes, mostly the model downloads. Nothing to do but wait; queued jobs start by themselves when it is ready. Later starts take a couple of minutes.'),
+  );
+}
+let tick = 0;
 const quotaAsk: Record<string, number> = {};
 
 const ago = (t: number) => {
@@ -44,9 +127,13 @@ async function run(fn: () => Promise<unknown>, done?: string): Promise<void> {
 
 function launchForm(s: GpuServer, regions: RegionInfo[]): HTMLElement {
   const types = s.types ?? {};
-  if (!types[form.type]) form.type = s.defaultType ?? Object.keys(types)[0];
-  const t = types[form.type];
-  const usable = (r: RegionInfo) => (r.quota ?? 0) >= (t?.vcpus ?? 4) && (r.zones[form.type]?.length ?? 0) > 0;
+  const group = form.type === 'auto' ? Object.keys(types) : null;
+  if (!group && !types[form.type]) form.type = 'auto';
+  const pickable = group ?? [form.type];
+  // The cheapest in the group, for the estimate; "any" launches try the best first.
+  const t = types[pickable[0]] ?? types[Object.keys(types)[0]];
+  const price = group ? `${money(Math.min(...group.map((k) => types[k].price)))}–${money(Math.max(...group.map((k) => types[k].price)))}` : money(t.price);
+  const usable = (r: RegionInfo) => pickable.some((k) => (r.quota ?? 0) >= types[k].vcpus && (r.zones[k]?.length ?? 0) > 0);
   if (form.region !== 'auto' && !regions.some((r) => r.region === form.region && usable(r))) form.region = 'auto';
   const anyUsable = regions.some(usable);
   const regionSel = select<string>(
@@ -58,14 +145,17 @@ function launchForm(s: GpuServer, regions: RegionInfo[]): HTMLElement {
   const launch = () => {
     const opts: LaunchOptions = { region: form.region, type: form.type, idleMinutes: form.idleMinutes, keepTrying: form.keepTrying ? { minutes: form.minutes } : undefined };
     const retryNote = form.keepTrying ? `\n\nIf AWS has none free, it tries again every 3 minutes for up to ${form.minutes} minutes. Charges start whenever it succeeds.` : '';
-    if (!confirm(`Launch a ${form.type} GPU server (${form.region === 'auto' ? 'any region with quota' : form.region})?\n\nAbout ${money(t.price)}/hour while running, plus about ${money(s.diskPerMonth)}/month for its disk until you terminate it. It stops itself after ${form.idleMinutes} idle minutes.${retryNote}`)) return;
+    if (!confirm(`Launch a ${group ? '48 GB GPU' : form.type} server (${form.region === 'auto' ? 'any region with quota' : form.region})?\n\nAbout ${price}/hour while running, plus about ${money(s.diskPerMonth)}/month for its disk until you terminate it. It stops itself after ${form.idleMinutes} idle minutes.${retryNote}`)) return;
     void run(() => gpu.launch(opts), form.keepTrying ? 'Launching; it keeps trying if AWS is full.' : 'Launching. Setup takes 30 to 45 minutes; progress shows here.');
   };
   return h(
     'div',
     {},
     h('dl', { class: 'form' },
-      h('div', { class: 'field' }, h('label', {}, 'Machine'), select<string>(Object.entries(types).map(([k, v]): [string, string] => [k, `${k} · ${v.vcpus} vCPU · ${v.memory} GB · ${money(v.price)}/h`]), form.type, (v) => { form.type = v; render(); })),
+      h('div', { class: 'field' }, h('label', {}, 'Machine'), select<string>([
+        ['auto', 'Any size (all are L40S, 48 GB)'],
+        ...Object.entries(types).map(([k, v]): [string, string] => [k, `${k} · ${v.gpu} · ${v.memory} GB RAM · ${money(v.price)}/h`]),
+      ], form.type, (v) => { form.type = v; render(); })),
       h('div', { class: 'field' }, h('label', {}, 'Region'), regionSel),
       h('div', { class: 'field' }, h('label', {}, 'Stop after idle (minutes)'), numberInput(form.idleMinutes, (v) => (form.idleMinutes = v ?? 30), { min: 10, max: 240, step: 5 }))),
     h('div', { class: 'row' }, checkbox('If AWS is full, keep trying for', form.keepTrying, (v) => { form.keepTrying = v; render(); }),
@@ -75,6 +165,8 @@ function launchForm(s: GpuServer, regions: RegionInfo[]): HTMLElement {
   );
 }
 
+const countdown = (s: number) => `Next try in ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}.`;
+
 function retryBox(r: RetryState): HTMLElement {
   const lastTry = r.log[r.log.length - 1];
   const wait = r.next ? Math.max(0, Math.round((r.next - Date.now()) / 1000)) : 0;
@@ -82,7 +174,7 @@ function retryBox(r: RetryState): HTMLElement {
     'div',
     { class: 'card', style: 'background:var(--panel-2)' },
     h('h3', {}, `Trying to ${r.action === 'launch' ? `launch ${r.opts.type ?? ''}` : 'start the server'}`, h('span', { class: 'spacer' }), h('span', { class: 'badge warn' }, `try ${r.tries}`)),
-    h('p', { class: 'hint' }, r.next ? `Next try in ${Math.floor(wait / 60)}:${String(wait % 60).padStart(2, '0')}. Gives up at ${clock(r.until)}.` : 'Trying now…'),
+    h('p', { class: 'hint' }, r.next ? h('span', { 'data-next': r.next }, countdown(wait)) : 'Trying now…', r.next ? ` Gives up at ${clock(r.until)}.` : ''),
     lastTry && !lastTry.ok && h('p', { class: 'hint warn' }, lastTry.message),
     h('div', { class: 'row' }, h('button', { type: 'button', class: 'btn', onclick: () => run(() => gpu.stopRetry(), 'Stopped trying.') }, 'Stop trying')),
   );
@@ -152,7 +244,9 @@ function serverCard(s: GpuServer, state: GpuState): HTMLElement {
         ['SSH', s.key ? `ssh -i ${s.key} ubuntu@${s.ip ?? '<ip>'}` : '—'],
       ].map(([k, v]) => h('div', { class: 'field' }, h('label', {}, k), h('span', { class: k === 'SSH' ? 'mono' : '' }, v))),
     ),
-    stage === 'failed' && h('p', { class: 'hint warn' }, 'Setup failed. SSH in (above) and read /var/log/dod-bootstrap.log, or terminate and launch again.'),
+    stage === 'failed' && h('p', { class: 'hint warn' }, 'Setup failed. Server log (below) shows why; terminate and launch again once it is fixed.'),
+    setupList(s),
+    healthBox(s),
     stage === 'locked out' && h('p', { class: 'hint warn' }, 'The server rejected the saved password (.cache/gpu/server.json). If that file was replaced, terminate and launch again.'),
     retrying,
     shownFailure && !retrying ? failureBox(shownFailure) : null,
@@ -165,12 +259,26 @@ function serverCard(s: GpuServer, state: GpuState): HTMLElement {
       running && h('button', { type: 'button', class: 'btn', disabled: busy, onclick: () => run(() => gpu.act('stop'), 'Stopping.') }, 'Stop now'),
       running && h('button', { type: 'button', class: 'btn', disabled: busy, title: 'Use this if your IP changed', onclick: () => run(() => gpu.act('access'), 'This IP can reach the server.') }, 'Refresh access'),
       isReady && s.url && h('a', { class: 'btn', href: s.url, target: '_blank', rel: 'noopener', title: 'User dod; the password is the token in .cache/gpu/server.json' }, 'Open ComfyUI'),
+      running && h('button', { type: 'button', class: 'btn', disabled: readingLog, title: 'The setup log, disk, memory and GPU, over SSH', onclick: async () => {
+        readingLog = true;
+        render();
+        try {
+          serverLogText = (await api.get<{ log: string }>('/gpu/log?lines=60')).log;
+        } catch (e) {
+          serverLogText = `Couldn't read the log: ${(e as Error).message}`;
+        }
+        readingLog = false;
+        render();
+      } }, readingLog ? 'Reading…' : 'Server log'),
       h('span', { class: 'spacer' }),
       h('button', { type: 'button', class: 'btn danger', disabled: busy, onclick: () => {
         if (!confirm('Terminate the GPU server? This deletes it and its disk, models included. Launching again re-downloads everything.')) return;
         void run(() => gpu.act('terminate'), 'Terminating.');
       } }, 'Terminate'),
     )),
+    serverLogText !== null && h('details', { open: true }, h('summary', { class: 'muted' }, 'Server log', ' ',
+      h('button', { type: 'button', class: 'btn small', onclick: () => { serverLogText = null; render(); } }, 'Hide')),
+      h('pre', { class: 'mono server-log' }, serverLogText)),
     isReady && s.url && h('p', { class: 'hint' }, 'ComfyUI in the browser asks for a login: user dod, password is the token in .cache/gpu/server.json. Job workflows (queue below) load into it by drag and drop.'),
   );
 }
@@ -186,6 +294,20 @@ function regionsCard(state: GpuState): HTMLElement {
     h('h3', {}, 'Regions', h('span', { class: 'spacer' }),
       h('button', { type: 'button', class: 'btn small', onclick: () => attempt(() => gpu.refreshRegions(), 'Quotas re-read.').then(() => refreshGpu()) }, 'Refresh')),
     h('p', { class: 'hint' }, `GPU quota is how many GPU vCPUs the account may run in a region (a ${type} needs ${need}). It doesn't reserve machines: AWS can still be out of them.`),
+    h('div', { class: 'row' },
+      h('button', { type: 'button', class: 'btn small', disabled: checking, title: 'Read-only: AWS spot placement scores, its own estimate of spare capacity', onclick: async () => {
+        checking = true;
+        render();
+        const out = await attempt(() => api.get<{ scores: Record<string, Record<string, number>> }>('/gpu/capacity'));
+        if (out) capacity = out.scores;
+        checking = false;
+        render();
+      } }, checking ? 'Asking AWS…' : 'Check availability'),
+      h('span', { class: 'hint' }, 'AWS’s 1–10 guess at spare machines. Low everywhere partly reflects your Spot quota (0), so treat it as a hint.')),
+    capacity && h('table', { class: 'table' },
+      h('thead', {}, h('tr', {}, h('th', {}, 'Machine'), ...state.regions.map((r) => h('th', {}, r.region)))),
+      h('tbody', {}, ...Object.entries(capacity).map(([t, by]) => h('tr', {}, h('td', { class: 'mono' }, t),
+        ...state.regions.map((r) => h('td', {}, by[r.region] ? h('span', { class: `badge ${by[r.region] >= 7 ? 'ok' : by[r.region] >= 4 ? 'warn' : ''}` }, String(by[r.region])) : '—')))))),
     h('table', { class: 'table' },
       h('thead', {}, h('tr', {}, h('th', {}, 'Region'), h('th', {}, 'Quota'), h('th', {}, 'Requests'), h('th', {}, `${type} zones`), h('th', {}, ''))),
       h('tbody', {}, ...state.regions.map((r) => {
@@ -246,8 +368,9 @@ function jobDetail(j: GpuJob): HTMLElement {
 }
 
 function jobRows(j: GpuJob): HTMLElement[] {
-  const name = store.fighters.find((f) => f.id === j.fighter)?.name ?? j.fighter;
-  const what = j.type === 'side' ? 'side views' : `${j.clip} · ${j.type === 'animate' ? 'from motion' : 'from prompt'}${(j.takes ?? 1) > 1 ? ` · ${j.takes} takes` : ''}`;
+  const name = j.type === 'paint' ? `stage ${j.stage}` : store.fighters.find((f) => f.id === j.fighter)?.name ?? j.fighter;
+  const what = j.type === 'paint' ? `paint ${j.piece}${(j.takes ?? 1) > 1 ? ` · ${j.takes} takes` : ''}`
+    : j.type === 'side' ? 'side views' : `${j.clip} · ${j.type === 'animate' ? 'from motion' : 'from prompt'}${(j.takes ?? 1) > 1 ? ` · ${j.takes} takes` : ''}`;
   const cls = j.status === 'done' ? 'ok' : j.status === 'failed' || j.status === 'interrupted' ? 'bad' : j.status === 'running' ? 'warn' : '';
   const took = j.started ? (j.finished ? `${Math.round((j.finished - j.started) / 1000)}s` : `${ago(j.started)} so far`) : '';
   const finished = !['queued', 'running'].includes(j.status);
@@ -255,7 +378,7 @@ function jobRows(j: GpuJob): HTMLElement[] {
   const row = h(
     'tr',
     {},
-    h('td', {}, h('img', { src: `/characters/thumb/${j.fighter}.webp`, alt: '', style: 'width:26px;height:26px;object-fit:contain' })),
+    h('td', {}, j.type === 'paint' ? h('span', { class: 'badge' }, 'map') : h('img', { src: `/characters/thumb/${j.fighter}.webp`, alt: '', style: 'width:26px;height:26px;object-fit:contain' })),
     h('td', {}, name),
     h('td', { class: 'mono' }, what),
     h('td', {}, h('span', { class: `badge ${cls}` }, j.status)),
@@ -272,8 +395,15 @@ function jobRows(j: GpuJob): HTMLElement[] {
   return isOpen ? [row, h('tr', {}, h('td', { colspan: 8 }, jobDetail(j)))] : [row];
 }
 
+/** Everything the page shows, minus what changes every poll without meaning anything. */
+function signature(s: GpuState): string {
+  const r = s.retry;
+  return JSON.stringify([s.server, s.regions, s.account, s.motions, s.lastFailure, s.jobs.map((j) => [j.id, j.status, j.detail, j.cost]), r && [r.active, r.tries, r.next, r.ended]]);
+}
+
 function render(): void {
   const s = last;
+  if (s) drawn = signature(s);
   if (!s) {
     root.replaceChildren(h('div', { class: 'main' }, h('p', { class: 'muted' }, 'Loading the GPU service…')));
     return;
@@ -313,21 +443,20 @@ export const gpuTab: Tab = {
     root = el;
     el.style.display = 'block';
     watchGpu((s) => {
-      const finished = last && s.jobs.filter((j) => j.status === 'done').length > last.jobs.filter((j) => j.status === 'done').length;
-      const launched = last && !last.server.exists && s.server.exists;
+      // Finished jobs and launches are announced everywhere by activity.ts.
       last = s;
-      if (finished) {
-        toast('A generation job finished.');
-        void store.refresh();
-      }
-      if (launched) toast(`The GPU server launched in ${s.server.region}. Setup takes 30 to 45 minutes.`);
-      // Don't redraw under someone typing in the form.
+      // Don't redraw under someone typing in the form, or when nothing changed.
       const typing = root.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement!.tagName);
-      if (!root.hidden && !typing) render();
+      if (!root.hidden && !typing && signature(s) !== drawn) render();
     });
   },
   show() {
     render();
+    // The retry countdown ticks on its own; the page only redraws when something changes.
+    clearInterval(tick);
+    tick = window.setInterval(() => {
+      for (const el of root.querySelectorAll<HTMLElement>('[data-next]')) el.textContent = countdown(Math.max(0, Math.round((Number(el.dataset.next) - Date.now()) / 1000)));
+    }, 1000);
     void refreshGpu().catch(() => undefined);
   },
 };

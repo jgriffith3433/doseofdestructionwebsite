@@ -122,7 +122,15 @@ const animators = new Set<Animator>();
 let running = false;
 
 function loop(now: number): void {
-  for (const a of animators) a(now);
+  // One animator failing must not stop the others (or the loop) for good.
+  for (const a of animators) {
+    try {
+      a(now);
+    } catch (e) {
+      animators.delete(a);
+      console.error('animation stopped:', e);
+    }
+  }
   if (animators.size) requestAnimationFrame(loop);
   else running = false;
 }

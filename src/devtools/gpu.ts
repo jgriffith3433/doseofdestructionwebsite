@@ -5,6 +5,7 @@ import { api } from './api.ts';
 export interface InstanceType {
   vcpus: number;
   memory: number;
+  vram: number;
   gpu: string;
   price: number;
 }
@@ -85,9 +86,12 @@ export interface Resolved {
 
 export interface GpuJob {
   id: string;
-  type: 'side' | 'i2v' | 'animate';
+  type: 'side' | 'i2v' | 'animate' | 'paint';
   fighter: string;
   clip?: string;
+  /** Paint jobs: the stage and the piece of it. */
+  stage?: string;
+  piece?: string;
   status: 'queued' | 'running' | 'done' | 'failed' | 'cancelled' | 'interrupted';
   detail: string;
   log: string[];
@@ -122,7 +126,9 @@ export interface GpuState {
 
 export type JobSpec = {
   type: GpuJob['type'];
-  fighter: string;
+  fighter?: string;
+  stage?: string;
+  piece?: string;
   clip?: string;
   prompt?: string;
   negative?: string;
@@ -211,7 +217,7 @@ export function watchGpu(fn: (s: GpuState) => void): () => void {
       // Faster while something is happening.
       const s = cached?.server;
       const busy = cached?.jobs.some((j) => j.status === 'running' || j.status === 'queued') || cached?.retry?.active || (s?.exists && s.boot?.stage !== 'ready' && s.state !== 'stopped');
-      timer = window.setTimeout(tick, busy ? 4000 : 15000);
+      timer = window.setTimeout(tick, busy ? 8000 : 20000);
     };
     void tick();
   }

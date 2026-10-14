@@ -25,6 +25,11 @@ export class Comfy {
     return (await this.request(route, init)).json();
   }
 
+  /** Unloads every model from the GPU (and frees cached memory) so another family of models fits. */
+  async free() {
+    await this.request('/free', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ unload_models: true, free_memory: true }) });
+  }
+
   async stats() {
     return this.json('/system_stats');
   }

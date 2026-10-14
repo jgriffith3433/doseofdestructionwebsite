@@ -1,0 +1,33 @@
+{
+ "job": "ddb33161df33",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple"
+ },
+ "stage": "city-top",
+ "piece": "left-building",
+ "kind": "scenery",
+ "layers": [
+  "left-building"
+ ],
+ "seed": 72857611,
+ "prompt": "Paint image 1: the gray shape becomes Dim mid-rise office block with a blue neon stripe down one edge, scattered lit windows, rooftop HVAC boxes, filling the same position and size. Match the art style, palette and lighting of image 2. Style: Moody nighttime cityscape painting with photographic realism softened into painterly strokes. Near-black sky, dark charcoal and brown building masses punctuated by thousands of warm amber window lights, with occasional cool blue accents. Lighting comes from below and from windows, rims of warm gold on edges, deep shadows elsewhere. The background stays plain white. Flat side view, straight on, no perspective tilt. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1390.005,
+  "x2": -609.995,
+  "y1": -990.055,
+  "y2": -109.945
+ },
+ "size": [
+  960,
+  1088
+ ],
+ "x": -1000,
+ "y": -550,
+ "width": 780,
+ "created": 1792014687089
+}

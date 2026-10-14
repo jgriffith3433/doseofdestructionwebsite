@@ -21,6 +21,10 @@
  *   POST /api/dev/gpu/launch|start|stop|terminate|access   manage the GPU server
  *                                       (launch/start take keepTrying: { minutes })
  *   POST /api/dev/gpu/retry/stop        stop keep-trying
+ *   GET  /api/dev/gpu/health           ComfyUI's flags, memory, disk and GPU vs docs/comfyui.md (over SSH)
+ *   POST /api/dev/gpu/health/fix       put ComfyUI on the flags that work and restart it
+ *   GET  /api/dev/gpu/log?lines        the server's setup log, disk, memory and GPU (over SSH)
+ *   GET  /api/dev/gpu/capacity          AWS spot placement scores per type and region (read-only)
  *   POST /api/dev/gpu/regions/refresh   re-read quotas and offerings
  *   POST /api/dev/gpu/quota             { region, value } ask AWS for more GPU quota
  *   POST /api/dev/gpu/preview           { job, generation? } the prompt and settings a job would use
@@ -29,6 +33,17 @@
  *   POST /api/dev/gpu/jobs/cancel|clear|rerun   manage the queue
  *   GET  /api/dev/gpu/graph?name        a job's ComfyUI graph (loads into ComfyUI)
  *   POST /api/dev/gpu/take/use|discard  { fighter, clip?, file } pick or drop a take
+ *   GET  /api/dev/maps/concepts         every folder in the maps root (AllTheMaps) and its stage
+ *   GET  /api/dev/maps/concept-file?folder&file   a concept image
+ *   POST /api/dev/maps/generate         { folder, direction?, count?, base?, feedback? } stage designs
+ *                                       from that folder ("Generate Map Idea"), or revisions of base
+ *   GET  /api/dev/maps/design-file?name a design's blockout preview
+ *   GET  /api/dev/maps/takes?stage      what can be painted for a saved stage, and the painted takes
+ *   POST /api/dev/maps/take/discard     { stage, file } moves a painted take to _takes/_old/
+ *   POST /api/dev/maps/review           { stage } the art-director review of a stage (Claude)
+ *   GET  /api/dev/maps/review-file?name the image a review looked at
+ *   POST /api/dev/maps/layer/upload?stage&name     an art layer image into stages/<stage>/
+ *   GET  /api/dev/maps/art?stage        the images already in stages/<stage>/
  *   POST /api/dev/gpu/side/choose       { fighter, file } picks a side view
  *   POST /api/dev/gpu/motion/promote    { fighter, clip } adds a clip to the motion library
  *   GET  /api/dev/gpu/motion?clip       a motion library video
@@ -37,15 +52,20 @@
  * ElevenLabs key is ELEVENLABS_API_KEY, from the environment or .env.
  */
 import { spawn } from 'node:child_process';
+import { normalizePath } from 'vite';
 import fs from 'node:fs';
 import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
 import { checkAccount } from './gpu/check.mjs';
-import { launchServer, refreshAccess, regionsInfo, requestQuota, serverStatus, startServer, stopServer, terminateServer, DEFAULT_TYPE, DISK_PER_MONTH, TYPES } from './gpu/aws.mjs';
+import { fixServer, launchServer, serverHealth, serverLog, refreshAccess, regionsInfo, requestQuota, serverStatus, startServer, stopServer, terminateServer, DEFAULT_TYPE, DISK_PER_MONTH, TYPES } from './gpu/aws.mjs';
 import { GRAPHS, Jobs, motionPath } from './gpu/jobs.mjs';
 import { Retry } from './gpu/retry.mjs';
+import { capacityScores } from './gpu/capacity.mjs';
 import { DEFAULTS, LIMITS } from './gpu/settings.mjs';
+import { mapIdeas } from './maps/idea.mjs';
+import { composite, designPreview, loadStage, paintPlan } from './maps/paint.mjs';
+import { reviewStage } from './maps/review.mjs';
 
 const CONTENT = new Set(['stages', 'fighters', 'campaign', 'sounds', 'voice', 'anim-clips', 'generation']);
 const VIDEO = new Set(['.mp4', '.mov', '.webm', '.mkv', '.gif', '.avi']);
@@ -179,7 +199,7 @@ const elevenError = (r, wait) => {
 
 // ------------------------------------------------------------------ plugin
 
-export function devApi({ root, artRoot }) {
+export function devApi({ root, artRoot, mapsRoot }) {
   const contentDir = path.join(root, 'content');
   const audioDir = path.join(root, 'audio');
   const imgDir = path.join(root, 'characters', 'img');
@@ -235,7 +255,7 @@ export function devApi({ root, artRoot }) {
   // Vite re-runs this when its config changes; the old queue and retries must stop,
   // or two queues would share jobs.json and could run the same job twice.
   globalThis.__dodGpu?.dispose();
-  globalThis.__dodGpu = { dispose: () => { jobs.dispose(); retry.stop('the dev server restarted'); } };
+  globalThis.__dodGpu = { dispose: () => { jobs.dispose(); retry.suspend(); } };
   // The last launch or start that failed, with every zone it tried, for the GPU tab.
   let lastFailure = null;
   const gpuFail = (res, e) => {
@@ -256,6 +276,55 @@ export function devApi({ root, artRoot }) {
     return account.value;
   };
   const motionsDir = () => path.dirname(motionPath(folderFor, 'idle'));
+
+  // ---------------------------------------------------------------- maps
+
+  const stagesDir = path.join(root, 'stages');
+  const mapSlug = (folder) => folder.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const mapName = (folder) => folder.replace(/[_-]+/g, ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2').trim();
+  const conceptDir = (folder) => {
+    const dir = path.resolve(mapsRoot, String(folder || ''));
+    if (!inside(mapsRoot, dir) || dir === path.resolve(mapsRoot) || !fs.existsSync(dir)) throw new Error(`No folder ${folder} in ${mapsRoot}`);
+    return dir;
+  };
+  const conceptImages = (dir) => fs.readdirSync(dir).filter((f) => IMAGE.has(path.extname(f).toLowerCase())).sort();
+
+  function concepts() {
+    const stages = JSON.parse(fs.readFileSync(path.join(contentDir, 'stages.json'), 'utf8'));
+    if (!fs.existsSync(mapsRoot)) return [];
+    return fs.readdirSync(mapsRoot, { withFileTypes: true }).filter((d) => d.isDirectory() && !d.name.startsWith('_')).map((d) => {
+      const dir = path.join(mapsRoot, d.name);
+      const ref = path.join(dir, 'reference.txt');
+      const stage = stages.find((s) => s.source === d.name) ?? null;
+      return {
+        folder: d.name,
+        id: mapSlug(d.name),
+        name: mapName(d.name),
+        reference: fs.existsSync(ref) ? fs.readFileSync(ref, 'utf8') : '',
+        images: conceptImages(dir).map((f) => ({ file: f, ...fileInfo(path.join(dir, f)) })),
+        stage: stage ? { id: stage.id, name: stage.name } : null,
+      };
+    });
+  }
+
+  /** Runs tools/map_art.py; resolves to its parsed JSON output. */
+  function mapArt(args) {
+    return new Promise((resolve, reject) => {
+      const child = spawn(python, [path.join(root, 'tools', 'map_art.py'), ...args]);
+      let out = '';
+      let err = '';
+      child.stdout.on('data', (d) => (out += d));
+      child.stderr.on('data', (d) => (err += d));
+      child.on('close', (code) => {
+        if (code !== 0) return reject(new Error(err.trim().slice(-400) || `map_art.py exited ${code}`));
+        try {
+          resolve(JSON.parse(out));
+        } catch {
+          reject(new Error(`map_art.py printed ${out.slice(0, 200)}`));
+        }
+      });
+    });
+  }
 
   /** The .json recipe saved beside a generated file, if any. */
   const readRecipe = (file) => {
@@ -657,7 +726,7 @@ export function devApi({ root, artRoot }) {
       const opts = {
         idleMinutes: Math.max(10, Math.min(240, Number(body.idleMinutes) || 30)),
         region: typeof body.region === 'string' ? body.region : 'auto',
-        type: TYPES[body.type] ? body.type : DEFAULT_TYPE,
+        type: body.type === 'auto' || TYPES[body.type] ? body.type : DEFAULT_TYPE,
       };
       if ((act === 'launch' || act === 'start') && body.keepTrying) {
         lastFailure = null;
@@ -677,6 +746,30 @@ export function devApi({ root, artRoot }) {
       } catch (e) {
         return gpuFail(res, e);
       }
+    }
+    if (route === '/gpu/health' && req.method === 'GET') {
+      try {
+        return send(res, 200, await serverHealth());
+      } catch (e) {
+        return gpuFail(res, e);
+      }
+    }
+    if (route === '/gpu/health/fix' && req.method === 'POST') {
+      try {
+        return send(res, 200, await fixServer());
+      } catch (e) {
+        return gpuFail(res, e);
+      }
+    }
+    if (route === '/gpu/log' && req.method === 'GET') {
+      try {
+        return send(res, 200, { log: await serverLog(q('lines')) });
+      } catch (e) {
+        return gpuFail(res, e);
+      }
+    }
+    if (route === '/gpu/capacity' && req.method === 'GET') {
+      return send(res, 200, { scores: await capacityScores(Object.keys(TYPES)) });
     }
     if (route === '/gpu/retry/stop' && req.method === 'POST') {
       retry.stop();
@@ -726,7 +819,13 @@ export function devApi({ root, artRoot }) {
     }
     if (route === '/gpu/jobs' && req.method === 'POST') {
       const { jobs: specs } = await readJson(req);
-      for (const s of specs ?? []) checkFighter(s.fighter);
+      for (const s of specs ?? []) {
+        if (s.type === 'paint') {
+          // Painting reads the saved stage; check now rather than on the GPU.
+          const st = loadStage(String(s.stage));
+          if (!paintPlan(st).some((p) => p.id === s.piece)) return fail(res, 400, `${st.name} has no piece "${s.piece}" to paint (save the stage first?)`);
+        } else checkFighter(s.fighter);
+      }
       return send(res, 200, { ok: true, added: jobs.add(specs ?? []).map((j) => j.id) });
     }
     if (route === '/gpu/jobs/cancel' && req.method === 'POST') {
@@ -765,12 +864,164 @@ export function devApi({ root, artRoot }) {
       return serveFile(req, res, file);
     }
 
+    if (route === '/maps/concepts' && req.method === 'GET') {
+      return send(res, 200, { root: mapsRoot, exists: fs.existsSync(mapsRoot), concepts: concepts() });
+    }
+    if (route === '/maps/concept-file' && req.method === 'GET') {
+      const dir = conceptDir(q('folder'));
+      const file = path.resolve(dir, q('file'));
+      if (!inside(dir, file) || !fs.existsSync(file)) return fail(res, 404, 'Not found');
+      return serveFile(req, res, file);
+    }
+    if (route === '/maps/generate' && req.method === 'POST') {
+      const { folder, direction = '', count = 3, base = null, feedback = '' } = await readJson(req);
+      const dir = conceptDir(folder);
+      const images = conceptImages(dir);
+      if (!images.length) return fail(res, 400, `${folder} has no images yet. Add concept art (PNG, JPG or WebP) first.`);
+      const ref = path.join(dir, 'reference.txt');
+      const reference = fs.existsSync(ref) ? fs.readFileSync(ref, 'utf8') : '';
+      // A stage id that doesn't clash with a stage from somewhere else.
+      const stages = JSON.parse(fs.readFileSync(path.join(contentDir, 'stages.json'), 'utf8'));
+      let id = mapSlug(folder) || 'stage';
+      for (let n = 2; stages.some((s) => s.id === id && s.source !== folder); n++) id = `${mapSlug(folder)}-${n}`;
+      // The first image is the reference the art is painted from; smaller copies of every image go to Claude.
+      const outDir = path.join(stagesDir, id);
+      fs.mkdirSync(outDir, { recursive: true });
+      await mapArt(['prep', path.join(dir, images[0]), path.join(outDir, 'reference.webp'), '1568']);
+      const cache = path.join(root, '.cache', 'maps', id);
+      fs.mkdirSync(cache, { recursive: true });
+      const looks = [];
+      for (const [i, f] of images.slice(0, 4).entries()) {
+        const file = path.join(cache, `concept-${i + 1}.webp`);
+        await mapArt(['prep', path.join(dir, f), file, '1568']);
+        looks.push({ file, label: f });
+      }
+      const palette = await mapArt(['palette', path.join(dir, images[0]), '6']);
+      const sounds = JSON.parse(fs.readFileSync(path.join(contentDir, 'sounds.json'), 'utf8')).map((s) => s.id);
+      const out = await mapIdeas({
+        id, name: mapName(folder), folder, reference, images: looks,
+        backdrop: { reference: `stages/${id}/reference.webp` }, palette, sounds, example: stages[0],
+        direction: String(direction), count, base, feedback: String(feedback),
+      });
+      // A blockout of each design, to pick from.
+      const stamp = Date.now();
+      const designs = [];
+      for (const [i, stage] of out.designs.entries()) {
+        const name = `${id}-${stamp}-${i + 1}.png`;
+        await designPreview(stage, path.join(cache, name));
+        designs.push({ stage, preview: `/api/dev/maps/design-file?stage=${id}&name=${name}` });
+      }
+      return send(res, 200, { ...out, designs });
+    }
+    if (route === '/maps/design-file' && req.method === 'GET') {
+      const stage = String(q('stage') || '').replace(/[^a-z0-9-]/g, '');
+      const name = String(q('name') || '');
+      if (!/^[a-z0-9-]+-\d+-\d\.png$/.test(name)) return fail(res, 400, 'Bad name');
+      const file = path.join(root, '.cache', 'maps', stage, name);
+      if (!fs.existsSync(file)) return fail(res, 404, 'Gone');
+      return serveFile(req, res, file);
+    }
+    if (route === '/maps/takes' && req.method === 'GET') {
+      const id = String(q('stage') || '').replace(/[^a-z0-9-]/g, '');
+      let pieces = [];
+      try {
+        pieces = paintPlan(loadStage(id));
+      } catch {
+        // Not saved yet: nothing to paint.
+      }
+      const dir = path.join(stagesDir, id, '_takes');
+      const takes = {};
+      if (fs.existsSync(dir)) {
+        for (const f of fs.readdirSync(dir)) {
+          const m = /^([a-z0-9-]+)-(\d+)\.webp$/.exec(f);
+          if (!m) continue;
+          let recipe = null;
+          try {
+            recipe = JSON.parse(fs.readFileSync(path.join(dir, f.replace(/\.webp$/, '.json')), 'utf8'));
+          } catch {
+            // A take without its recipe can't be placed.
+          }
+          (takes[m[1]] ??= []).push({ file: `stages/${id}/_takes/${f}`, seed: Number(m[2]), recipe, ...fileInfo(path.join(dir, f)) });
+        }
+      }
+      for (const list of Object.values(takes)) list.sort((a, b) => b.mtime - a.mtime);
+      return send(res, 200, { pieces, takes });
+    }
+    if (route === '/maps/take/discard' && req.method === 'POST') {
+      const { stage, file } = await readJson(req);
+      const id = String(stage || '').replace(/[^a-z0-9-]/g, '');
+      const base = path.basename(String(file || ''));
+      if (!/^[a-z0-9-]+-\d+\.webp$/.test(base)) return fail(res, 400, 'No such take');
+      const dir = path.join(stagesDir, id, '_takes');
+      fs.mkdirSync(path.join(dir, '_old'), { recursive: true });
+      for (const f of [base, base.replace(/\.webp$/, '.json')]) if (fs.existsSync(path.join(dir, f))) fs.renameSync(path.join(dir, f), path.join(dir, '_old', f));
+      return send(res, 200, { ok: true });
+    }
+    if (route === '/maps/review' && req.method === 'POST') {
+      const { stage } = await readJson(req);
+      if (!stage?.id || !Array.isArray(stage.platforms)) return fail(res, 400, 'Send the stage to review');
+      const id = String(stage.id).replace(/[^a-z0-9-]/g, '');
+      const cache = path.join(root, '.cache', 'maps', id);
+      fs.mkdirSync(cache, { recursive: true });
+      const name = `review-${Date.now()}.png`;
+      await composite(stage, path.join(cache, name));
+      // The concept: the folder's images (prepared when the idea was generated), else the reference copy.
+      const concepts = fs.readdirSync(cache).filter((f) => /^concept-\d\.webp$/.test(f)).sort().map((f) => path.join(cache, f));
+      if (!concepts.length && stage.art?.reference && fs.existsSync(path.join(root, stage.art.reference))) concepts.push(path.join(root, stage.art.reference));
+      let reference = '';
+      if (stage.source) {
+        const ref = path.join(mapsRoot, path.basename(String(stage.source)), 'reference.txt');
+        if (fs.existsSync(ref)) reference = fs.readFileSync(ref, 'utf8');
+      }
+      const out = await reviewStage({ stage, composite: path.join(cache, name), concepts, reference });
+      return send(res, 200, { ...out, image: `/api/dev/maps/review-file?stage=${id}&name=${name}` });
+    }
+    if (route === '/maps/review-file' && req.method === 'GET') {
+      const stage = String(q('stage') || '').replace(/[^a-z0-9-]/g, '');
+      const name = String(q('name') || '');
+      if (!/^review-\d+\.png$/.test(name)) return fail(res, 400, 'Bad name');
+      const file = path.join(root, '.cache', 'maps', stage, name);
+      if (!fs.existsSync(file)) return fail(res, 404, 'Gone');
+      return serveFile(req, res, file);
+    }
+    if (route === '/maps/layer/upload' && req.method === 'POST') {
+      const stage = String(q('stage') || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
+      const name = String(q('name') || 'layer');
+      const ext = path.extname(name).toLowerCase();
+      if (!stage) return fail(res, 400, 'Which stage?');
+      if (!IMAGE.has(ext)) return fail(res, 400, 'Use a PNG, JPG or WebP');
+      const base = path.basename(name, ext).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'layer';
+      const outDir = path.join(stagesDir, stage);
+      fs.mkdirSync(outDir, { recursive: true });
+      const tmp = path.join(os.tmpdir(), `dod-layer-${Date.now()}${ext}`);
+      fs.writeFileSync(tmp, await readBody(req, 80 * 1024 * 1024));
+      try {
+        const size = await mapArt(['prep', tmp, path.join(outDir, `${base}.webp`), '4096']);
+        return send(res, 200, { path: `stages/${stage}/${base}.webp`, ...size });
+      } finally {
+        fs.rmSync(tmp, { force: true });
+      }
+    }
+    if (route === '/maps/art' && req.method === 'GET') {
+      const stage = String(q('stage') || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
+      const dir = path.join(stagesDir, stage);
+      const files = stage && fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => IMAGE.has(path.extname(f).toLowerCase())) : [];
+      return send(res, 200, { files: files.map((f) => ({ path: `stages/${stage}/${f}`, ...fileInfo(path.join(dir, f)) })) });
+    }
+
     return fail(res, 404, `No such devtools route: ${req.method} ${route}`);
   }
 
   /** A content file changed: refresh Vite's copy, and tell game tabs (not devtools) to reload. */
   function contentChanged(server, file) {
-    for (const mod of server.moduleGraph.getModulesByFile(file) ?? []) server.moduleGraph.invalidateModule(mod);
+    // Vite keys modules by forward-slash paths; a Windows path finds nothing (and the game
+    // would keep serving the old content until the dev server restarted).
+    const graphs = [server.moduleGraph, ...Object.values(server.environments ?? {}).map((e) => e.moduleGraph)].filter(Boolean);
+    for (const graph of new Set(graphs)) {
+      for (const key of new Set([file, normalizePath(file)])) {
+        for (const mod of graph.getModulesByFile?.(key) ?? []) graph.invalidateModule(mod);
+      }
+    }
     server.ws.send({ type: 'custom', event: 'dod:content', data: { file: path.basename(file) } });
   }
 

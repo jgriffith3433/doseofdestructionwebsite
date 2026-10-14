@@ -20,6 +20,7 @@ type Phase = 'idle' | 'ready' | 'play' | 'pause';
 
 const canvas = $<HTMLCanvasElement>('stage');
 const renderer = new Renderer(canvas);
+renderer.onSound = (id) => audio.sfx(id);
 listenKeyboard();
 listenMenuKeys(() => phase === 'play' || phase === 'ready');
 
@@ -262,6 +263,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean): Promise<void>
   if (match !== m) return;
   phase = 'ready';
   banner('Ready');
+  renderer.stageEvent('start');
   audio.line('announcer.ready');
   audio.playMusic(`music-${STAGES[setup.stage].id}`);
   lastActions = m.state.fighters.map((f) => f.action);
@@ -301,6 +303,7 @@ function tick(m: Match): void {
   const s = m.state;
   if (s.over && !shownOver) {
     shownOver = true;
+    renderer.stageEvent('end');
     banner(s.timedOut ? 'Time!' : 'Game!');
     audio.line(s.timedOut ? 'announcer.time' : 'announcer.game');
   }

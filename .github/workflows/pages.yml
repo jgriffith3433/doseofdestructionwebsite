@@ -33,7 +33,7 @@ jobs:
         run: |
           mkdir _site
           cp index.html characters.html privacypolicy.html favicon.svg CNAME _site/
-          cp -r site characters audio _site/
+          cp -r site characters audio stages _site/
           # The built game: dist/Game/index.html plus its bundled assets.
           cp -r dist/. _site/
       - uses: actions/upload-pages-artifact@v3

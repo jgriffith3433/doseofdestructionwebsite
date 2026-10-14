@@ -24,6 +24,8 @@ interface FighterGen {
 }
 interface Gen {
   _about?: string;
+  /** Painting stage pieces (tools/maps/paint.mjs). */
+  paint?: Section;
   size?: number;
   fps?: number;
   takes?: number;
@@ -161,6 +163,32 @@ function typeCard(type: Type): HTMLElement {
     h('p', { class: 'hint' }, about),
     field('Prompt', prompt, { wide: true, sub: 'Use {name}, {description}, {action} and {background}.' }),
     h('dl', { class: 'form' }, ...FIELDS[type].filter((f) => f.k !== 'prompt').map((f) =>
+      field(f.label, control(f, () => mine[f.k], (v) => { put(mine, f.k, v === d[f.k] ? undefined : v); changed('gen'); }, d[f.k]), { sub: f.hint }))),
+  );
+}
+
+/** Painting stages: what docs/comfyui.md found works, as settings. */
+const PAINT_FIELDS: Field[] = [
+  { k: 'pass', label: 'Shape pass strength', step: 0.01, hint: 'How much pass 1 repaints the blockout. It’s a cliff: at 0.80 takes land on the platforms (fit 0.86–0.97); at 0.82 they already tilt (fit about 0.5). Keep 0.80 or lower.' },
+  { k: 'detail', label: 'Detail pass strength', step: 0.05, hint: 'Pass 2 adds texture and light over pass 1. More detail, more risk of tilting (then pass 1 is kept). 0 skips it.' },
+  { k: 'stageTakes', label: 'Takes: the stage', step: 1, hint: 'The piece you stand on varies most between seeds, so it gets more takes to pick from.' },
+  { k: 'takes', label: 'Takes: other pieces', step: 1 },
+  { k: 'fitTarget', label: 'Fit target', step: 0.05, hint: 'A stage take that lands on the platforms worse than this is painted again with a new seed. 0 keeps every take.' },
+  { k: 'retries', label: 'Retries per take', step: 1, hint: 'How many new seeds to try before keeping a take that misses the fit target.' },
+  { k: 'mood', label: 'Mood board size (px)', step: 8, hint: 'The concept reaches the painter shrunk to this and blurred: smaller keeps only palette and light, larger starts copying its layout.' },
+  { k: 'windows', label: 'Window grids on facades', kind: 'bool', hint: 'Seeds big building walls with lit windows so the painter has something to build on.' },
+];
+
+function paintCard(): HTMLElement {
+  const d = (defaults as unknown as { paint: Section }).paint ?? {};
+  const mine = (gen.paint ??= {}) as Section;
+  return h(
+    'section',
+    { class: 'card' },
+    h('h3', {}, 'Painting stages', h('span', { class: 'spacer' }),
+      h('button', { type: 'button', class: 'btn small', onclick: () => { gen.paint = {}; changed('gen'); render(); } }, 'Reset')),
+    h('p', { class: 'hint' }, 'Qwen-Image-Edit paints each stage piece over its blockout (Maps → Paint). These are the defaults that worked on City Top; why each one matters is in docs/comfyui.md.'),
+    h('dl', { class: 'form' }, ...PAINT_FIELDS.map((f) =>
       field(f.label, control(f, () => mine[f.k], (v) => { put(mine, f.k, v === d[f.k] ? undefined : v); changed('gen'); }, d[f.k]), { sub: f.hint }))),
   );
 }
@@ -314,7 +342,7 @@ function saveBar(): void {
 async function save(): Promise<void> {
   // Drop empty sections so the file only holds real choices.
   const out: Gen = JSON.parse(JSON.stringify(gen));
-  for (const k of ['side', 'i2v', 'animate'] as const) if (out[k] && !Object.keys(out[k]!).length) delete out[k];
+  for (const k of ['side', 'i2v', 'animate', 'paint'] as const) if (out[k] && !Object.keys(out[k]!).length) delete out[k];
   for (const [id, f] of Object.entries(out.fighters)) if (!Object.keys(f).length) delete out.fighters[id];
   const ok = await attempt(async () => {
     if (dirty.gen) await api.save('generation', out);
@@ -356,7 +384,7 @@ function render(): void {
       'div',
       { class: 'main' },
       h('header', {}, h('h2', {}, 'AI Settings'), h('span', { class: 'muted' }, 'Prompts and settings for side views and clips. Saved to content/generation.json.'), h('span', { class: 'spacer' }), bar),
-      h('div', { class: 'cards' }, previewCard(), globalCard(), typeCard('side'), typeCard('i2v'), typeCard('animate'), fighterCard(), clipsCard()),
+      h('div', { class: 'cards' }, previewCard(), globalCard(), typeCard('side'), typeCard('i2v'), typeCard('animate'), paintCard(), fighterCard(), clipsCard()),
     ),
   );
   saveBar();

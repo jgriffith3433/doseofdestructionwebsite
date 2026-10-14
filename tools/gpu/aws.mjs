@@ -14,6 +14,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import crypto from 'node:crypto';
+import os from 'node:os';
+import { spawnSync } from 'node:child_process';
 import {
   EC2Client,
   DescribeImagesCommand,
@@ -46,13 +48,18 @@ import { ROOT, awsConfig, readEnv } from './env.mjs';
  * estimates only: your AWS bill is the authority.
  */
 export const TYPES = {
-  'g6e.xlarge': { vcpus: 4, memory: 32, gpu: 'NVIDIA L40S, 48 GB', price: 1.861 },
-  'g6e.2xlarge': { vcpus: 8, memory: 64, gpu: 'NVIDIA L40S, 48 GB', price: 2.242 },
-  'g6e.4xlarge': { vcpus: 16, memory: 128, gpu: 'NVIDIA L40S, 48 GB', price: 3.004 },
+  // Most preferred first: "any" launches try them in this order. Only 48 GB GPUs: Wan
+  // video needs about 34 GB and the image models 28 GB (docs/comfyui.md).
+  'g6e.xlarge': { vcpus: 4, memory: 32, vram: 48, gpu: 'NVIDIA L40S, 48 GB', price: 1.861 },
+  'g6e.2xlarge': { vcpus: 8, memory: 64, vram: 48, gpu: 'NVIDIA L40S, 48 GB', price: 2.242 },
+  'g6e.4xlarge': { vcpus: 16, memory: 128, vram: 48, gpu: 'NVIDIA L40S, 48 GB', price: 3.004 },
 };
 export const DEFAULT_TYPE = 'g6e.xlarge';
-/** Regions the server may live in, most preferred first. Prices above hold for these. */
-export const REGIONS = ['us-east-1', 'us-east-2', 'us-west-2'];
+/** Regions the server may live in, most preferred first (the US first: cheapest). */
+export const REGIONS = ['us-east-1', 'us-east-2', 'us-west-2', 'eu-north-1', 'eu-central-1', 'ap-northeast-1'];
+/** Rough price outside the US regions, relative to TYPES (estimates; your bill is the authority). */
+const PRICE_FACTOR = { 'eu-north-1': 1.1, 'eu-central-1': 1.25, 'ap-northeast-1': 1.3 };
+export const priceIn = (type, region) => (TYPES[type]?.price ?? TYPES[DEFAULT_TYPE].price) * (PRICE_FACTOR[region] ?? 1);
 export const DISK_GB = 250;
 export const DISK_PER_MONTH = DISK_GB * 0.08 + (300 - 125) * 0.04;
 export const PORT = 8189;
@@ -152,7 +159,7 @@ function newest(list) {
 /** The hourly price for the server (or the default type when there isn't one). */
 export async function currentPrice() {
   const s = await findServer().catch(() => null);
-  return TYPES[s?.instance.InstanceType ?? DEFAULT_TYPE]?.price ?? TYPES[DEFAULT_TYPE].price;
+  return priceIn(s?.instance.InstanceType ?? DEFAULT_TYPE, s?.region);
 }
 
 /** What the server is doing: AWS state plus the install progress it reports. */
@@ -174,7 +181,7 @@ export async function serverStatus() {
     ip,
     zone: i.Placement?.AvailabilityZone,
     launched: i.LaunchTime?.toISOString(),
-    pricePerHour: TYPES[i.InstanceType]?.price ?? TYPES[DEFAULT_TYPE].price,
+    pricePerHour: priceIn(i.InstanceType, region),
     url: ip ? `http://${ip}:${PORT}` : null,
     user: 'dod',
     hasToken: Boolean(st.token),
@@ -330,7 +337,17 @@ async function ensureKeyPair(region) {
   }));
   fs.mkdirSync(STATE_DIR, { recursive: true });
   fs.writeFileSync(path.join(STATE_DIR, `${name}.pem`), made.KeyMaterial, { mode: 0o600 });
+  lockKey(path.join(STATE_DIR, `${name}.pem`));
   return name;
+}
+
+/**
+ * Windows' ssh refuses a key other accounts can read (file modes don't apply
+ * there), so give only this user read access.
+ */
+function lockKey(file) {
+  if (process.platform !== 'win32') return;
+  spawnSync('icacls', [file, '/inheritance:r', '/grant:r', `${os.userInfo().username}:R`], { stdio: 'ignore' });
 }
 
 /** The newest AWS Deep Learning Base GPU image (NVIDIA driver preinstalled) in a region. */
@@ -382,72 +399,100 @@ async function launchRegions(region, vcpus) {
   return ok;
 }
 
-/** Creates the server. Costs money from here on: see TYPES. */
+/**
+ * Creates the server. Costs money from here on: see TYPES.
+ * type 'auto' tries every type in TYPES (all 48 GB L40S machines), best
+ * first, in every region with quota for it.
+ */
 export async function launchServer({ idleMinutes = 30, region = 'auto', type = DEFAULT_TYPE } = {}) {
-  if (!TYPES[type]) throw new GpuError(`Not an instance type the server uses: ${type}`);
+  if (type !== 'auto' && !TYPES[type]) throw new GpuError(`Not an instance type the server uses: ${type}`);
   const existing = await findServer();
   if (existing) throw new GpuError(`A GPU server already exists in ${existing.region}. Start it instead of launching another.`);
   const ip = await myIp();
   const token = crypto.randomBytes(24).toString('base64url');
   const data = userData(token, idleMinutes);
   const attempts = [];
+  const setups = new Map();
 
-  for (const r of await launchRegions(region, TYPES[type].vcpus)) {
-    let setup;
+  /** The security group, key and image a region needs (once per region). */
+  const setupFor = async (r) => {
+    if (!setups.has(r)) {
+      setups.set(r, (async () => {
+        const [sg, key, image] = await Promise.all([ensureSecurityGroup(r, ip), ensureKeyPair(r), gpuImage(r)]);
+        const vpc = await defaultVpc(r);
+        const subnets = await ec2(r).send(new DescribeSubnetsCommand({ Filters: [{ Name: 'vpc-id', Values: [vpc] }, { Name: 'default-for-az', Values: ['true'] }] }));
+        return { sg, key, image, subnets: subnets.Subnets ?? [] };
+      })());
+    }
+    return setups.get(r);
+  };
+
+  const types = type === 'auto' ? Object.keys(TYPES) : [type];
+  for (const t of types) {
+    let regions;
     try {
-      const [sg, key, image] = await Promise.all([ensureSecurityGroup(r, ip), ensureKeyPair(r), gpuImage(r)]);
-      const offered = await ec2(r).send(new DescribeInstanceTypeOfferingsCommand({
-        LocationType: 'availability-zone',
-        Filters: [{ Name: 'instance-type', Values: [type] }],
-      }));
-      const zones = new Set((offered.InstanceTypeOfferings ?? []).map((o) => o.Location));
-      const vpc = await defaultVpc(r);
-      const subnets = await ec2(r).send(new DescribeSubnetsCommand({ Filters: [{ Name: 'vpc-id', Values: [vpc] }, { Name: 'default-for-az', Values: ['true'] }] }));
-      const candidates = (subnets.Subnets ?? []).filter((s) => zones.has(s.AvailabilityZone));
-      if (!candidates.length) throw new GpuError(`${r} has no default subnet in a zone offering ${type}`, 'capacity');
-      setup = { sg, key, image, candidates };
+      regions = await launchRegions(region, TYPES[t].vcpus);
     } catch (e) {
-      const kind = e.kind ?? classify(e);
-      attempts.push({ region: r, zone: null, code: e.name, kind, message: e.message });
-      if (kind === 'auth') throw new GpuError(`The AWS keys aren't allowed to set up the server in ${r}: ${e.message}`, 'auth', attempts);
+      attempts.push({ region: region === 'auto' ? 'any' : region, zone: null, type: t, code: 'quota', kind: 'quota', message: e.message });
       continue;
     }
-
-    for (const subnet of setup.candidates) {
+    for (const r of regions) {
+      let setup;
+      let candidates;
       try {
-        const res = await ec2(r).send(new RunInstancesCommand({
-          ImageId: setup.image.ImageId,
-          InstanceType: type,
-          MinCount: 1,
-          MaxCount: 1,
-          KeyName: setup.key,
-          SubnetId: subnet.SubnetId,
-          SecurityGroupIds: [setup.sg],
-          UserData: data,
-          InstanceInitiatedShutdownBehavior: 'stop',
-          BlockDeviceMappings: [{
-            DeviceName: setup.image.RootDeviceName ?? '/dev/sda1',
-            Ebs: { VolumeSize: DISK_GB, VolumeType: 'gp3', Iops: 3000, Throughput: 300, DeleteOnTermination: true },
-          }],
-          TagSpecifications: [
-            { ResourceType: 'instance', Tags: [TAG, { Key: 'Name', Value: NAME }] },
-            { ResourceType: 'volume', Tags: [TAG, { Key: 'Name', Value: NAME }] },
-          ],
+        setup = await setupFor(r);
+        const offered = await ec2(r).send(new DescribeInstanceTypeOfferingsCommand({
+          LocationType: 'availability-zone',
+          Filters: [{ Name: 'instance-type', Values: [t] }],
         }));
-        const id = res.Instances?.[0]?.InstanceId;
-        saveState({ region: r, instanceId: id, type, token, idleMinutes, keyName: setup.key, securityGroup: setup.sg, image: setup.image.ImageId, zone: subnet.AvailabilityZone, launchedAt: new Date().toISOString() });
-        attempts.push({ region: r, zone: subnet.AvailabilityZone, code: 'ok', kind: 'ok', message: 'launched' });
-        return { id, region: r, zone: subnet.AvailabilityZone, type, image: setup.image.Name, attempts };
+        const zones = new Set((offered.InstanceTypeOfferings ?? []).map((o) => o.Location));
+        candidates = setup.subnets.filter((s) => zones.has(s.AvailabilityZone));
+        if (!candidates.length) throw new GpuError(`${r} has no default subnet in a zone offering ${t}`, 'capacity');
       } catch (e) {
-        const kind = classify(e);
-        attempts.push({ region: r, zone: subnet.AvailabilityZone, code: e.name, kind, message: e.message });
-        if (kind === 'auth') throw new GpuError(`The AWS keys aren't allowed to launch ${type} in ${r}: ${e.message}`, 'auth', attempts);
-        if (kind === 'quota') break; // the rest of this region's zones share the quota
-        if (kind !== 'capacity') throw new GpuError(`${r} ${subnet.AvailabilityZone}: ${e.name}: ${e.message}`, kind, attempts);
+        const kind = e.kind ?? classify(e);
+        attempts.push({ region: r, zone: null, type: t, code: e.name, kind, message: e.message });
+        if (kind === 'auth') throw new GpuError(`The AWS keys aren't allowed to set up the server in ${r}: ${e.message}`, 'auth', attempts);
+        continue;
+      }
+
+      // First let AWS choose the zone (its own advice when one is full), then try each zone.
+      for (const subnet of [null, ...candidates]) {
+        try {
+          const res = await ec2(r).send(new RunInstancesCommand({
+            ImageId: setup.image.ImageId,
+            InstanceType: t,
+            MinCount: 1,
+            MaxCount: 1,
+            KeyName: setup.key,
+            ...(subnet ? { SubnetId: subnet.SubnetId } : {}),
+            SecurityGroupIds: [setup.sg],
+            UserData: data,
+            InstanceInitiatedShutdownBehavior: 'stop',
+            BlockDeviceMappings: [{
+              DeviceName: setup.image.RootDeviceName ?? '/dev/sda1',
+              Ebs: { VolumeSize: DISK_GB, VolumeType: 'gp3', Iops: 3000, Throughput: 300, DeleteOnTermination: true },
+            }],
+            TagSpecifications: [
+              { ResourceType: 'instance', Tags: [TAG, { Key: 'Name', Value: NAME }] },
+              { ResourceType: 'volume', Tags: [TAG, { Key: 'Name', Value: NAME }] },
+            ],
+          }));
+          const id = res.Instances?.[0]?.InstanceId;
+          const zone = res.Instances?.[0]?.Placement?.AvailabilityZone ?? subnet?.AvailabilityZone ?? 'any';
+          saveState({ region: r, instanceId: id, type: t, token, idleMinutes, keyName: setup.key, securityGroup: setup.sg, image: setup.image.ImageId, zone, launchedAt: new Date().toISOString() });
+          attempts.push({ region: r, zone, type: t, code: 'ok', kind: 'ok', message: 'launched' });
+          return { id, region: r, zone, type: t, image: setup.image.Name, attempts };
+        } catch (e) {
+          const kind = classify(e);
+          attempts.push({ region: r, zone: subnet?.AvailabilityZone ?? 'any zone', type: t, code: e.name, kind, message: e.message });
+          if (kind === 'auth') throw new GpuError(`The AWS keys aren't allowed to launch ${t} in ${r}: ${e.message}`, 'auth', attempts);
+          if (kind === 'quota') break; // the rest of this region's zones share the quota
+          if (kind !== 'capacity') throw new GpuError(`${r} ${subnet?.AvailabilityZone ?? 'any zone'} ${t}: ${e.name}: ${e.message}`, kind, attempts);
+        }
       }
     }
   }
-  throw failure(type, attempts);
+  throw failure(type === 'auto' ? `any 48 GB GPU machine (${types.join(', ')})` : type, attempts);
 }
 
 /** One error out of every failed attempt. */
@@ -505,4 +550,89 @@ export async function comfyEndpoint() {
   if (st.state !== 'running') throw new Error(`The GPU server is ${st.state}. Start it in the GPU tab.`);
   if (st.boot?.stage !== 'ready') throw new Error(`The GPU server is still setting up (${st.boot?.stage ?? 'booting'}: ${st.boot?.detail ?? ''}).`);
   return { url: st.url, headers: authHeader(localState().token) };
+}
+
+/** Runs a command on the server over SSH with its saved key; resolves to its output. */
+async function sshRun(remote) {
+  const found = await findServer();
+  if (!found) throw new GpuError('There is no GPU server.');
+  const ip = found.instance.PublicIpAddress;
+  if (!ip) throw new GpuError(`The server is ${found.instance.State?.Name}; it has no address until it runs.`);
+  const keyName = found.instance.KeyName ?? localState().keyName;
+  const key = path.join(STATE_DIR, `${keyName}.pem`);
+  if (!fs.existsSync(key)) throw new GpuError(`The SSH key ${keyName}.pem isn't in .cache/gpu/.`);
+  lockKey(key);
+  const { spawn } = await import('node:child_process');
+  return new Promise((resolve, reject) => {
+    const child = spawn('ssh', ['-i', key, '-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=8', '-o', 'BatchMode=yes', `ubuntu@${ip}`, remote]);
+    let out = '';
+    let err = '';
+    child.stdout.on('data', (d) => (out += d));
+    child.stderr.on('data', (d) => (err += d));
+    child.on('error', (e) => reject(new GpuError(`Couldn't run ssh (${e.message}). Install OpenSSH, or read the log in the AWS console.`)));
+    child.on('close', (code) => {
+      if (code === 0 || out) resolve(out);
+      else reject(new GpuError(/permission|unprotected|bad permissions/i.test(err)
+        ? `ssh refused the key file's permissions. In PowerShell: icacls "${key}" /inheritance:r /grant:r "$env:USERNAME:R"`
+        : `ssh failed: ${err.trim().split('\n').pop() || `exit ${code}`} (if your IP changed, Refresh access; if the server is overloaded, wait or reboot it)`));
+    });
+  });
+}
+
+/**
+ * What the server is doing, over SSH: the setup log (the step lines and the
+ * last raw lines), disk, memory, the GPU and ComfyUI.
+ */
+export async function serverLog(lines = 40) {
+  const n = Math.max(10, Math.min(400, Number(lines) || 40));
+  return sshRun([
+    'echo "## steps"', 'sudo grep "^== " /var/log/dod-bootstrap.log | tail -n 30',
+    'echo "## last lines"', `sudo tail -n ${n} /var/log/dod-bootstrap.log | grep -v -E "^(Requirement already satisfied|  Downloading|  Using cached)"`,
+    'echo "## ComfyUI"', 'systemctl show -p ExecStart --value comfyui 2>/dev/null | grep -o "argv\[\]=[^;]*"', 'sudo journalctl -u comfyui --no-pager -n 15 2>/dev/null | cut -c1-220',
+    'echo "## machine"', 'uptime', 'df -h / | tail -1', 'free -h | sed -n 2,3p',
+    'nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu --format=csv,noheader 2>/dev/null || echo "no GPU info"',
+    'echo "ComfyUI service: $(systemctl is-active comfyui 2>/dev/null || echo not installed yet)"',
+  ].join('; '));
+}
+
+/** The ComfyUI flags that work on these machines (docs/comfyui.md), and ones that break them. */
+export const COMFY_FLAGS = { want: ['--disable-pinned-memory'], avoid: ['--highvram', '--disable-dynamic-vram', '--gpu-only'] };
+
+/** Is the server set up the way docs/comfyui.md says works? Flags, memory, disk, GPU. */
+export async function serverHealth() {
+  const out = await sshRun([
+    'echo "flags=$(systemctl show -p ExecStart --value comfyui 2>/dev/null | grep -o "main.py[^;]*" | head -1)"',
+    'echo "active=$(systemctl is-active comfyui 2>/dev/null)"',
+    "free -m | awk '/^Mem:/{print \"ram=\"$3\"/\"$2} /^Swap:/{print \"swap=\"$3\"/\"$2}'",
+    "df -BG / | awk 'NR==2{print \"disk=\"$3\"/\"$2}'",
+    'echo "gpu=$(nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null | tr -d " ")"',
+  ].join('; '));
+  const v = Object.fromEntries(out.trim().split('\n').map((l) => l.split('=')).filter((p) => p.length >= 2).map(([k, ...r]) => [k.trim(), r.join('=').trim()]));
+  const flags = (v.flags ?? '').split(/\s+/).filter((f) => f.startsWith('--'));
+  const missing = COMFY_FLAGS.want.filter((f) => !flags.includes(f));
+  const bad = COMFY_FLAGS.avoid.filter((f) => flags.includes(f));
+  const [gUsed, gTotal] = (v.gpu ?? '').split(',').map(Number);
+  return {
+    ok: !missing.length && !bad.length && v.active === 'active',
+    active: v.active ?? 'unknown',
+    flags,
+    missing,
+    bad,
+    ram: v.ram ?? null,
+    swap: v.swap ?? null,
+    disk: v.disk ?? null,
+    gpu: Number.isFinite(gTotal) ? { usedMb: gUsed, totalMb: gTotal } : null,
+  };
+}
+
+/** Puts ComfyUI on the flags that work and restarts it. Queued jobs wait for it to come back. */
+export async function fixServer() {
+  const keep = '--listen 127.0.0.1 --port 8188 --disable-auto-launch';
+  const want = `${keep} ${COMFY_FLAGS.want.join(' ')}`;
+  await sshRun([
+    `sudo sed -i -E "s|^(ExecStart=.*main\.py).*|\\1 ${want}|" /etc/systemd/system/comfyui.service`,
+    'sudo systemctl daemon-reload', 'sudo systemctl restart comfyui',
+    'for i in $(seq 1 45); do curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8188/system_stats | grep -q 200 && break; sleep 2; done',
+  ].join(' && '));
+  return serverHealth();
 }

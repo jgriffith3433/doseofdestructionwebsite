@@ -1,0 +1,33 @@
+{
+ "job": "b18aa40879cc",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple"
+ },
+ "stage": "city-top",
+ "piece": "backdrop",
+ "kind": "backdrop",
+ "layers": [
+  "backdrop"
+ ],
+ "seed": 1454724500,
+ "prompt": "Replace image 1 completely with a new, wide background painting for a 2D fighting game stage: the far distance of City Top: Brawl across the LA rooftops while fireworks mark every fall.. Inspired by the place, mood, palette and lighting of image 2, but a new composition, not a copy of it. Distant scenery only, nothing close to the camera and no platforms. Keep the lower third darker and calmer so fighters stand out in front of it. Style: Moody nighttime cityscape painting with photographic realism softened into painterly strokes. Near-black sky, dark charcoal and brown building masses punctuated by thousands of warm amber window lights, with occasional cool blue accents. Lighting comes from below and from windows, rims of warm gold on edges, deep shadows elsewhere. Side view, flat and orthographic like a 2D fighting game, no perspective tilt. No characters, no people, no text, no logos, no UI.",
+ "frame": {
+  "x1": -1600,
+  "x2": 1600,
+  "y1": -435.71428571428567,
+  "y2": 935.7142857142857
+ },
+ "size": [
+  1568,
+  672
+ ],
+ "x": 0,
+ "y": 250,
+ "width": 3200,
+ "created": 1792014364032
+}

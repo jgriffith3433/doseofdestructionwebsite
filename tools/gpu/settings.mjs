@@ -53,6 +53,16 @@ export const DEFAULTS = {
     "face": true,
     "poseResolution": 512,
     "fill": 0.78
+  },
+  "paint": {
+    "pass": 0.8,
+    "detail": 0.6,
+    "takes": 2,
+    "stageTakes": 4,
+    "fitTarget": 0.75,
+    "retries": 2,
+    "mood": 40,
+    "windows": true
   }
 };
 
@@ -61,8 +71,9 @@ export const LIMITS = {
   side: { count: [1, 8], steps: [1, 60], cfg: [0, 20], shift: [0, 20], lora: [0, 2], resolution: [512, 1536], fill: [0.3, 1] },
   i2v: { steps: [1, 60], split: [1, 59], cfg: [0, 20], shift: [0, 20], loraHigh: [0, 2], loraLow: [0, 2], fill: [0.3, 1] },
   animate: { steps: [1, 60], cfg: [0, 20], shift: [0, 20], lora: [0, 2], maxFrames: [5, 161], poseResolution: [256, 1024], fill: [0.3, 1] },
+  paint: { pass: [0.5, 1], detail: [0, 0.9], takes: [1, 8], stageTakes: [1, 8], fitTarget: [0, 1], retries: [0, 6], mood: [8, 400] },
 };
-const SWITCHES = { animate: ['hands', 'face'] };
+const SWITCHES = { animate: ['hands', 'face'], paint: ['windows'] };
 const TEXT = ['sampler', 'scheduler'];
 
 /** content/generation.json over DEFAULTS (one level deep, so a section can set just one value). */
@@ -70,6 +81,11 @@ export function withDefaults(raw = {}) {
   const out = { ...DEFAULTS, ...raw, fighters: raw.fighters ?? {} };
   for (const type of Object.keys(LIMITS)) out[type] = { ...DEFAULTS[type], ...(raw[type] ?? {}) };
   return out;
+}
+
+/** Settings for painting stage pieces (tools/maps/paint.mjs, Jobs.paint), clamped. */
+export function paintSettings(gen = loadGeneration()) {
+  return { ...DEFAULTS.paint, ...clean('paint', withDefaults(gen).paint) };
 }
 
 export function loadGeneration() {

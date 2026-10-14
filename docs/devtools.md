@@ -27,9 +27,13 @@ other tabs stays put.
   everything shown, or all waiting; preview and edit a clip in place. Videos
   with a name the game doesn't know get a Rename control.
 - **Maps**: drag platforms, their ends, depth, spawn points, the respawn
-  point and the blast zone. Set motion, colors and backdrop in the inspector.
-  The Checks list catches spawns in midair, platforms past the blast zone, and
-  so on. Saves `content/stages.json`; Playtest opens the saved stage.
+  point, the blast zone and (in Art mode) art layers. Set motion, colors,
+  layers, effects and notes in the inspector; mirror platforms and layers;
+  undo with Ctrl+Z. The Checks list catches spawns in midair, platforms past
+  the blast zone, art still to paint, and so on. Concepts lists the folders in
+  `C:\Projects\AllTheMaps` with **Generate Map Idea**. 3D preview shows the
+  unsaved stage in the game renderer. Saves `content/stages.json`; art goes in
+  `stages/<id>/`. See `maps.md`.
 - **Sounds**: every effect and music loop the game plays, by id. Write a
   description and generate it, or upload a file. An entry turns "out of date"
   when its description changes after it was generated. Saves
