@@ -55,6 +55,14 @@ export default defineConfig({
       },
     },
   ],
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    // Only the game is bundled. The rest of the site is static HTML copied as-is.
+    rollupOptions: {
+      input: { game: path.resolve(root, 'Game/index.html') },
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 8089,

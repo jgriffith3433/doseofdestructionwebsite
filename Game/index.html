@@ -2,160 +2,89 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="mobile-web-app-capable" content="yes">
-  <title>Dose of Destruction</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Play | Dose of Destruction</title>
+  <meta name="theme-color" content="#100e0c">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #100e0c;
-      touch-action: none;
-    }
-    #unity-container { width: 100%; height: 100%; }
-    #unity-canvas { width: 100%; height: 100%; display: block; background: #100e0c; }
-    #unity-loading-bar {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      color: white;
-      font-family: Arial, sans-serif;
-    }
-    #unity-progress-bar-empty {
-      width: 280px;
-      height: 16px;
-      margin: 16px auto 0;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 8px;
-    }
-    #unity-progress-bar-full {
-      width: 0%;
-      height: 100%;
-      background: #ff5a1f;
-      border-radius: 8px;
-    }
-    #unity-warning {
-      position: absolute;
-      left: 50%;
-      bottom: 16px;
-      transform: translateX(-50%);
-      max-width: 90%;
-      z-index: 2;
-    }
-    #version-display {
-      position: absolute;
-      right: 12px;
-      bottom: 8px;
-      color: rgba(255, 255, 255, 0.55);
-      font-family: Arial, sans-serif;
-      font-size: 12px;
-    }
-    #missing-build {
-      display: none;
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      color: white;
-      font-family: Arial, sans-serif;
-      text-align: center;
-      max-width: 520px;
-      line-height: 1.5;
-      padding: 0 16px;
-    }
-    a.home { color: #ffb067; }
-  </style>
-  <!-- Set to the published build folder, for example "v1". "v0" means no build yet. -->
-  <script>window.DOD_BUILD = "v0";</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../src/game/game.css">
 </head>
 <body>
-  <div id="unity-container">
-    <canvas id="unity-canvas"></canvas>
-    <div id="unity-loading-bar">
-      <div>Loading Dose of Destruction</div>
-      <div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div>
+  <canvas id="stage" aria-label="Game view"></canvas>
+
+  <div id="hud" class="hud" hidden></div>
+
+  <section id="menu" class="screen">
+    <div class="panel">
+      <a class="back" href="/">&larr; Site</a>
+      <h1>Dose of Destruction</h1>
+
+      <h2>Fighter</h2>
+      <div id="roster" class="roster"></div>
+
+      <div class="options">
+        <label>Opponents
+          <select id="opt-bots">
+            <option value="0">Training dummy</option>
+            <option value="1" selected>1 bot</option>
+            <option value="2">2 bots</option>
+            <option value="3">3 bots</option>
+          </select>
+        </label>
+        <label>Bot level
+          <select id="opt-level"></select>
+        </label>
+        <label>Stocks
+          <select id="opt-stocks">
+            <option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="actions">
+        <button id="btn-fight" class="primary" type="button">Fight</button>
+        <button class="secondary" type="button" disabled title="Online play with room codes is the next milestone">Online (soon)</button>
+      </div>
+
+      <details class="controls" open>
+        <summary>Controls</summary>
+        <div class="controls-grid">
+          <div><h3>Keyboard</h3><dl id="keys-kb"></dl></div>
+          <div><h3>Gamepad</h3><dl id="keys-pad"></dl></div>
+        </div>
+        <p class="hint">Press <kbd>H</kbd> in a match to show hitboxes.</p>
+      </details>
     </div>
-    <div id="missing-build">
-      <p>No game build has been published yet.</p>
-      <p style="margin-top: 12px;"><a class="home" href="../">Back home</a></p>
+  </section>
+
+  <section id="pause" class="screen" hidden>
+    <div class="panel small">
+      <h2>Paused</h2>
+      <div class="actions column">
+        <button id="btn-resume" class="primary" type="button">Resume</button>
+        <button id="btn-quit" class="secondary" type="button">Quit to menu</button>
+      </div>
     </div>
-    <div id="unity-warning"></div>
-  </div>
-  <div id="version-display"></div>
-  <script>
-    var gameVersion = window.DOD_BUILD;
-    var gameName = "DoseOfDestruction";
-    document.getElementById("version-display").textContent = gameVersion;
+  </section>
 
-    if (gameVersion === "v0") {
-      document.getElementById("unity-loading-bar").style.display = "none";
-      document.getElementById("missing-build").style.display = "block";
-    } else {
-      var canvas = document.querySelector("#unity-canvas");
-      var loadingBar = document.querySelector("#unity-loading-bar");
-      var progressBarFull = document.querySelector("#unity-progress-bar-full");
-      var warningBanner = document.querySelector("#unity-warning");
+  <section id="results" class="screen" hidden>
+    <div class="panel">
+      <h2 id="results-title">Game</h2>
+      <table class="stats">
+        <thead><tr><th>Player</th><th>KOs</th><th>Falls</th><th>Damage dealt</th></tr></thead>
+        <tbody id="results-body"></tbody>
+      </table>
+      <div class="actions">
+        <button id="btn-rematch" class="primary" type="button">Rematch</button>
+        <button id="btn-menu" class="secondary" type="button">Change fighters</button>
+      </div>
+    </div>
+  </section>
 
-      function unityShowBanner(msg, type) {
-        var div = document.createElement("div");
-        div.innerHTML = msg;
-        div.style.cssText = "background:" + (type === "warning" ? "rgba(255,193,7,0.95)" : "rgba(180,40,40,0.95)") + ";color:#111;padding:10px 14px;margin-top:8px;border-radius:6px;font-family:Arial,sans-serif;";
-        warningBanner.appendChild(div);
-        if (type !== "error") {
-          setTimeout(function () {
-            if (div.parentElement) div.parentElement.removeChild(div);
-          }, 5000);
-        }
-      }
+  <div id="loading" class="loading" hidden>Loading fighters&hellip;</div>
 
-      function fitCanvas() {
-        var width = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-        var height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-        canvas.width = width;
-        canvas.height = height;
-        canvas.style.width = width + "px";
-        canvas.style.height = height + "px";
-      }
-      window.addEventListener("resize", fitCanvas);
-      fitCanvas();
-
-      var buildUrl = gameVersion + "/" + gameName + "/Build/" + gameName;
-      var config = {
-        arguments: [],
-        dataUrl: buildUrl + ".data.unityweb?v=" + gameVersion,
-        frameworkUrl: buildUrl + ".framework.js.unityweb?v=" + gameVersion,
-        codeUrl: buildUrl + ".wasm.unityweb?v=" + gameVersion,
-        streamingAssetsUrl: gameVersion + "/" + gameName + "/StreamingAssets",
-        companyName: "Dose of Destruction",
-        productName: "DoseOfDestruction",
-        productVersion: gameVersion,
-        showBanner: unityShowBanner,
-      };
-
-      var loader = document.createElement("script");
-      loader.src = buildUrl + ".loader.js?v=" + gameVersion;
-      loader.onload = function () {
-        createUnityInstance(canvas, config, function (progress) {
-          progressBarFull.style.width = (100 * progress) + "%";
-        }).then(function () {
-          loadingBar.style.display = "none";
-        }).catch(function (message) {
-          loadingBar.style.display = "none";
-          unityShowBanner(String(message), "error");
-        });
-      };
-      loader.onerror = function () {
-        loadingBar.style.display = "none";
-        unityShowBanner("Could not load " + loader.src, "error");
-      };
-      document.body.appendChild(loader);
-    }
-  </script>
+  <script type="module" src="../src/game/main.ts"></script>
 </body>
 </html>

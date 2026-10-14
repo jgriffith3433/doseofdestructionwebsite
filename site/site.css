@@ -36,7 +36,7 @@ h1, h2, h3, .brand, .play, .kicker, .footer-brand {
   letter-spacing: 0.02em;
 }
 
-.brand, .play, .kicker, .hero-panel h1, .page-hero h1 {
+.brand, .play, .kicker, .page-hero h1 {
   text-transform: uppercase;
 }
 
@@ -130,41 +130,266 @@ h1, h2, h3, .brand, .play, .kicker, .footer-brand {
   cursor: pointer;
 }
 
-.hero { background: #140f0c; }
+/* ------------------------------------------------------------ landing */
 
-.hero-art {
+.landing-hero {
+  position: relative;
+  overflow: hidden;
   background:
-    radial-gradient(ellipse at 62% 72%, rgba(255, 90, 31, 0.28), transparent 42%),
-    #140f0c;
+    radial-gradient(ellipse at 50% 100%, rgba(255, 90, 31, 0.22), transparent 60%),
+    var(--paper);
+  border-bottom: 1px solid #2a211c;
 }
 
-.stage {
+.landing-copy {
+  position: relative;
+  z-index: 2;
+  width: min(900px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: clamp(1.4rem, min(5vw, 6vh), 3.6rem) 0 0;
+  text-align: center;
+}
+
+.logo {
+  margin: 0.35rem 0 0.6rem;
+  font-size: clamp(2.6rem, min(14vw, 12vh), 7.2rem);
+  line-height: 0.86;
+  text-transform: uppercase;
+  color: white;
+  text-shadow: 0 5px 0 #5a2410, 0 0 48px rgba(255, 90, 31, 0.45);
+}
+
+.logo span {
+  display: block;
+  color: var(--ember);
+  -webkit-text-stroke: 1px #ffb067;
+}
+
+.tagline {
+  max-width: 34rem;
+  margin: 0 auto 1.4rem;
+  font-size: clamp(1.08rem, 2.2vw, 1.3rem);
+  color: var(--ink);
+}
+
+.cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.85rem 1.4rem;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  font-family: Oswald, "Arial Narrow", Impact, sans-serif;
+  font-weight: 600;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  background: rgba(12, 10, 9, 0.6);
+}
+
+.ghost:hover { color: var(--gold); border-color: var(--gold); }
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 1.4rem;
+  margin: 1.2rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.facts li::before {
+  content: "";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.5rem;
+  background: var(--gold);
+  transform: rotate(45deg) translateY(-2px);
+}
+
+.lineup {
+  display: block;
+  position: relative;
+  z-index: 1;
+  /* The top of the art is empty frame, so it slides up under the copy. */
+  margin-top: clamp(-9rem, -9vw, -2rem);
+  pointer-events: none;
+}
+
+.lineup img {
   display: block;
   width: 100%;
   height: auto;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
 }
 
-.hero-panel {
+.features {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: #2a211c;
+  border-bottom: 1px solid #2a211c;
+}
+
+.feature {
+  padding: 1.5rem clamp(1rem, 2.5vw, 1.8rem);
+  background: #0c0a09;
+}
+
+.feature h2 {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem 2rem;
-  padding: 1.7rem 6vw 1.85rem;
+  gap: 0.5rem;
+  margin: 0 0 0.35rem;
+  font-size: 1.3rem;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.feature p { margin: 0; color: var(--ink-soft); }
+
+.soon {
+  font-style: normal;
+  font-family: Barlow, "Segoe UI", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #1a0d08;
+  background: var(--gold);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+}
+
+.starters {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.starter {
+  display: flex;
+  flex-direction: column;
+  color: inherit;
+  text-decoration: none;
+  background:
+    radial-gradient(ellipse at 50% 60%, rgba(255, 90, 31, 0.3), transparent 62%),
+    var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1rem 1rem 1.15rem;
+  transition: transform 140ms ease, border-color 140ms ease;
+}
+
+.starter:hover {
+  color: inherit;
+  border-color: var(--ember);
+  transform: translateY(-4px);
+}
+
+.starter img {
+  width: 100%;
+  height: 210px;
+  object-fit: contain;
+  object-position: center bottom;
+  margin-bottom: 0.8rem;
+}
+
+.starter-role {
+  color: var(--ember);
+  font-family: Oswald, "Arial Narrow", Impact, sans-serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.starter h3 {
+  margin: 0.1rem 0 0.25rem;
+  font-size: 1.45rem;
+  text-transform: uppercase;
+}
+
+.starter p { margin: 0; color: var(--ink-soft); }
+
+.controls-ref dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.controls-ref dl > div {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+}
+
+.controls-ref dt {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.controls-ref dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0;
+  color: var(--ink-soft);
+}
+
+kbd {
+  display: inline-block;
+  min-width: 2rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid #5a4a3e;
+  border-bottom-width: 3px;
+  border-radius: 6px;
+  background: #241c17;
   color: white;
-  background: #0c0a09;
-  border-top: 1px solid #2a211c;
+  font: 700 0.95rem Barlow, "Segoe UI", sans-serif;
+  text-align: center;
 }
 
-.hero-copy { max-width: 44rem; }
-
-.hero-panel h1 {
-  margin: 0.15rem 0 0.45rem;
-  font-size: clamp(2.4rem, 6vw, 4.5rem);
-  line-height: 0.92;
+.final-cta {
+  padding: clamp(3rem, 8vw, 5.5rem) 1.25rem;
+  text-align: center;
+  background:
+    radial-gradient(ellipse at 50% 120%, rgba(255, 90, 31, 0.45), transparent 60%),
+    linear-gradient(180deg, var(--paper), #1a120f);
 }
 
-.hero-panel p { margin: 0; font-size: 1.15rem; max-width: 36rem; }
+.final-cta h2 {
+  margin: 0;
+  font-size: clamp(2.2rem, 7vw, 4.4rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.final-cta p {
+  margin: 0.5rem 0 1.5rem;
+  color: var(--ink-soft);
+  font-size: 1.15rem;
+}
 
 .kicker {
   margin: 0;
@@ -267,8 +492,7 @@ h1, h2, h3, .brand, .play, .kicker, .footer-brand {
 }
 
 .page-hero-inner,
-.article,
-.contact-layout {
+.article {
   width: min(760px, 100%);
   margin: 0 auto;
 }
@@ -293,53 +517,16 @@ h1, h2, h3, .brand, .play, .kicker, .footer-brand {
 
 .article ul { padding-left: 1.2rem; }
 
-.contact-layout {
-  display: grid;
-  gap: 1rem;
-  padding: 2rem 1.25rem 3rem;
-}
-
-.contact-form {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--ember);
-  border-radius: 12px;
-  padding: 1.2rem;
-  box-shadow: 6px 6px 0 #2a1510;
-}
-
-label {
-  display: block;
-  font-weight: 700;
-  margin-bottom: 0.85rem;
-}
-
-input, textarea {
-  display: block;
-  width: 100%;
-  margin-top: 0.3rem;
-  padding: 0.7rem 0.75rem;
-  border: 2px solid var(--line);
-  border-radius: 10px;
-  font: 1rem Barlow, "Segoe UI", sans-serif;
-  color: var(--ink);
-  background: #100e0c;
-}
-
-textarea { min-height: 9rem; resize: vertical; }
-
-input:focus, textarea:focus, .menu-toggle:focus-visible, a:focus-visible {
+.menu-toggle:focus-visible, a:focus-visible {
   outline: 3px solid var(--gold);
   outline-offset: 2px;
 }
 
-button.play, .contact-form button {
+button.play {
   border: 0;
   cursor: pointer;
   font-family: Oswald, "Arial Narrow", Impact, sans-serif;
 }
-
-.form-note { color: var(--ink-soft); margin: 0.8rem 0 0; }
 
 .site-footer {
   background: #0c0a09;
@@ -369,6 +556,94 @@ button.play, .contact-form button {
 }
 
 .footer-links a:hover { color: white; }
+
+.roster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.roster-card {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 100%;
+}
+
+.roster-card:hover {
+  border-color: var(--ember);
+  color: inherit;
+}
+
+.roster-photo,
+.fighter-photo {
+  display: grid;
+  place-items: end center;
+  background:
+    radial-gradient(ellipse at 50% 78%, rgba(255, 90, 31, 0.32), transparent 58%),
+    #14110f;
+}
+
+.roster-photo {
+  height: 250px;
+  overflow: hidden;
+  padding: 0.75rem 0.5rem 0;
+}
+
+.roster-photo img {
+  width: auto;
+  max-width: 92%;
+  height: 230px;
+  object-fit: cover;
+  object-position: center bottom;
+}
+
+.fighter-photo img {
+  width: 100%;
+  height: 500px;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.roster-copy {
+  padding: 0.85rem 0.95rem 1rem;
+}
+
+.roster-copy h3 {
+  margin: 0 0 0.3rem;
+  font-size: 1.25rem;
+  text-transform: uppercase;
+}
+
+.roster-copy p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.fighter-page {
+  width: min(1080px, calc(100% - 2.5rem));
+  margin: 0 auto;
+  padding: 2.2rem 0 3rem;
+  display: grid;
+  grid-template-columns: minmax(260px, 440px) 1fr;
+  gap: 2rem;
+  align-items: center;
+}
+
+.fighter-photo {
+  min-height: 520px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1rem 1rem 0;
+}
+
+.fighter-copy p { font-size: 1.12rem; }
 
 @media (max-width: 800px) {
   .topbar {
@@ -401,7 +676,29 @@ button.play, .contact-form button {
 
   .menu.is-open { display: flex; }
 
-  .hero-panel { padding: 1.3rem 1.25rem 1.45rem; }
+  .cards, .post-link, .fighter-page { grid-template-columns: 1fr; }
 
-  .cards, .post-link { grid-template-columns: 1fr; }
+  .features, .starters { grid-template-columns: repeat(2, 1fr); }
+
+  .fighter-photo,
+  .fighter-photo img { min-height: 0; height: 420px; }
+}
+
+@media (max-width: 520px) {
+  .features { grid-template-columns: 1fr; }
+
+  .starters { gap: 0.6rem; }
+
+  .starter img { height: 150px; }
+
+  .lineup { margin-top: -1rem; }
+
+  /* Crop into the front rows so the lineup stays large on a phone. */
+  .lineup img {
+    width: 160%;
+    max-width: none;
+    margin-left: -30%;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
 }

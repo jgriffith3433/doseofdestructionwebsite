@@ -1,3 +1,13 @@
+FROM node:22-alpine AS build
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY vite.config.js tsconfig.json ./
+COPY Game/ Game/
+COPY src/ src/
+RUN npm test && npm run build
+
 FROM nginx:alpine AS development
 
 RUN rm /etc/nginx/conf.d/default.conf
@@ -12,7 +22,7 @@ CMD ["nginx", "-g", "daemon off;"]
 
 FROM development AS production
 
-COPY index.html blog.html contact.html privacypolicy.html favicon.svg /usr/share/nginx/html/
+COPY index.html characters.html privacypolicy.html favicon.svg /usr/share/nginx/html/
 COPY site/ /usr/share/nginx/html/site/
-COPY blog/ /usr/share/nginx/html/blog/
-COPY Game/ /usr/share/nginx/html/Game/
+COPY characters/ /usr/share/nginx/html/characters/
+COPY --from=build /app/dist/ /usr/share/nginx/html/

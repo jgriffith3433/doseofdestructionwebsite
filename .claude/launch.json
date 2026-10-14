@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "site",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 8089
+    },
+    {
+      "name": "site-running",
+      "url": "http://localhost:8089",
+      "port": 8089
+    }
+  ]
+}

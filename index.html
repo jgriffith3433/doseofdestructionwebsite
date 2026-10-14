@@ -4,12 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dose of Destruction</title>
-  <meta name="description" content="Play Dose of Destruction in the browser. A platform fighter about damage, launch, and the last stock.">
+  <meta name="description" content="A free platform fighter you play in the browser. Rack up damage, launch your opponent past the blast zone, and take the last stock.">
   <meta name="theme-color" content="#100e0c">
+  <meta property="og:title" content="Dose of Destruction">
+  <meta property="og:description" content="A free platform fighter you play in the browser. Thirty-three fighters, one stage, last stock wins.">
+  <meta property="og:image" content="/site/img/lineup-1600.jpg">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="preload" as="image" type="image/webp" imagesrcset="/site/img/lineup-900.webp 900w, /site/img/lineup-1600.webp 1600w, /site/img/lineup-2800.webp 2800w" imagesizes="100vw">
   <link rel="stylesheet" href="/site/site.css">
 </head>
 <body>
@@ -18,141 +22,127 @@
     <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-menu">Menu</button>
     <nav id="site-menu" class="menu" aria-label="Primary">
       <a href="/" aria-current="page">Home</a>
-      <a href="/blog.html">Blog</a>
-      <a href="/contact.html">Contact</a>
+      <a href="/characters.html">Characters</a>
     </nav>
     <a class="play" href="/Game/"><span class="play-icon" aria-hidden="true"></span>Play</a>
   </header>
 
-  <section class="hero">
-    <div class="hero-art">
-      <svg class="stage" viewBox="0 0 1200 560" role="img" aria-label="Two fighters on a floating stage. One is planted and punching. The other is launched, with a high damage percent.">
-        <defs>
-          <radialGradient id="glow" cx="62%" cy="68%" r="48%">
-            <stop offset="0%" stop-color="#ff5a1f" stop-opacity="0.55"/>
-            <stop offset="70%" stop-color="#ff5a1f" stop-opacity="0"/>
-          </radialGradient>
-          <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#5c4638"/>
-            <stop offset="100%" stop-color="#241812"/>
-          </linearGradient>
-        </defs>
-        <rect width="1200" height="560" fill="#140f0c"/>
-        <rect width="1200" height="560" fill="url(#glow)"/>
-        <g fill="none" stroke="#ffd15a" stroke-opacity="0.28" stroke-width="2" stroke-dasharray="7 9">
-          <line x1="64" y1="36" x2="64" y2="524"/>
-          <line x1="1136" y1="36" x2="1136" y2="524"/>
-          <line x1="64" y1="36" x2="1136" y2="36"/>
-        </g>
-        <g fill="url(#floor)" stroke="#ffd15a" stroke-width="3">
-          <polygon points="120,214 300,214 318,236 102,236"/>
-          <polygon points="860,132 1068,132 1086,154 842,154"/>
-        </g>
-        <polygon points="150,408 1050,408 1116,468 84,468" fill="url(#floor)" stroke="#ffb020" stroke-width="4"/>
-        <polygon points="170,408 1030,408 1004,422 196,422" fill="#7a5b48"/>
-        <g stroke="#ffb067" stroke-width="4" stroke-linecap="round" opacity="0.75">
-          <line x1="760" y1="250" x2="980" y2="210"/>
-          <line x1="748" y1="300" x2="1004" y2="268"/>
-          <line x1="770" y1="348" x2="990" y2="340"/>
-        </g>
-        <g transform="translate(430 408)" fill="#f4efe8" stroke="#1a100c" stroke-width="3" stroke-linejoin="round">
-          <polygon points="-34,-6 -52,8 -36,78 -12,78"/>
-          <polygon points="6,-4 24,10 46,74 22,80"/>
-          <polygon points="-28,-86 34,-76 26,-6 -22,-2"/>
-          <polygon points="-24,-70 -62,-96 -54,-78 -16,-58"/>
-          <polygon points="22,-64 108,-28 100,-10 18,-46"/>
-          <circle cx="112" cy="-22" r="16"/>
-          <circle cx="6" cy="-118" r="34"/>
-          <circle cx="18" cy="-122" r="6" fill="#1a100c" stroke="none"/>
-        </g>
-        <g transform="translate(690 318)">
-          <polygon points="0,-52 12,-14 52,-10 18,12 32,52 0,24 -32,52 -18,12 -52,-10 -12,-14" fill="#ffe27a"/>
-          <circle r="12" fill="#fff6d0"/>
-        </g>
-        <g transform="translate(980 348) rotate(-22)" fill="#ff5a1f" stroke="#1a100c" stroke-width="3" stroke-linejoin="round">
-          <polygon points="-8,8 -46,36 -28,70 4,28"/>
-          <polygon points="10,6 18,28 52,18 30,-2"/>
-          <polygon points="-22,-70 28,-78 22,-8 -16,-2"/>
-          <polygon points="-18,-58 -70,-28 -58,-12 -12,-40"/>
-          <polygon points="16,-62 48,-96 60,-80 24,-50"/>
-          <circle cx="2" cy="-108" r="32"/>
-          <circle cx="12" cy="-112" r="5" fill="#1a100c" stroke="none"/>
-        </g>
-        <g font-family="Oswald, Impact, sans-serif" fill="#f4efe6">
-          <text x="86" y="78" font-size="28" letter-spacing="1">P1</text>
-          <text x="132" y="80" font-size="40" fill="#ffd15a">42%</text>
-          <polygon points="86,98 98,110 86,122 74,110" fill="#ffd15a"/>
-          <polygon points="112,98 124,110 112,122 100,110" fill="#ffd15a"/>
-          <polygon points="138,98 150,110 138,122 126,110" fill="#ffd15a"/>
-          <text x="900" y="78" font-size="28" letter-spacing="1">P2</text>
-          <text x="948" y="82" font-size="44" fill="#ff5a1f">186%</text>
-          <polygon points="900,98 912,110 900,122 888,110" fill="#ffd15a"/>
-          <polygon points="926,98 938,110 926,122 914,110" fill="#ffd15a"/>
-          <polygon points="952,98 964,110 952,122 940,110" fill="none" stroke="#ffd15a" stroke-width="2"/>
-        </g>
-      </svg>
-    </div>
-    <div class="hero-panel">
-      <div class="hero-copy">
-        <p class="kicker">A platform fighter</p>
-        <h1>Send them off the stage.</h1>
-        <p>Hits raise a damage percent. The higher it climbs, the farther the next clean hit launches.</p>
+  <main>
+    <section class="landing-hero">
+      <div class="landing-copy">
+        <p class="kicker">Free platform fighter &middot; Plays in your browser</p>
+        <h1 class="logo">Dose of <span>Destruction</span></h1>
+        <p class="tagline">Rack up damage. Launch them past the blast zone. Last stock standing wins.</p>
+        <div class="cta-row">
+          <a class="play play-large" href="/Game/"><span class="play-icon" aria-hidden="true"></span>Play now</a>
+          <a class="ghost" href="#roster">Meet the roster</a>
+        </div>
+        <ul class="facts" aria-label="At a glance">
+          <li>No download</li>
+          <li>Keyboard or gamepad</li>
+          <li>Bots, levels 1&ndash;9</li>
+        </ul>
       </div>
-      <a class="play play-large" href="/Game/"><span class="play-icon" aria-hidden="true"></span>Play</a>
-    </div>
-  </section>
+      <picture class="lineup">
+        <source type="image/webp" srcset="/site/img/lineup-900.webp 900w, /site/img/lineup-1600.webp 1600w, /site/img/lineup-2800.webp 2800w" sizes="100vw">
+        <img src="/site/img/lineup-1600.jpg" width="1600" height="674" alt="All thirty-three fighters lined up in three rows. Exit Punk, Break, Evil Blue Bird and Kaelen stand at the front.">
+      </picture>
+    </section>
 
-  <section class="section">
-    <h2>How a match goes</h2>
-    <p class="lede">A stock is a life. Leave the blast zone and that stock is gone. Last one still standing takes the match.</p>
-    <div class="cards">
-      <article class="card">
-        <span class="card-index">01</span>
-        <h3>Take damage</h3>
-        <p>Every hit adds to your percent. The number is how far the next clean hit can send you.</p>
+    <section class="features" aria-label="Features">
+      <article class="feature">
+        <h2>Instant play</h2>
+        <p>It runs in a browser tab. Nothing to install, nothing to sign up for.</p>
       </article>
-      <article class="card">
-        <span class="card-index">02</span>
-        <h3>Get launched</h3>
-        <p>The stage has edges. A strong hit at a high percent carries you off them.</p>
+      <article class="feature">
+        <h2>Built for the edge</h2>
+        <p>Short hops, fast falls, air dodges, shields, ledge grabs, and DI to survive the hit.</p>
       </article>
-      <article class="card">
-        <span class="card-index">03</span>
-        <h3>Lose a stock</h3>
-        <p>Past the blast zone, that life is gone. Run out of stocks and the match is over.</p>
+      <article class="feature">
+        <h2>Bots that fight back</h2>
+        <p>Nine levels, from a punching bag to a bot that waits at the ledge for you.</p>
       </article>
-    </div>
-  </section>
+      <article class="feature">
+        <h2>Room codes <em class="soon">Coming</em></h2>
+        <p>Send a friend a code and fight online, with rollback netcode so hits land on time.</p>
+      </article>
+    </section>
 
-  <section class="band">
-    <div class="section">
-      <h2>From the blog</h2>
-      <p class="lede">Short notes on how a match works, and how to open it.</p>
-      <div class="posts">
-        <a class="post-link" href="/blog/how-a-stock-falls.html">
-          <time datetime="2026-10-13">Oct 13, 2026</time>
-          <div>
-            <h3>How a stock falls</h3>
-            <p>Percent, knockback, and the line you do not want to cross.</p>
-          </div>
+    <section class="section">
+      <h2>How a match goes</h2>
+      <p class="lede">A stock is a life. Leave the blast zone and that stock is gone. Last one still standing takes the match.</p>
+      <div class="cards">
+        <article class="card">
+          <span class="card-index">01</span>
+          <h3>Take damage</h3>
+          <p>Every hit adds to your percent. The number is how far the next clean hit can send you.</p>
+        </article>
+        <article class="card">
+          <span class="card-index">02</span>
+          <h3>Get launched</h3>
+          <p>The stage has edges. A strong hit at a high percent carries you off them.</p>
+        </article>
+        <article class="card">
+          <span class="card-index">03</span>
+          <h3>Lose a stock</h3>
+          <p>Past the blast zone, that life is gone. Run out of stocks and the match is over.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="roster" class="section">
+      <h2>Playable now</h2>
+      <p class="lede">Four fighters are in the game today, each built to play differently. The rest of the roster is on the way.</p>
+      <div class="starters">
+        <a class="starter" href="/characters/exit-punk.html">
+          <img src="/characters/img/exit-punk.png" alt="" loading="lazy">
+          <span class="starter-role">All-rounder</span>
+          <h3>Exit Punk</h3>
+          <p>Nothing to learn around, nothing to hide behind.</p>
         </a>
-        <a class="post-link" href="/blog/the-stage.html">
-          <time datetime="2026-10-06">Oct 6, 2026</time>
-          <div>
-            <h3>The stage</h3>
-            <p>Floor, platforms, and the open sides around them.</p>
-          </div>
+        <a class="starter" href="/characters/break.html">
+          <img src="/characters/img/break.png" alt="" loading="lazy">
+          <span class="starter-role">Heavy</span>
+          <h3>Break</h3>
+          <p>Slow hands, huge reach, hard to launch.</p>
         </a>
-        <a class="post-link" href="/blog/play-in-the-browser.html">
-          <time datetime="2026-09-22">Sep 22, 2026</time>
-          <div>
-            <h3>Play it in the browser</h3>
-            <p>Nothing to install. The first visit just needs a moment to load.</p>
-          </div>
+        <a class="starter" href="/characters/evil-blue-bird.html">
+          <img src="/characters/img/evil-blue-bird.png" alt="" loading="lazy">
+          <span class="starter-role">Floaty</span>
+          <h3>Evil Blue Bird</h3>
+          <p>Two extra jumps and an air game that never lands.</p>
+        </a>
+        <a class="starter" href="/characters/kaelen.html">
+          <img src="/characters/img/kaelen.png" alt="" loading="lazy">
+          <span class="starter-role">Fast</span>
+          <h3>Kaelen</h3>
+          <p>Quick hits, quick fall, gone before the trade lands.</p>
         </a>
       </div>
-    </div>
-  </section>
+      <a class="ghost" href="/characters.html">See all 33 fighters</a>
+    </section>
+
+    <section class="section">
+      <h2>Pick up and play</h2>
+      <p class="lede">Plug in a controller or use the keyboard. The full list is on the game&rsquo;s menu.</p>
+      <div class="controls-ref">
+        <dl>
+          <div><dt>Move</dt><dd><kbd>A</kbd><kbd>D</kbd></dd></div>
+          <div><dt>Jump</dt><dd><kbd>Space</kbd></dd></div>
+          <div><dt>Attack</dt><dd><kbd>J</kbd></dd></div>
+          <div><dt>Special</dt><dd><kbd>K</kbd></dd></div>
+          <div><dt>Shield</dt><dd><kbd>L</kbd></dd></div>
+          <div><dt>Smash</dt><dd><kbd>I</kbd> + direction</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="final-cta">
+      <h2>The stage is lit.</h2>
+      <p>Pick a fighter and send someone off it.</p>
+      <a class="play play-large" href="/Game/"><span class="play-icon" aria-hidden="true"></span>Play now</a>
+    </section>
+  </main>
 
   <footer class="site-footer">
     <div class="footer-inner">
@@ -160,8 +150,7 @@
       <p>A platform fighter about damage, launch, and the last stock.</p>
       <nav class="footer-links" aria-label="Footer">
         <a href="/">Home</a>
-        <a href="/blog.html">Blog</a>
-        <a href="/contact.html">Contact</a>
+        <a href="/characters.html">Characters</a>
         <a href="/privacypolicy.html">Privacy</a>
         <a href="/Game/">Play</a>
       </nav>
