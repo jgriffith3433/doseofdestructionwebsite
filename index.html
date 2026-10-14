@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dose of Destruction</title>
+  <meta name="description" content="Play Dose of Destruction in the browser. A platform fighter about damage, launch, and the last stock.">
+  <meta name="theme-color" content="#100e0c">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/site/site.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">Dose of Destruction</a>
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-menu">Menu</button>
+    <nav id="site-menu" class="menu" aria-label="Primary">
+      <a href="/" aria-current="page">Home</a>
+      <a href="/blog.html">Blog</a>
+      <a href="/contact.html">Contact</a>
+    </nav>
+    <a class="play" href="/Game/"><span class="play-icon" aria-hidden="true"></span>Play</a>
+  </header>
+
+  <section class="hero">
+    <div class="hero-art">
+      <svg class="stage" viewBox="0 0 1200 560" role="img" aria-label="Two fighters on a floating stage. One is planted and punching. The other is launched, with a high damage percent.">
+        <defs>
+          <radialGradient id="glow" cx="62%" cy="68%" r="48%">
+            <stop offset="0%" stop-color="#ff5a1f" stop-opacity="0.55"/>
+            <stop offset="70%" stop-color="#ff5a1f" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#5c4638"/>
+            <stop offset="100%" stop-color="#241812"/>
+          </linearGradient>
+        </defs>
+        <rect width="1200" height="560" fill="#140f0c"/>
+        <rect width="1200" height="560" fill="url(#glow)"/>
+        <g fill="none" stroke="#ffd15a" stroke-opacity="0.28" stroke-width="2" stroke-dasharray="7 9">
+          <line x1="64" y1="36" x2="64" y2="524"/>
+          <line x1="1136" y1="36" x2="1136" y2="524"/>
+          <line x1="64" y1="36" x2="1136" y2="36"/>
+        </g>
+        <g fill="url(#floor)" stroke="#ffd15a" stroke-width="3">
+          <polygon points="120,214 300,214 318,236 102,236"/>
+          <polygon points="860,132 1068,132 1086,154 842,154"/>
+        </g>
+        <polygon points="150,408 1050,408 1116,468 84,468" fill="url(#floor)" stroke="#ffb020" stroke-width="4"/>
+        <polygon points="170,408 1030,408 1004,422 196,422" fill="#7a5b48"/>
+        <g stroke="#ffb067" stroke-width="4" stroke-linecap="round" opacity="0.75">
+          <line x1="760" y1="250" x2="980" y2="210"/>
+          <line x1="748" y1="300" x2="1004" y2="268"/>
+          <line x1="770" y1="348" x2="990" y2="340"/>
+        </g>
+        <g transform="translate(430 408)" fill="#f4efe8" stroke="#1a100c" stroke-width="3" stroke-linejoin="round">
+          <polygon points="-34,-6 -52,8 -36,78 -12,78"/>
+          <polygon points="6,-4 24,10 46,74 22,80"/>
+          <polygon points="-28,-86 34,-76 26,-6 -22,-2"/>
+          <polygon points="-24,-70 -62,-96 -54,-78 -16,-58"/>
+          <polygon points="22,-64 108,-28 100,-10 18,-46"/>
+          <circle cx="112" cy="-22" r="16"/>
+          <circle cx="6" cy="-118" r="34"/>
+          <circle cx="18" cy="-122" r="6" fill="#1a100c" stroke="none"/>
+        </g>
+        <g transform="translate(690 318)">
+          <polygon points="0,-52 12,-14 52,-10 18,12 32,52 0,24 -32,52 -18,12 -52,-10 -12,-14" fill="#ffe27a"/>
+          <circle r="12" fill="#fff6d0"/>
+        </g>
+        <g transform="translate(980 348) rotate(-22)" fill="#ff5a1f" stroke="#1a100c" stroke-width="3" stroke-linejoin="round">
+          <polygon points="-8,8 -46,36 -28,70 4,28"/>
+          <polygon points="10,6 18,28 52,18 30,-2"/>
+          <polygon points="-22,-70 28,-78 22,-8 -16,-2"/>
+          <polygon points="-18,-58 -70,-28 -58,-12 -12,-40"/>
+          <polygon points="16,-62 48,-96 60,-80 24,-50"/>
+          <circle cx="2" cy="-108" r="32"/>
+          <circle cx="12" cy="-112" r="5" fill="#1a100c" stroke="none"/>
+        </g>
+        <g font-family="Oswald, Impact, sans-serif" fill="#f4efe6">
+          <text x="86" y="78" font-size="28" letter-spacing="1">P1</text>
+          <text x="132" y="80" font-size="40" fill="#ffd15a">42%</text>
+          <polygon points="86,98 98,110 86,122 74,110" fill="#ffd15a"/>
+          <polygon points="112,98 124,110 112,122 100,110" fill="#ffd15a"/>
+          <polygon points="138,98 150,110 138,122 126,110" fill="#ffd15a"/>
+          <text x="900" y="78" font-size="28" letter-spacing="1">P2</text>
+          <text x="948" y="82" font-size="44" fill="#ff5a1f">186%</text>
+          <polygon points="900,98 912,110 900,122 888,110" fill="#ffd15a"/>
+          <polygon points="926,98 938,110 926,122 914,110" fill="#ffd15a"/>
+          <polygon points="952,98 964,110 952,122 940,110" fill="none" stroke="#ffd15a" stroke-width="2"/>
+        </g>
+      </svg>
+    </div>
+    <div class="hero-panel">
+      <div class="hero-copy">
+        <p class="kicker">A platform fighter</p>
+        <h1>Send them off the stage.</h1>
+        <p>Hits raise a damage percent. The higher it climbs, the farther the next clean hit launches.</p>
+      </div>
+      <a class="play play-large" href="/Game/"><span class="play-icon" aria-hidden="true"></span>Play</a>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>How a match goes</h2>
+    <p class="lede">A stock is a life. Leave the blast zone and that stock is gone. Last one still standing takes the match.</p>
+    <div class="cards">
+      <article class="card">
+        <span class="card-index">01</span>
+        <h3>Take damage</h3>
+        <p>Every hit adds to your percent. The number is how far the next clean hit can send you.</p>
+      </article>
+      <article class="card">
+        <span class="card-index">02</span>
+        <h3>Get launched</h3>
+        <p>The stage has edges. A strong hit at a high percent carries you off them.</p>
+      </article>
+      <article class="card">
+        <span class="card-index">03</span>
+        <h3>Lose a stock</h3>
+        <p>Past the blast zone, that life is gone. Run out of stocks and the match is over.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="section">
+      <h2>From the blog</h2>
+      <p class="lede">Short notes on how a match works, and how to open it.</p>
+      <div class="posts">
+        <a class="post-link" href="/blog/how-a-stock-falls.html">
+          <time datetime="2026-10-13">Oct 13, 2026</time>
+          <div>
+            <h3>How a stock falls</h3>
+            <p>Percent, knockback, and the line you do not want to cross.</p>
+          </div>
+        </a>
+        <a class="post-link" href="/blog/the-stage.html">
+          <time datetime="2026-10-06">Oct 6, 2026</time>
+          <div>
+            <h3>The stage</h3>
+            <p>Floor, platforms, and the open sides around them.</p>
+          </div>
+        </a>
+        <a class="post-link" href="/blog/play-in-the-browser.html">
+          <time datetime="2026-09-22">Sep 22, 2026</time>
+          <div>
+            <h3>Play it in the browser</h3>
+            <p>Nothing to install. The first visit just needs a moment to load.</p>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p class="footer-brand">Dose of Destruction</p>
+      <p>A platform fighter about damage, launch, and the last stock.</p>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="/">Home</a>
+        <a href="/blog.html">Blog</a>
+        <a href="/contact.html">Contact</a>
+        <a href="/privacypolicy.html">Privacy</a>
+        <a href="/Game/">Play</a>
+      </nav>
+    </div>
+  </footer>
+  <script src="/site/site.js"></script>
+</body>
+</html>

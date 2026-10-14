@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Dose of Destruction</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #100e0c;
+      touch-action: none;
+    }
+    #unity-container { width: 100%; height: 100%; }
+    #unity-canvas { width: 100%; height: 100%; display: block; background: #100e0c; }
+    #unity-loading-bar {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    #unity-progress-bar-empty {
+      width: 280px;
+      height: 16px;
+      margin: 16px auto 0;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+    }
+    #unity-progress-bar-full {
+      width: 0%;
+      height: 100%;
+      background: #ff5a1f;
+      border-radius: 8px;
+    }
+    #unity-warning {
+      position: absolute;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      max-width: 90%;
+      z-index: 2;
+    }
+    #version-display {
+      position: absolute;
+      right: 12px;
+      bottom: 8px;
+      color: rgba(255, 255, 255, 0.55);
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+    }
+    #missing-build {
+      display: none;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      max-width: 520px;
+      line-height: 1.5;
+      padding: 0 16px;
+    }
+    a.home { color: #ffb067; }
+  </style>
+  <!-- Set to the published build folder, for example "v1". "v0" means no build yet. -->
+  <script>window.DOD_BUILD = "v0";</script>
+</head>
+<body>
+  <div id="unity-container">
+    <canvas id="unity-canvas"></canvas>
+    <div id="unity-loading-bar">
+      <div>Loading Dose of Destruction</div>
+      <div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div>
+    </div>
+    <div id="missing-build">
+      <p>No game build has been published yet.</p>
+      <p style="margin-top: 12px;"><a class="home" href="../">Back home</a></p>
+    </div>
+    <div id="unity-warning"></div>
+  </div>
+  <div id="version-display"></div>
+  <script>
+    var gameVersion = window.DOD_BUILD;
+    var gameName = "DoseOfDestruction";
+    document.getElementById("version-display").textContent = gameVersion;
+
+    if (gameVersion === "v0") {
+      document.getElementById("unity-loading-bar").style.display = "none";
+      document.getElementById("missing-build").style.display = "block";
+    } else {
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var warningBanner = document.querySelector("#unity-warning");
+
+      function unityShowBanner(msg, type) {
+        var div = document.createElement("div");
+        div.innerHTML = msg;
+        div.style.cssText = "background:" + (type === "warning" ? "rgba(255,193,7,0.95)" : "rgba(180,40,40,0.95)") + ";color:#111;padding:10px 14px;margin-top:8px;border-radius:6px;font-family:Arial,sans-serif;";
+        warningBanner.appendChild(div);
+        if (type !== "error") {
+          setTimeout(function () {
+            if (div.parentElement) div.parentElement.removeChild(div);
+          }, 5000);
+        }
+      }
+
+      function fitCanvas() {
+        var width = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+        var height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        canvas.style.width = width + "px";
+        canvas.style.height = height + "px";
+      }
+      window.addEventListener("resize", fitCanvas);
+      fitCanvas();
+
+      var buildUrl = gameVersion + "/" + gameName + "/Build/" + gameName;
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + ".data.unityweb?v=" + gameVersion,
+        frameworkUrl: buildUrl + ".framework.js.unityweb?v=" + gameVersion,
+        codeUrl: buildUrl + ".wasm.unityweb?v=" + gameVersion,
+        streamingAssetsUrl: gameVersion + "/" + gameName + "/StreamingAssets",
+        companyName: "Dose of Destruction",
+        productName: "DoseOfDestruction",
+        productVersion: gameVersion,
+        showBanner: unityShowBanner,
+      };
+
+      var loader = document.createElement("script");
+      loader.src = buildUrl + ".loader.js?v=" + gameVersion;
+      loader.onload = function () {
+        createUnityInstance(canvas, config, function (progress) {
+          progressBarFull.style.width = (100 * progress) + "%";
+        }).then(function () {
+          loadingBar.style.display = "none";
+        }).catch(function (message) {
+          loadingBar.style.display = "none";
+          unityShowBanner(String(message), "error");
+        });
+      };
+      loader.onerror = function () {
+        loadingBar.style.display = "none";
+        unityShowBanner("Could not load " + loader.src, "error");
+      };
+      document.body.appendChild(loader);
+    }
+  </script>
+</body>
+</html>
