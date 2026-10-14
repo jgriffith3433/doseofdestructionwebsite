@@ -1,0 +1,488 @@
+[
+  {
+    "id": "open-mic",
+    "title": "Open Mic",
+    "tagline": "A walk-on with no record and one skateboard.",
+    "hint": "Hits raise damage, and damage makes launches longer. Smash attacks (I + a direction) finish.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "The Foundry. Every night at midnight the furnace floor becomes a stage, and the whole city tunes in."
+      },
+      {
+        "who": "orchestrator",
+        "text": "Welcome back to Dose of Destruction. Tonight, a walk-on. No sponsor, no record, one skateboard."
+      },
+      {
+        "who": "exit-punk",
+        "text": "I'm not here for the show. I'm here for the exit."
+      },
+      {
+        "who": "orchestrator",
+        "text": "They all say that. The only way out is through everyone else on the card. Kaelen, say hello."
+      },
+      {
+        "who": "kaelen",
+        "text": "Hi. Bye."
+      }
+    ],
+    "outro": [
+      {
+        "who": "kaelen",
+        "text": "You're slow off the ground. That won't last here."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Neither will you."
+      },
+      {
+        "who": "orchestrator",
+        "text": "The crowd likes the kid. Keep him on the card."
+      }
+    ],
+    "fight": {
+      "stage": "foundry",
+      "stocks": 2,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 2
+        },
+        {
+          "char": "kaelen",
+          "cpu": 2,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "house-heavy",
+    "title": "House Heavy",
+    "tagline": "The house fighter is the size of the house.",
+    "hint": "Break is giant and heavy. Build damage before you go for the launch.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "The Rooftop. One long roof, nowhere to hide, and a long way down."
+      },
+      {
+        "who": "break",
+        "text": "The house has rules. Rule one: I don't fall off."
+      },
+      {
+        "who": "exit-punk",
+        "text": "You're the size of a building."
+      },
+      {
+        "who": "break",
+        "text": "Correct."
+      }
+    ],
+    "outro": [
+      {
+        "who": "break",
+        "text": "...I fell off."
+      },
+      {
+        "who": "orchestrator",
+        "text": "Ratings went up eleven points. Do it again."
+      }
+    ],
+    "fight": {
+      "stage": "rooftop",
+      "stocks": 2,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "break",
+          "cpu": 3,
+          "team": 1,
+          "scale": 135,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "bad-signal",
+    "title": "Bad Signal",
+    "tagline": "Two on one, on platforms that will not hold still.",
+    "hint": "Two of them, one stock each. Keep both in front of you and ride the moving platforms.",
+    "intro": [
+      {
+        "who": "dj-wont-read",
+        "text": "The kid's a hit. Hits get remixed."
+      },
+      {
+        "who": "shutup-bot",
+        "text": "..."
+      },
+      {
+        "who": "dj-wont-read",
+        "text": "He says you talk too much."
+      },
+      {
+        "who": "exit-punk",
+        "text": "I haven't said anything."
+      },
+      {
+        "who": "dj-wont-read",
+        "text": "Exactly. Keep it that way."
+      }
+    ],
+    "outro": [
+      {
+        "who": "shutup-bot",
+        "text": "Fine."
+      },
+      {
+        "who": "exit-punk",
+        "text": "He talks?"
+      },
+      {
+        "who": "dj-wont-read",
+        "text": "Only when he loses."
+      }
+    ],
+    "fight": {
+      "stage": "drift",
+      "stocks": 1,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "dj-wont-read",
+          "cpu": 3,
+          "team": 1,
+          "stocks": 1
+        },
+        {
+          "char": "shutup-bot",
+          "cpu": 3,
+          "team": 1,
+          "stocks": 1
+        }
+      ]
+    }
+  },
+  {
+    "id": "low-pressure",
+    "title": "Low Pressure",
+    "tagline": "Someone brought the weather.",
+    "hint": "Low gravity. Jumps hang and launches carry. Mind the gap in the middle.",
+    "intro": [
+      {
+        "who": "small-weather",
+        "text": "The Orchestrator asked for drama, so I brought the weather."
+      },
+      {
+        "who": "narrator",
+        "text": "The air goes thin. Everything floats a little longer than it should."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Is that allowed?"
+      },
+      {
+        "who": "small-weather",
+        "text": "It's a broadcast. Everything is allowed."
+      }
+    ],
+    "outro": [
+      {
+        "who": "small-weather",
+        "text": "Huh. You fall like you mean it."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Turn the gravity back on on your way out."
+      }
+    ],
+    "fight": {
+      "stage": "split",
+      "stocks": 3,
+      "rules": {
+        "gravity": 55
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "small-weather",
+          "cpu": 4,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "turn-the-page",
+    "title": "Turn the Page",
+    "tagline": "A partner, finally. He writes too.",
+    "hint": "Blog Man fights with you. Teammates cannot hit each other, so gang up.",
+    "intro": [
+      {
+        "who": "blog-man",
+        "text": "I've been covering your run. Front page, three nights straight."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Great. Can you fight?"
+      },
+      {
+        "who": "blog-man",
+        "text": "Better than I write. Which is very well."
+      },
+      {
+        "who": "evil-blue-bird",
+        "text": "Aw. Two little friends."
+      },
+      {
+        "who": "got-ur-back",
+        "text": "I've got your back. Not theirs. Sorry."
+      }
+    ],
+    "outro": [
+      {
+        "who": "blog-man",
+        "text": "Headline: 'Walk-On and Writer Clean House.' Too long?"
+      },
+      {
+        "who": "exit-punk",
+        "text": "Way too long."
+      }
+    ],
+    "fight": {
+      "stage": "pit",
+      "stocks": 2,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "blog-man",
+          "cpu": 5,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "evil-blue-bird",
+          "cpu": 4,
+          "team": 1,
+          "stocks": 2
+        },
+        {
+          "char": "got-ur-back",
+          "cpu": 4,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "sudden-death",
+    "title": "Sudden Death",
+    "tagline": "The show is running long. One stock, high damage.",
+    "hint": "Both of you start at 150% with one stock. The first strong hit wins. Shield, then punish.",
+    "intro": [
+      {
+        "who": "orchestrator",
+        "text": "We're running long, so this one is sudden death. Everybody starts at one-fifty."
+      },
+      {
+        "who": "slice",
+        "text": "One clean hit. That's all this needs."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Then don't miss."
+      }
+    ],
+    "outro": [
+      {
+        "who": "slice",
+        "text": "You flinched first. And you still won."
+      },
+      {
+        "who": "exit-punk",
+        "text": "I didn't flinch. I ducked."
+      }
+    ],
+    "fight": {
+      "stage": "foundry",
+      "stocks": 1,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "startPercent": 1500,
+          "stocks": 1
+        },
+        {
+          "char": "slice",
+          "cpu": 6,
+          "team": 1,
+          "startPercent": 1500,
+          "stocks": 1
+        }
+      ]
+    }
+  },
+  {
+    "id": "dead-weight",
+    "title": "Dead Weight",
+    "tagline": "They want the kid off the air.",
+    "hint": "Survive for 60 seconds. You do not need KOs. Stay away from the edges.",
+    "intro": [
+      {
+        "who": "orchestrator",
+        "text": "The kid is getting too popular. Let's fix that. Boulder, Stratabots: take him off the air."
+      },
+      {
+        "who": "ss-boulder",
+        "text": "Nothing personal. The boulder doesn't do personal."
+      },
+      {
+        "who": "stratabots",
+        "text": "Plates locked."
+      },
+      {
+        "who": "exit-punk",
+        "text": "I don't have to beat them. I just have to still be here when the clock runs out."
+      }
+    ],
+    "outro": [
+      {
+        "who": "ss-boulder",
+        "text": "He's still standing."
+      },
+      {
+        "who": "stratabots",
+        "text": "Plates... cracked."
+      },
+      {
+        "who": "orchestrator",
+        "text": "Fine. I'll do it myself."
+      }
+    ],
+    "fight": {
+      "stage": "rooftop",
+      "stocks": 2,
+      "rules": {
+        "timeLimit": 3600,
+        "damage": 120
+      },
+      "objective": "survive",
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 2
+        },
+        {
+          "char": "ss-boulder",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 3
+        },
+        {
+          "char": "stratabots",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "encore",
+    "title": "Encore",
+    "tagline": "The man who runs the show steps onto it.",
+    "hint": "The final fight: a giant Orchestrator. Stay moving and punish his landings.",
+    "intro": [
+      {
+        "who": "orchestrator",
+        "text": "Do you know what the exit is, kid? There isn't one. There's only the next show."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Then I'll end the show."
+      },
+      {
+        "who": "orchestrator",
+        "text": "Bold. Lights. Music. Everyone, watch this."
+      }
+    ],
+    "outro": [
+      {
+        "who": "narrator",
+        "text": "The baton hits the furnace floor. For the first time in years, the broadcast goes quiet."
+      },
+      {
+        "who": "orchestrator",
+        "text": "...Ratings?"
+      },
+      {
+        "who": "blog-man",
+        "text": "Highest ever. You're off the air, maestro."
+      },
+      {
+        "who": "exit-punk",
+        "text": "I came for the exit. Turns out it was the main event."
+      },
+      {
+        "who": "narrator",
+        "text": "Dose of Destruction will return. The card is yours now."
+      }
+    ],
+    "fight": {
+      "stage": "foundry",
+      "stocks": 3,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "orchestrator",
+          "cpu": 8,
+          "team": 1,
+          "scale": 150,
+          "stocks": 3
+        }
+      ]
+    }
+  }
+]

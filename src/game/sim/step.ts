@@ -5,8 +5,8 @@
 import { FX, TRIG_ONE, approach, clamp, iatan2, icos, idiv, isin, isqrt, normDeg, sign } from './fixed.ts';
 import { AERIALS, CHARACTERS, MOVE, type CharacterDef, type Hitbox } from './characters.ts';
 import { BTN, C_ANY, NO_INPUT, stickX, stickY } from './input.ts';
-import { STAGE } from './stage.ts';
-import { ACT, SHIELD_MAX, type Fighter, type GameState } from './state.ts';
+import { STAGES, ledges, platformAt, type Ledge, type StageDef } from './stage.ts';
+import { ACT, SHIELD_MAX, allies, bodySize, type Fighter, type GameState } from './state.ts';
 
 export type SimEvent =
   | { type: 'hit'; attacker: number; victim: number; x: number; y: number; dmg: number; kb: number; shield: boolean }
@@ -21,8 +21,11 @@ const KB_SPEED = 17;
 const KB_DECAY = 300;
 const RESPAWN_DELAY = 70;
 
-const MAIN = STAGE.platforms[0];
-const LEDGE_X = MAIN.x2 * FX;
+// The stage and frame being stepped. Set at the top of step() and only read
+// below it, so the sim stays a pure function of (state, inputs).
+let stage: StageDef = STAGES[0];
+let frame = 0;
+let gravityPct = 100;
 
 interface Ctx {
   inp: number;
@@ -33,6 +36,9 @@ interface Ctx {
 }
 
 export function step(s: GameState, inputs: readonly number[]): SimEvent[] {
+  stage = STAGES[s.stage] ?? STAGES[0];
+  frame = s.frame;
+  gravityPct = s.rules.gravity;
   const ev: SimEvent[] = [];
   for (const f of s.fighters) updateFighter(s, f, inputs[f.id] ?? NO_INPUT, ev);
   separate(s);
@@ -52,7 +58,7 @@ function updateFighter(s: GameState, f: Fighter, inp: number, ev: SimEvent[]): v
 
   if (f.action === ACT.DEAD) {
     f.frame++;
-    if (f.stocks > 0 && f.frame >= RESPAWN_DELAY) respawn(f, ch, ev);
+    if (f.stocks > 0 && f.frame >= RESPAWN_DELAY && !s.over) respawn(f, ch, ev);
     return;
   }
 
@@ -152,7 +158,7 @@ function updateFighter(s: GameState, f: Fighter, inp: number, ev: SimEvent[]): v
       ledge(f, ch, c, ev);
       break;
     case ACT.LEDGE_CLIMB:
-      ledgeClimb(f, ch);
+      ledgeClimb(f);
       break;
     case ACT.HELPLESS:
       drift(f, ch, c, 2);
@@ -193,7 +199,7 @@ function consume(f: Fighter): number {
 function groundNeutral(f: Fighter, ch: CharacterDef, c: Ctx): void {
   if (tryGround(f, ch, c)) return;
 
-  const onThin = f.platform > 0 && !STAGE.platforms[f.platform].solid;
+  const onThin = f.platform >= 0 && !stage.platforms[f.platform].solid;
   if (onThin && c.sy < -65 && c.psy >= -65) {
     f.grounded = 0;
     f.platform = -1;
@@ -355,10 +361,16 @@ function drift(f: Fighter, ch: CharacterDef, c: Ctx, weak: number): void {
   }
 }
 
+function fallSpeed(ch: CharacterDef, fast: boolean): number {
+  // Low gravity also slows the fall, but by half as much, so floaty rules stay playable.
+  const base = fast ? ch.fastFallSpeed : ch.fallSpeed;
+  return idiv(base * (100 + gravityPct), 200);
+}
+
 function fastFall(f: Fighter, ch: CharacterDef, c: Ctx): void {
   if (!f.fastFall && f.vy <= 0 && c.sy < -65 && c.psy >= -65) {
     f.fastFall = 1;
-    f.vy = -ch.fastFallSpeed;
+    f.vy = -fallSpeed(ch, true);
   }
 }
 
@@ -420,10 +432,16 @@ export function activeHitboxes(f: Fighter): { x: number; y: number; r: number; b
   if (f.action !== ACT.ATTACK) return [];
   const m = CHARACTERS[f.char].moves[f.move];
   const out: { x: number; y: number; r: number; box: Hitbox }[] = [];
+  const k = f.scale * FX;
   for (const w of m.hits) {
     if (f.frame < w.start || f.frame > w.end) continue;
     for (const box of w.boxes) {
-      out.push({ x: f.x + f.facing * box.x * FX, y: f.y + box.y * FX, r: box.r * FX, box });
+      out.push({
+        x: f.x + f.facing * idiv(box.x * k, 100),
+        y: f.y + idiv(box.y * k, 100),
+        r: idiv(box.r * k, 100),
+        box,
+      });
     }
   }
   return out;
@@ -442,10 +460,10 @@ function resolveHits(s: GameState, ev: SimEvent[]): void {
     const boxes = activeHitboxes(a);
     if (!boxes.length) continue;
     for (const v of s.fighters) {
-      if (v === a || a.hitMask & (1 << v.id) || !hittable(v)) continue;
-      const vc = CHARACTERS[v.char];
-      const half = (vc.width * FX) >> 1;
-      const top = v.y + vc.height * FX;
+      if (v === a || a.hitMask & (1 << v.id) || !hittable(v) || allies(a, v)) continue;
+      const [w, h] = bodySize(v);
+      const half = w >> 1;
+      const top = v.y + h;
       for (const hb of boxes) {
         const px = clamp(hb.x, v.x - half, v.x + half);
         const py = clamp(hb.y, v.y, top);
@@ -458,7 +476,7 @@ function resolveHits(s: GameState, ev: SimEvent[]): void {
       }
     }
   }
-  for (const h of hits) applyHit(h.a, h.v, h.box, h.x, h.y, ev);
+  for (const h of hits) applyHit(s, h.a, h.v, h.box, h.x, h.y, ev);
 }
 
 export function knockback(percent: number, dmg: number, weight: number, bkb: number, kbg: number): number {
@@ -469,9 +487,9 @@ export function knockback(percent: number, dmg: number, weight: number, bkb: num
   return idiv(b * kbg, 100) + bkb * 1000;
 }
 
-function applyHit(a: Fighter, v: Fighter, box: Hitbox, x: number, y: number, ev: SimEvent[]): void {
+function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, y: number, ev: SimEvent[]): void {
   a.hitMask |= 1 << v.id;
-  const dmg = box.dmg;
+  const dmg = idiv(box.dmg * s.rules.damage, 100);
   const lag = 4 + idiv(dmg, 30);
   a.hitlag = lag;
   v.hitlag = lag;
@@ -491,7 +509,9 @@ function applyHit(a: Fighter, v: Fighter, box: Hitbox, x: number, y: number, ev:
   const vc = CHARACTERS[v.char];
   v.percent = Math.min(v.percent + dmg, 9999);
   a.damageDealt += dmg;
-  const kb = knockback(v.percent, dmg, vc.weight, box.bkb, box.kbg);
+  // Giants are heavier in proportion to their size.
+  const weight = idiv(vc.weight * v.scale, 100);
+  const kb = knockback(v.percent, dmg, weight, box.bkb, box.kbg);
   v.launchSpeed = idiv(kb * KB_SPEED, 100);
   v.launchAngle = normDeg(a.facing > 0 ? box.angle : 180 - box.angle);
   v.hitstun = idiv(kb * 4, 10000);
@@ -534,15 +554,21 @@ function launch(f: Fighter, inp: number): void {
 
 // -------------------------------------------------------------------- ledge
 
-function hangPosition(f: Fighter, ch: CharacterDef): [number, number] {
-  const half = (ch.width * FX) >> 1;
-  return [f.ledge * LEDGE_X + f.ledge * half, -ch.height * FX + 20 * FX];
+/** The ledge a fighter holds. f.ledge is its index plus one, so 0 means none. */
+function heldLedge(f: Fighter): Ledge {
+  return ledges(stage)[f.ledge - 1];
+}
+
+function hangPosition(f: Fighter): [number, number] {
+  const l = heldLedge(f);
+  const [w, h] = bodySize(f);
+  return [l.x * FX + l.side * (w >> 1), l.y * FX - h + 20 * FX];
 }
 
 function ledge(f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): void {
-  [f.x, f.y] = hangPosition(f, ch);
+  [f.x, f.y] = hangPosition(f);
   if (f.frame < 8) return;
-  const toward = -f.ledge;
+  const toward = -heldLedge(f).side;
   if (f.buffer & BTN.JUMP) {
     consume(f);
     leaveLedge(f, 20);
@@ -567,24 +593,26 @@ function leaveLedge(f: Fighter, cooldown: number): void {
   setAction(f, ACT.AIR, 0);
 }
 
-function ledgeClimb(f: Fighter, ch: CharacterDef): void {
-  const [hx, hy] = hangPosition(f, ch);
-  const half = (ch.width * FX) >> 1;
-  const endX = f.ledge * LEDGE_X - f.ledge * (half + 6 * FX);
+function ledgeClimb(f: Fighter): void {
+  const l = heldLedge(f);
+  const [hx, hy] = hangPosition(f);
+  const [w] = bodySize(f);
+  const top = l.y * FX;
+  const endX = l.x * FX - l.side * ((w >> 1) + 6 * FX);
   if (f.frame <= 11) {
     f.x = hx;
-    f.y = hy - idiv(hy * f.frame, 11);
+    f.y = hy + idiv((top - hy) * f.frame, 11);
   } else {
-    f.y = 0;
+    f.y = top;
     f.x = hx + idiv((endX - hx) * (f.frame - 11), 11);
   }
   if (f.frame >= f.length) {
     f.x = endX;
-    f.y = 0;
+    f.y = top;
     f.ledge = 0;
     f.ledgeCooldown = 10;
     f.grounded = 1;
-    f.platform = 0;
+    f.platform = l.platform;
     f.vx = 0;
     f.vy = 0;
     setAction(f, ACT.IDLE, 0);
@@ -602,17 +630,22 @@ function tryGrabLedge(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: Si
   if (!canGrab) return;
   if (f.vy + f.kby > 0 && m === null) return;
 
-  const half = (ch.width * FX) >> 1;
-  const height = ch.height * FX;
-  for (const side of [-1, 1]) {
-    if (side * f.x < LEDGE_X - half) continue;
-    const hangX = side * LEDGE_X + side * half;
-    const top = f.y + height;
+  const [w, h] = bodySize(f);
+  const half = w >> 1;
+  const all = ledges(stage);
+  for (let i = 0; i < all.length; i++) {
+    const l = all[i];
+    const lx = l.x * FX;
+    const ly = l.y * FX;
+    // Only from the outside of the edge.
+    if (l.side * (f.x - lx) < -half) continue;
+    const hangX = lx + l.side * half;
+    const top = f.y + h - ly;
     if (Math.abs(f.x - hangX) > 45 * FX || top < -25 * FX || top > 70 * FX) continue;
-    if (s.fighters.some((o) => o !== f && (o.action === ACT.LEDGE || o.action === ACT.LEDGE_CLIMB) && o.ledge === side)) continue;
+    if (s.fighters.some((o) => o !== f && (o.action === ACT.LEDGE || o.action === ACT.LEDGE_CLIMB) && o.ledge === i + 1)) continue;
 
-    f.ledge = side;
-    f.facing = -side;
+    f.ledge = i + 1;
+    f.facing = -l.side;
     f.vx = f.vy = f.kbx = f.kby = 0;
     f.jumpsLeft = ch.airJumps;
     f.airdodgeUsed = 0;
@@ -620,7 +653,7 @@ function tryGrabLedge(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: Si
     f.fastFall = 0;
     f.intangible = 30;
     setAction(f, ACT.LEDGE, 0);
-    [f.x, f.y] = hangPosition(f, ch);
+    [f.x, f.y] = hangPosition(f);
     ev.push({ type: 'ledge', id: f.id, x: f.x, y: f.y });
     return;
   }
@@ -632,12 +665,14 @@ function physics(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEven
   if (!f.grounded) {
     const m = f.action === ACT.ATTACK ? ch.moves[f.move] : null;
     const floating =
-      (m?.floatUntil !== undefined && f.frame < m.floatUntil && f.airSpecial <= 1) || (f.action === ACT.AIRDODGE && f.dir !== 0 && f.frame < 18);
+      (m?.floatUntil !== undefined && f.frame < m.floatUntil && f.airSpecial <= 1) ||
+      (f.action === ACT.AIRDODGE && f.dir !== 0 && f.frame < 18);
     if (floating) {
       if (m) f.vy = Math.max(f.vy, 0);
     } else {
-      const cap = f.fastFall ? -ch.fastFallSpeed : -ch.fallSpeed;
-      f.vy = f.fastFall ? cap : Math.max(f.vy - ch.gravity, Math.min(f.vy, cap));
+      const cap = -fallSpeed(ch, f.fastFall === 1);
+      const g = idiv(ch.gravity * gravityPct, 100);
+      f.vy = f.fastFall ? cap : Math.max(f.vy - g, Math.min(f.vy, cap));
     }
   }
 
@@ -652,6 +687,16 @@ function physics(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEven
     }
   }
 
+  // A moving platform carries whoever stands on it.
+  if (f.grounded) {
+    const p = stage.platforms[f.platform];
+    if (p.motion) {
+      const now = platformAt(p, frame);
+      const before = platformAt(p, frame - 1);
+      f.x += now.x1 - before.x1;
+    }
+  }
+
   const py = f.y;
   f.x += f.vx + f.kbx;
   f.y += f.vy + f.kby;
@@ -661,15 +706,13 @@ function physics(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEven
       f.grounded = 0;
       f.platform = -1;
     } else {
-      const p = STAGE.platforms[f.platform];
+      const p = platformAt(stage.platforms[f.platform], frame);
       f.vy = 0;
       f.kby = 0;
-      f.y = p.y * FX;
-      const x1 = p.x1 * FX;
-      const x2 = p.x2 * FX;
-      if (f.x < x1 || f.x > x2) {
+      f.y = p.y;
+      if (f.x < p.x1 || f.x > p.x2) {
         if (holdsEdge(f)) {
-          f.x = clamp(f.x, x1, x2);
+          f.x = clamp(f.x, p.x1, p.x2);
           f.vx = 0;
         } else {
           f.grounded = 0;
@@ -684,16 +727,23 @@ function physics(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEven
   if (!f.grounded) {
     if (f.vy + f.kby <= 0) {
       let best = -1;
-      for (let i = 0; i < STAGE.platforms.length; i++) {
-        const p = STAGE.platforms[i];
-        const top = p.y * FX;
-        if (py < top || f.y > top || f.x < p.x1 * FX || f.x > p.x2 * FX) continue;
+      let bestY = 0;
+      for (let i = 0; i < stage.platforms.length; i++) {
+        const p = stage.platforms[i];
+        const now = platformAt(p, frame);
+        // Compare against where the top was last frame too, so a platform
+        // rising into a falling fighter still catches them.
+        const before = p.motion ? platformAt(p, frame - 1).y : now.y;
+        if (py < Math.min(now.y, before) || f.y > now.y || f.x < now.x1 || f.x > now.x2) continue;
         if (!p.solid && (f.dropThrough > 0 || (f.action !== ACT.HITSTUN && c.sy < -65))) continue;
-        if (best < 0 || p.y > STAGE.platforms[best].y) best = i;
+        if (best < 0 || now.y > bestY) {
+          best = i;
+          bestY = now.y;
+        }
       }
-      if (best >= 0) land(f, ch, best, ev);
+      if (best >= 0) land(f, ch, best, bestY, ev);
     }
-    if (!f.grounded) collideMainBlock(f, ch, py);
+    if (!f.grounded) collideSolids(f, py);
     if (!f.grounded) tryGrabLedge(s, f, ch, c, ev);
   }
 }
@@ -711,30 +761,34 @@ function holdsEdge(f: Fighter): boolean {
   );
 }
 
-function collideMainBlock(f: Fighter, ch: CharacterDef, py: number): void {
-  const half = (ch.width * FX) >> 1;
-  const height = ch.height * FX;
-  const x1 = MAIN.x1 * FX;
-  const x2 = MAIN.x2 * FX;
-  const top = MAIN.y * FX;
-  const bottom = top - STAGE.depth * FX;
-  if (f.x + half <= x1 || f.x - half >= x2 || f.y >= top || f.y + height <= bottom) return;
+/** Pushes an airborne fighter out of the sides and bottoms of solid platforms. */
+function collideSolids(f: Fighter, py: number): void {
+  const [w, height] = bodySize(f);
+  const half = w >> 1;
+  for (const p of stage.platforms) {
+    if (!p.solid) continue;
+    const x1 = p.x1 * FX;
+    const x2 = p.x2 * FX;
+    const top = p.y * FX;
+    const bottom = top - (p.depth ?? 90) * FX;
+    if (f.x + half <= x1 || f.x - half >= x2 || f.y >= top || f.y + height <= bottom) continue;
 
-  if (py + height <= bottom) {
-    f.y = bottom - height;
-    if (f.vy > 0) f.vy = 0;
-    if (f.kby > 0) f.kby = -(f.kby >> 1);
-    return;
+    if (py + height <= bottom) {
+      f.y = bottom - height;
+      if (f.vy > 0) f.vy = 0;
+      if (f.kby > 0) f.kby = -(f.kby >> 1);
+      continue;
+    }
+    f.x = f.x < (x1 + x2) >> 1 ? x1 - half : x2 + half;
+    f.vx = 0;
+    f.kbx = f.action === ACT.HITSTUN ? -(f.kbx >> 1) : 0;
   }
-  f.x = f.x < 0 ? x1 - half : x2 + half;
-  f.vx = 0;
-  f.kbx = f.action === ACT.HITSTUN ? -(f.kbx >> 1) : 0;
 }
 
-function land(f: Fighter, ch: CharacterDef, platform: number, ev: SimEvent[]): void {
+function land(f: Fighter, ch: CharacterDef, platform: number, y: number, ev: SimEvent[]): void {
   f.grounded = 1;
   f.platform = platform;
-  f.y = STAGE.platforms[platform].y * FX;
+  f.y = y;
   f.vy = 0;
   f.kby = 0;
   f.fastFall = 0;
@@ -773,7 +827,7 @@ function separate(s: GameState): void {
       const a = fs[i];
       const b = fs[j];
       if (!a.grounded || !b.grounded || a.platform !== b.platform || a.hitlag || b.hitlag) continue;
-      const min = ((CHARACTERS[a.char].width + CHARACTERS[b.char].width) * FX) >> 2;
+      const min = (bodySize(a)[0] + bodySize(b)[0]) >> 2;
       const dx = b.x - a.x;
       if (Math.abs(dx) >= min) continue;
       const dir = dx === 0 ? 1 : sign(dx);
@@ -787,7 +841,7 @@ function separate(s: GameState): void {
 
 function checkBlastZones(s: GameState, f: Fighter, ev: SimEvent[]): void {
   if (f.action === ACT.DEAD) return;
-  const b = STAGE.blast;
+  const b = stage.blast;
   if (f.x > b.left * FX && f.x < b.right * FX && f.y > b.bottom * FX && f.y < b.top * FX) return;
   ev.push({ type: 'ko', victim: f.id, by: f.lastHitBy, x: f.x, y: f.y });
   f.stocks--;
@@ -800,9 +854,9 @@ function checkBlastZones(s: GameState, f: Fighter, ev: SimEvent[]): void {
 }
 
 function respawn(f: Fighter, ch: CharacterDef, ev: SimEvent[]): void {
-  f.x = (STAGE.respawn.x + (f.id - 1) * 90) * FX;
-  f.y = STAGE.respawn.y * FX;
-  f.percent = 0;
+  f.x = (stage.respawn.x + (f.id - 1) * 90) * FX;
+  f.y = stage.respawn.y * FX;
+  f.percent = f.startPercent;
   f.grounded = 0;
   f.platform = -1;
   f.jumpsLeft = ch.airJumps;
@@ -817,11 +871,39 @@ function respawn(f: Fighter, ch: CharacterDef, ev: SimEvent[]): void {
   ev.push({ type: 'respawn', id: f.id, x: f.x, y: f.y });
 }
 
+/** Sides still in the match: one per team, or one per fighter without a team. */
+function sides(s: GameState): Fighter[][] {
+  const groups = new Map<number, Fighter[]>();
+  for (const f of s.fighters) {
+    if (f.stocks <= 0) continue;
+    const key = f.team >= 0 ? f.team : -1 - f.id;
+    const g = groups.get(key);
+    if (g) g.push(f);
+    else groups.set(key, [f]);
+  }
+  return [...groups.values()];
+}
+
 function checkGameOver(s: GameState): void {
   if (s.over || s.fighters.length < 2) return;
-  const alive = s.fighters.filter((f) => f.stocks > 0);
-  if (alive.length > 1) return;
+  const alive = sides(s);
+  const timeUp = s.rules.timeLimit > 0 && s.frame + 1 >= s.rules.timeLimit;
+  if (alive.length > 1 && !timeUp) return;
+
+  // On time, the side with the most stocks wins, then the least damage.
+  let best: Fighter[] | null = null;
+  const score = (g: Fighter[]) => [g.reduce((n, f) => n + f.stocks, 0), -g.reduce((n, f) => n + f.percent, 0)];
+  for (const g of alive) {
+    if (!best) best = g;
+    else {
+      const [a1, a2] = score(g);
+      const [b1, b2] = score(best);
+      if (a1 > b1 || (a1 === b1 && a2 > b2)) best = g;
+    }
+  }
   s.over = 1;
-  s.winner = alive.length ? alive[0].id : -1;
+  s.timedOut = alive.length > 1 ? 1 : 0;
+  s.winner = best ? best[0].id : -1;
+  s.winnerTeam = best && best[0].team >= 0 ? best[0].team : -1;
   s.endTimer = 120;
 }

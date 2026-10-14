@@ -1,0 +1,1067 @@
+{
+  "model": "eleven_v4",
+  "voices": {
+    "announcer": "nPczCjzI2devNBz1zQrb",
+    "narrator": "JBFqnCBsd6RMkjVDRZzb",
+    "ball-person": "TX3LPaxmHKxFdv7VOQHJ",
+    "blog-man": "CwhRBWXzGAHq8TQ4Fs17",
+    "break": "N2lVS1w4EtoT3dr4eOWO",
+    "cel": "Xb7hH8MSUJpSbSDYk0k2",
+    "chooser": "FGY2WhTYpPnrIDTdsKH5",
+    "crosser": "JBFqnCBsd6RMkjVDRZzb",
+    "crystalline-intelligences": "pFZP5JQG7iQjIQuC4Bku",
+    "dj-wont-read": "iP95p4xoKVk53GoZ742B",
+    "evil-blue-bird": "cgSgspJ2msm6clMCkdW9",
+    "exit-punk": "bIHbv24MWmeRgasZH58o",
+    "future-man": "CwhRBWXzGAHq8TQ4Fs17",
+    "got-ur-back": "IKne3meq5aSn9XLyUdCD",
+    "kaelen": "TX3LPaxmHKxFdv7VOQHJ",
+    "lapis-man": "pqHfZKP75CvOlQylNhV4",
+    "not-an-old-man-yet": "onwK4e9ZLuTAKqWW03F9",
+    "orchestrator": "onwK4e9ZLuTAKqWW03F9",
+    "pyro-singer": "9BWtsMINqrJLrRacOk9x",
+    "shark-dude": "N2lVS1w4EtoT3dr4eOWO",
+    "shutup-bot": "SAz9YHcvj6GT2YYXdXww",
+    "slice": "XB0fDUnXU5powFXDhCwa",
+    "slow-rider": "nPczCjzI2devNBz1zQrb",
+    "small-weather": "cjVigY5qzO86Huf0OWal",
+    "spider-bot": "cjVigY5qzO86Huf0OWal",
+    "ss-boulder": "XrExE9yKIg1WjnnlVkGX",
+    "stratabots": "pqHfZKP75CvOlQylNhV4",
+    "susan": "EXAVITQu4vr4xnSDxMaL",
+    "the-mechanic": "iP95p4xoKVk53GoZ742B",
+    "try-belt": "IKne3meq5aSn9XLyUdCD",
+    "tt": "bIHbv24MWmeRgasZH58o",
+    "uh-me": "SAz9YHcvj6GT2YYXdXww",
+    "wallit": "CwhRBWXzGAHq8TQ4Fs17",
+    "yo-bot": "TX3LPaxmHKxFdv7VOQHJ",
+    "yooba": "FGY2WhTYpPnrIDTdsKH5"
+  },
+  "cast": {
+    "announcer": {
+      "voice": "Brian",
+      "about": "male, American, deep",
+      "why": "Deep, big-room announcer."
+    },
+    "narrator": {
+      "voice": "George",
+      "about": "male, British, warm storyteller",
+      "why": "Warm British storyteller for the campaign."
+    },
+    "ball-person": {
+      "voice": "Liam",
+      "about": "male, American, young",
+      "why": "Young man, sporty."
+    },
+    "blog-man": {
+      "voice": "Roger",
+      "about": "male, American, confident",
+      "why": "He; confident."
+    },
+    "break": {
+      "voice": "Callum",
+      "about": "male, intense, gravelly",
+      "why": "Armored heavy, no face shown: gravelly and intense."
+    },
+    "cel": {
+      "voice": "Alice",
+      "about": "female, British, confident",
+      "why": "Woman: celestial, confident British."
+    },
+    "chooser": {
+      "voice": "Laura",
+      "about": "female, American, upbeat",
+      "why": "Creature, no gender: upbeat."
+    },
+    "crosser": {
+      "voice": "George",
+      "about": "male, British, warm storyteller",
+      "why": "He; calm and still."
+    },
+    "crystalline-intelligences": {
+      "voice": "Lily",
+      "about": "female, British, airy",
+      "why": "Being of light, no gender: airy."
+    },
+    "dj-wont-read": {
+      "voice": "Chris",
+      "about": "male, American, casual",
+      "why": "He; laid back."
+    },
+    "evil-blue-bird": {
+      "voice": "Jessica",
+      "about": "female, American, playful",
+      "why": "Creature, no gender: playful with a bite."
+    },
+    "exit-punk": {
+      "voice": "Will",
+      "about": "male, American, young and friendly",
+      "why": "A boy: young, friendly American."
+    },
+    "future-man": {
+      "voice": "Roger",
+      "about": "male, American, confident",
+      "why": "Man, cyborg: confident."
+    },
+    "got-ur-back": {
+      "voice": "Charlie",
+      "about": "male, Australian, energetic",
+      "why": "Creature, no gender: big, friendly, energetic."
+    },
+    "kaelen": {
+      "voice": "Liam",
+      "about": "male, American, young",
+      "why": "Young man."
+    },
+    "lapis-man": {
+      "voice": "Bill",
+      "about": "male, American, older",
+      "why": "Elderly man."
+    },
+    "not-an-old-man-yet": {
+      "voice": "Daniel",
+      "about": "male, British, authoritative",
+      "why": "He; owns the room."
+    },
+    "orchestrator": {
+      "voice": "Daniel",
+      "about": "male, British, authoritative",
+      "why": "Man in a tux running the show: polished British authority."
+    },
+    "pyro-singer": {
+      "voice": "Aria",
+      "about": "female, American, expressive",
+      "why": "Woman, a singer: expressive."
+    },
+    "shark-dude": {
+      "voice": "Callum",
+      "about": "male, intense, gravelly",
+      "why": "He; rough."
+    },
+    "shutup-bot": {
+      "voice": "River",
+      "about": "neutral, American, calm",
+      "why": "Robot, no gender: flat and calm."
+    },
+    "slice": {
+      "voice": "Charlotte",
+      "about": "female, cool, sultry",
+      "why": "Woman: cool and quiet."
+    },
+    "slow-rider": {
+      "voice": "Brian",
+      "about": "male, American, deep",
+      "why": "Man, cowboy: deep and unhurried."
+    },
+    "small-weather": {
+      "voice": "Eric",
+      "about": "male, American, smooth",
+      "why": "He; smooth."
+    },
+    "spider-bot": {
+      "voice": "Eric",
+      "about": "male, American, smooth",
+      "why": "Pilot in a mech, no gender shown."
+    },
+    "ss-boulder": {
+      "voice": "Matilda",
+      "about": "female, American, warm",
+      "why": "She."
+    },
+    "stratabots": {
+      "voice": "Bill",
+      "about": "male, American, older",
+      "why": "Rock robot, no gender: older and heavy."
+    },
+    "susan": {
+      "voice": "Sarah",
+      "about": "female, American, soft",
+      "why": "She; soft, shadowy."
+    },
+    "the-mechanic": {
+      "voice": "Chris",
+      "about": "male, American, casual",
+      "why": "Tired man."
+    },
+    "try-belt": {
+      "voice": "Charlie",
+      "about": "male, Australian, energetic",
+      "why": "Young man."
+    },
+    "tt": {
+      "voice": "Will",
+      "about": "male, American, young and friendly",
+      "why": "He; gentle."
+    },
+    "uh-me": {
+      "voice": "River",
+      "about": "neutral, American, calm",
+      "why": "Alien, no gender: very calm."
+    },
+    "wallit": {
+      "voice": "Roger",
+      "about": "male, American, confident",
+      "why": "Wallet, no gender: brash."
+    },
+    "yo-bot": {
+      "voice": "Liam",
+      "about": "male, American, young",
+      "why": "Robot, no gender: chirpy."
+    },
+    "yooba": {
+      "voice": "Laura",
+      "about": "female, American, upbeat",
+      "why": "Creature, no gender: silly."
+    }
+  },
+  "lines": [
+    {
+      "id": "announcer.ready",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Ready?",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.go",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Go!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.game",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Game!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.time",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Time!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.versus",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Versus!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.title",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Dose of Destruction!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.wins",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Wins!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.ball-person",
+      "group": "names",
+      "who": "announcer",
+      "text": "Ball Person!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.blog-man",
+      "group": "names",
+      "who": "announcer",
+      "text": "Blog Man!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.break",
+      "group": "names",
+      "who": "announcer",
+      "text": "Break!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.cel",
+      "group": "names",
+      "who": "announcer",
+      "text": "Cel!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.chooser",
+      "group": "names",
+      "who": "announcer",
+      "text": "Chooser!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.crosser",
+      "group": "names",
+      "who": "announcer",
+      "text": "Crosser!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.crystalline-intelligences",
+      "group": "names",
+      "who": "announcer",
+      "text": "Crystalline Intelligences!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.dj-wont-read",
+      "group": "names",
+      "who": "announcer",
+      "text": "DJ Won't Read!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.evil-blue-bird",
+      "group": "names",
+      "who": "announcer",
+      "text": "Evil Blue Bird!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.exit-punk",
+      "group": "names",
+      "who": "announcer",
+      "text": "Exit Punk!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.future-man",
+      "group": "names",
+      "who": "announcer",
+      "text": "Future Man!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.got-ur-back",
+      "group": "names",
+      "who": "announcer",
+      "text": "Got Ur Back!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.kaelen",
+      "group": "names",
+      "who": "announcer",
+      "text": "Kaelen!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.lapis-man",
+      "group": "names",
+      "who": "announcer",
+      "text": "Lapis Man!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.not-an-old-man-yet",
+      "group": "names",
+      "who": "announcer",
+      "text": "Not an Old Man Yet!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.orchestrator",
+      "group": "names",
+      "who": "announcer",
+      "text": "Orchestrator!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.pyro-singer",
+      "group": "names",
+      "who": "announcer",
+      "text": "Pyro Singer!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.shark-dude",
+      "group": "names",
+      "who": "announcer",
+      "text": "Shark Dude!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.shutup-bot",
+      "group": "names",
+      "who": "announcer",
+      "text": "Shutup Bot!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.slice",
+      "group": "names",
+      "who": "announcer",
+      "text": "Slice!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.slow-rider",
+      "group": "names",
+      "who": "announcer",
+      "text": "Slow Rider!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.small-weather",
+      "group": "names",
+      "who": "announcer",
+      "text": "Small Weather!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.spider-bot",
+      "group": "names",
+      "who": "announcer",
+      "text": "Spider Bot!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.ss-boulder",
+      "group": "names",
+      "who": "announcer",
+      "text": "SS Boulder!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.stratabots",
+      "group": "names",
+      "who": "announcer",
+      "text": "Stratabots!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.susan",
+      "group": "names",
+      "who": "announcer",
+      "text": "Susan!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.the-mechanic",
+      "group": "names",
+      "who": "announcer",
+      "text": "The Mechanic!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.try-belt",
+      "group": "names",
+      "who": "announcer",
+      "text": "Try Belt!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.tt",
+      "group": "names",
+      "who": "announcer",
+      "text": "TT!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.uh-me",
+      "group": "names",
+      "who": "announcer",
+      "text": "Uh Me!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.wallit",
+      "group": "names",
+      "who": "announcer",
+      "text": "Wallit!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.yo-bot",
+      "group": "names",
+      "who": "announcer",
+      "text": "Yo Bot!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "announcer.name.yooba",
+      "group": "names",
+      "who": "announcer",
+      "text": "Yooba!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.ball-person.ko",
+      "group": "ko",
+      "who": "ball-person",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.blog-man.ko",
+      "group": "ko",
+      "who": "blog-man",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.break.ko",
+      "group": "ko",
+      "who": "break",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.cel.ko",
+      "group": "ko",
+      "who": "cel",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.chooser.ko",
+      "group": "ko",
+      "who": "chooser",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.crosser.ko",
+      "group": "ko",
+      "who": "crosser",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.crystalline-intelligences.ko",
+      "group": "ko",
+      "who": "crystalline-intelligences",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.dj-wont-read.ko",
+      "group": "ko",
+      "who": "dj-wont-read",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.evil-blue-bird.ko",
+      "group": "ko",
+      "who": "evil-blue-bird",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.exit-punk.ko",
+      "group": "ko",
+      "who": "exit-punk",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.future-man.ko",
+      "group": "ko",
+      "who": "future-man",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.got-ur-back.ko",
+      "group": "ko",
+      "who": "got-ur-back",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.kaelen.ko",
+      "group": "ko",
+      "who": "kaelen",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.lapis-man.ko",
+      "group": "ko",
+      "who": "lapis-man",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.not-an-old-man-yet.ko",
+      "group": "ko",
+      "who": "not-an-old-man-yet",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.orchestrator.ko",
+      "group": "ko",
+      "who": "orchestrator",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.pyro-singer.ko",
+      "group": "ko",
+      "who": "pyro-singer",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.shark-dude.ko",
+      "group": "ko",
+      "who": "shark-dude",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.shutup-bot.ko",
+      "group": "ko",
+      "who": "shutup-bot",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.slice.ko",
+      "group": "ko",
+      "who": "slice",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.slow-rider.ko",
+      "group": "ko",
+      "who": "slow-rider",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.small-weather.ko",
+      "group": "ko",
+      "who": "small-weather",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.spider-bot.ko",
+      "group": "ko",
+      "who": "spider-bot",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.ss-boulder.ko",
+      "group": "ko",
+      "who": "ss-boulder",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.stratabots.ko",
+      "group": "ko",
+      "who": "stratabots",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.susan.ko",
+      "group": "ko",
+      "who": "susan",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.the-mechanic.ko",
+      "group": "ko",
+      "who": "the-mechanic",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.try-belt.ko",
+      "group": "ko",
+      "who": "try-belt",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.tt.ko",
+      "group": "ko",
+      "who": "tt",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.uh-me.ko",
+      "group": "ko",
+      "who": "uh-me",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.wallit.ko",
+      "group": "ko",
+      "who": "wallit",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.yo-bot.ko",
+      "group": "ko",
+      "who": "yo-bot",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.yooba.ko",
+      "group": "ko",
+      "who": "yooba",
+      "text": "Aaaaagh!",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.ball-person.win",
+      "group": "victory",
+      "who": "ball-person",
+      "text": "Back of the net.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.blog-man.win",
+      "group": "victory",
+      "who": "blog-man",
+      "text": "That's going on the front page.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.break.win",
+      "group": "victory",
+      "who": "break",
+      "text": "Rule one. I don't fall off.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.cel.win",
+      "group": "victory",
+      "who": "cel",
+      "text": "You never even saw the sky.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.chooser.win",
+      "group": "victory",
+      "who": "chooser",
+      "text": "I chose this. I always choose this.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.crosser.win",
+      "group": "victory",
+      "who": "crosser",
+      "text": "You came to me. That was the mistake.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.crystalline-intelligences.win",
+      "group": "victory",
+      "who": "crystalline-intelligences",
+      "text": "Calculated. Then burned.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.dj-wont-read.win",
+      "group": "victory",
+      "who": "dj-wont-read",
+      "text": "Drop it. Again.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.evil-blue-bird.win",
+      "group": "victory",
+      "who": "evil-blue-bird",
+      "text": "Cute, right? Right up until it isn't.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.exit-punk.win",
+      "group": "victory",
+      "who": "exit-punk",
+      "text": "I'm out of here.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.future-man.win",
+      "group": "victory",
+      "who": "future-man",
+      "text": "I already saw how this ends.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.got-ur-back.win",
+      "group": "victory",
+      "who": "got-ur-back",
+      "text": "No hard feelings. Mostly.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.kaelen.win",
+      "group": "victory",
+      "who": "kaelen",
+      "text": "Hi. Bye.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.lapis-man.win",
+      "group": "victory",
+      "who": "lapis-man",
+      "text": "Respect your elders.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.not-an-old-man-yet.win",
+      "group": "victory",
+      "who": "not-an-old-man-yet",
+      "text": "Not yet. Not today.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.orchestrator.win",
+      "group": "victory",
+      "who": "orchestrator",
+      "text": "And that, is the finale.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.pyro-singer.win",
+      "group": "victory",
+      "who": "pyro-singer",
+      "text": "Encore? I'm just getting warm.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.shark-dude.win",
+      "group": "victory",
+      "who": "shark-dude",
+      "text": "Smell that? That's fear.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.shutup-bot.win",
+      "group": "victory",
+      "who": "shutup-bot",
+      "text": "Fine.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.slice.win",
+      "group": "victory",
+      "who": "slice",
+      "text": "Clean.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.slow-rider.win",
+      "group": "victory",
+      "who": "slow-rider",
+      "text": "No rush. Never was.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.small-weather.win",
+      "group": "victory",
+      "who": "small-weather",
+      "text": "Forecast says: you lose.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.spider-bot.win",
+      "group": "victory",
+      "who": "spider-bot",
+      "text": "Eight legs. Zero chances.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.ss-boulder.win",
+      "group": "victory",
+      "who": "ss-boulder",
+      "text": "The boulder wins. The boulder always wins.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.stratabots.win",
+      "group": "victory",
+      "who": "stratabots",
+      "text": "Plates locked. Opponent cracked.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.susan.win",
+      "group": "victory",
+      "who": "susan",
+      "text": "Stay in the dark.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.the-mechanic.win",
+      "group": "victory",
+      "who": "the-mechanic",
+      "text": "Fixed it.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.try-belt.win",
+      "group": "victory",
+      "who": "try-belt",
+      "text": "Told you I'd try.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.tt.win",
+      "group": "victory",
+      "who": "tt",
+      "text": "Slow and steady. Obviously.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.uh-me.win",
+      "group": "victory",
+      "who": "uh-me",
+      "text": "Uh. Me.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.wallit.win",
+      "group": "victory",
+      "who": "wallit",
+      "text": "Pay up.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.yo-bot.win",
+      "group": "victory",
+      "who": "yo-bot",
+      "text": "Uploading victory.",
+      "audio": null,
+      "take": null
+    },
+    {
+      "id": "fighter.yooba.win",
+      "group": "victory",
+      "who": "yooba",
+      "text": "Yooba yooba.",
+      "audio": null,
+      "take": null
+    }
+  ]
+}

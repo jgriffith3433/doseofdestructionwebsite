@@ -1,60 +1,16 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'vite';
+import { devApi } from './tools/devApi.mjs';
 
 const root = process.cwd();
-
-// Unity decompression-fallback builds use .unityweb and decompress in the loader.
-// Serve those files unchanged, with no Content-Encoding header.
-function serveRaw(extensions, contentType) {
-  const rootResolved = path.resolve(root);
-
-  return (req, res, next) => {
-    const pathname = decodeURIComponent((req.url || '').split('?')[0]);
-    if (!extensions.some((ext) => pathname.endsWith(ext))) {
-      next();
-      return;
-    }
-
-    const relativePath = pathname.replace(/^\/+/, '');
-    const filePath = path.resolve(rootResolved, relativePath);
-    const relative = path.relative(rootResolved, filePath);
-    if (relative.startsWith('..') || path.isAbsolute(relative)) {
-      next();
-      return;
-    }
-
-    let stat;
-    try {
-      stat = fs.statSync(filePath);
-    } catch {
-      next();
-      return;
-    }
-    if (!stat.isFile()) {
-      next();
-      return;
-    }
-
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Length', stat.size);
-    res.setHeader('Cache-Control', 'no-cache');
-    fs.createReadStream(filePath).pipe(res);
-  };
-}
+// Where each fighter's source art and animation clips live. Override with DOD_ART_ROOT.
+const artRoot = process.env.DOD_ART_ROOT || 'C:\\Projects\\AllTheCharacters';
 
 export default defineConfig({
   base: './',
   appType: 'mpa',
-  plugins: [
-    {
-      name: 'unity-webgl-static',
-      configureServer(server) {
-        server.middlewares.use(serveRaw(['.unityweb'], 'application/octet-stream'));
-        server.middlewares.use(serveRaw(['.loader.js'], 'application/javascript; charset=utf-8'));
-      },
-    },
-  ],
+  // devtools.html and its API exist only on the dev server.
+  plugins: [devApi({ root, artRoot })],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -68,7 +24,10 @@ export default defineConfig({
     port: 8089,
     strictPort: true,
     watch: {
-      ignored: ['**/*.unityweb'],
+      // Generated art and audio change often and are fetched, not imported.
+      // content/ is watched by the devtools plugin instead, so saving from
+      // devtools reloads game tabs without reloading devtools itself.
+      ignored: ['**/content/**', '**/audio/**', '**/characters/**', '**/_anim_preview/**', '**/_backup/**', '**/dist/**'],
     },
   },
 });

@@ -1,0 +1,378 @@
+[
+  {
+    "id": "foundry",
+    "name": "Foundry",
+    "blurb": "Three platforms over a furnace floor. The standard.",
+    "platforms": [
+      {
+        "x1": -560,
+        "x2": 560,
+        "y": 0,
+        "solid": true,
+        "depth": 90
+      },
+      {
+        "x1": -390,
+        "x2": -160,
+        "y": 130,
+        "solid": false
+      },
+      {
+        "x1": 160,
+        "x2": 390,
+        "y": 130,
+        "solid": false
+      },
+      {
+        "x1": -115,
+        "x2": 115,
+        "y": 260,
+        "solid": false
+      }
+    ],
+    "blast": {
+      "left": -1400,
+      "right": 1400,
+      "top": 1150,
+      "bottom": -750
+    },
+    "spawns": [
+      {
+        "x": -300,
+        "y": 0
+      },
+      {
+        "x": 300,
+        "y": 0
+      },
+      {
+        "x": -110,
+        "y": 0
+      },
+      {
+        "x": 110,
+        "y": 0
+      }
+    ],
+    "respawn": {
+      "x": 0,
+      "y": 420
+    },
+    "theme": {
+      "sky": [
+        "#5a2410",
+        "#26130b",
+        "#100e0c"
+      ],
+      "glow": "#ff5a1f",
+      "body": "#4a362a",
+      "under": "#241812",
+      "edge": "#ffb020",
+      "thinEdge": "#ffd15a",
+      "props": "frame"
+    }
+  },
+  {
+    "id": "rooftop",
+    "name": "Rooftop",
+    "blurb": "One long roof, nothing to stand on but each other.",
+    "platforms": [
+      {
+        "x1": -700,
+        "x2": 700,
+        "y": 0,
+        "solid": true,
+        "depth": 120
+      }
+    ],
+    "blast": {
+      "left": -1550,
+      "right": 1550,
+      "top": 1150,
+      "bottom": -750
+    },
+    "spawns": [
+      {
+        "x": -360,
+        "y": 0
+      },
+      {
+        "x": 360,
+        "y": 0
+      },
+      {
+        "x": -130,
+        "y": 0
+      },
+      {
+        "x": 130,
+        "y": 0
+      }
+    ],
+    "respawn": {
+      "x": 0,
+      "y": 360
+    },
+    "theme": {
+      "sky": [
+        "#2a2350",
+        "#141230",
+        "#08070f"
+      ],
+      "glow": "#7a5cff",
+      "body": "#2e2c3c",
+      "under": "#15141e",
+      "edge": "#9d8cff",
+      "thinEdge": "#c9bfff",
+      "props": "skyline"
+    }
+  },
+  {
+    "id": "drift",
+    "name": "Drift",
+    "blurb": "A small island and two platforms that will not stay put.",
+    "platforms": [
+      {
+        "x1": -430,
+        "x2": 430,
+        "y": 0,
+        "solid": true,
+        "depth": 110
+      },
+      {
+        "x1": -150,
+        "x2": 150,
+        "y": 150,
+        "solid": false,
+        "motion": {
+          "ax": 330,
+          "ay": 0,
+          "period": 480
+        }
+      },
+      {
+        "x1": -110,
+        "x2": 110,
+        "y": 300,
+        "solid": false,
+        "motion": {
+          "ax": 0,
+          "ay": 90,
+          "period": 360,
+          "phase": 90
+        }
+      }
+    ],
+    "blast": {
+      "left": -1350,
+      "right": 1350,
+      "top": 1200,
+      "bottom": -750
+    },
+    "spawns": [
+      {
+        "x": -250,
+        "y": 0
+      },
+      {
+        "x": 250,
+        "y": 0
+      },
+      {
+        "x": -80,
+        "y": 0
+      },
+      {
+        "x": 80,
+        "y": 0
+      }
+    ],
+    "respawn": {
+      "x": 0,
+      "y": 480
+    },
+    "theme": {
+      "sky": [
+        "#1f6b78",
+        "#0f3340",
+        "#07141a"
+      ],
+      "glow": "#3fe0d0",
+      "body": "#33504f",
+      "under": "#162625",
+      "edge": "#5cf0d8",
+      "thinEdge": "#b8fff2",
+      "props": "clouds"
+    }
+  },
+  {
+    "id": "split",
+    "name": "Split",
+    "blurb": "Two islands and a gap with nothing at the bottom.",
+    "platforms": [
+      {
+        "x1": -640,
+        "x2": -150,
+        "y": 0,
+        "solid": true,
+        "depth": 140
+      },
+      {
+        "x1": 150,
+        "x2": 640,
+        "y": 0,
+        "solid": true,
+        "depth": 140
+      },
+      {
+        "x1": -110,
+        "x2": 110,
+        "y": 110,
+        "solid": false,
+        "motion": {
+          "ax": 0,
+          "ay": 60,
+          "period": 300
+        }
+      },
+      {
+        "x1": -520,
+        "x2": -320,
+        "y": 170,
+        "solid": false
+      },
+      {
+        "x1": 320,
+        "x2": 520,
+        "y": 170,
+        "solid": false
+      }
+    ],
+    "blast": {
+      "left": -1500,
+      "right": 1500,
+      "top": 1150,
+      "bottom": -800
+    },
+    "spawns": [
+      {
+        "x": -420,
+        "y": 0
+      },
+      {
+        "x": 420,
+        "y": 0
+      },
+      {
+        "x": -260,
+        "y": 0
+      },
+      {
+        "x": 260,
+        "y": 0
+      }
+    ],
+    "respawn": {
+      "x": 0,
+      "y": 420
+    },
+    "theme": {
+      "sky": [
+        "#6a1a0c",
+        "#2a0a06",
+        "#0f0605"
+      ],
+      "glow": "#ff3b1f",
+      "body": "#3a2622",
+      "under": "#1a0f0d",
+      "edge": "#ff6a2a",
+      "thinEdge": "#ffb067",
+      "props": "embers"
+    }
+  },
+  {
+    "id": "pit",
+    "name": "The Pit",
+    "blurb": "Tiers of platforms over a wide floor. Room to climb, room to run.",
+    "platforms": [
+      {
+        "x1": -600,
+        "x2": 600,
+        "y": 0,
+        "solid": true,
+        "depth": 100
+      },
+      {
+        "x1": -520,
+        "x2": -330,
+        "y": 120,
+        "solid": false
+      },
+      {
+        "x1": 330,
+        "x2": 520,
+        "y": 120,
+        "solid": false
+      },
+      {
+        "x1": -270,
+        "x2": -90,
+        "y": 220,
+        "solid": false
+      },
+      {
+        "x1": 90,
+        "x2": 270,
+        "y": 220,
+        "solid": false
+      },
+      {
+        "x1": -90,
+        "x2": 90,
+        "y": 340,
+        "solid": false
+      }
+    ],
+    "blast": {
+      "left": -1450,
+      "right": 1450,
+      "top": 1250,
+      "bottom": -750
+    },
+    "spawns": [
+      {
+        "x": -380,
+        "y": 0
+      },
+      {
+        "x": 380,
+        "y": 0
+      },
+      {
+        "x": -140,
+        "y": 0
+      },
+      {
+        "x": 140,
+        "y": 0
+      }
+    ],
+    "respawn": {
+      "x": 0,
+      "y": 500
+    },
+    "theme": {
+      "sky": [
+        "#2c5a12",
+        "#122a08",
+        "#070d04"
+      ],
+      "glow": "#8dff3a",
+      "body": "#33402a",
+      "under": "#161c12",
+      "edge": "#a8ff4a",
+      "thinEdge": "#d8ff9a",
+      "props": "pipes"
+    }
+  }
+]

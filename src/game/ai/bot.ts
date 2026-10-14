@@ -6,8 +6,8 @@
 import { FX, rngNext } from '../sim/fixed.ts';
 import { CHARACTERS } from '../sim/characters.ts';
 import { BTN, packInput } from '../sim/input.ts';
-import { STAGE } from '../sim/stage.ts';
-import { ACT, type Fighter, type GameState } from '../sim/state.ts';
+import { STAGES, ledges, type Platform, type StageDef } from '../sim/stage.ts';
+import { ACT, allies, type Fighter, type GameState } from '../sim/state.ts';
 
 interface Step {
   sx: number;
@@ -16,8 +16,6 @@ interface Step {
   frames: number;
 }
 
-const EDGE = STAGE.platforms[0].x2;
-
 export class Bot {
   readonly id: number;
   readonly level: number;
@@ -25,6 +23,7 @@ export class Bot {
   private queue: Step[] = [];
   private hold: Step = { sx: 0, sy: 0, btn: 0, frames: 0 };
   private wait = 0;
+  private stage: StageDef = STAGES[0];
 
   /** level runs 1 (easy) to 9 (hard). */
   constructor(id: number, level: number, seed: number) {
@@ -34,6 +33,7 @@ export class Bot {
   }
 
   think(s: GameState): number {
+    this.stage = STAGES[s.stage] ?? STAGES[0];
     const next = this.queue[0];
     if (next) {
       if (--next.frames <= 0) this.queue.shift();
@@ -64,6 +64,21 @@ export class Bot {
     this.hold = { sx, sy, btn: 0, frames: 0 };
   }
 
+  /** The solid platform under or nearest to x. */
+  private home(x: number): Platform {
+    let best = this.stage.platforms[0];
+    let bestD = Infinity;
+    for (const p of this.stage.platforms) {
+      if (!p.solid) continue;
+      const d = x < p.x1 ? p.x1 - x : x > p.x2 ? x - p.x2 : 0;
+      if (d < bestD) {
+        best = p;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
   private decide(s: GameState): void {
     const me = s.fighters[this.id];
     this.steer(0);
@@ -75,8 +90,9 @@ export class Bot {
     }
     if (me.action === ACT.LEDGE) return this.ledge(me);
     if (me.action === ACT.HITSTUN || me.hitlag > 0) {
-      // Survival DI: hold up and back toward the stage.
-      this.steer(me.x > 0 ? -70 : 70, 70);
+      // Survival DI: hold up and back toward the nearest ground.
+      const h = this.home(me.x / FX);
+      this.steer(me.x / FX > (h.x1 + h.x2) / 2 ? -70 : 70, 70);
       this.wait = 2;
       return;
     }
@@ -88,25 +104,30 @@ export class Bot {
   }
 
   private offstage(me: Fighter): boolean {
+    if (me.grounded) return false;
     const x = me.x / FX;
-    return !me.grounded && (Math.abs(x) > EDGE + 10 || me.y < -20 * FX);
+    const y = me.y / FX;
+    const h = this.home(x);
+    return x < h.x1 - 10 || x > h.x2 + 10 || y < h.y - 20;
   }
 
   private recover(me: Fighter): void {
     const x = me.x / FX;
     const y = me.y / FX;
-    const toward = x > 0 ? -100 : 100;
+    const h = this.home(x);
+    const toward = x > (h.x1 + h.x2) / 2 ? -100 : 100;
+    const gap = x < h.x1 ? h.x1 - x : x > h.x2 ? x - h.x2 : 0;
     this.wait = 3;
     if (me.action === ACT.HELPLESS || me.action === ACT.ATTACK || me.action === ACT.AIRDODGE) {
       this.steer(toward);
       return;
     }
     const falling = me.vy <= 0;
-    if (me.jumpsLeft > 0 && falling && y < 80) {
+    if (me.jumpsLeft > 0 && falling && y < h.y + 80) {
       this.press(toward, 0, BTN.JUMP, 2);
       return;
     }
-    if (me.jumpsLeft === 0 && falling && (y < -60 || Math.abs(x) > EDGE + 160)) {
+    if (me.jumpsLeft === 0 && falling && (y < h.y - 60 || gap > 160)) {
       this.press(toward * 0.4, 100, BTN.SPECIAL);
       return;
     }
@@ -115,7 +136,8 @@ export class Bot {
 
   private ledge(me: Fighter): void {
     if (me.frame < 10 + this.random() * 30) return;
-    const toward = -me.ledge * 100;
+    const held = ledges(this.stage)[me.ledge - 1];
+    const toward = held ? -held.side * 100 : 0;
     const r = this.random();
     if (r < 0.45) this.press(toward, 0, 0, 2);
     else if (r < 0.75) this.press(0, 0, BTN.JUMP, 4);
@@ -126,7 +148,7 @@ export class Bot {
     let best: Fighter | null = null;
     let bestD = Infinity;
     for (const f of s.fighters) {
-      if (f === me || f.stocks <= 0 || f.action === ACT.DEAD) continue;
+      if (f === me || f.stocks <= 0 || f.action === ACT.DEAD || allies(me, f)) continue;
       const d = Math.abs(f.x - me.x) + Math.abs(f.y - me.y);
       if (d < bestD) {
         best = f;
@@ -138,14 +160,20 @@ export class Bot {
 
   private fight(me: Fighter, t: Fighter): void {
     const ch = CHARACTERS[me.char];
+    const k = me.scale / 100;
+    const mx = me.x / FX;
     const dx = (t.x - me.x) / FX;
     const dy = (t.y - me.y) / FX;
     const adx = Math.abs(dx);
     const side = dx >= 0 ? 100 : -100;
-    const reach = 50 + ch.width * 0.5 + (ch.height - 110) * 0.4;
+    const reach = (50 + ch.width * 0.5 + (ch.height - 110) * 0.4) * ch.tuning.reach * k;
     const skill = this.level / 9;
     const busy = me.action === ACT.ATTACK || me.action === ACT.LAND || me.action === ACT.JUMPSQUAT;
     if (busy) return;
+
+    const h = this.home(mx);
+    const towardEdge = side > 0 ? h.x2 - mx : mx - h.x1;
+    const nearEdge = towardEdge < 50;
 
     // Defend against an attack that is about to come out.
     const threat = t.action === ACT.ATTACK && adx < reach + 60 && Math.abs(dy) < 90;
@@ -163,10 +191,11 @@ export class Bot {
     // Punish a target that just finished swinging or is stuck landing.
     const open = t.action === ACT.LAND || t.action === ACT.DIZZY || t.action === ACT.HELPLESS;
     const killPercent = 900 - this.level * 30;
+    const targetHome = this.home(t.x / FX);
 
     if (me.grounded) {
-      if (adx < reach && Math.abs(dy) < 50) {
-        if (Math.abs(me.x / FX) > EDGE - 30 && Math.sign(dx) === Math.sign(me.x)) {
+      if (adx < reach && Math.abs(dy) < 50 * k) {
+        if (nearEdge) {
           // Facing out over the edge: the forward smash sends them far.
           this.press(side, 0, side > 0 ? BTN.C_RIGHT : BTN.C_LEFT);
         } else if ((t.percent > killPercent || open) && this.random() < 0.5 + skill * 0.3) {
@@ -180,7 +209,7 @@ export class Bot {
         }
         return;
       }
-      if (adx < reach * 0.8 && dy > 40 && dy < 180) {
+      if (adx < reach * 0.8 && dy > 40 && dy < 180 * k) {
         this.press(0, 100, t.percent > killPercent ? BTN.C_UP : BTN.ATTACK);
         return;
       }
@@ -191,15 +220,22 @@ export class Bot {
         this.press(side * 0.3, 0, BTN.ATTACK);
         return;
       }
-      if (dy < -60 && me.platform > 0 && adx < 260) {
+      if (dy < -60 && me.platform >= 0 && !this.stage.platforms[me.platform].solid && adx < 260) {
         this.queue.push({ sx: 0, sy: 0, btn: 0, frames: 1 }, { sx: 0, sy: -100, btn: 0, frames: 4 });
         return;
       }
-      if (Math.abs(t.x / FX) > EDGE + 20) {
+      const tx = t.x / FX;
+      if (tx < targetHome.x1 - 20 || tx > targetHome.x2 + 20) {
         // The target is off stage: wait near the ledge they have to come back to.
-        const post = Math.sign(t.x) * (EDGE - 60);
-        const gap = post - me.x / FX;
+        const post = tx > (targetHome.x1 + targetHome.x2) / 2 ? targetHome.x2 - 60 : targetHome.x1 + 60;
+        const gap = post - mx;
         this.steer(Math.abs(gap) > 20 ? Math.sign(gap) * 70 : 0);
+        return;
+      }
+      if (targetHome !== h && nearEdge) {
+        // The target is on another island: jump the gap.
+        this.press(side, 0, BTN.JUMP, 8);
+        this.queue.push({ sx: side, sy: 0, btn: 0, frames: 14 }, { sx: side, sy: 0, btn: BTN.JUMP, frames: 2 });
         return;
       }
       if (adx > reach * 0.8) {
@@ -210,8 +246,7 @@ export class Bot {
           this.press(side, 0, BTN.ATTACK);
           return;
         }
-        const nearEdge = Math.abs(me.x / FX) > EDGE - 40 && Math.sign(side) === Math.sign(me.x);
-        this.steer(nearEdge ? 0 : side);
+        this.steer(nearEdge && targetHome === h ? 0 : side);
         return;
       }
       this.steer(side * 0.3);
@@ -219,7 +254,7 @@ export class Bot {
     }
 
     // In the air near the stage.
-    if (adx < reach + 15 && Math.abs(dy) < 120) {
+    if (adx < reach + 15 && Math.abs(dy) < 120 * k) {
       let dirX = 0;
       let dirY = 0;
       if (dy > 50) dirY = 100;
@@ -232,8 +267,10 @@ export class Bot {
       this.press(side, 0, BTN.JUMP, 2);
       return;
     }
-    // Drift toward the target, but never away from the stage.
-    const homeward = Math.abs(me.x / FX) > EDGE - 60 ? -Math.sign(me.x) * 100 : side;
+    // Drift toward the target, but never away from the ground underneath.
+    const inward = mx > (h.x1 + h.x2) / 2 ? -100 : 100;
+    const atEdge = mx < h.x1 + 60 || mx > h.x2 - 60;
+    const homeward = atEdge && Math.sign(side) !== Math.sign(inward) && targetHome === h ? inward : side;
     this.steer(homeward);
     if (me.vy < 0 && dy < -80 && this.random() < skill * 0.5) this.queue.push({ sx: homeward, sy: -100, btn: 0, frames: 2 });
   }

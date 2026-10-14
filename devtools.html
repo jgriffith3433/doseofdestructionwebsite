@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dev Tools | Dose of Destruction</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/src/devtools/devtools.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="mark"></span>Dose of Destruction <b>/ Dev Tools</b></div>
+      <nav class="tabs" id="tabs" aria-label="Tools">
+        <button type="button" data-tab="fighters">Fighters</button>
+        <button type="button" data-tab="animations">Animations</button>
+        <button type="button" data-tab="clips">Clips</button>
+        <button type="button" data-tab="maps">Maps</button>
+        <button type="button" data-tab="sounds">Sounds</button>
+        <button type="button" data-tab="voice">Voice</button>
+        <button type="button" data-tab="scripts">Scripts</button>
+      </nav>
+      <div class="status" id="status"></div>
+      <a class="btn" href="/Game/" target="_blank" rel="noopener">Open game</a>
+    </header>
+
+    <main class="panes">
+      <section id="tab-fighters" class="pane" hidden></section>
+      <section id="tab-animations" class="pane" hidden></section>
+      <section id="tab-clips" class="pane" hidden></section>
+      <section id="tab-maps" class="pane" hidden></section>
+      <section id="tab-sounds" class="pane" hidden></section>
+      <section id="tab-voice" class="pane" hidden></section>
+      <section id="tab-scripts" class="pane" hidden></section>
+      <div id="offline" class="offline" hidden>
+        <h2>The dev tools API is not running</h2>
+        <p>Dev tools work only on the dev server. Start it with <code>npm run dev</code> (or <code>auto-start.bat</code>), then open <code>http://localhost:8089/devtools.html</code>.</p>
+      </div>
+    </main>
+
+    <footer class="console" id="console">
+      <div class="console-bar">
+        <strong>Console</strong>
+        <span id="busy" class="busy" hidden></span>
+        <span class="spacer"></span>
+        <button type="button" class="btn small" id="console-clear">Clear</button>
+        <button type="button" class="btn small" id="console-toggle">Hide</button>
+      </div>
+      <pre id="console-out" class="console-out"></pre>
+    </footer>
+  </div>
+  <script type="module" src="/src/devtools/main.ts"></script>
+</body>
+</html>

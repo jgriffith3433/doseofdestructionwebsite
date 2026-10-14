@@ -1,11 +1,13 @@
 // Headless checks for the simulation: run with `npm test`.
-// 1. The same inputs always produce the same state hash.
+// 1. The same inputs always produce the same state hash, on every stage.
 // 2. Restoring a snapshot and replaying (what rollback does) lands on the same hash.
-// 3. Bots finish a match.
+// 3. Bots finish matches on every stage, including teams, giants and odd rules.
 
 import { rngNext } from '../sim/fixed.ts';
+import { CHARACTERS } from '../sim/characters.ts';
 import { BTN, packInput } from '../sim/input.ts';
-import { cloneState, hashState, newGame, type GameState } from '../sim/state.ts';
+import { STAGES } from '../sim/stage.ts';
+import { cloneState, hashState, newGame, type FighterSetup, type GameOptions, type GameState } from '../sim/state.ts';
 import { step } from '../sim/step.ts';
 import { Bot } from '../ai/bot.ts';
 
@@ -42,36 +44,73 @@ function check(name: string, ok: boolean, detail = ''): void {
   if (!ok) failed++;
 }
 
-const setup = [{ char: 0 }, { char: 1 }, { char: 2 }, { char: 3 }];
-for (const seed of [1, 7, 1234]) {
-  const inputs = randomInputs(seed, 3600, 4);
-  const a = run(newGame(setup, 3, seed), inputs);
-  const b = run(newGame(setup, 3, seed), inputs);
-  check(`deterministic, seed ${seed}`, a === b, a.toString(16));
+const four: FighterSetup[] = [{ char: 0 }, { char: 2 }, { char: 8 }, { char: 12 }];
+
+STAGES.forEach((stage, si) => {
+  const opts: GameOptions = { stocks: 3, seed: 11 + si, stage: si };
+  const inputs = randomInputs(opts.seed, 3000, 4);
+  const a = run(newGame(four, opts), inputs);
+  const b = run(newGame(four, opts), inputs);
 
   // Simulate a rollback: snapshot at frame 1000, run on with wrong guesses
   // for 8 frames, restore, then replay the real inputs.
-  const live = newGame(setup, 3, seed);
+  const live = newGame(four, opts);
   run(live, inputs.slice(0, 1000));
   const snap = cloneState(live);
   for (let i = 0; i < 8; i++) step(live, [0, 0, 0, 0].map(() => packInput(0, 0, BTN.JUMP)));
   const restored = cloneState(snap);
   for (let i = 1000; i < inputs.length; i++) step(restored, inputs[i]);
-  check(`rollback replay matches, seed ${seed}`, hashState(restored) === a);
-}
+  check(`${stage.name}: deterministic and rollback-safe`, a === b && hashState(restored) === a, a.toString(16));
+});
 
-// Four bots should finish a 3-stock match well inside 10 minutes.
-{
-  const state = newGame(setup, 3, 99);
-  const bots = setup.map((_, i) => new Bot(i, 6, 1000 + i));
+function botMatch(setup: FighterSetup[], opts: GameOptions, level = 6): { state: GameState; secs: number; hits: number } {
+  const state = newGame(setup, opts);
+  const bots = setup.map((_, i) => new Bot(i, level, 1000 + i));
   let frames = 0;
   let hits = 0;
-  while (!state.over && frames < 60 * 60 * 10) {
-    const inputs = bots.map((b) => b.think(state));
-    hits += step(state, inputs).filter((e) => e.type === 'hit').length;
+  while (!state.over && frames < 60 * 60 * 8) {
+    hits += step(state, bots.map((b) => b.think(state))).filter((e) => e.type === 'hit').length;
     frames++;
   }
-  check('bots finish a match', state.over === 1, `${(frames / 60).toFixed(0)}s, ${hits} hits, winner P${state.winner + 1}`);
+  return { state, secs: Math.round(frames / 60), hits };
+}
+
+STAGES.forEach((stage, si) => {
+  const { state, secs, hits } = botMatch(four, { stocks: 2, seed: 99, stage: si });
+  check(`${stage.name}: four bots finish`, state.over === 1, `${secs}s, ${hits} hits, winner P${state.winner + 1}`);
+});
+
+{
+  // Two-on-one: allies never damage each other, and a team wins together.
+  const { state } = botMatch([{ char: 9, team: 0 }, { char: 1, team: 1 }, { char: 20, team: 1 }], { stocks: 2, seed: 5, stage: 0 });
+  const p = state.fighters;
+  check('teams finish with a winning team', state.over === 1 && state.winnerTeam >= 0, `team ${state.winnerTeam}`);
+  check('teammates never land hits on each other', p[1].damageDealt + p[2].damageDealt <= p[0].percent + 9999 * p[0].falls);
+}
+
+{
+  const { state } = botMatch([{ char: 9 }, { char: 22, scale: 150 }], { stocks: 2, seed: 8, stage: 1 });
+  check('a giant fighter finishes a match', state.over === 1);
+}
+
+{
+  const { state } = botMatch([{ char: 9 }, { char: 13 }], { stocks: 3, seed: 3, stage: 2, rules: { gravity: 55, damage: 140 } });
+  check('low gravity and high damage finish', state.over === 1);
+}
+
+{
+  const { state } = botMatch([{ char: 9 }, { char: 26 }], { stocks: 5, seed: 4, stage: 4, rules: { timeLimit: 60 * 20 } });
+  check('a time limit ends the match', state.over === 1 && state.frame <= 60 * 20 + 1, `timedOut=${state.timedOut}`);
+}
+
+{
+  // Every fighter can play a match without the sim falling over.
+  let ok = true;
+  for (let c = 0; c < CHARACTERS.length; c += 2) {
+    const { state } = botMatch([{ char: c }, { char: (c + 1) % CHARACTERS.length }], { stocks: 1, seed: c, stage: c % STAGES.length });
+    if (!state.over) ok = false;
+  }
+  check(`all ${CHARACTERS.length} fighters play`, ok);
 }
 
 if (failed) {

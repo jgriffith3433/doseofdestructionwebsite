@@ -1,0 +1,14 @@
+{
+  "loops": ["idle", "walk", "crouch", "fall", "shield", "ledge", "dizzy", "helpless", "hurt"],
+  "once": ["jumpsquat", "jump", "land", "roll", "dodge", "airdodge", "climb"],
+  "moves": ["jab", "ftilt", "utilt", "dtilt", "fsmash", "usmash", "dsmash", "nair", "fair", "bair", "uair", "dair", "upb", "nspecial"],
+  "unstanding": ["crouch", "fall", "ledge", "climb", "hurt", "dizzy", "helpless", "airdodge", "roll", "dodge", "land"],
+  "labels": {
+    "idle": "Idle", "walk": "Walk", "crouch": "Crouch", "fall": "Fall", "shield": "Shield", "ledge": "Ledge hang",
+    "dizzy": "Dizzy", "helpless": "Helpless fall", "hurt": "Hurt / tumble", "jumpsquat": "Jump start", "jump": "Jump",
+    "land": "Land", "roll": "Roll", "dodge": "Spot dodge", "airdodge": "Air dodge", "climb": "Ledge climb",
+    "jab": "Jab", "ftilt": "Forward tilt", "utilt": "Up tilt", "dtilt": "Down tilt", "fsmash": "Forward smash",
+    "usmash": "Up smash", "dsmash": "Down smash", "nair": "Neutral air", "fair": "Forward air", "bair": "Back air",
+    "uair": "Up air", "dair": "Down air", "upb": "Up special", "nspecial": "Neutral special"
+  }
+}

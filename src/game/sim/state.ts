@@ -3,7 +3,7 @@
 
 import { FX } from './fixed.ts';
 import { CHARACTERS } from './characters.ts';
-import { STAGE } from './stage.ts';
+import { STAGES } from './stage.ts';
 import { NO_INPUT } from './input.ts';
 
 export const ACT = {
@@ -83,24 +83,56 @@ export interface Fighter {
   kos: number;
   falls: number;
   damageDealt: number;
+  /** Fighters on the same team (0 and up) cannot hit each other. -1 is free-for-all. */
+  team: number;
+  /** Size in percent; a giant is 150. Scales hurtbox, hitboxes and weight. */
+  scale: number;
+  /** Percent restored on respawn, tenths. Sudden death starts everyone high. */
+  startPercent: number;
 }
+
+export interface Rules {
+  /** Percent of normal gravity. */
+  gravity: number;
+  /** Percent of normal damage dealt. */
+  damage: number;
+  /** Match length in frames, 0 for none. */
+  timeLimit: number;
+}
+
+export const DEFAULT_RULES: Rules = { gravity: 100, damage: 100, timeLimit: 0 };
 
 export interface GameState {
   frame: number;
   rng: number;
+  stage: number;
+  rules: Rules;
   fighters: Fighter[];
   over: number;
+  /** Winning fighter id, or -1 for no contest. */
   winner: number;
+  /** Winning team, or -1 when teams are off or nobody won. */
+  winnerTeam: number;
+  /** Set when the match ended because time ran out. */
+  timedOut: number;
   /** Frames left of the end-of-game slowdown, or -1. */
   endTimer: number;
 }
 
 export interface FighterSetup {
   char: number;
+  stocks?: number;
+  team?: number;
+  scale?: number;
+  /** Tenths of a percent. */
+  startPercent?: number;
 }
 
-export function newFighter(id: number, char: number, stocks: number): Fighter {
-  const spawn = STAGE.spawns[id % STAGE.spawns.length];
+export function newFighter(id: number, char: number, stocks: number, stage = 0): Fighter {
+  const spawns = STAGES[stage].spawns;
+  const spawn = spawns[id % spawns.length];
+  // Stand on whichever platform the spawn point sits on; in the air if none.
+  const under = STAGES[stage].platforms.findIndex((p) => p.y === spawn.y && spawn.x >= p.x1 && spawn.x <= p.x2);
   return {
     id,
     char,
@@ -111,8 +143,8 @@ export function newFighter(id: number, char: number, stocks: number): Fighter {
     kbx: 0,
     kby: 0,
     facing: spawn.x <= 0 ? 1 : -1,
-    grounded: 1,
-    platform: 0,
+    grounded: under >= 0 ? 1 : 0,
+    platform: under,
     action: ACT.IDLE,
     frame: 0,
     length: 0,
@@ -142,22 +174,55 @@ export function newFighter(id: number, char: number, stocks: number): Fighter {
     kos: 0,
     falls: 0,
     damageDealt: 0,
+    team: -1,
+    scale: 100,
+    startPercent: 0,
   };
 }
 
-export function newGame(setup: FighterSetup[], stocks: number, seed: number): GameState {
+export interface GameOptions {
+  stocks: number;
+  seed: number;
+  stage?: number;
+  rules?: Partial<Rules>;
+}
+
+export function newGame(setup: FighterSetup[], opts: GameOptions): GameState {
+  const stage = opts.stage ?? 0;
   return {
     frame: 0,
-    rng: seed | 0,
-    fighters: setup.map((s, i) => newFighter(i, s.char, stocks)),
+    rng: opts.seed | 0,
+    stage,
+    rules: { ...DEFAULT_RULES, ...opts.rules },
+    fighters: setup.map((s, i) => {
+      const f = newFighter(i, s.char, s.stocks ?? opts.stocks, stage);
+      f.team = s.team ?? -1;
+      f.scale = s.scale ?? 100;
+      f.startPercent = s.startPercent ?? 0;
+      f.percent = f.startPercent;
+      return f;
+    }),
     over: 0,
     winner: -1,
+    winnerTeam: -1,
+    timedOut: 0,
     endTimer: -1,
   };
 }
 
 export function cloneState(s: GameState): GameState {
-  return { ...s, fighters: s.fighters.map((f) => ({ ...f })) };
+  return { ...s, rules: { ...s.rules }, fighters: s.fighters.map((f) => ({ ...f })) };
+}
+
+/** Whether two fighters are on the same team. */
+export function allies(a: Fighter, b: Fighter): boolean {
+  return a.team >= 0 && a.team === b.team;
+}
+
+/** Hurtbox width and height in FX units, after scaling. */
+export function bodySize(f: Fighter): [number, number] {
+  const ch = CHARACTERS[f.char];
+  return [Math.trunc((ch.width * FX * f.scale) / 100), Math.trunc((ch.height * FX * f.scale) / 100)];
 }
 
 /** FNV-1a over every integer in the state. Peers compare this to catch desyncs. */
@@ -171,8 +236,14 @@ export function hashState(s: GameState): number {
   };
   mix(s.frame);
   mix(s.rng);
+  mix(s.stage);
+  mix(s.rules.gravity);
+  mix(s.rules.damage);
+  mix(s.rules.timeLimit);
   mix(s.over);
   mix(s.winner);
+  mix(s.winnerTeam);
+  mix(s.timedOut);
   mix(s.endTimer);
   for (const f of s.fighters) {
     for (const key of FIGHTER_KEYS) mix(f[key]);

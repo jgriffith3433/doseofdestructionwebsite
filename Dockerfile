@@ -6,6 +6,8 @@ RUN npm ci
 COPY vite.config.js tsconfig.json ./
 COPY Game/ Game/
 COPY src/ src/
+COPY content/ content/
+COPY tools/ tools/
 RUN npm test && npm run build
 
 FROM nginx:alpine AS development
@@ -25,4 +27,5 @@ FROM development AS production
 COPY index.html characters.html privacypolicy.html favicon.svg /usr/share/nginx/html/
 COPY site/ /usr/share/nginx/html/site/
 COPY characters/ /usr/share/nginx/html/characters/
+COPY audio/ /usr/share/nginx/html/audio/
 COPY --from=build /app/dist/ /usr/share/nginx/html/

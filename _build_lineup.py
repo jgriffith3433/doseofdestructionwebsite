@@ -1,16 +1,25 @@
-"""Compose every fighter into one lineup image for the home page hero.
+"""Compose every fighter into one lineup image for the home page hero, and
+write the cleaned-up, cropped fighter images the game uses.
 
-Reads the cutouts in characters/img/ and writes site/img/lineup-*.webp.
+Reads the cutouts in characters/img/ and writes site/img/lineup-*.webp,
+characters/thumb/<id>.webp (small, for grids and the HUD) and
+characters/large/<id>.webp (for the select preview, VS screen and dialogue).
 Rerun after recutting any character art.
+
+    python _build_lineup.py              # the lineup and every fighter's images
+    python _build_lineup.py --only slice # just one fighter's thumb and large image
 """
 
+import argparse
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
 ROOT = Path(__file__).resolve().parent
 IMG = ROOT / "characters" / "img"
 OUT = ROOT / "site" / "img"
+THUMB = ROOT / "characters" / "thumb"
+LARGE = ROOT / "characters" / "large"
 BG = (16, 14, 12)
 
 # Back to front. The four playable fighters stand front and center.
@@ -33,34 +42,30 @@ ROW_STYLE = [
 MAX_ASPECT = 1.25
 
 
-def key_backdrop(im):
-    """Clear dark backdrop that touches the image edge; dark clothing inside the figure stays."""
-    small = im.copy()
-    small.thumbnail((700, 700))
-    r, g, b, a = small.split()
-    peak = ImageChops.lighter(ImageChops.lighter(r, g), b)
-    # 255 where a pixel is dark or already transparent, so the fill can travel through it.
-    dark = ImageChops.lighter(peak.point(lambda v: 255 if v < 34 else 0), a.point(lambda v: 255 if v < 40 else 0))
-    w, h = dark.size
-    for x in range(0, w, 6):
-        for y in (0, h - 1):
-            if dark.getpixel((x, y)) == 255:
-                ImageDraw.floodfill(dark, (x, y), 128)
-    for y in range(0, h, 6):
-        for x in (0, w - 1):
-            if dark.getpixel((x, y)) == 255:
-                ImageDraw.floodfill(dark, (x, y), 128)
-    keep = dark.point(lambda v: 0 if v == 128 else 255).filter(ImageFilter.GaussianBlur(1.2))
-    keep = keep.resize(im.size, Image.BILINEAR)
-    return Image.merge("RGBA", (*im.split()[:3], ImageChops.multiply(im.getchannel("A"), keep)))
+_figures = {}
 
 
 def figure(name):
-    im = key_backdrop(Image.open(IMG / f"{name}.png").convert("RGBA"))
+    if name in _figures:
+        return _figures[name]
+    # Cutouts come from tools/cutout.py with a clean alpha; use it as is.
+    im = Image.open(IMG / f"{name}.png").convert("RGBA")
     # Measure by solid, non-black pixels so stray haze doesn't pad the crop.
     solid = im.getchannel("A").point(lambda v: 255 if v > 110 else 0)
     box = solid.getbbox() or (0, 0, im.width, im.height)
-    return im.crop(box)
+    _figures[name] = im.crop(box)
+    return _figures[name]
+
+
+def write_fighter_images(names):
+    """Small and large cropped copies of each fighter, so pages never load the raw cutouts."""
+    for folder, height, quality in ((THUMB, 260, 80), (LARGE, 900, 84)):
+        folder.mkdir(parents=True, exist_ok=True)
+        for name in names:
+            fig = figure(name)
+            img = fig.copy()
+            img.thumbnail((int(height * 1.6), height), Image.LANCZOS)
+            img.save(folder / f"{name}.webp", quality=quality, method=6)
 
 
 def place(fig, height):
@@ -91,6 +96,16 @@ def backdrop():
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Build the lineup and fighter images.")
+    parser.add_argument("--only", help="write just this fighter's thumb and large image")
+    args = parser.parse_args()
+    if args.only:
+        if not (IMG / f"{args.only}.png").exists():
+            raise SystemExit(f"no art for {args.only}")
+        write_fighter_images([args.only])
+        print(f"wrote thumb and large image for {args.only}")
+        return
+
     names = [n for row in ROWS for n in row]
     on_disk = sorted(p.stem for p in IMG.glob("*.png"))
     missing = sorted(set(on_disk) - set(names))
@@ -141,6 +156,8 @@ def main():
         rgb.resize(size, Image.LANCZOS).save(OUT / f"lineup-{width}.webp", quality=82, method=6)
     rgb.resize((1600, round(H * 1600 / W)), Image.LANCZOS).save(OUT / "lineup-1600.jpg", quality=84, optimize=True)
     print("wrote", ", ".join(p.name for p in sorted(OUT.glob("lineup-*"))))
+    write_fighter_images(names)
+    print(f"wrote {len(names)} thumbnails and large images")
 
 
 if __name__ == "__main__":

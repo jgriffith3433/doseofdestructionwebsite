@@ -11,79 +11,150 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../src/game/game.css">
 </head>
-<body>
+<body data-screen="title">
   <canvas id="stage" aria-label="Game view"></canvas>
 
   <div id="hud" class="hud" hidden></div>
+  <div id="match-top" class="match-top" hidden>
+    <div id="timer" class="timer" hidden></div>
+    <p id="objective" class="objective" hidden></p>
+  </div>
 
-  <section id="menu" class="screen">
-    <div class="panel">
-      <a class="back" href="/">&larr; Site</a>
-      <h1>Dose of Destruction</h1>
-
-      <h2>Fighter</h2>
-      <div id="roster" class="roster"></div>
-
-      <div class="options">
-        <label>Opponents
-          <select id="opt-bots">
-            <option value="0">Training dummy</option>
-            <option value="1" selected>1 bot</option>
-            <option value="2">2 bots</option>
-            <option value="3">3 bots</option>
-          </select>
-        </label>
-        <label>Bot level
-          <select id="opt-level"></select>
-        </label>
-        <label>Stocks
-          <select id="opt-stocks">
-            <option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="actions">
-        <button id="btn-fight" class="primary" type="button">Fight</button>
-        <button class="secondary" type="button" disabled title="Online play with room codes is the next milestone">Online (soon)</button>
-      </div>
-
-      <details class="controls" open>
-        <summary>Controls</summary>
-        <div class="controls-grid">
-          <div><h3>Keyboard</h3><dl id="keys-kb"></dl></div>
-          <div><h3>Gamepad</h3><dl id="keys-pad"></dl></div>
-        </div>
-        <p class="hint">Press <kbd>H</kbd> in a match to show hitboxes.</p>
-      </details>
+  <section id="title" class="screen title-screen">
+    <picture class="title-art">
+      <source type="image/webp" srcset="/site/img/lineup-900.webp 900w, /site/img/lineup-1600.webp 1600w, /site/img/lineup-2800.webp 2800w" sizes="100vw">
+      <img src="/site/img/lineup-1600.jpg" alt="">
+    </picture>
+    <div class="title-copy">
+      <p class="kicker">A platform fighter</p>
+      <h1 class="logo">Dose of <span>Destruction</span></h1>
+      <button id="btn-start" class="primary big" type="button" data-autofocus>Press start</button>
+      <p class="hint">Keyboard or gamepad. Arrows to move, Enter to choose, Esc to go back.</p>
     </div>
   </section>
 
-  <section id="pause" class="screen" hidden>
+  <section id="main" class="screen main-screen" hidden>
+    <nav class="main-menu" aria-label="Main menu">
+      <h1 class="logo small">Dose of <span>Destruction</span></h1>
+      <button class="menu-item" type="button" data-go="campaign" data-autofocus><strong>Campaign</strong><span>Eight chapters. One way off the air.</span></button>
+      <button class="menu-item" type="button" data-go="versus"><strong>Versus</strong><span>Up to four fighters, any mix of you and bots.</span></button>
+      <button class="menu-item" type="button" data-go="training"><strong>Training</strong><span>A dummy, no stocks, hitboxes on H.</span></button>
+      <button class="menu-item" type="button" data-go="howto"><strong>How to play</strong><span>Controls and the basics.</span></button>
+      <button class="menu-item" type="button" data-go="settings"><strong>Settings</strong><span>Music, effects and voice levels.</span></button>
+      <a class="menu-item quiet" href="/"><strong>Back to site</strong></a>
+    </nav>
+    <figure class="main-spot">
+      <img id="main-spot-img" alt="">
+      <figcaption id="main-spot-name"></figcaption>
+    </figure>
+  </section>
+
+  <section id="select" class="screen select-screen" hidden>
+    <header class="screen-head">
+      <button class="back-btn" type="button" data-back>&larr; Back</button>
+      <h2 id="select-title">Choose your fighters</h2>
+      <div id="select-rules" class="rules"></div>
+    </header>
+    <div class="select-body">
+      <aside id="select-preview" class="preview" aria-live="polite"></aside>
+      <div id="select-grid" class="grid"></div>
+    </div>
+    <footer id="select-slots" class="slots"></footer>
+  </section>
+
+  <section id="stages" class="screen stages-screen" hidden>
+    <header class="screen-head">
+      <button class="back-btn" type="button" data-back>&larr; Back</button>
+      <h2>Choose a stage</h2>
+    </header>
+    <div id="stage-grid" class="stage-grid"></div>
+  </section>
+
+  <section id="versus" class="screen versus-screen" hidden>
+    <div id="versus-body" class="versus-body"></div>
+  </section>
+
+  <section id="campaign" class="screen campaign-screen" hidden>
+    <header class="screen-head">
+      <button class="back-btn" type="button" data-back>&larr; Back</button>
+      <h2>Campaign</h2>
+      <button id="btn-campaign-reset" class="secondary small" type="button">Start over</button>
+    </header>
+    <p class="lede">A walk-on fighter, a nightly broadcast, and the man who runs it. Clear each chapter to open the next.</p>
+    <div id="chapter-path" class="chapter-path"></div>
+    <p id="campaign-done" class="campaign-done" hidden>Every chapter cleared. The card is yours now.</p>
+  </section>
+
+  <section id="dialogue" class="screen dialogue-screen" hidden>
+    <p id="dlg-chapter" class="dlg-chapter"></p>
+    <div class="dlg-stage">
+      <img id="dlg-left" class="dlg-portrait left" alt="">
+      <img id="dlg-right" class="dlg-portrait right" alt="">
+    </div>
+    <div class="dlg-box">
+      <p id="dlg-name" class="dlg-name"></p>
+      <p id="dlg-text" class="dlg-text" aria-live="polite"></p>
+      <div class="dlg-actions">
+        <button id="dlg-skip" class="secondary" type="button">Skip</button>
+        <button id="dlg-next" class="primary" type="button" data-autofocus>Next</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="howto" class="screen howto-screen" hidden>
+    <header class="screen-head">
+      <button class="back-btn" type="button" data-back data-autofocus>&larr; Back</button>
+      <h2>How to play</h2>
+    </header>
+    <div class="howto-body">
+      <div class="basics">
+        <h3>The basics</h3>
+        <ol>
+          <li><strong>Hits add damage.</strong> The percent under each fighter is how far the next hit sends them.</li>
+          <li><strong>Launch them off.</strong> Past the edge of the screen, that fighter loses a stock.</li>
+          <li><strong>Get back.</strong> Jump, use your air jumps, then up special (up + special) to reach the ledge.</li>
+          <li><strong>Last one standing</strong> takes the match.</li>
+        </ol>
+      </div>
+      <div><h3>Keyboard</h3><dl id="keys-kb" class="keys"></dl></div>
+      <div><h3>Gamepad</h3><dl id="keys-pad" class="keys"></dl></div>
+    </div>
+  </section>
+
+  <section id="settings" class="screen settings-screen" hidden>
+    <header class="screen-head">
+      <button class="back-btn" type="button" data-back data-autofocus>&larr; Back</button>
+      <h2>Settings</h2>
+    </header>
+    <div class="settings-body">
+      <label class="slider"><span>Master</span><input id="vol-master" type="range" min="0" max="100" step="1"><output id="vol-master-value"></output></label>
+      <label class="slider"><span>Music</span><input id="vol-music" type="range" min="0" max="100" step="1"><output id="vol-music-value"></output></label>
+      <label class="slider"><span>Effects</span><input id="vol-sfx" type="range" min="0" max="100" step="1"><output id="vol-sfx-value"></output></label>
+      <label class="slider"><span>Voice</span><input id="vol-voice" type="range" min="0" max="100" step="1"><output id="vol-voice-value"></output></label>
+      <p class="hint">Press <kbd>M</kbd> any time to mute.</p>
+    </div>
+  </section>
+
+  <section id="results" class="screen results-screen" hidden>
+    <div id="results-body" class="results-body"></div>
+    <div id="results-actions" class="actions results-actions"></div>
+  </section>
+
+  <section id="match" class="screen match-screen" hidden></section>
+
+  <div id="pause" class="overlay" hidden>
     <div class="panel small">
       <h2>Paused</h2>
       <div class="actions column">
-        <button id="btn-resume" class="primary" type="button">Resume</button>
-        <button id="btn-quit" class="secondary" type="button">Quit to menu</button>
+        <button id="btn-resume" class="primary" type="button" data-autofocus>Resume</button>
+        <button id="btn-restart" class="secondary" type="button">Restart</button>
+        <button id="btn-quit" class="secondary" type="button">Quit</button>
       </div>
     </div>
-  </section>
-
-  <section id="results" class="screen" hidden>
-    <div class="panel">
-      <h2 id="results-title">Game</h2>
-      <table class="stats">
-        <thead><tr><th>Player</th><th>KOs</th><th>Falls</th><th>Damage dealt</th></tr></thead>
-        <tbody id="results-body"></tbody>
-      </table>
-      <div class="actions">
-        <button id="btn-rematch" class="primary" type="button">Rematch</button>
-        <button id="btn-menu" class="secondary" type="button">Change fighters</button>
-      </div>
-    </div>
-  </section>
+  </div>
 
   <div id="loading" class="loading" hidden>Loading fighters&hellip;</div>
+  <div id="wipe" class="wipe" aria-hidden="true"><i></i><i></i></div>
 
   <script type="module" src="../src/game/main.ts"></script>
 </body>

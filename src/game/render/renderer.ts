@@ -13,30 +13,38 @@ import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder.js';
 import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder.js';
 import { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder.js';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture.js';
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture.js';
 import { GlowLayer } from '@babylonjs/core/Layers/glowLayer.js';
 import '@babylonjs/core/Layers/effectLayerSceneComponent.js';
 
 import { FX } from '../sim/fixed.ts';
 import { CHARACTERS, MOVE } from '../sim/characters.ts';
-import { STAGE } from '../sim/stage.ts';
+import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
 import { activeHitboxes, type SimEvent } from '../sim/step.ts';
+import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 
 /** Sim units to scene units: 100 world units per scene unit. */
 const S = 1 / (100 * FX);
 const W = 1 / 100;
+/** The art stands a little taller than the hurtbox. */
+const ART_SCALE = 1.18;
 
 export const PLAYER_COLORS = ['#ff5a1f', '#3fa7ff', '#ffd15a', '#5ce08a'];
 
 interface FighterView {
   root: TransformNode;
+  /** Squash, lean and facing pivot around the feet. */
+  pose: TransformNode;
   body: Mesh;
   mat: StandardMaterial;
+  still: DynamicTexture;
+  stillAspect: number;
+  anims: AnimSet | null;
+  clipTex: Map<string, Texture>;
   ring: Mesh;
   shield: Mesh;
-  shieldMat: StandardMaterial;
-  aspect: number;
   flash: number;
 }
 
@@ -59,6 +67,9 @@ export class Renderer {
   private debugMat: StandardMaterial;
   private hurtMat: StandardMaterial;
   private glow: GlowLayer;
+  private stageRoot: TransformNode | null = null;
+  private movers: { platform: Platform; node: TransformNode }[] = [];
+  private stage: StageDef = STAGES[0];
   private shake = 0;
   private camPos = new Vector3(0, 1.6, -14);
   private camTarget = new Vector3(0, 1.6, 0);
@@ -85,8 +96,7 @@ export class Renderer {
     this.debugMat = this.flatMaterial('dbg-hit', '#ff2a2a', 0.45);
     this.hurtMat = this.flatMaterial('dbg-hurt', '#ffd15a', 0.22);
 
-    this.buildBackdrop();
-    this.buildStage();
+    this.setStage(0);
     window.addEventListener('resize', () => this.engine.resize());
   }
 
@@ -99,115 +109,151 @@ export class Renderer {
     return m;
   }
 
-  private buildBackdrop(): void {
-    const tex = new DynamicTexture('sky', { width: 1024, height: 512 }, this.scene, false);
-    const ctx = tex.getContext() as CanvasRenderingContext2D;
-    const g = ctx.createRadialGradient(560, 380, 20, 560, 380, 620);
-    g.addColorStop(0, '#5a2410');
-    g.addColorStop(0.45, '#26130b');
-    g.addColorStop(1, '#100e0c');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 1024, 512);
-    // A dashed frame where the blast zones are, like the site's hero art.
-    ctx.strokeStyle = 'rgba(255, 209, 90, 0.16)';
-    ctx.setLineDash([10, 14]);
-    ctx.lineWidth = 3;
-    ctx.strokeRect(40, 30, 944, 452);
-    tex.update();
-    const mat = new StandardMaterial('sky', this.scene);
-    mat.disableLighting = true;
-    mat.emissiveTexture = tex;
-    const plane = CreatePlane('sky', { width: 64, height: 32 }, this.scene);
-    plane.material = mat;
-    plane.position.set(0, 2, 18);
-  }
+  // ------------------------------------------------------------------ stage
 
-  private buildStage(): void {
-    const body = new StandardMaterial('stage', this.scene);
-    body.diffuseColor = Color3.FromHexString('#4a362a');
+  setStage(index: number): void {
+    this.stageRoot?.dispose(false, true);
+    this.movers = [];
+    this.stage = STAGES[index] ?? STAGES[0];
+    const root = new TransformNode('stage', this.scene);
+    this.stageRoot = root;
+    const t = this.stage.theme;
+    this.sparkMat.emissiveColor = Color3.FromHexString(t.thinEdge);
+
+    this.buildBackdrop(root);
+
+    const body = new StandardMaterial('stage-body', this.scene);
+    body.diffuseColor = Color3.FromHexString(t.body);
     body.specularColor = new Color3(0.05, 0.04, 0.03);
     const under = new StandardMaterial('stage-under', this.scene);
-    under.diffuseColor = Color3.FromHexString('#241812');
+    under.diffuseColor = Color3.FromHexString(t.under);
     under.specularColor = Color3.Black();
-    const edge = this.flatMaterial('edge', '#ffb020');
-    const thinEdge = this.flatMaterial('edge-thin', '#ffd15a');
+    const edge = this.flatMaterial('edge', t.edge);
+    const thinEdge = this.flatMaterial('edge-thin', t.thinEdge);
+    for (const m of [body, under, edge, thinEdge]) this.track(root, m);
 
-    for (const p of STAGE.platforms) {
+    for (const p of this.stage.platforms) {
       const width = (p.x2 - p.x1) * W;
       const cx = ((p.x1 + p.x2) / 2) * W;
+      const node = new TransformNode('platform', this.scene);
+      node.parent = root;
+      node.position.set(cx, p.y * W, 0);
       if (p.solid) {
-        const depth = STAGE.depth * W;
-        const top = CreateBox('main', { width, height: depth, depth: 3 }, this.scene);
-        top.position.set(cx, p.y * W - depth / 2, 0.6);
+        const depth = (p.depth ?? 90) * W;
+        const top = CreateBox('block', { width, height: depth, depth: 3 }, this.scene);
+        top.position.set(0, -depth / 2, 0.6);
         top.material = body;
         // A tapered underside so the stage reads as a floating rock.
         const keel = CreateBox('keel', { width: width * 0.7, height: depth * 1.4, depth: 2.4 }, this.scene);
-        keel.position.set(cx, p.y * W - depth - depth * 0.55, 0.6);
+        keel.position.set(0, -depth - depth * 0.55, 0.6);
         keel.material = under;
         // Only the front edge glows, so the top still reads as a floor.
         const lip = CreateBox('lip', { width: width + 0.04, height: 0.05, depth: 0.05 }, this.scene);
-        lip.position.set(cx, p.y * W - 0.02, 0.6 - 1.5);
+        lip.position.set(0, -0.02, 0.6 - 1.5);
         lip.material = edge;
+        for (const m of [top, keel, lip]) m.parent = node;
       } else {
         const slab = CreateBox('plat', { width, height: 0.1, depth: 1.6 }, this.scene);
-        slab.position.set(cx, p.y * W - 0.06, 0.4);
+        slab.position.set(0, -0.06, 0.4);
         slab.material = body;
         const lip = CreateBox('plat-lip', { width: width + 0.02, height: 0.03, depth: 0.04 }, this.scene);
-        lip.position.set(cx, p.y * W - 0.01, 0.4 - 0.8);
+        lip.position.set(0, -0.01, 0.4 - 0.8);
         lip.material = thinEdge;
+        for (const m of [slab, lip]) m.parent = node;
+        if (p.motion) this.movers.push({ platform: p, node });
       }
     }
   }
 
-  /** Builds a sprite for each fighter. Art is cropped to its visible pixels first. */
+  /** Disposes a material along with the stage. */
+  private track(root: TransformNode, m: StandardMaterial): void {
+    root.onDisposeObservable.add(() => m.dispose(true, true));
+  }
+
+  private buildBackdrop(root: TransformNode): void {
+    const t = this.stage.theme;
+    const tex = new DynamicTexture('sky', { width: 1024, height: 512 }, this.scene, false);
+    const ctx = tex.getContext() as CanvasRenderingContext2D;
+    const g = ctx.createRadialGradient(512, 380, 20, 512, 380, 640);
+    g.addColorStop(0, t.sky[0]);
+    g.addColorStop(0.45, t.sky[1]);
+    g.addColorStop(1, t.sky[2]);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 1024, 512);
+    paintProps(ctx, t.props, t.glow, t.thinEdge);
+    tex.update();
+    const mat = new StandardMaterial('sky', this.scene);
+    mat.disableLighting = true;
+    mat.emissiveTexture = tex;
+    this.track(root, mat);
+    const plane = CreatePlane('sky', { width: 64, height: 32 }, this.scene);
+    plane.material = mat;
+    plane.position.set(0, 2, 18);
+    plane.parent = root;
+    this.glow.addExcludedMesh(plane);
+  }
+
+  // --------------------------------------------------------------- fighters
+
+  /** Builds a sprite for each fighter. Still art is cropped to its visible pixels first. */
   async setFighters(state: GameState): Promise<void> {
-    for (const v of this.views) {
-      v.root.dispose(false, true);
-    }
+    for (const v of this.views) v.root.dispose(false, true);
     this.views = [];
+    if (this.stage !== STAGES[state.stage]) this.setStage(state.stage);
     for (const f of state.fighters) {
       const ch = CHARACTERS[f.char];
-      const art = await loadArt(`/characters/img/${ch.art}`);
-      const tex = new DynamicTexture(`art-${f.id}`, { width: art.width, height: art.height }, this.scene, true);
-      (tex.getContext() as CanvasRenderingContext2D).drawImage(art, 0, 0);
-      tex.update();
-      tex.hasAlpha = true;
+      const [art, anims] = await Promise.all([loadArt(`/characters/large/${ch.id}.webp`), loadAnimSet(ch.id)]);
+      const still = new DynamicTexture(`art-${f.id}`, { width: art.width, height: art.height }, this.scene, true);
+      (still.getContext() as CanvasRenderingContext2D).drawImage(art, 0, 0);
+      still.update();
+      still.hasAlpha = true;
 
       const root = new TransformNode(`fighter-${f.id}`, this.scene);
+      const pose = new TransformNode(`pose-${f.id}`, this.scene);
+      pose.parent = root;
       const mat = new StandardMaterial(`fighter-${f.id}`, this.scene);
-      mat.diffuseTexture = tex;
-      mat.emissiveTexture = tex;
       mat.useAlphaFromDiffuseTexture = true;
       mat.disableLighting = true;
       mat.backFaceCulling = false;
       mat.emissiveColor = Color3.White();
+      setTexture(mat, still);
 
-      const aspect = art.width / art.height;
-      const h = ch.height * W * 1.18;
-      const body = CreatePlane(`body-${f.id}`, { width: h * aspect, height: h }, this.scene);
-      body.setPivotPoint(new Vector3(0, -h / 2, 0));
-      body.position.y = h / 2;
+      const body = CreatePlane(`body-${f.id}`, { size: 1 }, this.scene);
       body.position.z = -0.05 * f.id;
       body.material = mat;
-      body.parent = root;
+      body.parent = pose;
       this.glow.addExcludedMesh(body);
 
+      const k = f.scale / 100;
       const color = PLAYER_COLORS[f.id % PLAYER_COLORS.length];
-      const ring = CreateDisc(`ring-${f.id}`, { radius: (ch.width * W) * 0.8, tessellation: 32 }, this.scene);
+      const ring = CreateDisc(`ring-${f.id}`, { radius: ch.width * W * 0.8 * k, tessellation: 32 }, this.scene);
       ring.rotation.x = Math.PI / 2;
       ring.scaling.y = 0.35;
       ring.position.y = 0.01;
       ring.material = this.flatMaterial(`ring-${f.id}`, color, 0.55);
       ring.parent = root;
 
-      const shieldMat = this.flatMaterial(`shield-${f.id}`, color, 0.35);
-      const shield = CreateDisc(`shield-${f.id}`, { radius: ch.height * W * 0.62, tessellation: 40 }, this.scene);
-      shield.position.set(0, ch.height * W * 0.5, -0.3);
-      shield.material = shieldMat;
+      const shield = CreateDisc(`shield-${f.id}`, { radius: ch.height * W * 0.62 * k, tessellation: 40 }, this.scene);
+      shield.position.set(0, ch.height * W * 0.5 * k, -0.3);
+      shield.material = this.flatMaterial(`shield-${f.id}`, color, 0.35);
       shield.parent = root;
 
-      this.views.push({ root, body, mat, ring, shield, shieldMat, aspect, flash: 0 });
+      this.views.push({
+        root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0,
+      });
     }
+  }
+
+  private clipTexture(v: FighterView, key: string): Texture | null {
+    if (!v.anims) return null;
+    let tex = v.clipTex.get(key);
+    if (!tex) {
+      const url = `${v.anims.base}${v.anims.clips[key].file}?v=${v.anims.version}`;
+      tex = new Texture(url, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE);
+      tex.hasAlpha = true;
+      v.clipTex.set(key, tex);
+    }
+    return tex;
   }
 
   /** Reacts to sim events with sparks and camera shake. */
@@ -216,12 +262,12 @@ export class Renderer {
       if (e.type === 'hit') {
         const n = e.shield ? 6 : 8 + Math.min(16, e.kb >> 3);
         this.burst(e.x * S, e.y * S, n, e.shield ? 0.06 : 0.09 + e.kb * 0.0006);
-        if (!e.shield) {
+        if (!e.shield && this.views[e.victim]) {
           this.views[e.victim].flash = 10;
           this.shake = Math.max(this.shake, Math.min(0.5, e.kb * 0.003));
         }
       } else if (e.type === 'ko') {
-        const b = STAGE.blast;
+        const b = this.stage.blast;
         const x = Math.max(b.left + 40, Math.min(b.right - 40, e.x / FX)) * W;
         const y = Math.max(b.bottom + 40, Math.min(b.top - 40, e.y / FX)) * W;
         this.burst(x, y, 40, 0.25);
@@ -250,6 +296,10 @@ export class Renderer {
 
   /** Draws one frame. */
   render(state: GameState): void {
+    for (const m of this.movers) {
+      const p = platformAt(m.platform, state.frame);
+      m.node.position.set(((p.x1 + p.x2) / 2) * S, p.y * S, 0);
+    }
     for (const f of state.fighters) this.drawFighter(f, this.views[f.id]);
     this.updateSparks();
     this.drawDebug(state);
@@ -264,86 +314,38 @@ export class Renderer {
     v.root.setEnabled(!dead);
     if (dead) return;
 
+    const k = f.scale / 100;
+    const height = ch.height * W * ART_SCALE * k;
     let x = f.x * S;
-    const y = f.y * S;
     if (f.hitlag > 0 && f.action === ACT.HITSTUN) x += (f.hitlag & 1 ? 1 : -1) * 0.04;
-    v.root.position.set(x, y, 0);
+    v.root.position.set(x, f.y * S, 0);
 
-    // The art is a single pose, so motion comes from squash, lean and spin.
-    let sx = 1;
-    let sy = 1;
-    let rot = 0;
-    let lift = 0;
-    const t = f.frame;
-    switch (f.action) {
-      case ACT.WALK:
-        rot = -f.facing * 0.06;
-        lift = Math.abs(Math.sin(t * 0.35)) * 0.04;
-        break;
-      case ACT.CROUCH:
-        sy = 0.78;
-        sx = 1.08;
-        break;
-      case ACT.JUMPSQUAT:
-        sy = 0.82;
-        sx = 1.12;
-        break;
-      case ACT.LAND:
-        sy = t < 4 ? 0.86 : 0.96;
-        sx = t < 4 ? 1.08 : 1.02;
-        break;
-      case ACT.AIR:
-        sy = f.vy > 0 ? 1.05 : 0.98;
-        sx = f.vy > 0 ? 0.96 : 1.02;
-        break;
-      case ACT.ATTACK: {
-        const m = ch.moves[f.move];
-        const w = m.hits[0];
-        const b = w.boxes[0];
-        const ang = Math.atan2(b.y - ch.height * 0.5, b.x);
-        if (t < w.start) {
-          // Wind up away from the hit.
-          const k = t / w.start;
-          rot = f.facing * Math.cos(ang) * 0.14 * k;
-          sy = 1 - 0.06 * k;
-        } else if (t <= w.end + 2) {
-          rot = -f.facing * Math.cos(ang) * 0.28;
-          sx = 1.12;
-          sy = 1 + Math.sin(ang) * 0.12;
-          x += f.facing * Math.cos(ang) * 0.12;
-          v.root.position.x = x;
-        }
-        if (f.move === MOVE.UPB && t > w.start) rot = f.facing * t * 0.5;
-        break;
-      }
-      case ACT.HITSTUN: {
-        const speed = Math.hypot(f.kbx, f.kby) / FX;
-        rot = speed > 8 ? f.facing * t * 0.35 : f.facing * 0.25;
-        break;
-      }
-      case ACT.HELPLESS:
-        rot = Math.sin(t * 0.3) * 0.15;
-        break;
-      case ACT.DIZZY:
-        rot = Math.sin(t * 0.2) * 0.2;
-        break;
-      case ACT.LEDGE:
-        rot = f.ledge * 0.25;
-        break;
-      case ACT.ROLL:
-        rot = -f.dir * t * 0.21;
-        break;
-      case ACT.SPOTDODGE:
-        sx = 0.7;
-        break;
-      case ACT.AIRDODGE:
-        sx = 0.9;
-        break;
+    // A clip if there is one, else the still with procedural motion.
+    const pick = pickClip(f, v.anims);
+    const tex = pick ? this.clipTexture(v, pick.key) : null;
+    if (pick && tex && v.anims) {
+      const c = pick.clip;
+      const i = clipFrame(f, pick);
+      tex.uScale = 1 / c.cols;
+      tex.vScale = 1 / c.rows;
+      tex.uOffset = (i % c.cols) / c.cols;
+      tex.vOffset = 1 - (Math.floor(i / c.cols) + 1) / c.rows;
+      setTexture(v.mat, tex);
+      const px = height / v.anims.refHeight;
+      v.body.scaling.set(c.fw * px, c.fh * px, 1);
+      v.body.position.x = (c.fw / 2 - c.ax) * px;
+      v.body.position.y = (c.ay - c.fh / 2) * px;
+    } else {
+      setTexture(v.mat, v.still);
+      v.body.scaling.set(height * v.stillAspect, height, 1);
+      v.body.position.x = 0;
+      v.body.position.y = height / 2;
     }
 
-    v.body.scaling.set(f.facing * sx, sy, 1);
-    v.body.rotation.z = rot;
-    v.body.position.y = (ch.height * W * 1.18) / 2 + lift;
+    const [sx, sy, rot, lift] = pick?.exact ? [1, 1, 0, 0] : proceduralPose(f, this.stage);
+    v.pose.scaling.set(f.facing * sx, sy, 1);
+    v.pose.rotation.z = rot;
+    v.pose.position.y = lift;
 
     const flicker = f.intangible > 0 && f.action !== ACT.LEDGE ? (f.frame & 4 ? 0.45 : 0.8) : 1;
     v.mat.alpha = flicker;
@@ -358,8 +360,8 @@ export class Renderer {
     const shielding = f.action === ACT.SHIELD || f.action === ACT.SHIELD_STUN;
     v.shield.setEnabled(shielding);
     if (shielding) {
-      const k = 0.45 + 0.55 * (f.shield / SHIELD_MAX);
-      v.shield.scaling.set(k, k, 1);
+      const s = 0.45 + 0.55 * (f.shield / SHIELD_MAX);
+      v.shield.scaling.set(s, s, 1);
     }
   }
 
@@ -387,8 +389,9 @@ export class Renderer {
     for (const f of state.fighters) {
       if (f.action === ACT.DEAD) continue;
       const ch = CHARACTERS[f.char];
-      const hurt = CreatePlane('hurt', { width: ch.width * W, height: ch.height * W }, this.scene);
-      hurt.position.set(f.x * S, f.y * S + (ch.height * W) / 2, -0.6);
+      const k = f.scale / 100;
+      const hurt = CreatePlane('hurt', { width: ch.width * W * k, height: ch.height * W * k }, this.scene);
+      hurt.position.set(f.x * S, f.y * S + (ch.height * W * k) / 2, -0.6);
       hurt.material = this.hurtMat;
       this.debugMeshes.push(hurt);
       for (const hb of activeHitboxes(f)) {
@@ -405,12 +408,12 @@ export class Renderer {
     let maxX = -Infinity;
     let minY = Infinity;
     let maxY = -Infinity;
-    const b = STAGE.blast;
+    const b = this.stage.blast;
     for (const f of state.fighters) {
       if (f.action === ACT.DEAD) continue;
       const x = Math.max(b.left + 200, Math.min(b.right - 200, f.x / FX)) * W;
       const y = Math.max(b.bottom + 200, Math.min(b.top - 150, f.y / FX)) * W;
-      const h = CHARACTERS[f.char].height * W;
+      const h = CHARACTERS[f.char].height * W * (f.scale / 100);
       minX = Math.min(minX, x);
       maxX = Math.max(maxX, x);
       minY = Math.min(minY, y);
@@ -448,6 +451,145 @@ export class Renderer {
     this.camera.position.set(this.camPos.x + jx, this.camPos.y + jy, this.camPos.z);
     this.camera.setTarget(new Vector3(this.camTarget.x + jx, this.camTarget.y + jy, 0));
   }
+
+  /** Points the camera at the stage, for menus that show it behind them. */
+  frameStage(): void {
+    this.camTarget.set(0, 1.4, 0);
+    this.camPos.set(0, 1.9, -16);
+    this.camera.position.copyFrom(this.camPos);
+    this.camera.setTarget(this.camTarget);
+  }
+}
+
+function setTexture(mat: StandardMaterial, tex: Texture | DynamicTexture): void {
+  if (mat.diffuseTexture === tex) return;
+  mat.diffuseTexture = tex;
+  mat.emissiveTexture = tex;
+}
+
+/** Squash, stretch, lean and spin that stand in for animation: [scaleX, scaleY, rotation, lift]. */
+function proceduralPose(f: Fighter, stage: StageDef): [number, number, number, number] {
+  const ch = CHARACTERS[f.char];
+  const t = f.frame;
+  switch (f.action) {
+    case ACT.WALK:
+      return [1, 1, -f.facing * 0.06, Math.abs(Math.sin(t * 0.35)) * 0.04];
+    case ACT.CROUCH:
+      return [1.08, 0.78, 0, 0];
+    case ACT.JUMPSQUAT:
+      return [1.12, 0.82, 0, 0];
+    case ACT.LAND:
+      return t < 4 ? [1.08, 0.86, 0, 0] : [1.02, 0.96, 0, 0];
+    case ACT.AIR:
+      return f.vy > 0 ? [0.96, 1.05, 0, 0] : [1.02, 0.98, 0, 0];
+    case ACT.ATTACK: {
+      const m = ch.moves[f.move];
+      const w = m.hits[0];
+      const b = w.boxes[0];
+      const ang = Math.atan2(b.y - ch.height * 0.5, b.x);
+      if (f.move === MOVE.UPB && t > w.start) return [1, 1, f.facing * t * 0.5, 0];
+      if (t < w.start) {
+        // Wind up away from the hit.
+        const k = t / w.start;
+        return [1, 1 - 0.06 * k, f.facing * Math.cos(ang) * 0.14 * k, 0];
+      }
+      if (t <= w.end + 2) return [1.12, 1 + Math.sin(ang) * 0.12, -f.facing * Math.cos(ang) * 0.28, 0];
+      return [1, 1, 0, 0];
+    }
+    case ACT.HITSTUN: {
+      const speed = Math.hypot(f.kbx, f.kby) / FX;
+      return [1, 1, speed > 8 ? f.facing * t * 0.35 : f.facing * 0.25, 0];
+    }
+    case ACT.HELPLESS:
+      return [1, 1, Math.sin(t * 0.3) * 0.15, 0];
+    case ACT.DIZZY:
+      return [1, 1, Math.sin(t * 0.2) * 0.2, 0];
+    case ACT.LEDGE: {
+      const l = ledges(stage)[f.ledge - 1];
+      return [1, 1, (l?.side ?? 1) * 0.25, 0];
+    }
+    case ACT.ROLL:
+      return [1, 1, -f.dir * t * 0.21, 0];
+    case ACT.SPOTDODGE:
+      return [0.7, 1, 0, 0];
+    case ACT.AIRDODGE:
+      return [0.9, 1, 0, 0];
+    default:
+      return [1, 1, 0, 0];
+  }
+}
+
+/** Paints a stage's background details. Seeded so the same stage always looks the same. */
+function paintProps(ctx: CanvasRenderingContext2D, props: StageDef['theme']['props'], glow: string, accent: string): void {
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  ctx.save();
+  switch (props) {
+    case 'frame':
+      // A dashed frame where the blast zones are, like the site's hero art.
+      ctx.strokeStyle = 'rgba(255, 209, 90, 0.16)';
+      ctx.setLineDash([10, 14]);
+      ctx.lineWidth = 3;
+      ctx.strokeRect(40, 30, 944, 452);
+      break;
+    case 'skyline':
+      for (let i = 0; i < 160; i++) {
+        ctx.fillStyle = `rgba(255,255,255,${0.2 + rand() * 0.5})`;
+        ctx.fillRect(rand() * 1024, rand() * 220, 1.5, 1.5);
+      }
+      for (let x = -10; x < 1024; ) {
+        const w = 30 + rand() * 60;
+        const h = 90 + rand() * 200;
+        ctx.fillStyle = '#0b0a16';
+        ctx.fillRect(x, 512 - h, w - 4, h);
+        ctx.fillStyle = 'rgba(201, 191, 255, 0.35)';
+        for (let wy = 512 - h + 10; wy < 500; wy += 14) {
+          for (let wx = x + 5; wx < x + w - 10; wx += 10) if (rand() < 0.3) ctx.fillRect(wx, wy, 4, 6);
+        }
+        x += w;
+      }
+      break;
+    case 'clouds':
+      for (let i = 0; i < 26; i++) {
+        const x = rand() * 1024;
+        const y = 120 + rand() * 360;
+        const r = 40 + rand() * 90;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, 'rgba(184, 255, 242, 0.16)');
+        g.addColorStop(1, 'rgba(184, 255, 242, 0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      }
+      break;
+    case 'embers': {
+      const lava = ctx.createLinearGradient(0, 380, 0, 512);
+      lava.addColorStop(0, 'rgba(255, 59, 31, 0)');
+      lava.addColorStop(1, 'rgba(255, 90, 31, 0.55)');
+      ctx.fillStyle = lava;
+      ctx.fillRect(0, 380, 1024, 132);
+      for (let i = 0; i < 120; i++) {
+        ctx.fillStyle = rand() < 0.5 ? accent : glow;
+        ctx.globalAlpha = 0.25 + rand() * 0.5;
+        const s = 1 + rand() * 2.5;
+        ctx.fillRect(rand() * 1024, rand() * 512, s, s);
+      }
+      break;
+    }
+    case 'pipes':
+      for (let x = 20; x < 1024; x += 70 + rand() * 60) {
+        const w = 14 + rand() * 18;
+        ctx.fillStyle = '#0c1408';
+        ctx.fillRect(x, 0, w, 512);
+        ctx.fillStyle = glow;
+        ctx.globalAlpha = 0.18;
+        ctx.fillRect(x + w * 0.35, 0, 2, 512);
+        ctx.globalAlpha = 0.5;
+        for (let y = 60 + rand() * 80; y < 512; y += 90 + rand() * 120) ctx.fillRect(x - 3, y, w + 6, 5);
+        ctx.globalAlpha = 1;
+      }
+      break;
+  }
+  ctx.restore();
 }
 
 const artCache = new Map<string, Promise<HTMLCanvasElement>>();
