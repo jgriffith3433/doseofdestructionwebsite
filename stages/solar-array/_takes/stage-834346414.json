@@ -1,0 +1,43 @@
+{
+ "job": "89c0340e30bc",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "solar-array",
+ "piece": "stage",
+ "kind": "stage",
+ "layers": [
+  "desert-mesa",
+  "panel-top"
+ ],
+ "seed": 834346414,
+ "prompt": "Paint image 1 as finished 2D game environment art. Each shape becomes the structure described for its place, at exactly the same position, size and outline: lower center: Flat sandy ochre top with a faint dirt track, scattered pebbles and dry tufts of sage; below it layered red-orange sandstone cliffs with dark brown cracks and ledges, bold cartoon ink outlines, warm afternoon sun from upper left; upper center: A larger blue photovoltaic panel with white grid and silver frame, a heavy motor housing on its bracket, warm sun glint along the top edge. The bright horizontal bars are walkable surfaces (rooftop edges, ledges, catwalks, landings): keep each one exactly where it is, flat and level, as the visible top edge of its structure. Match the art style, palette and lighting of image 2. Style: Bold cartoon illustration with thick ink outlines and flat cel shading, like a sunny animated adventure. Warm desert palette of ochre sand, red-orange sandstone and brown shadows against a clear cyan sky, with cool blue solar panels and grey steel as the accent. Bright midday-afternoon sun from the upper left, crisp hard shadows, cheerful and hot. Everything outside the shapes stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -660,
+  "x2": 660,
+  "y1": -480,
+  "y2": 350
+ },
+ "size": [
+  1296,
+  816
+ ],
+ "x": 0,
+ "y": -65,
+ "width": 1320,
+ "created": 1792028404451,
+ "fit": {
+  "score": 0.92,
+  "platforms": [
+   0.96,
+   0.88
+  ]
+ }
+}

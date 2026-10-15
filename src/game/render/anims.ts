@@ -18,6 +18,8 @@ export interface Clip {
   ay: number;
   fps: number;
   loop: boolean;
+  /** Moves: the strike frame (full extension). Played on the move's first active frame. */
+  hit?: number | null;
 }
 
 export interface AnimSet {
@@ -124,7 +126,20 @@ export function clipFrame(f: Fighter, pick: Pick): number {
   const { clip } = pick;
   const n = clip.frames;
   let span = 0;
-  if (f.action === ACT.ATTACK && pick.exact) span = CHARACTERS[f.char].moves[f.move].total;
+  if (f.action === ACT.ATTACK && pick.exact) {
+    const move = CHARACTERS[f.char].moves[f.move];
+    span = move.total;
+    // Line the strike up with the hitbox: frames before the first active frame play the
+    // wind-up (up to the strike), the rest play the recovery. Fighting games barely
+    // anticipate, so a jab reaches full extension right as it can hit.
+    const strike = clip.hit;
+    const active = move.hits.length ? Math.min(...move.hits.map((w) => w.start)) : 0;
+    if (strike != null && strike > 0 && active > 0 && active < span) {
+      const t = f.frame;
+      const i = t < active ? (t / active) * strike : strike + ((t - active) / (span - active)) * (n - 1 - strike);
+      return Math.max(0, Math.min(n - 1, Math.round(i)));
+    }
+  }
   else if (pick.exact && f.length > 0 && !clip.loop) span = f.length;
   if (span > 0) return Math.min(n - 1, Math.floor((f.frame / span) * n));
   const i = Math.floor((f.frame * clip.fps) / 60);

@@ -1,0 +1,35 @@
+{
+ "job": "cf3b3cf717fd",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "desert",
+ "piece": "hawk-diver",
+ "kind": "front",
+ "layers": [
+  "hawk-diver"
+ ],
+ "seed": 1364680016,
+ "prompt": "Paint image 1: the shape becomes Red-tailed hawk in a steep swoop, wings swept back, talons extended forward, facing right, sharp sunlit feathers in rust, cream and dark brown, filling the same position and size. It sits close to the camera, in front of the action: darker, slightly silhouetted, with a crisp outline. Match the art style, palette and lighting of image 2. Style: Sun-bleached painterly realism with soft edges and heat haze: pale tan playa, warm ochre and rust sandstone, and a deep blue sky washing to near-white around a blazing sun. Hard midday light from the upper right, short cool blue-grey shadows, everything a little dusty. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1593.5,
+  "x2": -1406.5,
+  "y1": 746.535,
+  "y2": 853.465
+ },
+ "size": [
+  1360,
+  784
+ ],
+ "x": -1500,
+ "y": 800,
+ "width": 187,
+ "created": 1792027062145
+}

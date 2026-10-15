@@ -24,12 +24,15 @@ import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
 import { activeHitboxes, type SimEvent } from '../sim/step.ts';
 import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
-import { StageFx, buildLayers, drawnPlatforms, followLayers, type Follower } from './stageArt.ts';
+import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
+import { StageLive } from './stageLive.ts';
 import { Constants } from '@babylonjs/core/Engines/constants.js';
 
 /** Sim units to scene units: 100 world units per scene unit. */
 const S = 1 / (100 * FX);
 const W = 1 / 100;
+/** How far a hanging fighter's hands come up over the ledge's top edge, in scene units. */
+const GRIP = 0.04;
 /** The art stands a little taller than the hurtbox. */
 const ART_SCALE = 1.18;
 
@@ -75,8 +78,17 @@ export class Renderer {
   private stageRoot: TransformNode | null = null;
   private movers: { platform: Platform; node: TransformNode }[] = [];
   private stage: StageDef = STAGES[0];
+  /**
+   * Clip sheets, kept between matches (a rematch starts instantly). Keyed by
+   * fighter slot and URL: two of the same fighter each need their own texture,
+   * since each shows its own frame.
+   */
+  private clipCache = new Map<string, Texture>();
   private fx: StageFx | null = null;
-  private followers: Follower[] = [];
+  private live: StageLive | null = null;
+  /** A plane over the whole view that stage effects flash. */
+  private flashPlane: Mesh;
+  private flashMat: StandardMaterial;
   /** Whether this stage has art in front of the fighters that hides them. */
   private occluders = false;
   /** Plays a sound effect for stage effects (main wires it to the audio system). */
@@ -108,6 +120,17 @@ export class Renderer {
     this.sparkMat = this.flatMaterial('spark', '#ffd15a');
     this.debugMat = this.flatMaterial('dbg-hit', '#ff2a2a', 0.45);
     this.hurtMat = this.flatMaterial('dbg-hurt', '#ffd15a', 0.22);
+
+    this.flashMat = this.flatMaterial('flash', '#ffffff', 0);
+    this.flashMat.disableDepthWrite = true;
+    this.flashPlane = CreatePlane('flash', { size: 40 }, this.scene);
+    this.flashPlane.material = this.flashMat;
+    this.flashPlane.parent = this.camera;
+    this.flashPlane.position.set(0, 0, 2);
+    this.flashPlane.isPickable = false;
+    this.flashPlane.renderingGroupId = 1;
+    this.flashPlane.setEnabled(false);
+    this.glow.addExcludedMesh(this.flashPlane);
 
     this.setStage(0);
     window.addEventListener('resize', () => this.engine.resize());
@@ -142,12 +165,17 @@ export class Renderer {
     this.buildBackdrop(root);
     const built = buildLayers(this.scene, root, this.stage, this.glow);
     this.occluders = built.occluders;
-    this.followers = built.followers;
+    this.live = new StageLive(this.scene, root, this.stage, built.placed, this.glow);
     // Collision-only platforms whose art isn't painted yet still get a block, so the stage is playable.
     const drawn = drawnPlatforms(this.stage);
     this.fx = new StageFx(this.scene, this.stage, {
       sound: (id) => this.onSound?.(id),
       shake: (a) => (this.shake = Math.max(this.shake, a)),
+      flash: (color) => {
+        this.flashMat.emissiveColor = Color3.FromHexString(color);
+        this.flashMat.alpha = 0.75;
+        this.flashPlane.setEnabled(true);
+      },
     });
 
     const body = new StandardMaterial('stage-body', this.scene);
@@ -169,6 +197,8 @@ export class Renderer {
       const node = new TransformNode('platform', this.scene);
       node.parent = root;
       node.position.set(cx, p.y * W, 0);
+      // Blocks that events switch off come and go with them.
+      if (p.offDuring || p.onlyDuring) this.live.addToggle(node, index);
       if (artDraws) {
         this.movers.push({ platform: p, node });
       } else if (p.solid) {
@@ -234,7 +264,13 @@ export class Renderer {
 
   /** Builds a sprite for each fighter. Still art is cropped to its visible pixels first. */
   async setFighters(state: GameState, keepStage = false): Promise<void> {
-    for (const v of this.views) v.root.dispose(false, true);
+    for (const v of this.views) {
+      // Clip sheets stay cached; only the fighter's own meshes, materials and still go.
+      v.mat.diffuseTexture = v.mat.emissiveTexture = null;
+      if (v.ghostMat) v.ghostMat.diffuseTexture = null;
+      v.root.dispose(false, true);
+      v.still.dispose();
+    }
     this.views = [];
     // keepStage: devtools shows an unsaved stage that isn't in STAGES.
     if (!keepStage && this.stage !== STAGES[state.stage]) this.setStage(state.stage);
@@ -302,10 +338,52 @@ export class Renderer {
         root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, ghost, ghostMat,
       });
     }
+    await this.preloadClips();
+  }
+
+  /**
+   * Loads every clip sheet of the fighters in the match before it starts, so
+   * no clip waits on the network the first time it plays. Sheets for fighters
+   * no longer in the match are freed.
+   */
+  private async preloadClips(): Promise<void> {
+    const keep = new Set<string>();
+    const waits: Promise<void>[] = [];
+    this.views.forEach((v, slot) => {
+      if (!v.anims) return;
+      for (const key of Object.keys(v.anims.clips)) {
+        const url = `${v.anims.base}${v.anims.clips[key].file}?v=${v.anims.version}`;
+        const id = `${slot}|${url}`;
+        keep.add(id);
+        let tex = this.clipCache.get(id);
+        if (!tex) {
+          const made = new Texture(url, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE);
+          made.hasAlpha = true;
+          this.clipCache.set(id, made);
+          tex = made;
+        }
+        v.clipTex.set(key, tex);
+        if (!tex.isReady()) waits.push(new Promise((done) => tex!.onLoadObservable.addOnce(() => done())));
+      }
+    });
+    for (const [id, tex] of this.clipCache) {
+      if (!keep.has(id)) {
+        tex.dispose();
+        this.clipCache.delete(id);
+      }
+    }
+    // A sheet that fails to load shouldn't hold the match up forever.
+    await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, 15000))]);
+  }
+
+  /** Resolves once every texture in the scene (stage art, clips) is loaded, or after a while. */
+  async ready(timeoutMs = 15000): Promise<void> {
+    await Promise.race([this.scene.whenReadyAsync(), new Promise((r) => setTimeout(r, timeoutMs))]);
   }
 
   private clipTexture(v: FighterView, key: string): Texture | null {
     if (!v.anims) return null;
+    // Normally preloaded (preloadClips); made here only if a clip appears mid-match.
     let tex = v.clipTex.get(key);
     if (!tex) {
       const url = `${v.anims.base}${v.anims.clips[key].file}?v=${v.anims.version}`;
@@ -319,13 +397,24 @@ export class Renderer {
   /** Reacts to sim events with sparks and camera shake. */
   onEvents(events: SimEvent[]): void {
     for (const e of events) {
-      if (e.type === 'hit') {
-        const n = e.shield ? 6 : 8 + Math.min(16, e.kb >> 3);
-        this.burst(e.x * S, e.y * S, n, e.shield ? 0.06 : 0.09 + e.kb * 0.0006);
-        if (!e.shield && this.views[e.victim]) {
+      if (e.type === 'hit' || e.type === 'hurt') {
+        const shield = e.type === 'hit' && e.shield;
+        const n = shield ? 6 : 8 + Math.min(16, e.kb >> 3);
+        this.burst(e.x * S, e.y * S, n, shield ? 0.06 : 0.09 + e.kb * 0.0006);
+        if (!shield && this.views[e.victim]) {
           this.views[e.victim].flash = 10;
           this.shake = Math.max(this.shake, Math.min(0.5, e.kb * 0.003));
         }
+        if (!shield) {
+          this.fx?.trigger('hit', { x: e.x * S, y: e.y * S });
+          this.live?.trigger('hit');
+        }
+      } else if (e.type === 'stage') {
+        const id = this.stage.events?.[e.event]?.id;
+        if (!id) continue;
+        const on = e.phase === 'warn' ? `warn:${id}` : e.phase === 'start' ? `event:${id}` : `eventEnd:${id}`;
+        this.fx?.trigger(on);
+        this.live?.trigger(on);
       } else if (e.type === 'ko') {
         const b = this.stage.blast;
         const x = Math.max(b.left + 40, Math.min(b.right - 40, e.x / FX)) * W;
@@ -333,6 +422,7 @@ export class Renderer {
         this.burst(x, y, 40, 0.25);
         this.shake = 0.9;
         this.fx?.trigger('ko', { x, y });
+        this.live?.trigger('ko');
       } else if (e.type === 'shieldbreak') {
         this.burst(e.x * S, e.y * S + 0.6, 24, 0.16);
         this.shake = 0.5;
@@ -361,10 +451,15 @@ export class Renderer {
       const p = platformAt(m.platform, state.frame);
       m.node.position.set(((p.x1 + p.x2) / 2) * S, p.y * S, 0);
     }
-    followLayers(this.followers, state.frame);
+    this.live?.update(state);
     for (const f of state.fighters) this.drawFighter(f, this.views[f.id]);
     this.updateSparks();
+    this.fx?.setClock(state);
     this.fx?.update();
+    if (this.flashMat.alpha > 0) {
+      this.flashMat.alpha = Math.max(0, this.flashMat.alpha - 0.04);
+      if (this.flashMat.alpha === 0) this.flashPlane.setEnabled(false);
+    }
     this.drawDebug(state);
     this.updateCamera(state);
     this.scene.render();
@@ -398,6 +493,12 @@ export class Renderer {
       v.body.scaling.set(c.fw * px, c.fh * px, 1);
       v.body.position.x = (c.fw / 2 - c.ax) * px;
       v.body.position.y = (c.ay - c.fh / 2) * px;
+      // Clips line up on the feet, but a hang is about the hands: put the top of the
+      // sprite (the gripping hands) on the ledge's top edge instead.
+      if (pick.key === 'ledge' && pick.exact && f.ledge > 0) {
+        const l = ledges(this.stage)[f.ledge - 1];
+        if (l) v.body.position.y += l.y * W + GRIP - f.y * S - c.ay * px;
+      }
     } else {
       setTexture(v.mat, v.still);
       v.body.scaling.set(height * v.stillAspect, height, 1);
@@ -504,7 +605,8 @@ export class Renderer {
     const height = maxY - minY + pad * 2;
     const aspect = this.engine.getAspectRatio(this.camera);
     const tan = Math.tan(this.camera.fov / 2);
-    const dist = Math.max(10, Math.min(30, Math.max(height / (2 * tan), width / (2 * tan * aspect))));
+    // Far enough out for fighters at the ends of the widest stages.
+    const dist = Math.max(10, Math.min(40, Math.max(height / (2 * tan), width / (2 * tan * aspect))));
     const tx = (minX + maxX) / 2;
     const ty = (minY + maxY) / 2 + 0.3;
 
@@ -525,6 +627,7 @@ export class Renderer {
   /** A match moment the stage's effects can react to: 'start' when play begins, 'end' at Game! */
   stageEvent(on: 'start' | 'end'): void {
     this.fx?.trigger(on);
+    this.live?.trigger(on);
   }
 
   /** Frees the engine (devtools previews come and go). */

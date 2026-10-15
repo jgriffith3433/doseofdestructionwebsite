@@ -8,6 +8,9 @@ import { fightersTab } from './tabs/fighters.ts';
 import { animationsTab } from './tabs/animations.ts';
 import { clipsTab } from './tabs/clips.ts';
 import { mapsTab } from './tabs/maps.ts';
+import { modesTab } from './tabs/modes.ts';
+import { posesTab } from './tabs/poses.ts';
+import { storyTab } from './tabs/story.ts';
 import { soundsTab } from './tabs/sounds.ts';
 import { voiceTab } from './tabs/voice.ts';
 import { scriptsTab } from './tabs/scripts.ts';
@@ -23,9 +26,12 @@ export interface Tab {
 
 const TABS: Record<string, Tab> = {
   fighters: fightersTab,
+  poses: posesTab,
   animations: animationsTab,
   clips: clipsTab,
   maps: mapsTab,
+  modes: modesTab,
+  story: storyTab,
   sounds: soundsTab,
   voice: voiceTab,
   gpu: gpuTab,

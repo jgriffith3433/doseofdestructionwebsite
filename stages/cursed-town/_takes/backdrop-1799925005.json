@@ -1,0 +1,33 @@
+{
+ "job": "d8e9f8517bf9",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple"
+ },
+ "stage": "cursed-town",
+ "piece": "backdrop",
+ "kind": "backdrop",
+ "layers": [
+  "backdrop"
+ ],
+ "seed": 1799925005,
+ "prompt": "Paint a wide, distant background landscape over image 1: the far distance of Cursed Town: Stay on the rooftops: the fog in the street eats you alive, and something below is reaching up.. Use the colors and light of image 2 (a blurred mood board), but compose the scene yourself from this description. Distant scenery only: no ground, floor, ledge or platform in the foreground. The lower third stays darker and calmer. Style: Muted, painterly gothic realism in cold fog: weathered grey clapboard, mossy slate shingles, wet cobbles, everything desaturated toward grey-green. Flat diffuse overcast light with no bright accents; the only contrast is the inky, glossy black of the shadow tentacles. Mood is quiet dread, soft edges dissolving into mist, game environment art. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1600,
+  "x2": 1600,
+  "y1": -435.71428571428567,
+  "y2": 935.7142857142857
+ },
+ "size": [
+  1568,
+  672
+ ],
+ "x": 0,
+ "y": 250,
+ "width": 3200,
+ "created": 1792027232963
+}

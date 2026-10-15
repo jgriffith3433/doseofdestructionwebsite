@@ -2,16 +2,34 @@
 // frame's inputs, uses only integer math, and visits fighters in id order, so
 // every peer that feeds it the same inputs reaches the same state.
 
-import { FX, TRIG_ONE, approach, clamp, iatan2, icos, idiv, isin, isqrt, normDeg, sign } from './fixed.ts';
+import { FX, TRIG_ONE, approach, clamp, iatan2, icos, idiv, isin, isqrt, normDeg, rngNext, sign } from './fixed.ts';
 import { AERIALS, CHARACTERS, MOVE, type CharacterDef, type Hitbox } from './characters.ts';
 import { BTN, C_ANY, NO_INPUT, stickX, stickY } from './input.ts';
-import { STAGES, ledges, platformAt, type Ledge, type StageDef } from './stage.ts';
+import {
+  EV_IDLE,
+  EV_RUN,
+  EV_WARN,
+  STAGES,
+  hazardAt,
+  ledges,
+  platformAt,
+  platformOn,
+  secs,
+  zoneOn,
+  type Ledge,
+  type StageDef,
+  type StageZone,
+} from './stage.ts';
 import { ACT, SHIELD_MAX, allies, bodySize, type Fighter, type GameState } from './state.ts';
 
 export type SimEvent =
   | { type: 'hit'; attacker: number; victim: number; x: number; y: number; dmg: number; kb: number; shield: boolean }
   | { type: 'ko'; victim: number; by: number; x: number; y: number }
-  | { type: 'jump' | 'land' | 'ledge' | 'shieldbreak' | 'respawn'; id: number; x: number; y: number };
+  | { type: 'jump' | 'land' | 'ledge' | 'shieldbreak' | 'respawn'; id: number; x: number; y: number }
+  /** The stage hurt someone: a damage zone or a hazard (index into stage.zones or stage.hazards). */
+  | { type: 'hurt'; victim: number; source: 'zone' | 'hazard'; index: number; x: number; y: number; dmg: number; kb: number }
+  /** A stage event (index into stage.events) warned, started or ended. */
+  | { type: 'stage'; event: number; phase: 'warn' | 'start' | 'end' };
 
 const BUTTONS = BTN.ATTACK | BTN.SPECIAL | BTN.JUMP | BTN.SHIELD | C_ANY;
 const BUFFER_FRAMES = 6;
@@ -26,6 +44,7 @@ const RESPAWN_DELAY = 70;
 let stage: StageDef = STAGES[0];
 let frame = 0;
 let gravityPct = 100;
+let clock: GameState;
 
 interface Ctx {
   inp: number;
@@ -39,11 +58,15 @@ export function step(s: GameState, inputs: readonly number[]): SimEvent[] {
   stage = STAGES[s.stage] ?? STAGES[0];
   frame = s.frame;
   gravityPct = s.rules.gravity;
+  clock = s;
   const ev: SimEvent[] = [];
+  advanceEvents(s, ev);
   for (const f of s.fighters) updateFighter(s, f, inputs[f.id] ?? NO_INPUT, ev);
   separate(s);
   resolveHits(s, ev);
+  stageHits(s, ev);
   for (const f of s.fighters) checkBlastZones(s, f, ev);
+  triggerEvents(s, ev);
   checkGameOver(s);
   for (const f of s.fighters) f.prevInput = inputs[f.id] ?? NO_INPUT;
   if (s.endTimer > 0) s.endTimer--;
@@ -566,6 +589,10 @@ function hangPosition(f: Fighter): [number, number] {
 }
 
 function ledge(f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): void {
+  if (!platformOn(stage, clock, heldLedge(f).platform)) {
+    leaveLedge(f, 30);
+    return;
+  }
   [f.x, f.y] = hangPosition(f);
   if (f.frame < 8) return;
   const toward = -heldLedge(f).side;
@@ -595,6 +622,10 @@ function leaveLedge(f: Fighter, cooldown: number): void {
 
 function ledgeClimb(f: Fighter): void {
   const l = heldLedge(f);
+  if (!platformOn(stage, clock, l.platform)) {
+    leaveLedge(f, 30);
+    return;
+  }
   const [hx, hy] = hangPosition(f);
   const [w] = bodySize(f);
   const top = l.y * FX;
@@ -635,6 +666,7 @@ function tryGrabLedge(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: Si
   const all = ledges(stage);
   for (let i = 0; i < all.length; i++) {
     const l = all[i];
+    if (!platformOn(stage, s, l.platform)) continue;
     const lx = l.x * FX;
     const ly = l.y * FX;
     // Only from the outside of the edge.
@@ -662,6 +694,14 @@ function tryGrabLedge(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: Si
 // ------------------------------------------------------------------ physics
 
 function physics(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): void {
+  const z = zoneMotion(s, f);
+  if (z.water && !f.grounded) {
+    // Swimming: every jump press is a stroke, and the water slows everything.
+    f.jumpsLeft = Math.max(f.jumpsLeft, 1);
+    f.fastFall = 0;
+    f.vx = idiv(f.vx * 96, 100);
+    if (f.vy > 0) f.vy = idiv(f.vy * 96, 100);
+  }
   if (!f.grounded) {
     const m = f.action === ACT.ATTACK ? ch.moves[f.move] : null;
     const floating =
@@ -670,8 +710,8 @@ function physics(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEven
     if (floating) {
       if (m) f.vy = Math.max(f.vy, 0);
     } else {
-      const cap = -fallSpeed(ch, f.fastFall === 1);
-      const g = idiv(ch.gravity * gravityPct, 100);
+      const cap = z.water ? -idiv(fallSpeed(ch, false) * 40, 100) : -fallSpeed(ch, f.fastFall === 1);
+      const g = idiv(ch.gravity * z.gravity, 100);
       f.vy = f.fastFall ? cap : Math.max(f.vy - g, Math.min(f.vy, cap));
     }
   }
@@ -698,8 +738,16 @@ function physics(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEven
   }
 
   const py = f.y;
-  f.x += f.vx + f.kbx;
-  f.y += f.vy + f.kby;
+  f.x += f.vx + f.kbx + (f.grounded ? z.wx >> 1 : z.wx);
+  f.y += f.vy + f.kby + (f.grounded ? 0 : z.wy);
+
+  if (f.grounded && !platformOn(stage, s, f.platform)) {
+    // The floor went away (an event switched it off).
+    f.grounded = 0;
+    f.platform = -1;
+    f.jumpsLeft = ch.airJumps;
+    if (f.action !== ACT.HITSTUN && f.action !== ACT.DIZZY) setAction(f, ACT.AIR, 0);
+  }
 
   if (f.grounded) {
     if (f.vy + f.kby > 0) {
@@ -730,6 +778,7 @@ function physics(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEven
       let bestY = 0;
       for (let i = 0; i < stage.platforms.length; i++) {
         const p = stage.platforms[i];
+        if (!platformOn(stage, s, i)) continue;
         const now = platformAt(p, frame);
         // Compare against where the top was last frame too, so a platform
         // rising into a falling fighter still catches them.
@@ -743,9 +792,177 @@ function physics(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEven
       }
       if (best >= 0) land(f, ch, best, bestY, ev);
     }
-    if (!f.grounded) collideSolids(f, py);
+    if (!f.grounded) collideSolids(s, f, py);
     if (!f.grounded) tryGrabLedge(s, f, ch, c, ev);
   }
+}
+
+/** Whether a fighter's body overlaps a zone. */
+function inZone(f: Fighter, z: StageZone): boolean {
+  const [w, h] = bodySize(f);
+  const half = w >> 1;
+  return f.x + half > z.x1 * FX && f.x - half < z.x2 * FX && f.y + h > z.y1 * FX && f.y < z.y2 * FX;
+}
+
+/** What the zones a fighter is in do to their movement: gravity percent, water, and wind per frame. */
+function zoneMotion(s: GameState, f: Fighter): { gravity: number; water: boolean; wx: number; wy: number } {
+  const out = { gravity: gravityPct, water: false, wx: 0, wy: 0 };
+  for (const z of stage.zones ?? []) {
+    if (z.kind === 'damage' || !zoneOn(stage, s, z)) continue;
+    const [, h] = bodySize(f);
+    // Water and gravity go by the fighter's middle; wind pushes anyone it touches.
+    const mid = f.y + (h >> 1);
+    const inside = z.kind === 'wind' ? inZone(f, z) : f.x > z.x1 * FX && f.x < z.x2 * FX && mid > z.y1 * FX && mid < z.y2 * FX;
+    if (!inside) continue;
+    if (z.kind === 'water') {
+      out.water = true;
+      out.gravity = idiv(out.gravity * (z.gravity ?? 35), 100);
+    } else if (z.kind === 'gravity') {
+      out.gravity = idiv(out.gravity * (z.gravity ?? 100), 100);
+    } else if (z.kind === 'wind') {
+      out.wx += idiv((z.force?.[0] ?? 0) * FX, 60);
+      out.wy += idiv((z.force?.[1] ?? 0) * FX, 60);
+    }
+  }
+  return out;
+}
+
+// --------------------------------------------------------- stage dynamics
+
+function startPhase(s: GameState, i: number, phase: number, ev: SimEvent[]): void {
+  const e = stage.events![i];
+  if (phase === EV_WARN && secs(e.warn) <= 0) phase = EV_RUN;
+  s.evPhase[i] = phase;
+  if (phase === EV_WARN) {
+    s.evTimer[i] = secs(e.warn);
+    ev.push({ type: 'stage', event: i, phase: 'warn' });
+    return;
+  }
+  // Running: hazards that ride this event get a fresh pass at everyone.
+  (stage.hazards ?? []).forEach((h, j) => {
+    if (h.during === e.id) s.hazHit[j] = 0;
+  });
+  s.evTimer[i] = secs(e.duration);
+  ev.push({ type: 'stage', event: i, phase: 'start' });
+  if (s.evTimer[i] <= 0) endEvent(s, i, ev);
+}
+
+function endEvent(s: GameState, i: number, ev: SimEvent[]): void {
+  const e = stage.events![i];
+  s.evPhase[i] = EV_IDLE;
+  ev.push({ type: 'stage', event: i, phase: 'end' });
+  if ((e.trigger ?? 'timer') === 'timer' && e.every) {
+    const lo = secs(e.every[0]);
+    const hi = secs(e.every[1]);
+    let v: number;
+    [s.rng, v] = rngNext(s.rng);
+    s.evTimer[i] = Math.max(1, lo + (v % Math.max(1, hi - lo + 1)));
+  } else {
+    s.evTimer[i] = -1;
+  }
+}
+
+/** Counts down each stage event: waiting, warning, running, and back. */
+function advanceEvents(s: GameState, ev: SimEvent[]): void {
+  const evs = stage.events;
+  if (!evs?.length || !s.rules.hazards || s.over) return;
+  for (let i = 0; i < evs.length; i++) {
+    if (s.evTimer[i] < 0) continue;
+    if (s.evTimer[i] > 0 && --s.evTimer[i] > 0) continue;
+    if (s.evPhase[i] === EV_IDLE) startPhase(s, i, EV_WARN, ev);
+    else if (s.evPhase[i] === EV_WARN) startPhase(s, i, EV_RUN, ev);
+    else endEvent(s, i, ev);
+  }
+}
+
+/** Starts events that wait on a KO or a hit, from this frame's events. */
+function triggerEvents(s: GameState, ev: SimEvent[]): void {
+  const evs = stage.events;
+  if (!evs?.length || !s.rules.hazards) return;
+  const ko = ev.some((e) => e.type === 'ko');
+  const hit = ev.some((e) => e.type === 'hit' && !e.shield);
+  if (!ko && !hit) return;
+  for (let i = 0; i < evs.length; i++) {
+    const t = evs[i].trigger;
+    if (!((t === 'ko' && ko) || (t === 'hit' && hit)) || s.evPhase[i] !== EV_IDLE) continue;
+    const chance = evs[i].chance ?? 100;
+    if (chance < 100) {
+      let v: number;
+      [s.rng, v] = rngNext(s.rng);
+      if (v % 100 >= chance) continue;
+    }
+    startPhase(s, i, EV_WARN, ev);
+  }
+}
+
+/** Damage zones and hazards hitting fighters. */
+function stageHits(s: GameState, ev: SimEvent[]): void {
+  if (!s.rules.hazards) return;
+  (stage.zones ?? []).forEach((z, zi) => {
+    if (z.kind !== 'damage' || !zoneOn(stage, s, z)) return;
+    if (s.frame % Math.max(1, secs(z.tick, 0.5)) !== 0) return;
+    const dmg = idiv((z.damage ?? 1) * 10 * s.rules.damage, 100);
+    for (const f of s.fighters) {
+      if (!hittable(f) || f.hitlag > 0 || !inZone(f, z)) continue;
+      const [, h] = bodySize(f);
+      stageHit(s, f, dmg, (z.knock ?? 0) * 1000, normDeg(z.angle ?? 90), f.x, f.y + (h >> 1), 'zone', zi, ev);
+    }
+  });
+  (stage.hazards ?? []).forEach((hz, j) => {
+    if (!hz.during && s.frame % Math.max(1, secs(hz.period, 4)) === 0) s.hazHit[j] = 0;
+    const at = hazardAt(stage, s, hz);
+    if (!at) return;
+    const r = hz.r * FX;
+    const dmg = idiv(hz.dmg * 10 * s.rules.damage, 100);
+    for (const v of s.fighters) {
+      if (s.hazHit[j] & (1 << v.id) || !hittable(v)) continue;
+      const [w, h] = bodySize(v);
+      const half = w >> 1;
+      const px = clamp(at.x, v.x - half, v.x + half);
+      const py = clamp(at.y, v.y, v.y + h);
+      const dx = at.x - px;
+      const dy = at.y - py;
+      if (dx * dx + dy * dy > r * r) continue;
+      s.hazHit[j] |= 1 << v.id;
+      const weight = idiv(CHARACTERS[v.char].weight * v.scale, 100);
+      const kb = knockback(Math.min(v.percent + dmg, 9999), dmg, weight, hz.bkb, hz.kbg);
+      stageHit(s, v, dmg, kb, normDeg(at.dir > 0 ? hz.angle : 180 - hz.angle), (at.x + px) >> 1, (at.y + py) >> 1, 'hazard', j, ev);
+    }
+  });
+}
+
+/**
+ * The stage hurting a fighter: damage (tenths), and a launch of kb
+ * (thousandths, 0 for none) at angle. It goes through shields: stage
+ * hazards are dodged, not blocked. The last fighter to hit them keeps the
+ * credit for a KO.
+ */
+function stageHit(
+  s: GameState,
+  v: Fighter,
+  dmg: number,
+  kb: number,
+  angle: number,
+  x: number,
+  y: number,
+  source: 'zone' | 'hazard',
+  index: number,
+  ev: SimEvent[],
+): void {
+  v.percent = Math.min(v.percent + dmg, 9999);
+  if (kb > 0) {
+    v.hitlag = 4 + idiv(dmg, 30);
+    v.launchSpeed = idiv(kb * KB_SPEED, 100);
+    v.launchAngle = angle;
+    v.hitstun = idiv(kb * 4, 10000);
+    setAction(v, ACT.HITSTUN, 0);
+    v.vx = v.vy = v.kbx = v.kby = 0;
+    v.fastFall = 0;
+    v.airSpecial = 0;
+    v.ledge = 0;
+    v.buffer = 0;
+  }
+  ev.push({ type: 'hurt', victim: v.id, source, index, x, y, dmg, kb: idiv(kb, 1000) });
 }
 
 /** Actions that stop at a platform edge instead of sliding off it. */
@@ -762,11 +979,12 @@ function holdsEdge(f: Fighter): boolean {
 }
 
 /** Pushes an airborne fighter out of the sides and bottoms of solid platforms. */
-function collideSolids(f: Fighter, py: number): void {
+function collideSolids(s: GameState, f: Fighter, py: number): void {
   const [w, height] = bodySize(f);
   const half = w >> 1;
-  for (const p of stage.platforms) {
-    if (!p.solid) continue;
+  for (let i = 0; i < stage.platforms.length; i++) {
+    const p = stage.platforms[i];
+    if (!p.solid || !platformOn(stage, s, i)) continue;
     const x1 = p.x1 * FX;
     const x2 = p.x2 * FX;
     const top = p.y * FX;

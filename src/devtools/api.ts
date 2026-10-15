@@ -34,6 +34,8 @@ export interface FighterState {
   clipOptions: Record<string, ClipOptions>;
   /** Generated side views: candidates, and the chosen one (_side.png). */
   sides: { file: string; chosen: boolean; size: number; mtime: number; recipe: Recipe | null }[];
+  /** Poses besides Standing (the side view): the chosen poses/<pose>.png and candidates in poses/_takes/. */
+  poses: Record<string, { chosen: { file: string; size: number; mtime: number } | null; takes: { file: string; seed: number; size: number; mtime: number; recipe: Recipe | null }[] }>;
   /** Generated clip takes waiting in anims/_takes/, newest last. */
   takes: { clip: string; seed: number; file: string; size: number; mtime: number; recipe: Recipe | null }[];
   manifest: Manifest | null;
@@ -43,9 +45,13 @@ export interface FighterState {
 export interface ClipOptions {
   start?: number;
   end?: number;
+  /** Playback speed (2 = twice as fast); default from anim-clips.json "speed". */
+  speed?: number;
   flip?: boolean;
   fps?: number;
   normalize?: boolean;
+  /** Size multiplier (1.1 = 10% bigger), or 'auto': match the fighter's Standing pose. */
+  size?: number | 'auto';
   tolerance?: number;
 }
 
@@ -63,6 +69,13 @@ export interface ClipList {
   moves: string[];
   unstanding: string[];
   labels: Record<string, string>;
+  /** The pose library: still images of each fighter that clips start and end on. */
+  poses?: Record<string, { label: string; action: string }>;
+  /** Per clip playback speed applied when the video becomes frames (default 1). */
+  speed?: Record<string, number>;
+  /** Per clip: [start pose, end pose or null]. */
+  frames?: Record<string, [string, string | null]>;
+  actions?: Record<string, string>;
 }
 
 const API = '/api/dev';

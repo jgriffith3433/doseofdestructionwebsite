@@ -1,0 +1,45 @@
+{
+ "job": "a5463e1fa42e",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "humans-in-the-loop",
+ "piece": "stage",
+ "kind": "stage",
+ "layers": [
+  "stage-deck",
+  "left-cases",
+  "right-cases"
+ ],
+ "seed": 512500118,
+ "prompt": "Paint image 1 as finished 2D game environment art. Each shape becomes the structure described for its place, at exactly the same position, size and outline: center: Scuffed matte black stage deck with grey wear marks, a strip of yellow gaffer tape near the front edge, a black fabric skirt hanging below, warm amber spill light glancing across the top surface; left: Black road cases with brushed aluminium edging, steel corner caps and recessed latches, stencil labels and colored tape (orange, yellow), a coil of black cable resting on top; right: Black road cases with aluminium trim and corner caps, rack-mount amp panel visible on the lower case with tiny green and amber LEDs, yellow and green tape labels. The bright horizontal bars are walkable surfaces (rooftop edges, ledges, catwalks, landings): keep each one exactly where it is, flat and level, as the visible top edge of its structure. Match the art style, palette and lighting of image 2. Style: Cinematic photoreal-leaning painted concert arena, deep near-black shadows with crisp highlights on metal and road case trim. Palette of charcoal and gunmetal greys lit by warm gold-amber and cool steel-blue stage lights through drifting haze. Electric, anticipatory live-show mood. Everything outside the shapes stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -671,
+  "x2": 671,
+  "y1": -269.58333333333337,
+  "y2": 289.58333333333337
+ },
+ "size": [
+  1584,
+  656
+ ],
+ "x": 0,
+ "y": 10,
+ "width": 1342,
+ "created": 1792027819131,
+ "fit": {
+  "score": 0.75,
+  "platforms": [
+   0.5,
+   0.8,
+   0.96
+  ]
+ }
+}

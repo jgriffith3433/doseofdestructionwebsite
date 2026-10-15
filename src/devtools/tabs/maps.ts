@@ -17,6 +17,30 @@ import { askToNotify, bar, duration, progressOf } from '../activity.ts';
 import { attempt, checkbox, field, numberInput, select, textInput, toast } from '../ui.ts';
 import { animate } from '../sprites.ts';
 import type { Tab } from '../main.ts';
+import type { ModesFile } from '../../game/modes.ts';
+import {
+  cleanDynamics,
+  cleanLayerDynamics,
+  cleanPlatformDynamics,
+  dragDynamics,
+  drawDynamics,
+  dynamicIssues,
+  effectExtras,
+  effectKinds,
+  eventsCard,
+  hazardCard,
+  hazardsCard,
+  hitDynamics,
+  layerDynamics,
+  momentChoices,
+  platformEvents,
+  platformTag,
+  zoneCard,
+  zonesCard,
+  type DynCtx,
+  type DynDrag,
+  type DynSel,
+} from './mapDynamics.ts';
 
 type Edge = 'left' | 'right' | 'top' | 'bottom';
 type Selection =
@@ -25,6 +49,7 @@ type Selection =
   | { kind: 'respawn' }
   | { kind: 'blast'; edge: Edge }
   | { kind: 'layer'; index: number }
+  | DynSel
   | null;
 
 type Drag =
@@ -33,7 +58,8 @@ type Drag =
   | { kind: 'spawn'; index: number }
   | { kind: 'respawn' }
   | { kind: 'blast'; edge: Edge }
-  | { kind: 'layer'; index: number; part: 'body' | 'size'; wx: number; wy: number; start: StageLayer };
+  | { kind: 'layer'; index: number; part: 'body' | 'size'; wx: number; wy: number; start: StageLayer }
+  | DynDrag;
 
 interface Concept {
   folder: string;
@@ -61,6 +87,7 @@ let animating = true;
 let showArt = true;
 let artMode = false;
 let seeThrough = false;
+let showDyn = true;
 let frame = 0;
 const view = { cx: 0, cy: 150, zoom: 0.35 };
 let canvas: HTMLCanvasElement;
@@ -328,6 +355,9 @@ function draw(): void {
     ctx.fillRect(hx - 5, hy - 5, 10, 10);
   }
 
+  // Zones and hazard paths, under the platforms.
+  if (showDyn) drawDynamics(ctx, st, toScreen, view.zoom, dynSel(), frame);
+
   // Platforms.
   st.platforms.forEach((p, i) => {
     const sel = selection?.kind === 'platform' && selection.index === i;
@@ -398,6 +428,12 @@ function draw(): void {
       ctx.fillRect(x1 - 5, y - 5, 10, 10);
       ctx.fillRect(x2 - 5, y - 5, 10, 10);
       if (p.solid) ctx.fillRect((x1 + x2) / 2 - 5, y + depthPx - 5, 10, 10);
+    }
+    const tag = platformTag(p);
+    if (tag) {
+      ctx.fillStyle = 'rgba(255, 209, 90, 0.85)';
+      ctx.font = '11px Segoe UI, sans-serif';
+      ctx.fillText(tag, x1 + 4, y + depthPx + 13);
     }
   });
 
@@ -500,6 +536,9 @@ function hit(sx: number, sy: number): Drag | null {
   }
   const [rx, ry] = toScreen(st.respawn.x, st.respawn.y);
   if (near(rx, ry, 10)) return { kind: 'respawn' };
+  // Hazard path points and the selected zone's corner.
+  const handle = showDyn ? hitDynamics(st, sx, sy, wx, wy, toScreen, dynSel(), false) : null;
+  if (handle) return handle;
   // Topmost platform first: later ones draw over earlier ones.
   for (let i = st.platforms.length - 1; i >= 0; i--) {
     const p = st.platforms[i];
@@ -513,8 +552,25 @@ function hit(sx: number, sy: number): Drag | null {
     const [hx, hy] = blastHandle(edge);
     if (near(hx, hy, 9)) return { kind: 'blast', edge };
   }
-  return null;
+  return showDyn ? hitDynamics(st, sx, sy, wx, wy, toScreen, dynSel(), true) : null;
 }
+
+/** The selected zone, hazard or event, if that's what is selected. */
+function dynSel(): DynSel | null {
+  return selection && (selection.kind === 'zone' || selection.kind === 'hazard' || selection.kind === 'event') ? selection : null;
+}
+
+const dynCtx: DynCtx = {
+  changed: () => setDirty(),
+  rerender: () => renderInspector(),
+  select: (s) => {
+    selection = s;
+    renderInspector();
+  },
+  get sounds() {
+    return sounds;
+  },
+};
 
 function onDown(e: PointerEvent): void {
   canvas.setPointerCapture(e.pointerId);
@@ -528,7 +584,9 @@ function onDown(e: PointerEvent): void {
       : found.kind === 'spawn' ? { kind: 'spawn', index: found.index }
       : found.kind === 'respawn' ? { kind: 'respawn' }
       : found.kind === 'blast' ? { kind: 'blast', edge: found.edge }
-      : found.kind === 'layer' ? { kind: 'layer', index: found.index } : null;
+      : found.kind === 'layer' ? { kind: 'layer', index: found.index }
+      : found.kind === 'zone' ? { kind: 'zone', index: found.index }
+      : found.kind === 'hazard' ? { kind: 'hazard', index: found.index } : null;
     renderInspector();
   } else {
     drag = { kind: 'pan', sx, sy, cx: view.cx, cy: view.cy };
@@ -594,6 +652,11 @@ function onMove(e: PointerEvent): void {
       setDirty();
       break;
     }
+    case 'zone':
+    case 'hazard':
+      dragDynamics(st, drag, wx, wy, (v) => snapTo(v, free));
+      setDirty();
+      break;
     case 'layer': {
       const l = st.layers![drag.index];
       const s0 = drag.start;
@@ -650,6 +713,15 @@ function onKey(e: KeyboardEvent): void {
     return;
   }
   const sel = selection;
+  if ((sel?.kind === 'zone' || sel?.kind === 'hazard') && (e.key === 'Delete' || e.key === 'Backspace')) {
+    e.preventDefault();
+    if (sel.kind === 'zone') st.zones?.splice(sel.index, 1);
+    else st.hazards?.splice(sel.index, 1);
+    selection = null;
+    setDirty();
+    renderInspector();
+    return;
+  }
   if (sel?.kind !== 'platform' && sel?.kind !== 'layer') return;
   const step = e.shiftKey ? 1 : snap;
   const nudge = (dx: number, dy: number) => {
@@ -806,6 +878,7 @@ function cleaned(): StageDef[] {
       if (p.solid) q.depth = r(p.depth ?? 90);
       if (p.motion && !p.solid) q.motion = { ax: r(p.motion.ax), ay: r(p.motion.ay), period: Math.max(1, r(p.motion.period)), ...(p.motion.phase ? { phase: r(p.motion.phase) } : {}) };
       if (p.hidden) q.hidden = true;
+      cleanPlatformDynamics(q, p);
       return q;
     });
     s.spawns = s.spawns.map((p) => ({ x: r(p.x), y: r(p.y) }));
@@ -824,10 +897,12 @@ function cleaned(): StageDef[] {
         if (l.shape?.length) q.shape = l.shape.map((p) => ({ x1: r(p.x1), x2: r(p.x2), y1: r(p.y1), y2: r(p.y2) }));
         const links = (l.platforms ?? []).filter((n) => n >= 0 && n < s.platforms.length);
         if (links.length) q.platforms = [...new Set(links)].sort((a, b) => a - b);
+        cleanLayerDynamics(q, l);
         return q;
       });
     } else delete s.layers;
     if (!s.effects?.length) delete s.effects;
+    cleanDynamics(s, s);
     if (!s.notes?.trim()) delete s.notes;
     if (!s.source) delete s.source;
   }
@@ -872,10 +947,11 @@ function issues(st: StageDef): string[] {
   });
   layers.forEach((l) => {
     // Between -1.2 and 3 a layer cuts through the default blocks of visible platforms.
-    const cuts = !l.platforms?.length && st.platforms.some((p) => !p.hidden && overlaps(l, p, p.solid ? (p.depth ?? 90) * 2.5 : 10));
+    const cuts = !l.platforms?.length && !l.follows && st.platforms.some((p) => !p.hidden && overlaps(l, p, p.solid ? (p.depth ?? 90) * 2.5 : 10));
     if (l.z > -1.2 && l.z < 3 && l.z !== 0 && cuts) out.push(`Layer ${l.id} at depth ${l.z} cuts through a platform's default block; use 3 or more behind, -1.5 or less in front, or make that platform collision only.`);
     if (l.occluder && l.z >= 0) out.push(`Layer ${l.id} is an occluder but sits behind the fighters; occluders only work in front.`);
   });
+  out.push(...dynamicIssues(st));
   return out;
 }
 
@@ -896,6 +972,47 @@ async function load(): Promise<void> {
   dirty = false;
   selection = null;
   resetHistory();
+}
+
+/** Where a stage is used: the modes that offer it (content/modes.json) and the chapters that fight on it. */
+/** Resolves once the tab has loaded the stages. */
+let loaded: Promise<unknown> = Promise.resolve();
+let usage: { modes: ModesFile | null; chapters: { id: string; title: string; stage: string }[] } = { modes: null, chapters: [] };
+
+async function loadUsage(): Promise<void> {
+  const [m, c] = await Promise.all([
+    api.content<ModesFile>('modes').catch(() => null),
+    api.content<{ id: string; title: string; fight: { stage: string } }[]>('campaign').catch(() => []),
+  ]);
+  usage = { modes: m, chapters: c.map((x) => ({ id: x.id, title: x.title, stage: x.fight.stage })) };
+}
+
+function usedIn(id: string): string[] {
+  const out: string[] = [];
+  for (const [mode, def] of Object.entries(usage.modes?.modes ?? {})) if (def?.stages.some((e) => e.stage === id)) out.push(def.name || mode);
+  usage.chapters.forEach((c, i) => { if (c.stage === id) out.push(`Story ch ${i + 1} (${c.title})`); });
+  return out;
+}
+
+/** A special version of a stage: a copy that records what it's a variant of, sharing its art. */
+function makeVariant(from: StageDef): void {
+  const base = from.variantOf ?? from.id;
+  const name = prompt('Name of this version? (e.g. "City Top (Calm)")', `${from.name} (variant)`);
+  if (!name) return;
+  let id = `${base}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').replace(new RegExp(`^${base}-?`), '') || 'variant'}`;
+  for (let n = 2; stages.some((s) => s.id === id); n++) id = `${id.replace(/-\d+$/, '')}-${n}`;
+  const copy = structuredClone(from);
+  copy.id = id;
+  copy.name = name;
+  copy.variantOf = base;
+  stages.push(copy);
+  current = stages.length - 1;
+  selection = null;
+  dirty = true;
+  resetHistory();
+  renderAll();
+  fit();
+  toast('Variant made: change what you like, save, then tick it into a mode in the Modes tab.');
 }
 
 function newStage(copyFrom?: StageDef): void {
@@ -1115,7 +1232,7 @@ function useTake(pieceId: string, t: Take): void {
   if (!r) return;
   const place = { image: t.file, x: r.x, y: r.y, width: r.width, aspect: Math.round((r.size[1] / r.size[0]) * 1000) / 1000 };
   st.layers ??= [];
-  if (r.kind === 'stage') {
+  if (r.kind === 'stage' && pieceId === 'stage') {
     // One painting for every piece that draws platforms; the placeholders stay, hidden, as notes.
     const members = st.layers.filter((l) => r.layers.includes(l.id) && l.id !== 'stage-art');
     const links = [...new Set(members.flatMap((l) => l.platforms ?? []))].sort((a, b) => a - b);
@@ -1221,12 +1338,25 @@ function reviewCard(st: StageDef): HTMLElement {
 
 // ------------------------------------------------------------ 3D preview
 
+type Sim = {
+  newGame: typeof import('../../game/sim/state.ts').newGame;
+  step: typeof import('../../game/sim/step.ts').step;
+  STAGES: StageDef[];
+  Bot: typeof import('../../game/ai/bot.ts').Bot;
+  chars: number[];
+};
+
 interface Preview {
   el: HTMLElement;
   renderer: import('../../game/render/renderer.ts').Renderer;
   state: import('../../game/sim/state.ts').GameState;
   stop: () => void;
   walker: { x: number; y: number };
+  sim: Sim;
+  /** Where the edited stage sits in STAGES while previewing, so the real sim runs it. */
+  slot: number;
+  bots: InstanceType<Sim['Bot']>[] | null;
+  events: HTMLElement;
 }
 let pv: Preview | null = null;
 let pvTimer = 0;
@@ -1237,15 +1367,23 @@ async function togglePreview(): Promise<void> {
     closePreview();
     return;
   }
-  const [{ Renderer }, { newGame }, { CHARACTERS }] = await Promise.all([
+  const [{ Renderer }, { newGame }, { CHARACTERS }, { step }, { STAGES }, { Bot }] = await Promise.all([
     import('../../game/render/renderer.ts'),
     import('../../game/sim/state.ts'),
     import('../../game/sim/characters.ts'),
+    import('../../game/sim/step.ts'),
+    import('../../game/sim/stage.ts'),
+    import('../../game/ai/bot.ts'),
   ]);
   const cv = h('canvas', {});
   const renderer = new Renderer(cv);
   const pick = (id: string, d: number) => Math.max(0, CHARACTERS.findIndex((c) => c.id === id)) || d;
-  const state = newGame([{ char: pick('exit-punk', 0) }, { char: pick('break', 1) }], { stocks: 3, seed: 1, stage: 0 });
+  const sim: Sim = { newGame, step, STAGES, Bot, chars: [pick('exit-punk', 0), pick('break', 1)] };
+  // The edited stage runs in the real sim from a spare slot at the end of STAGES.
+  const slot = STAGES.length;
+  STAGES.push(cleaned()[current]);
+  const state = newGame(sim.chars.map((char) => ({ char })), { stocks: 3, seed: 1, stage: slot });
+  const events = h('div', { class: 'row' });
   const walker = { x: stage().spawns[0]?.x ?? -200, y: stage().spawns[0]?.y ?? 0 };
   const sx = h('input', { type: 'range', min: stage().blast.left, max: stage().blast.right, step: 5, value: walker.x, style: 'flex:1' });
   const sy = h('input', { type: 'range', min: -300, max: Math.max(600, stage().blast.top - 200), step: 5, value: walker.y, style: 'flex:1' });
@@ -1267,27 +1405,74 @@ async function togglePreview(): Promise<void> {
       } }, 'KO'),
       h('button', { type: 'button', class: 'btn small', onclick: () => pv?.renderer.stageEvent('start') }, 'Match start'),
       h('button', { type: 'button', class: 'btn small', onclick: () => pv?.renderer.stageEvent('end') }, 'Finale'),
-      h('span', { class: 'hint' }, 'Move the fighter behind front art to check the silhouette.')),
+      checkbox('Bots fight', false, (v) => {
+        if (!pv) return;
+        pv.bots = v ? pv.state.fighters.map((_, i) => new pv!.sim.Bot(i, 6, 100 + i)) : null;
+        if (!v) void rebuildPreview();
+      }),
+      h('span', { class: 'hint' }, 'Move the fighter behind front art to check the silhouette, or let two bots play it.')),
+    events,
   );
   root.querySelector('.map-view')!.append(el);
   const stop = animate(() => {
     if (!pv || root.hidden) return;
-    const f = pv.state.fighters[0];
-    f.x = Math.round(pv.walker.x) * 1000;
-    f.y = Math.round(pv.walker.y) * 1000;
-    pv.state.frame++;
-    pv.renderer.render(pv.state);
+    const s = pv.state;
+    if (s.over) {
+      void rebuildPreview();
+      return;
+    }
+    const inputs = pv.bots ? pv.bots.map((b) => b.think(s)) : s.fighters.map(() => 0);
+    const evs = pv.sim.step(s, inputs);
+    if (!pv.bots) {
+      // The walker goes where the sliders say, whatever the stage does to it.
+      const f = s.fighters[0];
+      f.x = Math.round(pv.walker.x) * 1000;
+      f.y = Math.round(pv.walker.y) * 1000;
+      f.vx = f.vy = f.kbx = f.kby = 0;
+    }
+    pv.renderer.onEvents(evs);
+    pv.renderer.render(s);
+    showPreviewEvents();
   });
-  pv = { el, renderer, state, stop, walker };
+  pv = { el, renderer, state, stop, walker, sim, slot, bots: null, events };
   // For poking at from the browser console.
   (window as unknown as { dodPreview: Preview }).dodPreview = pv;
   await rebuildPreview();
   renderer.engine.resize();
 }
 
+/** A button per stage event, to fire it now, and what each is doing. */
+let pvEventsSig = '';
+function showPreviewEvents(): void {
+  if (!pv) return;
+  const st = pv.sim.STAGES[pv.slot];
+  const evs = st.events ?? [];
+  const phase = (i: number) => ['waiting', 'warning', 'running'][pv!.state.evPhase[i]] ?? '';
+  const sig = evs.map((e, i) => `${e.id}:${phase(i)}`).join('|');
+  if (sig === pvEventsSig) return;
+  pvEventsSig = sig;
+  pv.events.replaceChildren(...(evs.length ? [
+    h('span', { class: 'muted' }, 'Events:'),
+    ...evs.map((e, i) => h('button', {
+      type: 'button',
+      class: `btn small${pv!.state.evPhase[i] ? ' primary' : ''}`,
+      title: `Fire ${e.name || e.id} now (it warns first if it has a warning)`,
+      onclick: () => {
+        if (!pv) return;
+        // Waiting with nothing left on the clock: the next step warns (or starts) it.
+        pv.state.evPhase[i] = 0;
+        pv.state.evTimer[i] = 0;
+      },
+    }, `${e.name || e.id} · ${phase(i)}`)),
+  ] : [h('span', { class: 'hint' }, 'No stage events. Add some under Stage events.')]));
+}
+
 function closePreview(): void {
   if (!pv) return;
   pv.stop();
+  // Give the spare STAGES slot back.
+  if (pv.sim.STAGES.length === pv.slot + 1) pv.sim.STAGES.pop();
+  pvEventsSig = '';
   pv.renderer.dispose();
   pv.el.remove();
   pv = null;
@@ -1304,15 +1489,11 @@ async function rebuildPreview(): Promise<void> {
   pvBusy = true;
   try {
     const st = cleaned()[current];
-    // Fighters stand on the edited stage's spawns.
-    pv.state.fighters.forEach((f, i) => {
-      const sp = st.spawns[i % st.spawns.length];
-      if (i > 0) {
-        f.x = sp.x * 1000;
-        f.y = sp.y * 1000;
-      }
-      f.grounded = 1;
-    });
+    // A fresh match on the edited stage, in the real sim.
+    pv.sim.STAGES[pv.slot] = st;
+    pv.state = pv.sim.newGame(pv.sim.chars.map((char) => ({ char })), { stocks: 3, seed: (Date.now() & 0xffff) + 1, stage: pv.slot });
+    if (pv.bots) pv.bots = pv.state.fighters.map((_, i) => new pv!.sim.Bot(i, 6, 100 + i));
+    pvEventsSig = '';
     pv.renderer.showStage(st);
     await pv.renderer.setFighters(pv.state, true);
   } finally {
@@ -1341,6 +1522,7 @@ function renderList(): void {
     h('div', { class: 'row', style: 'padding:6px 2px' },
       h('button', { type: 'button', class: 'btn small', onclick: () => newStage() }, 'New'),
       h('button', { type: 'button', class: 'btn small', onclick: () => newStage(stage()) }, 'Duplicate'),
+      h('button', { type: 'button', class: 'btn small', title: 'A special version of this map (for one mode, say), sharing its art', onclick: () => makeVariant(stage()) }, 'Variant'),
       h('button', { type: 'button', class: 'btn small danger', disabled: stages.length < 2, onclick: () => {
         if (!confirm(`Delete ${stage().name}? Campaign chapters that use it fall back to the first stage.`)) return;
         stages.splice(current, 1);
@@ -1477,19 +1659,21 @@ function effectsCard(st: StageDef): HTMLElement {
     });
     return h('div', { class: 'effect-row' },
       h('div', { class: 'row' },
-        select<StageEffect['on']>([['ko', 'On a KO'], ['end', 'At the end (finale)'], ['start', 'At the start'], ['ambient', 'Every few seconds']], e.on, (v) => { e.on = v; setDirty(); renderInspector(); }),
-        select<StageEffect['kind']>([['firework', 'Firework'], ['burst', 'Burst'], ['shake', 'Camera shake'], ['embers', 'Embers']], e.kind, (v) => { e.kind = v; setDirty(); }),
+        select<string>(momentChoices(st, true), e.on, (v) => { e.on = v; setDirty(); renderInspector(); }),
+        select<StageEffect['kind']>(effectKinds(), e.kind, (v) => { e.kind = v; setDirty(); renderInspector(); }),
         h('button', { type: 'button', class: 'btn small danger', onclick: () => { fx.splice(i, 1); setDirty(); renderInspector(); } }, '×')),
       h('div', { class: 'form' },
         field('How many', numberInput(e.count ?? null, (v) => { e.count = v ?? undefined; setDirty(); }, { min: 1, max: 30, placeholder: e.on === 'end' ? '12' : '1' })),
         e.on === 'ambient' ? field('Every (s)', numberInput(e.every ?? 4, (v) => { e.every = v ?? undefined; setDirty(); }, { min: 1, step: 0.5 })) : null,
         e.kind === 'burst' ? field('Where', select<'ko' | 'sky'>([['ko', 'At the KO'], ['sky', 'In the sky']], e.at ?? 'ko', (v) => { e.at = v; setDirty(); })) : null,
+        effectExtras(e, dynCtx),
+        e.on.startsWith('event:') && ['dust', 'rain', 'embers', 'confetti'].includes(e.kind) ? h('span', { class: 'sub' }, 'Keeps coming while the event runs.') : null,
         field('Sound', select<string>([['', 'None'], ...sounds.map((s): [string, string] => [s, s])], e.sound ?? '', (v) => { e.sound = v || undefined; setDirty(); }))),
       colors);
   };
   return h('div', { class: 'card' },
     h('h3', {}, 'Effects'),
-    fx.length ? h('div', {}, ...fx.map(row)) : h('p', { class: 'hint' }, 'Nothing happens on KOs or at the end yet.'),
+    fx.length ? h('div', {}, ...fx.map(row)) : h('p', { class: 'hint' }, 'Nothing happens on KOs, hits, events or at the end yet.'),
     h('div', { class: 'row' },
       h('button', { type: 'button', class: 'btn small', onclick: () => { fx.push({ on: 'ko', kind: 'firework' }); setDirty(); renderInspector(); } }, '+ Effect'),
       h('span', { class: 'hint' }, 'Try them in the 3D preview.')),
@@ -1561,6 +1745,7 @@ function renderInspector(): void {
           field('Period', num(p.motion as unknown as Record<string, number>, 'period', { min: 1 }), { sub: 'Frames per cycle; 60 = 1s' }),
           field('Phase', numberInput(p.motion.phase ?? 0, (v) => { p.motion!.phase = v ?? 0; setDirty(); }, { step: 15 }), { sub: 'Degrees into the cycle' }),
         ),
+        platformEvents(st, p, dynCtx),
         h('div', { class: 'row' },
           h('button', { type: 'button', class: 'btn small', onclick: () => duplicatePlatform(sel.index) }, 'Duplicate'),
           h('button', { type: 'button', class: 'btn small', title: 'A copy on the other side of x = 0', onclick: () => duplicatePlatform(sel.index, true) }, 'Mirror'),
@@ -1576,7 +1761,13 @@ function renderInspector(): void {
       h('div', { class: 'form' }, field('x', num(st.respawn as unknown as Record<string, number>, 'x')), field('y', num(st.respawn as unknown as Record<string, number>, 'y'))));
   } else if (sel?.kind === 'layer') {
     const l = st.layers?.[sel.index];
-    if (l) selected = layerCard(st, l, sel.index);
+    if (l) selected = h('div', {}, layerCard(st, l, sel.index), layerDynamics(st, l, dynCtx));
+  } else if (sel?.kind === 'zone') {
+    const z = st.zones?.[sel.index];
+    if (z) selected = zoneCard(st, z, sel.index, dynCtx);
+  } else if (sel?.kind === 'hazard') {
+    const hz = st.hazards?.[sel.index];
+    if (hz) selected = hazardCard(st, hz, sel.index, dynCtx);
   }
 
   const concept = st.source ? concepts.find((c) => c.folder === st.source) : null;
@@ -1587,6 +1778,13 @@ function renderInspector(): void {
   const problems = issues(st);
   inspector.replaceChildren(...kids(
     h('h3', {}, 'Stage'),
+    (() => {
+      const where = usedIn(st.id);
+      return h('p', { class: `hint${where.length ? '' : ' warn'}` },
+        st.variantOf ? `A variant of ${st.variantOf}. ` : '',
+        where.length ? `Used in: ${where.join(', ')}. ` : 'Not in any mode or chapter yet, so players can’t reach it. ',
+        h('a', { href: '#modes' }, 'Modes tab'));
+    })(),
     h('div', { class: 'form' },
       field('Name', textInput(st.name, (v) => { st.name = v; touch(); })),
       field('Id', textInput(st.id, (v) => { st.id = v.toLowerCase().replace(/[^a-z0-9-]/g, ''); touch(); }), { sub: 'Music plays music-<id>; art lives in stages/<id>/' }),
@@ -1602,6 +1800,9 @@ function renderInspector(): void {
     reviewCard(st),
     layersCard(st),
     effectsCard(st),
+    eventsCard(st, dynCtx),
+    zonesCard(st, dynCtx, { x: view.cx, y: view.cy }),
+    hazardsCard(st, dynCtx, { x: view.cx, y: view.cy }),
     h('h3', {}, 'Notes'),
     notes,
     h('h3', {}, 'Blast zone'),
@@ -1661,6 +1862,7 @@ export const mapsTab: Tab = {
           box('Art', showArt, (v) => (showArt = v)),
           box('Art mode', artMode, (v) => { artMode = v; if (!v && selection?.kind === 'layer') selection = null; renderInspector(); }, 'data-artmode'),
           box('See through front', seeThrough, (v) => (seeThrough = v)),
+          box('Zones', showDyn, (v) => (showDyn = v)),
           h('button', { type: 'button', class: 'btn', onclick: fit }, 'Fit'),
           h('button', { type: 'button', class: 'btn', title: 'Ctrl+Z', onclick: () => undo(true) }, 'Undo'),
           h('button', { type: 'button', class: 'btn', title: 'Ctrl+Y', onclick: () => undo(false) }, 'Redo'),
@@ -1692,11 +1894,12 @@ export const mapsTab: Tab = {
     window.addEventListener('beforeunload', (e) => {
       if (dirty) e.preventDefault();
     });
-    await attempt(async () => {
+    loaded = attempt(async () => {
       await load();
       const [, s] = await Promise.all([loadConcepts(), api.content<{ id: string }[]>('sounds')]);
       sounds = s.map((x) => x.id);
     });
+    await loaded;
     renderAll();
     requestAnimationFrame(() => {
       fit();
@@ -1721,6 +1924,25 @@ export const mapsTab: Tab = {
     });
   },
   show() {
+    // The Modes tab can send a stage here to edit, or to make a variant of.
+    let ask: { stage?: string; variant?: boolean } | null = null;
+    try {
+      ask = JSON.parse(sessionStorage.getItem('dod-maps-open') ?? 'null');
+      sessionStorage.removeItem('dod-maps-open');
+    } catch {
+      // No storage: nothing was asked.
+    }
+    void Promise.all([loaded, loadUsage()]).then(() => {
+      const i = ask?.stage ? stages.findIndex((s) => s.id === ask!.stage) : -1;
+      if (i >= 0) {
+        current = i;
+        selection = null;
+        resetHistory();
+        fit();
+        if (ask!.variant) makeVariant(stages[i]);
+      }
+      renderAll();
+    });
     stopLoop?.();
     stopLoop = animate(() => {
       if (root.hidden) return;

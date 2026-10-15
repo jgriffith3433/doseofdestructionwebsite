@@ -16,8 +16,11 @@ const GROUPS = ['combat', 'movement', 'ui', 'music', 'other'];
 const USED = new Set([
   'hit-light', 'hit-medium', 'hit-heavy', 'hit-shield', 'shield-break', 'swing-light', 'swing-heavy', 'ko',
   'jump', 'land', 'ledge', 'dodge', 'respawn', 'ui-move', 'ui-select', 'ui-back', 'wipe', 'vs-slam',
-  'music-menu', 'music-results', 'music-foundry', 'music-rooftop', 'music-drift', 'music-split', 'music-pit',
+  'music-menu', 'music-results',
 ]);
+/** Each stage plays music-<its id>; filled in from content/stages.json when the tab mounts. */
+const stageIds = new Set<string>();
+const used = (id: string) => USED.has(id) || (id.startsWith('music-') && stageIds.has(id.slice(6)));
 
 let root: HTMLElement;
 let sounds: SoundEntry[] = [];
@@ -162,7 +165,7 @@ function editorFor(s: SoundEntry): HTMLElement {
   const card = h(
     'section',
     { class: 'card sticky' },
-    h('h3', {}, s.id, h('span', { class: 'spacer' }), USED.has(s.id) ? h('span', { class: 'badge ok' }, 'played by the game') : h('span', { class: 'badge' }, 'not used yet')),
+    h('h3', {}, s.id, h('span', { class: 'spacer' }), used(s.id) ? h('span', { class: 'badge ok' }, 'played by the game') : h('span', { class: 'badge' }, 'not used yet')),
     h(
       'div',
       { class: 'form' },
@@ -197,7 +200,7 @@ function editorFor(s: SoundEntry): HTMLElement {
         await save(true);
         render();
       } }, 'Delete file'),
-      !USED.has(s.id) && h('button', { type: 'button', class: 'btn danger', onclick: () => {
+      !used(s.id) && h('button', { type: 'button', class: 'btn danger', onclick: () => {
         sounds = sounds.filter((x) => x !== s);
         selected = '';
         markDirty();
@@ -271,6 +274,7 @@ export const soundsTab: Tab = {
     root = el;
     el.style.display = 'block';
     sounds = (await attempt(() => api.content<SoundEntry[]>('sounds'))) ?? [];
+    for (const st of (await attempt(() => api.content<{ id: string }[]>('stages'))) ?? []) stageIds.add(st.id);
     selected = sounds[0]?.id ?? '';
     render();
     store.on(() => {

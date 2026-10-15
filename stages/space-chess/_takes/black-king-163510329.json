@@ -1,0 +1,35 @@
+{
+ "job": "082e6c9d9cf8",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "space-chess",
+ "piece": "black-king",
+ "kind": "scenery",
+ "layers": [
+  "black-king"
+ ],
+ "seed": 163510329,
+ "prompt": "Paint image 1: the shape becomes A tall classic Staunton black king in dark slate-blue lacquered wood, smooth turned body, crown with a small cross on top, glossy blue-white starlight highlights along its curves, soft shadow at its base, filling the same position and size. Match the art style, palette and lighting of image 2. Style: Polished, cinematic 3D-rendered look: glossy lacquered wood and ivory chess pieces lit by cool blue starlight against deep black space. Palette of near-black navy, midnight blue and bright cobalt nebula accents, with cream-white squares as the brightest values. Quiet, grand and mysterious, like a cosmic game frozen mid-move. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": 395.85990000000004,
+  "x2": 564.1401000000001,
+  "y1": -16.97800000000002,
+  "y2": 356.978
+ },
+ "size": [
+  688,
+  1536
+ ],
+ "x": 480,
+ "y": 170,
+ "width": 168,
+ "created": 1792028616971
+}

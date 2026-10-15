@@ -1,0 +1,41 @@
+{
+ "job": "167b8fc4d79a",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "solar-array",
+ "piece": "panel-left",
+ "kind": "stage",
+ "layers": [
+  "panel-left"
+ ],
+ "seed": 2095518847,
+ "prompt": "Paint image 1 as finished 2D game environment art. Each shape becomes the structure described for its place, at exactly the same position, size and outline: center: A wide photovoltaic panel seen nearly edge-on from slightly above: deep blue cells with a white grid, a thick silver aluminum frame, a bright sky reflection glint, gimbal bracket underneath. The bright horizontal bars are walkable surfaces (rooftop edges, ledges, catwalks, landings): keep each one exactly where it is, flat and level, as the visible top edge of its structure. Match the art style, palette and lighting of image 2. Style: Bold cartoon illustration with thick ink outlines and flat cel shading, like a sunny animated adventure. Warm desert palette of ochre sand, red-orange sandstone and brown shadows against a clear cyan sky, with cool blue solar panels and grey steel as the accent. Bright midday-afternoon sun from the upper left, crisp hard shadows, cheerful and hot. Everything outside the shapes stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -493,
+  "x2": -207,
+  "y1": 82.41666666666666,
+  "y2": 201.58333333333334
+ },
+ "size": [
+  1584,
+  656
+ ],
+ "x": -350,
+ "y": 142,
+ "width": 286,
+ "created": 1792028376471,
+ "fit": {
+  "score": 1,
+  "platforms": [
+   1
+  ]
+ }
+}

@@ -14,9 +14,12 @@ An optional  anims/clips.json  next to the clips trims or tweaks them:
 
     { "jab": { "start": 1.2, "end": 1.7 }, "idle": { "flip": true } }
 
-Keys per clip: start, end (seconds), flip (the clip faces left), fps,
+Keys per clip: start, end (seconds; without them, one-shots and moves are
+trimmed to where the motion is, see still_ends), autotrim (false keeps the whole video), speed (playback speed: 2 is twice as
+fast; default from content/anim-clips.json "speed", else 1), flip (the clip faces left), fps,
 normalize (scale this clip by its own first frame; on by default for moves),
-tolerance (background keying, default 40).
+size (a multiplier on top of that: 1.1 is 10% bigger; "auto" sizes the clip so the
+fighter matches their standing reference, see auto_size), tolerance (background keying, default 40).
 
 Writes characters/anim/<id>/<clip>.webp and anims.json, refreshes
 characters/anim/index.json, and saves a contact sheet per fighter to
@@ -52,6 +55,10 @@ ONCE = set(_CLIP_LIST["once"])
 MOVES = set(_CLIP_LIST["moves"])
 CLIPS = LOOPS | ONCE | MOVES
 UNSTANDING = set(_CLIP_LIST["unstanding"])
+# Wan moves at a real-life pace; a clip can play faster (or slower) than it was made.
+SPEED = _CLIP_LIST.get("speed", {})
+# The pose each clip starts on (Standing is the side view, anims/_side.png).
+START_POSE = {k: v[0] for k, v in _CLIP_LIST.get("frames", {}).items() if isinstance(v, list) and v}
 
 SOURCE_HEIGHT = 720  # Frames are read at this height before keying.
 REF_HEIGHT = 300  # A standing fighter is this many pixels tall in the sheets.
@@ -66,13 +73,15 @@ def folder_to_id(name):
     return "-".join(w.lower() for w in words)
 
 
-def extract(video, start, end, fps, tmp):
+def extract(video, start, end, fps, tmp, speed=1.0):
     args = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y"]
     if start is not None:
         args += ["-ss", str(start)]
     if end is not None:
         args += ["-to", str(end)]
-    args += ["-i", str(video), "-vf", f"fps={fps},scale=-2:{SOURCE_HEIGHT}", str(tmp / "%04d.png")]
+    # The trim is in the video's own seconds; speed then retimes what's left.
+    retime = f"setpts=PTS/{speed}," if speed != 1 else ""
+    args += ["-i", str(video), "-vf", f"{retime}fps={fps},scale=-2:{SOURCE_HEIGHT}", str(tmp / "%04d.png")]
     subprocess.run(args, check=True)
     return [Image.open(p).convert("RGB") for p in sorted(tmp.glob("*.png"))]
 
@@ -86,21 +95,30 @@ def background_color(frame):
     return tuple(sorted(c[i] for c in samples)[len(samples) // 2] for i in range(3))
 
 
-def key(frame, bg, tolerance):
+def key(frame, bg, tolerance, k=3):
     """Clear backdrop connected to the frame edge; returns RGBA."""
     diff = ImageChops.difference(frame, Image.new("RGB", frame.size, bg))
     r, g, b = diff.split()
     near = ImageChops.lighter(ImageChops.lighter(r, g), b).point(lambda v: 255 if v < tolerance else 0)
     w, h = near.size
-    for x in range(0, w, 5):
-        for y in (0, h - 1):
-            if near.getpixel((x, y)) == 255:
-                ImageDraw.floodfill(near, (x, y), 128)
-    for y in range(0, h, 5):
-        for x in (0, w - 1):
-            if near.getpixel((x, y)) == 255:
-                ImageDraw.floodfill(near, (x, y), 128)
-    alpha = near.point(lambda v: 0 if v == 128 else 255).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(0.8))
+    # Pillow's flood fill is pure Python, so flood the backdrop on a third-size copy (a block
+    # counts only when nearly all of it is backdrop), then grow it back out at full size along
+    # backdrop pixels so the edges are exact. About 5x faster; the same cutout to within 0.2%.
+    small = near.resize((max(1, w // k), max(1, h // k)), Image.BOX).point(lambda v: 255 if v > 200 else 0)
+    sw, sh = small.size
+    for x in range(0, sw, 2):
+        for y in (0, sh - 1):
+            if small.getpixel((x, y)) == 255:
+                ImageDraw.floodfill(small, (x, y), 128)
+    for y in range(0, sh, 2):
+        for x in (0, sw - 1):
+            if small.getpixel((x, y)) == 255:
+                ImageDraw.floodfill(small, (x, y), 128)
+    region = small.point(lambda v: 255 if v == 128 else 0).resize((w, h), Image.NEAREST)
+    region = ImageChops.multiply(region, near)
+    for _ in range(k + 2):
+        region = ImageChops.multiply(region.filter(ImageFilter.MaxFilter(3)), near)
+    alpha = ImageChops.invert(region).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(0.8))
     out = frame.copy()
     if bg[1] > bg[0] + 40 and bg[1] > bg[2] + 40:
         # Green screen: pull the green spill off the edges.
@@ -111,25 +129,142 @@ def key(frame, bg, tolerance):
     return out
 
 
+def drop_specks(img, k=4, reach=12):
+    """Clears stray bits of backdrop the keying left far from the fighter (a corner pixel,
+    a speck of noise): they would count as part of the figure and throw its size off.
+    Keeps everything within about k*reach pixels of the solid body, thin parts included."""
+    a = img.getchannel("A").point(lambda v: 255 if v > 64 else 0)
+    w, h = a.size
+    small = a.resize((max(1, w // k), max(1, h // k)), Image.BOX).point(lambda v: 255 if v > 128 else 0)
+    body = small.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))
+    if not body.getbbox():
+        return img
+    keep = body.filter(ImageFilter.MaxFilter(2 * (reach // 2) + 1)).resize((w, h), Image.NEAREST)
+    out = img.copy()
+    out.putalpha(ImageChops.multiply(img.getchannel("A"), keep))
+    return out
+
+
 def solid_box(img):
     return img.getchannel("A").point(lambda v: 255 if v > 64 else 0).getbbox()
 
 
-def build_clip(name, video, opts, idle_scale):
+def still_ends(frames, pad=2, share=0.25):
+    """The first and last frame worth keeping: where the motion starts and stops.
+
+    Generated clips often hold their first pose, move, then hold the last. The
+    game squeezes a one-shot into a few frames (a landing is 4), so the holds
+    are all anyone would see. A frame counts as moving when it differs from
+    the one before by more than `share` of the clip's biggest change.
+    """
+    # The figure's silhouette (far from the corner's backdrop color): background noise doesn't count.
+    def silhouette(f):
+        small = f.resize((80, 80))
+        bg = small.getpixel((1, 1))
+        return ImageChops.difference(small, Image.new("RGB", small.size, bg)).convert("L").point(lambda v: 255 if v > 60 else 0)
+    masks = [silhouette(f) for f in frames]
+    raw = [sum(ImageChops.difference(a, b).histogram()[255:]) for a, b in zip(masks, masks[1:])]
+    # Resampled clips repeat a frame now and then; judge each step with its neighbor.
+    steps = [max(raw[max(0, i - 1):i + 2]) for i in range(len(raw))]
+    if not steps or max(steps) == 0:
+        return 0, len(frames) - 1
+    moving = [i for i, s in enumerate(steps) if s > max(steps) * share]
+    first = max(0, moving[0] - pad)
+    last = min(len(frames) - 1, moving[-1] + 1 + pad)
+    # Never trim to almost nothing.
+    if last - first < 6:
+        return 0, len(frames) - 1
+    return first, last
+
+
+def figure_height(img):
+    """The keyed figure's height as a share of the image height, or None."""
+    img = img.convert("RGB")
+    box = solid_box(drop_specks(key(img, background_color(img), 40)))
+    return (box[3] - box[1]) / img.height if box else None
+
+
+def auto_size(video, folder, name, base_scale):
+    """The size multiplier that makes this clip's fighter as big as their standing reference.
+
+    Each clip starts on a pose image (content/anim-clips.json "frames"), and the
+    pose images share the side view's framing. The video's first frame is that
+    pose, so comparing the two gives how far the video zoomed; the side view then
+    says how tall standing is at that zoom. Returns (multiplier, how), or (None, why not).
+    """
+    anims = folder / "anims"
+    pose = START_POSE.get(name, "stand")
+    recipe = anims / "_recipes" / f"{name}.json"
+    if recipe.exists():
+        try:
+            frames = json.loads(recipe.read_text(encoding="utf-8")).get("frames")
+            if isinstance(frames, list) and frames:
+                pose = frames[0]
+        except (ValueError, OSError):
+            pass
+    side = anims / "_side.png"
+    pose_img = side if pose == "stand" else folder / "poses" / f"{pose}.png"
+    if not side.exists() or not pose_img.exists():
+        return None, f"no {pose} pose image"
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "first.png"
+        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(video), "-frames:v", "1",
+                        "-vf", f"scale=-2:{SOURCE_HEIGHT}", str(out)], check=True)
+        first = Image.open(out).convert("RGB")
+    stand_h = figure_height(Image.open(side))
+    pose_h = pose_img == side and stand_h or figure_height(Image.open(pose_img))
+    video_h = figure_height(first)
+    if not stand_h or not pose_h or not video_h:
+        return None, "couldn't find the fighter"
+    # The standing height, in this video's (720-high) pixels.
+    standing = stand_h * (video_h / pose_h) * first.height
+    return round((REF_HEIGHT / standing) / base_scale, 3), pose
+
+
+def same_frame(a, b, tolerance=6.0):
+    """Whether two frames look the same: mean difference of small greyscale copies, out of 255."""
+    small = (64, 64)
+    pa = Image.open(a).convert("L").resize(small) if not isinstance(a, Image.Image) else a.convert("L").resize(small)
+    pb = Image.open(b).convert("L").resize(small) if not isinstance(b, Image.Image) else b.convert("L").resize(small)
+    da, db = pa.getdata(), pb.getdata()
+    return sum(abs(x - y) for x, y in zip(da, db)) / len(da) < tolerance
+
+
+def build_clip(name, video, opts, idle_scale, folder=None):
     loop = name in LOOPS
     fps = opts.get("fps", 15 if loop else 20)
+    speed = max(0.25, min(4.0, float(opts.get("speed", SPEED.get(name, 1)))))
     with tempfile.TemporaryDirectory() as tmp:
-        frames = extract(video, opts.get("start"), opts.get("end"), fps, Path(tmp))
+        frames = extract(video, opts.get("start"), opts.get("end"), fps, Path(tmp), speed)
     if not frames:
         raise SystemExit(f"{video}: no frames")
+    # One-shots and moves keep just the motion, unless trimmed by hand.
+    trimmed = None
+    if not loop and opts.get("start") is None and opts.get("end") is None and opts.get("autotrim", True):
+        first, last = still_ends(frames)
+        if first > 0 or last < len(frames) - 1:
+            trimmed = [round(first / fps, 2), round(last / fps, 2)]
+            frames = frames[first:last + 1]
+    # A loop made start-to-end on one pose ends on (nearly) its first frame;
+    # showing both would hold that pose twice each time round.
+    if loop and len(frames) > 2 and same_frame(frames[0], frames[-1]):
+        frames = frames[:-1]
     if len(frames) > MAX_FRAMES:
         step = len(frames) / MAX_FRAMES
         frames = [frames[int(i * step)] for i in range(MAX_FRAMES)]
 
     bg = background_color(frames[0])
-    keyed = [key(f, bg, opts.get("tolerance", 40)) for f in frames]
+    keyed = [drop_specks(key(f, bg, opts.get("tolerance", 40))) for f in frames]
     if opts.get("flip"):
         keyed = [k.transpose(Image.FLIP_LEFT_RIGHT) for k in keyed]
+
+    # A move's strike: the frame whose silhouette is furthest from the first (full extension).
+    # The game plays the clip so this frame lands on the move's first active frame.
+    hit = None
+    if name in MOVES and len(keyed) > 2:
+        first_shape = keyed[0].getchannel("A").resize((64, 64))
+        reach = [sum(ImageChops.difference(first_shape, k.getchannel("A").resize((64, 64))).histogram()[128:]) for k in keyed]
+        hit = opts.get("hit", max(range(len(reach)), key=lambda i: reach[i]))
 
     boxes = [solid_box(k) for k in keyed]
     if not any(boxes):
@@ -146,6 +281,12 @@ def build_clip(name, video, opts, idle_scale):
     own_scale = REF_HEIGHT / standing
     normalize = opts.get("normalize", name not in UNSTANDING)
     scale = own_scale if (normalize or idle_scale is None) else idle_scale
+    # Size: by hand (a multiplier), or worked out from the reference (auto).
+    auto, auto_from = auto_size(video, folder, name, scale) if folder else (None, None)
+    want = opts.get("size", 1)
+    size = auto if want == "auto" and auto else want if isinstance(want, (int, float)) and want > 0 else 1
+    size = max(0.25, min(4.0, float(size)))
+    scale *= size
 
     fw = max(1, round((ux1 - ux0) * scale))
     fh = max(1, round((uy1 - uy0) * scale))
@@ -163,7 +304,8 @@ def build_clip(name, video, opts, idle_scale):
         "file": f"{name}.webp", "frames": len(cells), "cols": cols, "rows": rows,
         "fw": fw, "fh": fh, "ax": ax, "ay": ay, "fps": fps, "loop": loop,
         # What it was built from, so devtools can tell when a clip is out of date.
-        "source": video.name, "sourceMtime": int(video.stat().st_mtime * 1000), "options": opts,
+        "source": video.name, "sourceMtime": int(video.stat().st_mtime * 1000), "options": opts, "speed": speed, "autoTrim": trimmed, "hit": hit,
+        "size": size, "autoSize": auto, "autoSizeFrom": auto_from,
     }
     return sheet, meta, cells, own_scale
 
@@ -222,10 +364,10 @@ def build_character(char_id, folder, only=None):
             if only != "idle" and idle_scale is None and "idle" in sources:
                 _, _, _, idle_scale = build_clip("idle", sources["idle"], opts_all.get("idle", {}), None)
                 manifest["idleScale"] = idle_scale
-            sheet, meta, _, own_scale = build_clip(only, sources[only], opts_all.get(only, {}), idle_scale)
+            sheet, meta, _, own_scale = build_clip(only, sources[only], opts_all.get(only, {}), idle_scale, folder)
             if only == "idle":
                 manifest["idleScale"] = own_scale
-            sheet.save(dest / meta["file"], quality=85, method=6)
+            sheet.save(dest / meta["file"], quality=85, method=4)
             manifest["clips"][only] = meta
             print(f"  {only:10} {meta['frames']:2} frames  {meta['fw']}x{meta['fh']}")
         else:
@@ -241,11 +383,11 @@ def build_character(char_id, folder, only=None):
     previews = {}
     idle_scale = None
     for name in names:
-        sheet, meta, cells, own_scale = build_clip(name, sources[name], opts_all.get(name, {}), idle_scale)
+        sheet, meta, cells, own_scale = build_clip(name, sources[name], opts_all.get(name, {}), idle_scale, folder)
         if name == "idle":
             idle_scale = own_scale
             manifest["idleScale"] = own_scale
-        sheet.save(dest / meta["file"], quality=85, method=6)
+        sheet.save(dest / meta["file"], quality=85, method=4)
         manifest["clips"][name] = meta
         previews[name] = cells
         print(f"  {name:10} {meta['frames']:2} frames  {meta['fw']}x{meta['fh']}")

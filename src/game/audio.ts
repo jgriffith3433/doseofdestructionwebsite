@@ -58,6 +58,8 @@ class AudioSystem {
   private ctx: AudioContext | null = null;
   private buses: Record<'master' | 'music' | 'sfx' | 'voice', GainNode> | null = null;
   private buffers = new Map<string, Promise<AudioBuffer | null>>();
+  /** Downloaded but not yet decoded (decoding needs the AudioContext, which waits for a click). */
+  private raw = new Map<string, Promise<ArrayBuffer | null>>();
   private soundById = new Map(SOUNDS.map((s) => [s.id, s]));
   private lineById = new Map(VOICE.lines.map((l) => [l.id, l]));
   private music: { id: string; src: AudioBufferSourceNode; gain: GainNode } | null = null;
@@ -121,16 +123,41 @@ class AudioSystem {
     if (this.ctx.state === 'suspended') void this.ctx.resume();
   }
 
-  private buffer(url: string): Promise<AudioBuffer | null> {
-    let p = this.buffers.get(url);
+  private download(url: string): Promise<ArrayBuffer | null> {
+    let p = this.raw.get(url);
     if (!p) {
       p = fetch(url)
         .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`${r.status}`))))
-        .then((data) => this.ctx!.decodeAudioData(data))
         .catch(() => null);
+      this.raw.set(url, p);
+    }
+    return p;
+  }
+
+  private buffer(url: string): Promise<AudioBuffer | null> {
+    let p = this.buffers.get(url);
+    if (!p) {
+      if (!this.ctx) return this.download(url).then(() => null);
+      // decodeAudioData takes the bytes over, so decode a copy and keep the download.
+      p = this.download(url).then((data) => (data && this.ctx ? this.ctx.decodeAudioData(data.slice(0)) : null)).catch(() => null);
       this.buffers.set(url, p);
     }
     return p;
+  }
+
+  /**
+   * Fetches (and, once sound is unlocked, decodes) everything a match plays:
+   * every sound effect, the stage's music, the announcer, and the lines of the
+   * fighters in it. Resolves when it's all in memory, or after a while.
+   */
+  async preloadMatch(stageId: string, fighterIds: string[], timeoutMs = 15000): Promise<void> {
+    const who = new Set(['announcer', ...fighterIds]);
+    const urls = [
+      ...SOUNDS.filter((s) => s.file && (s.group !== 'music' || s.id === `music-${stageId}` || s.id === 'music-results')).map((s) => s.file!),
+      ...VOICE.lines.filter((l) => l.audio && who.has(l.who)).map((l) => l.audio!),
+    ];
+    const all = Promise.all([...new Set(urls)].map((u) => (this.ctx ? this.buffer(u) : this.download(u))));
+    await Promise.race([all, new Promise((r) => setTimeout(r, timeoutMs))]);
   }
 
   private async start(url: string, bus: GainNode, volume: number, rate = 1, loop = false): Promise<AudioBufferSourceNode | null> {

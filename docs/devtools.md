@@ -16,6 +16,13 @@ other tabs stays put.
   "Use as cutout" on any source image in their art folder. Rebuild their
   images or the whole home lineup; edit name, role, blurb and every stat, with
   roster comparison bars. Saves `content/fighters.json`.
+- **Poses**: every fighter's stills (side view, facing right) that their
+  clips start and end on: Standing, Striding, Crouching, Airborne, Guarding,
+  Hanging, Hurt, Helpless, Dizzy. A grid of fighters by poses; click a cell to
+  make candidates, pick one, and write how that fighter does the pose (their
+  personality). **Make missing poses** queues Standing for everyone without
+  one, and the rest for fighters whose Standing is picked. See
+  `animation.md`.
 - **Animations**: every clip slot for a fighter. Import a video into a slot
   (button or drag and drop) and only that clip builds. **Edit** a clip to trim
   it against the source video, flip it, adjust background keying and size,
@@ -33,7 +40,23 @@ other tabs stays put.
   the blast zone, art still to paint, and so on. Concepts lists the folders in
   `C:\Projects\AllTheMaps` with **Generate Map Idea**. 3D preview shows the
   unsaved stage in the game renderer. Saves `content/stages.json`; art goes in
-  `stages/<id>/`. See `maps.md`.
+  `stages/<id>/`. See `maps.md`. **Variant** makes a special version of a
+  map (its own stage, sharing the art) to change for one mode.
+- **Modes**: where every stage is used. A table of every stage (variants
+  under the map they come from) with a tick per mode (Versus, Training) and
+  the story chapters that fight on it; "not used" marks stages players can't
+  reach. Under it, each mode's list in stage-select order: reorder, remove,
+  or open one to give it a name or rules for that mode only (stage events
+  off, gravity, damage). Saves `content/modes.json`; the game's stage select
+  reads it. A newly saved map is in no mode until you tick it in.
+- **Story**: the campaign, chapter by chapter. Title, tagline and hint; the
+  lines before and after the fight (speaker, text, voiced or out of date,
+  reorder, add, delete); and the fight: stage, stocks, goal (win or survive),
+  time limit, gravity, damage, stage events, and up to four fighters (who
+  plays them, team, stocks, size, starting damage). Add, duplicate, reorder
+  and delete chapters. **Play chapter** opens it in the game
+  (`/Game/?chapter=<id>`). Saves `content/campaign.json`; voice the lines in
+  the Voice tab.
 - **Sounds**: every effect and music loop the game plays, by id. Write a
   description and generate it, or upload a file. An entry turns "out of date"
   when its description changes after it was generated. Saves
@@ -42,9 +65,9 @@ other tabs stays put.
   victory lines and all campaign dialogue (editable here). Pick a voice for
   each speaker, then generate or upload takes. Saves `content/voice.json` and
   `content/campaign.json`; files go in `audio/voice/`.
-- **GPU**: the AWS GPU server that generates side views and clips, the
-  regions and quota it can use, and the job queue. See "Generating
-  animations" below.
+- **GPU**: the AWS GPU servers that generate side views, clips and stage
+  art, the regions and quota they can use, scaling, and the job queue. See
+  "Generating animations" below.
 - **AI Settings**: every prompt and sampler setting for generation, with
   per-fighter overrides and a live preview.
 - **Scripts**: buttons for the sim tests, typecheck, production build,
@@ -111,14 +134,44 @@ until you terminate it. It stops itself after the idle time set at launch
 (30 minutes by default; the tab shows the cost so far). Launch, Start and
 Terminate all ask first.
 
-**Regions and quota.** The server can live in us-east-1, us-east-2 or
-us-west-2. "Region: any" launches in the first one with enough GPU quota and
+**Regions and quota.** Servers can live in us-east-1, us-east-2,
+us-west-2, eu-north-1, eu-central-1 or ap-northeast-1. "Region: any" launches in the first one with enough GPU quota and
 a free machine. GPU quota is how many GPU vCPUs the account may run in a
 region (a `g6e.xlarge` needs 4); the Regions card shows it, with open
 requests, and can request more (free; AWS reviews it, usually within a day).
 `node tools/gpu/quota.mjs` does the same from a terminal.
 
-**When AWS is full.** Quota doesn't reserve machines, so a launch or start
+**Several servers.** Each ready server runs one job at a time, so with more
+servers a batch (painting every piece of a stage, a fighter's clips) runs
+side by side. The Scaling card sets **Servers to use** (default 4, up to 8):
+how many servers there may be and how many jobs run at once. It's saved in
+`.cache/gpu/fleet.json`. **Add a server** launches another (it sets itself up
+once, then keeps its own disk, about $27 a month each); **Start N more**
+starts the stopped ones; **Stop all** stops every one. With "start stopped
+servers by themselves" on, waiting jobs start stopped servers (never new
+ones) up to the limit. Servers stop themselves when idle, which is how the
+fleet scales back down. New servers go wherever quota is free: 8 vCPUs fits
+two `g6e.xlarge` in a region, so four servers spread over two regions or
+more. Each server card shows the job it's running; the queue shows where
+each job ran.
+
+**Machine types.** g6e (NVIDIA L40S, 48 GB, from $1.86/h) is the cheapest
+that fits, and the one AWS most often runs out of. g7e (NVIDIA RTX PRO 6000
+Blackwell, 96 GB, from $3.36/h for a `g7e.2xlarge`, 8 vCPUs) is a newer,
+separate pool in every region we use: AWS quotes up to 2.3x g6e's speed, so a
+job costs about the same and finishes sooner. "Any" launches try the cheapest
+first. Both count against the same GPU quota (8 vCPUs: two g6e.xlarge or one
+g7e.2xlarge per region).
+
+**When AWS is full.** A stopped server can only start again in its own zone,
+so a start fails more often than a launch (which can try every zone and
+region). "Keep trying" on a start tries every stopped server each round; tick
+"then launch a new one where machines are free" (or press "Also launch a new
+one if needed" while it tries) and, once no stopped server could start twice
+in a row, it launches a fresh server of any type wherever one is free.
+Servers stop after 60 idle minutes by default (Scaling card), so you give
+machines back less often.
+Quota doesn't reserve machines, so a launch or start
 can fail with "capacity": AWS has none free right now. Nothing is charged.
 Tick "keep trying" and the dev server retries every 3 minutes until it
 works or the time runs out (charges start when it succeeds). A failed try
@@ -169,20 +222,35 @@ included.
    There: **Use** makes a take the clip (the old video moves to `anims/_old/`,
    and it builds), **More like this** queues two more with the same prompt and
    settings, **Discard** moves it to `anims/_old/`.
-4. **The motion library.** When a clip looks right, "Add to motion library"
-   in its editor copies it to `<art root>/_motions/<clip>.mp4`. Other
-   people-shaped fighters can then copy it with Wan Animate, so every
-   fighter's jab has the same timing. Bots and creatures default to prompts,
-   since a human skeleton won't drive them.
-5. **In bulk.** In Clips, "Generate with AI" queues every missing clip (or
+4. **Driving videos (optional).** Clips come from prompts by default, so
+   each fighter moves their own way. To copy a motion exactly (Wan Animate),
+   pick a **Driving video** in the clip editor: the shared motion library's
+   clip, or the fighter's own (**Upload a driving video…**: a phone video of
+   you acting it is fine; it's kept in their `anims/_motion/<clip>.*` and only
+   used when picked). "Add to motion library" copies a good clip to
+   `<art root>/_motions/<clip>.mp4` for any fighter to pick. A fighter can
+   opt into the library for every clip with "Make clips by" in AI Settings.
+   A human skeleton drives the motion, so it suits people-shaped fighters.
+5. **Bring a fighter up to date.** In Animations, **Generate missing / out of
+   date** (its label counts what's to do) queues every clip with no
+   animation, regenerates AI-made clips whose prompt AI Settings would no
+   longer send (you changed their description or a clip's action), and
+   builds videos that changed since they were built. Out-of-date clips are
+   remade the way they were made (their own prompt, their driving video) and
+   replace the clip (the old one moves to `anims/_old/`). Videos you
+   imported yourself are never touched. Each used take's recipe is kept in
+   `anims/_recipes/<clip>.json` so this can tell.
+6. **In bulk.** In Clips, "Generate with AI" queues every missing clip (or
    one, or all) for a fighter, with a takes count and what to do when done.
 
-Jobs run one at a time and wait in the queue until the server is ready. In
+Each ready server runs one job at a time (several servers run several), and
+jobs wait in the queue until a server is ready. In
 the GPU tab, **Details** on a job shows its exact prompt, settings, seeds and
 log, and downloads its ComfyUI workflow (drag the file into ComfyUI to open
 and tweak it there). **Rerun** queues it again with a new seed; **Same seed**
 repeats it exactly, which is how to test one setting at a time. A job left
-running when the dev server stops is marked interrupted; rerun it.
+running when the dev server stops goes back in the queue and keeps the takes
+it already made.
 
 ## Content files
 
@@ -192,7 +260,8 @@ The game reads its data from `content/`:
 |---|---|---|
 | `fighters.json` | Names, roles and stats for all fighters | Fighters |
 | `stages.json` | Every stage's geometry, blast zone and look | Maps |
-| `campaign.json` | Chapters, fights and dialogue | Voice (lines) |
+| `campaign.json` | Chapters, fights and dialogue | Story (and Voice for takes) |
+| `modes.json` | Which stages each mode offers, in order, with per-mode names and rules | Modes |
 | `sounds.json` | Sound effects and music | Sounds |
 | `voice.json` | Voices and non-campaign lines | Voice |
 | `anim-clips.json` | The clip names animation slots use, and each clip's action and length | AI Settings (actions) |

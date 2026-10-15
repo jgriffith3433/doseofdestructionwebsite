@@ -1,0 +1,33 @@
+{
+ "job": "4f8091c4e6b5",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple"
+ },
+ "stage": "humans-in-the-loop",
+ "piece": "backdrop",
+ "kind": "backdrop",
+ "layers": [
+  "backdrop"
+ ],
+ "seed": 208781919,
+ "prompt": "Paint a wide, distant background landscape over image 1: the far distance of Humans In The Loop: Headline the arena show, where every KO sends the crowd and the lights wild.. Use the colors and light of image 2 (a blurred mood board), but compose the scene yourself from this description. Distant scenery only: no ground, floor, ledge or platform in the foreground. The lower third stays darker and calmer. Style: Cinematic photoreal-leaning painted concert arena, deep near-black shadows with crisp highlights on metal and road case trim. Palette of charcoal and gunmetal greys lit by warm gold-amber and cool steel-blue stage lights through drifting haze. Electric, anticipatory live-show mood, game environment art. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1600,
+  "x2": 1600,
+  "y1": -435.71428571428567,
+  "y2": 935.7142857142857
+ },
+ "size": [
+  1568,
+  672
+ ],
+ "x": 0,
+ "y": 250,
+ "width": 3200,
+ "created": 1792027759403
+}

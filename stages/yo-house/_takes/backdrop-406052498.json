@@ -1,0 +1,33 @@
+{
+ "job": "85aa705f49fa",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple"
+ },
+ "stage": "yo-house",
+ "piece": "backdrop",
+ "kind": "backdrop",
+ "layers": [
+  "backdrop"
+ ],
+ "seed": 406052498,
+ "prompt": "Paint a wide, distant background landscape over image 1: the far distance of Yo House: Swim through the fish tank, dodge the robot vacuum, and stretch before you stretch your lead.. Use the colors and light of image 2 (a blurred mood board), but compose the scene yourself from this description. Distant scenery only: no ground, floor, ledge or platform in the foreground. The lower third stays darker and calmer. Style: Soft photoreal-meets-diorama interior rendering, like a dollhouse cutaway of a modern open-plan home. Cool blue-grey walls and daylight, dark glossy walnut floors, crisp white cabinetry, with the aquarium as the one glowing green jewel. Calm, airy and a little cheeky, as if the fighters are scrapping in someone's spotless living room, game environment art. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1500,
+  "x2": 1500,
+  "y1": -392.8571428571428,
+  "y2": 892.8571428571428
+ },
+ "size": [
+  1568,
+  672
+ ],
+ "x": 0,
+ "y": 250,
+ "width": 3000,
+ "created": 1792028932582
+}

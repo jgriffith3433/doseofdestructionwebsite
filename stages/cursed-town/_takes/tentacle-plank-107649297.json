@@ -1,0 +1,41 @@
+{
+ "job": "ca87ba17dcbd",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "cursed-town",
+ "piece": "tentacle-plank",
+ "kind": "stage",
+ "layers": [
+  "tentacle-plank"
+ ],
+ "seed": 107649297,
+ "prompt": "Paint image 1 as finished 2D game environment art. Each shape becomes the structure described for its place, at exactly the same position, size and outline: center: Glossy black-green tentacle, slick and ridged, coiling under an old grey plank torn from a house, faint wet sheen, fog wisps around it. The bright horizontal bars are walkable surfaces (rooftop edges, ledges, catwalks, landings): keep each one exactly where it is, flat and level, as the visible top edge of its structure. Match the art style, palette and lighting of image 2. Style: Muted, painterly gothic realism in cold fog: weathered grey clapboard, mossy slate shingles, wet cobbles, everything desaturated toward grey-green. Flat diffuse overcast light with no bright accents; the only contrast is the inky, glossy black of the shadow tentacles. Mood is quiet dread, soft edges dissolving into mist. Everything outside the shapes stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -134.9985,
+  "x2": 134.9985,
+  "y1": -304.9685,
+  "y2": 244.9985
+ },
+ "size": [
+  720,
+  1472
+ ],
+ "x": 0,
+ "y": -30,
+ "width": 270,
+ "created": 1792027459694,
+ "fit": {
+  "score": 1,
+  "platforms": [
+   1
+  ]
+ }
+}

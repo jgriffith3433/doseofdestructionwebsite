@@ -1,0 +1,49 @@
+{
+ "job": "3b0c2d0e0097",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "desert",
+ "piece": "stage",
+ "kind": "stage",
+ "layers": [
+  "lakebed-mesa",
+  "rock-arch",
+  "left-boulder",
+  "right-boulder"
+ ],
+ "seed": 725921857,
+ "prompt": "Paint image 1 as finished 2D game environment art. Each shape becomes the structure described for its place, at exactly the same position, size and outline: lower center: Flat top of pale tan playa crust with fine polygonal mud cracks and a few tire-track scuffs; sides of layered sandstone in warm tan and rust bands, sunlit on top, shadowed cool brown underneath, loose sand spilling off the corners; upper center: Natural desert arch of layered red-tan sandstone, smooth wind-scoured curves, horizontal strata lines, flat sunlit ledges on the shoulders and crown, bright blue sky visible through the opening, soft cool shadow on the underside; left: Wind-polished sandstone cap rock with a flat walkable top, resting on a thinner eroded pedestal; warm ochre with darker desert varnish streaks, crisp sun on the top edge; right: Wind-polished sandstone cap rock with a flat walkable top, resting on a thinner eroded pedestal; warm ochre with darker desert varnish streaks, crisp sun on the top edge. The bright horizontal bars are walkable surfaces (rooftop edges, ledges, catwalks, landings): keep each one exactly where it is, flat and level, as the visible top edge of its structure. Match the art style, palette and lighting of image 2. Style: Sun-bleached painterly realism with soft edges and heat haze: pale tan playa, warm ochre and rust sandstone, and a deep blue sky washing to near-white around a blazing sun. Hard midday light from the upper right, short cool blue-grey shadows, everything a little dusty. Everything outside the shapes stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -616,
+  "x2": 616,
+  "y1": -315.92,
+  "y2": 476
+ },
+ "size": [
+  1280,
+  816
+ ],
+ "x": 0,
+ "y": 80,
+ "width": 1232,
+ "created": 1792026904312,
+ "fit": {
+  "score": 0.92,
+  "platforms": [
+   1,
+   0.77,
+   0.73,
+   1,
+   1,
+   1
+  ]
+ }
+}

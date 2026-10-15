@@ -1,9 +1,9 @@
 // The complete simulation state. It is plain integers and arrays of plain
 // objects, so it can be cloned for rollback and hashed for desync checks.
 
-import { FX } from './fixed.ts';
+import { FX, rngNext } from './fixed.ts';
 import { CHARACTERS } from './characters.ts';
-import { STAGES } from './stage.ts';
+import { EV_IDLE, STAGES, secs, type StageDef } from './stage.ts';
 import { NO_INPUT } from './input.ts';
 
 export const ACT = {
@@ -98,9 +98,11 @@ export interface Rules {
   damage: number;
   /** Match length in frames, 0 for none. */
   timeLimit: number;
+  /** 1: the stage's events, damage zones and hazards are on. 0: a quiet stage (wind, water and gravity zones stay). */
+  hazards: number;
 }
 
-export const DEFAULT_RULES: Rules = { gravity: 100, damage: 100, timeLimit: 0 };
+export const DEFAULT_RULES: Rules = { gravity: 100, damage: 100, timeLimit: 0, hazards: 1 };
 
 export interface GameState {
   frame: number;
@@ -117,6 +119,12 @@ export interface GameState {
   timedOut: number;
   /** Frames left of the end-of-game slowdown, or -1. */
   endTimer: number;
+  /** Per stage event: 0 waiting, 1 warning, 2 running (stageMath EV_*). */
+  evPhase: number[];
+  /** Per stage event: frames left in that phase (-1 waits forever). */
+  evTimer: number[];
+  /** Per stage hazard: bitmask of fighters it hit this pass. */
+  hazHit: number[];
 }
 
 export interface FighterSetup {
@@ -207,11 +215,38 @@ export function newGame(setup: FighterSetup[], opts: GameOptions): GameState {
     winnerTeam: -1,
     timedOut: 0,
     endTimer: -1,
+    ...startEvents(STAGES[stage], opts.seed | 0),
+    hazHit: (STAGES[stage].hazards ?? []).map(() => 0),
+  };
+}
+
+/**
+ * Each event's first wait. Draws from its own rng stream (seed and event
+ * index), so adding events never shifts the match rng.
+ */
+function startEvents(stage: StageDef, seed: number): { evPhase: number[]; evTimer: number[] } {
+  const evs = stage.events ?? [];
+  return {
+    evPhase: evs.map(() => EV_IDLE),
+    evTimer: evs.map((e, i) => {
+      if ((e.trigger ?? 'timer') !== 'timer') return -1;
+      if (e.first !== undefined) return secs(e.first);
+      const [lo, hi] = e.every ?? [0, 0];
+      const [, v] = rngNext(seed ^ Math.imul(i + 1, 0x9e3779b1));
+      return secs(lo) + (v % Math.max(1, secs(hi) - secs(lo) + 1));
+    }),
   };
 }
 
 export function cloneState(s: GameState): GameState {
-  return { ...s, rules: { ...s.rules }, fighters: s.fighters.map((f) => ({ ...f })) };
+  return {
+    ...s,
+    rules: { ...s.rules },
+    fighters: s.fighters.map((f) => ({ ...f })),
+    evPhase: s.evPhase.slice(),
+    evTimer: s.evTimer.slice(),
+    hazHit: s.hazHit.slice(),
+  };
 }
 
 /** Whether two fighters are on the same team. */
@@ -240,11 +275,15 @@ export function hashState(s: GameState): number {
   mix(s.rules.gravity);
   mix(s.rules.damage);
   mix(s.rules.timeLimit);
+  mix(s.rules.hazards);
   mix(s.over);
   mix(s.winner);
   mix(s.winnerTeam);
   mix(s.timedOut);
   mix(s.endTimer);
+  for (const v of s.evPhase) mix(v);
+  for (const v of s.evTimer) mix(v);
+  for (const v of s.hazHit) mix(v);
   for (const f of s.fighters) {
     for (const key of FIGHTER_KEYS) mix(f[key]);
   }

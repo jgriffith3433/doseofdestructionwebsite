@@ -81,7 +81,7 @@
       }
     ],
     "fight": {
-      "stage": "foundry",
+      "stage": "city-top",
       "stocks": 2,
       "rules": {},
       "slots": [
@@ -164,7 +164,7 @@
       }
     ],
     "fight": {
-      "stage": "rooftop",
+      "stage": "yo-house",
       "stocks": 2,
       "rules": {},
       "slots": [
@@ -266,7 +266,7 @@
       }
     ],
     "fight": {
-      "stage": "drift",
+      "stage": "solar-array",
       "stocks": 1,
       "rules": {},
       "slots": [
@@ -355,7 +355,7 @@
       }
     ],
     "fight": {
-      "stage": "split",
+      "stage": "desert",
       "stocks": 3,
       "rules": {
         "gravity": 55
@@ -449,7 +449,7 @@
       }
     ],
     "fight": {
-      "stage": "pit",
+      "stage": "watercolor-nebula",
       "stocks": 2,
       "rules": {},
       "slots": [
@@ -535,7 +535,7 @@
       }
     ],
     "fight": {
-      "stage": "foundry",
+      "stage": "cursed-town",
       "stocks": 1,
       "rules": {},
       "slots": [
@@ -629,7 +629,7 @@
       }
     ],
     "fight": {
-      "stage": "rooftop",
+      "stage": "space-chess",
       "stocks": 2,
       "rules": {
         "timeLimit": 3600,
@@ -740,7 +740,7 @@
       }
     ],
     "fight": {
-      "stage": "foundry",
+      "stage": "humans-in-the-loop",
       "stocks": 3,
       "rules": {},
       "slots": [

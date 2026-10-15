@@ -1,0 +1,35 @@
+{
+ "job": "f07fa57a18e9",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "yo-house",
+ "piece": "doorway-frame",
+ "kind": "scenery",
+ "layers": [
+  "doorway-frame"
+ ],
+ "seed": 912699797,
+ "prompt": "Paint image 1: the shape becomes Thick white painted door casing with crown molding, cool blue-grey shadowed walls either side, the yoga room beyond slightly brighter with a window, filling the same position and size. Match the art style, palette and lighting of image 2. Style: Soft photoreal-meets-diorama interior rendering, like a dollhouse cutaway of a modern open-plan home. Cool blue-grey walls and daylight, dark glossy walnut floors, crisp white cabinetry, with the aquarium as the one glowing green jewel. Calm, airy and a little cheeky, as if the fighters are scrapping in someone's spotless living room. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -398.20000000000005,
+  "x2": -41.79999999999998,
+  "y1": -36,
+  "y2": 756
+ },
+ "size": [
+  688,
+  1536
+ ],
+ "x": -220,
+ "y": 360,
+ "width": 356,
+ "created": 1792029057519
+}

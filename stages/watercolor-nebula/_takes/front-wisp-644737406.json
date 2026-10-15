@@ -1,0 +1,35 @@
+{
+ "job": "30b0df175a4a",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "watercolor-nebula",
+ "piece": "front-wisp",
+ "kind": "front",
+ "layers": [
+  "front-wisp"
+ ],
+ "seed": 644737406,
+ "prompt": "Paint image 1: the shape becomes A soft out-of-focus tendril of dusty blue and cream watercolor cloud, translucent edges, a couple of glossy amber beads clinging to it, filling the same position and size. It sits close to the camera, in front of the action: darker, slightly silhouetted, with a crisp outline. Match the art style, palette and lighting of image 2. Style: Soft painterly watercolor with a subtle stepped, mosaic-pixel quality to every cloud edge, visible paper grain and wet pigment blooms. Palette of deep slate blue, dusty teal, mauve, ochre, honey gold and warm cream, lit by a glowing golden heart at the center of the nebula. Dreamy, calm and luminous, with glossy amber and blue paint beads floating everywhere. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": 535.5,
+  "x2": 1074.5,
+  "y1": -404.405,
+  "y2": -125.59500000000003
+ },
+ "size": [
+  1424,
+  736
+ ],
+ "x": 805,
+ "y": -265,
+ "width": 539,
+ "created": 1792028910446
+}

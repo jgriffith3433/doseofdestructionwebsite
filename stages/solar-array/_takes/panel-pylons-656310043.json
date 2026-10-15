@@ -1,0 +1,35 @@
+{
+ "job": "b5c78e794856",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "solar-array",
+ "piece": "panel-pylons",
+ "kind": "scenery",
+ "layers": [
+  "panel-pylons"
+ ],
+ "seed": 656310043,
+ "prompt": "Paint image 1: the shape becomes Grey galvanized steel square posts with bolted concrete footings, a junction box and looping black cables near the top of each, soft blue-grey shading, ink outlines, filling the same position and size. Match the art style, palette and lighting of image 2. Style: Bold cartoon illustration with thick ink outlines and flat cel shading, like a sunny animated adventure. Warm desert palette of ochre sand, red-orange sandstone and brown shadows against a clear cyan sky, with cool blue solar panels and grey steel as the accent. Bright midday-afternoon sun from the upper left, crisp hard shadows, cheerful and hot. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -423.5,
+  "x2": 423.5,
+  "y1": -45.45833333333337,
+  "y2": 307.45833333333337
+ },
+ "size": [
+  1584,
+  656
+ ],
+ "x": 0,
+ "y": 131,
+ "width": 847,
+ "created": 1792028494859
+}

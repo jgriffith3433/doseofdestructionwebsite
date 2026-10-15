@@ -304,7 +304,7 @@ function newFighter(): void {
 }
 
 function playtest(id: string, vs: string): void {
-  window.open(`/Game/?play&fighter=${id}&vs=${vs}&stage=foundry&level=5`, 'dod-playtest');
+  window.open(`/Game/?play&fighter=${id}&vs=${vs}&level=5`, 'dod-playtest');
 }
 
 function render(): void {

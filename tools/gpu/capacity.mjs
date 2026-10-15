@@ -8,7 +8,18 @@ import { EC2Client, GetSpotPlacementScoresCommand } from '@aws-sdk/client-ec2';
 import { awsConfig } from './env.mjs';
 import { REGIONS } from './aws.mjs';
 
-export const CANDIDATES = ['g6e.xlarge', 'g6e.2xlarge', 'g6e.4xlarge'];
+export const CANDIDATES = ['g6e.xlarge', 'g6e.2xlarge', 'g7e.2xlarge'];
+
+const cache = new Map();
+
+/** One type's scores by region, cached for 10 minutes (launches use it to pick where to try first). */
+export async function scoresFor(type) {
+  const hit = cache.get(type);
+  if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.value;
+  const value = (await capacityScores([type], REGIONS))[type] ?? {};
+  cache.set(type, { at: Date.now(), value });
+  return value;
+}
 
 /** { type: { region: score } } for the regions the server may use (and a few more). */
 export async function capacityScores(types = CANDIDATES, regions = [...REGIONS, 'us-west-1', 'ca-central-1']) {

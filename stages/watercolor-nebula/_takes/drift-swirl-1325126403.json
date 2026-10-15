@@ -1,0 +1,35 @@
+{
+ "job": "b525e337cdb0",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "watercolor-nebula",
+ "piece": "drift-swirl",
+ "kind": "scenery",
+ "layers": [
+  "drift-swirl"
+ ],
+ "seed": 1325126403,
+ "prompt": "Paint image 1: the shape becomes Long horizontal streaks of translucent ochre, mauve and blue watercolor, like paint dragged by a brush from left to right, feathered edges, filling the same position and size. Match the art style, palette and lighting of image 2. Style: Soft painterly watercolor with a subtle stepped, mosaic-pixel quality to every cloud edge, visible paper grain and wet pigment blooms. Palette of deep slate blue, dusty teal, mauve, ochre, honey gold and warm cream, lit by a glowing golden heart at the center of the nebula. Dreamy, calm and luminous, with glossy amber and blue paint beads floating everywhere. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -990,
+  "x2": 990,
+  "y1": -132.50000000000006,
+  "y2": 692.5
+ },
+ "size": [
+  1584,
+  656
+ ],
+ "x": 0,
+ "y": 280,
+ "width": 1980,
+ "created": 1792028825870
+}

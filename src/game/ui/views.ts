@@ -8,6 +8,7 @@ import { CHAPTERS, isOpen, type Chapter, type Line } from '../campaign/story.ts'
 import { PLAYER_COLORS } from '../render/renderer.ts';
 import { TEAM_COLORS } from './select.ts';
 import { $, formatTime, h, kids, largeUrl, pct, thumbUrl } from './dom.ts';
+import type { ModeStage } from '../modes.ts';
 import { audio } from '../audio.ts';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -62,21 +63,24 @@ export function stageThumb(stage: StageDef): SVGElement {
   return root;
 }
 
-export function openStages(onPick: (stage: number) => void, chosen: number): void {
+/** The stage select: the stages a mode offers (content/modes.json), in its order. */
+export function openStages(list: { index: number; entry: ModeStage }[], onPick: (stage: number, entry: ModeStage) => void, chosen: number): void {
   const grid = $('stage-grid');
+  const focus = list.some((x) => x.index === chosen) ? chosen : list[0]?.index;
   grid.replaceChildren(
-    ...STAGES.map((st, i) =>
-      h(
+    ...list.map(({ index, entry }) => {
+      const st = STAGES[index];
+      return h(
         'button',
-        { type: 'button', class: 'stage-card', 'data-autofocus': i === chosen || undefined, onclick: () => onPick(i) },
+        { type: 'button', class: 'stage-card', 'data-autofocus': index === focus || undefined, onclick: () => onPick(index, entry) },
         stageThumb(st),
-        h('strong', {}, st.name),
-        h('span', {}, st.blurb),
-      ),
-    ),
+        h('strong', {}, entry.name || st.name),
+        h('span', {}, entry.blurb || st.blurb),
+      );
+    }),
     h(
       'button',
-      { type: 'button', class: 'stage-card random', onclick: () => onPick(Math.floor(Math.random() * STAGES.length)) },
+      { type: 'button', class: 'stage-card random', onclick: () => { const x = list[Math.floor(Math.random() * list.length)]; if (x) onPick(x.index, x.entry); } },
       h('b', {}, '?'),
       h('strong', {}, 'Random'),
       h('span', {}, 'Let the broadcast decide.'),

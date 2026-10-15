@@ -1,0 +1,41 @@
+{
+ "job": "f07664b2f73c",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "humans-in-the-loop",
+ "piece": "light-truss",
+ "kind": "stage",
+ "layers": [
+  "light-truss"
+ ],
+ "seed": 1224442170,
+ "prompt": "Paint image 1 as finished 2D game environment art. Each shape becomes the structure described for its place, at exactly the same position, size and outline: center: Aluminium triangular box truss with diagonal cross-bracing, two black chain hoists rising out of frame, moving-head spotlights clamped underneath with hot white lenses. The bright horizontal bars are walkable surfaces (rooftop edges, ledges, catwalks, landings): keep each one exactly where it is, flat and level, as the visible top edge of its structure. Match the art style, palette and lighting of image 2. Style: Cinematic photoreal-leaning painted concert arena, deep near-black shadows with crisp highlights on metal and road case trim. Palette of charcoal and gunmetal greys lit by warm gold-amber and cool steel-blue stage lights through drifting haze. Electric, anticipatory live-show mood. Everything outside the shapes stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -189.006,
+  "x2": 189.006,
+  "y1": 200.93399999999997,
+  "y2": 619.066
+ },
+ "size": [
+  976,
+  1072
+ ],
+ "x": 0,
+ "y": 410,
+ "width": 378,
+ "created": 1792027815034,
+ "fit": {
+  "score": 0.96,
+  "platforms": [
+   0.96
+  ]
+ }
+}

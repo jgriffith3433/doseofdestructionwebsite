@@ -1,0 +1,33 @@
+{
+ "job": "d260717df26f",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple"
+ },
+ "stage": "space-chess",
+ "piece": "backdrop",
+ "kind": "backdrop",
+ "layers": [
+  "backdrop"
+ ],
+ "seed": 1726926743,
+ "prompt": "Paint a wide, distant background landscape over image 1: the far distance of Space Chess: A chessboard adrift among the stars, where every KO topples a king.. Use the colors and light of image 2 (a blurred mood board), but compose the scene yourself from this description. Distant scenery only: no ground, floor, ledge or platform in the foreground. The lower third stays darker and calmer. Style: Polished, cinematic 3D-rendered look: glossy lacquered wood and ivory chess pieces lit by cool blue starlight against deep black space. Palette of near-black navy, midnight blue and bright cobalt nebula accents, with cream-white squares as the brightest values. Quiet, grand and mysterious, like a cosmic game frozen mid-move, game environment art. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1700,
+  "x2": 1700,
+  "y1": -528.5714285714286,
+  "y2": 928.5714285714286
+ },
+ "size": [
+  1568,
+  672
+ ],
+ "x": 0,
+ "y": 200,
+ "width": 3400,
+ "created": 1792028550747
+}

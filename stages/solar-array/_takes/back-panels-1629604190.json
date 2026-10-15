@@ -1,0 +1,35 @@
+{
+ "job": "af0a0a6ca219",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "solar-array",
+ "piece": "back-panels",
+ "kind": "scenery",
+ "layers": [
+  "back-panels"
+ ],
+ "seed": 1629604190,
+ "prompt": "Paint image 1: the shape becomes Smaller rows of blue solar panels on grey posts receding into the desert, hard dark shadows on the ochre sand, slightly hazy with distance, cartoon ink lines, filling the same position and size. Match the art style, palette and lighting of image 2. Style: Bold cartoon illustration with thick ink outlines and flat cel shading, like a sunny animated adventure. Warm desert palette of ochre sand, red-orange sandstone and brown shadows against a clear cyan sky, with cool blue solar panels and grey steel as the accent. Bright midday-afternoon sun from the upper left, crisp hard shadows, cheerful and hot. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1430,
+  "x2": 1430,
+  "y1": -546.8333333333334,
+  "y2": 644.8333333333334
+ },
+ "size": [
+  1584,
+  656
+ ],
+ "x": 0,
+ "y": 49,
+ "width": 2860,
+ "created": 1792028436344
+}

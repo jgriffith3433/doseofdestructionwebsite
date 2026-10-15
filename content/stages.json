@@ -1,403 +1,27 @@
 [
   {
-    "id": "foundry",
-    "name": "Foundry",
-    "blurb": "Three platforms over a furnace floor. The standard.",
-    "platforms": [
-      {
-        "x1": -560,
-        "x2": 560,
-        "y": 0,
-        "solid": true,
-        "depth": 90
-      },
-      {
-        "x1": -390,
-        "x2": -160,
-        "y": 130,
-        "solid": false
-      },
-      {
-        "x1": 160,
-        "x2": 390,
-        "y": 130,
-        "solid": false
-      },
-      {
-        "x1": -115,
-        "x2": 115,
-        "y": 260,
-        "solid": false
-      }
-    ],
-    "blast": {
-      "left": -1400,
-      "right": 1400,
-      "top": 1150,
-      "bottom": -750
-    },
-    "spawns": [
-      {
-        "x": -300,
-        "y": 0
-      },
-      {
-        "x": 300,
-        "y": 0
-      },
-      {
-        "x": -110,
-        "y": 0
-      },
-      {
-        "x": 110,
-        "y": 0
-      }
-    ],
-    "respawn": {
-      "x": 0,
-      "y": 420
-    },
-    "theme": {
-      "sky": [
-        "#5a2410",
-        "#26130b",
-        "#100e0c"
-      ],
-      "glow": "#ff5a1f",
-      "body": "#4a362a",
-      "under": "#241812",
-      "edge": "#ffb020",
-      "thinEdge": "#ffd15a",
-      "props": "frame"
-    }
-  },
-  {
-    "id": "rooftop",
-    "name": "Rooftop",
-    "blurb": "One long roof, nothing to stand on but each other.",
-    "platforms": [
-      {
-        "x1": -700,
-        "x2": 700,
-        "y": 0,
-        "solid": true,
-        "depth": 120
-      }
-    ],
-    "blast": {
-      "left": -1550,
-      "right": 1550,
-      "top": 1150,
-      "bottom": -750
-    },
-    "spawns": [
-      {
-        "x": -360,
-        "y": 0
-      },
-      {
-        "x": 360,
-        "y": 0
-      },
-      {
-        "x": -130,
-        "y": 0
-      },
-      {
-        "x": 130,
-        "y": 0
-      }
-    ],
-    "respawn": {
-      "x": 0,
-      "y": 360
-    },
-    "theme": {
-      "sky": [
-        "#2a2350",
-        "#141230",
-        "#08070f"
-      ],
-      "glow": "#7a5cff",
-      "body": "#2e2c3c",
-      "under": "#15141e",
-      "edge": "#9d8cff",
-      "thinEdge": "#c9bfff",
-      "props": "skyline"
-    }
-  },
-  {
-    "id": "drift",
-    "name": "Drift",
-    "blurb": "A small island and two platforms that will not stay put.",
-    "platforms": [
-      {
-        "x1": -430,
-        "x2": 430,
-        "y": 0,
-        "solid": true,
-        "depth": 110
-      },
-      {
-        "x1": -150,
-        "x2": 150,
-        "y": 150,
-        "solid": false,
-        "motion": {
-          "ax": 330,
-          "ay": 0,
-          "period": 480
-        }
-      },
-      {
-        "x1": -110,
-        "x2": 110,
-        "y": 300,
-        "solid": false,
-        "motion": {
-          "ax": 0,
-          "ay": 90,
-          "period": 360,
-          "phase": 90
-        }
-      }
-    ],
-    "blast": {
-      "left": -1350,
-      "right": 1350,
-      "top": 1200,
-      "bottom": -750
-    },
-    "spawns": [
-      {
-        "x": -250,
-        "y": 0
-      },
-      {
-        "x": 250,
-        "y": 0
-      },
-      {
-        "x": -80,
-        "y": 0
-      },
-      {
-        "x": 80,
-        "y": 0
-      }
-    ],
-    "respawn": {
-      "x": 0,
-      "y": 480
-    },
-    "theme": {
-      "sky": [
-        "#1f6b78",
-        "#0f3340",
-        "#07141a"
-      ],
-      "glow": "#3fe0d0",
-      "body": "#33504f",
-      "under": "#162625",
-      "edge": "#5cf0d8",
-      "thinEdge": "#b8fff2",
-      "props": "clouds"
-    }
-  },
-  {
-    "id": "split",
-    "name": "Split",
-    "blurb": "Two islands and a gap with nothing at the bottom.",
-    "platforms": [
-      {
-        "x1": -640,
-        "x2": -150,
-        "y": 0,
-        "solid": true,
-        "depth": 140
-      },
-      {
-        "x1": 150,
-        "x2": 640,
-        "y": 0,
-        "solid": true,
-        "depth": 140
-      },
-      {
-        "x1": -110,
-        "x2": 110,
-        "y": 110,
-        "solid": false,
-        "motion": {
-          "ax": 0,
-          "ay": 60,
-          "period": 300
-        }
-      },
-      {
-        "x1": -520,
-        "x2": -320,
-        "y": 170,
-        "solid": false
-      },
-      {
-        "x1": 320,
-        "x2": 520,
-        "y": 170,
-        "solid": false
-      }
-    ],
-    "blast": {
-      "left": -1500,
-      "right": 1500,
-      "top": 1150,
-      "bottom": -800
-    },
-    "spawns": [
-      {
-        "x": -420,
-        "y": 0
-      },
-      {
-        "x": 420,
-        "y": 0
-      },
-      {
-        "x": -260,
-        "y": 0
-      },
-      {
-        "x": 260,
-        "y": 0
-      }
-    ],
-    "respawn": {
-      "x": 0,
-      "y": 420
-    },
-    "theme": {
-      "sky": [
-        "#6a1a0c",
-        "#2a0a06",
-        "#0f0605"
-      ],
-      "glow": "#ff3b1f",
-      "body": "#3a2622",
-      "under": "#1a0f0d",
-      "edge": "#ff6a2a",
-      "thinEdge": "#ffb067",
-      "props": "embers"
-    }
-  },
-  {
-    "id": "pit",
-    "name": "The Pit",
-    "blurb": "Tiers of platforms over a wide floor. Room to climb, room to run.",
-    "platforms": [
-      {
-        "x1": -600,
-        "x2": 600,
-        "y": 0,
-        "solid": true,
-        "depth": 100
-      },
-      {
-        "x1": -520,
-        "x2": -330,
-        "y": 120,
-        "solid": false
-      },
-      {
-        "x1": 330,
-        "x2": 520,
-        "y": 120,
-        "solid": false
-      },
-      {
-        "x1": -270,
-        "x2": -90,
-        "y": 220,
-        "solid": false
-      },
-      {
-        "x1": 90,
-        "x2": 270,
-        "y": 220,
-        "solid": false
-      },
-      {
-        "x1": -90,
-        "x2": 90,
-        "y": 340,
-        "solid": false
-      }
-    ],
-    "blast": {
-      "left": -1450,
-      "right": 1450,
-      "top": 1250,
-      "bottom": -750
-    },
-    "spawns": [
-      {
-        "x": -380,
-        "y": 0
-      },
-      {
-        "x": 380,
-        "y": 0
-      },
-      {
-        "x": -140,
-        "y": 0
-      },
-      {
-        "x": 140,
-        "y": 0
-      }
-    ],
-    "respawn": {
-      "x": 0,
-      "y": 500
-    },
-    "theme": {
-      "sky": [
-        "#2c5a12",
-        "#122a08",
-        "#070d04"
-      ],
-      "glow": "#8dff3a",
-      "body": "#33402a",
-      "under": "#161c12",
-      "edge": "#a8ff4a",
-      "thinEdge": "#d8ff9a",
-      "props": "pipes"
-    }
-  },
-  {
     "id": "city-top",
     "name": "City Top",
     "blurb": "Brawl across the LA rooftops while fireworks mark every fall.",
     "platforms": [
       {
-        "x1": -540,
-        "x2": 540,
+        "x1": -840,
+        "x2": 840,
         "y": 0,
         "solid": true,
         "depth": 200,
         "hidden": true
       },
       {
-        "x1": -400,
-        "x2": -170,
+        "x1": -700,
+        "x2": -470,
         "y": 140,
         "solid": false,
         "hidden": true
       },
       {
-        "x1": 170,
-        "x2": 400,
+        "x1": 470,
+        "x2": 700,
         "y": 140,
         "solid": false,
         "hidden": true
@@ -410,33 +34,47 @@
         "hidden": true
       },
       {
-        "x1": 600,
-        "x2": 780,
+        "x1": 900,
+        "x2": 1080,
         "y": -140,
         "solid": false,
         "hidden": true
       },
       {
-        "x1": 600,
-        "x2": 780,
+        "x1": 900,
+        "x2": 1080,
         "y": -280,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 175,
+        "x2": 405,
+        "y": 140,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -405,
+        "x2": -175,
+        "y": 140,
         "solid": false,
         "hidden": true
       }
     ],
     "blast": {
-      "left": -1450,
-      "right": 1500,
+      "left": -1750,
+      "right": 1800,
       "top": 1200,
       "bottom": -850
     },
     "spawns": [
       {
-        "x": -380,
+        "x": -530,
         "y": 0
       },
       {
-        "x": 380,
+        "x": 530,
         "y": 0
       },
       {
@@ -471,7 +109,7 @@
         "image": "stages/city-top/_takes/backdrop-1724508556.webp",
         "x": 0,
         "y": 250,
-        "width": 3200,
+        "width": 3800,
         "z": 20,
         "note": "The far background, painted fresh from the concept.",
         "prompt": "Aerial night view of a downtown Los Angeles skyline from rooftop height: a cluster of glowing glass skyscrapers in the middle distance, one tall spire tower slightly off center, a sprawling grid of amber city lights stretching to a low horizon, near-black sky with faint smoke trails from distant fireworks, a few golden firework streaks rising.",
@@ -480,7 +118,7 @@
       {
         "id": "left-building",
         "image": "stages/city-top/_takes/left-building-430432051.webp",
-        "x": -1000,
+        "x": -1300,
         "y": -550,
         "width": 780,
         "z": 5,
@@ -511,7 +149,7 @@
       {
         "id": "escape-building",
         "image": "stages/city-top/_takes/escape-building-1772507782.webp",
-        "x": 830,
+        "x": 1130,
         "y": -455,
         "width": 629,
         "z": 3,
@@ -544,34 +182,34 @@
         "image": "",
         "x": 0,
         "y": -400,
-        "width": 1100,
+        "width": 1700,
         "z": 0.3,
         "hidden": true,
         "note": "The tall office tower whose flat roof is the main stage; roof top exactly at y 0 with a low parapet lip.",
         "prompt": "Dark concrete and glass high-rise seen from the side, grid of warm amber lit windows fading down into darkness, tar-and-gravel roof with a pale lit parapet edge, small vents and conduit on the roof surface.",
-        "aspect": 0.727,
+        "aspect": 0.47,
         "shape": [
           {
-            "x1": -550,
-            "x2": 550,
+            "x1": -850,
+            "x2": 850,
             "y1": 380,
             "y2": 400
           },
           {
-            "x1": -510,
-            "x2": 510,
+            "x1": -810,
+            "x2": 810,
             "y1": -400,
             "y2": 380
           },
           {
-            "x1": -550,
-            "x2": -510,
+            "x1": -850,
+            "x2": -810,
             "y1": 360,
             "y2": 400
           },
           {
-            "x1": 510,
-            "x2": 550,
+            "x1": 810,
+            "x2": 850,
             "y1": 360,
             "y2": 400
           }
@@ -583,7 +221,7 @@
       {
         "id": "billboard-catwalk",
         "image": "",
-        "x": -285,
+        "x": -585,
         "y": 70,
         "width": 230,
         "z": 0.3,
@@ -624,7 +262,7 @@
       {
         "id": "skylight-canopy",
         "image": "",
-        "x": 285,
+        "x": 585,
         "y": 70,
         "width": 230,
         "z": 0.3,
@@ -712,7 +350,7 @@
       {
         "id": "fire-escape",
         "image": "",
-        "x": 690,
+        "x": 990,
         "y": -255,
         "width": 180,
         "z": 0.3,
@@ -772,7 +410,7 @@
       {
         "id": "front-antenna",
         "image": "stages/city-top/_takes/front-antenna-1701492486.webp",
-        "x": -480,
+        "x": -780,
         "y": 80,
         "width": 139,
         "z": -2,
@@ -803,13 +441,13 @@
       },
       {
         "id": "stage-art",
-        "image": "stages/city-top/_takes/stage-9500.webp",
+        "image": "stages/city-top/wide/stage-art.webp",
         "x": 115,
         "y": -255,
-        "width": 1463,
+        "width": 2063,
         "z": 0.3,
         "note": "The painted stage: every piece that draws platforms.",
-        "aspect": 0.843,
+        "aspect": 0.598,
         "platforms": [
           0,
           1,
@@ -817,6 +455,30 @@
           3,
           4,
           5
+        ]
+      },
+      {
+        "id": "platform-copy-right",
+        "image": "stages/city-top/wide/copy-right.webp",
+        "x": 290,
+        "y": 143,
+        "width": 280,
+        "z": 0.3,
+        "note": "A copy of platform 2 and its art, for the widened stage.",
+        "platforms": [
+          6
+        ]
+      },
+      {
+        "id": "platform-copy-left",
+        "image": "stages/city-top/wide/copy-left.webp",
+        "x": -290,
+        "y": 143,
+        "width": 280,
+        "z": 0.3,
+        "note": "A copy of platform 1 and its art, for the widened stage.",
+        "platforms": [
+          7
         ]
       }
     ],
@@ -852,5 +514,5315 @@
       "reference": "stages/city-top/reference.webp"
     },
     "notes": "Plays like a standard three-platform stage on a wide rooftop: billboard catwalk and skylight canopy at 140, water tower lid at 280 for vertical play. The right side has a two-landing fire escape below roof level that catches fighters knocked off that side, giving them a climb-back route (lower landing reaches the ledge with a full jump plus air jump); the left side is an open drop, so the stage is mildly asymmetric by design. Every KO launches a firework into the sky; the match end fires a big multicolor finale. Art priority: main-building, water-tower, fire-escape, billboard-catwalk, skylight-canopy, backdrop, escape-building, front-antenna, left-building."
+  },
+  {
+    "id": "desert",
+    "name": "Dust Devil Mesa",
+    "blurb": "Climb a wind-carved arch above the salt flats while the hawk hunts and the dust rolls in.",
+    "platforms": [
+      {
+        "x1": -860,
+        "x2": 860,
+        "y": 0,
+        "solid": true,
+        "depth": 160,
+        "hidden": true
+      },
+      {
+        "x1": -470,
+        "x2": -250,
+        "y": 130,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 250,
+        "x2": 470,
+        "y": 130,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -300,
+        "x2": -110,
+        "y": 270,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 110,
+        "x2": 300,
+        "y": 270,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -130,
+        "x2": 130,
+        "y": 410,
+        "solid": false,
+        "hidden": true
+      }
+    ],
+    "blast": {
+      "left": -1800,
+      "right": 1800,
+      "top": 1250,
+      "bottom": -850
+    },
+    "spawns": [
+      {
+        "x": -380,
+        "y": 0
+      },
+      {
+        "x": 380,
+        "y": 0
+      },
+      {
+        "x": -360,
+        "y": 130
+      },
+      {
+        "x": 360,
+        "y": 130
+      }
+    ],
+    "respawn": {
+      "x": 0,
+      "y": 570
+    },
+    "theme": {
+      "sky": [
+        "#e6eaee",
+        "#a9c0da",
+        "#4c74a7"
+      ],
+      "glow": "#fff4d6",
+      "body": "#b69778",
+      "under": "#7a6048",
+      "edge": "#e8cfa8",
+      "thinEdge": "#f2dfbf",
+      "props": "clouds"
+    },
+    "layers": [
+      {
+        "id": "backdrop",
+        "image": "stages/desert/_takes/backdrop-1686919130.webp",
+        "x": 0,
+        "y": 250,
+        "width": 4000,
+        "z": 22,
+        "note": "The far background, painted fresh from the concept.",
+        "prompt": "A vast empty desert salt flat under a huge clear sky that fades from deep blue at the top to hazy white near a blinding sun in the upper right; a low line of distant blue-grey mountains on the left horizon, the horizon sitting low, faint dust plumes drifting across the far playa, heat shimmer along the ground.",
+        "aspect": 0.429
+      },
+      {
+        "id": "far-buttes",
+        "image": "stages/desert/_takes/far-buttes-2123706924.webp",
+        "x": 0,
+        "y": 65,
+        "width": 3460,
+        "z": 8,
+        "note": "Mid-distance buttes and low ridges on the horizon behind the stage.",
+        "prompt": "Hazy flat-topped buttes and low ridgelines in dusty blue-grey, softened by heat haze, pale tan playa stretching to their feet.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -1300,
+            "x2": -700,
+            "y1": -165,
+            "y2": 115
+          },
+          {
+            "x1": -700,
+            "x2": -400,
+            "y1": -165,
+            "y2": 25
+          },
+          {
+            "x1": 300,
+            "x2": 500,
+            "y1": -165,
+            "y2": 55
+          },
+          {
+            "x1": 500,
+            "x2": 1300,
+            "y1": -165,
+            "y2": 165
+          }
+        ]
+      },
+      {
+        "id": "hawk-circling",
+        "image": "stages/desert/_takes/hawk-circling-1424960434.webp",
+        "x": 350,
+        "y": 750,
+        "width": 132,
+        "z": 6,
+        "note": "A hawk gliding in lazy circles high in the sky; disappears while it dives.",
+        "prompt": "Red-tailed hawk seen from below, wings fully spread, dark silhouette edges with sunlit rust tail feathers.",
+        "aspect": 0.54,
+        "shape": [
+          {
+            "x1": -60,
+            "x2": 60,
+            "y1": -15,
+            "y2": 15
+          },
+          {
+            "x1": -15,
+            "x2": 15,
+            "y1": -30,
+            "y2": 30
+          }
+        ],
+        "anim": {
+          "kind": "wave",
+          "amount": 120,
+          "speed": 6
+        },
+        "hideDuring": "hawk-dive",
+        "reacts": [
+          {
+            "on": "warn:hawk-dive",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 2
+          }
+        ]
+      },
+      {
+        "id": "lakebed-mesa",
+        "image": "",
+        "x": 0,
+        "y": -130,
+        "width": 1720,
+        "z": 0.3,
+        "hidden": true,
+        "note": "The main stage: a raised slab of cracked dry lakebed with eroded sandstone sides tapering underneath.",
+        "prompt": "Flat top of pale tan playa crust with fine polygonal mud cracks and a few tire-track scuffs; sides of layered sandstone in warm tan and rust bands, sunlit on top, shadowed cool brown underneath, loose sand spilling off the corners.",
+        "aspect": 0.151,
+        "shape": [
+          {
+            "x1": -860,
+            "x2": 860,
+            "y1": 90,
+            "y2": 130
+          },
+          {
+            "x1": -840,
+            "x2": 840,
+            "y1": -30,
+            "y2": 90
+          },
+          {
+            "x1": -440,
+            "x2": 440,
+            "y1": -130,
+            "y2": -30
+          }
+        ],
+        "platforms": [
+          0
+        ]
+      },
+      {
+        "id": "rock-arch",
+        "image": "",
+        "x": 0,
+        "y": 205,
+        "width": 600,
+        "z": 0.3,
+        "hidden": true,
+        "note": "A tall natural sandstone arch rising from the mesa: two legs, flat shoulders on each side, and a flat crown on top.",
+        "prompt": "Natural desert arch of layered red-tan sandstone, smooth wind-scoured curves, horizontal strata lines, flat sunlit ledges on the shoulders and crown, bright blue sky visible through the opening, soft cool shadow on the underside.",
+        "aspect": 0.683,
+        "shape": [
+          {
+            "x1": -300,
+            "x2": -110,
+            "y1": 35,
+            "y2": 65
+          },
+          {
+            "x1": 110,
+            "x2": 300,
+            "y1": 35,
+            "y2": 65
+          },
+          {
+            "x1": -250,
+            "x2": -160,
+            "y1": -205,
+            "y2": 35
+          },
+          {
+            "x1": 160,
+            "x2": 250,
+            "y1": -205,
+            "y2": 35
+          },
+          {
+            "x1": -170,
+            "x2": -100,
+            "y1": 65,
+            "y2": 190
+          },
+          {
+            "x1": 100,
+            "x2": 170,
+            "y1": 65,
+            "y2": 190
+          },
+          {
+            "x1": -130,
+            "x2": 130,
+            "y1": 165,
+            "y2": 205
+          }
+        ],
+        "platforms": [
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "id": "left-boulder",
+        "image": "",
+        "x": -360,
+        "y": 65,
+        "width": 220,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Balanced flat-topped boulder on a narrow rock pedestal, left side.",
+        "prompt": "Wind-polished sandstone cap rock with a flat walkable top, resting on a thinner eroded pedestal; warm ochre with darker desert varnish streaks, crisp sun on the top edge.",
+        "aspect": 0.591,
+        "shape": [
+          {
+            "x1": -110,
+            "x2": 110,
+            "y1": 30,
+            "y2": 65
+          },
+          {
+            "x1": -70,
+            "x2": 70,
+            "y1": -25,
+            "y2": 30
+          },
+          {
+            "x1": -40,
+            "x2": 50,
+            "y1": -65,
+            "y2": -25
+          }
+        ],
+        "platforms": [
+          1
+        ]
+      },
+      {
+        "id": "right-boulder",
+        "image": "",
+        "x": 360,
+        "y": 65,
+        "width": 220,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Balanced flat-topped boulder on a narrow rock pedestal, right side.",
+        "prompt": "Wind-polished sandstone cap rock with a flat walkable top, resting on a thinner eroded pedestal; warm ochre with darker desert varnish streaks, crisp sun on the top edge.",
+        "aspect": 0.591,
+        "shape": [
+          {
+            "x1": -110,
+            "x2": 110,
+            "y1": 30,
+            "y2": 65
+          },
+          {
+            "x1": -70,
+            "x2": 70,
+            "y1": -25,
+            "y2": 30
+          },
+          {
+            "x1": -50,
+            "x2": 40,
+            "y1": -65,
+            "y2": -25
+          }
+        ],
+        "platforms": [
+          2
+        ]
+      },
+      {
+        "id": "hawk-diver",
+        "image": "stages/desert/_takes/hawk-diver-23039469.webp",
+        "x": -1500,
+        "y": 800,
+        "width": 187,
+        "z": -0.3,
+        "note": "The diving hawk hazard, talons out, facing right.",
+        "prompt": "Red-tailed hawk in a steep swoop, wings swept back, talons extended forward, facing right, sharp sunlit feathers in rust, cream and dark brown.",
+        "aspect": 0.576,
+        "shape": [
+          {
+            "x1": -85,
+            "x2": 85,
+            "y1": -20,
+            "y2": 20
+          },
+          {
+            "x1": -30,
+            "x2": 30,
+            "y1": -45,
+            "y2": 45
+          }
+        ],
+        "follows": "hawk"
+      },
+      {
+        "id": "dust-wall",
+        "image": "stages/desert/_takes/dust-wall-763314838.webp",
+        "x": 0,
+        "y": 250,
+        "width": 4120,
+        "z": -2,
+        "note": "Rolling dust storm veil that sweeps across the screen during the gust event.",
+        "prompt": "Billowing translucent clouds of tan dust, thicker and darker near the ground, wispy and sunlit near the top, streaked sideways by wind.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -1600,
+            "x2": 1600,
+            "y1": -450,
+            "y2": 50
+          },
+          {
+            "x1": -1600,
+            "x2": 1600,
+            "y1": 50,
+            "y2": 450
+          }
+        ],
+        "anim": {
+          "kind": "scroll",
+          "amount": -360,
+          "speed": 3
+        },
+        "showDuring": "dust-gust"
+      },
+      {
+        "id": "sagebrush",
+        "image": "stages/desert/_takes/sagebrush-1922274045.webp",
+        "x": 480,
+        "y": 0,
+        "width": 176,
+        "z": -2.5,
+        "occluder": true,
+        "note": "Dry sagebrush clump at the front right edge of the mesa; fighters pass behind it.",
+        "prompt": "Scraggly silver-green sagebrush with dry twiggy stems and a bleached cattle skull at its base, strong sun from the upper right.",
+        "aspect": 0.767,
+        "shape": [
+          {
+            "x1": -80,
+            "x2": 380,
+            "y1": -60,
+            "y2": 30
+          },
+          {
+            "x1": -50,
+            "x2": 350,
+            "y1": 30,
+            "y2": 60
+          }
+        ],
+        "anim": {
+          "kind": "sway",
+          "amount": 3,
+          "speed": 2.5
+        },
+        "reacts": [
+          {
+            "on": "event:dust-gust",
+            "kind": "tilt",
+            "amount": -12
+          }
+        ]
+      },
+      {
+        "id": "stage-art",
+        "image": "stages/desert/wide/stage-art.webp",
+        "x": 0,
+        "y": 80,
+        "width": 1832,
+        "z": 0.3,
+        "note": "The painted stage: every piece that draws platforms.",
+        "aspect": 0.429,
+        "platforms": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      }
+    ],
+    "effects": [
+      {
+        "on": "start",
+        "kind": "dust",
+        "colors": [
+          "#d8c2a0",
+          "#b69778"
+        ],
+        "count": 6,
+        "at": "sky"
+      },
+      {
+        "on": "ambient",
+        "kind": "dust",
+        "colors": [
+          "#d8c2a0",
+          "#c8b090"
+        ],
+        "count": 5,
+        "every": 7,
+        "at": "sky"
+      },
+      {
+        "on": "warn:dust-gust",
+        "kind": "dust",
+        "colors": [
+          "#d8c2a0",
+          "#b69778"
+        ],
+        "count": 6,
+        "at": "sky"
+      },
+      {
+        "on": "event:dust-gust",
+        "kind": "dust",
+        "colors": [
+          "#d8c2a0",
+          "#b69778",
+          "#96826e"
+        ],
+        "count": 6,
+        "at": "sky",
+        "sound": "wipe"
+      },
+      {
+        "on": "event:dust-gust",
+        "kind": "shake",
+        "count": 4,
+        "at": "sky"
+      },
+      {
+        "on": "event:hawk-dive",
+        "kind": "flash",
+        "colors": [
+          "#fff4d6"
+        ],
+        "count": 1,
+        "at": "sky",
+        "sound": "swing-heavy"
+      },
+      {
+        "on": "ko",
+        "kind": "burst",
+        "colors": [
+          "#e8cfa8",
+          "#b69778",
+          "#fff4d6"
+        ],
+        "count": 6,
+        "at": "ko",
+        "sound": "ko"
+      },
+      {
+        "on": "end",
+        "kind": "dust",
+        "colors": [
+          "#d8c2a0",
+          "#b69778"
+        ],
+        "count": 20,
+        "at": "sky"
+      }
+    ],
+    "events": [
+      {
+        "id": "dust-gust",
+        "duration": 7,
+        "name": "Dust Storm",
+        "every": [
+          25,
+          40
+        ],
+        "first": 35,
+        "warn": 2.5
+      },
+      {
+        "id": "hawk-dive",
+        "duration": 3,
+        "name": "Hawk Dive",
+        "every": [
+          20,
+          32
+        ],
+        "first": 18,
+        "warn": 2
+      }
+    ],
+    "zones": [
+      {
+        "kind": "wind",
+        "x1": -1800,
+        "x2": 1800,
+        "y1": -850,
+        "y2": 1250,
+        "during": "dust-gust",
+        "force": [
+          -110,
+          0
+        ]
+      }
+    ],
+    "hazards": [
+      {
+        "id": "hawk",
+        "path": [
+          {
+            "x": -1900,
+            "y": 800
+          },
+          {
+            "x": -1000,
+            "y": 380
+          },
+          {
+            "x": -250,
+            "y": 150
+          },
+          {
+            "x": 250,
+            "y": 150
+          },
+          {
+            "x": 1000,
+            "y": 380
+          },
+          {
+            "x": 1900,
+            "y": 800
+          }
+        ],
+        "r": 55,
+        "dmg": 12,
+        "angle": 45,
+        "bkb": 35,
+        "kbg": 80,
+        "during": "hawk-dive"
+      }
+    ],
+    "source": "Desert",
+    "art": {
+      "style": "Sun-bleached painterly realism with soft edges and heat haze: pale tan playa, warm ochre and rust sandstone, and a deep blue sky washing to near-white around a blazing sun. Hard midday light from the upper right, short cool blue-grey shadows, everything a little dusty.",
+      "reference": "stages/desert/reference.webp"
+    },
+    "notes": "Vertical take: four levels stacked 130-140 apart (floor 0, boulders 130, arch shoulders 270, arch crown 410) so every step is one easy jump, but the crown sits high enough to make a strong king-of-the-hill perch and big blast top (1250) keeps vertical KOs fair. Dust Storm (every 25-40 s, 2.5 s warning with rising dust): strong leftward wind for 7 s, pushes recoveries and makes the left edge dangerous; dust veil and sagebrush lean sell it. Hawk Dive (every 20-32 s): the circling hawk shakes as a 2 s warning, then swoops down from the upper left through the middle tier (about y 150) and climbs off right, hitting anyone on the boulders or jumping. Art priority: 1) lakebed-mesa, 2) rock-arch (draws three platforms; keep ledge tops exact), 3) left/right boulders, 4) hawk-diver and hawk-circling, 5) dust-wall, 6) far-buttes, 7) sagebrush occluder. Curved arch underside is approximated with rectangles; the painter should round it."
+  },
+  {
+    "id": "cursed-town",
+    "name": "Cursed Town",
+    "blurb": "Stay on the rooftops: the fog in the street eats you alive, and something below is reaching up.",
+    "platforms": [
+      {
+        "x1": -940,
+        "x2": -470,
+        "y": 0,
+        "solid": true,
+        "depth": 420,
+        "hidden": true
+      },
+      {
+        "x1": 470,
+        "x2": 940,
+        "y": 0,
+        "solid": true,
+        "depth": 420,
+        "hidden": true
+      },
+      {
+        "x1": -470,
+        "x2": 470,
+        "y": -280,
+        "solid": true,
+        "depth": 140,
+        "hidden": true
+      },
+      {
+        "x1": -840,
+        "x2": -620,
+        "y": 140,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 620,
+        "x2": 840,
+        "y": 140,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -80,
+        "x2": 80,
+        "y": -150,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -110,
+        "x2": 110,
+        "y": 210,
+        "solid": false,
+        "hidden": true,
+        "offDuring": "presence"
+      }
+    ],
+    "blast": {
+      "left": -1800,
+      "right": 1800,
+      "top": 1150,
+      "bottom": -800
+    },
+    "spawns": [
+      {
+        "x": -630,
+        "y": 0
+      },
+      {
+        "x": 630,
+        "y": 0
+      },
+      {
+        "x": -560,
+        "y": 0
+      },
+      {
+        "x": 560,
+        "y": 0
+      }
+    ],
+    "respawn": {
+      "x": 0,
+      "y": 450
+    },
+    "theme": {
+      "sky": [
+        "#c1cbcd",
+        "#8b9596",
+        "#3f4847"
+      ],
+      "glow": "#8b9596",
+      "body": "#4f5858",
+      "under": "#242a29",
+      "edge": "#c1cbcd",
+      "thinEdge": "#8b9596",
+      "props": "clouds"
+    },
+    "layers": [
+      {
+        "id": "backdrop",
+        "image": "stages/cursed-town/_takes/backdrop-1253301517.webp",
+        "x": 0,
+        "y": 250,
+        "width": 3800,
+        "z": 20,
+        "note": "The far background, painted fresh from the concept.",
+        "prompt": "A long abandoned colonial street receding into thick white fog, rows of steep-roofed wooden houses on both sides fading to pale silhouettes, sagging chimneys, and far down the street enormous black tentacles curling up out of the mist like dead trees; overcast pale grey sky, no sun, desaturated grey-green palette.",
+        "aspect": 0.429
+      },
+      {
+        "id": "distant-tentacles",
+        "image": "stages/cursed-town/_takes/distant-tentacles-314844872.webp",
+        "x": -10,
+        "y": 100,
+        "width": 640,
+        "z": 9,
+        "note": "Silhouettes of huge tentacles curling up from the far end of the street",
+        "prompt": "Black curling tentacle silhouettes, softened and greyed by fog, writhing upward between faint distant houses",
+        "aspect": 1.032,
+        "shape": [
+          {
+            "x1": -590,
+            "x2": -550,
+            "y1": -300,
+            "y2": 150
+          },
+          {
+            "x1": -550,
+            "x2": -490,
+            "y1": 100,
+            "y2": 200
+          },
+          {
+            "x1": -30,
+            "x2": 10,
+            "y1": -300,
+            "y2": 280
+          },
+          {
+            "x1": 10,
+            "x2": 80,
+            "y1": 230,
+            "y2": 300
+          },
+          {
+            "x1": 490,
+            "x2": 530,
+            "y1": -300,
+            "y2": 120
+          },
+          {
+            "x1": 530,
+            "x2": 590,
+            "y1": 80,
+            "y2": 160
+          }
+        ],
+        "anim": {
+          "kind": "sway",
+          "amount": 4,
+          "speed": 3
+        },
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "hop",
+            "amount": 20,
+            "seconds": 0.6
+          },
+          {
+            "on": "warn:presence",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 2.5
+          }
+        ]
+      },
+      {
+        "id": "left-gables",
+        "image": "stages/cursed-town/_takes/left-gables-1488539410.webp",
+        "x": -750,
+        "y": 170,
+        "width": 594,
+        "z": 4,
+        "note": "Steep gabled roof and chimney of the left house rising behind the walk",
+        "prompt": "Steep slate-grey shingle roof with thick moss, a dormer window, a crumbling brick chimney, fading into fog",
+        "aspect": 0.658,
+        "shape": [
+          {
+            "x1": -270,
+            "x2": 270,
+            "y1": -170,
+            "y2": -50
+          },
+          {
+            "x1": -130,
+            "x2": 120,
+            "y1": -50,
+            "y2": 90
+          },
+          {
+            "x1": -190,
+            "x2": -130,
+            "y1": -50,
+            "y2": 170
+          },
+          {
+            "x1": -30,
+            "x2": 50,
+            "y1": -50,
+            "y2": 30
+          }
+        ]
+      },
+      {
+        "id": "right-gables",
+        "image": "stages/cursed-town/_takes/right-gables-1078712302.webp",
+        "x": 750,
+        "y": 160,
+        "width": 594,
+        "z": 4,
+        "note": "Steep gabled roof and dormer of the right house behind the walk",
+        "prompt": "Mossy grey shingle roof, a sagging dormer with a dark window, a brick chimney leaning slightly, softened by fog",
+        "aspect": 0.63,
+        "shape": [
+          {
+            "x1": -270,
+            "x2": 270,
+            "y1": -160,
+            "y2": -40
+          },
+          {
+            "x1": -120,
+            "x2": 130,
+            "y1": -40,
+            "y2": 100
+          },
+          {
+            "x1": 130,
+            "x2": 190,
+            "y1": -40,
+            "y2": 160
+          },
+          {
+            "x1": -50,
+            "x2": 30,
+            "y1": -40,
+            "y2": 40
+          }
+        ]
+      },
+      {
+        "id": "rising-tentacles",
+        "image": "stages/cursed-town/_takes/rising-tentacles-618254701.webp",
+        "x": 5,
+        "y": -30,
+        "width": 508,
+        "z": 4,
+        "note": "Warning: tentacles surge up out of the street just before the Presence sweeps across",
+        "prompt": "Thick black tentacles bursting up out of the fog, dripping, curling at the tips, a faint sickly grey-green sheen",
+        "aspect": 1.263,
+        "shape": [
+          {
+            "x1": -525,
+            "x2": -475,
+            "y1": -290,
+            "y2": 180
+          },
+          {
+            "x1": -475,
+            "x2": -115,
+            "y1": 150,
+            "y2": 200
+          },
+          {
+            "x1": -45,
+            "x2": 0,
+            "y1": -290,
+            "y2": 290
+          },
+          {
+            "x1": 115,
+            "x2": 465,
+            "y1": -290,
+            "y2": 220
+          },
+          {
+            "x1": 465,
+            "x2": 525,
+            "y1": 190,
+            "y2": 240
+          }
+        ],
+        "anim": {
+          "kind": "sway",
+          "amount": 6,
+          "speed": 1.5
+        },
+        "showDuring": "warn:presence"
+      },
+      {
+        "id": "left-house",
+        "image": "stages/cursed-town/wide/left-house.webp",
+        "x": -555,
+        "y": -135,
+        "width": 857,
+        "z": 0.3,
+        "note": "Left clapboard house seen side-on, its flat eaves walk is the left main floor; a railed widow's walk on two posts sits above",
+        "prompt": "Weathered grey clapboard siding, peeling and warped, moss creeping along the eave cap, dark tall sash windows with broken panes, a small wooden widow's walk deck on thin posts, damp shingle edge, cold flat fog light, black tendrils clinging to the lower wall",
+        "aspect": 0.737,
+        "shape": [
+          {
+            "x1": -385,
+            "x2": 85,
+            "y1": -280,
+            "y2": 128
+          },
+          {
+            "x1": -400,
+            "x2": 100,
+            "y1": 128,
+            "y2": 140
+          },
+          {
+            "x1": -285,
+            "x2": -65,
+            "y1": 268,
+            "y2": 280
+          },
+          {
+            "x1": -277,
+            "x2": -263,
+            "y1": 140,
+            "y2": 268
+          },
+          {
+            "x1": -87,
+            "x2": -73,
+            "y1": 140,
+            "y2": 268
+          },
+          {
+            "x1": -305,
+            "x2": -225,
+            "y1": -160,
+            "y2": -20
+          },
+          {
+            "x1": -75,
+            "x2": 5,
+            "y1": -160,
+            "y2": -20
+          }
+        ],
+        "platforms": [
+          0,
+          3
+        ],
+        "reacts": [
+          {
+            "on": "event:presence",
+            "kind": "shake",
+            "amount": 4,
+            "seconds": 1
+          }
+        ]
+      },
+      {
+        "id": "right-house",
+        "image": "stages/cursed-town/wide/right-house.webp",
+        "x": 555,
+        "y": -135,
+        "width": 857,
+        "z": 0.3,
+        "note": "Right clapboard house mirroring the left; eaves walk is the right main floor, widow's walk above",
+        "prompt": "Weathered grey-green clapboard, moss-furred eave cap, cracked dark windows, vines and black shadow tendrils wrapping the lower wall, a rickety widow's walk deck on two posts, flat misty light",
+        "aspect": 0.737,
+        "shape": [
+          {
+            "x1": -85,
+            "x2": 385,
+            "y1": -280,
+            "y2": 128
+          },
+          {
+            "x1": -100,
+            "x2": 400,
+            "y1": 128,
+            "y2": 140
+          },
+          {
+            "x1": 65,
+            "x2": 285,
+            "y1": 268,
+            "y2": 280
+          },
+          {
+            "x1": 73,
+            "x2": 87,
+            "y1": 140,
+            "y2": 268
+          },
+          {
+            "x1": 263,
+            "x2": 277,
+            "y1": 140,
+            "y2": 268
+          },
+          {
+            "x1": -5,
+            "x2": 75,
+            "y1": -160,
+            "y2": -20
+          },
+          {
+            "x1": 225,
+            "x2": 305,
+            "y1": -160,
+            "y2": -20
+          }
+        ],
+        "platforms": [
+          1,
+          4
+        ],
+        "reacts": [
+          {
+            "on": "event:presence",
+            "kind": "shake",
+            "amount": 4,
+            "seconds": 1
+          }
+        ]
+      },
+      {
+        "id": "street-and-beam",
+        "image": "",
+        "x": 0,
+        "y": -285,
+        "width": 940,
+        "z": 0.3,
+        "hidden": true,
+        "note": "The sunken street between the houses, drowned in fog, with a broken porch beam on two posts just above the fog line",
+        "prompt": "Wet dark cobblestones half swallowed by mist, roots and black tentacle stubs breaking through, a splintered porch beam resting on two leaning posts, grey damp wood",
+        "aspect": 0.287,
+        "shape": [
+          {
+            "x1": -470,
+            "x2": 470,
+            "y1": -135,
+            "y2": 5
+          },
+          {
+            "x1": -80,
+            "x2": 80,
+            "y1": 123,
+            "y2": 135
+          },
+          {
+            "x1": -70,
+            "x2": -55,
+            "y1": 5,
+            "y2": 123
+          },
+          {
+            "x1": 55,
+            "x2": 70,
+            "y1": 5,
+            "y2": 123
+          }
+        ],
+        "platforms": [
+          2,
+          5
+        ]
+      },
+      {
+        "id": "tentacle-plank",
+        "image": "stages/cursed-town/_takes/tentacle-plank-1908853987.webp",
+        "x": 0,
+        "y": -30,
+        "width": 270,
+        "z": 0.3,
+        "note": "A long black tentacle rising from the street, curled under a loose wooden plank it holds up like an offering",
+        "prompt": "Glossy black-green tentacle, slick and ridged, coiling under an old grey plank torn from a house, faint wet sheen, fog wisps around it",
+        "aspect": 2.044,
+        "shape": [
+          {
+            "x1": -110,
+            "x2": 110,
+            "y1": 233,
+            "y2": 245
+          },
+          {
+            "x1": -12,
+            "x2": 18,
+            "y1": -245,
+            "y2": 185
+          },
+          {
+            "x1": 18,
+            "x2": 60,
+            "y1": 175,
+            "y2": 233
+          },
+          {
+            "x1": -60,
+            "x2": -12,
+            "y1": 195,
+            "y2": 233
+          }
+        ],
+        "platforms": [
+          6
+        ],
+        "hideDuring": "presence",
+        "reacts": [
+          {
+            "on": "warn:presence",
+            "kind": "shake",
+            "amount": 6,
+            "seconds": 2.5
+          }
+        ]
+      },
+      {
+        "id": "shadow-limb-art",
+        "image": "stages/cursed-town/_takes/shadow-limb-art-62000167.webp",
+        "x": -1730,
+        "y": 65,
+        "width": 330,
+        "z": -0.3,
+        "note": "The Presence's sweeping limb: a huge black tentacle lashing horizontally across the rooftops, facing right",
+        "prompt": "A massive slick black tentacle swinging sideways, tip curled forward, trailing wisps of dark smoke, suckers faintly pale",
+        "aspect": 0.489,
+        "shape": [
+          {
+            "x1": -90,
+            "x2": 120,
+            "y1": -65,
+            "y2": 15
+          },
+          {
+            "x1": 90,
+            "x2": 150,
+            "y1": -5,
+            "y2": 65
+          },
+          {
+            "x1": -150,
+            "x2": -90,
+            "y1": -45,
+            "y2": -5
+          }
+        ],
+        "follows": "shadow-limb"
+      },
+      {
+        "id": "surge-fog",
+        "image": "stages/cursed-town/_takes/surge-fog-412252350.webp",
+        "x": 0,
+        "y": -230,
+        "width": 4120,
+        "z": -1.5,
+        "occluder": true,
+        "note": "Fog wall that rises during the Fog Surge, nearly to the rooftops",
+        "prompt": "A thick choking wall of grey-green fog with dark shapes moving inside it, tendrils of mist curling upward at the top edge",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -1600,
+            "x2": 1600,
+            "y1": -190,
+            "y2": 190
+          }
+        ],
+        "anim": {
+          "kind": "wave",
+          "amount": 30,
+          "speed": 4
+        },
+        "showDuring": "fog-surge"
+      },
+      {
+        "id": "front-fog",
+        "image": "stages/cursed-town/_takes/front-fog-1088007764.webp",
+        "x": 0,
+        "y": -340,
+        "width": 4120,
+        "z": -2,
+        "occluder": true,
+        "note": "Low foreground fog bank across the bottom; fighters in the street show as silhouettes",
+        "prompt": "Dense pale grey rolling fog, soft billows, darker cold shadows inside, translucent edges",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -1600,
+            "x2": 1600,
+            "y1": -110,
+            "y2": 110
+          }
+        ],
+        "anim": {
+          "kind": "scroll",
+          "amount": 40,
+          "speed": 20
+        }
+      },
+      {
+        "id": "stage-art",
+        "image": "stages/cursed-town/wide/stage-art.webp",
+        "x": 0,
+        "y": -280,
+        "width": 974,
+        "z": 0.3,
+        "note": "The painted stage: every piece that draws platforms.",
+        "aspect": 0.324,
+        "platforms": [
+          2,
+          5
+        ]
+      }
+    ],
+    "effects": [
+      {
+        "on": "ambient",
+        "kind": "dust",
+        "colors": [
+          "#c1cbcd",
+          "#8b9596"
+        ],
+        "count": 6,
+        "every": 7,
+        "at": "sky"
+      },
+      {
+        "on": "warn:fog-surge",
+        "kind": "dust",
+        "colors": [
+          "#8b9596",
+          "#5d6768"
+        ],
+        "count": 6,
+        "at": "sky"
+      },
+      {
+        "on": "event:fog-surge",
+        "kind": "dust",
+        "colors": [
+          "#c1cbcd",
+          "#8b9596",
+          "#5d6768"
+        ],
+        "count": 6,
+        "at": "sky"
+      },
+      {
+        "on": "warn:presence",
+        "kind": "shake",
+        "count": 6,
+        "at": "sky"
+      },
+      {
+        "on": "event:presence",
+        "kind": "flash",
+        "colors": [
+          "#242a29"
+        ],
+        "count": 1,
+        "at": "sky",
+        "sound": "swing-heavy"
+      },
+      {
+        "on": "ko",
+        "kind": "splat",
+        "colors": [
+          "#242a29",
+          "#3f4847"
+        ],
+        "count": 6,
+        "at": "ko",
+        "sound": "ko"
+      },
+      {
+        "on": "end",
+        "kind": "dust",
+        "colors": [
+          "#c1cbcd",
+          "#8b9596",
+          "#242a29"
+        ],
+        "count": 20,
+        "at": "sky"
+      }
+    ],
+    "events": [
+      {
+        "id": "fog-surge",
+        "duration": 8,
+        "name": "Fog Surge",
+        "every": [
+          25,
+          35
+        ],
+        "first": 20,
+        "warn": 3
+      },
+      {
+        "id": "presence",
+        "duration": 4,
+        "name": "The Presence",
+        "every": [
+          30,
+          45
+        ],
+        "first": 45,
+        "warn": 2.5
+      }
+    ],
+    "zones": [
+      {
+        "kind": "damage",
+        "x1": -470,
+        "x2": 470,
+        "y1": -300,
+        "y2": -165,
+        "damage": 1,
+        "tick": 0.5
+      },
+      {
+        "kind": "damage",
+        "x1": -1900,
+        "x2": -940,
+        "y1": -900,
+        "y2": -120,
+        "damage": 1,
+        "tick": 0.5
+      },
+      {
+        "kind": "damage",
+        "x1": 940,
+        "x2": 1900,
+        "y1": -900,
+        "y2": -120,
+        "damage": 1,
+        "tick": 0.5
+      },
+      {
+        "kind": "damage",
+        "x1": -470,
+        "x2": 470,
+        "y1": -165,
+        "y2": -30,
+        "during": "fog-surge",
+        "damage": 2,
+        "tick": 0.5,
+        "knock": 40,
+        "angle": 90
+      },
+      {
+        "kind": "damage",
+        "x1": -1900,
+        "x2": -940,
+        "y1": -120,
+        "y2": -20,
+        "during": "fog-surge",
+        "damage": 2,
+        "tick": 0.5
+      },
+      {
+        "kind": "damage",
+        "x1": 940,
+        "x2": 1900,
+        "y1": -120,
+        "y2": -20,
+        "during": "fog-surge",
+        "damage": 2,
+        "tick": 0.5
+      }
+    ],
+    "hazards": [
+      {
+        "id": "shadow-limb",
+        "path": [
+          {
+            "x": -2000,
+            "y": 40
+          },
+          {
+            "x": -900,
+            "y": 90
+          },
+          {
+            "x": 0,
+            "y": 50
+          },
+          {
+            "x": 900,
+            "y": 90
+          },
+          {
+            "x": 2000,
+            "y": 40
+          }
+        ],
+        "r": 70,
+        "dmg": 14,
+        "angle": 50,
+        "bkb": 40,
+        "kbg": 80,
+        "during": "presence"
+      }
+    ],
+    "source": "CursedTown",
+    "art": {
+      "style": "Muted, painterly gothic realism in cold fog: weathered grey clapboard, mossy slate shingles, wet cobbles, everything desaturated toward grey-green. Flat diffuse overcast light with no bright accents; the only contrast is the inky, glossy black of the shadow tentacles. Mood is quiet dread, soft edges dissolving into mist.",
+      "reference": "stages/cursed-town/reference.webp"
+    },
+    "notes": "Play: two house rooftops (the eaves walks) are the safe main floor, split by a 340-wide sunken street that is permanently full of cursed fog (1% per half second). The fog also fills everything below roof level off the outer sides, so recovering from low costs damage. A broken porch beam just above the fog line is a risky foothold back up; the houses' inner ledges are grabbable for escape. Widow's walks (y140) and a tentacle-held plank (y210) give vertical play over the gap. Fog Surge (every 25-35s, 3s warning of rolling fog): fog rises almost to the roofs, the street zone throws fighters upward, and ledge-hangers get hurt. The Presence (every 30-45s, 2.5s warning: tentacles rise and the stage shakes): the plank is pulled away and a huge tentacle lashes across the rooftops once; jump or shield. Art priority: left-house and right-house (they draw the main floors), street-and-beam, tentacle-plank, backdrop, front-fog, shadow-limb-art, surge-fog, gables, tentacles. Wanted but not buildable: sloped gable roofs to stand on (approximated by flat eaves walks and widow's walks)."
+  },
+  {
+    "id": "humans-in-the-loop",
+    "name": "Humans In The Loop",
+    "blurb": "Headline the arena show, where every KO sends the crowd and the lights wild.",
+    "platforms": [
+      {
+        "x1": -900,
+        "x2": 900,
+        "y": 0,
+        "solid": true,
+        "depth": 120,
+        "hidden": true
+      },
+      {
+        "x1": -770,
+        "x2": -560,
+        "y": 130,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 560,
+        "x2": 770,
+        "y": 130,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -170,
+        "x2": 170,
+        "y": 270,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 250,
+        "x2": 460,
+        "y": 130,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -460,
+        "x2": -250,
+        "y": 130,
+        "solid": false,
+        "hidden": true
+      }
+    ],
+    "blast": {
+      "left": -1750,
+      "right": 1750,
+      "top": 1200,
+      "bottom": -800
+    },
+    "spawns": [
+      {
+        "x": -600,
+        "y": 0
+      },
+      {
+        "x": 600,
+        "y": 0
+      },
+      {
+        "x": -150,
+        "y": 0
+      },
+      {
+        "x": 150,
+        "y": 0
+      }
+    ],
+    "respawn": {
+      "x": 0,
+      "y": 450
+    },
+    "theme": {
+      "sky": [
+        "#171c20",
+        "#0a1015",
+        "#030508"
+      ],
+      "glow": "#cfa770",
+      "body": "#30373d",
+      "under": "#0a1015",
+      "edge": "#cfa770",
+      "thinEdge": "#64a5bc",
+      "props": "frame"
+    },
+    "layers": [
+      {
+        "id": "backdrop",
+        "image": "stages/humans-in-the-loop/_takes/backdrop-208781919.webp",
+        "x": 0,
+        "y": 250,
+        "width": 3800,
+        "z": 20,
+        "note": "The far background, painted fresh from the concept.",
+        "prompt": "A huge indoor arena seen from the stage, curving tiers of seating rising into darkness, packed with thousands of tiny phone flashlights like stars, a ring of balcony fascia lit faintly, overhead lighting rig silhouettes, warm gold and cool blue haze glowing over the upper bowl, deep black roof.",
+        "aspect": 0.429
+      },
+      {
+        "id": "crowd",
+        "image": "stages/humans-in-the-loop/_takes/crowd-1318167692.webp",
+        "x": 0,
+        "y": 53,
+        "width": 3460,
+        "z": 8,
+        "note": "The packed crowd behind the stage, arms raised, phone lights; bobs in sync and jumps on KOs.",
+        "prompt": "A dense sea of concert-goers in silhouette with raised hands and phone flashlights, rim-lit warm amber from the left and cool blue from the right, haze drifting over heads.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -1300,
+            "x2": 1300,
+            "y1": -113,
+            "y2": 57
+          },
+          {
+            "x1": -1100,
+            "x2": -600,
+            "y1": 57,
+            "y2": 107
+          },
+          {
+            "x1": -300,
+            "x2": 300,
+            "y1": 57,
+            "y2": 112
+          },
+          {
+            "x1": 600,
+            "x2": 1100,
+            "y1": 57,
+            "y2": 107
+          }
+        ],
+        "anim": {
+          "kind": "bob",
+          "amount": 6,
+          "speed": 1
+        },
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "hop",
+            "amount": 35,
+            "seconds": 0.5
+          },
+          {
+            "on": "event:go-wild",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 2.5
+          },
+          {
+            "on": "end",
+            "kind": "hop",
+            "amount": 40,
+            "seconds": 0.6
+          }
+        ]
+      },
+      {
+        "id": "spot-beams",
+        "image": "stages/humans-in-the-loop/_takes/spot-beams-655315129.webp",
+        "x": 0,
+        "y": 450,
+        "width": 2470,
+        "z": 6,
+        "note": "Steady stage light beams cutting down through the haze from the rig.",
+        "prompt": "Soft volumetric light shafts in warm gold and cool cyan blue fanning down through smoky haze, transparent and glowing.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -850,
+            "x2": -700,
+            "y1": -150,
+            "y2": 200
+          },
+          {
+            "x1": -550,
+            "x2": -420,
+            "y1": -200,
+            "y2": 200
+          },
+          {
+            "x1": 420,
+            "x2": 550,
+            "y1": -200,
+            "y2": 200
+          },
+          {
+            "x1": 700,
+            "x2": 850,
+            "y1": -150,
+            "y2": 200
+          }
+        ],
+        "anim": {
+          "kind": "sway",
+          "amount": 4,
+          "speed": 4
+        },
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "flash",
+            "seconds": 0.4
+          }
+        ]
+      },
+      {
+        "id": "strobe-beams",
+        "image": "stages/humans-in-the-loop/_takes/strobe-beams-1012001541.webp",
+        "x": 0,
+        "y": 375,
+        "width": 2800,
+        "z": 5,
+        "note": "Wild crossing strobe beams that appear when the crowd goes wild after a KO.",
+        "prompt": "Intense crisscrossing white, gold and blue laser-like beams with lens flare bursts, saturated and electric over haze.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -1000,
+            "x2": -850,
+            "y1": -275,
+            "y2": 325
+          },
+          {
+            "x1": -500,
+            "x2": -380,
+            "y1": -325,
+            "y2": 325
+          },
+          {
+            "x1": 380,
+            "x2": 500,
+            "y1": -325,
+            "y2": 325
+          },
+          {
+            "x1": 850,
+            "x2": 1000,
+            "y1": -275,
+            "y2": 325
+          },
+          {
+            "x1": -100,
+            "x2": 100,
+            "y1": 125,
+            "y2": 325
+          }
+        ],
+        "anim": {
+          "kind": "pulse",
+          "amount": 35,
+          "speed": 0.2
+        },
+        "showDuring": "go-wild"
+      },
+      {
+        "id": "truss-towers",
+        "image": "stages/humans-in-the-loop/_takes/truss-towers-1917251121.webp",
+        "x": 0,
+        "y": 200,
+        "width": 2272,
+        "z": 4,
+        "note": "Tall vertical truss towers with hanging line-array speakers framing both sides of the stage.",
+        "prompt": "Silver lattice truss towers rising into darkness, black line-array speaker stacks hung beside them, small spotlights mounted near the top glowing blue and amber.",
+        "aspect": 0.688,
+        "shape": [
+          {
+            "x1": -760,
+            "x2": -700,
+            "y1": -500,
+            "y2": 500
+          },
+          {
+            "x1": -690,
+            "x2": -620,
+            "y1": -50,
+            "y2": 350
+          },
+          {
+            "x1": 700,
+            "x2": 760,
+            "y1": -500,
+            "y2": 500
+          },
+          {
+            "x1": 620,
+            "x2": 690,
+            "y1": -50,
+            "y2": 350
+          }
+        ],
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "flash",
+            "seconds": 0.3
+          }
+        ]
+      },
+      {
+        "id": "stage-deck",
+        "image": "",
+        "x": 0,
+        "y": -60,
+        "width": 1820,
+        "z": 0.3,
+        "hidden": true,
+        "note": "The main concert stage floor and its front skirt, drawing the main platform.",
+        "prompt": "Scuffed matte black stage deck with grey wear marks, a strip of yellow gaffer tape near the front edge, a black fabric skirt hanging below, warm amber spill light glancing across the top surface.",
+        "aspect": 0.066,
+        "shape": [
+          {
+            "x1": -900,
+            "x2": 900,
+            "y1": 20,
+            "y2": 60
+          },
+          {
+            "x1": -910,
+            "x2": 910,
+            "y1": -60,
+            "y2": 20
+          },
+          {
+            "x1": -900,
+            "x2": 900,
+            "y1": 52,
+            "y2": 60
+          }
+        ],
+        "platforms": [
+          0
+        ]
+      },
+      {
+        "id": "light-truss",
+        "image": "stages/humans-in-the-loop/_takes/light-truss-1224442170.webp",
+        "x": 0,
+        "y": 410,
+        "width": 378,
+        "z": 0.3,
+        "note": "Silver box truss hung on chains above center stage; its top is the center platform.",
+        "prompt": "Aluminium triangular box truss with diagonal cross-bracing, two black chain hoists rising out of frame, moving-head spotlights clamped underneath with hot white lenses.",
+        "aspect": 1.098,
+        "shape": [
+          {
+            "x1": -170,
+            "x2": 170,
+            "y1": -165,
+            "y2": -140
+          },
+          {
+            "x1": -160,
+            "x2": -150,
+            "y1": -140,
+            "y2": 190
+          },
+          {
+            "x1": 150,
+            "x2": 160,
+            "y1": -140,
+            "y2": 190
+          },
+          {
+            "x1": -120,
+            "x2": -80,
+            "y1": -190,
+            "y2": -165
+          },
+          {
+            "x1": 80,
+            "x2": 120,
+            "y1": -190,
+            "y2": -165
+          },
+          {
+            "x1": -20,
+            "x2": 20,
+            "y1": -190,
+            "y2": -165
+          }
+        ],
+        "platforms": [
+          3
+        ],
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "flash",
+            "seconds": 0.3
+          }
+        ]
+      },
+      {
+        "id": "left-cases",
+        "image": "",
+        "x": -665,
+        "y": 69,
+        "width": 210,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Two stacked flight/road cases on the left of the stage; top case is the left platform.",
+        "prompt": "Black road cases with brushed aluminium edging, steel corner caps and recessed latches, stencil labels and colored tape (orange, yellow), a coil of black cable resting on top.",
+        "aspect": 0.657,
+        "shape": [
+          {
+            "x1": -105,
+            "x2": 95,
+            "y1": -69,
+            "y2": -4
+          },
+          {
+            "x1": -95,
+            "x2": 105,
+            "y1": -4,
+            "y2": 61
+          },
+          {
+            "x1": -75,
+            "x2": -35,
+            "y1": 61,
+            "y2": 69
+          }
+        ],
+        "platforms": [
+          1
+        ]
+      },
+      {
+        "id": "right-cases",
+        "image": "",
+        "x": 665,
+        "y": 69,
+        "width": 210,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Two stacked road cases on the right of the stage; top case is the right platform.",
+        "prompt": "Black road cases with aluminium trim and corner caps, rack-mount amp panel visible on the lower case with tiny green and amber LEDs, yellow and green tape labels.",
+        "aspect": 0.657,
+        "shape": [
+          {
+            "x1": -95,
+            "x2": 105,
+            "y1": -69,
+            "y2": -4
+          },
+          {
+            "x1": -105,
+            "x2": 95,
+            "y1": -4,
+            "y2": 61
+          },
+          {
+            "x1": 35,
+            "x2": 75,
+            "y1": 61,
+            "y2": 69
+          }
+        ],
+        "platforms": [
+          2
+        ]
+      },
+      {
+        "id": "floor-wedges",
+        "image": "stages/humans-in-the-loop/_takes/floor-wedges-559222070.webp",
+        "x": 0,
+        "y": 20,
+        "width": 770,
+        "z": -2,
+        "occluder": true,
+        "note": "Two black floor monitor wedges at the front lip of the stage, in front of fighters.",
+        "prompt": "Angled black floor monitor speakers with metal grilles, a thin amber rim light along their top edges.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -650,
+            "x2": -530,
+            "y1": -30,
+            "y2": 30
+          },
+          {
+            "x1": 530,
+            "x2": 650,
+            "y1": -30,
+            "y2": 30
+          }
+        ]
+      },
+      {
+        "id": "front-cables",
+        "image": "stages/humans-in-the-loop/_takes/front-cables-1874033047.webp",
+        "x": 0,
+        "y": -225,
+        "width": 2140,
+        "z": -3,
+        "note": "Coils of black cable spilling below the front of the stage, foreground decoration.",
+        "prompt": "Loose coils and snaking runs of black audio cable on a dark floor, catching faint highlights.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -700,
+            "x2": -350,
+            "y1": -35,
+            "y2": 55
+          },
+          {
+            "x1": -200,
+            "x2": 200,
+            "y1": -55,
+            "y2": 25
+          },
+          {
+            "x1": 350,
+            "x2": 700,
+            "y1": -35,
+            "y2": 55
+          }
+        ]
+      },
+      {
+        "id": "stage-art",
+        "image": "stages/humans-in-the-loop/wide/stage-art.webp",
+        "x": 0,
+        "y": 10,
+        "width": 1942,
+        "z": 0.3,
+        "note": "The painted stage: every piece that draws platforms.",
+        "aspect": 0.286,
+        "platforms": [
+          0,
+          1,
+          2
+        ]
+      },
+      {
+        "id": "platform-copy-right",
+        "image": "stages/humans-in-the-loop/wide/copy-right.webp",
+        "x": 355,
+        "y": 138,
+        "width": 260,
+        "z": 0.3,
+        "note": "A copy of platform 2 and its art, for the widened stage.",
+        "platforms": [
+          4
+        ]
+      },
+      {
+        "id": "platform-copy-left",
+        "image": "stages/humans-in-the-loop/wide/copy-left.webp",
+        "x": -355,
+        "y": 138,
+        "width": 260,
+        "z": 0.3,
+        "note": "A copy of platform 1 and its art, for the widened stage.",
+        "platforms": [
+          5
+        ]
+      }
+    ],
+    "effects": [
+      {
+        "on": "ko",
+        "kind": "flash",
+        "colors": [
+          "#ffffff",
+          "#cfa770"
+        ],
+        "count": 1,
+        "at": "sky",
+        "sound": "ko"
+      },
+      {
+        "on": "ko",
+        "kind": "burst",
+        "colors": [
+          "#cfa770",
+          "#64a5bc",
+          "#ffffff"
+        ],
+        "count": 6,
+        "at": "ko"
+      },
+      {
+        "on": "ko",
+        "kind": "shake",
+        "count": 1,
+        "at": "ko"
+      },
+      {
+        "on": "event:go-wild",
+        "kind": "confetti",
+        "colors": [
+          "#cfa770",
+          "#64a5bc",
+          "#ffffff",
+          "#aa7e5a"
+        ],
+        "count": 6,
+        "at": "sky"
+      },
+      {
+        "on": "ambient",
+        "kind": "dust",
+        "colors": [
+          "#5c6060",
+          "#30373d"
+        ],
+        "count": 6,
+        "every": 8,
+        "at": "sky"
+      },
+      {
+        "on": "start",
+        "kind": "flash",
+        "colors": [
+          "#ffffff"
+        ],
+        "count": 1,
+        "at": "sky"
+      },
+      {
+        "on": "end",
+        "kind": "firework",
+        "colors": [
+          "#cfa770",
+          "#64a5bc",
+          "#ffffff"
+        ],
+        "count": 10,
+        "at": "sky"
+      },
+      {
+        "on": "end",
+        "kind": "confetti",
+        "colors": [
+          "#cfa770",
+          "#64a5bc",
+          "#ffffff"
+        ],
+        "count": 20,
+        "at": "sky"
+      }
+    ],
+    "events": [
+      {
+        "id": "go-wild",
+        "duration": 3,
+        "name": "Crowd Goes Wild",
+        "trigger": "ko"
+      }
+    ],
+    "source": "HumansInTheLoop",
+    "art": {
+      "style": "Cinematic photoreal-leaning painted concert arena, deep near-black shadows with crisp highlights on metal and road case trim. Palette of charcoal and gunmetal greys lit by warm gold-amber and cool steel-blue stage lights through drifting haze. Electric, anticipatory live-show mood.",
+      "reference": "stages/humans-in-the-loop/reference.webp"
+    },
+    "notes": "Plays like a classic three-platform layout: a wide 1200 solid stage with grabbable ledges, two road case stacks at 130 and a hanging truss at 270 in the middle (reachable from the cases). Blast zones are standard so KOs feel fair. The crowd art bobs constantly in sync; every KO triggers the 'go-wild' event: flash, sparks at the KO, camera shake, the crowd hops and shakes, strobe beams appear and confetti falls for 3 seconds. Art priority: 1) stage-deck, 2) crowd (key to the concept and animation), 3) road case stacks, 4) light-truss, 5) backdrop arena, 6) spot-beams and strobe-beams, 7) truss-towers, 8) floor-wedges and front-cables."
+  },
+  {
+    "id": "rainbow-full-pipe",
+    "name": "Rainbow Full Pipe",
+    "blurb": "Climb the rainbow ramps, own the decks, and dodge the skater dropping in.",
+    "platforms": [
+      {
+        "x1": -1080,
+        "x2": 1080,
+        "y": 0,
+        "solid": true,
+        "depth": 160,
+        "hidden": true
+      },
+      {
+        "x1": -1080,
+        "x2": -880,
+        "y": 400,
+        "solid": true,
+        "depth": 400,
+        "hidden": true
+      },
+      {
+        "x1": 880,
+        "x2": 1080,
+        "y": 400,
+        "solid": true,
+        "depth": 400,
+        "hidden": true
+      },
+      {
+        "x1": -880,
+        "x2": -700,
+        "y": 140,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -880,
+        "x2": -770,
+        "y": 270,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 700,
+        "x2": 880,
+        "y": 140,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 770,
+        "x2": 880,
+        "y": 270,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -150,
+        "x2": 150,
+        "y": 190,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -110,
+        "x2": 110,
+        "y": 380,
+        "solid": false,
+        "motion": {
+          "ax": 240,
+          "ay": 0,
+          "period": 420
+        },
+        "hidden": true
+      }
+    ],
+    "blast": {
+      "left": -1900,
+      "right": 1900,
+      "top": 1300,
+      "bottom": -850
+    },
+    "spawns": [
+      {
+        "x": -300,
+        "y": 0
+      },
+      {
+        "x": 300,
+        "y": 0
+      },
+      {
+        "x": -980,
+        "y": 400
+      },
+      {
+        "x": 980,
+        "y": 400
+      }
+    ],
+    "respawn": {
+      "x": 0,
+      "y": 540
+    },
+    "theme": {
+      "sky": [
+        "#7cb9e7",
+        "#57aff4",
+        "#2177c2"
+      ],
+      "glow": "#ffd36a",
+      "body": "#4a5bb0",
+      "under": "#2c3570",
+      "edge": "#ff9a3c",
+      "thinEdge": "#ffd15a",
+      "props": "clouds"
+    },
+    "layers": [
+      {
+        "id": "backdrop",
+        "image": "stages/rainbow-full-pipe/_takes/backdrop-670978446.webp",
+        "x": 0,
+        "y": 250,
+        "width": 4000,
+        "z": 20,
+        "note": "The far background, painted fresh from the concept.",
+        "prompt": "A sunny cartoon park far in the distance: rolling green hills fading to soft blue mountains, scattered round bushy trees, a winding pale footpath, a small dome-shaped shelter, under a bright gradient blue sky with big fluffy white clouds and a soft sun glow at the upper left. No skate ramp in the backdrop; leave the center open and calm.",
+        "aspect": 0.429
+      },
+      {
+        "id": "sky-clouds",
+        "image": "stages/rainbow-full-pipe/_takes/sky-clouds-436810723.webp",
+        "x": -100,
+        "y": 840,
+        "width": 3000,
+        "z": 10,
+        "note": "Slow scrolling band of puffy clouds high in the sky.",
+        "prompt": "Big puffy white cartoon cumulus clouds with soft blue shading.",
+        "aspect": 0.429,
+        "anim": {
+          "kind": "scroll",
+          "amount": 20,
+          "speed": 60
+        }
+      },
+      {
+        "id": "park-trees",
+        "image": "stages/rainbow-full-pipe/_takes/park-trees-500737858.webp",
+        "x": 0,
+        "y": 60,
+        "width": 3460,
+        "z": 6,
+        "note": "Midground row of rounded cartoon trees and green hills behind the pipe.",
+        "prompt": "Rolling bright green grass hills with round, bushy cartoon trees with brown trunks, a winding pale path, soft afternoon light.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -1300,
+            "x2": 1300,
+            "y1": -160,
+            "y2": 0
+          },
+          {
+            "x1": -1150,
+            "x2": -1000,
+            "y1": 0,
+            "y2": 160
+          },
+          {
+            "x1": -950,
+            "x2": -850,
+            "y1": 0,
+            "y2": 110
+          },
+          {
+            "x1": 950,
+            "x2": 1080,
+            "y1": 0,
+            "y2": 140
+          },
+          {
+            "x1": 1150,
+            "x2": 1260,
+            "y1": 0,
+            "y2": 120
+          }
+        ]
+      },
+      {
+        "id": "full-pipe",
+        "image": "",
+        "x": 0,
+        "y": 120,
+        "width": 2160,
+        "z": 0.3,
+        "hidden": true,
+        "note": "The whole half-pipe: flat bottom, two tall blue towers, and the curved rainbow ramp walls with small flat lips at the step heights.",
+        "prompt": "Chunky blue painted-wood skate ramp with soft toy-like shading; the curved transition is striped in pastel rainbow bands (red, orange, yellow, green, blue) flowing along the curve; small flat coping lips with orange metal edges stick out of the curve where riders can stand; tower decks are flat with orange coping; slab underneath is weathered concrete.",
+        "aspect": 0.259,
+        "shape": [
+          {
+            "x1": -1080,
+            "x2": 1080,
+            "y1": -280,
+            "y2": -120
+          },
+          {
+            "x1": -1080,
+            "x2": -880,
+            "y1": -120,
+            "y2": 280
+          },
+          {
+            "x1": 880,
+            "x2": 1080,
+            "y1": -120,
+            "y2": 280
+          },
+          {
+            "x1": -880,
+            "x2": -700,
+            "y1": -120,
+            "y2": 20
+          },
+          {
+            "x1": -880,
+            "x2": -770,
+            "y1": 20,
+            "y2": 150
+          },
+          {
+            "x1": 700,
+            "x2": 880,
+            "y1": -120,
+            "y2": 20
+          },
+          {
+            "x1": 770,
+            "x2": 880,
+            "y1": 20,
+            "y2": 150
+          }
+        ],
+        "platforms": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      {
+        "id": "grind-rail",
+        "image": "",
+        "x": 0,
+        "y": 95,
+        "width": 300,
+        "z": 0.3,
+        "note": "Orange grind rail standing in the middle of the pipe floor; its top bar is the walkable thin platform.",
+        "prompt": "Glossy orange tubular steel grind rail with a flat top bar, two sturdy legs with base plates, scuffed where boards have ground along it.",
+        "aspect": 0.633,
+        "shape": [
+          {
+            "x1": -150,
+            "x2": 150,
+            "y1": 80,
+            "y2": 95
+          },
+          {
+            "x1": -130,
+            "x2": -115,
+            "y1": -95,
+            "y2": 80
+          },
+          {
+            "x1": 115,
+            "x2": 130,
+            "y1": -95,
+            "y2": 80
+          }
+        ],
+        "platforms": [
+          7
+        ],
+        "reacts": [
+          {
+            "on": "event:drop-in",
+            "kind": "shake",
+            "amount": 3,
+            "seconds": 0.4
+          }
+        ]
+      },
+      {
+        "id": "drift-cloud",
+        "image": "stages/rainbow-full-pipe/_takes/drift-cloud-1494565440.webp",
+        "x": 0,
+        "y": 355,
+        "width": 264,
+        "z": 0.3,
+        "note": "Puffy cumulus cloud that drifts side to side between the towers; its flat top is walkable.",
+        "prompt": "Soft fluffy white cartoon cloud with a flattened top, warm sunlit highlights and pale blue shadows underneath.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -120,
+            "x2": 120,
+            "y1": -10,
+            "y2": 30
+          },
+          {
+            "x1": -80,
+            "x2": 80,
+            "y1": -30,
+            "y2": -10
+          }
+        ],
+        "platforms": [
+          8
+        ]
+      },
+      {
+        "id": "skater",
+        "image": "stages/rainbow-full-pipe/_takes/skater-1062453127.webp",
+        "x": -1700,
+        "y": 715,
+        "width": 198,
+        "z": -0.3,
+        "note": "Rides the drop-in hazard: a big blur of a skater ripping through the pipe.",
+        "prompt": "Cartoon skater in a crouched carve on a rainbow-gripped skateboard, helmet and knee pads, speed lines trailing behind, facing right.",
+        "aspect": 0.855,
+        "shape": [
+          {
+            "x1": -90,
+            "x2": 90,
+            "y1": -75,
+            "y2": -55
+          },
+          {
+            "x1": -40,
+            "x2": 40,
+            "y1": -55,
+            "y2": 75
+          }
+        ],
+        "follows": "skater"
+      },
+      {
+        "id": "drop-in-sign",
+        "image": "stages/rainbow-full-pipe/_takes/drop-in-sign-1738878834.webp",
+        "x": -980,
+        "y": 570,
+        "width": 242,
+        "z": -1.5,
+        "note": "Pops up during the warning above the left tower: a 'DROP IN!' sign.",
+        "prompt": "Bright yellow skate-park sign with bold rainbow outlined text 'DROP IN!' and an arrow pointing down the ramp.",
+        "aspect": 0.667,
+        "shape": [
+          {
+            "x1": -110,
+            "x2": 110,
+            "y1": -10,
+            "y2": 70
+          },
+          {
+            "x1": -10,
+            "x2": 10,
+            "y1": -70,
+            "y2": -10
+          }
+        ],
+        "anim": {
+          "kind": "pulse",
+          "amount": 10,
+          "speed": 0.4
+        },
+        "showDuring": "warn:drop-in"
+      },
+      {
+        "id": "left-deck-railing",
+        "image": "stages/rainbow-full-pipe/_takes/left-deck-railing-702838415.webp",
+        "x": -980,
+        "y": 446,
+        "width": 220,
+        "z": -1.5,
+        "note": "Orange safety railing on the back edge of the left tower deck.",
+        "prompt": "Orange painted steel railing with an X brace, rounded corners, toy-like plastic sheen.",
+        "aspect": 0.511,
+        "shape": [
+          {
+            "x1": -100,
+            "x2": 100,
+            "y1": 34,
+            "y2": 46
+          },
+          {
+            "x1": -100,
+            "x2": -88,
+            "y1": -46,
+            "y2": 46
+          },
+          {
+            "x1": 88,
+            "x2": 100,
+            "y1": -46,
+            "y2": 46
+          },
+          {
+            "x1": -80,
+            "x2": 80,
+            "y1": -26,
+            "y2": -16
+          }
+        ],
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 4,
+            "seconds": 0.4
+          },
+          {
+            "on": "event:drop-in",
+            "kind": "shake",
+            "amount": 6,
+            "seconds": 0.5
+          }
+        ]
+      },
+      {
+        "id": "right-deck-railing",
+        "image": "stages/rainbow-full-pipe/_takes/right-deck-railing-2079993547.webp",
+        "x": 980,
+        "y": 446,
+        "width": 220,
+        "z": -1.5,
+        "note": "Orange safety railing on the right tower deck, mirrored.",
+        "prompt": "Orange painted steel railing with an X brace, rounded corners, toy-like plastic sheen.",
+        "aspect": 0.511,
+        "shape": [
+          {
+            "x1": -100,
+            "x2": 100,
+            "y1": 34,
+            "y2": 46
+          },
+          {
+            "x1": -100,
+            "x2": -88,
+            "y1": -46,
+            "y2": 46
+          },
+          {
+            "x1": 88,
+            "x2": 100,
+            "y1": -46,
+            "y2": 46
+          },
+          {
+            "x1": -80,
+            "x2": 80,
+            "y1": -26,
+            "y2": -16
+          }
+        ],
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 4,
+            "seconds": 0.4
+          }
+        ]
+      },
+      {
+        "id": "tower-ladder",
+        "image": "stages/rainbow-full-pipe/_takes/tower-ladder-2006377528.webp",
+        "x": 1100,
+        "y": 200,
+        "width": 198,
+        "z": -1.5,
+        "note": "Ladder on the outer face of the right tower.",
+        "prompt": "Tall orange steel ladder with evenly spaced rungs bolted to the blue tower side.",
+        "aspect": 2.233,
+        "shape": [
+          {
+            "x1": -18,
+            "x2": -10,
+            "y1": -200,
+            "y2": 200
+          },
+          {
+            "x1": 10,
+            "x2": 18,
+            "y1": -200,
+            "y2": 200
+          },
+          {
+            "x1": -18,
+            "x2": 18,
+            "y1": -100,
+            "y2": -92
+          },
+          {
+            "x1": -18,
+            "x2": 18,
+            "y1": 0,
+            "y2": 8
+          },
+          {
+            "x1": -18,
+            "x2": 18,
+            "y1": 100,
+            "y2": 108
+          }
+        ]
+      },
+      {
+        "id": "front-shrub",
+        "image": "stages/rainbow-full-pipe/_takes/front-shrub-773045058.webp",
+        "x": 1250,
+        "y": -120,
+        "width": 352,
+        "z": -2.5,
+        "occluder": true,
+        "note": "Big round bush in the foreground at the lower right corner.",
+        "prompt": "Large round glossy green shrub, soft cartoon shading, a few lighter leaf clumps on top.",
+        "aspect": 0.882,
+        "shape": [
+          {
+            "x1": -160,
+            "x2": 160,
+            "y1": -140,
+            "y2": 60
+          },
+          {
+            "x1": -110,
+            "x2": 110,
+            "y1": 60,
+            "y2": 140
+          }
+        ],
+        "anim": {
+          "kind": "sway",
+          "amount": 2,
+          "speed": 3
+        }
+      },
+      {
+        "id": "stage-art",
+        "image": "stages/rainbow-full-pipe/wide/stage-art.webp",
+        "x": 0,
+        "y": 125,
+        "width": 2316,
+        "z": 0.3,
+        "note": "The painted stage: every piece that draws platforms.",
+        "aspect": 0.31,
+        "platforms": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      }
+    ],
+    "effects": [
+      {
+        "on": "start",
+        "kind": "confetti",
+        "colors": [
+          "#ff6b6b",
+          "#ffa94d",
+          "#ffe066",
+          "#69db7c",
+          "#4dabf7"
+        ],
+        "count": 6,
+        "at": "sky"
+      },
+      {
+        "on": "ko",
+        "kind": "burst",
+        "colors": [
+          "#ff6b6b",
+          "#ffa94d",
+          "#ffe066",
+          "#69db7c",
+          "#4dabf7"
+        ],
+        "count": 6,
+        "at": "ko",
+        "sound": "ko"
+      },
+      {
+        "on": "warn:drop-in",
+        "kind": "flash",
+        "colors": [
+          "#ffe066"
+        ],
+        "count": 1,
+        "at": "sky",
+        "sound": "swing-light"
+      },
+      {
+        "on": "event:drop-in",
+        "kind": "shake",
+        "count": 6,
+        "at": "sky",
+        "sound": "swing-heavy"
+      },
+      {
+        "on": "event:drop-in",
+        "kind": "dust",
+        "colors": [
+          "#e0d8d4",
+          "#c7aba2"
+        ],
+        "count": 6,
+        "at": "sky"
+      },
+      {
+        "on": "end",
+        "kind": "firework",
+        "colors": [
+          "#ff6b6b",
+          "#ffa94d",
+          "#ffe066",
+          "#69db7c",
+          "#4dabf7"
+        ],
+        "count": 8,
+        "at": "sky"
+      }
+    ],
+    "events": [
+      {
+        "id": "drop-in",
+        "duration": 3,
+        "name": "Drop In!",
+        "every": [
+          25,
+          40
+        ],
+        "first": 20,
+        "warn": 2.5
+      }
+    ],
+    "hazards": [
+      {
+        "id": "skater",
+        "path": [
+          {
+            "x": -2000,
+            "y": 700
+          },
+          {
+            "x": -980,
+            "y": 470
+          },
+          {
+            "x": -820,
+            "y": 220
+          },
+          {
+            "x": -680,
+            "y": 50
+          },
+          {
+            "x": 680,
+            "y": 50
+          },
+          {
+            "x": 820,
+            "y": 220
+          },
+          {
+            "x": 980,
+            "y": 470
+          },
+          {
+            "x": 2000,
+            "y": 700
+          }
+        ],
+        "r": 60,
+        "dmg": 12,
+        "angle": 65,
+        "bkb": 35,
+        "kbg": 80,
+        "during": "drop-in"
+      }
+    ],
+    "source": "RainbowFullPipe",
+    "art": {
+      "style": "Bright, soft 3D cartoon render like a cheerful animated film: rounded chunky shapes, clean saturated colors, gentle ambient occlusion. Royal blue ramp wood, pastel rainbow stripes, orange steel trim, lush green park and a clear sunny blue sky with puffy white clouds. Warm sunny afternoon light from the upper left, playful and upbeat.",
+      "reference": "stages/rainbow-full-pipe/reference.webp"
+    },
+    "notes": "Vertical take: the half-pipe is a bowl. The flat bottom (1160 wide between the towers) is the main fighting floor; the curved rainbow walls are approximated by two one-way lips per side at 140 and 270, stair-stepping up to solid tower decks at 400 (130 per step, easy hops). Towers are solid with grabbable ledges on both sides, so the outer faces are recoverable walls and the decks are king-of-the-hill perches. A center grind rail at 190 and a cloud drifting at 380 between the towers let players cross high without touching the floor. Event 'Drop In!' every 25-40 s: a sign pops on the left tower for 2.5 s, then a skater rips off the left deck, down the ramp, along the floor and out off the right deck, hitting anyone on the path; dodge by jumping onto the rail or cloud. Slopes can't be built yet, so the curved ramp is stepped; ideally the ramp would be a real curve fighters slide along. Art priority: 1 full-pipe (main structure), 2 backdrop, 3 grind-rail and drift-cloud, 4 skater and drop-in-sign, 5 railings, ladder, park-trees, sky-clouds, front-shrub."
+  },
+  {
+    "id": "solar-array",
+    "name": "Solar Array",
+    "blurb": "Desert mesa under sun-tracking panels that tilt away without asking.",
+    "platforms": [
+      {
+        "x1": -900,
+        "x2": 900,
+        "y": 0,
+        "solid": true,
+        "depth": 200,
+        "hidden": true
+      },
+      {
+        "x1": -780,
+        "x2": -520,
+        "y": 150,
+        "solid": false,
+        "hidden": true,
+        "offDuring": "sun-tracking"
+      },
+      {
+        "x1": 520,
+        "x2": 780,
+        "y": 150,
+        "solid": false,
+        "hidden": true,
+        "offDuring": "sun-tracking"
+      },
+      {
+        "x1": -140,
+        "x2": 140,
+        "y": 280,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 195,
+        "x2": 455,
+        "y": 150,
+        "solid": false,
+        "hidden": true,
+        "offDuring": "sun-tracking"
+      },
+      {
+        "x1": -455,
+        "x2": -195,
+        "y": 150,
+        "solid": false,
+        "hidden": true,
+        "offDuring": "sun-tracking"
+      }
+    ],
+    "blast": {
+      "left": -1750,
+      "right": 1750,
+      "top": 1200,
+      "bottom": -800
+    },
+    "spawns": [
+      {
+        "x": -550,
+        "y": 0
+      },
+      {
+        "x": 550,
+        "y": 0
+      },
+      {
+        "x": -130,
+        "y": 0
+      },
+      {
+        "x": 130,
+        "y": 0
+      }
+    ],
+    "respawn": {
+      "x": 0,
+      "y": 460
+    },
+    "theme": {
+      "sky": [
+        "#a8dcf7",
+        "#71c0ef",
+        "#4a98d0"
+      ],
+      "glow": "#eab268",
+      "body": "#b9754b",
+      "under": "#714a3a",
+      "edge": "#debe86",
+      "thinEdge": "#7fb9d8",
+      "props": "clouds"
+    },
+    "layers": [
+      {
+        "id": "backdrop",
+        "image": "stages/solar-array/_takes/backdrop-258814647.webp",
+        "x": 0,
+        "y": 250,
+        "width": 3800,
+        "z": 20,
+        "note": "The far background, painted fresh from the concept.",
+        "prompt": "A wide desert valley under a clear cyan sky with a few puffy white clouds: towering red-orange sandstone canyon walls and mesas framing both sides, a flat ochre plain receding to a hazy low horizon of distant purple-brown buttes, and endless tiny rows of blue solar panels glinting on the plain in the middle distance. Cartoon ink outlines, flat cel shading, warm sunlight.",
+        "aspect": 0.429
+      },
+      {
+        "id": "back-panels",
+        "image": "stages/solar-array/_takes/back-panels-1976049359.webp",
+        "x": 0,
+        "y": 49,
+        "width": 3460,
+        "z": 6,
+        "note": "Rows of distant solar panels on posts stretching across the desert floor behind the mesa; they also tilt during sun tracking.",
+        "prompt": "Smaller rows of blue solar panels on grey posts receding into the desert, hard dark shadows on the ochre sand, slightly hazy with distance, cartoon ink lines.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -1300,
+            "x2": 1300,
+            "y1": -89,
+            "y2": -49
+          },
+          {
+            "x1": -1100,
+            "x2": -700,
+            "y1": 61,
+            "y2": 79
+          },
+          {
+            "x1": -910,
+            "x2": -890,
+            "y1": -49,
+            "y2": 61
+          },
+          {
+            "x1": -450,
+            "x2": -80,
+            "y1": 71,
+            "y2": 89
+          },
+          {
+            "x1": -275,
+            "x2": -255,
+            "y1": -49,
+            "y2": 71
+          },
+          {
+            "x1": 250,
+            "x2": 650,
+            "y1": 66,
+            "y2": 84
+          },
+          {
+            "x1": 440,
+            "x2": 460,
+            "y1": -49,
+            "y2": 66
+          },
+          {
+            "x1": 850,
+            "x2": 1250,
+            "y1": 56,
+            "y2": 74
+          }
+        ],
+        "reacts": [
+          {
+            "on": "event:sun-tracking",
+            "kind": "tilt",
+            "amount": 20
+          }
+        ]
+      },
+      {
+        "id": "desert-mesa",
+        "image": "",
+        "x": 0,
+        "y": -210,
+        "width": 1800,
+        "z": 0.3,
+        "hidden": true,
+        "note": "The main stage: a flat-topped sandstone mesa of packed desert dirt, walkable top at y 0, cliff faces stepping down below.",
+        "prompt": "Flat sandy ochre top with a faint dirt track, scattered pebbles and dry tufts of sage; below it layered red-orange sandstone cliffs with dark brown cracks and ledges, bold cartoon ink outlines, warm afternoon sun from upper left.",
+        "aspect": 0.233,
+        "shape": [
+          {
+            "x1": -900,
+            "x2": 900,
+            "y1": 10,
+            "y2": 210
+          },
+          {
+            "x1": -840,
+            "x2": 820,
+            "y1": -120,
+            "y2": 10
+          },
+          {
+            "x1": -780,
+            "x2": 720,
+            "y1": -210,
+            "y2": -120
+          }
+        ],
+        "platforms": [
+          0
+        ]
+      },
+      {
+        "id": "panel-pylons",
+        "image": "stages/solar-array/_takes/panel-pylons-656310043.webp",
+        "x": 0,
+        "y": 131,
+        "width": 847,
+        "z": 0.3,
+        "note": "Steel support posts for the three panels, standing on the mesa top; they do not tilt.",
+        "prompt": "Grey galvanized steel square posts with bolted concrete footings, a junction box and looping black cables near the top of each, soft blue-grey shading, ink outlines.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -665,
+            "x2": -635,
+            "y1": -131,
+            "y2": 1
+          },
+          {
+            "x1": -685,
+            "x2": -615,
+            "y1": -131,
+            "y2": -113
+          },
+          {
+            "x1": 635,
+            "x2": 665,
+            "y1": -131,
+            "y2": 1
+          },
+          {
+            "x1": 615,
+            "x2": 685,
+            "y1": -131,
+            "y2": -113
+          },
+          {
+            "x1": -15,
+            "x2": 15,
+            "y1": -131,
+            "y2": 131
+          },
+          {
+            "x1": -38,
+            "x2": 38,
+            "y1": -131,
+            "y2": -113
+          }
+        ]
+      },
+      {
+        "id": "panel-top",
+        "image": "",
+        "x": 0,
+        "y": 266,
+        "width": 280,
+        "z": 0.3,
+        "hidden": true,
+        "note": "High center solar panel, walkable top at y 280; it stays level.",
+        "prompt": "A larger blue photovoltaic panel with white grid and silver frame, a heavy motor housing on its bracket, warm sun glint along the top edge.",
+        "aspect": 0.1,
+        "shape": [
+          {
+            "x1": -140,
+            "x2": 140,
+            "y1": -2,
+            "y2": 14
+          },
+          {
+            "x1": -22,
+            "x2": 22,
+            "y1": -14,
+            "y2": -2
+          }
+        ],
+        "platforms": [
+          3
+        ]
+      },
+      {
+        "id": "panel-left",
+        "image": "stages/solar-array/_takes/panel-left-571704314.webp",
+        "x": -650,
+        "y": 142,
+        "width": 286,
+        "z": 0.3,
+        "note": "Left tracking solar panel, its top surface is the walkable platform at y 150. Tilts away during sun tracking.",
+        "prompt": "A wide photovoltaic panel seen nearly edge-on from slightly above: deep blue cells with a white grid, a thick silver aluminum frame, a bright sky reflection glint, gimbal bracket underneath.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -130,
+            "x2": 130,
+            "y1": -3,
+            "y2": 13
+          },
+          {
+            "x1": -20,
+            "x2": 20,
+            "y1": -13,
+            "y2": -3
+          }
+        ],
+        "platforms": [
+          1
+        ],
+        "reacts": [
+          {
+            "on": "warn:sun-tracking",
+            "kind": "shake",
+            "amount": 3,
+            "seconds": 2.5
+          },
+          {
+            "on": "event:sun-tracking",
+            "kind": "tilt",
+            "amount": 70
+          }
+        ]
+      },
+      {
+        "id": "panel-right",
+        "image": "stages/solar-array/_takes/panel-right-78035068.webp",
+        "x": 650,
+        "y": 142,
+        "width": 286,
+        "z": 0.3,
+        "note": "Right tracking solar panel, walkable top at y 150. Tilts away during sun tracking.",
+        "prompt": "Same as the left panel: deep blue cells, white grid lines, silver frame, sky glint, gimbal bracket underneath.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -130,
+            "x2": 130,
+            "y1": -3,
+            "y2": 13
+          },
+          {
+            "x1": -20,
+            "x2": 20,
+            "y1": -13,
+            "y2": -3
+          }
+        ],
+        "platforms": [
+          2
+        ],
+        "reacts": [
+          {
+            "on": "warn:sun-tracking",
+            "kind": "shake",
+            "amount": 3,
+            "seconds": 2.5
+          },
+          {
+            "on": "event:sun-tracking",
+            "kind": "tilt",
+            "amount": -70
+          }
+        ]
+      },
+      {
+        "id": "foreground-rocks",
+        "image": "stages/solar-array/_takes/foreground-rocks-1120105259.webp",
+        "x": 1275,
+        "y": -355,
+        "width": 605,
+        "z": -2,
+        "occluder": true,
+        "note": "Foreground red rock outcrop in the bottom right corner, below the stage edge; fighters recovering pass behind it.",
+        "prompt": "Chunky red-brown sandstone boulder ledge with a sage shrub and a few pebbles on top, deep shadowed cracks, bold ink outlines.",
+        "aspect": 0.638,
+        "shape": [
+          {
+            "x1": -275,
+            "x2": 275,
+            "y1": -165,
+            "y2": 95
+          },
+          {
+            "x1": -155,
+            "x2": 175,
+            "y1": 95,
+            "y2": 165
+          }
+        ]
+      },
+      {
+        "id": "stage-art",
+        "image": "stages/solar-array/wide/stage-art.webp",
+        "x": 0,
+        "y": -65,
+        "width": 1920,
+        "z": 0.3,
+        "note": "The painted stage: every piece that draws platforms.",
+        "aspect": 0.433,
+        "platforms": [
+          0,
+          3
+        ]
+      },
+      {
+        "id": "panel-right-copy",
+        "image": "stages/solar-array/_takes/panel-right-78035068.webp",
+        "x": 325,
+        "y": 142,
+        "width": 286,
+        "z": 0.3,
+        "note": "Right tracking solar panel, walkable top at y 150. Tilts away during sun tracking.",
+        "prompt": "Same as the left panel: deep blue cells, white grid lines, silver frame, sky glint, gimbal bracket underneath.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -130,
+            "x2": 130,
+            "y1": -3,
+            "y2": 13
+          },
+          {
+            "x1": -20,
+            "x2": 20,
+            "y1": -13,
+            "y2": -3
+          }
+        ],
+        "platforms": [
+          4
+        ],
+        "reacts": [
+          {
+            "on": "warn:sun-tracking",
+            "kind": "shake",
+            "amount": 3,
+            "seconds": 2.5
+          },
+          {
+            "on": "event:sun-tracking",
+            "kind": "tilt",
+            "amount": -70
+          }
+        ]
+      },
+      {
+        "id": "panel-left-copy",
+        "image": "stages/solar-array/_takes/panel-left-571704314.webp",
+        "x": -325,
+        "y": 142,
+        "width": 286,
+        "z": 0.3,
+        "note": "Left tracking solar panel, its top surface is the walkable platform at y 150. Tilts away during sun tracking.",
+        "prompt": "A wide photovoltaic panel seen nearly edge-on from slightly above: deep blue cells with a white grid, a thick silver aluminum frame, a bright sky reflection glint, gimbal bracket underneath.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -130,
+            "x2": 130,
+            "y1": -3,
+            "y2": 13
+          },
+          {
+            "x1": -20,
+            "x2": 20,
+            "y1": -13,
+            "y2": -3
+          }
+        ],
+        "platforms": [
+          5
+        ],
+        "reacts": [
+          {
+            "on": "warn:sun-tracking",
+            "kind": "shake",
+            "amount": 3,
+            "seconds": 2.5
+          },
+          {
+            "on": "event:sun-tracking",
+            "kind": "tilt",
+            "amount": 70
+          }
+        ]
+      }
+    ],
+    "effects": [
+      {
+        "on": "warn:sun-tracking",
+        "kind": "dust",
+        "colors": [
+          "#debe86",
+          "#bd9d79"
+        ],
+        "count": 4,
+        "at": "sky"
+      },
+      {
+        "on": "event:sun-tracking",
+        "kind": "flash",
+        "colors": [
+          "#fff4c8"
+        ],
+        "count": 1,
+        "at": "sky"
+      },
+      {
+        "on": "ko",
+        "kind": "burst",
+        "colors": [
+          "#eab268",
+          "#7fb9d8",
+          "#ffffff"
+        ],
+        "count": 6,
+        "at": "ko",
+        "sound": "ko"
+      },
+      {
+        "on": "ambient",
+        "kind": "dust",
+        "colors": [
+          "#debe86",
+          "#b9754b"
+        ],
+        "count": 5,
+        "every": 14,
+        "at": "sky"
+      },
+      {
+        "on": "end",
+        "kind": "burst",
+        "colors": [
+          "#eab268",
+          "#71c0ef",
+          "#fff4c8"
+        ],
+        "count": 20,
+        "at": "sky"
+      }
+    ],
+    "events": [
+      {
+        "id": "sun-tracking",
+        "duration": 6,
+        "name": "Sun Tracking",
+        "every": [
+          20,
+          32
+        ],
+        "first": 18,
+        "warn": 2.5
+      }
+    ],
+    "source": "SolarArray",
+    "art": {
+      "style": "Bold cartoon illustration with thick ink outlines and flat cel shading, like a sunny animated adventure. Warm desert palette of ochre sand, red-orange sandstone and brown shadows against a clear cyan sky, with cool blue solar panels and grey steel as the accent. Bright midday-afternoon sun from the upper left, crisp hard shadows, cheerful and hot.",
+      "reference": "stages/solar-array/reference.webp"
+    },
+    "notes": "Plays like a classic three-platform layout: a 1200-wide solid mesa with two low side panels at 150 and a high center panel at 280. Every 20-32 s the sun-tracking event warns for 2.5 s (side panels rattle, dust drifts in), then the two side panels tilt to 70 degrees and stop being platforms for 6 s while a sun-glint flash fires; anyone standing on them drops to the mesa. The high center panel and the mesa never change, and all spawns are on the mesa. Art priority: 1) desert-mesa (main stage), 2) panel-left / panel-right / panel-top (paint level; the game tilts them), 3) panel-pylons, 4) backdrop, 5) back-panels, 6) foreground-rocks occluder. The jeep from the concept could be a later scenery prop or a driving hazard in another take."
+  },
+  {
+    "id": "space-chess",
+    "name": "Space Chess",
+    "blurb": "A chessboard adrift among the stars, where every KO topples a king.",
+    "platforms": [
+      {
+        "x1": -920,
+        "x2": 920,
+        "y": 0,
+        "solid": true,
+        "depth": 60,
+        "hidden": true
+      },
+      {
+        "x1": -700,
+        "x2": -470,
+        "y": 140,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 470,
+        "x2": 700,
+        "y": 140,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -115,
+        "x2": 115,
+        "y": 270,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 180,
+        "x2": 410,
+        "y": 140,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -410,
+        "x2": -180,
+        "y": 140,
+        "solid": false,
+        "hidden": true
+      }
+    ],
+    "blast": {
+      "left": -1750,
+      "right": 1750,
+      "top": 1200,
+      "bottom": -800
+    },
+    "spawns": [
+      {
+        "x": -550,
+        "y": 0
+      },
+      {
+        "x": 550,
+        "y": 0
+      },
+      {
+        "x": -140,
+        "y": 0
+      },
+      {
+        "x": 140,
+        "y": 0
+      }
+    ],
+    "respawn": {
+      "x": 0,
+      "y": 430
+    },
+    "theme": {
+      "sky": [
+        "#0c1d38",
+        "#051022",
+        "#030409"
+      ],
+      "glow": "#2360b5",
+      "body": "#1a1d26",
+      "under": "#060b14",
+      "edge": "#c8d4e8",
+      "thinEdge": "#7b8fb3",
+      "props": "frame"
+    },
+    "layers": [
+      {
+        "id": "backdrop",
+        "image": "stages/space-chess/_takes/backdrop-1726926743.webp",
+        "x": 0,
+        "y": 200,
+        "width": 4000,
+        "z": 20,
+        "note": "The far background, painted fresh from the concept.",
+        "prompt": "Deep space filled with dense white starfields, a sweeping band of glowing cobalt and royal-blue nebula clouds running diagonally from lower left to upper right, a bright spiral galaxy with a warm golden core in the upper right, a second small distant galaxy low in the frame, a few bright four-pointed stars; dark navy-black edges, no chessboard or objects in the scene.",
+        "aspect": 0.429
+      },
+      {
+        "id": "white-king",
+        "image": "stages/space-chess/_takes/white-king-231315444.webp",
+        "x": -780,
+        "y": 170,
+        "width": 168,
+        "z": 3,
+        "note": "The white king standing at the left end of the board. Tips over on every KO and stands back up.",
+        "prompt": "A tall classic Staunton white king in carved ivory-cream wood, smooth turned body, crown with a small cross on top, warm highlights on one side and cool blue space light on the other, soft shadow at its base.",
+        "aspect": 2.233,
+        "shape": [
+          {
+            "x1": -60,
+            "x2": 60,
+            "y1": -170,
+            "y2": -130
+          },
+          {
+            "x1": -30,
+            "x2": 30,
+            "y1": -130,
+            "y2": 50
+          },
+          {
+            "x1": -50,
+            "x2": 50,
+            "y1": 50,
+            "y2": 75
+          },
+          {
+            "x1": -35,
+            "x2": 35,
+            "y1": 75,
+            "y2": 130
+          },
+          {
+            "x1": -7,
+            "x2": 7,
+            "y1": 130,
+            "y2": 170
+          },
+          {
+            "x1": -20,
+            "x2": 20,
+            "y1": 142,
+            "y2": 154
+          }
+        ],
+        "reacts": [
+          {
+            "on": "event:king-falls",
+            "kind": "tip",
+            "amount": -85,
+            "seconds": 0.7
+          }
+        ]
+      },
+      {
+        "id": "black-king",
+        "image": "stages/space-chess/_takes/black-king-630221387.webp",
+        "x": 780,
+        "y": 170,
+        "width": 168,
+        "z": 3,
+        "note": "The black king standing at the right end of the board. Tips over on every KO and stands back up.",
+        "prompt": "A tall classic Staunton black king in dark slate-blue lacquered wood, smooth turned body, crown with a small cross on top, glossy blue-white starlight highlights along its curves, soft shadow at its base.",
+        "aspect": 2.233,
+        "shape": [
+          {
+            "x1": -60,
+            "x2": 60,
+            "y1": -170,
+            "y2": -130
+          },
+          {
+            "x1": -30,
+            "x2": 30,
+            "y1": -130,
+            "y2": 50
+          },
+          {
+            "x1": -50,
+            "x2": 50,
+            "y1": 50,
+            "y2": 75
+          },
+          {
+            "x1": -35,
+            "x2": 35,
+            "y1": 75,
+            "y2": 130
+          },
+          {
+            "x1": -7,
+            "x2": 7,
+            "y1": 130,
+            "y2": 170
+          },
+          {
+            "x1": -20,
+            "x2": 20,
+            "y1": 142,
+            "y2": 154
+          }
+        ],
+        "reacts": [
+          {
+            "on": "event:king-falls",
+            "kind": "tip",
+            "amount": 85,
+            "seconds": 0.7
+          }
+        ]
+      },
+      {
+        "id": "chessboard",
+        "image": "",
+        "x": 0,
+        "y": -30,
+        "width": 1840,
+        "z": 0.3,
+        "hidden": true,
+        "note": "The main stage: a thick lacquered chessboard slab seen from the side, its walkable top at y 0.",
+        "prompt": "A heavy black lacquered chessboard seen edge-on, the top face a thin band of alternating ivory and black squares catching cool blue starlight, a polished dark frame running along the sides with a soft rim highlight on the top edge, underside fading into deep shadow.",
+        "aspect": 0.032,
+        "shape": [
+          {
+            "x1": -920,
+            "x2": 920,
+            "y1": 16,
+            "y2": 30
+          },
+          {
+            "x1": -910,
+            "x2": 910,
+            "y1": -30,
+            "y2": 16
+          }
+        ],
+        "platforms": [
+          0
+        ]
+      },
+      {
+        "id": "floating-squares",
+        "image": "",
+        "x": 0,
+        "y": 196,
+        "width": 1400,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Three pairs of chess squares that have floated up off the board; they are the thin platforms.",
+        "prompt": "Thin hovering slabs, each split into one ivory square and one black square like pieces broken off the board, polished edges glinting blue, a faint blue glow underneath as if held up by starlight.",
+        "aspect": 0.106,
+        "shape": [
+          {
+            "x1": -700,
+            "x2": -470,
+            "y1": -74,
+            "y2": -56
+          },
+          {
+            "x1": 470,
+            "x2": 700,
+            "y1": -74,
+            "y2": -56
+          },
+          {
+            "x1": -115,
+            "x2": 115,
+            "y1": 56,
+            "y2": 74
+          }
+        ],
+        "platforms": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "drifting-pawn",
+        "image": "stages/space-chess/_takes/drifting-pawn-2013894306.webp",
+        "x": -1060,
+        "y": -332,
+        "width": 94,
+        "z": -2,
+        "occluder": true,
+        "note": "A lost pawn floating in the foreground below the board's left corner; small, slowly bobbing.",
+        "prompt": "A single black pawn drifting through space, slightly tilted, glossy dark wood with blue rim light from the nebula, slightly out of focus as it is close to the camera.",
+        "aspect": 1.588,
+        "shape": [
+          {
+            "x1": -40,
+            "x2": 40,
+            "y1": -68,
+            "y2": -38
+          },
+          {
+            "x1": -25,
+            "x2": 25,
+            "y1": -38,
+            "y2": 12
+          },
+          {
+            "x1": -35,
+            "x2": 35,
+            "y1": 12,
+            "y2": 27
+          },
+          {
+            "x1": -20,
+            "x2": 20,
+            "y1": 27,
+            "y2": 67
+          }
+        ],
+        "anim": {
+          "kind": "bob",
+          "amount": 10,
+          "speed": 3
+        }
+      },
+      {
+        "id": "stage-art",
+        "image": "stages/space-chess/wide/stage-art.webp",
+        "x": 0,
+        "y": 110,
+        "width": 1964,
+        "z": 0.3,
+        "note": "The painted stage: every piece that draws platforms.",
+        "aspect": 0.288,
+        "platforms": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "id": "platform-copy-right",
+        "image": "stages/space-chess/wide/copy-right.webp",
+        "x": 295,
+        "y": 143,
+        "width": 280,
+        "z": 0.3,
+        "note": "A copy of platform 2 and its art, for the widened stage.",
+        "platforms": [
+          4
+        ]
+      },
+      {
+        "id": "platform-copy-left",
+        "image": "stages/space-chess/wide/copy-left.webp",
+        "x": -295,
+        "y": 143,
+        "width": 280,
+        "z": 0.3,
+        "note": "A copy of platform 1 and its art, for the widened stage.",
+        "platforms": [
+          5
+        ]
+      }
+    ],
+    "effects": [
+      {
+        "on": "ko",
+        "kind": "burst",
+        "colors": [
+          "#ffffff",
+          "#5680bb",
+          "#2360b5"
+        ],
+        "count": 6,
+        "at": "ko",
+        "sound": "ko"
+      },
+      {
+        "on": "event:king-falls",
+        "kind": "shake",
+        "count": 6,
+        "at": "ko",
+        "sound": "hit-heavy"
+      },
+      {
+        "on": "ambient",
+        "kind": "burst",
+        "colors": [
+          "#ffffff",
+          "#7b8fb3",
+          "#2360b5"
+        ],
+        "count": 5,
+        "every": 6,
+        "at": "sky"
+      },
+      {
+        "on": "end",
+        "kind": "firework",
+        "colors": [
+          "#ffffff",
+          "#2360b5",
+          "#5680bb",
+          "#e8dcc4"
+        ],
+        "count": 10,
+        "at": "sky"
+      }
+    ],
+    "events": [
+      {
+        "id": "king-falls",
+        "duration": 4,
+        "name": "Checkmate",
+        "trigger": "ko"
+      }
+    ],
+    "source": "SpaceChess",
+    "art": {
+      "style": "Polished, cinematic 3D-rendered look: glossy lacquered wood and ivory chess pieces lit by cool blue starlight against deep black space. Palette of near-black navy, midnight blue and bright cobalt nebula accents, with cream-white squares as the brightest values. Quiet, grand and mysterious, like a cosmic game frozen mid-move.",
+      "reference": "stages/space-chess/reference.webp"
+    },
+    "notes": "Plays like a classic three-platform stage: a wide 1240-unit solid chessboard with grabbable corners, two floating square pairs at 140 and one at 270 for the center. Open space all around the board for recoveries. The concept's two kings stand behind the fighters at each end of the board; whenever a fighter is KO'd the 'king-falls' event (KO-triggered, 4 s) tips both kings over (white outward to the left, black outward to the right; flip the signs if the tip direction convention is reversed) with a camera shake, and they stand back up when it ends. Art priority: 1) chessboard slab (draws main stage), 2) the two kings (the signature reaction), 3) backdrop space nebula, 4) floating squares, 5) drifting pawn foreground silhouette."
+  },
+  {
+    "id": "watercolor-nebula",
+    "name": "Watercolor Nebula",
+    "blurb": "Climb a spiral of floating paint puddles through a nebula that never quite dries.",
+    "platforms": [
+      {
+        "x1": -800,
+        "x2": 800,
+        "y": 0,
+        "solid": true,
+        "depth": 120,
+        "hidden": true
+      },
+      {
+        "x1": -430,
+        "x2": -200,
+        "y": 130,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 200,
+        "x2": 430,
+        "y": 130,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -120,
+        "x2": 120,
+        "y": 260,
+        "solid": false,
+        "motion": {
+          "ax": 60,
+          "ay": 0,
+          "period": 300
+        }
+      },
+      {
+        "x1": -370,
+        "x2": -160,
+        "y": 390,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 160,
+        "x2": 370,
+        "y": 390,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -95,
+        "x2": 95,
+        "y": 520,
+        "solid": false,
+        "motion": {
+          "ax": 0,
+          "ay": 18,
+          "period": 240
+        }
+      },
+      {
+        "x1": 490,
+        "x2": 720,
+        "y": 130,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -720,
+        "x2": -490,
+        "y": 130,
+        "solid": false,
+        "hidden": true
+      }
+    ],
+    "blast": {
+      "left": -1800,
+      "right": 1800,
+      "top": 1350,
+      "bottom": -850
+    },
+    "spawns": [
+      {
+        "x": -300,
+        "y": 0
+      },
+      {
+        "x": 300,
+        "y": 0
+      },
+      {
+        "x": -315,
+        "y": 130
+      },
+      {
+        "x": 315,
+        "y": 130
+      }
+    ],
+    "respawn": {
+      "x": 0,
+      "y": 660
+    },
+    "theme": {
+      "sky": [
+        "#e1b878",
+        "#b7b297",
+        "#46728b"
+      ],
+      "glow": "#e1b878",
+      "body": "#5f8191",
+      "under": "#46728b",
+      "edge": "#e1b878",
+      "thinEdge": "#d5c8a6",
+      "props": "clouds"
+    },
+    "layers": [
+      {
+        "id": "backdrop",
+        "image": "stages/watercolor-nebula/_takes/backdrop-130312692.webp",
+        "x": 0,
+        "y": 200,
+        "width": 3800,
+        "z": 20,
+        "note": "The far background, painted fresh from the concept.",
+        "prompt": "A vast watercolor nebula seen face-on: a radiant cream-and-gold light at the center, framed by great rolling cloud bands of deep navy and teal sweeping in from the left and honey-gold, orange and mauve billows curling down from the upper right, a lower layer of ochre and violet haze, stepped mosaic-pixel cloud edges, scattered glossy amber droplets with thin trailing tails and small blue paint beads drifting through, soft paper texture throughout.",
+        "aspect": 0.429
+      },
+      {
+        "id": "underwash",
+        "image": "stages/watercolor-nebula/_takes/underwash-411132529.webp",
+        "x": 0,
+        "y": -475,
+        "width": 3240,
+        "z": 8,
+        "note": "Soft wash of mauve and blue pigment far below the stage, gives depth to the fall.",
+        "prompt": "A low drifting sea of dusty mauve, slate blue and faded ochre watercolor clouds, darker toward the bottom, floating blue and amber paint beads.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -1200,
+            "x2": 1200,
+            "y1": -225,
+            "y2": 125
+          },
+          {
+            "x1": -800,
+            "x2": -200,
+            "y1": 125,
+            "y2": 225
+          },
+          {
+            "x1": 300,
+            "x2": 900,
+            "y1": 125,
+            "y2": 195
+          }
+        ],
+        "anim": {
+          "kind": "scroll",
+          "amount": 20,
+          "speed": 10
+        }
+      },
+      {
+        "id": "cloud-bank-left",
+        "image": "stages/watercolor-nebula/_takes/cloud-bank-left-1242552943.webp",
+        "x": -1125,
+        "y": 275,
+        "width": 1045,
+        "z": 6,
+        "note": "Big swirling blue cloud mass behind the left side, echoing the concept's left billow.",
+        "prompt": "A huge rolling bank of watercolor cloud, deep navy core fading out through teal and pale blue to a cream fringe, stepped mosaic-like billow edges, soft paper grain.",
+        "aspect": 0.711,
+        "shape": [
+          {
+            "x1": -475,
+            "x2": 725,
+            "y1": -175,
+            "y2": 175
+          },
+          {
+            "x1": -375,
+            "x2": 225,
+            "y1": 175,
+            "y2": 325
+          },
+          {
+            "x1": 325,
+            "x2": 775,
+            "y1": -125,
+            "y2": 45
+          },
+          {
+            "x1": -425,
+            "x2": 125,
+            "y1": -325,
+            "y2": -175
+          }
+        ],
+        "anim": {
+          "kind": "wave",
+          "amount": 15,
+          "speed": 7
+        },
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "hop",
+            "amount": 10,
+            "seconds": 0.6
+          },
+          {
+            "on": "warn:nebula-drift",
+            "kind": "shake",
+            "amount": 6,
+            "seconds": 1
+          }
+        ]
+      },
+      {
+        "id": "cloud-bank-right",
+        "image": "stages/watercolor-nebula/_takes/cloud-bank-right-530990979.webp",
+        "x": 1125,
+        "y": 330,
+        "width": 1045,
+        "z": 6,
+        "note": "Golden-ochre cloud mass behind the right side, echoing the concept's upper-right billow.",
+        "prompt": "A towering billow of watercolor cloud in honey gold, burnt orange and cream, with dusty mauve shadows tucked in its folds, stepped mosaic edges, warm light from the center.",
+        "aspect": 0.767,
+        "shape": [
+          {
+            "x1": -725,
+            "x2": 475,
+            "y1": -180,
+            "y2": 170
+          },
+          {
+            "x1": -225,
+            "x2": 425,
+            "y1": 170,
+            "y2": 350
+          },
+          {
+            "x1": -775,
+            "x2": -675,
+            "y1": -80,
+            "y2": 70
+          },
+          {
+            "x1": -125,
+            "x2": 475,
+            "y1": -350,
+            "y2": -180
+          }
+        ],
+        "anim": {
+          "kind": "wave",
+          "amount": 15,
+          "speed": 8
+        },
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "hop",
+            "amount": 10,
+            "seconds": 0.6
+          },
+          {
+            "on": "warn:pigment-rain",
+            "kind": "flash",
+            "seconds": 0.5
+          }
+        ]
+      },
+      {
+        "id": "drift-swirl",
+        "image": "stages/watercolor-nebula/_takes/drift-swirl-1792771650.webp",
+        "x": 0,
+        "y": 280,
+        "width": 2580,
+        "z": 4,
+        "note": "Streaming swirl of pigment that shows during the nebula drift wind.",
+        "prompt": "Long horizontal streaks of translucent ochre, mauve and blue watercolor, like paint dragged by a brush from left to right, feathered edges.",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -900,
+            "x2": 900,
+            "y1": 140,
+            "y2": 200
+          },
+          {
+            "x1": -800,
+            "x2": 850,
+            "y1": -30,
+            "y2": 20
+          },
+          {
+            "x1": -900,
+            "x2": 800,
+            "y1": -200,
+            "y2": -160
+          }
+        ],
+        "anim": {
+          "kind": "scroll",
+          "amount": 60,
+          "speed": 4
+        },
+        "showDuring": "nebula-drift"
+      },
+      {
+        "id": "main-island",
+        "image": "",
+        "x": 0,
+        "y": -130,
+        "width": 1600,
+        "z": 0.3,
+        "hidden": true,
+        "note": "The main floor: a thick slab of pooled watercolor paint with drips hanging off its underside.",
+        "prompt": "A floating slab of wet, layered watercolor pigment: a flat pale-cream top skin with a soft golden rim, body bleeding from ochre into dusty blue and mauve bands, pixel-stepped cloud edges, long glossy drips trailing beneath with round beads at their tips.",
+        "aspect": 0.163,
+        "shape": [
+          {
+            "x1": -800,
+            "x2": 800,
+            "y1": 10,
+            "y2": 130
+          },
+          {
+            "x1": -800,
+            "x2": 800,
+            "y1": 110,
+            "y2": 130
+          },
+          {
+            "x1": -390,
+            "x2": -320,
+            "y1": -90,
+            "y2": 10
+          },
+          {
+            "x1": -60,
+            "x2": 0,
+            "y1": -50,
+            "y2": 10
+          },
+          {
+            "x1": 160,
+            "x2": 220,
+            "y1": -130,
+            "y2": 10
+          },
+          {
+            "x1": 360,
+            "x2": 410,
+            "y1": -40,
+            "y2": 10
+          }
+        ],
+        "platforms": [
+          0
+        ]
+      },
+      {
+        "id": "low-left-puddle",
+        "image": "",
+        "x": -315,
+        "y": 100,
+        "width": 230,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Thin floating ochre paint puddle, low left.",
+        "prompt": "A flat floating puddle of warm ochre and honey-gold watercolor, a pale cream surface film on top, frilled cloud-like edges and one small drip falling from below.",
+        "aspect": 0.261,
+        "shape": [
+          {
+            "x1": -115,
+            "x2": 115,
+            "y1": 10,
+            "y2": 30
+          },
+          {
+            "x1": -95,
+            "x2": 95,
+            "y1": -5,
+            "y2": 10
+          },
+          {
+            "x1": -15,
+            "x2": 5,
+            "y1": -30,
+            "y2": -5
+          }
+        ],
+        "platforms": [
+          1
+        ]
+      },
+      {
+        "id": "low-right-puddle",
+        "image": "",
+        "x": 315,
+        "y": 100,
+        "width": 230,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Thin floating ochre paint puddle, low right.",
+        "prompt": "A flat floating puddle of warm ochre and honey-gold watercolor, a pale cream surface film on top, frilled cloud-like edges and one small drip falling from below.",
+        "aspect": 0.261,
+        "shape": [
+          {
+            "x1": -115,
+            "x2": 115,
+            "y1": 10,
+            "y2": 30
+          },
+          {
+            "x1": -95,
+            "x2": 95,
+            "y1": -5,
+            "y2": 10
+          },
+          {
+            "x1": -15,
+            "x2": 5,
+            "y1": -30,
+            "y2": -5
+          }
+        ],
+        "platforms": [
+          2
+        ]
+      },
+      {
+        "id": "high-left-wisp",
+        "image": "",
+        "x": -265,
+        "y": 363,
+        "width": 210,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Thin floating blue cloud wisp, high left.",
+        "prompt": "A flat curling wisp of deep and dusty blue watercolor with a pale sky-blue lit top edge, soft pixel-stepped billows underneath and a few tiny white specks.",
+        "aspect": 0.262,
+        "shape": [
+          {
+            "x1": -105,
+            "x2": 105,
+            "y1": 7,
+            "y2": 27
+          },
+          {
+            "x1": -85,
+            "x2": 75,
+            "y1": -13,
+            "y2": 7
+          },
+          {
+            "x1": -35,
+            "x2": 35,
+            "y1": -28,
+            "y2": -13
+          }
+        ],
+        "platforms": [
+          4
+        ]
+      },
+      {
+        "id": "high-right-wisp",
+        "image": "",
+        "x": 265,
+        "y": 363,
+        "width": 210,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Thin floating blue cloud wisp, high right.",
+        "prompt": "A flat curling wisp of deep and dusty blue watercolor with a pale sky-blue lit top edge, soft pixel-stepped billows underneath and a few tiny white specks.",
+        "aspect": 0.262,
+        "shape": [
+          {
+            "x1": -105,
+            "x2": 105,
+            "y1": 7,
+            "y2": 27
+          },
+          {
+            "x1": -75,
+            "x2": 85,
+            "y1": -13,
+            "y2": 7
+          },
+          {
+            "x1": -35,
+            "x2": 35,
+            "y1": -28,
+            "y2": -13
+          }
+        ],
+        "platforms": [
+          5
+        ]
+      },
+      {
+        "id": "drop-left",
+        "image": "stages/watercolor-nebula/_takes/drop-left-1767909979.webp",
+        "x": -260,
+        "y": 1335,
+        "width": 117,
+        "z": -0.3,
+        "note": "Falling glob of amber paint, the pigment-rain hazard (left).",
+        "prompt": "A big glossy teardrop of amber-orange watercolor paint with a thin trailing tail streaking above it, bright highlight, soft edges.",
+        "aspect": 1.608,
+        "shape": [
+          {
+            "x1": -50,
+            "x2": 50,
+            "y1": -85,
+            "y2": 15
+          },
+          {
+            "x1": -10,
+            "x2": 10,
+            "y1": 15,
+            "y2": 85
+          }
+        ],
+        "follows": "drop-left-h"
+      },
+      {
+        "id": "drop-right",
+        "image": "stages/watercolor-nebula/_takes/drop-right-1279433944.webp",
+        "x": 300,
+        "y": 1535,
+        "width": 117,
+        "z": -0.3,
+        "note": "Falling glob of blue paint, the pigment-rain hazard (right).",
+        "prompt": "A big glossy teardrop of deep blue watercolor paint with a thin trailing tail streaking above it, white highlight, soft edges.",
+        "aspect": 1.608,
+        "shape": [
+          {
+            "x1": -50,
+            "x2": 50,
+            "y1": -85,
+            "y2": 15
+          },
+          {
+            "x1": -10,
+            "x2": 10,
+            "y1": 15,
+            "y2": 85
+          }
+        ],
+        "follows": "drop-right-h"
+      },
+      {
+        "id": "front-wisp",
+        "image": "stages/watercolor-nebula/_takes/front-wisp-644737406.webp",
+        "x": 1105,
+        "y": -265,
+        "width": 539,
+        "z": -3,
+        "occluder": true,
+        "note": "A foreground cloud wisp low right that fighters can fall behind.",
+        "prompt": "A soft out-of-focus tendril of dusty blue and cream watercolor cloud, translucent edges, a couple of glossy amber beads clinging to it.",
+        "aspect": 0.517,
+        "shape": [
+          {
+            "x1": -245,
+            "x2": 245,
+            "y1": -55,
+            "y2": 65
+          },
+          {
+            "x1": -185,
+            "x2": 145,
+            "y1": 65,
+            "y2": 115
+          },
+          {
+            "x1": -105,
+            "x2": 95,
+            "y1": -115,
+            "y2": -55
+          }
+        ],
+        "anim": {
+          "kind": "wave",
+          "amount": 20,
+          "speed": 5
+        }
+      },
+      {
+        "id": "stage-art",
+        "image": "stages/watercolor-nebula/wide/stage-art.webp",
+        "x": 0,
+        "y": 70,
+        "width": 1700,
+        "z": 0.3,
+        "note": "The painted stage: every piece that draws platforms.",
+        "aspect": 0.445,
+        "platforms": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ]
+      },
+      {
+        "id": "platform-copy-right",
+        "image": "stages/watercolor-nebula/wide/copy-right.webp",
+        "x": 605,
+        "y": 138,
+        "width": 280,
+        "z": 0.3,
+        "note": "A copy of platform 2 and its art, for the widened stage.",
+        "platforms": [
+          7
+        ]
+      },
+      {
+        "id": "platform-copy-left",
+        "image": "stages/watercolor-nebula/wide/copy-left.webp",
+        "x": -605,
+        "y": 138,
+        "width": 280,
+        "z": 0.3,
+        "note": "A copy of platform 1 and its art, for the widened stage.",
+        "platforms": [
+          8
+        ]
+      }
+    ],
+    "effects": [
+      {
+        "on": "hit",
+        "kind": "splat",
+        "colors": [
+          "#b38249",
+          "#e1b878",
+          "#46728b",
+          "#5f8191",
+          "#9b8a70"
+        ],
+        "count": 6,
+        "at": "ko"
+      },
+      {
+        "on": "ko",
+        "kind": "splat",
+        "colors": [
+          "#b38249",
+          "#e1b878",
+          "#46728b",
+          "#d5c8a6"
+        ],
+        "count": 6,
+        "at": "ko",
+        "sound": "ko"
+      },
+      {
+        "on": "ko",
+        "kind": "burst",
+        "colors": [
+          "#e1b878",
+          "#5f8191"
+        ],
+        "count": 6,
+        "at": "ko"
+      },
+      {
+        "on": "ambient",
+        "kind": "embers",
+        "colors": [
+          "#e1b878",
+          "#b38249",
+          "#5f8191"
+        ],
+        "count": 6,
+        "every": 4,
+        "at": "sky"
+      },
+      {
+        "on": "warn:pigment-rain",
+        "kind": "flash",
+        "colors": [
+          "#e1b878"
+        ],
+        "count": 1,
+        "at": "sky"
+      },
+      {
+        "on": "event:pigment-rain",
+        "kind": "rain",
+        "colors": [
+          "#b38249",
+          "#46728b",
+          "#e1b878"
+        ],
+        "count": 6,
+        "at": "sky"
+      },
+      {
+        "on": "warn:nebula-drift",
+        "kind": "dust",
+        "colors": [
+          "#d5c8a6",
+          "#999e90"
+        ],
+        "count": 6,
+        "at": "sky",
+        "sound": "wipe"
+      },
+      {
+        "on": "event:nebula-drift",
+        "kind": "dust",
+        "colors": [
+          "#e1b878",
+          "#9b8a70",
+          "#5f8191"
+        ],
+        "count": 6,
+        "at": "sky"
+      },
+      {
+        "on": "start",
+        "kind": "splat",
+        "colors": [
+          "#b38249",
+          "#46728b",
+          "#e1b878"
+        ],
+        "count": 6,
+        "at": "sky"
+      },
+      {
+        "on": "end",
+        "kind": "firework",
+        "colors": [
+          "#e1b878",
+          "#b38249",
+          "#46728b",
+          "#d5c8a6"
+        ],
+        "count": 8,
+        "at": "sky"
+      }
+    ],
+    "events": [
+      {
+        "id": "pigment-rain",
+        "duration": 5,
+        "name": "Pigment Rain",
+        "every": [
+          22,
+          35
+        ],
+        "first": 25,
+        "warn": 2
+      },
+      {
+        "id": "nebula-drift",
+        "duration": 7,
+        "name": "Nebula Drift",
+        "every": [
+          28,
+          40
+        ],
+        "first": 50,
+        "warn": 2.5
+      }
+    ],
+    "zones": [
+      {
+        "kind": "wind",
+        "x1": -1800,
+        "x2": 1800,
+        "y1": -850,
+        "y2": 1350,
+        "during": "nebula-drift",
+        "force": [
+          85,
+          0
+        ]
+      }
+    ],
+    "hazards": [
+      {
+        "id": "drop-left-h",
+        "path": [
+          {
+            "x": -260,
+            "y": 1300
+          },
+          {
+            "x": -260,
+            "y": -950
+          }
+        ],
+        "r": 45,
+        "dmg": 8,
+        "angle": 50,
+        "bkb": 30,
+        "kbg": 60,
+        "during": "pigment-rain"
+      },
+      {
+        "id": "drop-right-h",
+        "path": [
+          {
+            "x": 300,
+            "y": 1500
+          },
+          {
+            "x": 300,
+            "y": -950
+          }
+        ],
+        "r": 45,
+        "dmg": 8,
+        "angle": 50,
+        "bkb": 30,
+        "kbg": 60,
+        "during": "pigment-rain"
+      }
+    ],
+    "source": "WatercolorNebula",
+    "art": {
+      "style": "Soft painterly watercolor with a subtle stepped, mosaic-pixel quality to every cloud edge, visible paper grain and wet pigment blooms. Palette of deep slate blue, dusty teal, mauve, ochre, honey gold and warm cream, lit by a glowing golden heart at the center of the nebula. Dreamy, calm and luminous, with glossy amber and blue paint beads floating everywhere.",
+      "reference": "stages/watercolor-nebula/reference.webp"
+    },
+    "notes": "Vertical take: five tiers spaced 130 apart (floor 0, puddles 130, drifting bead 260, wisps 390, crown droplet 520) so every step is one easy jump, while the full climb is a big height difference; blast top raised to 1350 so high fights don't end too early. The center bead sways 60 each way and the crown droplet bobs gently to sell the 'slightly fluid' floor; those two use default blocks (theme colors blend in) since static art can't follow them. Paint gets everywhere: splats on every hit and big ones on KOs. Events: Pigment Rain (2 s flash + warning, two huge paint globs fall through the stage on fixed columns x -260 and 300, rain streaks), Nebula Drift (2.5 s warning, rightward wind over the whole stage with a brush-streak swirl and dust). Persistent paint stains on the floor and a truly sloshing/curved fluid floor aren't buildable yet. Art priority: 1 main-island, 2 backdrop, 3 the four puddle/wisp platforms, 4 drop-left/drop-right hazards, 5 cloud banks, 6 drift-swirl, 7 underwash and front-wisp."
+  },
+  {
+    "id": "yo-house",
+    "name": "Yo House",
+    "blurb": "Swim through the fish tank, dodge the robot vacuum, and stretch before you stretch your lead.",
+    "platforms": [
+      {
+        "x1": -1000,
+        "x2": 1000,
+        "y": 0,
+        "solid": true,
+        "depth": 140,
+        "hidden": true
+      },
+      {
+        "x1": -190,
+        "x2": 190,
+        "y": 120,
+        "solid": true,
+        "depth": 120,
+        "hidden": true
+      },
+      {
+        "x1": -190,
+        "x2": 190,
+        "y": 390,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -860,
+        "x2": -660,
+        "y": 130,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": -850,
+        "x2": -690,
+        "y": 260,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 640,
+        "x2": 920,
+        "y": 110,
+        "solid": false,
+        "hidden": true
+      },
+      {
+        "x1": 740,
+        "x2": 920,
+        "y": 230,
+        "solid": false,
+        "hidden": true
+      }
+    ],
+    "blast": {
+      "left": -1800,
+      "right": 1800,
+      "top": 1250,
+      "bottom": -850
+    },
+    "spawns": [
+      {
+        "x": -650,
+        "y": 0
+      },
+      {
+        "x": 650,
+        "y": 0
+      },
+      {
+        "x": -430,
+        "y": 0
+      },
+      {
+        "x": 430,
+        "y": 0
+      }
+    ],
+    "respawn": {
+      "x": 0,
+      "y": 560
+    },
+    "theme": {
+      "sky": [
+        "#8d9cad",
+        "#6e7d8b",
+        "#4b5961"
+      ],
+      "glow": "#a0bf70",
+      "body": "#3a2f28",
+      "under": "#1e1915",
+      "edge": "#d8dfe2",
+      "thinEdge": "#a0bf70",
+      "props": "frame"
+    },
+    "layers": [
+      {
+        "id": "backdrop",
+        "image": "stages/yo-house/_takes/backdrop-925410435.webp",
+        "x": 0,
+        "y": 250,
+        "width": 3600,
+        "z": 18,
+        "note": "The far background, painted fresh from the concept.",
+        "prompt": "A long open-plan kitchen wall in cool morning light: a run of glossy white handleless upper and lower cabinets, a dark charcoal backsplash with under-cabinet strip lights, a sleek tap and a few bottles, tall paned windows at the far right with green garden leaves outside, and on the far left a glimpse through a wide doorway into a bright small yoga room with its own window. Blue-grey walls, white crown molding, recessed ceiling lights, dark wood floor receding into the distance, soft haze, no people.",
+        "aspect": 0.429
+      },
+      {
+        "id": "doorway-frame",
+        "image": "stages/yo-house/_takes/doorway-frame-912699797.webp",
+        "x": -220,
+        "y": 360,
+        "width": 356,
+        "z": 5,
+        "note": "The wide white doorway separating the yoga room from the kitchen, behind the fighters",
+        "prompt": "Thick white painted door casing with crown molding, cool blue-grey shadowed walls either side, the yoga room beyond slightly brighter with a window",
+        "aspect": 2.233,
+        "shape": [
+          {
+            "x1": -420,
+            "x2": -370,
+            "y1": -360,
+            "y2": 360
+          },
+          {
+            "x1": -420,
+            "x2": 120,
+            "y1": 320,
+            "y2": 360
+          }
+        ]
+      },
+      {
+        "id": "exercise-ball",
+        "image": "stages/yo-house/_takes/exercise-ball-1842298723.webp",
+        "x": -940,
+        "y": 50,
+        "width": 132,
+        "z": 3,
+        "note": "Silver-grey exercise ball sitting in the yoga room, hops on KOs",
+        "prompt": "Matte silver-grey inflatable exercise ball with a soft highlight, sitting on a teal yoga mat",
+        "aspect": 0.855,
+        "shape": [
+          {
+            "x1": -50,
+            "x2": 50,
+            "y1": -50,
+            "y2": 50
+          },
+          {
+            "x1": -60,
+            "x2": 60,
+            "y1": -50,
+            "y2": -42
+          }
+        ],
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "hop",
+            "amount": 25,
+            "seconds": 0.5
+          },
+          {
+            "on": "warn:robo-vacuum",
+            "kind": "shake",
+            "amount": 4,
+            "seconds": 0.5
+          }
+        ]
+      },
+      {
+        "id": "vacuum-dock-light",
+        "image": "stages/yo-house/_takes/vacuum-dock-light-650285334.webp",
+        "x": -960,
+        "y": 20,
+        "width": 66,
+        "z": 3,
+        "note": "Warning for the robo vacuum: its charging dock at the far left wakes up with a blinking light",
+        "prompt": "Small black charging dock against the baseboard with a pulsing green LED and a tiny beeping glow",
+        "aspect": 0.701,
+        "shape": [
+          {
+            "x1": -30,
+            "x2": 30,
+            "y1": -20,
+            "y2": 20
+          }
+        ],
+        "anim": {
+          "kind": "pulse",
+          "amount": 20,
+          "speed": 0.4
+        },
+        "showDuring": "warn:robo-vacuum"
+      },
+      {
+        "id": "hardwood-floor",
+        "image": "",
+        "x": 0,
+        "y": -70,
+        "width": 2000,
+        "z": 0.3,
+        "hidden": true,
+        "note": "The main stage: a floating slab of dark hardwood floor cut out of the house, like a dollhouse cross-section",
+        "prompt": "Glossy dark walnut floorboards seen slightly from above on top, the cut-away front edge showing layered subfloor, joists and a strip of pale baseboard trim; cool window light reflecting in long streaks across the planks",
+        "aspect": 0.07,
+        "shape": [
+          {
+            "x1": -1000,
+            "x2": 1000,
+            "y1": 50,
+            "y2": 70
+          },
+          {
+            "x1": -1000,
+            "x2": 1000,
+            "y1": -70,
+            "y2": 50
+          },
+          {
+            "x1": -1000,
+            "x2": -960,
+            "y1": -70,
+            "y2": 50
+          },
+          {
+            "x1": 960,
+            "x2": 1000,
+            "y1": -70,
+            "y2": 50
+          }
+        ],
+        "platforms": [
+          0
+        ]
+      },
+      {
+        "id": "fish-tank",
+        "image": "",
+        "x": 0,
+        "y": 195,
+        "width": 390,
+        "z": 0.3,
+        "note": "Centerpiece aquarium on its dark cabinet: fighters stand on the cabinet, swim inside the water, and stand on the lid",
+        "prompt": "Charcoal matte cabinet stand with a thin dark lid strip on top; inside the glass a lush planted aquascape lit glowing green from above, driftwood, mossy rocks and tall grass, clear pale-aqua water with soft light rays, glass edges catching white highlights; water reads translucent and luminous",
+        "aspect": 1,
+        "shape": [
+          {
+            "x1": -190,
+            "x2": 190,
+            "y1": -195,
+            "y2": -75
+          },
+          {
+            "x1": -185,
+            "x2": 185,
+            "y1": -75,
+            "y2": 180
+          },
+          {
+            "x1": -195,
+            "x2": 195,
+            "y1": 180,
+            "y2": 195
+          },
+          {
+            "x1": -175,
+            "x2": -60,
+            "y1": -75,
+            "y2": -25
+          },
+          {
+            "x1": 40,
+            "x2": 175,
+            "y1": -75,
+            "y2": 5
+          }
+        ],
+        "platforms": [
+          1,
+          2
+        ],
+        "reacts": [
+          {
+            "on": "warn:bubbler-burst",
+            "kind": "shake",
+            "amount": 3,
+            "seconds": 1.5
+          }
+        ]
+      },
+      {
+        "id": "sofa",
+        "image": "",
+        "x": 780,
+        "y": 115,
+        "width": 280,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Grey fabric sofa on the right: seat cushions and the back cushions are both thin platforms",
+        "prompt": "Soft heathered grey upholstered sofa in side view, plump seat cushion, tall back cushion with a charcoal throw pillow tucked at the corner, short dark wooden legs",
+        "aspect": 0.821,
+        "shape": [
+          {
+            "x1": -140,
+            "x2": 140,
+            "y1": -95,
+            "y2": -5
+          },
+          {
+            "x1": -40,
+            "x2": 140,
+            "y1": -5,
+            "y2": 115
+          },
+          {
+            "x1": -130,
+            "x2": -110,
+            "y1": -115,
+            "y2": -95
+          },
+          {
+            "x1": 110,
+            "x2": 130,
+            "y1": -115,
+            "y2": -95
+          }
+        ],
+        "platforms": [
+          5,
+          6
+        ]
+      },
+      {
+        "id": "yoga-corner",
+        "image": "",
+        "x": -760,
+        "y": 130,
+        "width": 200,
+        "z": 0.3,
+        "hidden": true,
+        "note": "Yoga room side: a chunky stack of rolled yoga mats to stand on and a wall shelf above it",
+        "prompt": "Rolled yoga mats in muted teal, mauve and sand stacked in a neat pyramid-ish pile with a flat top, a light oak wall shelf with small brackets above holding a little potted succulent at one end",
+        "aspect": 1.3,
+        "shape": [
+          {
+            "x1": -100,
+            "x2": 100,
+            "y1": -130,
+            "y2": -85
+          },
+          {
+            "x1": -90,
+            "x2": 90,
+            "y1": -85,
+            "y2": -40
+          },
+          {
+            "x1": -80,
+            "x2": 80,
+            "y1": -40,
+            "y2": 0
+          },
+          {
+            "x1": -90,
+            "x2": 70,
+            "y1": 115,
+            "y2": 130
+          },
+          {
+            "x1": -80,
+            "x2": -65,
+            "y1": 85,
+            "y2": 115
+          },
+          {
+            "x1": 45,
+            "x2": 60,
+            "y1": 85,
+            "y2": 115
+          }
+        ],
+        "platforms": [
+          3,
+          4
+        ]
+      },
+      {
+        "id": "robo-vacuum-bot",
+        "image": "stages/yo-house/_takes/robo-vacuum-bot-1431379603.webp",
+        "x": -1100,
+        "y": 30,
+        "width": 121,
+        "z": -0.3,
+        "note": "The robot vacuum hazard, rides its path across the yoga room and bonks the tank",
+        "prompt": "Glossy black round robot vacuum seen from the side, low disc body with a silver bumper, a green status light and a little spinning side brush, facing right",
+        "aspect": 0.583,
+        "shape": [
+          {
+            "x1": -55,
+            "x2": 55,
+            "y1": -30,
+            "y2": 20
+          },
+          {
+            "x1": -45,
+            "x2": 45,
+            "y1": 20,
+            "y2": 30
+          }
+        ],
+        "follows": "vacuum"
+      },
+      {
+        "id": "bubble-column",
+        "image": "stages/yo-house/_takes/bubble-column-1093587510.webp",
+        "x": 0,
+        "y": 250,
+        "width": 330,
+        "z": -1.5,
+        "note": "Visible only during Bubbler Burst: a roaring column of bubbles shooting up through the tank",
+        "prompt": "Dense column of white and pale aqua bubbles of every size rushing upward, foamy and bright",
+        "aspect": 0.882,
+        "shape": [
+          {
+            "x1": -150,
+            "x2": 150,
+            "y1": -130,
+            "y2": 130
+          }
+        ],
+        "anim": {
+          "kind": "pulse",
+          "amount": 6,
+          "speed": 0.6
+        },
+        "showDuring": "bubbler-burst"
+      },
+      {
+        "id": "tank-fish",
+        "image": "stages/yo-house/_takes/tank-fish-2112866959.webp",
+        "x": 0,
+        "y": 280,
+        "width": 132,
+        "z": -1.5,
+        "note": "A small school of bright tropical fish that drifts back and forth inside the tank",
+        "prompt": "Five little neon tetra-style fish, glowing blue and red stripes, swimming in a loose cluster",
+        "aspect": 0.414,
+        "shape": [
+          {
+            "x1": -60,
+            "x2": 60,
+            "y1": -20,
+            "y2": 20
+          }
+        ],
+        "anim": {
+          "kind": "wave",
+          "amount": 60,
+          "speed": 4
+        }
+      },
+      {
+        "id": "front-fern",
+        "image": "stages/yo-house/_takes/front-fern-474129275.webp",
+        "x": 570,
+        "y": 110,
+        "width": 142,
+        "z": -2,
+        "occluder": true,
+        "note": "Potted snake plant and monstera in the foreground near the sofa; fighters pass behind its leaves",
+        "prompt": "Tall striped snake plant leaves and broad monstera leaves in fresh greens from a white ceramic pot, slightly out of focus as if close to the camera",
+        "aspect": 1.694,
+        "shape": [
+          {
+            "x1": -40,
+            "x2": 40,
+            "y1": -110,
+            "y2": -60
+          },
+          {
+            "x1": -360,
+            "x2": 60,
+            "y1": -60,
+            "y2": 50
+          },
+          {
+            "x1": -20,
+            "x2": 20,
+            "y1": 50,
+            "y2": 110
+          }
+        ],
+        "anim": {
+          "kind": "sway",
+          "amount": 3,
+          "speed": 3
+        },
+        "reacts": [
+          {
+            "on": "hit",
+            "kind": "shake",
+            "amount": 2,
+            "seconds": 0.2
+          }
+        ]
+      },
+      {
+        "id": "stage-art",
+        "image": "stages/yo-house/wide/stage-art.webp",
+        "x": 0,
+        "y": 65,
+        "width": 2140,
+        "z": 0.3,
+        "note": "The painted stage: every piece that draws platforms.",
+        "aspect": 0.298,
+        "platforms": [
+          0,
+          3,
+          4,
+          5,
+          6
+        ]
+      }
+    ],
+    "effects": [
+      {
+        "on": "event:bubbler-burst",
+        "kind": "embers",
+        "colors": [
+          "#e6f7ff",
+          "#a8dce6",
+          "#d8dfe2"
+        ],
+        "count": 6,
+        "at": "sky"
+      },
+      {
+        "on": "warn:robo-vacuum",
+        "kind": "shake",
+        "count": 2,
+        "at": "sky",
+        "sound": "ui-move"
+      },
+      {
+        "on": "event:robo-vacuum",
+        "kind": "dust",
+        "colors": [
+          "#8d9cad",
+          "#d8dfe2"
+        ],
+        "count": 6,
+        "at": "sky"
+      },
+      {
+        "on": "ko",
+        "kind": "burst",
+        "colors": [
+          "#a0bf70",
+          "#d8dfe2",
+          "#76a557"
+        ],
+        "count": 6,
+        "at": "ko",
+        "sound": "ko"
+      },
+      {
+        "on": "end",
+        "kind": "confetti",
+        "colors": [
+          "#a0bf70",
+          "#7f995d",
+          "#d8dfe2",
+          "#8d9cad"
+        ],
+        "count": 20,
+        "at": "sky"
+      }
+    ],
+    "events": [
+      {
+        "id": "robo-vacuum",
+        "duration": 6,
+        "name": "Robo Vacuum",
+        "every": [
+          25,
+          40
+        ],
+        "first": 20,
+        "warn": 2.5
+      },
+      {
+        "id": "bubbler-burst",
+        "duration": 4,
+        "name": "Bubbler Burst",
+        "every": [
+          20,
+          35
+        ],
+        "first": 35,
+        "warn": 2
+      }
+    ],
+    "zones": [
+      {
+        "kind": "water",
+        "x1": -180,
+        "x2": 180,
+        "y1": 120,
+        "y2": 380,
+        "gravity": 35
+      },
+      {
+        "kind": "wind",
+        "x1": -170,
+        "x2": 170,
+        "y1": 120,
+        "y2": 380,
+        "during": "bubbler-burst",
+        "force": [
+          0,
+          180
+        ]
+      }
+    ],
+    "hazards": [
+      {
+        "id": "vacuum",
+        "path": [
+          {
+            "x": -1400,
+            "y": 35
+          },
+          {
+            "x": -215,
+            "y": 35
+          },
+          {
+            "x": -1400,
+            "y": 35
+          }
+        ],
+        "r": 45,
+        "dmg": 10,
+        "angle": 40,
+        "bkb": 35,
+        "kbg": 60,
+        "during": "robo-vacuum"
+      }
+    ],
+    "source": "YoHouse",
+    "art": {
+      "style": "Soft photoreal-meets-diorama interior rendering, like a dollhouse cutaway of a modern open-plan home. Cool blue-grey walls and daylight, dark glossy walnut floors, crisp white cabinetry, with the aquarium as the one glowing green jewel. Calm, airy and a little cheeky, as if the fighters are scrapping in someone's spotless living room.",
+      "reference": "stages/yo-house/reference.webp"
+    },
+    "notes": "Play: a flat 1400-wide hardwood floor with the fish tank as a raised centerpiece. The cabinet stand (y120) is a solid block with ledges; above it the tank is a water zone where fighters swim slowly and stroke upward to the thin lid at y390, the stage's high ground. Left side is the yoga room (mat stack y130, shelf y260) and right side the sofa (seat y110, back y230), so the stage is deliberately asymmetric: tight vertical climbing on the left, a softer two-step on the right. Robo Vacuum (every 25-40 s, 2.5 s warning with blinking dock light and a beep): a hazard trundles in from off-screen left across the yoga room, bonks the tank stand and retreats, hitting anyone on the left floor. Bubbler Burst (every 20-35 s, 2 s warning with tank shake): an upward wind blasts through the tank, launching swimmers out the top for a lid scramble or edgeguard surprise. Art priority: 1 fish-tank (sets the whole look, keep water luminous), 2 hardwood-floor, 3 backdrop kitchen, 4 sofa and yoga-corner, 5 robo-vacuum-bot and bubble-column, 6 front-fern, exercise-ball, doorway, fish, dock. Not buildable yet: fighters breaking the tank glass, or a rolling exercise ball physics prop."
   }
 ]

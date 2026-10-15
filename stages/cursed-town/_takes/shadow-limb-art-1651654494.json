@@ -1,0 +1,35 @@
+{
+ "job": "e56161594330",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "cursed-town",
+ "piece": "shadow-limb-art",
+ "kind": "front",
+ "layers": [
+  "shadow-limb-art"
+ ],
+ "seed": 1651654494,
+ "prompt": "Paint image 1: the shape becomes A massive slick black tentacle swinging sideways, tip curled forward, trailing wisps of dark smoke, suckers faintly pale, filling the same position and size. It sits close to the camera, in front of the action: darker, slightly silhouetted, with a crisp outline. Match the art style, palette and lighting of image 2. Style: Muted, painterly gothic realism in cold fog: weathered grey clapboard, mossy slate shingles, wet cobbles, everything desaturated toward grey-green. Flat diffuse overcast light with no bright accents; the only contrast is the inky, glossy black of the shadow tentacles. Mood is quiet dread, soft edges dissolving into mist. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1895,
+  "x2": -1565,
+  "y1": -14.950000000000003,
+  "y2": 144.95
+ },
+ "size": [
+  1472,
+  720
+ ],
+ "x": -1730,
+ "y": 65,
+ "width": 330,
+ "created": 1792027697514
+}

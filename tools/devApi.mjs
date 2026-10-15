@@ -51,14 +51,16 @@
  * File access is limited to this project and the fighter art folder. The
  * ElevenLabs key is ELEVENLABS_API_KEY, from the environment or .env.
  */
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { normalizePath } from 'vite';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
 import { checkAccount } from './gpu/check.mjs';
-import { fixServer, launchServer, serverHealth, serverLog, refreshAccess, regionsInfo, requestQuota, serverStatus, startServer, stopServer, terminateServer, DEFAULT_TYPE, DISK_PER_MONTH, TYPES } from './gpu/aws.mjs';
+import { fixServer, fleetStatus, launchServer, serverHealth, serverLog, refreshAccess, regionsInfo, requestQuota, startServer, stopServer, terminateServer, DEFAULT_TYPE, DISK_PER_MONTH, TYPES } from './gpu/aws.mjs';
+import { FLEET_MAX, loadFleet, saveFleet } from './gpu/fleet.mjs';
 import { GRAPHS, Jobs, motionPath } from './gpu/jobs.mjs';
 import { Retry } from './gpu/retry.mjs';
 import { capacityScores } from './gpu/capacity.mjs';
@@ -67,7 +69,7 @@ import { mapIdeas } from './maps/idea.mjs';
 import { composite, designPreview, loadStage, paintPlan } from './maps/paint.mjs';
 import { reviewStage } from './maps/review.mjs';
 
-const CONTENT = new Set(['stages', 'fighters', 'campaign', 'sounds', 'voice', 'anim-clips', 'generation']);
+const CONTENT = new Set(['stages', 'fighters', 'campaign', 'sounds', 'voice', 'anim-clips', 'generation', 'modes']);
 const VIDEO = new Set(['.mp4', '.mov', '.webm', '.mkv', '.gif', '.avi']);
 const IMAGE = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 const AUDIO = new Set(['.mp3', '.ogg', '.wav', '.m4a']);
@@ -239,17 +241,34 @@ export function devApi({ root, artRoot, mapsRoot }) {
     return new Set([...c.loops, ...c.once, ...c.moves]);
   };
 
+  const poseNames = () => new Set(Object.keys(clipList().poses ?? {}));
   const jobs = new Jobs({
     folderFor: (id, create) => folderFor(id, create),
-    info: (id, clip) => {
+    // What a job for this fighter needs to know: their name; for a clip its action, length and
+    // the poses it starts and ends on; for a pose its description.
+    info: (id, clip, pose) => {
       const c = clipList();
+      const name = JSON.parse(fs.readFileSync(path.join(contentDir, 'fighters.json'), 'utf8')).find((f) => f.id === id)?.name ?? id;
+      if (pose) return { name, action: c.poses?.[pose]?.action ?? pose, seconds: 0 };
+      const [start, end] = (clip && c.frames?.[clip]) || [];
+      const label = (p) => (c.poses?.[p]?.label ?? p ?? '').toLowerCase();
+      const loop = clip && c.loops.includes(clip);
+      // {frames}: tells the model where the clip begins and ends.
+      const frames = !start ? ''
+        : loop && start === end ? `It starts and ends in exactly the same ${label(start)} pose, so it loops seamlessly.`
+        : end ? `It starts in the ${label(start)} pose and ends in the ${label(end)} pose.`
+        : `It starts in the ${label(start)} pose.`;
       return {
-        name: JSON.parse(fs.readFileSync(path.join(contentDir, 'fighters.json'), 'utf8')).find((f) => f.id === id)?.name ?? id,
+        name,
         action: clip ? c.actions?.[clip] ?? clip : '',
         seconds: clip ? c.seconds?.[clip] ?? 2 : 2,
+        frames,
+        start, end,
+        startLabel: c.poses?.[start]?.label, endLabel: c.poses?.[end]?.label,
       };
     },
     clipNames,
+    poseNames,
   });
   const retry = new Retry();
   // Vite re-runs this when its config changes; the old queue and retries must stop,
@@ -276,6 +295,15 @@ export function devApi({ root, artRoot, mapsRoot }) {
     return account.value;
   };
   const motionsDir = () => path.dirname(motionPath(folderFor, 'idle'));
+  /** The folder every fighter's art folder lives in (C:\Projects\AllTheCharacters). */
+  const artRootDir = () => path.dirname(motionsDir());
+  /** A fighter's own driving video for a clip (anims/_motion/<clip>.*), if they have one. */
+  const ownMotion = (id, clip) => {
+    const dir = path.join(folderFor(id) ?? '', 'anims', '_motion');
+    if (!fs.existsSync(dir)) return null;
+    const f = fs.readdirSync(dir).find((x) => VIDEO.has(path.extname(x).toLowerCase()) && path.basename(x, path.extname(x)).toLowerCase() === String(clip).toLowerCase());
+    return f ? path.join(dir, f) : null;
+  };
 
   // ---------------------------------------------------------------- maps
 
@@ -363,7 +391,7 @@ export function devApi({ root, artRoot, mapsRoot }) {
           const takeDir = path.join(animDir, '_takes');
           if (fs.existsSync(takeDir)) {
             for (const f of fs.readdirSync(takeDir)) {
-              const m = /^([a-z0-9]+)-(\d+)\.mp4$/i.exec(f);
+              const m = /^([a-z0-9]+)-(\d+)(?:-\d+)?\.mp4$/i.exec(f);
               if (m) takes.push({ clip: m[1].toLowerCase(), seed: Number(m[2]), file: `anims/_takes/${f}`, recipe: readRecipe(path.join(takeDir, f)), ...fileInfo(path.join(takeDir, f)) });
             }
           }
@@ -373,6 +401,24 @@ export function devApi({ root, artRoot, mapsRoot }) {
               clipOptions = JSON.parse(fs.readFileSync(opts, 'utf8'));
             } catch {
               clipOptions = {};
+            }
+          }
+        }
+      }
+      // Poses (besides Standing, which is the side view): poses/<pose>.png chosen, candidates in poses/_takes/.
+      const poses = {};
+      if (folder) {
+        const poseDir = path.join(folder, 'poses');
+        if (fs.existsSync(poseDir)) {
+          for (const f of fs.readdirSync(poseDir)) {
+            const m = /^([a-z]+)\.png$/i.exec(f);
+            if (m) (poses[m[1]] ??= { chosen: null, takes: [] }).chosen = { file: `poses/${f}`, ...fileInfo(path.join(poseDir, f)) };
+          }
+          const takeDir = path.join(poseDir, '_takes');
+          if (fs.existsSync(takeDir)) {
+            for (const f of fs.readdirSync(takeDir)) {
+              const m = /^([a-z]+)-(\d+)\.png$/i.exec(f);
+              if (m) (poses[m[1]] ??= { chosen: null, takes: [] }).takes.push({ file: `poses/_takes/${f}`, seed: Number(m[2]), recipe: readRecipe(path.join(takeDir, f)), ...fileInfo(path.join(takeDir, f)) });
             }
           }
         }
@@ -387,6 +433,7 @@ export function devApi({ root, artRoot, mapsRoot }) {
         clipSources,
         clipOptions,
         sides,
+        poses,
         takes,
         manifest,
         art: {
@@ -708,14 +755,54 @@ export function devApi({ root, artRoot, mapsRoot }) {
       const motions = fs.existsSync(motionsDir())
         ? fs.readdirSync(motionsDir()).filter((f) => VIDEO.has(path.extname(f).toLowerCase())).map((f) => ({ clip: path.basename(f, path.extname(f)), ...fileInfo(path.join(motionsDir(), f)) }))
         : [];
+      const none = { exists: false, types: TYPES, type: DEFAULT_TYPE, pricePerHour: TYPES[DEFAULT_TYPE].price, diskPerMonth: DISK_PER_MONTH };
+      let servers = [];
       let server;
       try {
-        server = await serverStatus();
+        servers = await fleetStatus({ idleMinutes: loadFleet().idleMinutes });
+        // "The server", for tabs that only ask whether the GPU is ready: a ready one first.
+        const rank = (st) => (st.state === 'running' && st.boot?.stage === 'ready' ? 0 : st.state === 'running' || st.state === 'pending' ? 1 : 2);
+        server = [...servers].sort((a, b) => rank(a) - rank(b))[0] ?? none;
       } catch (e) {
-        server = { exists: false, error: `${e.name}: ${e.message}`, types: TYPES, type: DEFAULT_TYPE, pricePerHour: TYPES[DEFAULT_TYPE].price, diskPerMonth: DISK_PER_MONTH };
+        server = { ...none, error: `${e.name}: ${e.message}` };
       }
       const regions = await regionsInfo().catch((e) => [{ region: '?', error: e.message, quota: null, requests: [], zones: {} }]);
-      return send(res, 200, { account: await accountInfo(), server, regions, retry: retry.state, lastFailure, jobs: jobs.list(), motions, motionsDir: motionsDir() });
+      return send(res, 200, { account: await accountInfo(), server, servers, fleet: { ...loadFleet(), max: FLEET_MAX }, regions, retry: retry.state, lastFailure, jobs: jobs.list(), motions, motionsDir: motionsDir() });
+    }
+    if (route === '/gpu/fleet' && req.method === 'POST') {
+      const body = await readJson(req);
+      const fleet = saveFleet({ servers: body.servers, auto: body.auto, idleMinutes: body.idleMinutes });
+      void jobs.pump();
+      return send(res, 200, { ok: true, fleet });
+    }
+    if (route === '/gpu/scale' && req.method === 'POST') {
+      // Starts stopped servers (already set up) until `count` are running. Costs money: confirmed by the caller.
+      const body = await readJson(req);
+      if (body.confirm !== true) return fail(res, 400, 'scale needs { confirm: true }');
+      const count = Math.max(1, Math.min(loadFleet().servers, Math.round(Number(body.count) || loadFleet().servers)));
+      const all = await fleetStatus();
+      const up = all.filter((st) => ['running', 'pending'].includes(st.state)).length;
+      const started = [];
+      const failed = [];
+      for (const st of all.filter((x) => x.state === 'stopped').slice(0, Math.max(0, count - up))) {
+        try {
+          await startServer(st.id);
+          started.push(st.id);
+        } catch (e) {
+          failed.push({ id: st.id, region: st.region, message: e.message, kind: e.kind ?? 'other' });
+        }
+      }
+      return send(res, 200, { ok: true, started, failed, running: up + started.length, short: Math.max(0, count - up - started.length) });
+    }
+    if (route === '/gpu/stop-all' && req.method === 'POST') {
+      const all = await fleetStatus();
+      const stopped = [];
+      for (const st of all.filter((x) => ['running', 'pending'].includes(x.state))) {
+        await stopServer(st.id);
+        stopped.push(st.id);
+      }
+      retry.stop();
+      return send(res, 200, { ok: true, stopped });
     }
     const gpuAction = /^\/gpu\/(launch|start|stop|terminate|access)$/.exec(route);
     if (gpuAction && req.method === 'POST') {
@@ -724,10 +811,14 @@ export function devApi({ root, artRoot, mapsRoot }) {
       // Anything that costs money or deletes the server must be confirmed by the caller.
       if ((act === 'launch' || act === 'start' || act === 'terminate') && body.confirm !== true) return fail(res, 400, `${act} needs { confirm: true }`);
       const opts = {
-        idleMinutes: Math.max(10, Math.min(240, Number(body.idleMinutes) || 30)),
+        idleMinutes: Math.max(10, Math.min(240, Number(body.idleMinutes) || loadFleet().idleMinutes)),
         region: typeof body.region === 'string' ? body.region : 'auto',
         type: body.type === 'auto' || TYPES[body.type] ? body.type : DEFAULT_TYPE,
+        max: loadFleet().servers,
+        // Keep trying a start: launch a new server where machines are free if none can start.
+        fallbackLaunch: body.fallbackLaunch === true,
       };
+      const id = typeof body.id === 'string' && /^i-[0-9a-f]+$/.test(body.id) ? body.id : undefined;
       if ((act === 'launch' || act === 'start') && body.keepTrying) {
         lastFailure = null;
         const minutes = Number(body.keepTrying.minutes) || 60;
@@ -736,12 +827,12 @@ export function devApi({ root, artRoot, mapsRoot }) {
       try {
         const out =
           act === 'launch' ? await launchServer(opts)
-          : act === 'start' ? await startServer()
-          : act === 'stop' ? await stopServer()
-          : act === 'terminate' ? await terminateServer()
+          : act === 'start' ? await startServer(id)
+          : act === 'stop' ? await stopServer(id)
+          : act === 'terminate' ? await terminateServer(id)
           : await refreshAccess();
         if (act === 'launch' || act === 'start') lastFailure = null;
-        if (act === 'stop' || act === 'terminate') retry.stop();
+        if ((act === 'stop' || act === 'terminate') && !id) retry.stop();
         return send(res, 200, { ok: true, ...out });
       } catch (e) {
         return gpuFail(res, e);
@@ -749,21 +840,21 @@ export function devApi({ root, artRoot, mapsRoot }) {
     }
     if (route === '/gpu/health' && req.method === 'GET') {
       try {
-        return send(res, 200, await serverHealth());
+        return send(res, 200, await serverHealth(q('id') || undefined));
       } catch (e) {
         return gpuFail(res, e);
       }
     }
     if (route === '/gpu/health/fix' && req.method === 'POST') {
       try {
-        return send(res, 200, await fixServer());
+        return send(res, 200, await fixServer(q('id') || undefined));
       } catch (e) {
         return gpuFail(res, e);
       }
     }
     if (route === '/gpu/log' && req.method === 'GET') {
       try {
-        return send(res, 200, { log: await serverLog(q('lines')) });
+        return send(res, 200, { log: await serverLog(q('lines'), q('id') || undefined) });
       } catch (e) {
         return gpuFail(res, e);
       }
@@ -812,6 +903,60 @@ export function devApi({ root, artRoot, mapsRoot }) {
       const out = await jobs.useTake(id, String(clip), path.basename(String(file || '')));
       return send(res, 200, { ok: true, log: out.trim().split(/\r?\n/).slice(-4) });
     }
+    if (route === '/gpu/clip-plan' && req.method === 'GET') {
+      // Per clip: missing (nothing to show), outdated (AI-made from a prompt AI Settings would no
+      // longer send), current, or manual (your own video). Whether a video needs building is the
+      // Animations tab's own check (clipStatus).
+      const id = checkFighter(q('fighter'));
+      const animDir = path.join(folderFor(id) ?? '', 'anims');
+      const manifestFile = path.join(root, 'characters', 'anim', id, 'anims.json');
+      const manifest = fs.existsSync(manifestFile) ? JSON.parse(fs.readFileSync(manifestFile, 'utf8')) : null;
+      const videos = fs.existsSync(animDir) ? fs.readdirSync(animDir).filter((f) => VIDEO.has(path.extname(f).toLowerCase())) : [];
+      const hash = (f) => crypto.createHash('sha1').update(fs.readFileSync(f)).digest('hex');
+      const c = clipList();
+      const out = [];
+      for (const clip of [...c.loops, ...c.once, ...c.moves]) {
+        const video = videos.find((f) => path.basename(f, path.extname(f)).toLowerCase() === clip);
+        const built = manifest?.clips?.[clip];
+        // The poses this clip starts and ends on, and whether the fighter has them.
+        const [start, end] = c.frames?.[clip] ?? [];
+        const poseFile = (p) => (p === 'stand' ? path.join(animDir, '_side.png') : path.join(folderFor(id) ?? '', 'poses', `${p}.png`));
+        const lacking = [...new Set([start, end].filter(Boolean))].filter((p) => !fs.existsSync(poseFile(p)));
+        if (!video) {
+          if (built) out.push({ clip, status: 'manual' });
+          else if (lacking.length) out.push({ clip, status: 'needs-poses', why: `needs ${lacking.map((p) => c.poses?.[p]?.label ?? p).join(' and ')}`, poses: lacking });
+          else out.push({ clip, status: 'missing' });
+          continue;
+        }
+        const file = path.join(animDir, video);
+        // What made it: the recipe saved when a take was used, or a take with the same bytes.
+        let recipe = readRecipe(path.join(animDir, '_recipes', `${clip}.mp4`));
+        if (!recipe) {
+          const takes = path.join(animDir, '_takes');
+          const size = fs.statSync(file).size;
+          const twin = fs.existsSync(takes) && fs.readdirSync(takes).find((t) => t.toLowerCase().startsWith(`${clip}-`) && t.endsWith('.mp4') && fs.statSync(path.join(takes, t)).size === size && hash(path.join(takes, t)) === hash(file));
+          if (twin) recipe = readRecipe(path.join(takes, twin));
+        }
+        if (!recipe) {
+          out.push({ clip, status: 'manual' });
+          continue;
+        }
+        const type = recipe.type === 'animate' ? 'animate' : 'i2v';
+        const now = jobs.preview({ type, fighter: id, clip, prompt: recipe.template ?? undefined, negative: recipe.extraNegative ?? undefined });
+        const why = [];
+        if (now.prompt.trim() !== String(recipe.prompt ?? '').trim()) why.push('prompt');
+        if (now.negative.trim() !== String(recipe.negative ?? '').trim()) why.push('things to avoid');
+        // Made before poses existed, or from a pose that has been redone since.
+        if (type === 'i2v' && !lacking.length) {
+          const used = recipe.poses ?? {};
+          const changed = [...new Set([start, end].filter(Boolean))].filter((p) => !used[p] || Math.abs(used[p] - Math.round(fs.statSync(poseFile(p)).mtimeMs)) > 2000);
+          if (changed.length) why.push(`${changed.map((p) => c.poses?.[p]?.label ?? p).join(' and ')} pose`);
+        }
+        if (why.length) out.push({ clip, status: 'outdated', why: `${why.join(' and ')} changed since it was made`, type, motion: recipe.motion, template: recipe.template ?? undefined, was: recipe.prompt, now: now.prompt });
+        else out.push({ clip, status: 'current', type });
+      }
+      return send(res, 200, { fighter: id, clips: out });
+    }
     if (route === '/gpu/take/discard' && req.method === 'POST') {
       const { fighter, file } = await readJson(req);
       jobs.discardTake(checkFighter(fighter), path.basename(String(file || '')));
@@ -820,6 +965,21 @@ export function devApi({ root, artRoot, mapsRoot }) {
     if (route === '/gpu/jobs' && req.method === 'POST') {
       const { jobs: specs } = await readJson(req);
       for (const s of specs ?? []) {
+        // A driving video is opt-in: 'library' (the shared motion library), 'own' (this
+        // fighter's uploaded one), or a video under the art root (a take's recipe).
+        if (s.type === 'animate' && s.motion) {
+          const id = checkFighter(s.fighter);
+          if (s.motion === 'library') delete s.motion;
+          else if (s.motion === 'own') {
+            const own = ownMotion(id, s.clip);
+            if (!own) return fail(res, 400, `${id} has no driving video of their own for ${s.clip}. Upload one in the clip editor.`);
+            s.motion = own;
+          } else {
+            const file = path.resolve(String(s.motion));
+            if (!inside(artRootDir(), file) || !fs.existsSync(file)) return fail(res, 400, 'That driving video is not in the art folder');
+            s.motion = file;
+          }
+        } else delete s.motion;
         if (s.type === 'paint') {
           // Painting reads the saved stage; check now rather than on the GPU.
           const st = loadStage(String(s.stage));
@@ -834,6 +994,44 @@ export function devApi({ root, artRoot, mapsRoot }) {
     }
     if (route === '/gpu/jobs/clear' && req.method === 'POST') {
       jobs.clearFinished();
+      return send(res, 200, { ok: true });
+    }
+    if (route === '/gpu/pose/choose' && req.method === 'POST') {
+      const { fighter, pose, file } = await readJson(req);
+      const id = checkFighter(fighter);
+      if (!poseNames().has(pose) || pose === 'stand') return fail(res, 400, `Unknown pose: ${pose}`);
+      const dir = path.join(folderFor(id, true), 'poses');
+      const src = path.resolve(dir, '_takes', path.basename(String(file || '')));
+      if (!inside(dir, src) || !new RegExp(`^${pose}-\\d+\\.png$`, 'i').test(path.basename(src)) || !fs.existsSync(src)) return fail(res, 404, 'No such pose take');
+      fs.copyFileSync(src, path.join(dir, `${pose}.png`));
+      return send(res, 200, { ok: true });
+    }
+    if (route === '/gpu/pose/flip' && req.method === 'POST') {
+      // Mirrors a pose image left to right, or turns it a quarter (op: flip, cw, ccw), in place:
+      // a picked pose or a candidate.
+      const { fighter, file, op = 'flip' } = await readJson(req);
+      const how = { flip: 'FLIP_LEFT_RIGHT', cw: 'ROTATE_270', ccw: 'ROTATE_90' }[op];
+      if (!how) return fail(res, 400, `Unknown change: ${op}`);
+      const id = checkFighter(fighter);
+      const folder = folderFor(id);
+      const rel = String(file || '').replace(/\\/g, '/');
+      if (!folder || !/^(anims\/_side(-\d+)?\.png|poses\/[a-z]+\.png|poses\/_takes\/[a-z]+-\d+\.png)$/i.test(rel)) return fail(res, 400, 'Not a pose image');
+      const target = path.resolve(folder, rel);
+      if (!inside(folder, target) || !fs.existsSync(target)) return fail(res, 404, 'No such pose image');
+      const py = spawnSync(process.platform === 'win32' ? 'python' : 'python3', ['-c', 'import sys\nfrom PIL import Image\nim = Image.open(sys.argv[1])\nim.transpose(getattr(Image.Transpose, sys.argv[2])).save(sys.argv[1])', target, how], { encoding: 'utf8' });
+      if (py.status !== 0) return fail(res, 500, `Couldn't change it: ${(py.stderr || py.stdout).trim().slice(-200)}`);
+      return send(res, 200, { ok: true });
+    }
+    if (route === '/gpu/pose/discard' && req.method === 'POST') {
+      const { fighter, file } = await readJson(req);
+      const id = checkFighter(fighter);
+      const dir = path.join(folderFor(id, true), 'poses');
+      const base = path.basename(String(file || ''));
+      if (!/^[a-z]+-\d+\.png$/i.test(base)) return fail(res, 400, 'No such pose take');
+      fs.mkdirSync(path.join(dir, '_old'), { recursive: true });
+      for (const f of [base, base.replace(/\.png$/i, '.json')]) {
+        if (fs.existsSync(path.join(dir, '_takes', f))) fs.renameSync(path.join(dir, '_takes', f), path.join(dir, '_old', f));
+      }
       return send(res, 200, { ok: true });
     }
     if (route === '/gpu/side/choose' && req.method === 'POST') {
@@ -855,6 +1053,32 @@ export function devApi({ root, artRoot, mapsRoot }) {
       fs.mkdirSync(motionsDir(), { recursive: true });
       fs.copyFileSync(path.join(animDir, src), path.join(motionsDir(), `${clip}.mp4`));
       return send(res, 200, { ok: true });
+    }
+    if (route === '/gpu/motion/own' && req.method === 'GET') {
+      // A fighter's own driving videos (anims/_motion/<clip>.*), by clip.
+      const id = checkFighter(q('fighter'));
+      const dir = path.join(folderFor(id) ?? '', 'anims', '_motion');
+      const list = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => VIDEO.has(path.extname(f).toLowerCase())).map((f) => ({ clip: path.basename(f, path.extname(f)), file: f, ...fileInfo(path.join(dir, f)) })) : [];
+      return send(res, 200, { motions: list });
+    }
+    if (route === '/gpu/motion/own/file' && req.method === 'GET') {
+      const id = checkFighter(q('fighter'));
+      const file = ownMotion(id, q('clip'));
+      if (!file) return fail(res, 404, 'No driving video');
+      return serveFile(req, res, file);
+    }
+    if (route === '/gpu/motion/upload' && req.method === 'POST') {
+      // Saves a driving video for one fighter and clip (a phone video of you acting it is fine).
+      const id = checkFighter(q('fighter'));
+      const clip = q('clip').toLowerCase();
+      if (!clipNames().has(clip)) return fail(res, 400, `Unknown clip: ${clip}`);
+      const ext = path.extname(q('name')).toLowerCase();
+      if (!VIDEO.has(ext)) return fail(res, 400, `Use a video file (${[...VIDEO].join(', ')})`);
+      const dir = path.join(folderFor(id, true), 'anims', '_motion');
+      fs.mkdirSync(dir, { recursive: true });
+      for (const f of fs.readdirSync(dir)) if (path.basename(f, path.extname(f)).toLowerCase() === clip) fs.rmSync(path.join(dir, f));
+      fs.writeFileSync(path.join(dir, `${clip}${ext}`), await readBody(req, 200 * 1024 * 1024));
+      return send(res, 200, { ok: true, file: `anims/_motion/${clip}${ext}` });
     }
     if (route === '/gpu/motion' && req.method === 'GET') {
       const clip = q('clip');

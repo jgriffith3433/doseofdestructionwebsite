@@ -1,0 +1,35 @@
+{
+ "job": "58856f9b8aca",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "humans-in-the-loop",
+ "piece": "crowd",
+ "kind": "scenery",
+ "layers": [
+  "crowd"
+ ],
+ "seed": 1318167692,
+ "prompt": "Paint image 1: the shape becomes A dense sea of concert-goers in silhouette with raised hands and phone flashlights, rim-lit warm amber from the left and cool blue from the right, haze drifting over heads, filling the same position and size. Match the art style, palette and lighting of image 2. Style: Cinematic photoreal-leaning painted concert arena, deep near-black shadows with crisp highlights on metal and road case trim. Palette of charcoal and gunmetal greys lit by warm gold-amber and cool steel-blue stage lights through drifting haze. Electric, anticipatory live-show mood. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1430,
+  "x2": 1430,
+  "y1": -542.8333333333334,
+  "y2": 648.8333333333334
+ },
+ "size": [
+  1584,
+  656
+ ],
+ "x": 0,
+ "y": 53,
+ "width": 2860,
+ "created": 1792027850543
+}

@@ -1,0 +1,35 @@
+{
+ "job": "1b7573c0eac1",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "desert",
+ "piece": "sagebrush",
+ "kind": "front",
+ "layers": [
+  "sagebrush"
+ ],
+ "seed": 349912106,
+ "prompt": "Paint image 1: the shape becomes Scraggly silver-green sagebrush with dry twiggy stems and a bleached cattle skull at its base, strong sun from the upper right, filling the same position and size. It sits close to the camera, in front of the action: darker, slightly silhouetted, with a crisp outline. Match the art style, palette and lighting of image 2. Style: Sun-bleached painterly realism with soft edges and heat haze: pale tan playa, warm ochre and rust sandstone, and a deep blue sky washing to near-white around a blazing sun. Hard midday light from the upper right, short cool blue-grey shadows, everything a little dusty. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": 392,
+  "x2": 568,
+  "y1": -68,
+  "y2": 68
+ },
+ "size": [
+  1168,
+  896
+ ],
+ "x": 480,
+ "y": 0,
+ "width": 176,
+ "created": 1792027187767
+}

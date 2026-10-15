@@ -1,0 +1,35 @@
+{
+ "job": "7f146426cf97",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "watercolor-nebula",
+ "piece": "underwash",
+ "kind": "scenery",
+ "layers": [
+  "underwash"
+ ],
+ "seed": 411132529,
+ "prompt": "Paint image 1: the shape becomes A low drifting sea of dusty mauve, slate blue and faded ochre watercolor clouds, darker toward the bottom, floating blue and amber paint beads, filling the same position and size. Match the art style, palette and lighting of image 2. Style: Soft painterly watercolor with a subtle stepped, mosaic-pixel quality to every cloud edge, visible paper grain and wet pigment blooms. Palette of deep slate blue, dusty teal, mauve, ochre, honey gold and warm cream, lit by a glowing golden heart at the center of the nebula. Dreamy, calm and luminous, with glossy amber and blue paint beads floating everywhere. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1320,
+  "x2": 1320,
+  "y1": -1025,
+  "y2": 74.99999999999997
+ },
+ "size": [
+  1584,
+  656
+ ],
+ "x": 0,
+ "y": -475,
+ "width": 2640,
+ "created": 1792028705283
+}

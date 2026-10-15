@@ -9,6 +9,7 @@ import { GAMEPAD_HELP, KEYBOARD_HELP, listenKeyboard, onKey, pausePressed, readL
 import { PLAYER_COLORS, Renderer } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
 import { CHAPTERS, loadProgress, saveProgress, type Chapter } from './campaign/story.ts';
+import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, go, listenMenuKeys, onBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
@@ -132,19 +133,46 @@ function wireMenus(): void {
 }
 
 let spotIndex = Math.floor(Math.random() * CHARACTERS.length);
-function spotlight(): void {
-  const c = CHARACTERS[spotIndex % CHARACTERS.length];
-  $<HTMLImageElement>('main-spot-img').src = largeUrl(c.id);
+/** Large images already downloaded and decoded, so a swap never waits on the network. */
+const spotImages = new Map<string, Promise<void>>();
+function spotReady(id: string): Promise<void> {
+  let p = spotImages.get(id);
+  if (!p) {
+    const im = new Image();
+    im.src = largeUrl(id);
+    p = im.decode().catch(() => undefined);
+    spotImages.set(id, p);
+  }
+  return p;
+}
+let spotShown = -1;
+let spotBusy = false;
+
+/** Shows the current spotlight fighter: picture and name change together, once the picture is ready. */
+async function spotlight(animate = false): Promise<void> {
+  const i = spotIndex % CHARACTERS.length;
+  const c = CHARACTERS[i];
+  if (spotBusy || i === spotShown) return;
+  spotBusy = true;
+  await spotReady(c.id);
+  spotBusy = false;
+  if (spotIndex % CHARACTERS.length !== i) return;
+  const img = $<HTMLImageElement>('main-spot-img');
+  img.src = largeUrl(c.id);
   $('main-spot-name').textContent = c.name;
+  spotShown = i;
+  if (animate) {
+    img.classList.remove('swap');
+    void img.offsetWidth;
+    img.classList.add('swap');
+  }
+  // Get the next one ready while this one is up.
+  void spotReady(CHARACTERS[(i + 1) % CHARACTERS.length].id);
 }
 setInterval(() => {
-  if (currentScreen() !== 'main') return;
+  if (currentScreen() !== 'main' || spotBusy) return;
   spotIndex++;
-  const img = $<HTMLImageElement>('main-spot-img');
-  img.classList.remove('swap');
-  void img.offsetWidth;
-  img.classList.add('swap');
-  spotlight();
+  void spotlight(true);
 }, 4000);
 
 let lastSelect: 'versus' | 'training' = 'versus';
@@ -159,7 +187,7 @@ function openVersus(): void {
       onDone: (cfg) => {
         versus = cfg;
         saveVersus();
-        go('stages', () => openStages(pickStage, stageChoice));
+        go('stages', () => openStages(stagesFor('versus'), pickStage, stageChoice));
       },
     }),
   );
@@ -174,20 +202,21 @@ function openTraining(): void {
       config: training,
       onDone: (cfg) => {
         training = cfg;
-        go('stages', () => openStages(pickStage, stageChoice));
+        go('stages', () => openStages(stagesFor('training'), pickStage, stageChoice));
       },
     }),
   );
 }
 
-function pickStage(stage: number): void {
+function pickStage(stage: number, entry: ModeStage): void {
   stageChoice = stage;
   const cfg = lastSelect === 'training' ? training : versus;
   const setup: MatchSetup = {
     mode: lastSelect,
     stage,
     stocks: cfg.stocks,
-    rules: { timeLimit: cfg.time * 60 * 60 },
+    // The mode's version of the stage can change its rules (a calm version with hazards off).
+    rules: { ...entry.rules, timeLimit: cfg.time * 60 * 60 },
     slots: cfg.slots.map((s) => ({ ...s, team: cfg.teams ? (s.team ?? 0) : undefined })),
   };
   startMatch(setup, lastSelect === 'versus');
@@ -237,7 +266,12 @@ async function startMatch(setup: MatchSetup, withVersus: boolean): Promise<void>
   const seed = (Math.random() * 0x7fffffff) | 0;
   const m = new Match(setup, seed);
   renderer.setStage(setup.stage);
-  const loading = renderer.setFighters(m.state).catch((err) => console.error(err));
+  // Everything the match shows and plays is loaded during the VS splash (or the loading
+  // screen): clip sheets, stage art, sounds, music and voice lines. Nothing loads mid-fight.
+  const loading = Promise.all([
+    renderer.setFighters(m.state).then(() => renderer.ready()),
+    audio.preloadMatch(STAGES[setup.stage].id, m.state.fighters.map((f) => CHARACTERS[f.char].id)),
+  ]).catch((err) => console.error(err));
 
   if (withVersus) {
     let splash: Promise<void> = Promise.resolve();
@@ -524,7 +558,11 @@ renderer.engine.runRenderLoop(frame);
 // Devtools playtests open /Game/?play&stage=pit&fighter=slice&vs=break&level=5
 // (vs=dummy for a training dummy) and land straight in the match.
 const params = new URLSearchParams(location.search);
-if (params.has('play')) {
+const playtestChapter = CHAPTERS.find((c) => c.id === params.get('chapter'));
+if (playtestChapter) {
+  // Devtools' Story tab: /Game/?chapter=<id> plays that chapter, scene to scene.
+  go('title').then(() => playChapter(playtestChapter));
+} else if (params.has('play')) {
   const find = (id: string | null, fallback: number) => {
     const i = CHARACTERS.findIndex((c) => c.id === id);
     return i < 0 ? fallback : i;

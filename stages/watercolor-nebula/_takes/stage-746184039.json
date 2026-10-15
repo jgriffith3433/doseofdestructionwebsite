@@ -1,0 +1,49 @@
+{
+ "job": "01f7b3f2237b",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "watercolor-nebula",
+ "piece": "stage",
+ "kind": "stage",
+ "layers": [
+  "main-island",
+  "low-left-puddle",
+  "low-right-puddle",
+  "high-left-wisp",
+  "high-right-wisp"
+ ],
+ "seed": 746184039,
+ "prompt": "Paint image 1 as finished 2D game environment art. Each shape becomes the structure described for its place, at exactly the same position, size and outline: lower center: A floating slab of wet, layered watercolor pigment: a flat pale-cream top skin with a soft golden rim, body bleeding from ochre into dusty blue and mauve bands, pixel-stepped cloud edges, long glossy drips trailing beneath with round beads at their tips; left: A flat floating puddle of warm ochre and honey-gold watercolor, a pale cream surface film on top, frilled cloud-like edges and one small drip falling from below; right: A flat floating puddle of warm ochre and honey-gold watercolor, a pale cream surface film on top, frilled cloud-like edges and one small drip falling from below; upper left: A flat curling wisp of deep and dusty blue watercolor with a pale sky-blue lit top edge, soft pixel-stepped billows underneath and a few tiny white specks; upper right: A flat curling wisp of deep and dusty blue watercolor with a pale sky-blue lit top edge, soft pixel-stepped billows underneath and a few tiny white specks. The bright horizontal bars are walkable surfaces (rooftop edges, ledges, catwalks, landings): keep each one exactly where it is, flat and level, as the visible top edge of its structure. Match the art style, palette and lighting of image 2. Style: Soft painterly watercolor with a subtle stepped, mosaic-pixel quality to every cloud edge, visible paper grain and wet pigment blooms. Palette of deep slate blue, dusty teal, mauve, ochre, honey gold and warm cream, lit by a glowing golden heart at the center of the nebula. Dreamy, calm and luminous, with glossy amber and blue paint beads floating everywhere. Everything outside the shapes stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -550,
+  "x2": 550,
+  "y1": -310,
+  "y2": 450
+ },
+ "size": [
+  1232,
+  848
+ ],
+ "x": 0,
+ "y": 70,
+ "width": 1100,
+ "created": 1792028757833,
+ "fit": {
+  "score": 1,
+  "platforms": [
+   1,
+   1,
+   1,
+   1,
+   1
+  ]
+ }
+}

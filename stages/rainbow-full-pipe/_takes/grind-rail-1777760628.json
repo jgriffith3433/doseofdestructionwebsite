@@ -1,0 +1,41 @@
+{
+ "job": "148c1a3879a4",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "rainbow-full-pipe",
+ "piece": "grind-rail",
+ "kind": "stage",
+ "layers": [
+  "grind-rail"
+ ],
+ "seed": 1777760628,
+ "prompt": "Paint image 1 as finished 2D game environment art. Each shape becomes the structure described for its place, at exactly the same position, size and outline: center: Glossy orange tubular steel grind rail with a flat top bar, two sturdy legs with base plates, scuffed where boards have ground along it. The bright horizontal bars are walkable surfaces (rooftop edges, ledges, catwalks, landings): keep each one exactly where it is, flat and level, as the visible top edge of its structure. Match the art style, palette and lighting of image 2. Style: Bright, soft 3D cartoon render like a cheerful animated film: rounded chunky shapes, clean saturated colors, gentle ambient occlusion. Royal blue ramp wood, pastel rainbow stripes, orange steel trim, lush green park and a clear sunny blue sky with puffy white clouds. Warm sunny afternoon light from the upper left, playful and upbeat. Everything outside the shapes stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -165,
+  "x2": 165,
+  "y1": -14.950000000000003,
+  "y2": 215
+ },
+ "size": [
+  1232,
+  864
+ ],
+ "x": 0,
+ "y": 100,
+ "width": 330,
+ "created": 1792028105045,
+ "fit": {
+  "score": 1,
+  "platforms": [
+   1
+  ]
+ }
+}

@@ -1,0 +1,35 @@
+{
+ "job": "ef538ea811e9",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "rainbow-full-pipe",
+ "piece": "tower-ladder",
+ "kind": "front",
+ "layers": [
+  "tower-ladder"
+ ],
+ "seed": 1087737042,
+ "prompt": "Paint image 1: the shape becomes Tall orange steel ladder with evenly spaced rungs bolted to the blue tower side, filling the same position and size. It sits close to the camera, in front of the action: darker, slightly silhouetted, with a crisp outline. Match the art style, palette and lighting of image 2. Style: Bright, soft 3D cartoon render like a cheerful animated film: rounded chunky shapes, clean saturated colors, gentle ambient occlusion. Royal blue ramp wood, pastel rainbow stripes, orange steel trim, lush green park and a clear sunny blue sky with puffy white clouds. Warm sunny afternoon light from the upper left, playful and upbeat. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": 701.00099,
+  "x2": 898.99901,
+  "y1": -19.997800000000026,
+  "y2": 419.99780000000004
+ },
+ "size": [
+  688,
+  1536
+ ],
+ "x": 800,
+ "y": 200,
+ "width": 198,
+ "created": 1792028287683
+}

@@ -3,12 +3,24 @@
 type Attrs = Record<string, string | number | boolean | undefined | ((e: Event) => void)>;
 type Child = Node | string | null | undefined | false;
 
+/**
+ * Adds a listener and remembers it on the element, so a page that updates in
+ * place (devtools/morph.ts) can swap it for the new one. Read the element
+ * from the event, not a closure: after an update the live element may be an
+ * older one.
+ */
+export function listen(el: Element, type: string, fn: EventListener): void {
+  el.addEventListener(type, fn);
+  const store = el as unknown as { __on?: Record<string, EventListener> };
+  (store.__on ??= {})[type] = fn;
+}
+
 /** Creates an element. Attributes starting with "on" become listeners. */
 export function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Attrs = {}, ...children: Child[]): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
     if (v === undefined || v === false) continue;
-    if (typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
+    if (typeof v === 'function') listen(el, k.slice(2).toLowerCase(), v as EventListener);
     else if (k === 'class') el.className = String(v);
     else if (k === 'style') el.setAttribute('style', String(v));
     else if (v === true) el.setAttribute(k, '');

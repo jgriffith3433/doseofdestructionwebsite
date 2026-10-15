@@ -62,8 +62,15 @@ export function paintPlan(stage) {
   const layers = stage.layers ?? [];
   const pieces = [];
   for (const l of layers) if (l.z >= 10 && !l.hidden) pieces.push({ id: l.id, kind: 'backdrop', layers: [l.id] });
-  const drawers = layers.filter((l) => l.platforms?.length);
-  if (drawers.length) pieces.push({ id: 'stage', kind: 'stage', layers: drawers.map((l) => l.id) });
+  // Platform art that moves on its own (loops, reacts, comes and goes with an
+  // event, or draws a platform that moves or switches) is painted as its own
+  // piece, so it can move apart from the rest. The rest is one painting.
+  const dynamic = (l) => l.anim || l.reacts?.length || l.showDuring || l.hideDuring
+    || (l.platforms ?? []).some((n) => { const p = stage.platforms[n]; return p?.motion || p?.offDuring || p?.onlyDuring; });
+  const drawers = layers.filter((l) => l.platforms?.length && l.id !== 'stage-art' && !l.hidden);
+  const still = layers.filter((l) => l.platforms?.length && !dynamic(l));
+  if (still.length) pieces.push({ id: 'stage', kind: 'stage', layers: still.map((l) => l.id) });
+  for (const l of drawers) if (dynamic(l)) pieces.push({ id: l.id, kind: 'stage', layers: [l.id] });
   for (const l of layers) {
     if (l.z >= 10 || l.platforms?.length || l.id === 'stage-art' || l.hidden) continue;
     pieces.push({ id: l.id, kind: l.z < 0 ? 'front' : 'scenery', layers: [l.id] });

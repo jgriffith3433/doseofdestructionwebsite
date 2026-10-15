@@ -37,6 +37,13 @@ export interface DrawSpec {
   moveFrame?: number;
   ch?: CharacterDef;
   overlay?: Overlay;
+  /**
+   * Same scale for every clip (standing height fills 60%), so clips side by side
+   * compare in size; big frames may run off the edge. Draws the standing height.
+   */
+  uniform?: boolean;
+  /** Draws the frame this much bigger (a size being tried before it's built). */
+  zoom?: number;
 }
 
 /** Draws one frame, scaled to fit, feet on a ground line near the bottom. */
@@ -55,8 +62,20 @@ export function drawFrame(spec: DrawSpec): void {
   // Scale so a standing fighter (refHeight) fills about 70% of the height,
   // and the whole frame still fits.
   const ground = chH * 0.9;
-  const s = Math.min((chH * 0.7) / refHeight, (chH * 0.86) / clip.fh, (cw * 0.9) / clip.fw);
+  const s = spec.uniform ? (chH * 0.6) / refHeight : Math.min((chH * 0.7) / refHeight, (chH * 0.86) / clip.fh, (cw * 0.9) / clip.fw);
   const ox = cw / 2;
+  const z = spec.zoom ?? 1;
+
+  if (spec.uniform) {
+    // Standing height: the fighter in every clip should come up to about here.
+    ctx.strokeStyle = 'rgba(126, 226, 160, 0.55)';
+    ctx.setLineDash([4 * dpr, 4 * dpr]);
+    ctx.beginPath();
+    ctx.moveTo(0, ground - refHeight * s + 0.5);
+    ctx.lineTo(cw, ground - refHeight * s + 0.5);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
   ctx.strokeStyle = 'rgba(255, 209, 90, 0.25)';
   ctx.lineWidth = 1;
@@ -69,7 +88,7 @@ export function drawFrame(spec: DrawSpec): void {
     const i = Math.max(0, Math.min(clip.frames - 1, spec.index));
     const sx = (i % clip.cols) * clip.fw;
     const sy = Math.floor(i / clip.cols) * clip.fh;
-    ctx.drawImage(img, sx, sy, clip.fw, clip.fh, ox - clip.ax * s, ground - clip.ay * s, clip.fw * s, clip.fh * s);
+    ctx.drawImage(img, sx, sy, clip.fw, clip.fh, ox - clip.ax * s * z, ground - clip.ay * s * z, clip.fw * s * z, clip.fh * s * z);
   }
 
   const ov = spec.overlay ?? {};

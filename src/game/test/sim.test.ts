@@ -46,6 +46,35 @@ function check(name: string, ok: boolean, detail = ''): void {
 
 const four: FighterSetup[] = [{ char: 0 }, { char: 2 }, { char: 8 }, { char: 12 }];
 
+// A stage that uses every dynamic system (events, zones, hazards, platform
+// toggles), so they are held to the same determinism and rollback checks.
+{
+  const base = STAGES[0];
+  const top = Math.max(...base.platforms.map((p) => p.y));
+  STAGES.push({
+    ...base,
+    id: 'test-dynamic',
+    name: 'Test Dynamic',
+    platforms: base.platforms.map((p, i) => (i === base.platforms.length - 1 ? { ...p, offDuring: 'storm' } : p)),
+    events: [
+      { id: 'storm', every: [2, 4], first: 1, warn: 1, duration: 3 },
+      { id: 'cheer', trigger: 'ko', duration: 0 },
+      { id: 'tilt', trigger: 'hit', chance: 20, duration: 1 },
+    ],
+    zones: [
+      { kind: 'wind', x1: -2000, x2: 2000, y1: -500, y2: 2000, during: 'storm', force: [90, 0] },
+      // Off to the side: under the whole stage, bots float below the floor and never come back.
+      { kind: 'water', x1: 900, x2: 2000, y1: -900, y2: -150 },
+      { kind: 'damage', x1: -3000, x2: 3000, y1: -900, y2: 3000, damage: 1, tick: 4, knock: 30, angle: 60 },
+      { kind: 'gravity', x1: -300, x2: 300, y1: top, y2: top + 600, gravity: 60, during: 'tilt' },
+    ],
+    hazards: [
+      { id: 'hawk', during: 'storm', path: [{ x: -1200, y: 300 }, { x: 0, y: 40 }, { x: 1200, y: 300 }], r: 60, dmg: 12, angle: 45, bkb: 40, kbg: 90 },
+      { id: 'saw', period: 3, path: [{ x: -400, y: 60 }, { x: 400, y: 60 }], r: 30, dmg: 4, angle: 80, bkb: 20, kbg: 40 },
+    ],
+  });
+}
+
 STAGES.forEach((stage, si) => {
   const opts: GameOptions = { stocks: 3, seed: 11 + si, stage: si };
   const inputs = randomInputs(opts.seed, 3000, 4);
@@ -111,6 +140,27 @@ STAGES.forEach((stage, si) => {
     if (!state.over) ok = false;
   }
   check(`all ${CHARACTERS.length} fighters play`, ok);
+}
+
+{
+  // The dynamic stage really does its things.
+  const si = STAGES.findIndex((st) => st.id === 'test-dynamic');
+  const setup: FighterSetup[] = [{ char: 0 }, { char: 2 }];
+  const state = newGame(setup, { stocks: 2, seed: 21, stage: si });
+  const bots = setup.map((_, i) => new Bot(i, 6, 40 + i));
+  const seen = new Set<string>();
+  for (let i = 0; i < 60 * 60 && !state.over; i++) {
+    for (const e of step(state, bots.map((b) => b.think(state)))) {
+      if (e.type === 'stage') seen.add(`${STAGES[si].events![e.event].id}:${e.phase}`);
+      if (e.type === 'hurt') seen.add(e.source);
+    }
+  }
+  const want = ['storm:warn', 'storm:start', 'storm:end', 'zone', 'hazard'];
+  check('stage events, zones and hazards fire', want.every((w) => seen.has(w)), [...seen].sort().join(' '));
+  const quiet = newGame(setup, { stocks: 2, seed: 21, stage: si, rules: { hazards: 0 } });
+  let fired = 0;
+  for (let i = 0; i < 60 * 30; i++) fired += step(quiet, [0, 0]).filter((e) => e.type === 'stage' || e.type === 'hurt').length;
+  check('hazards off keeps the stage quiet', fired === 0);
 }
 
 if (failed) {

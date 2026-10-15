@@ -1,6 +1,6 @@
 // Small pieces several tabs share.
 
-import { h } from '../game/ui/dom.ts';
+import { h, listen } from '../game/ui/dom.ts';
 import { store, thumb } from './api.ts';
 
 export function toast(text: string, kind: 'ok' | 'error' = 'ok'): void {
@@ -60,20 +60,23 @@ export function field(label: string, input: HTMLElement, opts: { wide?: boolean;
 
 export function numberInput(value: number | null | undefined, onChange: (v: number | null) => void, attrs: Record<string, string | number> = {}): HTMLInputElement {
   const input = h('input', { type: 'number', value: value ?? '', ...attrs });
-  input.addEventListener('input', () => onChange(input.value === '' ? null : Number(input.value)));
+  listen(input, 'input', (e) => {
+    const v = (e.currentTarget as HTMLInputElement).value;
+    onChange(v === '' ? null : Number(v));
+  });
   return input;
 }
 
 export function textInput(value: string, onChange: (v: string) => void, attrs: Record<string, string | number> = {}): HTMLInputElement {
   const input = h('input', { type: 'text', value, ...attrs });
-  input.addEventListener('input', () => onChange(input.value));
+  listen(input, 'input', (e) => onChange((e.currentTarget as HTMLInputElement).value));
   return input;
 }
 
 export function checkbox(label: string, value: boolean, onChange: (v: boolean) => void): HTMLLabelElement {
   const input = h('input', { type: 'checkbox' });
   input.checked = value;
-  input.addEventListener('change', () => onChange(input.checked));
+  listen(input, 'change', (e) => onChange((e.currentTarget as HTMLInputElement).checked));
   return h('label', { class: 'check' }, input, label);
 }
 
@@ -83,7 +86,7 @@ export function select<T extends string>(options: (T | [T, string])[], value: T,
     const [v, label] = Array.isArray(o) ? o : [o, o];
     el.add(new Option(label, v, v === value, v === value));
   }
-  el.addEventListener('change', () => onChange(el.value as T));
+  listen(el, 'change', (e) => onChange((e.currentTarget as HTMLSelectElement).value as T));
   return el;
 }
 

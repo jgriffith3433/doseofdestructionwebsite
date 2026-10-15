@@ -105,15 +105,81 @@ behind them.
 
 ## Effects
 
-Effects react to the match: **On a KO**, **At the end** (the finale, spread
-over the two seconds before the results), **At the start**, or **Every few
-seconds**. They can be fireworks (rise and burst in the sky), bursts (at the
-KO or in the sky), camera shake, or embers. Each can play a sound from
-`content/sounds.json`.
+Effects react to the match: **On a KO**, **On a hit**, **At the end** (the
+finale, spread over the two seconds before the results), **At the start**,
+**Every few seconds**, or a stage event (its warning, its start, its end).
+They can be fireworks (rise and burst in the sky), bursts (at the KO or in
+the sky), camera shake, embers, paint splats (where the hit or KO landed),
+dust clouds, rain, confetti or a screen flash. Dust, rain, embers and
+confetti started by an event keep coming until it ends. Each can play a
+sound from `content/sounds.json`.
+
+## Dynamic stages
+
+Stages can do things on their own, built from a few generic parts that
+combine. The sim runs them (deterministic and rollback-safe, like the
+fighters), so they play the same online; the art and effects follow along.
+
+- **Stage events** (`events`): something the stage does: a storm, a hawk
+  swooping, panels turning, the floor breaking. Each waits, **warns** (so
+  players see it coming), **runs** for a while and ends. *On a timer* it
+  comes back every *min..max* seconds (*first*: when the first one warns);
+  *when someone is KO'd* or *hit* it fires then, with a chance. Everything
+  else below can follow an event.
+- **Zones** (`zones`): rectangles that change fighters inside them.
+  *damage* hurts on a tick (fog, lava, a cursed mist; with knockback it
+  throws them out), *wind* pushes, *water* makes fighters swim (floaty, every
+  jump a stroke), *gravity* makes them lighter or heavier. Always on, or only
+  during an event. Without art of their own, damage zones show a faint purple
+  tint and water a blue one.
+- **Hazards** (`hazards`): something that moves along a path and hits
+  whoever it touches, once per pass. With an event it crosses its path once
+  while the event runs (start and end it off screen); without one it loops
+  the path forever. Its art is a layer with **Rides hazard** set (painted
+  facing right; it flips when it goes left). Without art it shows as a red
+  disc, and a yellow ring blinks where it will come from while its event
+  warns. Hazards go through shields; the last fighter to hit someone still
+  gets the KO.
+- **Platforms** can be *gone during* an event (a panel tilts away, a floor
+  breaks) or *only there during* one (a bridge extends). Fighters on one that
+  goes away fall; ledges go with it.
+- **Art layers** can **loop** on their own (bob, sway, drift, pulse, spin,
+  scroll), be **shown** only during an event (or while it warns), be
+  **hidden during** one, **ride a hazard**, and **react** to KOs, hits, the
+  start, the end or an event: hop, flash, shake, spin, or tilt / tip over
+  (these hold until their event ends, or for their seconds). A crowd that
+  bobs and hops on KOs, solar panels that tilt while their platforms are
+  gone, a chess king that tips over on a KO.
+
+In the editor, zones and hazard paths draw on the canvas (toggle **Zones**):
+drag a zone to move it and its yellow corner to size it; drag a hazard's
+points. The **Stage events**, **Zones** and **Hazards** cards add and edit
+them; a platform's card has **With an event**; a layer's has **Moves and
+reacts**. The checks flag names that don't exist, events that change
+nothing, and spawns on platforms that come and go. Renaming an event renames
+it everywhere.
+
+The match rule `hazards: 0` turns events, damage zones and hazards off
+(wind, water and gravity zones stay, as terrain).
+
+Painting: platform art that moves on its own (it loops, reacts, shows with
+an event, or draws a platform that moves or switches) is painted as its own
+piece, so it can move apart from the rest of the stage painting.
+
+Generate Map Idea knows all of this: when a reference describes weather,
+creatures, machines, crowds or things that break or turn, Claude designs
+them from these parts. They come back as one `dynamics` JSON text field
+(events, zones, hazards, platform toggles and art behaviour), checked and
+cleaned up by `tools/maps/idea.mjs`; the structured-output grammar has a size
+limit, and even two more fields per platform or art item go past it. Not
+built yet: slopes and curved floors (approximate them with flat platforms or
+steps), things fighters break with attacks, and items.
 
 ## 3D preview
 
 **3D preview** shows the stage, unsaved changes included, in the game's own
-renderer, with two fighters. Move fighter 1 with the sliders to check depth,
-parallax and silhouettes, and try **KO**, **Match start** and **Finale**.
-**Playtest** opens the saved stage in the game.
+renderer, running the real sim. Move fighter 1 with the sliders to check
+depth, parallax and silhouettes, and try **KO**, **Match start** and
+**Finale**. **Bots fight** lets two CPUs play it. Each stage event has a
+button that fires it now and shows whether it is waiting, warning or
+running. **Playtest** opens the saved stage in the game.

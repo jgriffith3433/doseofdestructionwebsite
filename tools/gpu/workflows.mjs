@@ -2,8 +2,11 @@
 // of an official template in comfy/templates/ (the templates use subgraphs,
 // which the API can't run), with the 4-step speed LoRAs switched on.
 //
-//   sideView      Qwen-Image-Edit-2511: a fighter's front art -> a side view
-//   imageToVideo  Wan 2.2 14B I2V: a side view + a prompt -> a clip
+//   sideView      Qwen-Image-Edit-2511: a fighter's front art -> a side view;
+//                 with a second image, the side view (+ front) -> a pose
+//   imageToVideo  Wan 2.2 14B I2V: a start pose + a prompt -> a clip; with an
+//                 end pose too, first-last-frame (WanFirstLastFrameToVideo,
+//                 same models), so loops start and end on the same pose
 //   animate       Wan 2.2 Animate: a side view + a driving video -> the same
 //                 motion performed by this fighter (pose taken with DWPose)
 //
@@ -22,8 +25,12 @@ function graph() {
   return { nodes, add, out: (id, slot = 0) => [id, slot] };
 }
 
-/** Qwen-Image-Edit-2511, 4-step Lightning: edit an image with a prompt. */
-export function sideView({ image, prompt, seed, prefix = 'dod/side', s = {} }) {
+/**
+ * Qwen-Image-Edit-2511, 4-step Lightning: edit an image with a prompt. The
+ * output is image's size; image2 is an extra reference (a pose takes the side
+ * view as image and the front art as image2).
+ */
+export function sideView({ image, image2, prompt, seed, prefix = 'dod/side', s = {} }) {
   const { steps = 4, cfg = 1, shift = 3.1, lora: loraStrength = 1, sampler = 'euler', scheduler = 'simple' } = s;
   const g = graph();
   const unet = g.add('UNETLoader', { unet_name: 'qwen_image_edit_2511_fp8mixed.safetensors', weight_dtype: 'default' });
@@ -34,9 +41,10 @@ export function sideView({ image, prompt, seed, prefix = 'dod/side', s = {} }) {
   const lora = g.add('LoraLoaderModelOnly', { model: g.out(norm), lora_name: 'Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors', strength_model: loraStrength });
   const load = g.add('LoadImage', { image });
   const scaled = g.add('FluxKontextImageScale', { image: g.out(load) });
+  const extra = image2 ? { image2: g.out(g.add('LoadImage', { image: image2 })) } : {};
   const enc = (text) =>
     g.add('FluxKontextMultiReferenceLatentMethod', {
-      conditioning: g.out(g.add('TextEncodeQwenImageEditPlus', { clip: g.out(clip), vae: g.out(vae), image1: g.out(scaled), prompt: text })),
+      conditioning: g.out(g.add('TextEncodeQwenImageEditPlus', { clip: g.out(clip), vae: g.out(vae), image1: g.out(scaled), ...extra, prompt: text })),
       reference_latents_method: 'index_timestep_zero',
     });
   const pos = enc(prompt);
@@ -51,35 +59,69 @@ export function sideView({ image, prompt, seed, prefix = 'dod/side', s = {} }) {
   return g.nodes;
 }
 
-/** Wan 2.2 14B image-to-video with the 4-step LoRAs: two samplers, high then low noise. */
-export function imageToVideo({ image, prompt, negative, width = 640, height = 640, frames = 33, fps = 16, seed, prefix = 'dod/i2v', s = {} }) {
+/**
+ * Wan 2.2 14B image-to-video with the 4-step LoRAs: high noise (the motion)
+ * then low noise (the detail). image is the first frame; end, when given, the
+ * last (Wan's first-last-frame conditioning).
+ *
+ * The speed LoRAs flatten motion and, at CFG 1, the prompt barely steers it.
+ * So the first motionSteps run on the plain high-noise model at cfgHigh (real
+ * guidance, the prompt and negative count), then the LoRA'd models finish at
+ * CFG 1 (the community's "three sampler" setup). motionSteps 0 is the plain
+ * two-sampler template.
+ */
+export function imageToVideo({ image, end, prompt, negative, width = 640, height = 640, frames = 33, fps = 16, seed, prefix = 'dod/i2v', s = {} }) {
   const { steps = 4, cfg = 1, shift = 5, loraHigh = 1, loraLow = 1, sampler = 'euler', scheduler = 'simple' } = s;
   const split = Math.min(steps - 1, Math.max(1, s.split ?? Math.floor(steps / 2)));
+  const motionSteps = Math.min(split, Math.max(0, Math.round(s.motionSteps ?? 0)));
+  const cfgHigh = s.cfgHigh ?? cfg;
+  // loraVersion 2: lightx2v's newer 4-step LoRAs (1022), which move more than the original v1.
+  const [loraHighFile, loraLowFile] = Number(s.loraVersion) >= 2
+    ? ['wan2.2_i2v_A14b_high_noise_lora_rank64_lightx2v_4step_1022.safetensors', 'wan2.2_i2v_A14b_low_noise_lora_rank64_lightx2v_4step_1022.safetensors']
+    : ['wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors', 'wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors'];
+  // PainterI2V (start frame only) pushes motion past what the 4-step LoRAs give.
+  const amplitude = !end && Number(s.motionAmplitude) > 1 ? Math.min(2, Number(s.motionAmplitude)) : 0;
   const g = graph();
   const clip = g.add('CLIPLoader', { clip_name: 'umt5_xxl_fp8_e4m3fn_scaled.safetensors', type: 'wan', device: 'default' });
   const vae = g.add('VAELoader', { vae_name: 'wan_2.1_vae.safetensors' });
   const model = (unet, lora, strength) =>
     g.add('ModelSamplingSD3', {
-      model: g.out(g.add('LoraLoaderModelOnly', {
-        model: g.out(g.add('UNETLoader', { unet_name: unet, weight_dtype: 'default' })),
-        lora_name: lora,
-        strength_model: strength,
-      })),
+      model: g.out(g.add('LoraLoaderModelOnly', { model: g.out(unet), lora_name: lora, strength_model: strength })),
       shift,
     });
-  const high = model('wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors', 'wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors', loraHigh);
-  const low = model('wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors', 'wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors', loraLow);
+  const highUnet = g.add('UNETLoader', { unet_name: 'wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors', weight_dtype: 'default' });
+  const high = model(highUnet, loraHighFile, loraHigh);
+  // The motion stage: the same high-noise model (loaded once) with no speed LoRA.
+  const raw = motionSteps ? g.add('ModelSamplingSD3', { model: g.out(highUnet), shift }) : null;
+  const low = model(g.add('UNETLoader', { unet_name: 'wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors', weight_dtype: 'default' }), loraLowFile, loraLow);
   const pos = g.add('CLIPTextEncode', { clip: g.out(clip), text: prompt });
   const neg = g.add('CLIPTextEncode', { clip: g.out(clip), text: negative ?? '' });
   const load = g.add('LoadImage', { image });
-  const i2v = g.add('WanImageToVideo', {
-    positive: g.out(pos), negative: g.out(neg), vae: g.out(vae), start_image: g.out(load),
-    width, height, length: frames, batch_size: 1,
-  });
+  const i2v = end
+    ? g.add('WanFirstLastFrameToVideo', {
+        positive: g.out(pos), negative: g.out(neg), vae: g.out(vae), start_image: g.out(load), end_image: g.out(g.add('LoadImage', { image: end })),
+        width, height, length: frames, batch_size: 1,
+      })
+    : amplitude
+      ? g.add('PainterI2V', {
+          positive: g.out(pos), negative: g.out(neg), vae: g.out(vae), start_image: g.out(load),
+          width, height, length: frames, batch_size: 1, motion_amplitude: amplitude,
+        })
+      : g.add('WanImageToVideo', {
+          positive: g.out(pos), negative: g.out(neg), vae: g.out(vae), start_image: g.out(load),
+          width, height, length: frames, batch_size: 1,
+        });
+  const motion = raw
+    ? g.add('KSamplerAdvanced', {
+        model: g.out(raw), add_noise: 'enable', noise_seed: seed, steps, cfg: cfgHigh, sampler_name: sampler, scheduler,
+        positive: g.out(i2v, 0), negative: g.out(i2v, 1), latent_image: g.out(i2v, 2),
+        start_at_step: 0, end_at_step: motionSteps, return_with_leftover_noise: 'enable',
+      })
+    : null;
   const first = g.add('KSamplerAdvanced', {
-    model: g.out(high), add_noise: 'enable', noise_seed: seed, steps, cfg, sampler_name: sampler, scheduler,
-    positive: g.out(i2v, 0), negative: g.out(i2v, 1), latent_image: g.out(i2v, 2),
-    start_at_step: 0, end_at_step: split, return_with_leftover_noise: 'enable',
+    model: g.out(high), add_noise: motion ? 'disable' : 'enable', noise_seed: motion ? 0 : seed, steps, cfg: motion ? cfg : cfgHigh, sampler_name: sampler, scheduler,
+    positive: g.out(i2v, 0), negative: g.out(i2v, 1), latent_image: motion ? g.out(motion) : g.out(i2v, 2),
+    start_at_step: motionSteps, end_at_step: split, return_with_leftover_noise: 'enable',
   });
   const second = g.add('KSamplerAdvanced', {
     model: g.out(low), add_noise: 'disable', noise_seed: 0, steps, cfg, sampler_name: sampler, scheduler,

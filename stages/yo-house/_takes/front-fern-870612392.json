@@ -1,0 +1,35 @@
+{
+ "job": "364669d4fdba",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "yo-house",
+ "piece": "front-fern",
+ "kind": "front",
+ "layers": [
+  "front-fern"
+ ],
+ "seed": 870612392,
+ "prompt": "Paint image 1: the shape becomes Tall striped snake plant leaves and broad monstera leaves in fresh greens from a white ceramic pot, slightly out of focus as if close to the camera, filling the same position and size. It sits close to the camera, in front of the action: darker, slightly silhouetted, with a crisp outline. Match the art style, palette and lighting of image 2. Style: Soft photoreal-meets-diorama interior rendering, like a dollhouse cutaway of a modern open-plan home. Cool blue-grey walls and daylight, dark glossy walnut floors, crisp white cabinetry, with the aquarium as the one glowing green jewel. Calm, airy and a little cheeky, as if the fighters are scrapping in someone's spotless living room. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": 199.002,
+  "x2": 340.998,
+  "y1": -10.978000000000007,
+  "y2": 230.978
+ },
+ "size": [
+  784,
+  1328
+ ],
+ "x": 270,
+ "y": 110,
+ "width": 142,
+ "created": 1792029241339
+}

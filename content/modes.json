@@ -1,0 +1,69 @@
+{
+  "_about": "Which stages each game mode offers, in menu order (the devtools Modes tab edits this). An entry can rename the stage for that mode and change its rules (hazards 0 turns stage events off). A special version of a map is its own stage in stages.json with variantOf set. The campaign picks its stages per chapter in campaign.json (the Story tab).",
+  "modes": {
+    "versus": {
+      "name": "Versus",
+      "stages": [
+        {
+          "stage": "city-top"
+        },
+        {
+          "stage": "desert"
+        },
+        {
+          "stage": "cursed-town"
+        },
+        {
+          "stage": "humans-in-the-loop"
+        },
+        {
+          "stage": "rainbow-full-pipe"
+        },
+        {
+          "stage": "solar-array"
+        },
+        {
+          "stage": "space-chess"
+        },
+        {
+          "stage": "watercolor-nebula"
+        },
+        {
+          "stage": "yo-house"
+        }
+      ]
+    },
+    "training": {
+      "name": "Training",
+      "stages": [
+        {
+          "stage": "city-top"
+        },
+        {
+          "stage": "desert"
+        },
+        {
+          "stage": "cursed-town"
+        },
+        {
+          "stage": "humans-in-the-loop"
+        },
+        {
+          "stage": "rainbow-full-pipe"
+        },
+        {
+          "stage": "solar-array"
+        },
+        {
+          "stage": "space-chess"
+        },
+        {
+          "stage": "watercolor-nebula"
+        },
+        {
+          "stage": "yo-house"
+        }
+      ]
+    }
+  }
+}

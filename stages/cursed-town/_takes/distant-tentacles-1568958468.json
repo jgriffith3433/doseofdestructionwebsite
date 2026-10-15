@@ -1,0 +1,35 @@
+{
+ "job": "e88f559a2052",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "cursed-town",
+ "piece": "distant-tentacles",
+ "kind": "scenery",
+ "layers": [
+  "distant-tentacles"
+ ],
+ "seed": 1568958468,
+ "prompt": "Paint image 1: the shape becomes Black curling tentacle silhouettes, softened and greyed by fog, writhing upward between faint distant houses, filling the same position and size. Match the art style, palette and lighting of image 2. Style: Muted, painterly gothic realism in cold fog: weathered grey clapboard, mossy slate shingles, wet cobbles, everything desaturated toward grey-green. Flat diffuse overcast light with no bright accents; the only contrast is the inky, glossy black of the shadow tentacles. Mood is quiet dread, soft edges dissolving into mist. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -329.986,
+  "x2": 309.986,
+  "y1": -229.846,
+  "y2": 429.846
+ },
+ "size": [
+  1008,
+  1040
+ ],
+ "x": -10,
+ "y": 100,
+ "width": 640,
+ "created": 1792027519188
+}

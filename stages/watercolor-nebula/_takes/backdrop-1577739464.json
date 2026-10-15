@@ -1,0 +1,33 @@
+{
+ "job": "df3e5a9b288a",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple"
+ },
+ "stage": "watercolor-nebula",
+ "piece": "backdrop",
+ "kind": "backdrop",
+ "layers": [
+  "backdrop"
+ ],
+ "seed": 1577739464,
+ "prompt": "Paint a wide, distant background landscape over image 1: the far distance of Watercolor Nebula: Climb a spiral of floating paint puddles through a nebula that never quite dries.. Use the colors and light of image 2 (a blurred mood board), but compose the scene yourself from this description. Distant scenery only: no ground, floor, ledge or platform in the foreground. The lower third stays darker and calmer. Style: Soft painterly watercolor with a subtle stepped, mosaic-pixel quality to every cloud edge, visible paper grain and wet pigment blooms. Palette of deep slate blue, dusty teal, mauve, ochre, honey gold and warm cream, lit by a glowing golden heart at the center of the nebula. Dreamy, calm and luminous, with glossy amber and blue paint beads floating everywhere, game environment art. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1600,
+  "x2": 1600,
+  "y1": -485.71428571428567,
+  "y2": 885.7142857142857
+ },
+ "size": [
+  1568,
+  672
+ ],
+ "x": 0,
+ "y": 200,
+ "width": 3200,
+ "created": 1792028673555
+}

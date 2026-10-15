@@ -1,0 +1,35 @@
+{
+ "job": "ba8badbf9a92",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "space-chess",
+ "piece": "drifting-pawn",
+ "kind": "front",
+ "layers": [
+  "drifting-pawn"
+ ],
+ "seed": 636933842,
+ "prompt": "Paint image 1: the shape becomes A single black pawn drifting through space, slightly tilted, glossy dark wood with blue rim light from the nebula, slightly out of focus as it is close to the camera, filling the same position and size. It sits close to the camera, in front of the action: darker, slightly silhouetted, with a crisp outline. Match the art style, palette and lighting of image 2. Style: Polished, cinematic 3D-rendered look: glossy lacquered wood and ivory chess pieces lit by cool blue starlight against deep black space. Palette of near-black navy, midnight blue and bright cobalt nebula accents, with cream-white squares as the brightest values. Quiet, grand and mysterious, like a cosmic game frozen mid-move. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -806.752,
+  "x2": -713.248,
+  "y1": -406.272,
+  "y2": -257.728
+ },
+ "size": [
+  816,
+  1296
+ ],
+ "x": -760,
+ "y": -332,
+ "width": 94,
+ "created": 1792028641692
+}

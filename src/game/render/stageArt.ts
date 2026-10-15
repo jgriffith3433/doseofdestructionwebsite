@@ -18,8 +18,9 @@ import type { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder.js';
 import type { GlowLayer } from '@babylonjs/core/Layers/glowLayer.js';
-import { FX } from '../sim/fixed.ts';
-import { platformOffset, type Platform, type StageDef, type StageEffect, type StageLayer } from '../sim/stageMath.ts';
+import { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder.js';
+import { eventOn, type StageClock, type StageDef, type StageEffect, type StageLayer } from '../sim/stageMath.ts';
+import type { Placed } from './stageLive.ts';
 
 /** World units per scene unit, as in the renderer. */
 const W = 1 / 100;
@@ -40,23 +41,13 @@ export function drawnPlatforms(stage: StageDef): Set<number> {
   return out;
 }
 
-/** Art that rides a moving platform. */
-export interface Follower {
-  mesh: Mesh;
-  platform: Platform;
-  x: number;
-  y: number;
-  k: number;
-}
-
 /**
  * Builds a stage's picture layers under root. Returns whether any is an
- * occluder, and the layers that follow moving platforms (move them with
- * followLayers each frame).
+ * occluder, and every layer built (StageLive moves them each frame).
  */
-export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, glow: GlowLayer): { occluders: boolean; followers: Follower[] } {
+export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, glow: GlowLayer): { occluders: boolean; placed: Placed[] } {
   let occluders = false;
-  const followers: Follower[] = [];
+  const placed: Placed[] = [];
   // Layers behind the fighters draw far to near; at the same depth, in list order.
   const behind = (stage.layers ?? []).map((l, i) => ({ l, i })).filter(({ l }) => l.z > 0).sort((a, b) => b.l.z - a.l.z || a.i - b.i);
   const rank = new Map(behind.map(({ l }, n) => [l, n]));
@@ -71,9 +62,12 @@ export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, 
     mat.disableLighting = true;
     mat.backFaceCulling = false;
     mat.alpha = l.opacity ?? 1;
+    const size = { w: 0, h: 0 };
     const tex = new Texture(`/${l.image}`, scene, false, true, Texture.TRILINEAR_SAMPLINGMODE, () => {
       const s = tex.getSize();
-      plane.scaling.set(at.width, (at.width * s.height) / Math.max(1, s.width), 1);
+      size.w = at.width;
+      size.h = (at.width * s.height) / Math.max(1, s.width);
+      plane.scaling.set(size.w, size.h, 1);
     });
     tex.hasAlpha = true;
     mat.diffuseTexture = tex;
@@ -91,21 +85,11 @@ export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, 
     plane.material = mat;
     // Fixed draw order behind the fighters, so layers at one depth never flicker.
     if (rank.has(l)) plane.alphaIndex = rank.get(l)!;
-    const moving = (l.platforms ?? []).map((i) => stage.platforms[i]).find((p) => p?.motion);
-    if (moving) followers.push({ mesh: plane, platform: moving, x: at.x, y: at.y, k: (REF_DIST + l.z) / REF_DIST });
+    placed.push({ layer: l, mesh: plane, mat, x: at.x, y: at.y, k: (REF_DIST + l.z) / REF_DIST, size });
     root.onDisposeObservable.add(() => mat.dispose(true, true));
     glow.addExcludedMesh(plane);
   }
-  return { occluders, followers };
-}
-
-/** Moves art with the moving platforms it draws. */
-export function followLayers(followers: Follower[], frame: number): void {
-  for (const f of followers) {
-    const [dx, dy] = platformOffset(f.platform, frame);
-    f.mesh.position.x = f.x + (dx / FX) * W * f.k;
-    f.mesh.position.y = f.y + (dy / FX) * W * f.k;
-  }
+  return { occluders, placed };
 }
 
 // ------------------------------------------------------------------ effects
@@ -123,11 +107,25 @@ interface Part {
   size: number;
   /** A rocket bursts into this when it dies. */
   burst?: { colors: string[]; n: number };
+  /** Fades out instead of shrinking (dust, splats), from this opacity. */
+  fade?: number;
+  /** Stretched along its motion (rain), height over width. */
+  streak?: number;
 }
+
+/** Kinds that keep going while the event that started them runs. */
+const STREAMS = new Set(['dust', 'rain', 'embers', 'confetti']);
 
 const DEFAULT_COLORS = ['#ffd15a', '#ff5a1f', '#3fa7ff', '#ff4fd8', '#7ee2a0', '#ffffff'];
 /** Fireworks happen this far behind the fighters. */
 const SKY_Z = 6;
+
+export interface FxHooks {
+  sound?: (id: string) => void;
+  shake?: (amount: number) => void;
+  /** Lights the screen up in a color. */
+  flash?: (color: string) => void;
+}
 
 /** Runs a stage's effects. trigger() on match events; update() every rendered frame. */
 export class StageFx {
@@ -138,9 +136,12 @@ export class StageFx {
   private last = performance.now();
   private scene: Scene;
   private stage: StageDef;
-  private hooks: { sound?: (id: string) => void; shake?: (amount: number) => void };
+  private hooks: FxHooks;
+  /** Effects that keep spawning while their event runs. */
+  private streams: { fx: StageEffect; id: string; next: number }[] = [];
+  private clock: StageClock | null = null;
 
-  constructor(scene: Scene, stage: StageDef, hooks: { sound?: (id: string) => void; shake?: (amount: number) => void } = {}) {
+  constructor(scene: Scene, stage: StageDef, hooks: FxHooks = {}) {
     this.scene = scene;
     this.stage = stage;
     this.hooks = hooks;
@@ -148,10 +149,25 @@ export class StageFx {
     for (const fx of stage.effects ?? []) if (fx.on === 'ambient') this.ambient.push({ fx, next: now + (fx.every ?? 4) * 500 });
   }
 
-  /** where: the KO position in scene units, for effects at the KO. */
-  trigger(on: 'start' | 'ko' | 'end', where?: { x: number; y: number }): void {
+  /** The sim state, so effects tied to an event know when it ends. */
+  setClock(c: StageClock): void {
+    this.clock = c;
+  }
+
+  /**
+   * on: 'start', 'ko', 'hit', 'end', or a stage event ('event:<id>',
+   * 'warn:<id>', 'eventEnd:<id>'). where: the KO or hit position in scene
+   * units, for effects there.
+   */
+  trigger(on: string, where?: { x: number; y: number }): void {
     for (const fx of this.stage.effects ?? []) {
       if (fx.on !== on) continue;
+      if (on.startsWith('event:') && STREAMS.has(fx.kind)) {
+        // Dust, rain, embers and confetti keep coming until the event ends.
+        this.streams.push({ fx, id: on.slice(6), next: 0 });
+        if (fx.sound) this.hooks.sound?.(fx.sound);
+        continue;
+      }
       // The finale spreads its fireworks over the two seconds before the results.
       const n = Math.max(1, fx.count ?? (on === 'end' ? 12 : 1));
       const spread = on === 'end' ? 1800 : n > 1 ? 400 : 0;
@@ -168,8 +184,44 @@ export class StageFx {
   private play(fx: StageEffect, where?: { x: number; y: number }): void {
     const colors = fx.colors?.length ? fx.colors : DEFAULT_COLORS;
     const pick = () => colors[Math.floor(Math.random() * colors.length)];
+    const b = this.stage.blast;
+    const dir = fx.dir === -1 ? -1 : 1;
     if (fx.kind === 'shake') {
       this.hooks.shake?.(0.6);
+    } else if (fx.kind === 'flash') {
+      this.hooks.flash?.(pick());
+    } else if (fx.kind === 'splat') {
+      // Paint blobs where it happened; they cling to the stage plane and fade.
+      const p = where ?? { x: 0, y: REF_EYE };
+      const n = fx.count ?? 7;
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.random() * 0.35;
+        const life = 120 + Math.random() * 90;
+        this.spawn({ x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r, vx: Math.cos(a) * 0.01, vy: Math.sin(a) * 0.01, life, max: life, gravity: 0.0004, drag: 0.85, size: 0.12 + Math.random() * 0.22, fade: 0.9 }, pick(), -0.35, true);
+      }
+    } else if (fx.kind === 'dust') {
+      const n = fx.count ?? 4;
+      for (let i = 0; i < n; i++) {
+        const y = REF_EYE + (Math.random() * 1.4 - 0.9) * 3;
+        const x = (dir > 0 ? b.left : b.right) * W * 0.8;
+        const life = 150 + Math.random() * 80;
+        this.spawn({ x, y, vx: dir * (0.06 + Math.random() * 0.04), vy: (Math.random() - 0.5) * 0.004, life, max: life, gravity: 0, drag: 1, size: 0.8 + Math.random() * 1.6, fade: 0.28 }, pick(), -0.8 + Math.random() * 2, true);
+      }
+    } else if (fx.kind === 'rain') {
+      const n = fx.count ?? 10;
+      for (let i = 0; i < n; i++) {
+        const x = (b.left + Math.random() * (b.right - b.left)) * W * 0.8;
+        const life = 70;
+        this.spawn({ x, y: REF_EYE + 6, vx: dir * 0.03, vy: -0.16, life, max: life, gravity: 0, drag: 1, size: 0.03, fade: 0.6, streak: 9 }, pick(), -1 + Math.random() * 3);
+      }
+    } else if (fx.kind === 'confetti') {
+      const n = fx.count ?? 24;
+      for (let i = 0; i < n; i++) {
+        const x = (b.left + Math.random() * (b.right - b.left)) * W * 0.6;
+        const life = 200 + Math.random() * 100;
+        this.spawn({ x, y: REF_EYE + 4.5 + Math.random(), vx: (Math.random() - 0.5) * 0.01, vy: -0.015 - Math.random() * 0.01, life, max: life, gravity: 0, drag: 1, size: 0.09, fade: 1 }, pick(), -1);
+      }
     } else if (fx.kind === 'burst') {
       const p = where && fx.at !== 'sky' ? where : this.skyPoint();
       this.burst(p.x, p.y, where && fx.at !== 'sky' ? -0.4 : SKY_Z, [pick(), pick()], 40);
@@ -211,11 +263,13 @@ export class StageFx {
     }
   }
 
-  private spawn(p: Omit<Part, 'mesh'>, color: string, z: number): void {
-    const mesh = CreatePlane('fx', { size: 1 }, this.scene);
+  private spawn(p: Omit<Part, 'mesh'>, color: string, z: number, round = false): void {
+    const mesh = round ? CreateDisc('fx', { radius: 0.5, tessellation: 18 }, this.scene) : CreatePlane('fx', { size: 1 }, this.scene);
     mesh.material = this.mat(color);
     mesh.position.set(p.x, p.y, z);
-    mesh.scaling.setAll(p.size);
+    mesh.scaling.set(p.size, p.size * (p.streak ?? 1), 1);
+    if (p.fade !== undefined) mesh.visibility = p.fade;
+    if (p.streak) mesh.rotation.z = Math.atan2(p.vx, -p.vy);
     mesh.isPickable = false;
     this.parts.push({ ...p, mesh });
   }
@@ -244,6 +298,17 @@ export class StageFx {
         run();
       }
     }
+    for (let i = this.streams.length - 1; i >= 0; i--) {
+      const st = this.streams[i];
+      if (!this.clock || !eventOn(this.stage, this.clock, st.id)) {
+        this.streams.splice(i, 1);
+        continue;
+      }
+      if (now >= st.next) {
+        st.next = now + (st.fx.every ?? (st.fx.kind === 'rain' ? 0.1 : st.fx.kind === 'dust' ? 0.35 : 0.5)) * 1000;
+        this.play(st.fx);
+      }
+    }
     for (const a of this.ambient) {
       if (now >= a.next) {
         a.next = now + (a.fx.every ?? 4) * 1000 * (0.7 + Math.random() * 0.6);
@@ -263,7 +328,8 @@ export class StageFx {
       p.mesh.position.x = p.x;
       p.mesh.position.y = p.y;
       const k = p.burst ? 1 : Math.max(0, p.life / p.max);
-      p.mesh.scaling.setAll(p.size * (0.4 + 0.6 * k));
+      if (p.fade !== undefined) p.mesh.visibility = p.fade * Math.min(1, k * 3);
+      else p.mesh.scaling.setAll(p.size * (0.4 + 0.6 * k));
       if (p.life <= 0) {
         if (p.burst) this.burst(p.x, p.y, p.mesh.position.z, p.burst.colors, p.burst.n);
         p.mesh.dispose();
@@ -276,6 +342,7 @@ export class StageFx {
     for (const p of this.parts) p.mesh.dispose();
     this.parts = [];
     this.pending = [];
+    this.streams = [];
     for (const m of this.mats.values()) m.dispose();
     this.mats.clear();
   }

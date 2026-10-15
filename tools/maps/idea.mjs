@@ -1,9 +1,10 @@
 // "Generate Map Idea": turns a folder in C:\Projects\AllTheMaps (concept
 // images and a reference.txt) into a few distinct stage designs to pick from:
 // layout, art direction, silhouettes for every piece of art (which the GPU
-// server then paints, tools/maps/paint.mjs), and the effects the reference
-// asks for. A design can be revised with feedback. The Maps tab opens the
-// chosen one unsaved, to edit and save.
+// server then paints, tools/maps/paint.mjs), the effects the reference asks
+// for, and what makes it dynamic: stage events, zones, hazards, platforms
+// that come and go, and art that moves and reacts. A design can be revised
+// with feedback. The Maps tab opens the chosen one unsaved, to edit and save.
 //
 // With ANTHROPIC_API_KEY in .env, Claude reads the concept art and the
 // reference and designs the stage (structured output, so the JSON always
@@ -24,7 +25,7 @@ const STR = { type: 'string' };
 const obj = (properties) => ({ type: 'object', properties, required: Object.keys(properties), additionalProperties: false });
 
 /** What Claude must return. Every field is required, so the stage is always complete. */
-const SCHEMA = obj({
+export const SCHEMA = obj({
   name: { type: 'string', description: 'Display name, two or three words' },
   blurb: { type: 'string', description: 'One short sentence for the stage select screen' },
   platforms: {
@@ -68,11 +69,17 @@ const SCHEMA = obj({
       shape: { type: 'string', description: '1 to 8 rectangles in world units sketching its silhouette, as "x1 y1 x2 y2" separated by ";" (e.g. a water tower: tank; leg; leg; deck). Walkable tops must sit exactly at their platform y' },
     }),
   },
+  // JSON text, not nested lists: the structured-output grammar has a size limit, and
+  // even two more fields per platform or art item pass it (docs/maps.md).
+  dynamics: {
+    type: 'string',
+    description: 'What makes the stage dynamic, as JSON text: {"events":[...],"zones":[...],"hazards":[...],"platforms":[...],"art":{...}} (see Dynamic stages); "{}" for a static stage',
+  },
   effects: {
     type: 'array',
     items: obj({
-      on: { type: 'string', enum: ['start', 'ko', 'end', 'ambient'] },
-      kind: { type: 'string', enum: ['firework', 'burst', 'shake', 'embers'] },
+      on: { type: 'string', description: 'start, ko, hit, end, ambient, or a stage event: event:<id>, warn:<id>, eventEnd:<id>' },
+      kind: { type: 'string', enum: ['firework', 'burst', 'shake', 'embers', 'splat', 'dust', 'rain', 'confetti', 'flash'] },
       colors: { type: 'array', items: HEX },
       count: INT,
       every: { type: 'number', description: 'Ambient only: seconds between; else 0' },
@@ -106,7 +113,17 @@ Then list every other piece of art in "art". Give each a "paint" description for
 - Things in front of the fighters go at z -1.5 to -5: railings, signs, chimneys, foliage. Foreground pieces that fighters pass behind are occluders: the game shows a silhouette of anyone behind them, so fighters are never lost. Use one or two, not a wall.
 For each art layer that draws platforms, list their indices in "draws" and set those platforms "hidden" (the game draws no default block for them once the art is painted; until then it still draws blocks, so the stage is always playable). This includes the main stage when its art (a rooftop, an island, a deck) draws it. One layer per platform: if a building has a fire escape bolted to it, the fire escape draws the landings and the building is scenery behind it (z 3 or more), not a second layer at 0.3.
 
-Effects react to the match: on "ko" (a fighter is KO'd), "end" (the match ends, a finale over two seconds), "start", or "ambient" (every few seconds). Kinds: firework (rises from below and bursts in the sky), burst (sparks at the KO or in the sky), shake (camera), embers (rising sparks). Only add effects the reference asks for or that clearly suit it.
+Effects react to the match: on "ko" (a fighter is KO'd), "hit" (a hit lands), "end" (the match ends, a finale over two seconds), "start", "ambient" (every few seconds), or a stage event ("warn:<id>", "event:<id>" when it starts, "eventEnd:<id>"). Kinds: firework (rises from below and bursts in the sky), burst (sparks at the KO or in the sky), shake (camera), embers (rising sparks), splat (paint blobs where a hit or KO lands), dust (clouds sweeping across), rain (streaks), confetti (falls from above), flash (the screen lights up). Dust, rain, embers and confetti on "event:<id>" keep coming until the event ends. Only add effects the reference asks for or that clearly suit it.
+
+Dynamic stages. When the reference describes things happening (weather, creatures, machines, a crowd, things that break, move, rotate or react), build them from these parts. They are generic: combine them.
+- "dynamics" is JSON text with three lists. Every field is optional except the ones marked.
+  events: [{"id" (required, kebab-case), "name", "trigger": "timer" | "ko" | "hit", "every": [min, max] seconds, "first": seconds, "chance": percent, "warn": seconds, "duration" (required): seconds}]. Things the stage does on its own. Each waits, warns for "warn" seconds, runs for "duration" seconds and ends. A "timer" event repeats every min..max seconds from the end of the last ("first": when the first one warns); "ko" and "hit" events fire when someone is KO'd or hit ("chance" percent). Give real warnings (1.5 to 3 s) and keep them occasional (every 15 to 40 s is typical): the fight is the point; the stage is the spice. Everything else names events by id.
+  zones: [{"kind" (required): "damage" | "wind" | "water" | "gravity", "x1", "x2", "y1" (bottom), "y2" (top) (required, world units), "during": event id, "damage": percent per tick (1 to 4), "tick": seconds (0.5), "knock": launch strength (0 none, 40 a shove, 80 strong), "angle": degrees (90 up), "force": [x, y] units per second (120 is strong), "gravity": percent}]. damage hurts on a tick (fog, lava, a cursed mist; knock throws them out); wind pushes; water makes fighters swim (floaty, every jump a stroke; gravity defaults to 35); gravity scales gravity. "during" makes it only exist while that event runs. Damage zones belong off to the sides or below, never over the whole main stage.
+  hazards: [{"id" (required), "path" (required): [[x, y], ...] world units, "during": event id, "period": seconds, "r": hit radius (30 to 90), "dmg": percent (6 to 18), "angle": launch degrees moving right (mirrored moving left), "bkb": base knockback (20 to 50), "kbg": growth (50 to 110)}]. Something that moves along its path, evenly over time, and hits whoever it touches, once per pass: a hawk swooping, a train, a falling piece. With "during" it crosses its path once over the event (start and end it off screen, past the stage's edges); without, it loops every "period" seconds. Give it art: an art piece with "follows" set to its id, a shape a little bigger than its radius; x and y are where to paint it (its first path point is fine).
+  platforms: [{"index" (required): index into "platforms", "offDuring": event id, "onlyDuring": event id}]. A platform with "offDuring" is gone while that event runs (a floor breaks, a panel tilts away); "onlyDuring" ones appear for it. Never take away the main stage, and never a spawn's platform. Art that draws a switching platform should show it: "hideDuring" the same event, or react with "event:<id> tilt 60" (tilts and holds until the event ends).
+  art: {"<art id>": {"anim": "kind amount seconds", "showDuring": event id or "warn:<id>", "hideDuring": event id, "follows": hazard id, "reacts": "on kind amount seconds; ..."}}, keyed by the ids in "art". anim is a loop it plays on its own: bob (units up and down), sway (degrees, rocks), wave (units side to side), pulse (percent), spin (degrees, sign is direction), scroll (slides the image sideways, for clouds); e.g. "bob 6 1.2". showDuring: only visible while that event runs, or while it warns. follows: the art is that hazard and rides it (paint it facing right; it flips). reacts: on is ko, hit, start, end, event:<id>, warn:<id> or eventEnd:<id>; kind is hop (units), flash, shake (units), spin (degrees), tilt (degrees, holds) or tip (degrees, holds: falls over); e.g. "ko hop 25 0.5; event:storm tilt 20". A crowd bobbing and hopping on KOs, a sign swaying, a storm cloud during the storm, a statue tipping over on a KO.
+- What can't be built yet: slopes and curved floors (approximate them with flat platforms or steps), fighters breaking things with attacks, items. Say so in "notes" if the reference wants them.
+Tie every event to something players see: art that appears or reacts, an effect, or both, starting at its warning.
 
 Theme colors also paint any default platform blocks: body is the platform face, under its underside, edge the glowing top edge of solid platforms and thinEdge of thin ones. Pick colors from the concept so default blocks blend in.
 
@@ -209,7 +226,7 @@ ${ask}` }] }],
 }
 
 /** Claude's design as a StageDef: integers where the sim needs them, sane limits, layers wired up. */
-function toStage(idea, { id, folder, backdrop }) {
+export function toStage(idea, { id, folder, backdrop }) {
   const int = (v, lo = -5000, hi = 5000) => Math.max(lo, Math.min(hi, Math.round(Number(v) || 0)));
   const hex = (v, d) => (/^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : d);
   const platforms = (idea.platforms ?? []).map((p) => {
@@ -221,6 +238,14 @@ function toStage(idea, { id, folder, backdrop }) {
     if (!out.solid && p.moves && p.period > 0) out.motion = { ax: int(p.swingX, -800, 800), ay: int(p.swingY, -800, 800), period: Math.max(90, int(p.period, 1, 3600)) };
     return out;
   });
+  const dyn = parseDynamics(idea.dynamics);
+  for (const t of Array.isArray(dyn.platforms) ? dyn.platforms : []) {
+    const p = platforms[Math.round(Number(t?.index))];
+    if (!p) continue;
+    if (slug(t.offDuring)) p.offDuring = slug(t.offDuring);
+    else if (slug(t.onlyDuring)) p.onlyDuring = slug(t.onlyDuring);
+  }
+  const artDyn = dyn.art && typeof dyn.art === 'object' ? dyn.art : {};
   const shift = platforms.some((p) => p.solid) ? 0 : 1;
   if (shift) platforms.unshift({ x1: -560, x2: 560, y: 0, solid: true, depth: 90 });
   const blast = { left: int(idea.blast?.left ?? -1400), right: int(idea.blast?.right ?? 1400), top: int(idea.blast?.top ?? 1150), bottom: int(idea.blast?.bottom ?? -750) };
@@ -237,7 +262,13 @@ function toStage(idea, { id, folder, backdrop }) {
         z: draws.length ? 0.3 : clampZ(a.z, -8, 40), ...(a.occluder && a.z < 0 && !draws.length ? { occluder: true } : {}), note: String(a.note ?? ''),
         ...(a.paint ? { prompt: String(a.paint) } : {}),
         ...(draws.length ? { platforms: draws } : {}),
+        ...artDynamics(artDyn[a.id] ?? artDyn[slug(a.id)] ?? {}),
       };
+      // Art that rides a hazard sits in the fighters' plane, just in front, so it lines up with the hit.
+      if (layer.follows) {
+        layer.z = -0.3;
+        delete layer.occluder;
+      }
       // The silhouette sets the box, and is kept relative to its center so it moves with the layer.
       // "x1 y1 x2 y2; x1 y1 x2 y2; ..." (a string keeps the schema small enough to enforce).
       const rects = String(a.shape ?? '').split(';').map((t) => t.trim().split(/[\s,]+/).map(Number)).filter((n) => n.length === 4 && n.every(Number.isFinite));
@@ -263,8 +294,38 @@ function toStage(idea, { id, folder, backdrop }) {
     if (e.on === 'ambient') out.every = Math.max(1, Math.min(60, Number(e.every) || 5));
     if (e.at) out.at = e.at;
     if (e.sound) out.sound = String(e.sound);
+    if ((e.kind === 'dust' || e.kind === 'rain') && Number(e.dir) === -1) out.dir = -1;
     return out;
   });
+  const { events, zones, hazards } = mechanics(dyn);
+  // Only names that exist: an unknown event or hazard id would never fire.
+  const evIds = new Set(events.map((e) => e.id));
+  const known = (on) => ['ko', 'hit', 'start', 'end', 'ambient'].includes(on) || evIds.has(String(on).replace(/^(warn|event|eventEnd):/, ''));
+  for (const p of platforms) {
+    if (p.offDuring && !evIds.has(p.offDuring)) delete p.offDuring;
+    if (p.onlyDuring && !evIds.has(p.onlyDuring)) delete p.onlyDuring;
+  }
+  // The main stage never goes away.
+  const main = platforms.findIndex((p) => p.solid);
+  if (main >= 0) {
+    delete platforms[main].offDuring;
+    delete platforms[main].onlyDuring;
+  }
+  for (const z of zones) if (z.during && !evIds.has(z.during)) delete z.during;
+  for (const hz of hazards) if (hz.during && !evIds.has(hz.during)) delete hz.during;
+  const hazIds = new Set(hazards.map((hz) => hz.id));
+  for (const l of layers) {
+    if (l.showDuring && !known(l.showDuring)) delete l.showDuring;
+    if (l.hideDuring && !evIds.has(l.hideDuring)) delete l.hideDuring;
+    if (l.follows && !hazIds.has(l.follows)) delete l.follows;
+    if (l.reacts) {
+      l.reacts = l.reacts.filter((r) => known(r.on));
+      if (!l.reacts.length) delete l.reacts;
+    }
+  }
+  const effectsKept = effects.filter((e) => known(e.on));
+  effects.length = 0;
+  effects.push(...effectsKept);
   alignPlatformArt(layers, platforms);
   return {
     id,
@@ -281,6 +342,9 @@ function toStage(idea, { id, folder, backdrop }) {
     },
     layers,
     effects,
+    ...(events.length ? { events } : {}),
+    ...(zones.length ? { zones } : {}),
+    ...(hazards.length ? { hazards } : {}),
     source: folder,
     art: { style: String(idea.style || ''), reference: backdrop.reference },
     notes: String(idea.notes || ''),
@@ -351,6 +415,101 @@ export function alignPlatformArt(layers, platforms) {
   });
   // Back to front; at one depth, the bigger piece goes behind.
   layers.sort((a, b) => (a.id === 'backdrop' ? -1 : b.id === 'backdrop' ? 1 : b.z - a.z || b.width - a.width));
+}
+
+const ANIMS = ['bob', 'sway', 'wave', 'pulse', 'spin', 'scroll'];
+const REACTS = ['hop', 'flash', 'shake', 'spin', 'tilt', 'tip'];
+const tenth = (v, lo, hi) => Math.round(Math.max(lo, Math.min(hi, Number(v) || 0)) * 10) / 10;
+
+/** An art item's loop, event visibility, hazard and reactions, from their compact strings. */
+function artDynamics(a) {
+  const out = {};
+  const [kind, amount, speed] = String(a.anim ?? '').trim().split(/\s+/);
+  if (ANIMS.includes(kind)) out.anim = { kind, ...(Number(amount) ? { amount: tenth(amount, -360, 360) } : {}), ...(Number(speed) > 0 ? { speed: tenth(speed, 0.1, 60) } : {}) };
+  const show = String(a.showDuring ?? '').trim();
+  if (show) out.showDuring = show.startsWith('warn:') ? `warn:${slug(show.slice(5))}` : slug(show);
+  if (slug(a.hideDuring)) out.hideDuring = slug(a.hideDuring);
+  if (slug(a.follows)) out.follows = slug(a.follows);
+  const reacts = String(a.reacts ?? '').split(';').map((t) => t.trim().split(/\s+/)).filter((t) => t.length >= 2 && REACTS.includes(t[1])).slice(0, 6)
+    .map(([on, kind, amount, secs]) => ({
+      on: /^(warn|event|eventEnd):/.test(on) ? `${on.split(':')[0]}:${slug(on.split(':')[1])}` : on,
+      kind,
+      ...(Number(amount) ? { amount: tenth(amount, -720, 720) } : {}),
+      ...(Number(secs) > 0 ? { seconds: tenth(secs, 0.1, 30) } : {}),
+    }));
+  if (reacts.length) out.reacts = reacts;
+  return out;
+}
+
+/** The "dynamics" JSON text, forgiving of a stray fence or trailing text. */
+function parseDynamics(text) {
+  if (text && typeof text === 'object') return text;
+  const t = String(text ?? '').trim();
+  const a = t.indexOf('{');
+  const b = t.lastIndexOf('}');
+  if (a < 0 || b <= a) return {};
+  try {
+    return JSON.parse(t.slice(a, b + 1));
+  } catch {
+    return {};
+  }
+}
+
+/** Events, zones and hazards, checked and in the units the sim reads (integers; seconds to tenths). */
+function mechanics(idea) {
+  const int = (v, lo = -5000, hi = 5000) => Math.max(lo, Math.min(hi, Math.round(Number(v) || 0)));
+  const seen = new Set();
+  const events = (idea.events ?? []).map((e) => {
+    const id = slug(e.id);
+    if (!id || seen.has(id)) return null;
+    seen.add(id);
+    const out = { id, duration: tenth(e.duration, 0, 120) };
+    if (e.name) out.name = String(e.name);
+    const trigger = ['ko', 'hit'].includes(e.trigger) ? e.trigger : 'timer';
+    if (trigger !== 'timer') {
+      out.trigger = trigger;
+      if (e.chance > 0 && e.chance < 100) out.chance = int(e.chance, 1, 100);
+    } else {
+      const every = Array.isArray(e.every) ? e.every : [e.everyMin, e.everyMax];
+      if (Number(every[0]) > 0) {
+        const lo = tenth(every[0], 3, 600);
+        out.every = [lo, Math.max(lo, tenth(every[1] || every[0], 3, 600))];
+      }
+      if (Number(e.first) > 0) out.first = tenth(e.first, 0, 600);
+    }
+    if (Number(e.warn) > 0) out.warn = tenth(e.warn, 0, 10);
+    return out;
+  }).filter(Boolean);
+  const zones = (idea.zones ?? []).filter((z) => ['damage', 'wind', 'water', 'gravity'].includes(z.kind)).map((z) => {
+    const out = { kind: z.kind, x1: int(Math.min(z.x1, z.x2)), x2: int(Math.max(z.x1, z.x2)), y1: int(Math.min(z.y1, z.y2)), y2: int(Math.max(z.y1, z.y2)) };
+    if (out.x2 - out.x1 < 20 || out.y2 - out.y1 < 20) return null;
+    if (slug(z.during)) out.during = slug(z.during);
+    if (z.kind === 'damage') {
+      out.damage = tenth(z.damage || 1, 0.1, 20);
+      out.tick = tenth(z.tick || 0.5, 0.1, 5);
+      if (z.knock > 0) {
+        out.knock = int(z.knock, 0, 120);
+        out.angle = int(z.angle ?? 90, -360, 360);
+      }
+    }
+    if (z.kind === 'wind') out.force = [int(z.force?.[0] ?? z.forceX, -400, 400), int(z.force?.[1] ?? z.forceY, -400, 400)];
+    if ((z.kind === 'water' || z.kind === 'gravity') && z.gravity > 0) out.gravity = int(z.gravity, 0, 300);
+    return out;
+  }).filter(Boolean);
+  const hazIds = new Set();
+  const hazards = (idea.hazards ?? []).map((hz) => {
+    const id = slug(hz.id);
+    // [[x, y], ...], [{x, y}, ...] or "x y; x y".
+    const raw = Array.isArray(hz.path) ? hz.path.map((p) => (Array.isArray(p) ? p : [p?.x, p?.y]).map(Number)) : String(hz.path ?? '').split(';').map((t) => t.trim().split(/[\s,]+/).map(Number));
+    const path = raw.filter((p) => p.length === 2 && p.every(Number.isFinite)).slice(0, 12).map(([x, y]) => ({ x: int(x), y: int(y) }));
+    if (!id || hazIds.has(id) || !path.length) return null;
+    hazIds.add(id);
+    const out = { id, path, r: int(hz.r || 50, 10, 200), dmg: int(hz.dmg || 10, 0, 40), angle: int(hz.angle ?? 45, -360, 360), bkb: int(hz.bkb ?? 35, 0, 120), kbg: int(hz.kbg ?? 80, 0, 200) };
+    if (slug(hz.during)) out.during = slug(hz.during);
+    else out.period = tenth(hz.period || 4, 0.5, 120);
+    return out;
+  }).filter(Boolean);
+  return { events, zones, hazards };
 }
 
 function clampZ(z, lo, hi) {

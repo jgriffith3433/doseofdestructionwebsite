@@ -1,0 +1,35 @@
+{
+ "job": "21bc5c956b5f",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "yo-house",
+ "piece": "tank-fish",
+ "kind": "front",
+ "layers": [
+  "tank-fish"
+ ],
+ "seed": 1550024645,
+ "prompt": "Paint image 1: the shape becomes Five little neon tetra-style fish, glowing blue and red stripes, swimming in a loose cluster, filling the same position and size. It sits close to the camera, in front of the action: darker, slightly silhouetted, with a crisp outline. Match the art style, palette and lighting of image 2. Style: Soft photoreal-meets-diorama interior rendering, like a dollhouse cutaway of a modern open-plan home. Cool blue-grey walls and daylight, dark glossy walnut floors, crisp white cabinetry, with the aquarium as the one glowing green jewel. Calm, airy and a little cheeky, as if the fighters are scrapping in someone's spotless living room. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -66,
+  "x2": 66,
+  "y1": 252.5,
+  "y2": 307.5
+ },
+ "size": [
+  1584,
+  656
+ ],
+ "x": 0,
+ "y": 280,
+ "width": 132,
+ "created": 1792029163606
+}

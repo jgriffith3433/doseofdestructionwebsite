@@ -1,0 +1,35 @@
+{
+ "job": "a156899020c9",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "watercolor-nebula",
+ "piece": "drop-left",
+ "kind": "front",
+ "layers": [
+  "drop-left"
+ ],
+ "seed": 864308985,
+ "prompt": "Paint image 1: the shape becomes A big glossy teardrop of amber-orange watercolor paint with a thin trailing tail streaking above it, bright highlight, soft edges, filling the same position and size. It sits close to the camera, in front of the action: darker, slightly silhouetted, with a crisp outline. Match the art style, palette and lighting of image 2. Style: Soft painterly watercolor with a subtle stepped, mosaic-pixel quality to every cloud edge, visible paper grain and wet pigment blooms. Palette of deep slate blue, dusty teal, mauve, ochre, honey gold and warm cream, lit by a glowing golden heart at the center of the nebula. Dreamy, calm and luminous, with glossy amber and blue paint beads floating everywhere. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -318.5,
+  "x2": -201.5,
+  "y1": 1241.5,
+  "y2": 1428.5
+ },
+ "size": [
+  816,
+  1312
+ ],
+ "x": -260,
+ "y": 1335,
+ "width": 117,
+ "created": 1792028878427
+}

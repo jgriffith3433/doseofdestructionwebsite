@@ -1,0 +1,35 @@
+{
+ "job": "71fedbe2bdde",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "watercolor-nebula",
+ "piece": "cloud-bank-right",
+ "kind": "scenery",
+ "layers": [
+  "cloud-bank-right"
+ ],
+ "seed": 558984662,
+ "prompt": "Paint image 1: the shape becomes A towering billow of watercolor cloud in honey gold, burnt orange and cream, with dusty mauve shadows tucked in its folds, stepped mosaic edges, warm light from the center, filling the same position and size. Match the art style, palette and lighting of image 2. Style: Soft painterly watercolor with a subtle stepped, mosaic-pixel quality to every cloud edge, visible paper grain and wet pigment blooms. Palette of deep slate blue, dusty teal, mauve, ochre, honey gold and warm cream, lit by a glowing golden heart at the center of the nebula. Dreamy, calm and luminous, with glossy amber and blue paint beads floating everywhere. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": 302.5,
+  "x2": 1347.5,
+  "y1": -67.57499999999999,
+  "y2": 727.575
+ },
+ "size": [
+  1168,
+  896
+ ],
+ "x": 825,
+ "y": 330,
+ "width": 1045,
+ "created": 1792028819098
+}

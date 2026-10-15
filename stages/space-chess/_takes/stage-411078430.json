@@ -1,0 +1,45 @@
+{
+ "job": "1aeed5ac27f8",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "space-chess",
+ "piece": "stage",
+ "kind": "stage",
+ "layers": [
+  "chessboard",
+  "floating-squares"
+ ],
+ "seed": 411078430,
+ "prompt": "Paint image 1 as finished 2D game environment art. Each shape becomes the structure described for its place, at exactly the same position, size and outline: lower center: A heavy black lacquered chessboard seen edge-on, the top face a thin band of alternating ivory and black squares catching cool blue starlight, a polished dark frame running along the sides with a soft rim highlight on the top edge, underside fading into deep shadow; upper center: Thin hovering slabs, each split into one ivory square and one black square like pieces broken off the board, polished edges glinting blue, a faint blue glow underneath as if held up by starlight. The bright horizontal bars are walkable surfaces (rooftop edges, ledges, catwalks, landings): keep each one exactly where it is, flat and level, as the visible top edge of its structure. Match the art style, palette and lighting of image 2. Style: Polished, cinematic 3D-rendered look: glossy lacquered wood and ivory chess pieces lit by cool blue starlight against deep black space. Palette of near-black navy, midnight blue and bright cobalt nebula accents, with cream-white squares as the brightest values. Quiet, grand and mysterious, like a cosmic game frozen mid-move. Everything outside the shapes stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -682,
+  "x2": 682,
+  "y1": -174.16666666666669,
+  "y2": 394.1666666666667
+ },
+ "size": [
+  1584,
+  656
+ ],
+ "x": 0,
+ "y": 110,
+ "width": 1364,
+ "created": 1792028556387,
+ "fit": {
+  "score": 1,
+  "platforms": [
+   1,
+   1,
+   1,
+   1
+  ]
+ }
+}

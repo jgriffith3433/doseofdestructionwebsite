@@ -1,14 +1,17 @@
-// The GPU server on AWS: one EC2 g6e instance (an NVIDIA L40S, 48 GB) that
-// runs ComfyUI. Launch it once; it installs itself (comfy/server/bootstrap.sh)
-// and powers itself off when idle. Start and stop it from devtools after that.
+// The GPU servers on AWS: EC2 g6e instances (an NVIDIA L40S, 48 GB each) that
+// run ComfyUI. Launch one once; it installs itself (comfy/server/bootstrap.sh)
+// and powers itself off when idle. Start and stop them from devtools after
+// that. There can be several (a fleet, up to the GPU tab's "Servers to use"):
+// the job queue runs one job on each ready server at a time.
 // Everything this creates is tagged Project=dose-of-destruction.
 //
 // It can live in any region in REGIONS that has GPU quota: launch picks the
 // first with quota and free capacity, or the region you name. Errors carry a
 // kind (capacity, quota, auth, other) so devtools can say what to do next.
 //
-// Local state (region, instance id, access token, SSH keys) lives in
-// .cache/gpu/, which is gitignored.
+// Local state (each server's region, access token and SSH key) lives in
+// .cache/gpu/, which is gitignored. Functions that act on one server take its
+// instance id; without one they act on the newest.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -43,16 +46,24 @@ import {
 import { ROOT, awsConfig, readEnv } from './env.mjs';
 
 /**
- * Instance types that fit the models (they need the 48 GB GPU and at least
+ * Instance types that fit the models (they need at least a 48 GB GPU and
  * 32 GB of memory). Prices are on-demand list prices in the US regions, for
  * estimates only: your AWS bill is the authority.
+ *
+ * g6e: NVIDIA L40S, 48 GB. The cheapest fit, and so the one AWS most often
+ * runs out of. g7e: NVIDIA RTX PRO 6000 Blackwell, 96 GB (AWS: up to 2.3x
+ * g6e's inference speed, 1.85x the memory bandwidth), so a job costs about
+ * the same and finishes sooner, and image and video models fit side by side.
+ * A newer, separate pool of machines, offered in every region we use.
  */
 export const TYPES = {
-  // Most preferred first: "any" launches try them in this order. Only 48 GB GPUs: Wan
-  // video needs about 34 GB and the image models 28 GB (docs/comfyui.md).
+  // Cheapest first: "any" launches try them in this order. Wan video needs about
+  // 34 GB of GPU memory and the image models 28 GB (docs/comfyui.md).
   'g6e.xlarge': { vcpus: 4, memory: 32, vram: 48, gpu: 'NVIDIA L40S, 48 GB', price: 1.861 },
   'g6e.2xlarge': { vcpus: 8, memory: 64, vram: 48, gpu: 'NVIDIA L40S, 48 GB', price: 2.242 },
+  'g7e.2xlarge': { vcpus: 8, memory: 64, vram: 96, gpu: 'NVIDIA RTX PRO 6000 Blackwell, 96 GB', price: 3.36 },
   'g6e.4xlarge': { vcpus: 16, memory: 128, vram: 48, gpu: 'NVIDIA L40S, 48 GB', price: 3.004 },
+  'g7e.4xlarge': { vcpus: 16, memory: 128, vram: 96, gpu: 'NVIDIA RTX PRO 6000 Blackwell, 96 GB', price: 4.0 },
 };
 export const DEFAULT_TYPE = 'g6e.xlarge';
 /** Regions the server may live in, most preferred first (the US first: cheapest). */
@@ -99,11 +110,28 @@ function quotas(region) {
 }
 
 export function localState() {
+  let st;
   try {
-    return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    st = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
   } catch {
-    return {};
+    st = {};
   }
+  // Per server: its password and key. The first server was saved at the top level.
+  st.servers ??= {};
+  if (st.instanceId && st.token && !st.servers[st.instanceId]) {
+    st.servers[st.instanceId] = { region: st.region, type: st.type, token: st.token, idleMinutes: st.idleMinutes, keyName: st.keyName, zone: st.zone, launchedAt: st.launchedAt };
+  }
+  return st;
+}
+
+/** What this machine saved about one server: { token, keyName, idleMinutes, ... }. */
+function record(id) {
+  return localState().servers[id] ?? {};
+}
+
+function saveRecord(id, patch) {
+  const st = localState();
+  saveState({ servers: { ...st.servers, [id]: { ...(st.servers[id] ?? {}), ...patch } } });
 }
 
 function saveState(patch) {
@@ -138,41 +166,40 @@ async function serversIn(region) {
   return (r.Reservations ?? []).flatMap((x) => x.Instances ?? []).map((instance) => ({ instance, region }));
 }
 
-/** The project's GPU server in any region, if there is one (and it isn't terminated). */
-export async function findServer() {
-  // Look where it was last seen first; only search everywhere if it isn't there.
-  const known = localState().region;
-  if (known) {
-    const here = await serversIn(known).catch(() => []);
-    if (here.length) return newest(here);
-  }
-  const all = (await Promise.all(REGIONS.filter((r) => r !== known).map((r) => serversIn(r).catch(() => [])))).flat();
-  const found = newest(all);
-  if (found) saveState({ region: found.region });
-  return found;
+let listCache = { at: 0, value: null };
+
+/** Every project GPU server that isn't terminated, in every region, newest first. Cached for 5 s. */
+export async function listServers({ force = false } = {}) {
+  if (!force && listCache.value && Date.now() - listCache.at < 5000) return listCache.value;
+  const all = (await Promise.all(REGIONS.map((r) => serversIn(r).catch(() => [])))).flat();
+  const value = all.sort((a, b) => (b.instance.LaunchTime?.getTime() ?? 0) - (a.instance.LaunchTime?.getTime() ?? 0));
+  listCache = { at: Date.now(), value };
+  return value;
 }
 
-function newest(list) {
-  return list.sort((a, b) => (b.instance.LaunchTime?.getTime() ?? 0) - (a.instance.LaunchTime?.getTime() ?? 0))[0] ?? null;
+/** One server by instance id; without one, the newest (a running one first). */
+export async function findServer(id) {
+  const all = await listServers();
+  if (id) return all.find((s) => s.instance.InstanceId === id) ?? null;
+  return all.find((s) => ['running', 'pending'].includes(s.instance.State?.Name)) ?? all[0] ?? null;
 }
 
-/** The hourly price for the server (or the default type when there isn't one). */
-export async function currentPrice() {
-  const s = await findServer().catch(() => null);
+/** The hourly price of a server (or of the default type). */
+export async function currentPrice(id) {
+  const s = await findServer(id).catch(() => null);
   return priceIn(s?.instance.InstanceType ?? DEFAULT_TYPE, s?.region);
 }
 
-/** What the server is doing: AWS state plus the install progress it reports. */
-export async function serverStatus() {
-  const found = await findServer();
-  const st = localState();
-  const base = { types: TYPES, regions: REGIONS, defaultType: DEFAULT_TYPE, diskPerMonth: DISK_PER_MONTH, diskGb: DISK_GB };
-  if (!found) return { exists: false, ...base, type: DEFAULT_TYPE, pricePerHour: TYPES[DEFAULT_TYPE].price };
-  const { instance: i, region } = found;
+const BASE = () => ({ types: TYPES, regions: REGIONS, defaultType: DEFAULT_TYPE, diskPerMonth: DISK_PER_MONTH, diskGb: DISK_GB });
+
+/** What one server is doing: AWS state plus the install progress it reports. */
+async function statusOf({ instance: i, region }) {
+  const rec = record(i.InstanceId);
   const ip = i.PublicIpAddress ?? null;
+  const keyName = i.KeyName ?? rec.keyName;
   const out = {
     exists: true,
-    ...base,
+    ...BASE(),
     id: i.InstanceId,
     region,
     type: i.InstanceType,
@@ -184,20 +211,63 @@ export async function serverStatus() {
     pricePerHour: priceIn(i.InstanceType, region),
     url: ip ? `http://${ip}:${PORT}` : null,
     user: 'dod',
-    hasToken: Boolean(st.token),
-    idleMinutes: st.idleMinutes ?? null,
-    key: st.keyName ? path.join('.cache', 'gpu', `${st.keyName}.pem`) : null,
+    hasToken: Boolean(rec.token),
+    idleMinutes: rec.idleMinutes ?? null,
+    key: keyName ? path.join('.cache', 'gpu', `${keyName}.pem`) : null,
     boot: null,
   };
-  if (i.State?.Name === 'running' && ip && st.token) {
+  if (i.State?.Name === 'running' && ip && rec.token) {
     try {
-      const r = await fetch(`http://${ip}:${PORT}/dod/status.json`, { headers: authHeader(st.token), signal: AbortSignal.timeout(4000) });
+      const r = await fetch(`http://${ip}:${PORT}/dod/status.json`, { headers: authHeader(rec.token), signal: AbortSignal.timeout(4000) });
       out.boot = r.ok ? await r.json() : r.status === 401 ? { stage: 'locked out', detail: 'the server rejected the saved password' } : { stage: 'unreachable', detail: `HTTP ${r.status}` };
     } catch {
       out.boot = { stage: 'booting', detail: 'waiting for the server to answer (if this lasts, your IP may have changed: Refresh access)' };
     }
+  } else if (i.State?.Name === 'running' && !rec.token) {
+    out.boot = { stage: 'locked out', detail: 'this computer has no password for it (.cache/gpu/server.json): it was launched elsewhere' };
   }
   return out;
+}
+
+/** One server's status; without an id, the newest (or { exists: false }). */
+export async function serverStatus(id) {
+  const found = await findServer(id);
+  if (!found) return { exists: false, ...BASE(), type: DEFAULT_TYPE, pricePerHour: TYPES[DEFAULT_TYPE].price };
+  return statusOf(found);
+}
+
+/** Every server's status, newest first. idleMinutes: bring ready servers' idle stop to this. */
+export async function fleetStatus({ idleMinutes } = {}) {
+  const list = await Promise.all((await listServers()).map(statusOf));
+  if (idleMinutes) for (const st of list) if (st.state === 'running' && st.boot?.stage === 'ready' && st.idleMinutes !== idleMinutes) void setIdle(st.id, idleMinutes);
+  return list;
+}
+
+const settingIdle = new Set();
+
+/** Changes how long a running server waits idle before it stops itself (over SSH). */
+export async function setIdle(id, minutes) {
+  const m = Math.max(10, Math.min(240, Math.round(Number(minutes))));
+  if (settingIdle.has(id)) return;
+  settingIdle.add(id);
+  try {
+    await sshRun(`sudo sed -i -E 's/^IDLE_MINUTES=.*/IDLE_MINUTES=${m}/' /usr/local/bin/dod-idle.sh && grep -q '^IDLE_MINUTES=${m}$' /usr/local/bin/dod-idle.sh && echo ok`, id);
+    saveRecord(id, { idleMinutes: m });
+    console.log(`[gpu] ${id} now stops after ${m} idle minutes`);
+  } catch (e) {
+    console.warn(`[gpu] couldn't set the idle stop on ${id}: ${e.message}`);
+  } finally {
+    settingIdle.delete(id);
+  }
+}
+
+/** Running and pending GPU vCPUs per region (what counts against the quota). */
+async function vcpusInUse() {
+  const used = {};
+  for (const { instance: i, region } of await listServers()) {
+    if (['running', 'pending'].includes(i.State?.Name)) used[region] = (used[region] ?? 0) + (TYPES[i.InstanceType]?.vcpus ?? 4);
+  }
+  return used;
 }
 
 export function authHeader(token) {
@@ -313,14 +383,17 @@ async function allowOnly(region, sg, ip) {
   }
 }
 
-/** Lets this machine's current IP in, for when it has changed since launch. */
+/** Lets this machine's current IP in (every region with a server), for when it has changed since launch. */
 export async function refreshAccess() {
   const ip = await myIp();
-  const region = (await findServer())?.region ?? localState().region ?? homeRegion();
-  const r = await ec2(region).send(new DescribeSecurityGroupsCommand({ Filters: [{ Name: 'group-name', Values: [SG_NAME] }] }));
-  const sg = r.SecurityGroups?.[0];
-  if (sg) await allowOnly(region, sg, ip);
-  return { ip, region };
+  const regions = [...new Set((await listServers()).map((s) => s.region))];
+  if (!regions.length) regions.push(localState().region ?? homeRegion());
+  for (const region of regions) {
+    const r = await ec2(region).send(new DescribeSecurityGroupsCommand({ Filters: [{ Name: 'group-name', Values: [SG_NAME] }] }));
+    const sg = r.SecurityGroups?.[0];
+    if (sg) await allowOnly(region, sg, ip);
+  }
+  return { ip, regions };
 }
 
 /** An SSH key for debugging the server, saved to .cache/gpu/. Key pairs belong to one region. */
@@ -382,17 +455,24 @@ export function userData(token, idleMinutes) {
 }
 
 /** The regions to try, in order: the one asked for, or every region with enough quota. */
-async function launchRegions(region, vcpus) {
+async function launchRegions(region, vcpus, type) {
   if (region && region !== 'auto') {
     if (!REGIONS.includes(region)) throw new GpuError(`Not a region the server uses: ${region}`);
     return [region];
   }
   const info = await regionsInfo();
-  const order = [localState().region, homeRegion(), ...REGIONS].filter((r, i, a) => r && a.indexOf(r) === i);
-  const ok = order.filter((r) => (info.find((x) => x.region === r)?.quota ?? 0) >= vcpus);
+  const used = await vcpusInUse();
+  const free = (r) => (info.find((x) => x.region === r)?.quota ?? 0) - (used[r] ?? 0);
+  // Where AWS says machines are free first (its spot placement score, 1 to 10: a
+  // free hint that tracks on-demand capacity well), then where the most quota is
+  // free, so a fleet spreads out; the home region breaks ties.
+  const { scoresFor } = await import('./capacity.mjs');
+  const score = type ? await scoresFor(type).catch(() => ({})) : {};
+  const order = [homeRegion(), ...REGIONS].filter((r, i, a) => a.indexOf(r) === i);
+  const ok = order.filter((r) => free(r) >= vcpus).sort((a, b) => (score[b] ?? 0) - (score[a] ?? 0) || free(b) - free(a));
   if (!ok.length) {
     throw new GpuError(
-      `No region has quota for ${vcpus} GPU vCPUs (${info.map((x) => `${x.region}: ${x.quota ?? '?'}`).join(', ')}). Request more in the Regions card.`,
+      `No region has ${vcpus} GPU vCPUs of quota free (${info.map((x) => `${x.region}: ${(x.quota ?? 0) - (used[x.region] ?? 0)} of ${x.quota ?? '?'} free`).join(', ')}). Stop a server, or request more in the Regions card.`,
       'quota',
     );
   }
@@ -400,14 +480,15 @@ async function launchRegions(region, vcpus) {
 }
 
 /**
- * Creates the server. Costs money from here on: see TYPES.
- * type 'auto' tries every type in TYPES (all 48 GB L40S machines), best
- * first, in every region with quota for it.
+ * Creates a server (another one, if there are some). Costs money from here
+ * on: see TYPES. type 'auto' tries every type in TYPES (all 48 GB L40S
+ * machines), best first, in every region with quota free for it. max: how
+ * many servers there may be in all.
  */
-export async function launchServer({ idleMinutes = 30, region = 'auto', type = DEFAULT_TYPE } = {}) {
+export async function launchServer({ idleMinutes = 30, region = 'auto', type = DEFAULT_TYPE, max = 4 } = {}) {
   if (type !== 'auto' && !TYPES[type]) throw new GpuError(`Not an instance type the server uses: ${type}`);
-  const existing = await findServer();
-  if (existing) throw new GpuError(`A GPU server already exists in ${existing.region}. Start it instead of launching another.`);
+  const existing = await listServers({ force: true });
+  if (existing.length >= max) throw new GpuError(`There are already ${existing.length} GPU servers (the most "Servers to use" allows). Start one of them instead, or raise the setting.`);
   const ip = await myIp();
   const token = crypto.randomBytes(24).toString('base64url');
   const data = userData(token, idleMinutes);
@@ -431,7 +512,7 @@ export async function launchServer({ idleMinutes = 30, region = 'auto', type = D
   for (const t of types) {
     let regions;
     try {
-      regions = await launchRegions(region, TYPES[t].vcpus);
+      regions = await launchRegions(region, TYPES[t].vcpus, t);
     } catch (e) {
       attempts.push({ region: region === 'auto' ? 'any' : region, zone: null, type: t, code: 'quota', kind: 'quota', message: e.message });
       continue;
@@ -479,7 +560,9 @@ export async function launchServer({ idleMinutes = 30, region = 'auto', type = D
           }));
           const id = res.Instances?.[0]?.InstanceId;
           const zone = res.Instances?.[0]?.Placement?.AvailabilityZone ?? subnet?.AvailabilityZone ?? 'any';
-          saveState({ region: r, instanceId: id, type: t, token, idleMinutes, keyName: setup.key, securityGroup: setup.sg, image: setup.image.ImageId, zone, launchedAt: new Date().toISOString() });
+          saveState({ region: r, securityGroup: setup.sg, image: setup.image.ImageId });
+          saveRecord(id, { region: r, type: t, token, idleMinutes, keyName: setup.key, zone, launchedAt: new Date().toISOString() });
+          listCache.at = 0;
           attempts.push({ region: r, zone, type: t, code: 'ok', kind: 'ok', message: 'launched' });
           return { id, region: r, zone, type: t, image: setup.image.Name, attempts };
         } catch (e) {
@@ -505,22 +588,24 @@ function failure(type, attempts) {
   return new GpuError(`Couldn't launch ${type}: ${attempts.map((a) => `${a.region}${a.zone ? ` ${a.zone}` : ''}: ${a.code}`).join(', ')}`, 'other', attempts);
 }
 
-async function requireServer() {
-  const s = await findServer();
-  if (!s) throw new GpuError('There is no GPU server yet. Launch one first.');
+async function requireServer(id) {
+  const s = await findServer(id);
+  if (!s) throw new GpuError(id ? `There is no GPU server ${id}.` : 'There is no GPU server yet. Launch one first.');
   return s;
 }
 
-export async function startServer() {
-  const { instance: i, region } = await requireServer();
+export async function startServer(id) {
+  const { instance: i, region } = await requireServer(id);
   await refreshAccess();
   if (i.State?.Name === 'stopped') {
     try {
       await ec2(region).send(new StartInstancesCommand({ InstanceIds: [i.InstanceId] }));
+      listCache.at = 0;
     } catch (e) {
       const kind = classify(e);
       const attempts = [{ region, zone: i.Placement?.AvailabilityZone, code: e.name, kind, message: e.message }];
       if (kind === 'capacity') throw new GpuError(`AWS has no ${i.InstanceType} free in ${i.Placement?.AvailabilityZone} right now, so the server can't start. It stays where it is (with its models); try again or keep trying.`, 'capacity', attempts);
+      if (kind === 'quota') throw new GpuError(`${region} has no GPU quota free for another running server. Stop one there, or request more quota.`, 'quota', attempts);
       throw new GpuError(`${e.name}: ${e.message}`, kind, attempts);
     }
   } else if (i.State?.Name !== 'running' && i.State?.Name !== 'pending') {
@@ -529,36 +614,52 @@ export async function startServer() {
   return { id: i.InstanceId, region, was: i.State?.Name };
 }
 
-export async function stopServer() {
-  const { instance: i, region } = await requireServer();
+export async function stopServer(id) {
+  const { instance: i, region } = await requireServer(id);
   if (i.State?.Name === 'running' || i.State?.Name === 'pending') await ec2(region).send(new StopInstancesCommand({ InstanceIds: [i.InstanceId] }));
+  listCache.at = 0;
   return { id: i.InstanceId, region, was: i.State?.Name };
 }
 
-/** Deletes the server and its disk (models included). Launching again re-downloads everything. */
-export async function terminateServer() {
-  const { instance: i, region } = await requireServer();
+/** Deletes a server and its disk (models included). Launching again re-downloads everything. */
+export async function terminateServer(id) {
+  const { instance: i, region } = await requireServer(id);
   await ec2(region).send(new TerminateInstancesCommand({ InstanceIds: [i.InstanceId] }));
-  saveState({ instanceId: null, token: null, terminatedAt: new Date().toISOString() });
+  const st = localState();
+  const servers = { ...st.servers };
+  delete servers[i.InstanceId];
+  saveState({ servers, ...(st.instanceId === i.InstanceId ? { instanceId: null, token: null } : {}), terminatedAt: new Date().toISOString() });
+  listCache.at = 0;
   return { id: i.InstanceId, region };
 }
 
-/** Base URL and auth for talking to ComfyUI through the proxy. */
-export async function comfyEndpoint() {
-  const st = await serverStatus();
+/** Base URL and auth for talking to ComfyUI on one server (the first ready one without an id). */
+export async function comfyEndpoint(id) {
+  if (!id) {
+    const [first] = await comfyEndpoints();
+    if (first) return first;
+  }
+  const st = await serverStatus(id);
   if (!st.exists) throw new Error('There is no GPU server. Launch it in the GPU tab.');
   if (st.state !== 'running') throw new Error(`The GPU server is ${st.state}. Start it in the GPU tab.`);
   if (st.boot?.stage !== 'ready') throw new Error(`The GPU server is still setting up (${st.boot?.stage ?? 'booting'}: ${st.boot?.detail ?? ''}).`);
-  return { url: st.url, headers: authHeader(localState().token) };
+  return { id: st.id, region: st.region, price: st.pricePerHour, url: st.url, headers: authHeader(record(st.id).token) };
+}
+
+/** Every server ready for jobs: [{ id, region, price, url, headers }]. */
+export async function comfyEndpoints() {
+  return (await fleetStatus())
+    .filter((st) => st.state === 'running' && st.boot?.stage === 'ready')
+    .map((st) => ({ id: st.id, region: st.region, price: st.pricePerHour, url: st.url, headers: authHeader(record(st.id).token) }));
 }
 
 /** Runs a command on the server over SSH with its saved key; resolves to its output. */
-async function sshRun(remote) {
-  const found = await findServer();
+async function sshRun(remote, id) {
+  const found = await findServer(id);
   if (!found) throw new GpuError('There is no GPU server.');
   const ip = found.instance.PublicIpAddress;
   if (!ip) throw new GpuError(`The server is ${found.instance.State?.Name}; it has no address until it runs.`);
-  const keyName = found.instance.KeyName ?? localState().keyName;
+  const keyName = found.instance.KeyName ?? record(found.instance.InstanceId).keyName ?? localState().keyName;
   const key = path.join(STATE_DIR, `${keyName}.pem`);
   if (!fs.existsSync(key)) throw new GpuError(`The SSH key ${keyName}.pem isn't in .cache/gpu/.`);
   lockKey(key);
@@ -583,7 +684,7 @@ async function sshRun(remote) {
  * What the server is doing, over SSH: the setup log (the step lines and the
  * last raw lines), disk, memory, the GPU and ComfyUI.
  */
-export async function serverLog(lines = 40) {
+export async function serverLog(lines = 40, id) {
   const n = Math.max(10, Math.min(400, Number(lines) || 40));
   return sshRun([
     'echo "## steps"', 'sudo grep "^== " /var/log/dod-bootstrap.log | tail -n 30',
@@ -592,21 +693,21 @@ export async function serverLog(lines = 40) {
     'echo "## machine"', 'uptime', 'df -h / | tail -1', 'free -h | sed -n 2,3p',
     'nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu --format=csv,noheader 2>/dev/null || echo "no GPU info"',
     'echo "ComfyUI service: $(systemctl is-active comfyui 2>/dev/null || echo not installed yet)"',
-  ].join('; '));
+  ].join('; '), id);
 }
 
 /** The ComfyUI flags that work on these machines (docs/comfyui.md), and ones that break them. */
 export const COMFY_FLAGS = { want: ['--disable-pinned-memory'], avoid: ['--highvram', '--disable-dynamic-vram', '--gpu-only'] };
 
 /** Is the server set up the way docs/comfyui.md says works? Flags, memory, disk, GPU. */
-export async function serverHealth() {
+export async function serverHealth(id) {
   const out = await sshRun([
     'echo "flags=$(systemctl show -p ExecStart --value comfyui 2>/dev/null | grep -o "main.py[^;]*" | head -1)"',
     'echo "active=$(systemctl is-active comfyui 2>/dev/null)"',
     "free -m | awk '/^Mem:/{print \"ram=\"$3\"/\"$2} /^Swap:/{print \"swap=\"$3\"/\"$2}'",
     "df -BG / | awk 'NR==2{print \"disk=\"$3\"/\"$2}'",
     'echo "gpu=$(nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null | tr -d " ")"',
-  ].join('; '));
+  ].join('; '), id);
   const v = Object.fromEntries(out.trim().split('\n').map((l) => l.split('=')).filter((p) => p.length >= 2).map(([k, ...r]) => [k.trim(), r.join('=').trim()]));
   const flags = (v.flags ?? '').split(/\s+/).filter((f) => f.startsWith('--'));
   const missing = COMFY_FLAGS.want.filter((f) => !flags.includes(f));
@@ -626,13 +727,13 @@ export async function serverHealth() {
 }
 
 /** Puts ComfyUI on the flags that work and restarts it. Queued jobs wait for it to come back. */
-export async function fixServer() {
+export async function fixServer(id) {
   const keep = '--listen 127.0.0.1 --port 8188 --disable-auto-launch';
   const want = `${keep} ${COMFY_FLAGS.want.join(' ')}`;
   await sshRun([
     `sudo sed -i -E "s|^(ExecStart=.*main\.py).*|\\1 ${want}|" /etc/systemd/system/comfyui.service`,
     'sudo systemctl daemon-reload', 'sudo systemctl restart comfyui',
     'for i in $(seq 1 45); do curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8188/system_stats | grep -q 200 && break; sleep 2; done',
-  ].join(' && '));
-  return serverHealth();
+  ].join(' && '), id);
+  return serverHealth(id);
 }

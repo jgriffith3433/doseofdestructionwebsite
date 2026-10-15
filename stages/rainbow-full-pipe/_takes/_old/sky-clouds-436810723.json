@@ -1,0 +1,33 @@
+{
+ "job": "6d897bb5dc5c",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple"
+ },
+ "stage": "rainbow-full-pipe",
+ "piece": "sky-clouds",
+ "kind": "backdrop",
+ "layers": [
+  "sky-clouds"
+ ],
+ "seed": 436810723,
+ "prompt": "Paint a wide, distant background landscape over image 1: the far distance of Rainbow Full Pipe: Climb the rainbow ramps, own the decks, and dodge the skater dropping in.. Use the colors and light of image 2 (a blurred mood board), but compose the scene yourself from this description. Distant scenery only: no ground, floor, ledge or platform in the foreground. The lower third stays darker and calmer. Style: Bright, soft 3D cartoon render like a cheerful animated film: rounded chunky shapes, clean saturated colors, gentle ambient occlusion. Royal blue ramp wood, pastel rainbow stripes, orange steel trim, lush green park and a clear sunny blue sky with puffy white clouds. Warm sunny afternoon light from the upper left, playful and upbeat, game environment art. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1300,
+  "x2": 1100,
+  "y1": 325.7142857142858,
+  "y2": 1354.2857142857142
+ },
+ "size": [
+  1568,
+  672
+ ],
+ "x": -100,
+ "y": 840,
+ "width": 2400,
+ "created": 1792028045935
+}

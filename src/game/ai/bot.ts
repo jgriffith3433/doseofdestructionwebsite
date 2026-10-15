@@ -6,7 +6,7 @@
 import { FX, rngNext } from '../sim/fixed.ts';
 import { CHARACTERS } from '../sim/characters.ts';
 import { BTN, packInput } from '../sim/input.ts';
-import { STAGES, ledges, type Platform, type StageDef } from '../sim/stage.ts';
+import { STAGES, ledges, platformOn, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, allies, type Fighter, type GameState } from '../sim/state.ts';
 
 interface Step {
@@ -24,6 +24,7 @@ export class Bot {
   private hold: Step = { sx: 0, sy: 0, btn: 0, frames: 0 };
   private wait = 0;
   private stage: StageDef = STAGES[0];
+  private state: GameState | null = null;
 
   /** level runs 1 (easy) to 9 (hard). */
   constructor(id: number, level: number, seed: number) {
@@ -34,6 +35,7 @@ export class Bot {
 
   think(s: GameState): number {
     this.stage = STAGES[s.stage] ?? STAGES[0];
+    this.state = s;
     const next = this.queue[0];
     if (next) {
       if (--next.frames <= 0) this.queue.shift();
@@ -68,8 +70,9 @@ export class Bot {
   private home(x: number): Platform {
     let best = this.stage.platforms[0];
     let bestD = Infinity;
-    for (const p of this.stage.platforms) {
-      if (!p.solid) continue;
+    for (const [i, p] of this.stage.platforms.entries()) {
+      // Not one an event has taken away right now.
+      if (!p.solid || (this.state && !platformOn(this.stage, this.state, i))) continue;
       const d = x < p.x1 ? p.x1 - x : x > p.x2 ? x - p.x2 : 0;
       if (d < bestD) {
         best = p;

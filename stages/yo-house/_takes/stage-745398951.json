@@ -1,0 +1,47 @@
+{
+ "job": "0d67411f5639",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "yo-house",
+ "piece": "stage",
+ "kind": "stage",
+ "layers": [
+  "hardwood-floor",
+  "sofa",
+  "yoga-corner"
+ ],
+ "seed": 745398951,
+ "prompt": "Paint image 1 as finished 2D game environment art. Each shape becomes the structure described for its place, at exactly the same position, size and outline: lower center: Glossy dark walnut floorboards seen slightly from above on top, the cut-away front edge showing layered subfloor, joists and a strip of pale baseboard trim; cool window light reflecting in long streaks across the planks; right: Soft heathered grey upholstered sofa in side view, plump seat cushion, tall back cushion with a charcoal throw pillow tucked at the corner, short dark wooden legs; left: Rolled yoga mats in muted teal, mauve and sand stacked in a neat pyramid-ish pile with a flat top, a light oak wall shelf with small brackets above holding a little potted succulent at one end. The bright horizontal bars are walkable surfaces (rooftop edges, ledges, catwalks, landings): keep each one exactly where it is, flat and level, as the visible top edge of its structure. Match the art style, palette and lighting of image 2. Style: Soft photoreal-meets-diorama interior rendering, like a dollhouse cutaway of a modern open-plan home. Cool blue-grey walls and daylight, dark glossy walnut floors, crisp white cabinetry, with the aquarium as the one glowing green jewel. Calm, airy and a little cheeky, as if the fighters are scrapping in someone's spotless living room. Everything outside the shapes stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -770,
+  "x2": 770,
+  "y1": -255.83333333333337,
+  "y2": 385.83333333333337
+ },
+ "size": [
+  1584,
+  656
+ ],
+ "x": 0,
+ "y": 65,
+ "width": 1540,
+ "created": 1792028999153,
+ "fit": {
+  "score": 0.89,
+  "platforms": [
+   1,
+   0.71,
+   0.87,
+   1,
+   0.86
+  ]
+ }
+}

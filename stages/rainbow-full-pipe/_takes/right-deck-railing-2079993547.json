@@ -1,0 +1,35 @@
+{
+ "job": "71b6973b017d",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "rainbow-full-pipe",
+ "piece": "right-deck-railing",
+ "kind": "front",
+ "layers": [
+  "right-deck-railing"
+ ],
+ "seed": 2079993547,
+ "prompt": "Paint image 1: the shape becomes Orange painted steel railing with an X brace, rounded corners, toy-like plastic sheen, filling the same position and size. It sits close to the camera, in front of the action: darker, slightly silhouetted, with a crisp outline. Match the art style, palette and lighting of image 2. Style: Bright, soft 3D cartoon render like a cheerful animated film: rounded chunky shapes, clean saturated colors, gentle ambient occlusion. Royal blue ramp wood, pastel rainbow stripes, orange steel trim, lush green park and a clear sunny blue sky with puffy white clouds. Warm sunny afternoon light from the upper left, playful and upbeat. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": 570,
+  "x2": 790,
+  "y1": 390,
+  "y2": 502
+ },
+ "size": [
+  1440,
+  736
+ ],
+ "x": 680,
+ "y": 446,
+ "width": 220,
+ "created": 1792028283995
+}

@@ -1,0 +1,35 @@
+{
+ "job": "58ceca931e27",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "desert",
+ "piece": "far-buttes",
+ "kind": "scenery",
+ "layers": [
+  "far-buttes"
+ ],
+ "seed": 2123706924,
+ "prompt": "Paint image 1: the shape becomes Hazy flat-topped buttes and low ridgelines in dusty blue-grey, softened by heat haze, pale tan playa stretching to their feet, filling the same position and size. Match the art style, palette and lighting of image 2. Style: Sun-bleached painterly realism with soft edges and heat haze: pale tan playa, warm ochre and rust sandstone, and a deep blue sky washing to near-white around a blazing sun. Hard midday light from the upper right, short cool blue-grey shadows, everything a little dusty. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1430,
+  "x2": 1430,
+  "y1": -530.8333333333334,
+  "y2": 660.8333333333334
+ },
+ "size": [
+  1584,
+  656
+ ],
+ "x": 0,
+ "y": 65,
+ "width": 2860,
+ "created": 1792026935267
+}

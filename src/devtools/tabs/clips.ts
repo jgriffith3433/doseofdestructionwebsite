@@ -137,7 +137,7 @@ function generatePanel(): HTMLElement {
     h('div', { class: 'row' },
       select(store.fighters.map((f): [string, string] => [f.id, f.name]), gen.fighter, (v) => { gen.fighter = v; render(); }),
       select([['missing', 'Every missing clip'], ['all', 'Every clip (replaces)'], ...(c ? [...c.loops, ...c.once, ...c.moves].map((n): [string, string] => [n, c.labels[n] ?? n]) : [])] as [string, string][], gen.which, (v) => { gen.which = v; render(); }),
-      select<typeof gen.method>([['auto', methods[gen.fighter] ? `This fighter’s choice (${methods[gen.fighter] === 'i2v' ? 'prompt' : 'motion library'})` : 'Auto: motion library for people, prompt for creatures'], ['animate', 'Copy the motion library'], ['i2v', 'From a prompt']], gen.method, (v) => { gen.method = v; render(); }),
+      select<typeof gen.method>([['auto', methods[gen.fighter] === 'animate' ? 'This fighter’s choice (motion library where it has the clip)' : 'From prompts (each fighter moves their own way)'], ['i2v', 'From prompts'], ['animate', 'Copy the motion library (driving videos)']], gen.method, (v) => { gen.method = v; render(); }),
       numberInput(gen.takes, (v) => (gen.takes = v), { min: 1, max: 8, placeholder: 'takes', title: 'Takes per clip (blank: AI Settings)', style: 'width:64px' }),
       select<typeof gen.use>([['auto', 'Use each if the clip is empty'], ['pick', 'Let me pick takes'], ['replace', 'Replace existing clips']], gen.use, (v) => { gen.use = v; }),
       h('button', {

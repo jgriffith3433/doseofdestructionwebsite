@@ -1,0 +1,35 @@
+{
+ "job": "3e80db33f6bf",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "yo-house",
+ "piece": "vacuum-dock-light",
+ "kind": "scenery",
+ "layers": [
+  "vacuum-dock-light"
+ ],
+ "seed": 275053142,
+ "prompt": "Paint image 1: the shape becomes Small black charging dock against the baseboard with a pulsing green LED and a tiny beeping glow, filling the same position and size. Match the art style, palette and lighting of image 2. Style: Soft photoreal-meets-diorama interior rendering, like a dollhouse cutaway of a modern open-plan home. Cool blue-grey walls and daylight, dark glossy walnut floors, crisp white cabinetry, with the aquarium as the one glowing green jewel. Calm, airy and a little cheeky, as if the fighters are scrapping in someone's spotless living room. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -693,
+  "x2": -627,
+  "y1": -3.0100000000000016,
+  "y2": 43.010000000000005
+ },
+ "size": [
+  1232,
+  864
+ ],
+ "x": -660,
+ "y": 20,
+ "width": 66,
+ "created": 1792029089563
+}

@@ -81,67 +81,242 @@
     "nspecial": "Neutral special"
   },
   "actions": {
-    "idle": "standing in a fighting stance, breathing, ready. A seamless loop",
-    "walk": "walking forward, a seamless walk cycle",
-    "crouch": "crouching low and holding it",
-    "fall": "falling through the air, arms out, a loop",
-    "shield": "guarding behind a glowing energy shield, holding it",
-    "ledge": "hanging from a ledge by the hands",
-    "dizzy": "dazed and wobbling on the spot, a loop",
-    "helpless": "tumbling down out of control, a loop",
-    "hurt": "knocked back by a hit, reeling, a loop",
-    "jumpsquat": "crouching quickly to jump",
-    "jump": "jumping straight up",
-    "land": "landing from a jump with a small crouch",
-    "roll": "rolling forward along the ground",
-    "dodge": "a quick sidestep dodge on the spot",
-    "airdodge": "a quick twisting dodge in midair",
-    "climb": "climbing up over a ledge",
-    "jab": "a quick light punch forward",
-    "ftilt": "a strong forward strike",
-    "utilt": "a strike straight upward",
-    "dtilt": "a low sweeping strike along the ground",
-    "fsmash": "winding up, then a huge forward smash",
-    "usmash": "winding up, then a huge upward smash",
-    "dsmash": "a powerful low strike to both sides",
-    "nair": "a spinning attack in midair",
-    "fair": "a forward strike in midair",
-    "bair": "a strike backward behind them in midair",
-    "uair": "a strike upward above their head in midair",
-    "dair": "a stomping strike downward in midair",
-    "upb": "a rising special move that launches them upward",
-    "nspecial": "a lunging special attack forward"
+    "idle": "bouncing lightly on the balls of their feet in their fighting stance, shoulders rolling, fists up, breathing hard, ready to fight",
+    "walk": "walking forward with a strong, confident stride: the left foot steps forward, then the right, arms swinging opposite the legs, one full walk cycle",
+    "crouch": "holding a deep low crouch, bobbing slightly up and down, shifting their weight from foot to foot",
+    "fall": "falling through the air: arms out and waving for balance, legs pedalling, clothes and hair flapping upward",
+    "shield": "bracing hard behind their raised forearms, flinching and pushing forward against an impact",
+    "ledge": "hanging by both hands from an invisible bar above the head, swinging their legs back and forth, with nothing else in the picture",
+    "dizzy": "dazed and staggering on the spot: head lolling in circles, knees buckling, arms dangling, swaying side to side",
+    "helpless": "falling out of control: limbs flailing and loose, body slowly tumbling forward",
+    "hurt": "reeling from a big hit: head snapping back, body bending backward, arms and legs flung out and flailing",
+    "jumpsquat": "quickly bending both knees deep into a crouch, loading up to jump",
+    "jump": "springing up off both feet: knees straighten, arms swing up overhead, then the knees tuck up as they rise into the air",
+    "land": "landing hard from the air: feet hit the ground, knees bend deep to absorb it, then they rise back into their stance",
+    "roll": "diving forward into a fast forward roll along the ground: tucking into a ball, rolling over once, and springing back up to a crouch",
+    "dodge": "a quick dodge on the spot: twisting the body sideways and leaning far back out of the way, then snapping back",
+    "airdodge": "a quick dodge in midair: twisting the whole body into a sideways spin, arms tucked in",
+    "climb": "pulling themselves up from hanging by the hands, swinging a leg up and over an invisible edge, and rising to stand, with nothing else in the picture",
+    "jab": "throws a fast jab: snaps the lead fist straight forward until the arm is fully extended, then pulls it back to guard",
+    "ftilt": "throws a strong forward kick: lifts the front knee, snaps the leg straight out forward at hip height, then pulls it back",
+    "utilt": "throws a rising uppercut: dips the knees, then drives the fist straight up above the head, arm fully extended",
+    "dtilt": "a low sweeping kick from the crouch: sweeps the extended leg along the floor in front of them, then pulls it back",
+    "fsmash": "winds up a huge punch: pulls the fist far back and twists the body away, holds it, then lunges forward and swings a full-power haymaker",
+    "usmash": "crouches low, then explodes upward with a huge two-handed strike straight up over the head, leaving the ground slightly",
+    "dsmash": "drops low and spins a powerful sweeping kick in a full circle along the ground, hitting both in front and behind",
+    "nair": "in midair, spins the whole body in a fast circle with arms and legs stretched out",
+    "fair": "in midair, swings a big overhead strike forward and down in front of them",
+    "bair": "in midair, twists and lashes a powerful kick straight backward behind them",
+    "uair": "in midair, flips and swings a kick straight up above their head",
+    "dair": "in midair, stomps both feet straight down hard below them",
+    "upb": "leaps straight up with a powerful rising special move, spinning upward with an arm thrust overhead, then goes limp at the top",
+    "nspecial": "charges up their signature special move and lunges forward, unleashing it with a dramatic forward thrust"
   },
   "seconds": {
-    "idle": 2,
-    "walk": 2,
-    "crouch": 2,
-    "fall": 2,
-    "shield": 2,
-    "ledge": 2,
-    "dizzy": 2,
-    "helpless": 2,
-    "hurt": 2,
-    "jumpsquat": 1.5,
-    "jump": 1.5,
-    "land": 1.5,
-    "roll": 2,
-    "dodge": 1.5,
-    "airdodge": 1.5,
-    "climb": 2,
-    "jab": 1.5,
-    "ftilt": 1.5,
-    "utilt": 1.5,
-    "dtilt": 1.5,
-    "fsmash": 2,
-    "usmash": 2,
-    "dsmash": 2,
-    "nair": 1.5,
-    "fair": 1.5,
-    "bair": 1.5,
-    "uair": 1.5,
-    "dair": 1.5,
-    "upb": 2,
-    "nspecial": 1.5
+    "idle": 3,
+    "walk": 3,
+    "crouch": 3,
+    "fall": 3,
+    "shield": 3,
+    "ledge": 3,
+    "dizzy": 3,
+    "helpless": 3,
+    "hurt": 3,
+    "jumpsquat": 3,
+    "jump": 3,
+    "land": 3,
+    "roll": 3,
+    "dodge": 3,
+    "airdodge": 3,
+    "climb": 3,
+    "jab": 3,
+    "ftilt": 3,
+    "utilt": 3,
+    "dtilt": 3,
+    "fsmash": 3.5,
+    "usmash": 3.5,
+    "dsmash": 3.5,
+    "nair": 3,
+    "fair": 3,
+    "bair": 3,
+    "uair": 3,
+    "dair": 3,
+    "upb": 3.5,
+    "nspecial": 3
+  },
+  "_poses": "Poses are stills of each fighter, side view facing right (the Poses tab makes and picks them). Every clip starts on its \"frames\" start pose and, when it has one, ends on its end pose: loops start and end on the same pose, so they loop cleanly; moves return to their stance so they flow back into idle.",
+  "poses": {
+    "stand": {
+      "label": "Standing",
+      "action": "standing in their relaxed fighting stance, weight balanced on both feet, ready to move"
+    },
+    "stride": {
+      "label": "Striding",
+      "action": "mid-stride while walking forward: the front leg reaching forward with the heel down, the back leg pushing off, arms swinging opposite the legs"
+    },
+    "crouch": {
+      "label": "Crouching",
+      "action": "crouching low on deeply bent knees, ready to spring, head still up and alert"
+    },
+    "air": {
+      "label": "Airborne",
+      "action": "in midair with both feet off the ground, knees slightly tucked, arms out for balance"
+    },
+    "guard": {
+      "label": "Guarding",
+      "action": "braced to block: knees bent, forearms raised in front of the face and chest, chin tucked"
+    },
+    "hang": {
+      "label": "Hanging",
+      "action": "hanging by both hands from an invisible bar: arms stretched straight up overhead, hands closed around empty air just above the head, body dangling straight down below, legs loose, feet off the ground. There is nothing in their hands and nothing else in the picture: only the character on the plain background"
+    },
+    "hurt": {
+      "label": "Hurt",
+      "action": "just hit hard and knocked back: body arched backward, head snapped back, arms and legs flung out"
+    },
+    "tumble": {
+      "label": "Helpless",
+      "action": "exhausted and falling helplessly after a big move: limbs loose, body tilted, eyes half closed"
+    },
+    "dizzy": {
+      "label": "Dizzy",
+      "action": "dazed and unsteady on wobbly legs, slumped forward, head lolling, about to topple"
+    }
+  },
+  "frames": {
+    "idle": [
+      "stand",
+      "stand"
+    ],
+    "walk": [
+      "stride",
+      "stride"
+    ],
+    "crouch": [
+      "crouch",
+      "crouch"
+    ],
+    "fall": [
+      "air",
+      "air"
+    ],
+    "shield": [
+      "guard",
+      "guard"
+    ],
+    "ledge": [
+      "hang",
+      "hang"
+    ],
+    "dizzy": [
+      "dizzy",
+      "dizzy"
+    ],
+    "helpless": [
+      "tumble",
+      "tumble"
+    ],
+    "hurt": [
+      "hurt",
+      "hurt"
+    ],
+    "jumpsquat": [
+      "stand",
+      "crouch"
+    ],
+    "jump": [
+      "crouch",
+      "air"
+    ],
+    "land": [
+      "air",
+      "stand"
+    ],
+    "roll": [
+      "stand",
+      "stand"
+    ],
+    "dodge": [
+      "stand",
+      "stand"
+    ],
+    "airdodge": [
+      "air",
+      "air"
+    ],
+    "climb": [
+      "hang",
+      "stand"
+    ],
+    "jab": [
+      "stand",
+      "stand"
+    ],
+    "ftilt": [
+      "stand",
+      "stand"
+    ],
+    "utilt": [
+      "stand",
+      "stand"
+    ],
+    "dtilt": [
+      "crouch",
+      "crouch"
+    ],
+    "fsmash": [
+      "stand",
+      "stand"
+    ],
+    "usmash": [
+      "stand",
+      "stand"
+    ],
+    "dsmash": [
+      "stand",
+      "stand"
+    ],
+    "nair": [
+      "air",
+      "air"
+    ],
+    "fair": [
+      "air",
+      "air"
+    ],
+    "bair": [
+      "air",
+      "air"
+    ],
+    "uair": [
+      "air",
+      "air"
+    ],
+    "dair": [
+      "air",
+      "air"
+    ],
+    "upb": [
+      "stand",
+      "tumble"
+    ],
+    "nspecial": [
+      "stand",
+      "stand"
+    ]
+  },
+  "_speed": "Playback speed applied when a video becomes frames (1 = as generated, 2 = twice as fast). It matters for loops and for jump / jump start, which play at their own pace; moves and the other one-shots are stretched to their timing in the game, so for those it only changes how much of the motion fits in the frames (trim the wind-up instead). A fighter can override it per clip in the clip editor.",
+  "speed": {
+    "idle": 1.25,
+    "walk": 1.5,
+    "crouch": 1.25,
+    "fall": 1.5,
+    "shield": 1.25,
+    "ledge": 1.25,
+    "dizzy": 1.25,
+    "helpless": 1.5,
+    "hurt": 1.75,
+    "jumpsquat": 2,
+    "jump": 2
   }
 }

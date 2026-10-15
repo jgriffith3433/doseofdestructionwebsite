@@ -368,4 +368,13 @@ export const voiceTab: Tab = {
       if (dirtyVoice || dirtyCampaign) e.preventDefault();
     });
   },
+  async show() {
+    // The Story tab edits the same campaign file: pick up its changes.
+    if (!root || dirtyCampaign || busy) return;
+    const c = await attempt(() => api.content<ChapterEntry[]>('campaign'));
+    if (c && !dirtyCampaign) {
+      campaign = c;
+      render();
+    }
+  },
 };

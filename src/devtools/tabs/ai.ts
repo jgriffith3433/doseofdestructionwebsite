@@ -11,14 +11,17 @@ import { gpu, type Resolved } from '../gpu.ts';
 import { attempt, checkbox, field, numberInput, select, toast } from '../ui.ts';
 import type { Tab } from '../main.ts';
 
-type Type = 'side' | 'i2v' | 'animate';
+type Type = 'side' | 'pose' | 'i2v' | 'animate';
 type Section = Record<string, number | string | boolean>;
 interface FighterGen {
   description?: string;
   method?: 'animate' | 'i2v';
   negative?: string;
   clips?: Record<string, string>;
+  /** Their own wording for poses (the Poses tab edits these). */
+  poses?: Record<string, string>;
   side?: Section;
+  pose?: Section;
   i2v?: Section;
   animate?: Section;
 }
@@ -32,6 +35,7 @@ interface Gen {
   background?: string;
   negative?: string;
   side?: Section;
+  pose?: Section;
   i2v?: Section;
   animate?: Section;
   fighters: Record<string, FighterGen>;
@@ -43,6 +47,9 @@ interface ClipFile {
   labels: Record<string, string>;
   actions?: Record<string, string>;
   seconds?: Record<string, number>;
+  speed?: Record<string, number>;
+  poses?: Record<string, { label: string; action: string }>;
+  frames?: Record<string, [string, string | null]>;
   [k: string]: unknown;
 }
 type Defaults = Required<Omit<Gen, '_about' | 'fighters'>>;
@@ -72,9 +79,25 @@ const FIELDS: Record<Type, Field[]> = {
     { k: 'resolution', label: 'Working size (px)', step: 64 },
     { k: 'fill', label: 'Figure height in frame', step: 0.01, hint: 'Share of the frame the fighter fills before editing (0.3 to 1).' },
   ],
+  pose: [
+    { k: 'count', label: 'Candidates per job', step: 1 },
+    { k: 'steps', label: 'Steps', step: 1, hint: STEPS_HINT },
+    { k: 'cfg', label: 'CFG', step: 0.1, hint: CFG_HINT },
+    { k: 'shift', label: 'Shift', step: 0.1, hint: 'Higher keeps more of the side view’s structure (size, framing).' },
+    { k: 'lora', label: 'Lightning LoRA strength', step: 0.05 },
+    { k: 'sampler', label: 'Sampler', kind: 'sampler' },
+    { k: 'scheduler', label: 'Scheduler', kind: 'scheduler' },
+    { k: 'front', label: 'Also send the front art', kind: 'bool', hint: 'Off: Standing is the only reference, for the most consistent poses. On: the front art goes in as image 2, for details the side view hides (mention image 2 in the prompt).' },
+  ],
   i2v: [
     { k: 'steps', label: 'Steps', step: 1, hint: STEPS_HINT },
     { k: 'split', label: 'Low-noise model from step', step: 1, hint: 'Wan 2.2 runs a high-noise model for the first steps (motion), then a low-noise one (detail).' },
+    { k: 'loraVersion', label: 'Speed LoRA version', step: 1, hint: '1: the original Wan 2.2 Lightning v1 (known for slow, still motion). 2: lightx2v’s newer 4-step LoRAs (1022), which move more.' },
+    { k: 'cfgHigh', label: 'CFG, high-noise stage', step: 0.1, hint: 'Guidance while the motion is decided. 1 with the speed LoRA at full strength; about 2 with it at 0.7. Higher makes the prompt count more, too high morphs and bleeds the background color.' },
+    { k: 'motionAmplitude', label: 'Motion boost (PainterI2V)', step: 0.05, hint: 'Clips with no end pose only: 1 is off; 1.15 to 1.4 pushes more motion out of the 4-step LoRAs.' },
+    { k: 'endFrame', label: 'Pin the end pose', step: 1, hint: '1: clips end on their end pose (loops loop). 0: only the start is pinned: freer motion, but the end can wander.' },
+    { k: 'motionSteps', label: 'Motion steps without the speed LoRA', step: 1, hint: 'The first steps run on the plain high-noise model, where the motion is decided, so the prompt really steers it. 0: all steps use the speed LoRAs (fast, but motion comes out flat). About 2.' },
+
     { k: 'cfg', label: 'CFG', step: 0.1, hint: CFG_HINT },
     { k: 'shift', label: 'Shift', step: 0.1 },
     { k: 'loraHigh', label: 'Speed LoRA (high noise)', step: 0.05, hint: 'Lower it for bigger, freer motion (and raise steps).' },
@@ -98,8 +121,9 @@ const FIELDS: Record<Type, Field[]> = {
   ],
 };
 const TITLES: Record<Type, [string, string]> = {
-  side: ['Side view', 'Qwen-Image-Edit 2511: turns the front art into a side view to animate from.'],
-  i2v: ['From a prompt', 'Wan 2.2 image-to-video: animates the side view from the prompt.'],
+  side: ['Side view (Standing pose)', 'Qwen-Image-Edit 2511: turns the front art into the Standing pose, the side view every other pose and clip is made from.'],
+  pose: ['Poses', 'Qwen-Image-Edit 2511: the Standing pose (and the front art) -> the fighter crouching, in the air, guarding… {action} is the pose (or the fighter’s own note for it).'],
+  i2v: ['From a prompt', 'Wan 2.2 image-to-video: animates from the clip’s start pose to its end pose (first-last frame), from the prompt. {frames} says which poses.'],
   animate: ['Copy the motion library', 'Wan 2.2 Animate: the fighter performs a motion library clip, matched by pose.'],
 };
 
@@ -228,14 +252,44 @@ function clipsCard(): HTMLElement {
     h('h3', {}, 'Clips ({action})'),
     h('p', { class: 'hint' }, 'What each clip shows, and how long a prompt clip is. Saved to content/anim-clips.json.'),
     h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
-      h('thead', {}, h('tr', {}, h('th', {}, 'Clip'), h('th', {}, 'Action'), h('th', {}, 'Seconds'))),
+      h('thead', {}, h('tr', {}, h('th', {}, 'Clip'), h('th', {}, 'Action'), h('th', {}, 'Starts on'), h('th', {}, 'Ends on'), h('th', { title: 'How long a prompt clip is made' }, 'Seconds'), h('th', { title: 'Playback speed when the video becomes frames: 2 is twice as fast. Matters for loops and jumps; moves are stretched to their timing.' }, 'Speed'))),
       h('tbody', {}, ...allClips().map((name) => {
         const action = h('input', { type: 'text', value: c.actions?.[name] ?? '', placeholder: name, style: 'width:100%' });
         action.addEventListener('input', () => { (c.actions ??= {})[name] = action.value; changed('clips'); });
         return h('tr', {},
           h('td', {}, h('strong', {}, label(name)), ' ', h('code', {}, name)),
-          h('td', { style: 'width:70%' }, action),
-          h('td', {}, numberInput(c.seconds?.[name], (v) => { if (v == null) delete c.seconds?.[name]; else (c.seconds ??= {})[name] = v; changed('clips'); }, { step: 0.5, min: 0.5, max: 6, style: 'width:70px' })));
+          h('td', { style: 'width:50%' }, action),
+          ...([0, 1] as const).map((i) => {
+            const poses = Object.entries(c.poses ?? {}).map(([id, p]): [string, string] => [id, p.label]);
+            const now = c.frames?.[name] ?? ['stand', null];
+            const opts: [string, string][] = i === 0 ? poses : [['', i === 1 && c.loops.includes(name) ? 'free (won’t loop)' : 'free'], ...poses];
+            return h('td', {}, select<string>(opts, now[i] ?? '', (v) => {
+              const f = ((c.frames ??= {})[name] ??= [now[0], now[1]]);
+              f[i] = (v || null) as string;
+              changed('clips');
+            }));
+          }),
+          h('td', {}, numberInput(c.seconds?.[name], (v) => { if (v == null) delete c.seconds?.[name]; else (c.seconds ??= {})[name] = v; changed('clips'); }, { step: 0.5, min: 0.5, max: 6, style: 'width:70px' })),
+          h('td', {}, numberInput(c.speed?.[name] ?? null, (v) => { if (v == null || v === 1) delete c.speed?.[name]; else (c.speed ??= {})[name] = Math.max(0.25, Math.min(4, v)); changed('clips'); }, { step: 0.05, min: 0.25, max: 4, placeholder: '1', style: 'width:64px' })));
+      })))),
+  );
+}
+
+/** The pose library: what each pose is, used by every fighter (their own notes are in the Poses tab). */
+function posesCard(): HTMLElement {
+  if (!clips?.poses) return h('section', { class: 'card' }, h('p', { class: 'hint' }, 'Loading poses…'));
+  const poses = clips.poses;
+  return h('section', { class: 'card wide-card' },
+    h('h3', {}, 'Poses ({action} for poses)'),
+    h('p', { class: 'hint' }, 'The stills every fighter has, side view facing right: clips start and end on them (the Starts on and Ends on columns below). Standing is the side view. A fighter’s own note for a pose (Poses tab) replaces this wording for them. Saved to content/anim-clips.json.'),
+    h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
+      h('thead', {}, h('tr', {}, h('th', {}, 'Pose'), h('th', {}, 'Name'), h('th', {}, 'What it looks like'))),
+      h('tbody', {}, ...Object.entries(poses).map(([id, p]) => {
+        const lbl = h('input', { type: 'text', value: p.label, style: 'width:120px' });
+        lbl.addEventListener('input', () => { p.label = lbl.value; changed('clips'); });
+        const act = h('input', { type: 'text', value: p.action, style: 'width:100%' });
+        act.addEventListener('input', () => { p.action = act.value; changed('clips'); });
+        return h('tr', {}, h('td', {}, h('code', {}, id)), h('td', {}, lbl), h('td', { style: 'width:70%' }, act));
       })))),
   );
 }
@@ -245,7 +299,7 @@ function fighterCard(): HTMLElement {
   const f = (gen.fighters[fighter] ??= {});
   const d = defaults!;
   const tidy = () => {
-    for (const k of ['side', 'i2v', 'animate', 'clips'] as const) if (f[k] && !Object.keys(f[k]!).length) delete f[k];
+    for (const k of ['side', 'pose', 'i2v', 'animate', 'clips', 'poses'] as const) if (f[k] && !Object.keys(f[k]!).length) delete f[k];
     if (!Object.keys(f).length) delete gen.fighters[fighter];
   };
   const area = (key: 'description' | 'negative', placeholder: string) => {
@@ -272,7 +326,7 @@ function fighterCard(): HTMLElement {
     h('div', { class: 'cards' },
       h('div', {},
         field('Description ({description})', area('description', 'What they look like, in a few words: "a lanky punk in a ripped leather jacket and a green mohawk". Helps the model keep them on model.'), { wide: true }),
-        field('Make clips by', select<string>([['', 'Default (motion library for people, prompt for creatures)'], ['animate', 'Copying the motion library'], ['i2v', 'Prompt']], f.method ?? '', (v) => { put(f as Record<string, unknown>, 'method', v || undefined); tidy(); changed('gen'); })),
+        field('Make clips by', select<string>([['', 'Default (prompts; attach a driving video per clip if you want)'], ['animate', 'Copying the motion library where it has the clip'], ['i2v', 'Prompts only']], f.method ?? '', (v) => { put(f as Record<string, unknown>, 'method', v || undefined); tidy(); changed('gen'); })),
         field('Extra negative prompt', area('negative', 'Added to the negative prompt for this fighter: "extra arms, cape"'), { wide: true }),
         field('Side view prompt', sidePrompt, { wide: true })),
       h('div', {},
@@ -384,7 +438,7 @@ function render(): void {
       'div',
       { class: 'main' },
       h('header', {}, h('h2', {}, 'AI Settings'), h('span', { class: 'muted' }, 'Prompts and settings for side views and clips. Saved to content/generation.json.'), h('span', { class: 'spacer' }), bar),
-      h('div', { class: 'cards' }, previewCard(), globalCard(), typeCard('side'), typeCard('i2v'), typeCard('animate'), paintCard(), fighterCard(), clipsCard()),
+      h('div', { class: 'cards' }, previewCard(), globalCard(), typeCard('side'), typeCard('pose'), typeCard('i2v'), typeCard('animate'), paintCard(), fighterCard(), posesCard(), clipsCard()),
     ),
   );
   saveBar();

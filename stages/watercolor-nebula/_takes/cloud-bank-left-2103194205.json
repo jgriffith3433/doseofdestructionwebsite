@@ -1,0 +1,35 @@
+{
+ "job": "21da2273fb47",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "watercolor-nebula",
+ "piece": "cloud-bank-left",
+ "kind": "scenery",
+ "layers": [
+  "cloud-bank-left"
+ ],
+ "seed": 2103194205,
+ "prompt": "Paint image 1: the shape becomes A huge rolling bank of watercolor cloud, deep navy core fading out through teal and pale blue to a cream fringe, stepped mosaic-like billow edges, soft paper grain, filling the same position and size. Match the art style, palette and lighting of image 2. Style: Soft painterly watercolor with a subtle stepped, mosaic-pixel quality to every cloud edge, visible paper grain and wet pigment blooms. Palette of deep slate blue, dusty teal, mauve, ochre, honey gold and warm cream, lit by a glowing golden heart at the center of the nebula. Dreamy, calm and luminous, with glossy amber and blue paint beads floating everywhere. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": -1347.5,
+  "x2": -302.5,
+  "y1": -97.40000000000003,
+  "y2": 647.4000000000001
+ },
+ "size": [
+  1216,
+  864
+ ],
+ "x": -825,
+ "y": 275,
+ "width": 1045,
+ "created": 1792028765811
+}

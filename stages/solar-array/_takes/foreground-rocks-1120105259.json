@@ -1,0 +1,35 @@
+{
+ "job": "703161d0ec44",
+ "settings": {
+  "steps": 4,
+  "cfg": 1,
+  "shift": 3.1,
+  "lora": 1,
+  "sampler": "euler",
+  "scheduler": "simple",
+  "denoise": 0.8,
+  "refine": 0.6
+ },
+ "stage": "solar-array",
+ "piece": "foreground-rocks",
+ "kind": "front",
+ "layers": [
+  "foreground-rocks"
+ ],
+ "seed": 1120105259,
+ "prompt": "Paint image 1: the shape becomes Chunky red-brown sandstone boulder ledge with a sage shrub and a few pebbles on top, deep shadowed cracks, bold ink outlines, filling the same position and size. It sits close to the camera, in front of the action: darker, slightly silhouetted, with a crisp outline. Match the art style, palette and lighting of image 2. Style: Bold cartoon illustration with thick ink outlines and flat cel shading, like a sunny animated adventure. Warm desert palette of ochre sand, red-orange sandstone and brown shadows against a clear cyan sky, with cool blue solar panels and grey steel as the accent. Bright midday-afternoon sun from the upper left, crisp hard shadows, cheerful and hot. The background stays plain white. A flat orthographic side elevation, like a classic 2D side-scrolling platformer level: the camera looks straight at the front faces. No perspective, no vanishing points, no visible rooftops or top surfaces; each walkable top shows only as the straight top edge of its structure. An empty scene: nobody in it, no figures, no text, no logos.",
+ "frame": {
+  "x1": 672.5,
+  "x2": 1277.5,
+  "y1": -547.5,
+  "y2": -162.5
+ },
+ "size": [
+  1280,
+  816
+ ],
+ "x": 975,
+ "y": -355,
+ "width": 605,
+ "created": 1792028525820
+}

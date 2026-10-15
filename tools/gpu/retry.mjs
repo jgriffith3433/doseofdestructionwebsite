@@ -2,6 +2,11 @@
 // machines free (or quota was short), until it works, it fails some other
 // way, or the time you allowed runs out. Started from devtools only.
 //
+// A start tries every stopped server, not just one: each can only start in its
+// own zone, so a fleet spread over regions has better odds. With fallbackLaunch
+// on, once no stopped server could start twice in a row, it launches a fresh
+// server wherever machines are free (any 48 GB+ type: L40S or Blackwell).
+//
 // Its state is saved to .cache/gpu/retry.json, so a dev server restart
 // (Vite restarts on config edits) picks it back up until its deadline,
 // rather than silently dropping it.
@@ -9,7 +14,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './env.mjs';
-import { launchServer, startServer } from './aws.mjs';
+import { fleetStatus, launchServer, startServer, GpuError } from './aws.mjs';
+import { loadFleet } from './fleet.mjs';
 
 const RETRYABLE = new Set(['capacity', 'quota']);
 const FILE = path.join(ROOT, '.cache', 'gpu', 'retry.json');
@@ -86,14 +92,43 @@ export class Retry {
     this.timer = null;
   }
 
+  /** Starts any stopped server (else, with fallbackLaunch, launches a new one). */
+  async startAny(s) {
+    const all = await fleetStatus();
+    const up = all.find((st) => ['running', 'pending'].includes(st.state));
+    if (up) return { id: up.id, region: up.region };
+    const attempts = [];
+    let last = null;
+    for (const st of all.filter((x) => x.state === 'stopped')) {
+      try {
+        return await startServer(st.id);
+      } catch (e) {
+        last = e;
+        attempts.push(...(e.attempts?.length ? e.attempts : [{ region: st.region, zone: st.zone, code: e.name, kind: e.kind ?? 'other', message: e.message }]));
+        if (!['capacity', 'quota'].includes(e.kind)) throw e;
+      }
+    }
+    // Twice in a row nothing could start: launch where machines are free, if allowed.
+    s.misses = (s.misses ?? 0) + 1;
+    if (s.opts.fallbackLaunch && (s.misses >= 2 || !all.length)) {
+      const r = await launchServer({ idleMinutes: s.opts.idleMinutes ?? loadFleet().idleMinutes, region: 'auto', type: 'auto', max: loadFleet().servers }).catch((e) => {
+        throw new GpuError(`No stopped server could start, and a new one couldn't launch either: ${e.message}`, e.kind ?? 'capacity', [...attempts, ...(e.attempts ?? [])]);
+      });
+      return { ...r, launched: true };
+    }
+    if (!all.length) throw new GpuError('There is no GPU server to start.');
+    const where = [...new Set(attempts.map((a) => `${a.region}${a.zone ? ` ${a.zone}` : ''}`))].join(', ');
+    throw new GpuError(`No stopped server could start: AWS has no machines free in ${where}.${s.opts.fallbackLaunch ? ' Next round launches a new one where machines are free.' : ''}`, last?.kind ?? 'capacity', attempts);
+  }
+
   async tick() {
     const s = this.state;
     if (!s?.active || this.suspended) return;
     s.tries++;
     const at = Date.now();
     try {
-      const result = s.action === 'launch' ? await launchServer(s.opts) : await startServer();
-      s.log.push({ at, ok: true, message: s.action === 'launch' ? `launched in ${result.region} ${result.zone}` : 'started' });
+      const result = s.action === 'launch' ? await launchServer({ ...s.opts, max: loadFleet().servers }) : await this.startAny(s);
+      s.log.push({ at, ok: true, message: result.launched || s.action === 'launch' ? `launched in ${result.region} ${result.zone ?? ''}` : `started ${result.id} in ${result.region}` });
       Object.assign(s, { active: false, next: null, result, ended: 'done' });
       this.save();
       this.onSuccess?.(s);

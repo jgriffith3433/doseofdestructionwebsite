@@ -9,7 +9,7 @@ import { watchGpu, type GpuJob, type GpuState } from './gpu.ts';
 import { toast } from './ui.ts';
 
 /** Seconds one output usually takes, before there's history to go on. */
-const TYPICAL: Record<GpuJob['type'], number> = { paint: 45, side: 30, i2v: 120, animate: 180 };
+const TYPICAL: Record<GpuJob['type'], number> = { paint: 45, side: 30, pose: 30, i2v: 120, animate: 180 };
 
 const active = (j: GpuJob) => j.status === 'queued' || j.status === 'running';
 
@@ -54,7 +54,7 @@ export function duration(seconds: number): string {
 export function jobName(j: GpuJob): string {
   if (j.type === 'paint') return `${j.piece} (${j.stage})`;
   const who = store.fighters.find((f) => f.id === j.fighter)?.name ?? j.fighter;
-  return j.type === 'side' ? `${who} side views` : `${who} ${j.clip}`;
+  return j.type === 'side' ? `${who} side views` : j.type === 'pose' ? `${who} ${j.pose} pose` : `${who} ${j.clip}`;
 }
 
 /** A thin progress bar. */
@@ -99,14 +99,16 @@ function render(s: GpuState): void {
     const j = running ?? queued[0];
     const p = progressOf(j, s.jobs);
     const rest = queued.length - (running ? 0 : 1);
-    text = running ? `${jobName(j)} · ${Math.round(p.fraction * 100)}% · ${duration(p.left)} left${rest > 0 ? ` · +${rest} queued` : ''}` : `${queued.length} queued · ${server.exists && server.boot?.stage === 'ready' ? 'starting' : 'waiting for the GPU'}`;
+    const others = s.jobs.filter((x) => x.status === 'running').length - 1;
+    text = running ? `${jobName(j)} · ${Math.round(p.fraction * 100)}% · ${duration(p.left)} left${others > 0 ? ` · +${others} running` : ''}${rest > 0 ? ` · +${rest} queued` : ''}` : `${queued.length} queued · ${server.exists && server.boot?.stage === 'ready' ? 'starting' : 'waiting for the GPU'}`;
     fraction = running ? p.fraction : null;
     tone = 'busy';
   } else if (s.retry?.active) {
     text = 'Finding a GPU…';
     tone = 'busy';
   } else if (server.exists && server.state === 'running') {
-    text = server.boot?.stage === 'ready' ? 'GPU ready' : `GPU setting up: ${server.boot?.detail ?? 'booting'}`;
+    const readyN = (s.servers ?? []).filter((x) => x.state === 'running' && x.boot?.stage === 'ready').length;
+    text = server.boot?.stage === 'ready' ? (readyN > 1 ? `${readyN} GPUs ready` : 'GPU ready') : `GPU setting up: ${server.boot?.detail ?? 'booting'}`;
     tone = server.boot?.stage === 'ready' ? 'ok' : 'busy';
   }
   el.hidden = !text;
@@ -131,8 +133,11 @@ export function mountActivity(container: HTMLElement): void {
         if (j.status === 'done') notify(`${jobName(j)} finished`, j.detail || 'Ready to look at.');
         else if (j.status === 'failed') notify(`${jobName(j)} failed`, j.detail || 'See the GPU tab.');
       }
-      if (!prev.server.exists && s.server.exists) notify('GPU server launched', `In ${s.server.region}. Setup takes 10 to 25 minutes.`);
-      if (prev.server.boot?.stage !== 'ready' && s.server.boot?.stage === 'ready') notify('GPU server ready', 'Queued jobs start now.');
+      for (const sv of s.servers ?? []) {
+        const was = (prev.servers ?? []).find((x) => x.id === sv.id);
+        if (!was && prev.servers) notify('GPU server launched', `In ${sv.region}. Setup takes 10 to 25 minutes.`);
+        if (was && was.boot?.stage !== 'ready' && sv.boot?.stage === 'ready') notify('GPU server ready', `${sv.region}: queued jobs start on it now.`);
+      }
       if (s.jobs.some((j) => j.status === 'done' && prev.jobs.find((x) => x.id === j.id)?.status !== 'done')) void store.refresh();
     }
     render(s);

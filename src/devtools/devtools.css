@@ -207,8 +207,23 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--gold); }
 /* ------------------------------------------------------------ animations */
 
 .clip-group h3 { margin: 18px 0 8px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.take-switch { display: flex; align-items: center; gap: 4px; }
+.take-switch-label { flex: 1; text-align: center; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trim { display: grid; gap: 6px; }
+.trim-video { width: 100%; height: 150px; object-fit: contain; border-radius: 6px; }
+.trim-slider { position: relative; height: 22px; }
+.trim-track, .trim-fill { position: absolute; top: 9px; height: 4px; border-radius: 2px; }
+.trim-track { left: 0; right: 0; background: var(--line-2, #3a332c); }
+.trim-fill { background: var(--hot); }
+.trim-slider input[type=range] { position: absolute; inset: 0; width: 100%; margin: 0; background: none; pointer-events: none; -webkit-appearance: none; appearance: none; }
+.trim-slider input[type=range]::-webkit-slider-thumb { pointer-events: auto; -webkit-appearance: none; width: 12px; height: 20px; border-radius: 3px; background: #ffd15a; border: 1px solid #1a0b05; cursor: ew-resize; }
+.trim-slider input[type=range]::-moz-range-thumb { pointer-events: auto; width: 12px; height: 20px; border-radius: 3px; background: #ffd15a; border: 1px solid #1a0b05; cursor: ew-resize; }
+.trim-slider input[type=range]::-webkit-slider-runnable-track { background: none; }
+.trim-btn { padding: 2px 6px; }
 .clip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 10px; }
 .clip {
+  /* A grid item: without this, a wide header or button row pushes the card into its neighbours. */
+  min-width: 0;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -219,11 +234,18 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--gold); }
 .clip.built { border-color: rgba(126, 226, 160, 0.3); }
 .clip.source { border-color: rgba(255, 196, 107, 0.35); }
 .clip.selected { outline: 2px solid var(--gold); }
-.clip-head { display: flex; align-items: center; gap: 6px; }
+.clip-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; min-width: 0; }
 .clip-head strong { font-size: 12px; }
-.clip-head code { color: var(--muted); font-size: 11px; }
+.clip-head code { color: var(--muted); font-size: 11px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clip-head .badge { white-space: nowrap; }
+/* Trim and Size sit at the right, and drop to their own line when the card is narrow. */
+.clip-tools { display: flex; gap: 4px; margin-left: auto; }
+.clip-tools .btn { white-space: nowrap; }
+.size-slider { display: grid; gap: 2px; }
+.size-slider input { width: 100%; }
+.clip .take-switch { min-width: 0; }
 .clip canvas { width: 100%; height: 130px; display: block; }
-.clip .row .btn { flex: 1; justify-content: center; }
+.clip .row .btn { flex: 1 1 auto; min-width: 0; justify-content: center; white-space: nowrap; }
 
 .editor { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(300px, 1fr); gap: 14px; margin-bottom: 18px; }
 .editor video { width: 100%; max-height: 340px; background: #000; border-radius: 8px; }
@@ -238,6 +260,36 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--gold); }
 /* ------------------------------------------------------------------ maps */
 
 .maps { grid-template-columns: 230px minmax(0, 1fr) 320px; }
+.clip-pose { display: grid; justify-items: center; gap: 2px; font-size: 11px; }
+.clip-pose img { width: 64px; height: 64px; object-fit: contain; background: rgba(255, 255, 255, 0.03); border-radius: 6px; }
+.pose-table td, .pose-table th { text-align: center; vertical-align: middle; padding: 4px; }
+.pose-table td:first-child, .pose-table th:first-child { text-align: left; white-space: nowrap; }
+.pose-who { display: grid; gap: 4px; justify-items: start; }
+.pose-thumb { width: 52px; height: 52px; object-fit: contain; display: block; margin: 0 auto; }
+.pose-cell { display: grid; gap: 2px; justify-items: center; min-width: 60px; min-height: 60px; padding: 3px; border-radius: 6px; border: 1px solid transparent; background: none; color: inherit; cursor: pointer; }
+.pose-cell:hover { border-color: var(--line-2); }
+.pose-cell.active { border-color: var(--hot); background: rgba(255, 90, 31, 0.08); }
+.pose-cell.empty { background: rgba(255, 255, 255, 0.02); }
+.pose-detail { margin-bottom: 14px; }
+.pose-detail-body { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 14px; }
+.pose-big-wrap { display: grid; gap: 6px; justify-items: start; }
+.pose-big { height: 240px; display: grid; place-items: center; border-radius: 8px; }
+.pose-big img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.pose-side { display: grid; gap: 8px; align-content: start; }
+.pose-takes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.pose-take { display: grid; gap: 6px; }
+.pose-take .checker { height: 170px; display: grid; place-items: center; border-radius: 6px; }
+.pose-take img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.modes-page { padding: 16px; display: grid; gap: 14px; max-width: 1200px; }
+.modes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; align-items: start; }
+.modes-table td { vertical-align: middle; }
+.modes-table .variant { padding-left: 14px; }
+.modes-table .badge { margin-left: 4px; }
+.story { grid-template-columns: 250px minmax(0, 1fr); }
+.story-main { overflow: auto; padding: 16px; display: grid; gap: 14px; align-content: start; }
+.story-lines { display: grid; gap: 10px; }
+.story-line { display: grid; gap: 6px; }
+.story-line textarea { width: 100%; box-sizing: border-box; background: var(--panel-2, #1b1815); color: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; resize: vertical; }
 .stage-item { text-align: left; }
 .map-view { position: relative; min-height: 0; background: #070605; }
 .map-view canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: default; }

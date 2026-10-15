@@ -28,20 +28,36 @@ export const DEFAULTS = {
     "resolution": 1024,
     "fill": 0.86
   },
-  "i2v": {
-    "prompt": "{name}, {description}, {action}. Side view, facing right, full body, staying in place in the center of the frame. Locked camera, no camera movement. {background} Clear, readable motion for a fighting game.",
+  "pose": {
+    "prompt": "Image 1 is this character, side view, facing right. Show the exact same character {action}. Keep everything about them the same as image 1: face, hair, outfit, colors, proportions and art style, and the same size and position in the frame. Side view, facing right. {description} The whole body is visible, feet on the same ground line as image 1 unless they are in the air. {background}",
+    "count": 2,
+    "front": false,
     "steps": 4,
-    "split": 2,
     "cfg": 1,
+    "shift": 3.1,
+    "lora": 1,
+    "sampler": "euler",
+    "scheduler": "simple"
+  },
+  "i2v": {
+    "prompt": "{name}, {description}, {action}. {frames} Side view, facing right, full body, staying in place in the center of the frame. Locked camera, no camera movement. {background} Big, clear, fast motion for a fighting game.",
+    "steps": 8,
+    "split": 4,
+    "motionSteps": 0,
+    "cfgHigh": 2,
+    "cfg": 1,
+    "loraVersion": 2,
+    "motionAmplitude": 1,
+    "endFrame": 1,
     "shift": 5,
-    "loraHigh": 1,
+    "loraHigh": 0.7,
     "loraLow": 1,
     "sampler": "euler",
     "scheduler": "simple",
     "fill": 0.78
   },
   "animate": {
-    "prompt": "{name}, {description}, {action}. Side view, facing right. {background}",
+    "prompt": "{name}, {description}, {action}. {frames} Side view, facing right. {background}",
     "steps": 6,
     "cfg": 1,
     "shift": 8,
@@ -69,11 +85,12 @@ export const DEFAULTS = {
 /** The numeric and switch settings each job type takes, with their limits. */
 export const LIMITS = {
   side: { count: [1, 8], steps: [1, 60], cfg: [0, 20], shift: [0, 20], lora: [0, 2], resolution: [512, 1536], fill: [0.3, 1] },
-  i2v: { steps: [1, 60], split: [1, 59], cfg: [0, 20], shift: [0, 20], loraHigh: [0, 2], loraLow: [0, 2], fill: [0.3, 1] },
+  pose: { count: [1, 8], steps: [1, 60], cfg: [0, 20], shift: [0, 20], lora: [0, 2] },
+  i2v: { steps: [1, 60], split: [1, 59], motionSteps: [0, 30], cfgHigh: [0, 20], cfg: [0, 20], shift: [0, 20], loraHigh: [0, 2], loraLow: [0, 2], loraVersion: [1, 2], motionAmplitude: [1, 2], endFrame: [0, 1], fill: [0.3, 1] },
   animate: { steps: [1, 60], cfg: [0, 20], shift: [0, 20], lora: [0, 2], maxFrames: [5, 161], poseResolution: [256, 1024], fill: [0.3, 1] },
   paint: { pass: [0.5, 1], detail: [0, 0.9], takes: [1, 8], stageTakes: [1, 8], fitTarget: [0, 1], retries: [0, 6], mood: [8, 400] },
 };
-const SWITCHES = { animate: ['hands', 'face'], paint: ['windows'] };
+const SWITCHES = { animate: ['hands', 'face'], paint: ['windows'], pose: ['front'] };
 const TEXT = ['sampler', 'scheduler'];
 
 /** content/generation.json over DEFAULTS (one level deep, so a section can set just one value). */
@@ -98,10 +115,13 @@ export function loadGeneration() {
   return withDefaults(raw);
 }
 
-/** Fills {name}, {description}, {action} and {background}, then tidies the gaps empty ones leave. */
+/**
+ * Fills {name}, {description}, {action}, {frames} (which pose a clip starts
+ * and ends on) and {background}, then tidies the gaps empty ones leave.
+ */
 export function render(template, vars) {
   return String(template)
-    .replace(/\{(name|description|action|background)\}/g, (_, k) => vars[k] ?? '')
+    .replace(/\{(name|description|action|frames|background)\}/g, (_, k) => vars[k] ?? '')
     .replace(/\s*,\s*(?=[,.])/g, '')
     .replace(/\.\s*\./g, '.')
     .replace(/^[\s,.]+/, '')
@@ -133,10 +153,15 @@ export function resolve(job, info, gen = loadGeneration()) {
   if (!LIMITS[type]) throw new Error(`Unknown job type: ${type}`);
   const fighter = gen.fighters?.[job.fighter] ?? {};
   const settings = { ...clean(type, gen[type]), ...clean(type, fighter[type]), ...clean(type, job.settings) };
+  // A pose's {action} is the pose; a fighter's own note for it (their personality) wins.
+  const action = type === 'pose'
+    ? fighter.poses?.[job.pose]?.trim() || info.action || job.pose || ''
+    : (job.clip && fighter.clips?.[job.clip]?.trim()) || info.action || job.clip || '';
   const vars = {
     name: info.name,
     description: fighter.description?.trim() ?? '',
-    action: (job.clip && fighter.clips?.[job.clip]?.trim()) || info.action || job.clip || '',
+    action,
+    frames: info.frames ?? '',
     background: gen.background ?? '',
   };
   const template = job.prompt?.trim() || fighter[type]?.prompt?.trim() || gen[type]?.prompt || '';

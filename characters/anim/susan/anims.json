@@ -1,0 +1,746 @@
+{
+ "refHeight": 300,
+ "clips": {
+  "airdodge": {
+   "file": "airdodge.webp",
+   "frames": 24,
+   "cols": 7,
+   "rows": 4,
+   "fw": 280,
+   "fh": 261,
+   "ax": 152,
+   "ay": 257,
+   "fps": 20,
+   "loop": false,
+   "source": "airdodge.mp4",
+   "sourceMtime": 1792055232012,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": null,
+   "hit": null,
+   "size": 1.0,
+   "autoSize": 0.719,
+   "autoSizeFrom": "air"
+  },
+  "bair": {
+   "file": "bair.webp",
+   "frames": 24,
+   "cols": 5,
+   "rows": 5,
+   "fw": 355,
+   "fh": 397,
+   "ax": 179,
+   "ay": 392,
+   "fps": 20,
+   "loop": false,
+   "source": "bair.mp4",
+   "sourceMtime": 1792055383073,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": null,
+   "hit": 9,
+   "size": 1.0,
+   "autoSize": 0.594,
+   "autoSizeFrom": "air"
+  },
+  "climb": {
+   "file": "climb.webp",
+   "frames": 24,
+   "cols": 8,
+   "rows": 3,
+   "fw": 239,
+   "fh": 342,
+   "ax": 58,
+   "ay": 338,
+   "fps": 20,
+   "loop": false,
+   "source": "climb.mp4",
+   "sourceMtime": 1792055247144,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": [
+    0.05,
+    2.4
+   ],
+   "hit": null,
+   "size": 1.0,
+   "autoSize": 1.0,
+   "autoSizeFrom": "hang"
+  },
+  "dair": {
+   "file": "dair.webp",
+   "frames": 24,
+   "cols": 10,
+   "rows": 3,
+   "fw": 200,
+   "fh": 400,
+   "ax": 90,
+   "ay": 395,
+   "fps": 20,
+   "loop": false,
+   "source": "dair.mp4",
+   "sourceMtime": 1792055407062,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": null,
+   "hit": 13,
+   "size": 1.0,
+   "autoSize": 0.594,
+   "autoSizeFrom": "air"
+  },
+  "dizzy": {
+   "file": "dizzy.webp",
+   "frames": 24,
+   "cols": 11,
+   "rows": 3,
+   "fw": 173,
+   "fh": 278,
+   "ax": 93,
+   "ay": 274,
+   "fps": 15,
+   "loop": true,
+   "source": "dizzy.mp4",
+   "sourceMtime": 1792055121997,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.25,
+   "autoTrim": null,
+   "hit": null,
+   "size": 1.0,
+   "autoSize": 1.0,
+   "autoSizeFrom": "dizzy"
+  },
+  "dodge": {
+   "file": "dodge.webp",
+   "frames": 24,
+   "cols": 12,
+   "rows": 2,
+   "fw": 168,
+   "fh": 306,
+   "ax": 101,
+   "ay": 302,
+   "fps": 20,
+   "loop": false,
+   "source": "dodge.mp4",
+   "sourceMtime": 1792055218261,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": [
+    0.2,
+    2.65
+   ],
+   "hit": null,
+   "size": 1.0,
+   "autoSize": 1.0,
+   "autoSizeFrom": "stand"
+  },
+  "dsmash": {
+   "file": "dsmash.webp",
+   "frames": 24,
+   "cols": 7,
+   "rows": 4,
+   "fw": 262,
+   "fh": 324,
+   "ax": 80,
+   "ay": 321,
+   "fps": 20,
+   "loop": false,
+   "source": "dsmash.mp4",
+   "sourceMtime": 1792055355426,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": [
+    0.3,
+    2.4
+   ],
+   "hit": 12,
+   "size": 1.0,
+   "autoSize": 0.996,
+   "autoSizeFrom": "stand"
+  },
+  "fair": {
+   "file": "fair.webp",
+   "frames": 24,
+   "cols": 7,
+   "rows": 4,
+   "fw": 292,
+   "fh": 317,
+   "ax": 133,
+   "ay": 313,
+   "fps": 20,
+   "loop": false,
+   "source": "fair.mp4",
+   "sourceMtime": 1792055369998,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": [
+    0.85,
+    2.9
+   ],
+   "hit": 8,
+   "size": 1.0,
+   "autoSize": 0.597,
+   "autoSizeFrom": "air"
+  },
+  "fall": {
+   "file": "fall.webp",
+   "frames": 24,
+   "cols": 10,
+   "rows": 3,
+   "fw": 198,
+   "fh": 324,
+   "ax": 108,
+   "ay": 320,
+   "fps": 15,
+   "loop": true,
+   "source": "fall.mp4",
+   "sourceMtime": 1792055068249,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.5,
+   "autoTrim": null,
+   "hit": null,
+   "size": 1.0,
+   "autoSize": 0.719,
+   "autoSizeFrom": "air"
+  },
+  "fsmash": {
+   "file": "fsmash.webp",
+   "frames": 24,
+   "cols": 11,
+   "rows": 3,
+   "fw": 186,
+   "fh": 310,
+   "ax": 54,
+   "ay": 306,
+   "fps": 20,
+   "loop": false,
+   "source": "fsmash.mp4",
+   "sourceMtime": 1792055325735,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": [
+    0.05,
+    2.8
+   ],
+   "hit": 18,
+   "size": 1.0,
+   "autoSize": 0.996,
+   "autoSizeFrom": "stand"
+  },
+  "ftilt": {
+   "file": "ftilt.webp",
+   "frames": 24,
+   "cols": 8,
+   "rows": 3,
+   "fw": 236,
+   "fh": 318,
+   "ax": 53,
+   "ay": 314,
+   "fps": 20,
+   "loop": false,
+   "source": "ftilt.mp4",
+   "sourceMtime": 1792055273549,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": [
+    0.35,
+    2.3
+   ],
+   "hit": 12,
+   "size": 1.0,
+   "autoSize": 0.996,
+   "autoSizeFrom": "stand"
+  },
+  "helpless": {
+   "file": "helpless.webp",
+   "frames": 24,
+   "cols": 6,
+   "rows": 4,
+   "fw": 320,
+   "fh": 184,
+   "ax": 154,
+   "ay": 181,
+   "fps": 15,
+   "loop": true,
+   "source": "helpless.mp4",
+   "sourceMtime": 1792055128349,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.5,
+   "autoTrim": null,
+   "hit": null,
+   "size": 1.0,
+   "autoSize": 1.003,
+   "autoSizeFrom": "tumble"
+  },
+  "hurt": {
+   "file": "hurt.webp",
+   "frames": 24,
+   "cols": 6,
+   "rows": 4,
+   "fw": 299,
+   "fh": 191,
+   "ax": 150,
+   "ay": 187,
+   "fps": 15,
+   "loop": true,
+   "source": "hurt.mp4",
+   "sourceMtime": 1792055143419,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.75,
+   "autoTrim": null,
+   "hit": null,
+   "size": 1.0,
+   "autoSize": 1.001,
+   "autoSizeFrom": "hurt"
+  },
+  "idle": {
+   "file": "idle.webp",
+   "frames": 24,
+   "cols": 24,
+   "rows": 1,
+   "fw": 78,
+   "fh": 307,
+   "ax": 36,
+   "ay": 304,
+   "fps": 15,
+   "loop": true,
+   "source": "idle.mp4",
+   "sourceMtime": 1792055028403,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.25,
+   "autoTrim": null,
+   "hit": null,
+   "size": 1.0,
+   "autoSize": 0.996,
+   "autoSizeFrom": "stand"
+  },
+  "jab": {
+   "file": "jab.webp",
+   "frames": 24,
+   "cols": 12,
+   "rows": 2,
+   "fw": 162,
+   "fh": 307,
+   "ax": 37,
+   "ay": 304,
+   "fps": 20,
+   "loop": false,
+   "source": "jab.mp4",
+   "sourceMtime": 1792055259811,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": [
+    0.0,
+    2.55
+   ],
+   "hit": 9,
+   "size": 1.0,
+   "autoSize": 0.996,
+   "autoSizeFrom": "stand"
+  },
+  "land": {
+   "file": "land.webp",
+   "frames": 24,
+   "cols": 11,
+   "rows": 3,
+   "fw": 182,
+   "fh": 324,
+   "ax": 90,
+   "ay": 320,
+   "fps": 20,
+   "loop": false,
+   "source": "land.mp4",
+   "sourceMtime": 1792055190581,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": [
+    0.0,
+    2.05
+   ],
+   "hit": null,
+   "size": 1.0,
+   "autoSize": 0.716,
+   "autoSizeFrom": "air"
+  },
+  "ledge": {
+   "file": "ledge.webp",
+   "frames": 24,
+   "cols": 10,
+   "rows": 3,
+   "fw": 190,
+   "fh": 339,
+   "ax": 45,
+   "ay": 336,
+   "fps": 15,
+   "loop": true,
+   "source": "ledge.mp4",
+   "sourceMtime": 1792055100931,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.25,
+   "autoTrim": null,
+   "hit": null,
+   "size": 1.0,
+   "autoSize": 0.996,
+   "autoSizeFrom": "hang"
+  },
+  "nair": {
+   "file": "nair.webp",
+   "frames": 24,
+   "cols": 6,
+   "rows": 4,
+   "fw": 336,
+   "fh": 320,
+   "ax": 188,
+   "ay": 316,
+   "fps": 20,
+   "loop": false,
+   "source": "nair.mp4",
+   "sourceMtime": 1792055355404,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": null,
+   "hit": 6,
+   "size": 1.0,
+   "autoSize": 0.596,
+   "autoSizeFrom": "air"
+  },
+  "nspecial": {
+   "file": "nspecial.webp",
+   "frames": 24,
+   "cols": 6,
+   "rows": 4,
+   "fw": 299,
+   "fh": 308,
+   "ax": 170,
+   "ay": 304,
+   "fps": 20,
+   "loop": false,
+   "source": "nspecial.mp4",
+   "sourceMtime": 1792055433460,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": [
+    0.35,
+    2.55
+   ],
+   "hit": 14,
+   "size": 1.0,
+   "autoSize": 0.994,
+   "autoSizeFrom": "stand"
+  },
+  "roll": {
+   "file": "roll.webp",
+   "frames": 24,
+   "cols": 6,
+   "rows": 4,
+   "fw": 327,
+   "fh": 347,
+   "ax": 216,
+   "ay": 343,
+   "fps": 20,
+   "loop": false,
+   "source": "roll.mp4",
+   "sourceMtime": 1792055196516,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": [
+    0.45,
+    2.3
+   ],
+   "hit": null,
+   "size": 1.0,
+   "autoSize": 0.996,
+   "autoSizeFrom": "stand"
+  },
+  "shield": {
+   "file": "shield.webp",
+   "frames": 24,
+   "cols": 8,
+   "rows": 3,
+   "fw": 245,
+   "fh": 311,
+   "ax": 85,
+   "ay": 307,
+   "fps": 15,
+   "loop": true,
+   "source": "shield.mp4",
+   "sourceMtime": 1792055087649,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.25,
+   "autoTrim": null,
+   "hit": null,
+   "size": 1.0,
+   "autoSize": 1.004,
+   "autoSizeFrom": "guard"
+  },
+  "uair": {
+   "file": "uair.webp",
+   "frames": 24,
+   "cols": 7,
+   "rows": 4,
+   "fw": 290,
+   "fh": 406,
+   "ax": 106,
+   "ay": 402,
+   "fps": 20,
+   "loop": false,
+   "source": "uair.mp4",
+   "sourceMtime": 1792055392177,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": null,
+   "hit": 9,
+   "size": 1.0,
+   "autoSize": 0.595,
+   "autoSizeFrom": "air"
+  },
+  "upb": {
+   "file": "upb.webp",
+   "frames": 24,
+   "cols": 5,
+   "rows": 5,
+   "fw": 342,
+   "fh": 362,
+   "ax": 164,
+   "ay": 358,
+   "fps": 20,
+   "loop": false,
+   "source": "upb.mp4",
+   "sourceMtime": 1792055429639,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": [
+    0.05,
+    3.5
+   ],
+   "hit": 12,
+   "size": 1.0,
+   "autoSize": 0.994,
+   "autoSizeFrom": "stand"
+  },
+  "usmash": {
+   "file": "usmash.webp",
+   "frames": 24,
+   "cols": 11,
+   "rows": 3,
+   "fw": 179,
+   "fh": 309,
+   "ax": 50,
+   "ay": 306,
+   "fps": 20,
+   "loop": false,
+   "source": "usmash.mp4",
+   "sourceMtime": 1792055345044,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": [
+    0.25,
+    2.55
+   ],
+   "hit": 12,
+   "size": 1.0,
+   "autoSize": 0.994,
+   "autoSizeFrom": "stand"
+  },
+  "utilt": {
+   "file": "utilt.webp",
+   "frames": 24,
+   "cols": 18,
+   "rows": 2,
+   "fw": 110,
+   "fh": 372,
+   "ax": 48,
+   "ay": 368,
+   "fps": 20,
+   "loop": false,
+   "source": "utilt.mp4",
+   "sourceMtime": 1792055286424,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.0,
+   "autoTrim": [
+    0.05,
+    2.8
+   ],
+   "hit": 6,
+   "size": 1.0,
+   "autoSize": 0.992,
+   "autoSizeFrom": "stand"
+  },
+  "walk": {
+   "file": "walk.webp",
+   "frames": 24,
+   "cols": 11,
+   "rows": 3,
+   "fw": 183,
+   "fh": 317,
+   "ax": 93,
+   "ay": 313,
+   "fps": 15,
+   "loop": true,
+   "source": "walk.mp4",
+   "sourceMtime": 1792055038675,
+   "options": {
+    "tolerance": 65
+   },
+   "speed": 1.5,
+   "autoTrim": null,
+   "hit": null,
+   "size": 1.0,
+   "autoSize": 0.978,
+   "autoSizeFrom": "stride"
+  },
+  "crouch": {
+   "file": "crouch.webp",
+   "frames": 24,
+   "cols": 13,
+   "rows": 2,
+   "fw": 150,
+   "fh": 289,
+   "ax": 78,
+   "ay": 287,
+   "fps": 15,
+   "loop": true,
+   "source": "crouch.mp4",
+   "sourceMtime": 1792055054661,
+   "options": {
+    "tolerance": 65,
+    "size": 0.78
+   },
+   "speed": 1.25,
+   "autoTrim": null,
+   "hit": null,
+   "size": 0.78,
+   "autoSize": 0.997,
+   "autoSizeFrom": "crouch"
+  },
+  "jumpsquat": {
+   "file": "jumpsquat.webp",
+   "frames": 24,
+   "cols": 14,
+   "rows": 2,
+   "fw": 143,
+   "fh": 239,
+   "ax": 74,
+   "ay": 236,
+   "fps": 20,
+   "loop": false,
+   "source": "jumpsquat.mp4",
+   "sourceMtime": 1792055164390,
+   "options": {
+    "tolerance": 65,
+    "size": 0.77
+   },
+   "speed": 2.0,
+   "autoTrim": [
+    0.0,
+    1.35
+   ],
+   "hit": null,
+   "size": 0.77,
+   "autoSize": 0.996,
+   "autoSizeFrom": "stand"
+  },
+  "jump": {
+   "file": "jump.webp",
+   "frames": 6,
+   "cols": 6,
+   "rows": 1,
+   "fw": 136,
+   "fh": 307,
+   "ax": 64,
+   "ay": 303,
+   "fps": 20,
+   "loop": false,
+   "source": "jump.mp4",
+   "sourceMtime": 1792055169078,
+   "options": {
+    "tolerance": 65,
+    "start": 2.48
+   },
+   "speed": 2.0,
+   "autoTrim": null,
+   "hit": null,
+   "size": 1.0,
+   "autoSize": 1.126,
+   "autoSizeFrom": "crouch"
+  },
+  "dtilt": {
+   "file": "dtilt.webp",
+   "frames": 24,
+   "cols": 8,
+   "rows": 3,
+   "fw": 248,
+   "fh": 239,
+   "ax": 86,
+   "ay": 236,
+   "fps": 20,
+   "loop": false,
+   "source": "dtilt.mp4",
+   "sourceMtime": 1792055295052,
+   "options": {
+    "tolerance": 65,
+    "size": 0.73
+   },
+   "speed": 1.0,
+   "autoTrim": [
+    0.3,
+    2.1
+   ],
+   "hit": 12,
+   "size": 0.73,
+   "autoSize": 1.012,
+   "autoSizeFrom": "crouch"
+  }
+ },
+ "idleScale": 0.6237006237006237,
+ "version": 1792056870
+}
