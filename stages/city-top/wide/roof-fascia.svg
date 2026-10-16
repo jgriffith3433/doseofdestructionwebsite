@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1288" height="129" viewBox="0 0 1288 129">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a2b20"/>
+      <stop offset="0.18" stop-color="#262019"/>
+      <stop offset="0.6" stop-color="#191513"/>
+      <stop offset="1" stop-color="#0e0c0b"/>
+    </linearGradient>
+    <linearGradient id="spill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb060" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ffb060" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="seams" width="92" height="129" patternUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="2" height="129" fill="#000" fill-opacity="0.22"/>
+    </pattern>
+  </defs>
+  <rect width="1288" height="129" fill="url(#wall)"/>
+  <rect width="1288" height="129" fill="url(#seams)"/>
+  <rect y="44" width="1288" height="2" fill="#000" fill-opacity="0.25"/>
+  <rect y="86" width="1288" height="2" fill="#000" fill-opacity="0.25"/>
+  <rect width="1288" height="18" fill="url(#spill)"/>
+  <g fill="#2e2722" stroke="#453b33" stroke-width="2">
+    <rect x="54" y="57" width="62" height="46"/>
+    <rect x="1156" y="40" width="46" height="36"/>
+  </g>
+  <g stroke="#120f0d" stroke-width="3">
+    <path d="M58 66h54M58 75h54M58 84h54M58 93h54"/>
+    <path d="M1160 49h38M1160 58h38M1160 67h38"/>
+  </g>
+  <rect y="123" width="1288" height="6" fill="#0a0908"/>
+</svg>
