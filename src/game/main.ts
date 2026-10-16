@@ -5,6 +5,7 @@ import { CHARACTERS, MOVE } from './sim/characters.ts';
 import { audio } from './audio.ts';
 import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
+import { initTouchControls, showTouchControls } from './input/touch.ts';
 import { GAMEPAD_HELP, KEYBOARD_HELP, listenKeyboard, onKey, pausePressed, readLocal } from './input/devices.ts';
 import { PLAYER_COLORS, Renderer } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
@@ -24,6 +25,9 @@ const canvas = $<HTMLCanvasElement>('stage');
 const renderer = new Renderer(canvas);
 renderer.onSound = (id) => audio.sfx(id);
 listenKeyboard();
+initTouchControls(() => {
+  if (match && phase !== 'idle') setPaused(phase !== 'pause');
+});
 listenMenuKeys(() => phase === 'play' || phase === 'ready');
 
 let match: Match | null = null;
@@ -297,6 +301,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean): Promise<void>
     // The canvas may have changed size while menus were up.
     renderer.engine.resize();
     match = m;
+    showTouchControls(true);
     buildHud(m);
     shownOver = false;
     readyFrames = 0;
@@ -317,6 +322,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean): Promise<void>
 function endMatch(): void {
   match = null;
   phase = 'idle';
+  showTouchControls(false);
   $('hud').hidden = true;
   $('match-top').hidden = true;
   $('pause').hidden = true;

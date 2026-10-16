@@ -633,6 +633,68 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
 .hud-pct small { font-size: 0.55em; }
 .hud-pct.bump { animation: bump 160ms ease-out; }
 @keyframes bump { 0% { transform: scale(1.25) translateY(-3px); } 100% { transform: none; } }
+/* Touch controls (coarse pointers, in a match). Bottom corners, above the damage HUD. */
+.touch { position: fixed; inset: 0; pointer-events: none; z-index: 6; user-select: none; -webkit-user-select: none; touch-action: none; }
+.touch > * { pointer-events: auto; touch-action: none; }
+.touch-stick {
+  position: absolute;
+  left: max(16px, env(safe-area-inset-left));
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 70px);
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  background: rgba(20, 15, 12, 0.45);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+}
+.touch-knob {
+  position: absolute;
+  left: 38px;
+  top: 38px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  pointer-events: none;
+}
+.touch-buttons {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 70px);
+  display: grid;
+  grid-template-columns: repeat(3, 60px);
+  gap: 8px;
+}
+.touch-btn {
+  min-width: 60px;
+  min-height: 60px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  background: rgba(20, 15, 12, 0.55);
+  color: #fff;
+  font: 600 12px Oswald, sans-serif;
+  text-transform: uppercase;
+  padding: 0;
+}
+.touch-btn.down { background: rgba(255, 90, 31, 0.8); }
+.touch-btn.special { grid-column: 1; grid-row: 1; }
+.touch-btn.attack { grid-column: 2; grid-row: 1; }
+.touch-btn.jump { grid-column: 3; grid-row: 1; }
+.touch-btn.smash { grid-column: 2; grid-row: 2; }
+.touch-btn.shield { grid-column: 3; grid-row: 2; }
+.touch-pause {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  min-width: 64px;
+  min-height: 56px;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  background: rgba(20, 15, 12, 0.55);
+  color: #fff;
+  font: 600 14px Oswald, sans-serif;
+  text-transform: uppercase;
+}
+
 .hud-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
 .hud-name { color: var(--player); font-weight: 700; white-space: nowrap; }
 .hud-stocks { display: flex; gap: 3px; }

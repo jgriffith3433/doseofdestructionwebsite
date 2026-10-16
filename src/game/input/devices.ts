@@ -1,6 +1,7 @@
 // Reads the local keyboard and gamepads and packs them into the sim's input format.
 
 import { BTN, packInput, stickX, stickY } from '../sim/input.ts';
+import { readTouch } from './touch.ts';
 
 const held = new Set<string>();
 let listening = false;
@@ -108,6 +109,7 @@ export function readLocal(): number {
   };
   const pad = pads()[0];
   if (pad) merge(gamepadInput(pad));
+  merge(readTouch());
   if (virtualPad) {
     const v = virtualPad();
     merge([stickX(v), stickY(v), v & ~0xffff]);
