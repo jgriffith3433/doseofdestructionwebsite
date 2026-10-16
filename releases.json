@@ -1,0 +1,18 @@
+{
+  "product": "doseofdestruction",
+  "name": "Dose Of Destruction",
+  "current": "1.0.0",
+  "releases": [
+    {
+      "version": "1.0.0",
+      "date": "2026-10-16",
+      "build": "076864d",
+      "title": "Season one is on the air",
+      "notes": [
+        "The full roster steps into the ring: every fighter is playable in Versus and Training.",
+        "The Campaign airs in eight chapters, from Open Mic to Encore.",
+        "Keyboard or gamepad, right in your browser."
+      ]
+    }
+  ]
+}

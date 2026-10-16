@@ -33,3 +33,12 @@ Run one: start the dev server and open `http://localhost:8089/Game/?playtest=smo
 `hawkesPlaytest.report()` when it ends. Hawkes Gen's `playtest.run` does the same and records it.
 Headless Chromium renders in software here (~6–10 fps), so the sim runs at about half speed and the
 campaign gets through 2–3 chapters in its budget.
+
+## Versions and What's new
+
+Every go live is a release, made by Hawkes Studio (`hawkesstudio/src/releases.ts`): a semver version bumped at
+go live (minor when players get something new, patch for fixes) plus the build (the commit), shown as
+"1.4.0 (build ...)" and tagged `v<version>` in git. Studio adds the release to `releases.json` at the repo root (copied by `pages.yml`) (newest first) with the
+player-facing notes J approved in the go-live plan. `whatsnew.html`, the footer version and the game's title screen and main menu (`Game/index.html`) read it through `hawkes-release.js` (a copy of
+`hawkesstudio/clients/web/hawkes-release.js`: `[data-hawkes-version]`, `[data-hawkes-releases]`). Don't bump versions
+by hand; a typo in old notes can be fixed in the file on beta.

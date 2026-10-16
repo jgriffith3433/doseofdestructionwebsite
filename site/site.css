@@ -702,3 +702,13 @@ button.play {
     mask-image: none;
   }
 }
+
+/* What's new (releases.json, filled by hawkes-release.js) and the version in the footer. */
+.releases .hawkes-release { border-top: 1px solid rgba(255, 255, 255, 0.12); padding-top: 1.2rem; margin-top: 1.4rem; }
+.releases .hawkes-release:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
+.releases h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.8rem; margin: 0; font-size: 1.5rem; text-transform: uppercase; }
+.hawkes-release-version { color: var(--gold); }
+.hawkes-release-date { margin-left: auto; color: var(--ink-soft); font: 600 0.95rem Barlow, sans-serif; text-transform: none; }
+.footer-version { font-size: 0.9rem; }
+.footer-version a { color: var(--ink-soft); text-decoration: none; }
+.footer-version a:hover { color: white; }

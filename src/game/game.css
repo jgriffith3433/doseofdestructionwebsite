@@ -770,3 +770,8 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   .vs-row { flex-wrap: wrap; }
   .vs-fighter img { height: 30vh; }
 }
+
+/* The version (releases.json via /site/hawkes-release.js): a quiet link to What's new. */
+.version-tag { position: absolute; right: 14px; bottom: 10px; font: 600 12px Barlow, sans-serif; letter-spacing: 0.04em; color: rgba(255, 255, 255, 0.55); text-decoration: none; }
+.version-tag:hover, .version-tag:focus-visible { color: #fff; }
+.version-tag.in-menu { position: static; justify-self: start; margin-top: 4px; }
