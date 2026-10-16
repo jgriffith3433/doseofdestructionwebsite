@@ -585,8 +585,23 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   width: 180%;
   transform: translateX(-110%) skewX(-18deg);
 }
-.wipe i:first-child { background: var(--hot); }
-.wipe i:last-child { background: #0c0a09; border-left: 6px solid var(--gold); }
+.wipe i:first-child { background: #0c0a09; }
+.wipe i:last-child { background: var(--hot); border-left: 6px solid var(--gold); }
+/* While the screen is covered it reads as orange with a label, never as an empty black frame. */
+.wipe.in::after {
+  content: 'Loading\2026';
+  position: absolute;
+  right: 6%;
+  bottom: 8%;
+  font-family: Oswald, sans-serif;
+  font-size: clamp(18px, 2.4vw, 28px);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #0c0a09;
+  opacity: 0;
+  animation: wipe-label 340ms 200ms linear forwards;
+}
+@keyframes wipe-label { to { opacity: 1; } }
 .wipe.in, .wipe.out { pointer-events: all; }
 .wipe.in i { animation: wipe-in 340ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
 .wipe.in i:last-child { animation-delay: 60ms; }
