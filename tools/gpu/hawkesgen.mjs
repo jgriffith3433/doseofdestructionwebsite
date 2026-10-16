@@ -14,9 +14,23 @@
 // "blob:<sha256>". When the service is on another machine, local file paths
 // are uploaded first automatically (Node only).
 //
-// Source of truth: C:\Projects\hawkesgen\clients\js\hawkesgen.mjs. Version 3 (presets, builder, playtests).
+// Source of truth: C:\Projects\hawkesgen\clients\js\hawkesgen.mjs. Version 4 (presets, builder, playtests; ~/.hawkes/client.json).
 
-export const CLIENT_VERSION = 3;
+export const CLIENT_VERSION = 4;
+
+/** ~/.hawkes/client.json (Node only): where Hawkes Gen and Studio are, for every project on this PC. */
+function userConfig() {
+  if (!isNode) return {};
+  try {
+    const home = process.env.USERPROFILE || process.env.HOME;
+    // eslint-disable-next-line no-undef
+    const fs = globalThis.process?.getBuiltinModule?.('node:fs');
+    if (!home || !fs) return {};
+    return JSON.parse(fs.readFileSync(`${home}/.hawkes/client.json`, 'utf8'));
+  } catch {
+    return {};
+  }
+}
 
 export class HawkesGenError extends Error {
   constructor(message, { status, kind, attempts, job } = {}) {
@@ -40,8 +54,11 @@ export class HawkesGen {
    */
   constructor({ url, key, project } = {}) {
     const env = isNode ? process.env : {};
-    this.url = (url ?? env.HAWKESGEN_URL ?? 'http://127.0.0.1:8790').replace(/\/$/, '');
-    this.key = key ?? env.HAWKESGEN_KEY ?? null;
+    // Where Hawkes Gen is: the arguments, else HAWKESGEN_URL / HAWKESGEN_KEY, else ~/.hawkes/client.json
+    // ({ "genUrl": "https://gen.hawkesgen.com", "genKey": "hg_..." }), else this PC.
+    const file = userConfig();
+    this.url = (url ?? env.HAWKESGEN_URL ?? file.genUrl ?? 'http://127.0.0.1:8790').replace(/\/$/, '');
+    this.key = key ?? env.HAWKESGEN_KEY ?? file.genKey ?? null;
     this.project = project ?? null;
     this.local = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(this.url);
   }
