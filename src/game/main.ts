@@ -273,10 +273,13 @@ async function startMatch(setup: MatchSetup, withVersus: boolean): Promise<void>
   renderer.setStage(setup.stage);
   // Everything the match shows and plays is loaded during the VS splash (or the loading
   // screen): clip sheets, stage art, sounds, music and voice lines. Nothing loads mid-fight.
+  // Then the first frames are drawn behind the menus, so the switch to the match doesn't stall.
   const loading = Promise.all([
     renderer.setFighters(m.state).then(() => renderer.ready()),
     audio.preloadMatch(STAGES[setup.stage].id, m.state.fighters.map((f) => CHARACTERS[f.char].id)),
-  ]).catch((err) => console.error(err));
+  ])
+    .then(() => renderer.warmUp(m.state))
+    .catch((err) => console.error(err));
 
   if (withVersus) {
     let splash: Promise<void> = Promise.resolve();
@@ -285,9 +288,9 @@ async function startMatch(setup: MatchSetup, withVersus: boolean): Promise<void>
     });
     await Promise.all([splash, loading]);
   } else {
+    // The loading screen stays up until the match's first frame is drawn (under the wipe).
     $('loading').hidden = false;
     await loading;
-    $('loading').hidden = true;
   }
 
   await go('match', () => {
@@ -298,7 +301,9 @@ async function startMatch(setup: MatchSetup, withVersus: boolean): Promise<void>
     shownOver = false;
     readyFrames = 0;
     renderer.render(m.state);
+    $('loading').hidden = true;
   });
+  $('loading').hidden = true;
   if (match !== m) return;
   phase = 'ready';
   banner('Ready');

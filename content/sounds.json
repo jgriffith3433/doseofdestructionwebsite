@@ -398,5 +398,104 @@
       "duration": 20,
       "influence": 0.45
     }
+  },
+  {
+    "id": "music-city-top",
+    "group": "music",
+    "text": "Night city rooftop anthem, west coast synthwave and funk rock, punchy drum machine, slap bass, bright lead synth, firework-like synth stabs, big triumphant chorus feel, 128 BPM, instrumental. Made by Hawkes Gen audio.music from hawkes.assets.json (studio.cmd assets doseofdestruction make), not ElevenLabs.",
+    "loop": true,
+    "duration": 60,
+    "influence": 0.45,
+    "volume": 0.5,
+    "file": "/audio/sfx/music-city-top.mp3",
+    "take": null
+  },
+  {
+    "id": "music-desert",
+    "group": "music",
+    "text": "Desert western rock showdown, twangy baritone guitar, galloping drums, whistling wind, distant hawk-cry guitar slides, dusty tense build, 132 BPM, instrumental. Made by Hawkes Gen audio.music from hawkes.assets.json (studio.cmd assets doseofdestruction make), not ElevenLabs.",
+    "loop": true,
+    "duration": 60,
+    "influence": 0.45,
+    "volume": 0.5,
+    "file": "/audio/sfx/music-desert.mp3",
+    "take": null
+  },
+  {
+    "id": "music-cursed-town",
+    "group": "music",
+    "text": "Spooky gothic fighting theme, eerie harpsichord and pipe organ over driving rock drums, low choir pads, creeping fog ambience, minor key menace, 140 BPM, instrumental. Made by Hawkes Gen audio.music from hawkes.assets.json (studio.cmd assets doseofdestruction make), not ElevenLabs.",
+    "loop": true,
+    "duration": 60,
+    "influence": 0.45,
+    "volume": 0.5,
+    "file": "/audio/sfx/music-cursed-town.mp3",
+    "take": null
+  },
+  {
+    "id": "music-humans-in-the-loop",
+    "group": "music",
+    "text": "Arena electro rock concert, four on the floor kick, crowd claps on every beat, huge synth riff, stadium energy, hypnotic repeating loop that keeps building, 126 BPM, instrumental. Made by Hawkes Gen audio.music from hawkes.assets.json (studio.cmd assets doseofdestruction make), not ElevenLabs.",
+    "loop": true,
+    "duration": 60,
+    "influence": 0.45,
+    "volume": 0.5,
+    "file": "/audio/sfx/music-humans-in-the-loop.mp3",
+    "take": null
+  },
+  {
+    "id": "music-rainbow-full-pipe",
+    "group": "music",
+    "text": "Upbeat skate punk, fast pop punk drums, bright distorted guitars, bouncy bass, colorful sunny attitude, 170 BPM, instrumental. Made by Hawkes Gen audio.music from hawkes.assets.json (studio.cmd assets doseofdestruction make), not ElevenLabs.",
+    "loop": true,
+    "duration": 60,
+    "influence": 0.45,
+    "volume": 0.5,
+    "file": "/audio/sfx/music-rainbow-full-pipe.mp3",
+    "take": null
+  },
+  {
+    "id": "music-solar-array",
+    "group": "music",
+    "text": "Bright futuristic electronic, shimmering arpeggiated synths, crisp breakbeat, warm sun-drenched pads, mechanical whirring percussion, optimistic drive, 130 BPM, instrumental. Made by Hawkes Gen audio.music from hawkes.assets.json (studio.cmd assets doseofdestruction make), not ElevenLabs.",
+    "loop": true,
+    "duration": 60,
+    "influence": 0.45,
+    "volume": 0.5,
+    "file": "/audio/sfx/music-solar-array.mp3",
+    "take": null
+  },
+  {
+    "id": "music-space-chess",
+    "group": "music",
+    "text": "Cosmic orchestral electronica, tense strategic pizzicato strings, pulsing synth bass, spacey pads, regal brass hits, a dramatic battle of wits, 120 BPM, instrumental. Made by Hawkes Gen audio.music from hawkes.assets.json (studio.cmd assets doseofdestruction make), not ElevenLabs.",
+    "loop": true,
+    "duration": 60,
+    "influence": 0.45,
+    "volume": 0.5,
+    "file": "/audio/sfx/music-space-chess.mp3",
+    "take": null
+  },
+  {
+    "id": "music-watercolor-nebula",
+    "group": "music",
+    "text": "Dreamy liquid drum and bass, flowing watery synth pads, glittering bells, rolling breakbeats, deep wobbling sub bass, colorful and fluid, 174 BPM, instrumental. Made by Hawkes Gen audio.music from hawkes.assets.json (studio.cmd assets doseofdestruction make), not ElevenLabs.",
+    "loop": true,
+    "duration": 60,
+    "influence": 0.45,
+    "volume": 0.5,
+    "file": "/audio/sfx/music-watercolor-nebula.mp3",
+    "take": null
+  },
+  {
+    "id": "music-yo-house",
+    "group": "music",
+    "text": "Funky house party groove, chunky funk guitar, bubbly synth bass, bubbling water sounds, playful clavinet, chill but bouncy, 118 BPM, instrumental. Made by Hawkes Gen audio.music from hawkes.assets.json (studio.cmd assets doseofdestruction make), not ElevenLabs.",
+    "loop": true,
+    "duration": 60,
+    "influence": 0.45,
+    "volume": 0.5,
+    "file": "/audio/sfx/music-yo-house.mp3",
+    "take": null
   }
 ]

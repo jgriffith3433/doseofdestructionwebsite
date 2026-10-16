@@ -1,0 +1,74 @@
+{
+  "music-city-top": {
+    "recipe": "7671a55e7b50d555",
+    "job": "j_dc24a4a242d4",
+    "made": "2026-10-16T07:32:13.367Z",
+    "files": {
+      "audio/sfx/music-city-top.mp3": "e612a78ac53adf60968fb86bdacdf7233ca470fea4b55d82fff65d2f801e03f2"
+    }
+  },
+  "music-solar-array": {
+    "recipe": "79c5a738877759a8",
+    "job": "j_81c045b84f99",
+    "made": "2026-10-16T07:32:23.636Z",
+    "files": {
+      "audio/sfx/music-solar-array.mp3": "312cfa866e9badb6e6a890081f77636478481abb113cc544d55a2feea1e3cd12"
+    }
+  },
+  "music-space-chess": {
+    "recipe": "4ea3653b15792b27",
+    "job": "j_09d3a9b29340",
+    "made": "2026-10-16T07:32:29.782Z",
+    "files": {
+      "audio/sfx/music-space-chess.mp3": "4ffb8599e2fcce40f0ea51d6bccbafa577b7b47e024f3492a59bdd1f5ec476f6"
+    }
+  },
+  "music-rainbow-full-pipe": {
+    "recipe": "f5b0f4ac8846d074",
+    "job": "j_9557db59a972",
+    "made": "2026-10-16T07:32:40.490Z",
+    "files": {
+      "audio/sfx/music-rainbow-full-pipe.mp3": "eaee6074610a7cd996b31b9ef2fc945ff8b5bc35c25875efd53d200479949869"
+    }
+  },
+  "music-cursed-town": {
+    "recipe": "55cd9071614a4415",
+    "job": "j_295d8d6e215c",
+    "made": "2026-10-16T07:32:50.946Z",
+    "files": {
+      "audio/sfx/music-cursed-town.mp3": "65225dd0405ea24693ef04956309faadd417ca8f70705e47f7b036e0c9e6726c"
+    }
+  },
+  "music-humans-in-the-loop": {
+    "recipe": "78516ce19db5535e",
+    "job": "j_af4050ac6cb8",
+    "made": "2026-10-16T07:33:00.191Z",
+    "files": {
+      "audio/sfx/music-humans-in-the-loop.mp3": "28d68f1f4be38729e088bae946c25abae1f85e26fda519e6e6b9e701726556bc"
+    }
+  },
+  "music-desert": {
+    "recipe": "bd7677fa1df66b0b",
+    "job": "j_1d4cd36713a1",
+    "made": "2026-10-16T07:33:10.643Z",
+    "files": {
+      "audio/sfx/music-desert.mp3": "6c9c1f481b94b518ec501158436f6ef1bb607143fb5839883dd067a2a2bfbbe8"
+    }
+  },
+  "music-yo-house": {
+    "recipe": "a13c1e4404dd7b76",
+    "job": "j_a9e6a88fc629",
+    "made": "2026-10-16T07:33:19.017Z",
+    "files": {
+      "audio/sfx/music-yo-house.mp3": "b5656367e789bf2058c25dcb9bad5130ab206063a770d1bb5cb8f3a5aab4a292"
+    }
+  },
+  "music-watercolor-nebula": {
+    "recipe": "7f03f732e824d7ff",
+    "job": "j_a74a379b6f6e",
+    "made": "2026-10-16T07:33:27.458Z",
+    "files": {
+      "audio/sfx/music-watercolor-nebula.mp3": "4f2e88527accf80b5cce808a5829a6dd69838c6e7cee5c842331f818e980b88c"
+    }
+  }
+}

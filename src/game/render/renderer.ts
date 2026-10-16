@@ -381,6 +381,25 @@ export class Renderer {
     await Promise.race([this.scene.whenReadyAsync(), new Promise((r) => setTimeout(r, timeoutMs))]);
   }
 
+  /**
+   * Draws a match's first frames behind the menus, so shaders compile and textures reach the GPU
+   * while a loading screen is up. Without it the first frame on the match screen can stall for
+   * seconds (a frozen, blank wipe on slower machines).
+   */
+  async warmUp(state: GameState, timeoutMs = 15000): Promise<void> {
+    this.engine.resize();
+    this.render(state);
+    await this.ready(timeoutMs);
+    // Two more presented frames; the timeout covers a hidden page, where rAF never fires.
+    for (let i = 0; i < 2; i++) {
+      await new Promise((r) => {
+        requestAnimationFrame(r);
+        setTimeout(r, 100);
+      });
+      this.render(state);
+    }
+  }
+
   private clipTexture(v: FighterView, key: string): Texture | null {
     if (!v.anims) return null;
     // Normally preloaded (preloadClips); made here only if a clip appears mid-match.

@@ -1,0 +1,77 @@
+{
+  "project": "doseofdestruction",
+  "assets": [
+    {
+      "id": "music-city-top",
+      "note": "City Top: LA rooftops at night, fireworks on every KO (AllTheMaps/CityTop/reference.txt). content/sounds.json music-city-top.",
+      "steps": [
+        { "preset": "stage-theme", "params": { "prompt": "Night city rooftop anthem, west coast synthwave and funk rock, punchy drum machine, slap bass, bright lead synth, firework-like synth stabs, big triumphant chorus feel, 128 BPM, instrumental", "seconds": 60, "bpm": 128, "key": "A minor" }, "save": "music" }
+      ],
+      "files": { "music": "audio/sfx/music-city-top.mp3" }
+    },
+    {
+      "id": "music-desert",
+      "note": "Dust Devil Mesa: desert, dust storms, a hawk overhead (AllTheMaps/Desert/reference.txt). content/sounds.json music-desert.",
+      "steps": [
+        { "preset": "stage-theme", "params": { "prompt": "Desert western rock showdown, twangy baritone guitar, galloping drums, whistling wind, distant hawk-cry guitar slides, dusty tense build, 132 BPM, instrumental", "seconds": 60, "bpm": 132, "key": "D minor" }, "save": "music" }
+      ],
+      "files": { "music": "audio/sfx/music-desert.mp3" }
+    },
+    {
+      "id": "music-cursed-town",
+      "note": "Cursed Town: a town cursed by a shadow presence and fog (AllTheMaps/CursedTown/reference.txt). content/sounds.json music-cursed-town.",
+      "steps": [
+        { "preset": "stage-theme", "params": { "prompt": "Spooky gothic fighting theme, eerie harpsichord and pipe organ over driving rock drums, low choir pads, creeping fog ambience, minor key menace, 140 BPM, instrumental", "seconds": 60, "bpm": 140, "key": "C minor" }, "save": "music" }
+      ],
+      "files": { "music": "audio/sfx/music-cursed-town.mp3" }
+    },
+    {
+      "id": "music-humans-in-the-loop",
+      "note": "Humans In The Loop: a concert stage, a crowd moving in sync that goes wild on KOs (AllTheMaps/HumansInTheLoop/reference.txt). content/sounds.json music-humans-in-the-loop.",
+      "steps": [
+        { "preset": "stage-theme", "params": { "prompt": "Arena electro rock concert, four on the floor kick, crowd claps on every beat, huge synth riff, stadium energy, hypnotic repeating loop that keeps building, 126 BPM, instrumental", "seconds": 60, "bpm": 126, "key": "F minor" }, "save": "music" }
+      ],
+      "files": { "music": "audio/sfx/music-humans-in-the-loop.mp3" }
+    },
+    {
+      "id": "music-rainbow-full-pipe",
+      "note": "Rainbow Full Pipe: a skateboard full pipe painted rainbow (AllTheMaps/RainbowFullPipe/reference.txt). content/sounds.json music-rainbow-full-pipe.",
+      "steps": [
+        { "preset": "stage-theme", "params": { "prompt": "Upbeat skate punk, fast pop punk drums, bright distorted guitars, bouncy bass, colorful sunny attitude, 170 BPM, instrumental", "seconds": 60, "bpm": 170, "key": "E major" }, "save": "music" }
+      ],
+      "files": { "music": "audio/sfx/music-rainbow-full-pipe.mp3" }
+    },
+    {
+      "id": "music-solar-array",
+      "note": "Solar Array: a field of solar panels that sometimes rotate (AllTheMaps/SolarArray/reference.txt). content/sounds.json music-solar-array.",
+      "steps": [
+        { "preset": "stage-theme", "params": { "prompt": "Bright futuristic electronic, shimmering arpeggiated synths, crisp breakbeat, warm sun-drenched pads, mechanical whirring percussion, optimistic drive, 130 BPM, instrumental", "seconds": 60, "bpm": 130, "key": "G major" }, "save": "music" }
+      ],
+      "files": { "music": "audio/sfx/music-solar-array.mp3" }
+    },
+    {
+      "id": "music-space-chess",
+      "note": "Space Chess: a chess board floating in space; the king falls over on a KO (AllTheMaps/SpaceChess/reference.txt). content/sounds.json music-space-chess.",
+      "steps": [
+        { "preset": "stage-theme", "params": { "prompt": "Cosmic orchestral electronica, tense strategic pizzicato strings, pulsing synth bass, spacey pads, regal brass hits, a dramatic battle of wits, 120 BPM, instrumental", "seconds": 60, "bpm": 120, "key": "B minor" }, "save": "music" }
+      ],
+      "files": { "music": "audio/sfx/music-space-chess.mp3" }
+    },
+    {
+      "id": "music-watercolor-nebula",
+      "note": "Watercolor Nebula: a fluid watercolor nebula floor, paint everywhere (AllTheMaps/WatercolorNebula/reference.txt). content/sounds.json music-watercolor-nebula.",
+      "steps": [
+        { "preset": "stage-theme", "params": { "prompt": "Dreamy liquid drum and bass, flowing watery synth pads, glittering bells, rolling breakbeats, deep wobbling sub bass, colorful and fluid, 174 BPM, instrumental", "seconds": 60, "bpm": 174, "key": "F# minor" }, "save": "music" }
+      ],
+      "files": { "music": "audio/sfx/music-watercolor-nebula.mp3" }
+    },
+    {
+      "id": "music-yo-house",
+      "note": "Yo House: a kitchen with a fish tank to swim in, a yoga room next door (AllTheMaps/YoHouse/reference.txt). content/sounds.json music-yo-house.",
+      "steps": [
+        { "preset": "stage-theme", "params": { "prompt": "Funky house party groove, chunky funk guitar, bubbly synth bass, bubbling water sounds, playful clavinet, chill but bouncy, 118 BPM, instrumental", "seconds": 60, "bpm": 118, "key": "Bb major" }, "save": "music" }
+      ],
+      "files": { "music": "audio/sfx/music-yo-house.mp3" }
+    }
+  ]
+}
