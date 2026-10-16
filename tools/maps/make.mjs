@@ -8,7 +8,7 @@
 //   node tools/maps/make.mjs <Folder> --paint              paint the saved stage (GPU: ask J first, with the estimate)
 //   node tools/maps/make.mjs <Folder> --all                design, paint, use takes, review, music asset
 //   options: --direction "what to stress" --count 3 --pick 2 (a design by number) --id city-top-2 --takes 4
-//            --replace (redesign a stage that already came from this folder)
+//            --replace (redesign a stage that already came from this folder) --wait (paint even with no GPU server up)
 //
 // Needs the dev server (auto-start.bat or `npm run dev`, http://localhost:8089, DOD_DEV_URL to change it) and Hawkes
 // Gen. Writes content/stages.json, content/modes.json (Versus, Training), stages/<id>/, content/sounds.json (the music entry) and hawkes.assets.json (the
@@ -20,6 +20,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { paintPlan } from './paint.mjs';
 import { askClaude, gen } from '../gpu/gen.mjs';
+import { sharedRoot } from '../roots.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const DEV = (process.env.DOD_DEV_URL || 'http://localhost:8089').replace(/\/$/, '');
@@ -91,7 +92,7 @@ async function design() {
       fs.writeFileSync(f, Buffer.from(await (await fetch(`${DEV}${d.preview}`)).arrayBuffer()));
       previews.push(f);
     }
-    const ref = path.join(process.env.DOD_MAPS_ROOT || path.join(ROOT, '..', 'AllTheMaps'), folder, 'reference.txt');
+    const ref = path.join(sharedRoot('AllTheMaps', 'DOD_MAPS_ROOT', ROOT), folder, 'reference.txt');
     const r = await askClaude({
       system: 'You are the level designer of a 2D platform fighter. Pick the stage design that plays best for 2 to 4 fighters (readable layout, ledges, room to recover, varied heights, no camping spots) and best delivers the concept.',
       prompt: `Concept: ${folder}\n${fs.existsSync(ref) ? fs.readFileSync(ref, 'utf8').slice(0, 3000) : ''}\nDirection: ${opt('direction', 'none')}\n\nThe images are blockouts of designs 1 to ${designs.length}, in order. ${designs.map((d, i) => `Design ${i + 1}: ${d.stage.name}: ${d.stage.blurb}. ${d.stage.notes ?? ''}`.slice(0, 600)).join('\n')}`,
@@ -109,8 +110,27 @@ async function design() {
   return stage;
 }
 
+/**
+ * Is a GPU server ready or on its way? With none and the fleet's auto start off, paint jobs would sit in the queue
+ * with no warning: say so up front (--wait queues anyway; Hawkes Gen's keep-trying or J starts one).
+ */
+async function gpuReady() {
+  let f;
+  try {
+    f = await gen.fleet();
+  } catch (e) {
+    log(`couldn't read the GPU fleet (${e.message}); queueing anyway`);
+    return;
+  }
+  const up = (f.servers ?? []).filter((s) => s.state === 'running' || s.state === 'pending');
+  if (up.length || f.settings?.auto) return;
+  if (flag('wait')) return log('no GPU server is running and auto start is off: queueing anyway (--wait); the jobs start when one does');
+  throw new Error(`No GPU server is running (${(f.servers ?? []).length} stopped) and Hawkes Gen's auto start is off, so painting would only queue. Start one with J's OK (hawkesgen_fleet start, or Gen's keep-trying when AWS has no capacity), or pass --wait to queue anyway.`);
+}
+
 /** Queues every piece's takes at once (one model load, all servers), then waits. */
 async function paint(stage) {
+  await gpuReady();
   const pieces = paintPlan(stage);
   const specs = pieces.map((p) => ({ type: 'paint', stage: stage.id, piece: p.id, takes: takesFor(p.id) }));
   log(`painting ${pieces.length} pieces: ${pieces.map((p) => `${p.id} x${takesFor(p.id)}`).join(', ')}`);

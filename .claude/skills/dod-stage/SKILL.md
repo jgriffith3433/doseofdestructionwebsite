@@ -29,6 +29,12 @@ auto-start.bat                       # the dev server on :8089 (or npm run dev);
 node tools/maps/make.mjs <Folder> --design --direction "what the request stresses"
 ```
 
+Start the dev server so it outlives a background-command limit (in Claude Code, `run_in_background` with the longest
+timeout, or `nohup npm run dev > .cache/dev.log 2>&1 &`) and check it answers before running `make.mjs`. Concept folders
+are found by `tools/roots.mjs`: `DOD_MAPS_ROOT`, else a sibling `AllTheMaps`, `/srv/hawkes/AllTheMaps` on the server,
+`C:\Projects\AllTheMaps`. The design needs at least one concept image, so a brand-new concept needs the GPU
+(image.generate) before Claude can design it.
+
 Claude writes 3 designs (layout sized for fighter jumps, art direction, silhouettes, dynamics: events, zones,
 hazards), picks the one that plays best, and saves it. The report has `estimate`: what painting will cost.
 Look at `.cache/maps/<id>/pick-*.png` (the blockouts) and check the saved stage: spawns on solid ground, a blast
@@ -45,6 +51,9 @@ stage's pieces are queued together (one model load); several stages in one task,
 node tools/maps/make.mjs <Folder> --paint      # paint every piece, use the best takes, art-director review, music recipe
 ```
 
+- `--paint` checks the GPU fleet first: with no server running and auto start off it stops and says so (`--wait`
+  queues anyway). AWS sometimes has no g6e capacity in our zones for a while: have Hawkes Gen keep trying (start only)
+  and wait; launching a new server elsewhere is J's call, never yours.
 - Takes that draw platforms are chosen by **fit** (how well their walkable tops land on the collision). Under 0.6
   looks off in game: `node tools/maps/make.mjs <Folder> --paint --takes 4` paints more, only for what's missing.
 - The review (Claude, about 5¢) scores it and lists fixes by piece. Repaint a piece with its suggested description

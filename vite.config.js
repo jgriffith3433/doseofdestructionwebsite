@@ -1,12 +1,14 @@
 import path from 'node:path';
 import { defineConfig } from 'vite';
 import { devApi } from './tools/devApi.mjs';
+import { sharedRoot } from './tools/roots.mjs';
 
 const root = process.cwd();
-// Where each fighter's source art and animation clips live. Override with DOD_ART_ROOT.
-const artRoot = process.env.DOD_ART_ROOT || 'C:\\Projects\\AllTheCharacters';
+// Where each fighter's source art and animation clips live. Override with DOD_ART_ROOT (else tools/roots.mjs: a
+// sibling folder, /srv/hawkes/AllTheCharacters on the server, or C:\Projects\AllTheCharacters).
+const artRoot = sharedRoot('AllTheCharacters', 'DOD_ART_ROOT', root);
 // Stage concepts (a folder per stage with images and reference.txt). Override with DOD_MAPS_ROOT.
-const mapsRoot = process.env.DOD_MAPS_ROOT || 'C:\\Projects\\AllTheMaps';
+const mapsRoot = sharedRoot('AllTheMaps', 'DOD_MAPS_ROOT', root);
 
 export default defineConfig({
   base: './',
