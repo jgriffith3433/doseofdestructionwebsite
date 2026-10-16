@@ -44,8 +44,8 @@ export interface GameHooks {
 }
 
 const SCENARIOS = [
-  { id: 'smoke', title: 'Boot, menus, a quick versus match for 20 s, quit to the menu', seconds: 50, tags: ['smoke'] },
-  { id: 'match', title: 'A full 1v1 versus match against the CPU (2 stocks), to the results screen', seconds: 150, tags: ['full'] },
+  { id: 'smoke', title: 'Boot, menus, a quick versus match for 20 s, quit to the menu', description: 'options: stage, fighter (ids) to play specific content', seconds: 50, tags: ['smoke'] },
+  { id: 'match', title: 'A full 1v1 versus match against the CPU (2 stocks), to the results screen', description: 'options: stage, fighter (ids) to play specific content', seconds: 150, tags: ['full'] },
   { id: 'campaign', title: 'The campaign from chapter 1, as far as the bot gets in 10 minutes', seconds: 600, tags: ['full'] },
   { id: 'roster', title: 'Every fighter spawns in training and does each move once (starts matches directly)', seconds: 480, tags: ['full', 'roster'] },
 ];
@@ -355,9 +355,11 @@ class Run {
       const label = have > stocks ? 'Fewer stocks' : 'More stocks';
       await this.click(() => rule('Stocks')?.querySelector<HTMLElement>(`[aria-label="${label}"]`), label);
     }
-    // Fighters from the seed, so a run is repeatable.
+    // Fighters from the seed, so a run is repeatable (options.fighter plays that one).
     const n = CHARACTERS.length;
-    const meIdx = Math.abs(this.options.seed * 11) % n;
+    const asked = typeof this.options.fighter === 'string' ? CHARACTERS.findIndex((c) => c.id === this.options.fighter) : -1;
+    if (typeof this.options.fighter === 'string' && asked < 0) this.t.problem('bug', `fighter "${this.options.fighter}" is not in the roster`);
+    const meIdx = asked >= 0 ? asked : Math.abs(this.options.seed * 11) % n;
     const foeIdx = (meIdx + 1 + (Math.abs(this.options.seed * 17) % (n - 1))) % n;
     await this.click(() => this.q('#select-slots .slot-pick'), 'your slot');
     await this.click(() => document.querySelectorAll<HTMLElement>('#select-grid .tile')[meIdx], CHARACTERS[meIdx].name);
@@ -366,8 +368,12 @@ class Run {
     await this.screen('stages');
     const cards = () => document.querySelectorAll<HTMLElement>('#stage-grid .stage-card:not(.random)');
     await this.t.until(() => cards().length > 0, 5000, 'stage cards');
-    const pick = Math.abs(this.options.seed - 1) % cards().length;
-    await this.click(() => cards()[pick], `stage ${pick + 1}`);
+    // options.stage plays that stage (a content playtest of a new one); else one from the seed.
+    const want = typeof this.options.stage === 'string' ? this.options.stage : null;
+    const byId = want ? [...cards()].findIndex((c) => c.dataset.stage === want) : -1;
+    if (want && byId < 0) this.t.problem('bug', `stage "${want}" is not offered in Versus (content/modes.json)`);
+    const pick = byId >= 0 ? byId : Math.abs(this.options.seed - 1) % cards().length;
+    await this.click(() => cards()[pick], `stage ${want && byId >= 0 ? want : pick + 1}`);
     await this.matchLive();
   }
 

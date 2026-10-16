@@ -42,3 +42,13 @@ go live (minor when players get something new, patch for fixes) plus the build (
 player-facing notes J approved in the go-live plan. `whatsnew.html`, the footer version and the game's title screen and main menu (`Game/index.html`) read it through `hawkes-release.js` (a copy of
 `hawkesstudio/clients/web/hawkes-release.js`: `[data-hawkes-version]`, `[data-hawkes-releases]`). Don't bump versions
 by hand; a typo in old notes can be fixed in the file on beta.
+
+## Making content (agents)
+
+New stages, fighters, lines and music are made end to end by agents with the skills in `.claude/skills/`
+(Claude Code loads them by themselves): `dod-stage` (concept → design → painted layers → `stages.json` +
+`modes.json` → music recipe → playtest; headless through `tools/maps/make.mjs`), `dod-fighter` (side view → poses →
+clips → `fighters.json`), `dod-voice-music`. Every generated file goes through Hawkes Gen and, when it's a file the
+game ships, through `hawkes.assets.json`. GPU work is priced first (`hawkesgen_estimate`, or `make.mjs --estimate`)
+and needs J's OK. Content playtests target the new content with scenario options: `{"stage": "<id>"}` or
+`{"fighter": "<id>"}` on `match`/`smoke` (second line of `.hawkes/scenario.txt`).

@@ -72,7 +72,7 @@ export function openStages(list: { index: number; entry: ModeStage }[], onPick: 
       const st = STAGES[index];
       return h(
         'button',
-        { type: 'button', class: 'stage-card', 'data-autofocus': index === focus || undefined, onclick: () => onPick(index, entry) },
+        { type: 'button', class: 'stage-card', 'data-stage': st.id, 'data-autofocus': index === focus || undefined, onclick: () => onPick(index, entry) },
         stageThumb(st),
         h('strong', {}, entry.name || st.name),
         h('span', {}, entry.blurb || st.blurb),
