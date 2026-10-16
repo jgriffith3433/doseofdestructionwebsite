@@ -1,6 +1,6 @@
 // Reads the local keyboard and gamepads and packs them into the sim's input format.
 
-import { BTN, packInput } from '../sim/input.ts';
+import { BTN, packInput, stickX, stickY } from '../sim/input.ts';
 
 const held = new Set<string>();
 let listening = false;
@@ -89,15 +89,28 @@ export function pads(): Gamepad[] {
   return (navigator.getGamepads?.() ?? []).filter((p): p is Gamepad => !!p && p.connected);
 }
 
-/** The local player's input this frame: the keyboard and the first gamepad, merged. */
+/**
+ * A virtual controller: the playtest bot plugs in here and is read once per
+ * frame like a gamepad. Null (always, outside a playtest) means none.
+ */
+let virtualPad: (() => number) | null = null;
+export function setVirtualPad(read: (() => number) | null): void {
+  virtualPad = read;
+}
+
+/** The local player's input this frame: the keyboard, the first gamepad and any virtual pad, merged. */
 export function readLocal(): number {
   let [sx, sy, b] = keyboardInput();
-  const pad = pads()[0];
-  if (pad) {
-    const [px, py, pb] = gamepadInput(pad);
+  const merge = ([px, py, pb]: [number, number, number]) => {
     if (Math.abs(px) > Math.abs(sx)) sx = px;
     if (Math.abs(py) > Math.abs(sy)) sy = py;
     b |= pb;
+  };
+  const pad = pads()[0];
+  if (pad) merge(gamepadInput(pad));
+  if (virtualPad) {
+    const v = virtualPad();
+    merge([stickX(v), stickY(v), v & ~0xffff]);
   }
   return packInput(sx, sy, b);
 }

@@ -34,8 +34,9 @@ A design has:
 - effects the reference asks for, and design notes.
 
 The concept images are references, not the art: nothing is copied from them.
-The first one is kept as `stages/<id>/reference.webp` to paint from. Without
-`ANTHROPIC_API_KEY` you get one plain draft.
+The first one is kept as `stages/<id>/reference.webp` to paint from. Claude
+runs through Hawkes Gen (`llm.json`); without Hawkes Gen running you get one
+plain draft.
 
 ## Painting
 

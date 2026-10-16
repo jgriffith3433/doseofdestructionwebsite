@@ -1,5 +1,10 @@
-// The generation queue. Each ready GPU server runs one job at a time, so with
-// several servers (the GPU tab's "Servers to use") jobs run side by side:
+// The generation queue. The GPU work runs in Hawkes Gen (C:\Projects\hawkesgen),
+// which owns the AWS servers and shares them between every game: each step of a
+// job here is a Hawkes Gen tool call (image.edit, video.i2v, video.animate), and
+// Hawkes Gen picks the server, keeps models loaded and counts the cost. This
+// queue keeps what is Dose Of Destruction's own: the fighters, poses, clips and
+// stage pieces, where takes go, and which take is in the game.
+// Up to "Servers to use" jobs run at once:
 //
 //   side     front art -> side-view candidates     anims/_side-<seed>.png
 //            (the "Standing" pose; anims/_side.png once chosen)
@@ -20,17 +25,14 @@
 // used straight away when the fighter has no video for that clip yet (or the
 // job says to); otherwise it waits in _takes/ for the artist to pick.
 // The queue is saved to .cache/gpu/jobs.json, each job's graphs to
-// .cache/gpu/graphs/ (they load into ComfyUI as they are).
+// .cache/gpu/graphs/ (copied from Hawkes Gen; they load into ComfyUI as they are).
 
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { ROOT } from './env.mjs';
-import { Comfy } from './comfy.mjs';
-import { comfyEndpoints, fleetStatus, startServer } from './aws.mjs';
-import { loadFleet } from './fleet.mjs';
-import { animate, imageToVideo, paintOver, sideView } from './workflows.mjs';
+import { gen, loadFleet } from './gen.mjs';
 import { loadGeneration, paintSettings, resolve } from './settings.mjs';
 import { dropTake, finishTake, preparePiece } from '../maps/paint.mjs';
 
@@ -40,8 +42,10 @@ export const GRAPHS = path.join(ROOT, '.cache', 'gpu', 'graphs');
 const python = process.platform === 'win32' ? 'python' : 'python3';
 const VIDEO = ['.mp4', '.mov', '.webm', '.mkv', '.gif', '.avi'];
 const MAX_TAKES = 8;
-/** Which models each job type loads: Qwen-Image-Edit, or one of the two Wan setups. */
-const FAMILY = { side: 'qwen', pose: 'qwen', paint: 'qwen', i2v: 'wan-i2v', animate: 'wan-animate' };
+/** The settings each Hawkes Gen tool takes (the rest of a resolved job's settings are ours: fill, count...). */
+const QWEN = ['steps', 'cfg', 'shift', 'lora', 'sampler', 'scheduler', 'denoise'];
+const WAN = ['steps', 'split', 'motionSteps', 'cfgHigh', 'cfg', 'shift', 'loraHigh', 'loraLow', 'loraVersion', 'motionAmplitude', 'sampler', 'scheduler'];
+const ANIMATE = ['steps', 'cfg', 'shift', 'lora', 'sampler', 'scheduler', 'hands', 'face', 'poseResolution'];
 
 export class Jobs {
   /**
@@ -55,15 +59,12 @@ export class Jobs {
     this.clipNames = clipNames;
     this.poseNames = poseNames;
     this.jobs = this.load();
-    /** Server id -> the job running on it. */
-    this.busy = new Map();
+    /** Job ids running now. */
+    this.running = new Set();
     /** Job id -> its AbortController. */
     this.aborts = new Map();
-    /** Server id -> the model family it last loaded. */
-    this.families = new Map();
     /** Post-processing that touches a fighter's shared files runs one at a time. */
     this.serial = Promise.resolve();
-    this.lastAutoStart = 0;
     void this.pump();
   }
 
@@ -184,104 +185,46 @@ export class Jobs {
     this.save();
   }
 
-  /** Starts queued jobs on every ready server that is free; checks again shortly while jobs wait. */
+  /**
+   * Starts queued jobs, up to "Servers to use" at once. Hawkes Gen queues
+   * their GPU steps and runs them as servers come free (and starts stopped
+   * servers by itself if its auto start is on).
+   */
   async pump() {
     if (this.disposed) return;
-    // A pump already checking the servers goes round again when it's done.
-    if (this.pumping) {
-      this.again = true;
-      return;
-    }
-    if (!this.jobs.some((j) => j.status === 'queued')) return;
-    this.pumping = true;
-    this.again = false;
-    let endpoints;
-    try {
-      endpoints = await comfyEndpoints();
-    } catch (e) {
-      endpoints = [];
-      this.waitReason = e.message;
-    } finally {
-      this.pumping = false;
-    }
-    if (this.disposed) return;
-    if (this.again) return void this.pump();
-    const limit = loadFleet().servers;
-    let free = endpoints.filter((ep) => !this.busy.has(ep.id));
-    // Never more jobs at once than "Servers to use" allows.
-    free = free.slice(0, Math.max(0, limit - this.busy.size));
-    for (const ep of free) {
-      const next = this.jobs.find((j) => j.status === 'queued');
-      if (!next) break;
-      void this.runOn(next, ep);
-    }
-    const waiting = this.jobs.filter((j) => j.status === 'queued');
-    if (waiting.length) {
-      const why = endpoints.length
-        ? `waiting for a free GPU server (${this.busy.size} of ${endpoints.length} busy)`
-        : `waiting: ${this.waitReason ?? 'no GPU server is ready. Start one in the GPU tab.'}`;
-      for (const j of waiting) j.detail = why;
-      this.save();
-      if (!endpoints.length || endpoints.length < Math.min(limit, waiting.length + this.busy.size)) void this.autoStart(waiting.length + this.busy.size);
-      clearTimeout(this.retry);
-      this.retry = setTimeout(() => void this.pump(), endpoints.length ? 10_000 : 30_000);
-    }
-  }
-
-  /**
-   * With "start servers by themselves" on: starts stopped servers (already set
-   * up) until there is one per job, up to "Servers to use". Never launches new
-   * ones. At most once every two minutes.
-   */
-  async autoStart(want) {
-    const fleet = loadFleet();
-    if (!fleet.auto || Date.now() - this.lastAutoStart < 120_000) return;
-    this.lastAutoStart = Date.now();
-    try {
-      const all = await fleetStatus();
-      const up = all.filter((st) => ['running', 'pending'].includes(st.state)).length;
-      const need = Math.min(fleet.servers, want) - up;
-      const stopped = all.filter((st) => st.state === 'stopped').slice(0, Math.max(0, need));
-      for (const st of stopped) {
-        await startServer(st.id).catch((e) => console.warn(`[gpu] couldn't start ${st.id}: ${e.message}`));
+    const limit = Math.max(1, loadFleet().servers);
+    for (const j of this.jobs.filter((x) => x.status === 'queued')) {
+      if (this.running.size >= limit) {
+        j.detail = `waiting: ${this.running.size} jobs running ("Servers to use" is ${limit})`;
+        continue;
       }
-      if (stopped.length) console.log(`[gpu] started ${stopped.length} server${stopped.length > 1 ? 's' : ''} for the queue`);
-    } catch (e) {
-      console.warn(`[gpu] auto start: ${e.message}`);
+      void this.runOn(j);
     }
+    this.save();
   }
 
-  async runOn(next, ep) {
-    if (this.busy.has(ep.id) || next.status !== 'queued') return;
-    this.busy.set(ep.id, next);
+  async runOn(next) {
+    if (this.running.has(next.id) || next.status !== 'queued') return;
+    this.running.add(next.id);
     const abort = new AbortController();
     this.aborts.set(next.id, abort);
     // Resumed jobs keep what they already made.
     Object.assign(next, {
-      status: 'running', started: Date.now(), detail: `connecting to the GPU server in ${ep.region}`, server: ep.id, serverRegion: ep.region,
+      status: 'running', started: Date.now(), detail: 'sending to Hawkes Gen',
       seeds: (next.seeds ?? []).slice(0, next.outputs?.length ?? 0), outputs: next.outputs ?? [], graphs: next.graphs ?? [],
     });
     this.save();
     try {
-      const comfy = new Comfy(ep);
-      // A server keeps models on the GPU between jobs (fast), but image and video models
-      // don't fit together: switching family unloads the last one first.
-      const family = FAMILY[next.type];
-      if (this.families.get(ep.id) !== family) {
-        this.step(next, 'unloading the last models to make room');
-        await comfy.free().catch(() => undefined);
-      }
-      this.families.set(ep.id, family);
       // Paint jobs work out their own prompt from the stage (tools/maps/paint.mjs).
       if (next.type !== 'paint') next.resolved = resolve(next, this.info(next.fighter, next.clip, next.pose));
-      await this[next.type](next, comfy);
+      await this[next.type](next);
       Object.assign(next, { status: 'done', finished: Date.now() });
     } catch (e) {
       Object.assign(next, { status: e.message === 'Cancelled' ? 'cancelled' : 'failed', detail: e.message, finished: Date.now() });
       next.log.push(`error: ${e.message}`);
     } finally {
-      if (next.gpuSeconds) next.cost = Math.round((next.gpuSeconds / 3600) * (ep.price ?? 0) * 1000) / 1000;
-      this.busy.delete(ep.id);
+      if (next.cost) next.cost = Math.round(next.cost * 1000) / 1000;
+      this.running.delete(next.id);
       this.aborts.delete(next.id);
       fs.rmSync(path.join(TMP, next.id), { recursive: true, force: true });
       this.save();
@@ -313,15 +256,15 @@ export class Jobs {
     return pose === 'stand' ? path.join(this.animsDir(fighter), '_side.png') : path.join(this.folderFor(fighter, true), 'poses', `${pose}.png`);
   }
 
-  /** Frames a pose for video and uploads it. Every pose gets the same framing, so sizes match between them. */
-  async upPose(job, comfy, pose, label, fill) {
+  /** Frames a pose for video. Every pose gets the same framing, so sizes match between them. */
+  async upPose(job, pose, label, fill) {
     const file = this.posePath(job.fighter, pose);
     if (!fs.existsSync(file)) throw new Error(`${this.info(job.fighter).name} has no ${label} pose yet. Make it in the Poses tab first.`);
     const { size } = job.resolved;
     const input = this.tmp(job, `${job.fighter}-${pose}.png`);
     await prep(['frame', file, input, String(size), String(size), String(fill ?? 0.78)]);
     (job.posesUsed ??= {})[pose] = Math.round(fs.statSync(file).mtimeMs);
-    return comfy.upload(fs.readFileSync(input), `${job.fighter}-${pose}.png`);
+    return input;
   }
 
   /** The best reference for a fighter: their chosen side view, else the front cutout. */
@@ -331,17 +274,38 @@ export class Jobs {
     return { file: path.join(ROOT, 'characters', 'img', `${fighter}.png`), side: false };
   }
 
-  /** Runs one graph, keeping a copy of it; returns its output files. */
-  async run(job, comfy, graph) {
+  /**
+   * Runs one Hawkes Gen tool and returns its first output's bytes. The job's
+   * detail follows Hawkes Gen's (waiting for a server, uploading, running);
+   * cancelling this job cancels it there. Its graphs are copied into GRAPHS.
+   */
+  async gpu(job, tool, { inputs, params, settings = {}, keys = [] }) {
+    const s = Object.fromEntries(keys.filter((k) => settings[k] !== undefined).map((k) => [k, settings[k]]));
+    const labels = Object.fromEntries(Object.entries({ fighter: job.fighter, clip: job.clip, pose: job.pose, stage: job.stage, piece: job.piece, dodJob: job.id }).filter(([, v]) => v !== undefined));
+    const submitted = await gen.submit(tool, { inputs, params: { ...s, ...params }, labels, key: `dod:${job.id}:${params.seed}:${job.graphs.length}` });
+    const done = await gen.wait(submitted.id, {
+      signal: this.aborts.get(job.id)?.signal,
+      onUpdate: (g) => {
+        job.detail = g.detail;
+        if (g.server) job.server = g.server;
+      },
+    });
+    job.gpuSeconds = Math.round(((job.gpuSeconds ?? 0) + (done.gpu_seconds ?? 0)) * 10) / 10;
+    job.cost = (job.cost ?? 0) + (done.cost ?? 0);
+    (job.genJobs ??= []).push(done.id);
     fs.mkdirSync(GRAPHS, { recursive: true });
-    const name = `${job.id}-${job.graphs.length + 1}.json`;
-    fs.writeFileSync(path.join(GRAPHS, name), JSON.stringify(graph, null, 1));
-    job.graphs.push(name);
-    const t = Date.now();
-    const result = await comfy.run(graph, { signal: this.aborts.get(job.id)?.signal, onProgress: (d) => { job.detail = d; } });
-    job.gpuSeconds = (job.gpuSeconds ?? 0) + (Date.now() - t) / 1000;
-    if (!result.files.length) throw new Error('The workflow finished without saving anything');
-    return result.files;
+    for (const g of done.graphs ?? []) {
+      const name = `${job.id}-${job.graphs.length + 1}.json`;
+      try {
+        const r = await gen.request(`/jobs/${done.id}/graphs/${g}`, { raw: true });
+        fs.writeFileSync(path.join(GRAPHS, name), Buffer.from(await r.arrayBuffer()));
+        job.graphs.push(name);
+      } catch {
+        // The graph is a nice-to-have.
+      }
+    }
+    if (!done.outputs?.length) throw new Error('Hawkes Gen finished without saving anything');
+    return Buffer.from(await gen.bytes(done.outputs[0].asset));
   }
 
   /** The seed for the n-th output: the job's own seed counts up, otherwise random. */
@@ -362,19 +326,17 @@ export class Jobs {
 
   // ------------------------------------------------------------- job types
 
-  async side(job, comfy) {
+  async side(job) {
     const { prompt, settings: s } = job.resolved;
     const count = s.count ?? 4;
     const res = String(s.resolution ?? 1024);
     const input = this.tmp(job, `${job.fighter}-front.png`);
     await prep(['frame', path.join(ROOT, 'characters', 'img', `${job.fighter}.png`), input, res, res, String(s.fill ?? 0.86)]);
-    this.step(job, 'uploading the front view');
-    const image = await comfy.upload(fs.readFileSync(input), `${job.fighter}-front.png`);
     for (let i = job.outputs.length; i < count; i++) {
       const seed = this.seed(job, i);
       this.step(job, `side view ${i + 1} of ${count}`);
-      const files = await this.run(job, comfy, sideView({ image, prompt, seed, prefix: `dod/${job.fighter}-side`, s }));
-      this.keep(job, path.join(this.animsDir(job.fighter), `_side-${seed}.png`), await comfy.download(files[0]), seed);
+      const buffer = await this.gpu(job, 'image.edit', { inputs: { images: [input] }, params: { prompt, seed }, settings: s, keys: QWEN });
+      this.keep(job, path.join(this.animsDir(job.fighter), `_side-${seed}.png`), buffer, seed);
     }
     this.step(job, `${count} side view${count > 1 ? 's' : ''} ready to choose from`);
   }
@@ -385,66 +347,70 @@ export class Jobs {
    * side hides. Every pose shares Standing's size and framing. job.takes
    * candidates, to pick from in the Poses tab.
    */
-  async pose(job, comfy) {
+  async pose(job) {
     const { prompt, settings: s } = job.resolved;
     const count = job.takes ?? s.count ?? 2;
     const side = this.posePath(job.fighter, 'stand');
     if (!fs.existsSync(side)) throw new Error(`${this.info(job.fighter).name} has no standing side view yet: choose one first (Poses tab, Standing).`);
-    this.step(job, s.front ? 'uploading the Standing pose and the front art' : 'uploading the Standing pose');
-    const image = await comfy.upload(fs.readFileSync(side), `${job.fighter}-side.png`);
-    let image2;
+    const images = [side];
     if (s.front) {
       const front = this.tmp(job, `${job.fighter}-front.png`);
       await prep(['frame', path.join(ROOT, 'characters', 'img', `${job.fighter}.png`), front, '1024', '1024', '0.86']);
-      image2 = await comfy.upload(fs.readFileSync(front), `${job.fighter}-front.png`);
+      images.push(front);
     }
     const dir = path.join(this.folderFor(job.fighter, true), 'poses', '_takes');
     fs.mkdirSync(dir, { recursive: true });
     for (let i = job.outputs.length; i < count; i++) {
       const seed = this.seed(job, i);
       this.step(job, `${job.pose} ${i + 1} of ${count}`);
-      const files = await this.run(job, comfy, sideView({ image, image2, prompt, seed, prefix: `dod/${job.fighter}-${job.pose}`, s }));
-      this.keep(job, path.join(dir, `${job.pose}-${seed}.png`), await comfy.download(files[0]), seed);
+      const buffer = await this.gpu(job, 'image.edit', { inputs: { images }, params: { prompt, seed }, settings: s, keys: QWEN });
+      this.keep(job, path.join(dir, `${job.pose}-${seed}.png`), buffer, seed);
     }
     this.step(job, `${count} ${job.pose} pose${count > 1 ? 's' : ''} ready to choose from in the Poses tab`);
   }
 
-  async upRef(job, comfy, fill) {
+  async upRef(job, fill) {
     const { size } = job.resolved;
     const ref = this.reference(job.fighter);
     const input = this.tmp(job, `${job.fighter}-ref.png`);
     await prep(['frame', ref.file, input, String(size), String(size), String(fill ?? 0.78)]);
-    this.step(job, `uploading the ${ref.side ? 'side view' : 'front view (no side view chosen yet)'}`);
-    return comfy.upload(fs.readFileSync(input), `${job.fighter}-ref.png`);
+    if (!ref.side) this.step(job, 'using the front view (no side view chosen yet)');
+    return input;
   }
 
   /** A clip from its start pose to its end pose (the same pose for a loop), as the prompt says. */
-  async i2v(job, comfy) {
+  async i2v(job) {
     const r = job.resolved;
     const info = this.info(job.fighter, job.clip);
     job.posesUsed = {};
-    this.step(job, `uploading the ${info.startLabel ?? 'start'} pose${info.end && info.end !== info.start ? ` and the ${info.endLabel} pose` : ''}`);
-    const image = await this.upPose(job, comfy, info.start ?? 'stand', info.startLabel ?? 'Standing', r.settings.fill);
+    this.step(job, `framing the ${info.startLabel ?? 'start'} pose${info.end && info.end !== info.start ? ` and the ${info.endLabel} pose` : ''}`);
+    const image = await this.upPose(job, info.start ?? 'stand', info.startLabel ?? 'Standing', r.settings.fill);
     const pinEnd = info.end && Number(r.settings.endFrame ?? 1) !== 0;
-    const end = !pinEnd ? undefined : info.end === info.start ? image : await this.upPose(job, comfy, info.end, info.endLabel, r.settings.fill);
+    const end = !pinEnd ? undefined : info.end === info.start ? image : await this.upPose(job, info.end, info.endLabel, r.settings.fill);
     job.frames = i2vFrames(r);
-    await this.takes(job, comfy, (seed) =>
-      imageToVideo({ image, end, prompt: r.prompt, negative: r.negative, width: r.size, height: r.size, frames: job.frames, fps: r.fps, seed, prefix: `dod/${job.fighter}-${job.clip}`, s: r.settings }));
+    await this.takes(job, (seed) => this.gpu(job, 'video.i2v', {
+      inputs: { start: image, ...(end ? { end } : {}) },
+      params: { prompt: r.prompt, negative: r.negative, width: r.size, height: r.size, frames: job.frames, fps: r.fps, seed },
+      settings: r.settings,
+      keys: WAN,
+    }));
   }
 
-  async animate(job, comfy) {
+  async animate(job) {
     const r = job.resolved;
     const motionSrc = job.motion ? path.resolve(job.motion) : motionPath(this.folderFor, job.clip);
     if (!fs.existsSync(motionSrc)) throw new Error(`The motion library has no ${job.clip}. Add a good ${job.clip} clip to it first (clip editor).`);
-    const reference = await this.upRef(job, comfy, r.settings.fill);
+    const reference = await this.upRef(job, r.settings.fill);
     const motionInput = this.tmp(job, `${job.clip}-motion.mp4`);
     const count = Number((await prep(['motion', motionSrc, motionInput, String(r.size), String(r.size), String(r.settings.maxFrames ?? 77), String(r.fps)])).trim());
     // Animate makes 4n + 1 frames, no more than the driving video has.
     job.frames = Math.max(5, Math.floor((count - 1) / 4) * 4 + 1);
-    this.step(job, 'uploading the motion');
-    const motion = await comfy.upload(fs.readFileSync(motionInput), `${job.clip}-motion.mp4`);
-    await this.takes(job, comfy, (seed) =>
-      animate({ reference, motion, prompt: r.prompt, negative: r.negative, width: r.size, height: r.size, frames: job.frames, fps: r.fps, seed, prefix: `dod/${job.fighter}-${job.clip}`, s: r.settings }));
+    await this.takes(job, (seed) => this.gpu(job, 'video.animate', {
+      inputs: { reference, motion: motionInput },
+      params: { prompt: r.prompt, negative: r.negative, width: r.size, height: r.size, frames: job.frames, fps: r.fps, seed },
+      settings: r.settings,
+      keys: ANIMATE,
+    }));
   }
 
   /**
@@ -457,7 +423,7 @@ export class Jobs {
    * stages (content/generation.json "paint"); a job's settings override them.
    * See docs/comfyui.md.
    */
-  async paint(job, comfy) {
+  async paint(job) {
     const prep = await preparePiece(job.stage, job.piece, { prompt: job.prompt, tmpDir: path.join(TMP, job.id) });
     const P = paintSettings();
     // The same model and speed LoRA as side views, so their sampler settings apply.
@@ -472,11 +438,10 @@ export class Jobs {
     const target = fits ? Number(s.fitTarget ?? P.fitTarget) : 0;
     const retries = fits ? Math.round(Number(s.retries ?? P.retries)) : 0;
     job.resolved = { prompt: prep.prompt, negative: '', settings: s, size: prep.size[0], fps: 0, seconds: 0 };
-    this.step(job, `uploading the ${prep.piece.kind} blockout and the concept`);
-    const blockout = await comfy.upload(fs.readFileSync(prep.blockout), `${job.stage}-${job.piece}-blockout.png`);
-    const reference = await comfy.upload(fs.readFileSync(prep.reference), `${job.stage}-reference${path.extname(prep.reference)}`);
+    const blockout = prep.blockout;
+    const reference = prep.reference;
     const n = job.takes ?? 2;
-    const size = { width: prep.size[0], height: prep.size[1], prefix: `dod/${job.stage}-${job.piece}` };
+    const size = { width: prep.size[0], height: prep.size[1] };
     job.fits ??= [];
     let tries = 0;
     for (let i = job.outputs.length; i < n; ) {
@@ -484,13 +449,14 @@ export class Jobs {
       const seed = this.seed(job, i * 10 + tries);
       const label = `take ${i + 1} of ${n}${tries ? ` (retry ${tries})` : ''}`;
       this.step(job, `painting ${job.piece}, ${label} (${prep.size.join('x')})`);
-      const first = await comfy.download((await this.run(job, comfy, paintOver({ images: [blockout, reference], prompt: prep.prompt, seed, s, ...size })))[0]);
+      const first = await this.gpu(job, 'image.edit', { inputs: { images: [blockout, reference] }, params: { prompt: prep.prompt, seed, ...size }, settings: s, keys: QWEN });
       let buffer = first;
       if (s.refine > 0 && s.refine < 1) {
         this.step(job, `adding detail to ${label}`);
-        const up = await comfy.upload(first, `${job.stage}-${job.piece}-pass1.png`);
+        const up = this.tmp(job, `${job.stage}-${job.piece}-pass1-${seed}.png`);
+        fs.writeFileSync(up, first);
         const detail = `Refine image 1 without moving anything: keep every shape, edge, outline and position exactly, and keep it a flat, straight-on side view. Add rich detail, texture, materials and lighting: ${prep.prompt}`;
-        buffer = await comfy.download((await this.run(job, comfy, paintOver({ images: [up, reference], prompt: detail, seed: seed + 1, s: { ...s, denoise: s.refine }, ...size })))[0]);
+        buffer = await this.gpu(job, 'image.edit', { inputs: { images: [up, reference] }, params: { prompt: detail, seed: seed + 1, ...size }, settings: { ...s, denoise: s.refine }, keys: QWEN });
       }
       this.step(job, prep.cutout ? 'cutting it out' : 'saving it');
       let take = await finishTake(prep, buffer, seed, { job: job.id, settings: s });
@@ -519,7 +485,7 @@ export class Jobs {
   }
 
   /** Makes job.takes takes into anims/_takes/, then uses the first if the job says to. */
-  async takes(job, comfy, build) {
+  async takes(job, make) {
     const n = job.takes ?? 1;
     const dir = this.animsDir(job.fighter, '_takes');
     // Takes a resumed job already saved count.
@@ -527,7 +493,7 @@ export class Jobs {
     for (let i = made.length; i < n; i++) {
       const seed = this.seed(job, i);
       this.step(job, `take ${i + 1} of ${n}: ${job.frames} frames`);
-      const files = await this.run(job, comfy, build(seed));
+      const buffer = await make(seed);
       // The same seed again (a rerun, a settings test) gets its own file instead of overwriting.
       // Claim the name by creating it, so two takes finishing at once can't pick the same one.
       let dest = path.join(dir, `${job.clip}-${seed}.mp4`);
@@ -539,7 +505,7 @@ export class Jobs {
           dest = path.join(dir, `${job.clip}-${seed}-${n}.mp4`);
         }
       }
-      this.keep(job, dest, await comfy.download(files[0]), seed);
+      this.keep(job, dest, buffer, seed);
       made.push(dest);
     }
     const has = this.current(job.fighter, job.clip);

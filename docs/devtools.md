@@ -104,29 +104,28 @@ checklist. It never touches videos.
 
 ## Generating audio
 
-Sound and voice generation use ElevenLabs. Put your key in a `.env` file in
-the project root (it is gitignored), then restart the dev server:
+Sound and voice generation use ElevenLabs through Hawkes Gen (its `audio.sfx`
+and `audio.voice` tools), which holds the key in `hawkesgen\.env`. Start
+Hawkes Gen and the Sounds and Voice tabs work; every take is also kept in
+Hawkes Gen's library with what made it.
 
-```
-ELEVENLABS_API_KEY=your-key-here
-```
-
-Without a key, everything else still works and you can upload audio files.
+Without Hawkes Gen running, everything else still works and you can upload
+audio files.
 
 ## Generating animations
 
-The GPU tab runs ComfyUI on a g6e machine (an NVIDIA L40S, 48 GB) in your
-AWS account with Wan 2.2 Animate, Wan 2.2 image-to-video and
-Qwen-Image-Edit 2511. It needs these in `.env`:
+The GPU work runs in **Hawkes Gen** (`C:\Projects\hawkesgen`), the service
+every Hawkes game shares: it owns the AWS GPU servers (g6e, an NVIDIA L40S,
+48 GB) running ComfyUI with Wan 2.2 Animate, Wan 2.2 image-to-video and
+Qwen-Image-Edit 2511, the AWS keys (in `hawkesgen\.env`), and one queue for
+every project. **Start it first** (`hawkesgen\auto-start.bat`, dashboard at
+http://127.0.0.1:8790). The GPU tab here talks to it through
+`tools/gpu/gen.mjs`, and every job step (side view, pose, clip, stage piece)
+is a Hawkes Gen job labelled with the fighter, clip or stage; the takes still
+land in the same folders as before, and Hawkes Gen's library keeps a copy.
 
-```
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
-AWS_DEFAULT_REGION=us-east-1
-```
-
-`node tools/gpu/check.mjs` and `node tools/gpu/regions.mjs` show what the
-keys can see, without creating anything.
+`hawkesgen.cmd fleet status` shows the servers from a terminal. The map
+designer and art-director review (Maps tab) ask Claude through Hawkes Gen too.
 
 **Cost.** About $1.86 an hour for a `g6e.xlarge` while it runs (bigger sizes
 are listed with their prices), and about $27 a month for its 250 GB disk
@@ -139,13 +138,13 @@ us-west-2, eu-north-1, eu-central-1 or ap-northeast-1. "Region: any" launches in
 a free machine. GPU quota is how many GPU vCPUs the account may run in a
 region (a `g6e.xlarge` needs 4); the Regions card shows it, with open
 requests, and can request more (free; AWS reviews it, usually within a day).
-`node tools/gpu/quota.mjs` does the same from a terminal.
+(Hawkes Gen's API does the same: `POST /v1/fleet/quota`.)
 
 **Several servers.** Each ready server runs one job at a time, so with more
 servers a batch (painting every piece of a stage, a fighter's clips) runs
 side by side. The Scaling card sets **Servers to use** (default 4, up to 8):
 how many servers there may be and how many jobs run at once. It's saved in
-`.cache/gpu/fleet.json`. **Add a server** launches another (it sets itself up
+Hawkes Gen (its settings apply to every game). **Add a server** launches another (it sets itself up
 once, then keeps its own disk, about $27 a month each); **Start N more**
 starts the stopped ones; **Stop all** stops every one. With "start stopped
 servers by themselves" on, waiting jobs start stopped servers (never new

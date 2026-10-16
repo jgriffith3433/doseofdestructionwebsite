@@ -17,7 +17,7 @@
  *   POST /api/dev/sfx/generate          ElevenLabs sound generation
  *   GET  /api/dev/voice/voices          ElevenLabs voices on the account
  *   POST /api/dev/voice/generate        ElevenLabs speech for one line
- *   GET  /api/dev/gpu                   the AWS GPU server, regions, retries, and the job queue
+ *   GET  /api/dev/gpu                   the GPU fleet (through Hawkes Gen), regions, retries, and the job queue
  *   POST /api/dev/gpu/launch|start|stop|terminate|access   manage the GPU server
  *                                       (launch/start take keepTrying: { minutes })
  *   POST /api/dev/gpu/retry/stop        stop keep-trying
@@ -55,15 +55,11 @@ import { spawn, spawnSync } from 'node:child_process';
 import { normalizePath } from 'vite';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import https from 'node:https';
 import os from 'node:os';
 import path from 'node:path';
-import { checkAccount } from './gpu/check.mjs';
-import { fixServer, fleetStatus, launchServer, serverHealth, serverLog, refreshAccess, regionsInfo, requestQuota, startServer, stopServer, terminateServer, DEFAULT_TYPE, DISK_PER_MONTH, TYPES } from './gpu/aws.mjs';
-import { FLEET_MAX, loadFleet, saveFleet } from './gpu/fleet.mjs';
+// The GPU fleet lives in Hawkes Gen (C:\Projects\hawkesgen); gen.mjs gives the same functions over its API.
+import { gen, checkAccount, fixServer, fleetStatus, launchServer, serverHealth, serverLog, refreshAccess, regionsInfo, requestQuota, startServer, stopServer, terminateServer, DEFAULT_TYPE, DISK_PER_MONTH, TYPES, FLEET_MAX, loadFleet, saveFleet, Retry, capacityScores } from './gpu/gen.mjs';
 import { GRAPHS, Jobs, motionPath } from './gpu/jobs.mjs';
-import { Retry } from './gpu/retry.mjs';
-import { capacityScores } from './gpu/capacity.mjs';
 import { DEFAULTS, LIMITS } from './gpu/settings.mjs';
 import { mapIdeas } from './maps/idea.mjs';
 import { composite, designPreview, loadStage, paintPlan } from './maps/paint.mjs';
@@ -123,81 +119,29 @@ const inside = (base, target) => {
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 };
 
-const elevenKey = (root) => {
-  if (process.env.ELEVENLABS_API_KEY?.trim()) return process.env.ELEVENLABS_API_KEY.trim();
-  for (const name of ['.env.local', '.env']) {
-    const file = path.join(root, name);
-    if (!fs.existsSync(file)) continue;
-    const m = fs.readFileSync(file, 'utf8').match(/^ELEVENLABS_API_KEY=(.*)$/m);
-    if (m) return m[1].trim().replace(/^['"]|['"]$/g, '');
-  }
-  return '';
-};
+/** Which providers Hawkes Gen has keys for, refreshed in the background (the Fighters tab shows it). */
+let genProviders = {};
+const refreshProviders = () => gen.health().then((h) => { genProviders = h.providers ?? {}; }).catch(() => { genProviders = {}; });
+void refreshProviders();
+setInterval(refreshProviders, 60_000).unref?.();
 
-const eleven = (url, { method = 'GET', key, body }) =>
-  new Promise((resolve, reject) => {
-    const headers = { 'xi-api-key': key };
-    if (body) {
-      headers['Content-Type'] = 'application/json';
-      headers.Accept = 'application/octet-stream';
-    }
-    const req = https.request(url, { method, headers, family: 4, timeout: 120000 }, (res) => {
-      const chunks = [];
-      res.on('data', (c) => chunks.push(c));
-      res.on('end', () => resolve({ status: res.statusCode ?? 0, headers: res.headers, buffer: Buffer.concat(chunks) }));
-    });
-    req.on('timeout', () => req.destroy(new Error('ElevenLabs timed out')));
-    req.on('error', reject);
-    if (body) req.write(JSON.stringify(body));
-    req.end();
-  });
-
-const elevenOk = (r) => r.status >= 200 && r.status < 300 && r.buffer[0] !== 0x7b;
-const elevenStatus = (r) => {
+/** Runs an ElevenLabs tool in Hawkes Gen and returns the audio bytes. */
+async function genAudio(tool, params, labels) {
   try {
-    return String(JSON.parse(r.buffer.toString('utf8'))?.detail?.status ?? '');
-  } catch {
-    return '';
-  }
-};
-// 429 is both "too many concurrent requests" (wait and retry) and, on some
-// plans, "out of credits" (stop). The detail status tells them apart.
-const throttled = (r) =>
-  r.status === 503 || (r.status === 429 && !/quota/.test(elevenStatus(r))) || /too_many_concurrent|rate_limit|system_busy/.test(elevenStatus(r));
-const retryAfter = (r, tries) => {
-  const s = Number(r.headers?.['retry-after']);
-  return Number.isFinite(s) && s > 0 ? Math.min(60, s) : Math.min(30, 2 ** tries);
-};
-
-/** Calls ElevenLabs, waiting out short throttles here so the browser sees fewer of them. */
-async function elevenRetry(url, opts) {
-  for (let tries = 1; ; tries++) {
-    let r;
-    try {
-      r = await eleven(url, opts);
-    } catch (e) {
-      // Dropped connections and timeouts are worth one more go.
-      if (tries >= 3) throw Object.assign(e, { status: 503, code: 'throttled', retryAfter: 10 });
-      await new Promise((done) => setTimeout(done, 2000 * tries));
-      continue;
-    }
-    if (!throttled(r)) return r;
-    const wait = retryAfter(r, tries);
-    if (tries >= 4) throw elevenError(r, wait);
-    await new Promise((done) => setTimeout(done, wait * 1000));
+    const job = await gen.run(tool, { params, labels, timeoutMs: 5 * 60 * 1000 });
+    return Buffer.from(await gen.bytes(job.outputs[0].asset));
+  } catch (e) {
+    throw genAudioError(e);
   }
 }
 
-/** An error the devtools can act on: code is throttled (retry later), quota or auth (stop), or failed. */
-const elevenError = (r, wait) => {
-  const detail = elevenStatus(r);
-  const code = throttled(r) ? 'throttled' : /quota|credits/.test(detail) || r.status === 402 ? 'quota' : r.status === 401 ? 'auth' : 'failed';
-  return Object.assign(new Error(`ElevenLabs ${r.status}: ${r.buffer.toString('utf8').slice(0, 300)}`), {
-    status: code === 'throttled' ? 429 : r.status >= 400 ? r.status : 502,
-    code,
-    retryAfter: code === 'throttled' ? (wait ?? retryAfter(r, 1)) : undefined,
-  });
-};
+/** Hawkes Gen's failure as the error the devtools batch understands (throttled: retry later; quota/auth: stop). */
+function genAudioError(e) {
+  const msg = e?.message ?? String(e);
+  if (e?.kind === 'offline') return Object.assign(new Error(msg), { status: 502, code: 'failed' });
+  const code = /429|throttl|too_many|system_busy|rate/i.test(msg) ? 'throttled' : /quota|credits|402/i.test(msg) ? 'quota' : /401|rejected|ELEVENLABS_API_KEY/i.test(msg) ? 'auth' : 'failed';
+  return Object.assign(new Error(msg), { status: code === 'throttled' ? 429 : code === 'quota' ? 402 : code === 'auth' ? 401 : 502, code, retryAfter: code === 'throttled' ? 10 : undefined });
+}
 
 // ------------------------------------------------------------------ plugin
 
@@ -446,7 +390,7 @@ export function devApi({ root, artRoot, mapsRoot }) {
     return {
       artRoot,
       artRootExists: fs.existsSync(artRoot),
-      elevenLabs: Boolean(elevenKey(root)),
+      elevenLabs: genProviders.elevenlabs === true,
       ffmpeg: true,
       running: job ? job.task : null,
       fighters,
@@ -706,48 +650,33 @@ export function devApi({ root, artRoot, mapsRoot }) {
       return run(res, task, fighter, clip, mode, file);
     }
 
+    // Sound and voice run in Hawkes Gen (audio.sfx, audio.voice), which holds the ElevenLabs key.
     if (req.method === 'POST' && route === '/sfx/generate') {
-      const key = elevenKey(root);
-      if (!key) return fail(res, 400, 'Add ELEVENLABS_API_KEY=... to a .env file in the project, then restart npm run dev.');
       const { id, text, loop, duration, influence } = await readJson(req);
       if (!String(text || '').trim()) return fail(res, 400, 'This effect has no description.');
-      const body = {
-        text: String(text).trim(),
-        model_id: 'eleven_text_to_sound_v2',
-        prompt_influence: Math.max(0, Math.min(1, Number(influence ?? 0.55))),
-        loop: loop === true,
-      };
-      if (duration) body.duration_seconds = Math.max(0.5, Math.min(30, Number(duration)));
-      const r = await elevenRetry('https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128', { method: 'POST', key, body });
-      if (!elevenOk(r)) throw elevenError(r);
-      const file = saveAudio('sfx', id, r.buffer, '.mp3');
-      return send(res, 200, { file, take: { text: body.text, loop: body.loop, duration: body.duration_seconds ?? null, influence: body.prompt_influence } });
+      const params = { text: String(text).trim(), loop: loop === true, influence: Math.max(0, Math.min(1, Number(influence ?? 0.55))) };
+      if (duration) params.duration = Math.max(0.5, Math.min(30, Number(duration)));
+      const buffer = await genAudio('audio.sfx', params, { sound: id });
+      const file = saveAudio('sfx', id, buffer, '.mp3');
+      return send(res, 200, { file, take: { text: params.text, loop: params.loop, duration: params.duration ?? null, influence: params.influence } });
     }
 
     if (req.method === 'GET' && route === '/voice/voices') {
-      const key = elevenKey(root);
-      if (!key) return fail(res, 400, 'Add ELEVENLABS_API_KEY=... to a .env file in the project, then restart npm run dev.');
-      const r = await eleven('https://api.elevenlabs.io/v1/voices', { key });
-      if (r.status < 200 || r.status >= 300) throw elevenError(r);
-      const voices = (JSON.parse(r.buffer.toString('utf8')).voices ?? [])
-        .map((v) => ({ id: v.voice_id, name: v.name, category: v.category ?? '', preview: v.preview_url ?? '' }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+      let voices;
+      try {
+        voices = (await gen.voices()).map((v) => ({ id: v.id, name: v.name, category: v.category ?? '', preview: v.preview ?? '' })).sort((a, b) => a.name.localeCompare(b.name));
+      } catch (e) {
+        throw genAudioError(e);
+      }
       return send(res, 200, { voices });
     }
 
     if (req.method === 'POST' && route === '/voice/generate') {
-      const key = elevenKey(root);
-      if (!key) return fail(res, 400, 'Add ELEVENLABS_API_KEY=... to a .env file in the project, then restart npm run dev.');
       const { id, text, voice, model } = await readJson(req);
       if (!String(text || '').trim()) return fail(res, 400, 'This line has no text.');
       if (!/^[A-Za-z0-9]{8,40}$/.test(voice || '')) return fail(res, 400, 'Pick a voice for this speaker first.');
-      const r = await elevenRetry(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`, {
-        method: 'POST',
-        key,
-        body: { text: String(text).trim(), model_id: model || 'eleven_v4' },
-      });
-      if (!elevenOk(r)) throw elevenError(r);
-      const file = saveAudio('voice', id, r.buffer, '.mp3');
+      const buffer = await genAudio('audio.voice', { text: String(text).trim(), voice, model: model || 'eleven_v4' }, { line: id });
+      const file = saveAudio('voice', id, buffer, '.mp3');
       return send(res, 200, { file, take: { text: String(text).trim(), voice } });
     }
 

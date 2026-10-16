@@ -14,6 +14,7 @@ import { $, formatTime, h, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, go, listenMenuKeys, onBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playDialogue, playVersus, showResults, type ResultAction } from './ui/views.ts';
+import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
 
 const TICK_MS = 1000 / 60;
 
@@ -41,6 +42,10 @@ let training: VersusConfig = {
   teams: false,
 };
 const progress = loadProgress();
+// Playtest hooks (playtest/dod.ts). Outside a playtest: no seed, normal speed, no watchers.
+let playtestSeed: number | null = null;
+let simSpeed = 1;
+const matchWatchers = new Set<MatchWatcher>();
 
 // ------------------------------------------------------------ saved choices
 
@@ -263,7 +268,7 @@ async function chapterCleared(c: Chapter): Promise<void> {
 
 async function startMatch(setup: MatchSetup, withVersus: boolean): Promise<void> {
   endMatch();
-  const seed = (Math.random() * 0x7fffffff) | 0;
+  const seed = playtestSeed ?? (Math.random() * 0x7fffffff) | 0;
   const m = new Match(setup, seed);
   renderer.setStage(setup.stage);
   // Everything the match shows and plays is loaded during the VS splash (or the loading
@@ -331,6 +336,7 @@ let lastActions: number[] = [];
 function tick(m: Match): void {
   const events = m.tick(readLocal());
   renderer.onEvents(events);
+  for (const w of matchWatchers) w(m, events);
   for (const e of events) if (e.type === 'hit' && !e.shield) bumpHud(e.victim);
   playEventSounds(m, events);
   updateHud(m);
@@ -522,7 +528,7 @@ function bumpHud(id: number): void {
 
 function frame(): void {
   const now = performance.now();
-  acc += Math.min(100, now - last);
+  acc += Math.min(100, now - last) * simSpeed;
   last = now;
 
   if (match && phase !== 'idle' && pausePressed()) setPaused(phase !== 'pause');
@@ -540,7 +546,7 @@ function frame(): void {
     }
   } else if (match && phase === 'play') {
     let steps = 0;
-    while (acc >= TICK_MS && steps < 5 && phase === 'play' && match) {
+    while (acc >= TICK_MS && steps < 5 * simSpeed && phase === 'play' && match) {
       acc -= TICK_MS;
       tick(match);
       steps++;
@@ -586,6 +592,24 @@ if (playtestChapter) {
 } else {
   go('title');
 }
+
+// The Hawkes playtest contract (window.hawkesPlaytest). Idle until the runner
+// starts a scenario or the URL has ?playtest=<id>.
+installDodPlaytest({
+  match: () => match,
+  phase: () => phase,
+  setSeed: (seed) => (playtestSeed = seed),
+  setSpeed: (speed) => (simSpeed = Math.max(1, Math.min(4, speed))),
+  watch: (w) => {
+    matchWatchers.add(w);
+    return () => matchWatchers.delete(w);
+  },
+  startMatch: (setup) => startMatch(setup, false),
+  quitMatch: () => {
+    endMatch();
+    return go('main', spotlight);
+  },
+});
 
 if (import.meta.env.DEV) {
   // advance(n) runs n ticks without waiting on animation frames, for test drivers.

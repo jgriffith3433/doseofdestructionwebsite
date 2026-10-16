@@ -18,6 +18,11 @@ export function currentScreen(): ScreenId | null {
   return current;
 }
 
+/** True while a wipe is switching screens (menu presses are ignored then). */
+export function switching(): boolean {
+  return busy;
+}
+
 /** What Esc, Backspace or the B button does on a screen. */
 export function onBack(id: ScreenId, fn: () => void): void {
   backHandlers.set(id, fn);

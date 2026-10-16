@@ -6,16 +6,12 @@
 // that come and go, and art that moves and reacts. A design can be revised
 // with feedback. The Maps tab opens the chosen one unsaved, to edit and save.
 //
-// With ANTHROPIC_API_KEY in .env, Claude reads the concept art and the
-// reference and designs the stage (structured output, so the JSON always
-// fits). Without it, a plain draft is built from the image's colors and
-// keywords in the reference.
+// Claude (through Hawkes Gen's llm.json, which holds the key) reads the
+// concept art and the reference and designs the stage (structured output, so
+// the JSON always fits). If Hawkes Gen isn't running or has no Claude key, a
+// plain draft is built from the image's colors and keywords in the reference.
 
-import fs from 'node:fs';
-import Anthropic from '@anthropic-ai/sdk';
-import { readEnv } from '../gpu/env.mjs';
-
-const MODEL = 'claude-opus-5-5';
+import { askClaude, claudeAvailable } from '../gpu/gen.mjs';
 const PROPS = ['frame', 'skyline', 'clouds', 'embers', 'pipes'];
 const HEX = { type: 'string', description: 'A #rrggbb color' };
 const INT = { type: 'integer' };
@@ -150,18 +146,12 @@ const REVISE_ANGLES = [
  * Each design is its own request (in parallel), with its own angle.
  */
 export async function mapIdeas({ id, name, folder, reference, images, backdrop, palette, sounds, example, count = 3, direction = '', base = null, feedback = '' }) {
-  const env = readEnv();
-  const key = env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
-  if (!key) return { designs: [plainIdea({ id, name, folder, reference, backdrop, palette }).stage], ai: false, why: 'Add ANTHROPIC_API_KEY to .env for AI-designed stages.' };
+  if (!(await claudeAvailable())) return { designs: [plainIdea({ id, name, folder, reference, backdrop, palette }).stage], ai: false, why: 'Start Hawkes Gen (C:\\Projects\\hawkesgen\\auto-start.bat, with ANTHROPIC_API_KEY in its .env) for AI-designed stages.' };
   count = Math.max(1, Math.min(4, Number(count) || 3));
 
-  const client = new Anthropic({ apiKey: key });
-  const shared = [];
-  for (const img of images.slice(0, 4)) {
-    shared.push({ type: 'image', source: { type: 'base64', media_type: 'image/webp', data: fs.readFileSync(img.file).toString('base64') } });
-    shared.push({ type: 'text', text: `Concept image: ${img.label}` });
-  }
+  const concepts = images.slice(0, 4);
   const context = [
+    concepts.length && `The attached images, in order: ${concepts.map((img, k) => `image ${k + 1} is concept art: ${img.label}`).join('; ')}.`,
     `Stage: ${name} (folder ${folder}).`,
     `Reference from the designer:
 """
@@ -189,30 +179,18 @@ ${feedback.trim() || '(none: improve it)'}
     const ask = base
       ? `Revise this design. ${angle} Keep what the feedback doesn't mention, unless it is what makes the stage worse.`
       : count > 1 ? `Design this stage. This is take ${i + 1} of ${count}: ${angle}` : 'Design this stage.';
-    let response;
-    try {
-      response = await client.beta.messages.stream({
-        model: MODEL,
-        max_tokens: 32000,
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
-        output_config: { effort: 'high', format: { type: 'json_schema', schema: SCHEMA } },
-        system: SYSTEM,
-        messages: [{ role: 'user', content: [...shared, { type: 'text', text: `${context}
+    const r = await askClaude({
+      prompt: `${context}
 
-${ask}` }] }],
-      }).finalMessage();
-    } catch (e) {
-      if (e instanceof Anthropic.AuthenticationError) throw new Error('The ANTHROPIC_API_KEY in .env was rejected.');
-      if (e instanceof Anthropic.RateLimitError) throw new Error('Claude is rate limited right now; try again in a minute.');
-      if (e instanceof Anthropic.APIError) throw new Error(`Claude API error ${e.status}: ${e.message}`);
-      throw e;
-    }
-    if (response.stop_reason === 'refusal') throw new Error('Claude declined to design this stage. Try rewording reference.txt.');
-    if (response.stop_reason === 'max_tokens') throw new Error('A design ran out of room before it finished. Try again.');
-    const text = response.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+${ask}`,
+      system: SYSTEM,
+      images: concepts.map((img) => img.file),
+      schema: SCHEMA,
+      maxTokens: 32000,
+      labels: { stage: id, step: 'map-idea' },
+    });
     try {
-      return { stage: toStage(JSON.parse(text), { id, folder, backdrop }), usage: response.usage, model: response.model };
+      return { stage: toStage(r.value, { id, folder, backdrop }), usage: r.usage, model: r.model };
     } catch {
       throw new Error('Claude returned something that is not a stage design. Try again.');
     }
