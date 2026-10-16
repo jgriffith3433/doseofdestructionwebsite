@@ -62,6 +62,7 @@ interface Spark {
   vy: number;
   life: number;
   max: number;
+  size: number;
 }
 
 export class Renderer {
@@ -70,6 +71,8 @@ export class Renderer {
   private camera: FreeCamera;
   private views: FighterView[] = [];
   private sparks: Spark[] = [];
+  /** Finished spark meshes, reused so a KO burst doesn't build geometry mid-fight. */
+  private sparkPool: Mesh[] = [];
   private sparkMat: StandardMaterial;
   private debugMeshes: Mesh[] = [];
   private debugMat: StandardMaterial;
@@ -455,12 +458,13 @@ export class Renderer {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = speed * (0.4 + Math.random() * 0.8);
-      const mesh = CreatePlane('spark', { size: 0.06 + Math.random() * 0.08 }, this.scene);
+      const mesh = this.sparkPool.pop() ?? CreatePlane('spark', { size: 1 }, this.scene);
       mesh.material = this.sparkMat;
+      mesh.setEnabled(true);
       mesh.position.set(x, y, -0.4);
       mesh.rotation.z = a;
       const life = 14 + Math.floor(Math.random() * 14);
-      this.sparks.push({ mesh, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life, max: life });
+      this.sparks.push({ mesh, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life, max: life, size: 0.06 + Math.random() * 0.08 });
     }
   }
 
@@ -564,9 +568,10 @@ export class Renderer {
       s.vy *= 0.9;
       s.vy -= 0.002;
       const k = --s.life / s.max;
-      s.mesh.scaling.set(k, k, 1);
+      s.mesh.scaling.set(k * s.size, k * s.size, 1);
       if (s.life <= 0) {
-        s.mesh.dispose();
+        s.mesh.setEnabled(false);
+        this.sparkPool.push(s.mesh);
         this.sparks.splice(i, 1);
       }
     }
