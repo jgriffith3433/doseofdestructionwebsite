@@ -49,6 +49,7 @@ const SCENARIOS = [
   { id: 'match', title: 'A full 1v1 versus match against the CPU (2 stocks), to the results screen', description: 'options: stage, fighter (ids) to play specific content', seconds: 150, tags: ['full'] },
   { id: 'campaign', title: 'The campaign from chapter 1, as far as the bot gets in 10 minutes', seconds: 600, tags: ['full'] },
   { id: 'sound-settings', title: 'Tap to play, sound on, Settings from the menu and Pause, a setting kept across a reload', description: 'Taps the Tap to play prompt with a pointer press on the spot (hit-tested, so a covered prompt fails), checks the AudioContext runs and the menu music plays with no more taps, opens Settings from the main menu, turns Sound off and Music to 40%, reloads (the run carries on through ?playtest=sound-settings), checks the prompt and the choice are back, then opens Settings from Pause in a match. The player\'s own hawkes.sound is put back at the end.', seconds: 120, tags: ['smoke', 'sound'] },
+  { id: 'site-links', title: 'The website around the game: Powered by HAWKES GEN on every page, Hawkes Biomedical on the landing page, the game screen without them', description: 'Checks the game screen has no site footer marks, then opens the landing page over the game in a full-screen frame and walks the site through its own links (footer Characters, a fighter card picked from the seed, Privacy, What\'s new), checking on each page that "Powered by HAWKES GEN" links to https://hawkesgen.com (shown, not covered) and on the landing page that Hawkes Biomedical links to https://hawkesbiomedical.com. Every fighter page is also read and checked. The frame is removed at the end and the game checked again.', seconds: 60, tags: ['smoke', 'site'] },
   { id: 'roster', title: 'Every fighter spawns in training and does each move once (starts matches directly)', seconds: 480, tags: ['full', 'roster'] },
 ];
 
@@ -82,6 +83,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'campaign') await r.campaign();
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
+        else if (id === 'site-links') await r.siteLinks();
       } finally {
         r.dispose();
       }
@@ -745,6 +747,135 @@ class Run {
     t.finish('done');
   }
 
+  // -------------------------------------------------------------- site-links
+
+  /** The site pages carry the Hawkes Gen mark (and the landing page Hawkes Biomedical); the game screen doesn't. */
+  async siteLinks(): Promise<void> {
+    const t = this.t;
+    const gameUnchanged = (where: string) => {
+      const marks = document.querySelectorAll(`a[href^="${HAWKES_GEN}"], a[href^="${HAWKES_BIOMEDICAL}"], .footer-credit, .site-footer`);
+      if (marks.length) t.problem('bug', `the game screen shows site footer marks ${where} (${marks.length})`);
+      else t.event('game-unchanged', `no Hawkes Gen or Hawkes Biomedical mark on the game screen ${where} (${SCREEN_NAMES[currentScreen() ?? 'title']})`);
+    };
+
+    await this.screen('title', 30000);
+    gameUnchanged('on the title screen');
+    await this.toMainMenu();
+    gameUnchanged('on the main menu');
+    t.progress(0.1);
+
+    // The site opens over the game in a full-screen frame, so the video shows it and the run carries on here.
+    const frame = document.createElement('iframe');
+    frame.title = 'Dose of Destruction website (playtest)';
+    frame.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;background:#0c0a09;z-index:2147483647';
+    frame.src = '/';
+    document.body.appendChild(frame);
+    const doc = () => frame.contentDocument;
+    const loaded = async (path: string, what: string) => {
+      await t.until(() => {
+        const d = doc();
+        return !!d && d.readyState === 'complete' && frame.contentWindow?.location.pathname === path;
+      }, 15000, what);
+      t.event('page', path);
+      await t.wait(800);
+    };
+    const footerLink = (text: string) => [...(doc()?.querySelectorAll<HTMLElement>('.footer-links a') ?? [])].find((a) => a.textContent?.trim() === text);
+    /** A press on a link in the page, hit-tested there like a finger or a mouse. */
+    const press = async (el: HTMLElement | null | undefined, what: string) => {
+      if (!el) {
+        t.problem('bug', `no ${what} link on ${frame.contentWindow?.location.pathname}`);
+        throw new Error(`no ${what} link`);
+      }
+      el.scrollIntoView({ block: 'center' });
+      await t.wait(500);
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      const target = (doc()!.elementFromPoint(x, y) as HTMLElement | null) ?? el;
+      if (!el.contains(target)) t.problem('bug', `${what} is covered: a press on it lands on ${target.tagName.toLowerCase()}`);
+      const init = { pointerType: 'mouse', pointerId: 1, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, clientX: x, clientY: y };
+      t.log(`press ${what}`);
+      target.dispatchEvent(new PointerEvent('pointerdown', init));
+      await t.wait(60);
+      target.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }));
+      target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 }));
+      t.add('interactions');
+    };
+    /** A link to an outside site: there, says what it should, shown and not covered. Not followed (the run stays here). */
+    const checkLink = async (selector: string, href: string, text: string, label: string) => {
+      const d = doc()!;
+      const path = frame.contentWindow!.location.pathname;
+      const a = d.querySelector<HTMLAnchorElement>(selector);
+      if (!a) {
+        t.problem('bug', `${path}: no ${label} link`);
+        return;
+      }
+      if (a.href.replace(/\/$/, '') !== href) t.problem('bug', `${path}: ${label} links to ${a.href}, not ${href}`);
+      const says = a.textContent?.replace(/\s+/g, ' ').trim();
+      if (says !== text) t.problem('bug', `${path}: ${label} reads "${says}", not "${text}"`);
+      a.scrollIntoView({ block: 'center' });
+      await t.wait(400);
+      const r = a.getBoundingClientRect();
+      const hit = d.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (r.width < 1 || r.height < 1 || !hit || !a.contains(hit)) t.problem('bug', `${path}: the ${label} link is hidden or covered`);
+      else t.event('link', `${path}: "${says}" → ${a.href}`);
+      // Held on screen for the video, outlined for a moment.
+      a.style.outline = '2px solid #ffd15a';
+      a.style.outlineOffset = '4px';
+      await t.wait(1200);
+      a.style.outline = '';
+      a.style.outlineOffset = '';
+    };
+    const checkCredit = () => checkLink('.footer-credit a', HAWKES_GEN, 'Powered by HAWKES GEN', 'Powered by HAWKES GEN');
+
+    try {
+      await loaded('/', 'the landing page');
+      await checkLink('a[data-hawkes-parent]', HAWKES_BIOMEDICAL, 'Hawkes Biomedical', 'Hawkes Biomedical');
+      await checkCredit();
+      t.progress(0.25);
+
+      await press(footerLink('Characters'), 'Characters (footer)');
+      await loaded('/characters.html', 'the characters page');
+      await checkCredit();
+      t.progress(0.4);
+
+      const cards = [...doc()!.querySelectorAll<HTMLAnchorElement>('a.roster-card')];
+      const card = cards[Math.abs(this.options.seed ?? 1) % Math.max(1, cards.length)];
+      await press(card, card ? `the ${new URL(card.href).pathname} card` : 'a fighter card');
+      await loaded(new URL(card.href).pathname, 'a fighter page');
+      await checkCredit();
+      t.progress(0.55);
+
+      await press(footerLink('Privacy'), 'Privacy (footer)');
+      await loaded('/privacypolicy.html', 'the privacy page');
+      await checkCredit();
+      await press(footerLink('What\u2019s new'), 'What\u2019s new (footer)');
+      await loaded('/whatsnew.html', 'the What\u2019s new page');
+      await checkCredit();
+      t.progress(0.75);
+
+      // Every fighter page, read rather than visited.
+      let ok = 0;
+      for (const c of cards) {
+        const html = await fetch(c.href, { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')).catch(() => '');
+        const a = new DOMParser().parseFromString(html, 'text/html').querySelector<HTMLAnchorElement>('.footer-credit a');
+        if (a && a.getAttribute('href')?.replace(/\/$/, '') === HAWKES_GEN && a.textContent?.replace(/\s+/g, ' ').trim() === 'Powered by HAWKES GEN') ok++;
+        else t.problem('bug', `${new URL(c.href).pathname}: no "Powered by HAWKES GEN" link to ${HAWKES_GEN}`);
+      }
+      t.metric('fighterPagesWithMark', ok);
+      t.event('fighter-pages', `${ok} of ${cards.length} fighter pages show Powered by HAWKES GEN`);
+      t.progress(0.9);
+    } finally {
+      frame.remove();
+    }
+
+    await t.wait(800);
+    if (currentScreen() !== 'main') t.problem('bug', `the game left the main menu while the site was open (${currentScreen()})`);
+    gameUnchanged('after the site visit');
+    t.progress(1);
+    t.finish('done');
+  }
+
   /** Each of the fighter's moves once, from its input, like a player would press it. */
   private async everyMove(who: string): Promise<void> {
     const me = () => {
@@ -814,6 +945,9 @@ class Run {
 }
 
 // ---------------------------------------------------------------- helpers
+
+const HAWKES_GEN = 'https://hawkesgen.com';
+const HAWKES_BIOMEDICAL = 'https://hawkesbiomedical.com';
 
 /** Carries the sound-settings run across its reload. */
 const SOUND_RUN_KEY = 'hawkes.playtest.sound-settings';

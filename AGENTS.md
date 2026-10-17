@@ -20,6 +20,7 @@ the CPU bot (`src/game/ai/bot.ts`, level 9) drives your fighter through a virtua
 | `match` (~2.5 min) | A full 1v1 versus a CPU, 2 stocks, no time limit, to the results screen. Outcome won/lost. |
 | `campaign` (≤10 min) | The campaign from chapter 1: dialogue, fights, outros. Two tries per chapter; stops cleanly at 9.5 min. |
 | `sound-settings` (~2 min) | Studio standard: taps the Tap to play prompt (hit-tested pointer press), checks the AudioContext runs and the menu music starts, Settings from the main menu (Sound off, Music 40%), reloads the page (the run carries on via `sessionStorage`), checks the choice came back, then Settings from Pause in a match. Puts the player's `hawkes.sound` back. |
+| `site-links` (~1 min) | Checks the game screen has no site marks, then opens the website over the game in a full-screen frame and walks it by its own links (landing → footer Characters → a fighter card → Privacy → What's new), checking "Powered by HAWKES GEN" → https://hawkesgen.com on each page (and on every fighter page, read), and Hawkes Biomedical → https://hawkesbiomedical.com on the landing page. External links are checked, not followed. |
 | `roster` (~8 min; 13 min in headless software rendering) | Setup shortcut: each fighter goes straight into training (no menus) and does all 14 moves from their inputs. |
 
 Every page load starts behind the studio's full-screen Tap to play prompt (`#tap-to-play` in `Game/index.html`; its
@@ -38,6 +39,13 @@ Run one: start the dev server and open `http://localhost:8089/Game/?playtest=smo
 `hawkesPlaytest.report()` when it ends. Hawkes Gen's `playtest.run` does the same and records it.
 Headless Chromium renders in software here (~6–10 fps), so the sim runs at about half speed and the
 campaign gets through 2–3 chapters in its budget.
+
+## The website
+
+The site pages (`index.html`, `characters.html`, `characters/*.html`, `whatsnew.html`, `privacypolicy.html`) are
+static HTML with the same footer copied into each: a new page copies it, including the
+`<p class="footer-credit">` "Powered by HAWKES GEN" mark (→ https://hawkesgen.com). The landing page's footer also
+links the parent company, Hawkes Biomedical. The game (`Game/index.html`) has no site footer and carries neither.
 
 ## Versions and What's new
 
