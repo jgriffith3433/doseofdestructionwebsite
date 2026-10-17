@@ -391,6 +391,11 @@ export class Renderer {
    */
   async warmUp(state: GameState, timeoutMs = 15000): Promise<void> {
     this.engine.resize();
+    // Draw a spark burst and the KO flash once, so their shaders (and the glow layer's variants)
+    // compile now instead of on the first hit of the match, and fill the spark pool.
+    this.burst(this.camTarget.x, this.camTarget.y, 48, 0);
+    this.flashMat.alpha = 0.5;
+    this.flashPlane.setEnabled(true);
     this.render(state);
     await this.ready(timeoutMs);
     // Two more presented frames; the timeout covers a hidden page, where rAF never fires.
@@ -401,6 +406,13 @@ export class Renderer {
       });
       this.render(state);
     }
+    for (const s of this.sparks) {
+      s.mesh.setEnabled(false);
+      this.sparkPool.push(s.mesh);
+    }
+    this.sparks = [];
+    this.flashMat.alpha = 0;
+    this.flashPlane.setEnabled(false);
   }
 
   private clipTexture(v: FighterView, key: string): Texture | null {
