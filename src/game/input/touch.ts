@@ -101,6 +101,21 @@ export function initTouchControls(onPause: () => void): void {
 
   root.append(stick, pad, pause);
   document.body.append(root);
+
+  // iOS Safari ignores user-scalable=no: stop double-tap zoom on the controls and pinch zoom on the page.
+  let lastTap = 0;
+  root.addEventListener(
+    'touchend',
+    (e) => {
+      const now = e.timeStamp;
+      if (now - lastTap < 350) e.preventDefault();
+      lastTap = now;
+    },
+    { passive: false },
+  );
+  root.addEventListener('dblclick', (e) => e.preventDefault());
+  for (const type of ['gesturestart', 'gesturechange'])
+    document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
 }
 
 export function showTouchControls(show: boolean): void {

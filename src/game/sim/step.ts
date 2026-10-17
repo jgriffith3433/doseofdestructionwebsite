@@ -436,8 +436,8 @@ function attack(f: Fighter, ch: CharacterDef, c: Ctx): void {
     }
   }
   if (f.grounded) {
-    // Jabs and forward tilts keep walking while the stick is held forward, instead of stopping dead.
-    if ((f.move === MOVE.JAB || f.move === MOVE.FTILT) && !m.impulses && c.sx * f.facing > 20) {
+    // Grounded attacks keep walking while the stick is held sideways, instead of stopping dead.
+    if (!m.impulses && Math.abs(c.sx) > 20) {
       f.vx = approach(f.vx, idiv(c.sx * ch.walkSpeed, 100), ch.groundAccel);
     } else if (!m.impulses) friction(f, ch);
     else f.vx = approach(f.vx, 0, idiv(ch.groundFriction, 2));
