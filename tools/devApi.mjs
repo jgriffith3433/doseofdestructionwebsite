@@ -223,20 +223,21 @@ export function devApi({ root, artRoot, mapsRoot }) {
     },
     clipNames,
     poseNames,
-    onDone: (job) => job.fighter && mirror(job.fighter),
+    onDone: (job) => job.fighter && mirror(job.fighter, []),
   });
   // The GPU tab works on the fighter folders; Hawkes Gen's library (the Library tab, Studio, Claude) follows each change:
-  // a finished job's takes, a pick, a discard. The tab's pick wins (adopt). One fighter at a time, never blocking the tab.
-  // DOD_LIBRARY=off skips it.
+  // a finished job's takes, a pick, a discard. Only the slot the tab just picked takes the folder's file (adopt): a pick
+  // made elsewhere (Studio, the cloud) isn't undone by a folder that hasn't pulled it yet. One fighter at a time, never
+  // blocking the tab. DOD_LIBRARY=off skips it.
   let mirrored = Promise.resolve();
-  function mirror(id) {
+  function mirror(id, adopt = []) {
     if (process.env.DOD_LIBRARY === 'off') return;
     const folder = folderFor(id);
     if (!folder) return;
     mirrored = mirrored
       .then(async () => {
         const m = loadMapping(path.join(root, 'hawkes.library.json'));
-        const r = await importFolders(gen, m, { only: path.basename(folder), adopt: true });
+        const r = await importFolders(gen, m, { only: path.basename(folder), adopt });
         const changed = r.filter((x) => x.action !== 'same');
         if (changed.length) console.log(`[library] ${id}: ${Object.entries(countActions(changed)).map(([k, v]) => `${v} ${k}`).join(', ')}`);
       })
@@ -892,7 +893,7 @@ export function devApi({ root, artRoot, mapsRoot }) {
       const { fighter, clip, file } = await readJson(req);
       const id = checkFighter(fighter);
       const out = await jobs.useTake(id, String(clip), path.basename(String(file || '')));
-      mirror(id);
+      mirror(id, [`clip/${String(clip).toLowerCase()}`]);
       return send(res, 200, { ok: true, log: out.trim().split(/\r?\n/).slice(-4) });
     }
     if (route === '/gpu/clip-plan' && req.method === 'GET') {
@@ -952,7 +953,7 @@ export function devApi({ root, artRoot, mapsRoot }) {
     if (route === '/gpu/take/discard' && req.method === 'POST') {
       const { fighter, file } = await readJson(req);
       jobs.discardTake(checkFighter(fighter), path.basename(String(file || '')));
-      mirror(checkFighter(fighter));
+      mirror(checkFighter(fighter), []);
       return send(res, 200, { ok: true });
     }
     if (route === '/gpu/jobs' && req.method === 'POST') {
@@ -997,7 +998,7 @@ export function devApi({ root, artRoot, mapsRoot }) {
       const src = path.resolve(dir, '_takes', path.basename(String(file || '')));
       if (!inside(dir, src) || !new RegExp(`^${pose}-\\d+\\.png$`, 'i').test(path.basename(src)) || !fs.existsSync(src)) return fail(res, 404, 'No such pose take');
       fs.copyFileSync(src, path.join(dir, `${pose}.png`));
-      mirror(id);
+      mirror(id, [`pose/${pose}`]);
       return send(res, 200, { ok: true });
     }
     if (route === '/gpu/pose/flip' && req.method === 'POST') {
@@ -1014,7 +1015,9 @@ export function devApi({ root, artRoot, mapsRoot }) {
       if (!inside(folder, target) || !fs.existsSync(target)) return fail(res, 404, 'No such pose image');
       const py = spawnSync(process.platform === 'win32' ? 'python' : 'python3', ['-c', 'import sys\nfrom PIL import Image\nim = Image.open(sys.argv[1])\nim.transpose(getattr(Image.Transpose, sys.argv[2])).save(sys.argv[1])', target, how], { encoding: 'utf8' });
       if (py.status !== 0) return fail(res, 500, `Couldn't change it: ${(py.stderr || py.stdout).trim().slice(-200)}`);
-      mirror(id);
+      // A changed pick is the new current; a changed candidate is a new take.
+      const changed = /^anims\/_side\.png$/i.test(rel) ? 'side' : /^poses\/([a-z]+)\.png$/i.exec(rel)?.[1];
+      mirror(id, changed ? [changed === 'side' ? 'side' : `pose/${changed.toLowerCase()}`] : []);
       return send(res, 200, { ok: true });
     }
     if (route === '/gpu/pose/discard' && req.method === 'POST') {
@@ -1027,7 +1030,7 @@ export function devApi({ root, artRoot, mapsRoot }) {
       for (const f of [base, base.replace(/\.png$/i, '.json')]) {
         if (fs.existsSync(path.join(dir, '_takes', f))) fs.renameSync(path.join(dir, '_takes', f), path.join(dir, '_old', f));
       }
-      mirror(id);
+      mirror(id, []);
       return send(res, 200, { ok: true });
     }
     if (route === '/gpu/side/choose' && req.method === 'POST') {
@@ -1037,7 +1040,7 @@ export function devApi({ root, artRoot, mapsRoot }) {
       const src = path.resolve(animDir, path.basename(String(file || '')));
       if (!inside(animDir, src) || !/^_side-\d+\.png$/i.test(path.basename(src)) || !fs.existsSync(src)) return fail(res, 404, 'No such side view');
       fs.copyFileSync(src, path.join(animDir, '_side.png'));
-      mirror(id);
+      mirror(id, ['side']);
       return send(res, 200, { ok: true });
     }
     if (route === '/gpu/motion/promote' && req.method === 'POST') {
