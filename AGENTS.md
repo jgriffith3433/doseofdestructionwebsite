@@ -19,7 +19,12 @@ the CPU bot (`src/game/ai/bot.ts`, level 9) drives your fighter through a virtua
 | `smoke` (~50 s) | Title → Versus → a 1v1 picked from the seed → fight 20 s of game time → Esc → Quit to the menu. |
 | `match` (~2.5 min) | A full 1v1 versus a CPU, 2 stocks, no time limit, to the results screen. Outcome won/lost. |
 | `campaign` (≤10 min) | The campaign from chapter 1: dialogue, fights, outros. Two tries per chapter; stops cleanly at 9.5 min. |
+| `sound-settings` (~2 min) | Studio standard: taps the Tap to play prompt (hit-tested pointer press), checks the AudioContext runs and the menu music starts, Settings from the main menu (Sound off, Music 40%), reloads the page (the run carries on via `sessionStorage`), checks the choice came back, then Settings from Pause in a match. Puts the player's `hawkes.sound` back. |
 | `roster` (~8 min; 13 min in headless software rendering) | Setup shortcut: each fighter goes straight into training (no menus) and does all 14 moves from their inputs. |
+
+Every page load starts behind the studio's full-screen Tap to play prompt (`#tap-to-play` in `Game/index.html`; its
+inline script unlocks sound even before the module loads); scenarios tap it first. Sound settings are the studio
+standard: `localStorage["hawkes.sound"]` = `{ on, music, sfx }` (`src/game/soundSettings.ts`); Effects also drives voices.
 
 Reported: metrics `kos`, `falls`, `damageDealt`, `damageTaken` (percent), `matchSeconds`, `stocksLeft`,
 `wins`/`losses`, `chaptersCleared`, plus fps; events `match-start`, `ko`, `match-end`, `chapter`,

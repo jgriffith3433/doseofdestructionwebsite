@@ -2,7 +2,8 @@
 // campaign's scene-fight-scene rhythm.
 
 import { CHARACTERS, MOVE } from './sim/characters.ts';
-import { audio } from './audio.ts';
+import { audio, tapState } from './audio.ts';
+import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
 import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
 import { initTouchControls, showTouchControls } from './input/touch.ts';
@@ -12,7 +13,7 @@ import { Match, type MatchSetup } from './match.ts';
 import { CHAPTERS, loadProgress, saveProgress, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, largeUrl, thumbUrl } from './ui/dom.ts';
-import { back, currentScreen, go, listenMenuKeys, onBack, pollMenuPad, syncPad } from './ui/screens.ts';
+import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playDialogue, playVersus, showResults, type ResultAction } from './ui/views.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
@@ -25,9 +26,7 @@ const canvas = $<HTMLCanvasElement>('stage');
 const renderer = new Renderer(canvas);
 renderer.onSound = (id) => audio.sfx(id);
 listenKeyboard();
-initTouchControls(() => {
-  if (match && phase !== 'idle') setPaused(phase !== 'pause');
-});
+initTouchControls(() => pauseKey());
 listenMenuKeys(() => phase === 'play' || phase === 'ready');
 
 let match: Match | null = null;
@@ -103,7 +102,7 @@ function wireMenus(): void {
       else if (to === 'versus') openVersus();
       else if (to === 'training') openTraining();
       else if (to === 'howto') go('howto');
-      else if (to === 'settings') go('settings');
+      else if (to === 'settings') openSettings();
     }),
   );
   document.querySelectorAll<HTMLButtonElement>('[data-back]').forEach((b) =>
@@ -114,13 +113,13 @@ function wireMenus(): void {
   onBack('stages', () => (lastSelect === 'training' ? openTraining() : openVersus()));
   onBack('campaign', () => go('main', spotlight));
   onBack('howto', () => go('main', spotlight));
-  onBack('settings', () => go('main', spotlight));
 
   $('btn-resume').addEventListener('click', () => setPaused(false));
   $('btn-restart').addEventListener('click', () => {
     setPaused(false);
     if (match) startMatch(match.setup, false);
   });
+  $('btn-pause-settings').addEventListener('click', () => openSettings());
   $('btn-quit').addEventListener('click', () => {
     setPaused(false);
     endMatch();
@@ -131,8 +130,8 @@ function wireMenus(): void {
     if (match) renderer.debug = !renderer.debug;
   });
   onKey('KeyM', () => {
-    const muted = audio.toggleMute();
-    if (match) banner(muted ? 'Muted' : 'Sound on');
+    const on = audio.toggleSound();
+    if (match) banner(on ? 'Sound on' : 'Sound off');
   });
 
   const fill = (id: string, rows: [string, string][]) =>
@@ -329,8 +328,16 @@ function endMatch(): void {
   renderer.debug = false;
 }
 
+/** Esc, Start or the on-screen pause button in a match: closes Settings if it is open, else pauses or resumes. */
+function pauseKey(): void {
+  if (!match || phase === 'idle') return;
+  if (settingsOpen()) closeSettings();
+  else setPaused(phase !== 'pause');
+}
+
 function setPaused(paused: boolean): void {
   if (!match) return;
+  if (!paused && settingsOpen()) closeSettings();
   phase = paused ? 'pause' : 'play';
   $('pause').hidden = !paused;
   if (paused) {
@@ -403,26 +410,61 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
 
 // ---------------------------------------------------------------- settings
 
-function wireSettings(): void {
-  const keys = ['master', 'music', 'sfx', 'voice'] as const;
-  for (const k of keys) {
+// Studio standard: Sound on/off, Music and Effects, saved in localStorage "hawkes.sound" and applied as they change.
+// One panel, opened from the main menu and from Pause.
+
+const settingsOpen = () => !$('settings').hidden;
+
+function renderSettings(): void {
+  const s = soundSettings();
+  const sw = $('sound-switch');
+  sw.setAttribute('aria-checked', String(s.on));
+  sw.textContent = s.on ? 'On' : 'Off';
+  $('settings-levels').dataset.off = String(!s.on);
+  for (const k of ['music', 'sfx'] as const) {
     const input = $<HTMLInputElement>(`vol-${k}`);
-    const out = $(`vol-${k}-value`);
-    input.value = String(Math.round(audio.volumes[k] * 100));
-    out.textContent = `${input.value}%`;
-    input.addEventListener('input', () => {
-      out.textContent = `${input.value}%`;
-      audio.setVolumes({ [k]: Number(input.value) / 100 });
-    });
-    input.addEventListener('change', () => {
-      if (k === 'sfx') audio.sfx('hit-medium');
-      if (k === 'voice') audio.line('announcer.go');
-    });
+    input.value = String(Math.round(s[k] * 100));
+    $(`vol-${k}-value`).textContent = `${input.value}%`;
   }
 }
 
+function openSettings(): void {
+  renderSettings();
+  // From Pause, the panel takes the pause menu's place until Done.
+  $('pause').hidden = true;
+  $('settings').hidden = false;
+  onPanelBack(closeSettings);
+  focusFirst();
+}
+
+function closeSettings(): void {
+  if (!settingsOpen()) return;
+  $('settings').hidden = true;
+  onPanelBack(null);
+  if (match && phase === 'pause') {
+    $('pause').hidden = false;
+    $('btn-pause-settings').focus();
+    syncPad();
+  } else {
+    document.querySelector<HTMLElement>('#main [data-go="settings"]')?.focus();
+  }
+}
+
+function wireSettings(): void {
+  renderSettings();
+  onSoundSettings(renderSettings);
+  $('sound-switch').addEventListener('click', () => setSoundSettings({ on: !soundSettings().on }));
+  for (const k of ['music', 'sfx'] as const) {
+    const input = $<HTMLInputElement>(`vol-${k}`);
+    input.addEventListener('input', () => setSoundSettings({ [k]: Number(input.value) / 100 }));
+  }
+  // A hit at the new level, so the slider is heard as it lets go.
+  $('vol-sfx').addEventListener('change', () => audio.sfx('hit-medium'));
+  $('settings-done').addEventListener('click', () => closeSettings());
+}
+
 // Menus play the menu loop; matches pick their stage's loop when they start.
-const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'howto', 'settings']);
+const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'howto']);
 setInterval(() => {
   const s = currentScreen();
   if (s && MENU_SCREENS.has(s)) audio.playMusic('music-menu');
@@ -542,7 +584,7 @@ function frame(): void {
   acc += Math.min(100, now - last) * simSpeed;
   last = now;
 
-  if (match && phase !== 'idle' && pausePressed()) setPaused(phase !== 'pause');
+  if (match && phase !== 'idle' && pausePressed()) pauseKey();
   if (phase !== 'play' && phase !== 'ready') pollMenuPad(now);
 
   if (match && phase === 'ready') {
@@ -575,10 +617,20 @@ renderer.engine.runRenderLoop(frame);
 // Devtools playtests open /Game/?play&stage=pit&fighter=slice&vs=break&level=5
 // (vs=dummy for a training dummy) and land straight in the match.
 const params = new URLSearchParams(location.search);
+/** Resolves once the Tap to play prompt has been tapped and has faded. */
+const tapped = (): Promise<void> =>
+  new Promise((resolve) => {
+    const prompt = document.getElementById('tap-to-play');
+    if (!prompt || prompt.hidden || !tapState()) resolve();
+    else document.addEventListener('dod:tapped', () => resolve(), { once: true });
+  });
+// Once the prompt has gone, the title's Press start takes the focus.
+document.addEventListener('dod:tapped', () => focusFirst());
 const playtestChapter = CHAPTERS.find((c) => c.id === params.get('chapter'));
 if (playtestChapter) {
   // Devtools' Story tab: /Game/?chapter=<id> plays that chapter, scene to scene.
-  go('title').then(() => playChapter(playtestChapter));
+  // These wait for the tap, so the chapter starts with its sound.
+  go('title').then(tapped).then(() => playChapter(playtestChapter));
 } else if (params.has('play')) {
   const find = (id: string | null, fallback: number) => {
     const i = CHARACTERS.findIndex((c) => c.id === id);
@@ -588,7 +640,7 @@ if (playtestChapter) {
   const stage = Math.max(0, STAGES.findIndex((s) => s.id === params.get('stage')));
   const level = Number(params.get('level') ?? 5);
   const me = find(params.get('fighter'), 0);
-  go('title').then(() =>
+  go('title').then(tapped).then(() =>
     startMatch(
       {
         mode: vs === 'dummy' ? 'training' : 'versus',

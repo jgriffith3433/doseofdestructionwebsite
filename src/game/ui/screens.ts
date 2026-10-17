@@ -7,10 +7,12 @@ import { pads } from '../input/devices.ts';
 import { audio } from '../audio.ts';
 
 export type ScreenId =
-  | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'dialogue' | 'howto' | 'settings' | 'results' | 'match';
+  | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'dialogue' | 'howto' | 'results' | 'match';
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const backHandlers = new Map<ScreenId, () => void>();
+/** A panel over the screen (Settings): Back closes it first. */
+let panelBack: (() => void) | null = null;
 let current: ScreenId | null = null;
 let busy = false;
 
@@ -21,6 +23,11 @@ export function currentScreen(): ScreenId | null {
 /** True while a wipe is switching screens (menu presses are ignored then). */
 export function switching(): boolean {
   return busy;
+}
+
+/** What Back does while a panel is open over the screen, or null when it closes. */
+export function onPanelBack(fn: (() => void) | null): void {
+  panelBack = fn;
 }
 
 /** What Esc, Backspace or the B button does on a screen. */
@@ -75,7 +82,18 @@ function candidates(): HTMLElement[] {
   return [...scope.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null);
 }
 
+/** The Tap to play prompt (Game/index.html), while it is up: it keeps focus, so Enter or a pad button taps it. */
+function tapPrompt(): HTMLElement | null {
+  const prompt = document.getElementById('tap-to-play');
+  return prompt && !prompt.hidden ? prompt : null;
+}
+
 export function focusFirst(): void {
+  const prompt = tapPrompt();
+  if (prompt) {
+    prompt.focus();
+    return;
+  }
   const list = candidates();
   const preferred = list.find((el) => el.dataset.autofocus !== undefined) ?? list[0];
   preferred?.focus({ preventScroll: false });
@@ -83,6 +101,7 @@ export function focusFirst(): void {
 
 /** Moves focus to the nearest control in a direction, by on-screen position. */
 export function moveFocus(dx: number, dy: number): void {
+  if (tapPrompt()) return;
   const list = candidates();
   if (!list.length) return;
   const active = document.activeElement as HTMLElement | null;
@@ -116,7 +135,7 @@ export function moveFocus(dx: number, dy: number): void {
 
 /** Runs the current screen's back action. */
 export function back(): void {
-  const fn = current && !busy ? backHandlers.get(current) : undefined;
+  const fn = busy ? undefined : panelBack ?? (current ? backHandlers.get(current) : undefined);
   if (fn) {
     audio.sfx('ui-back');
     fn();
@@ -136,6 +155,8 @@ export function listenMenuKeys(inMatch: () => boolean): void {
     if (d) {
       e.preventDefault();
       moveFocus(d[0], d[1]);
+    } else if (e.code === 'Escape' && current === 'match') {
+      // In a match Esc is the pause key, which the match loop reads (and which closes Settings there).
     } else if (e.code === 'Escape' || e.code === 'Backspace' || e.code === 'KeyK') {
       e.preventDefault();
       back();
