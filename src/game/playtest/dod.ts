@@ -969,7 +969,11 @@ const existCache = new Map<string, Promise<boolean>>();
 function exists(url: string): Promise<boolean> {
   let p = existCache.get(url);
   if (!p) {
-    p = fetch(url, { method: 'HEAD', cache: 'no-store' })
+    // A 5xx or a network error is a host hiccup, not a missing file: try once more before saying it's missing.
+    const head = () => fetch(url, { method: 'HEAD', cache: 'no-store' });
+    p = head()
+      .then((r) => (r.status >= 500 ? sleep(500).then(head) : r))
+      .catch(() => sleep(500).then(head))
       .then((r) => r.ok && !(r.headers.get('content-type') ?? '').includes('text/html'))
       .catch(() => false);
     existCache.set(url, p);

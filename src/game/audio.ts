@@ -158,9 +158,12 @@ class AudioSystem {
   private download(url: string): Promise<ArrayBuffer | null> {
     let p = this.raw.get(url);
     if (!p) {
-      p = fetch(url)
-        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`${r.status}`))))
-        .catch(() => null);
+      const get = () => fetch(url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`${r.status}`))));
+      // One retry after a short wait (a transient 503 from the host), then fail quietly; a failure isn't kept,
+      // so the next play tries again instead of staying silent for the session.
+      p = get()
+        .catch(() => new Promise<void>((r) => setTimeout(r, 400)).then(get))
+        .catch(() => { if (this.raw.get(url) === p) this.raw.delete(url); return null; });
       this.raw.set(url, p);
     }
     return p;
@@ -171,7 +174,8 @@ class AudioSystem {
     if (!p) {
       if (!this.ctx) return this.download(url).then(() => null);
       // decodeAudioData takes the bytes over, so decode a copy and keep the download.
-      p = this.download(url).then((data) => (data && this.ctx ? this.ctx.decodeAudioData(data.slice(0)) : null)).catch(() => null);
+      const q = this.download(url).then((data) => (data && this.ctx ? this.ctx.decodeAudioData(data.slice(0)) : null)).catch(() => null);
+      p = q.then((b) => { if (!b && this.buffers.get(url) === q) this.buffers.delete(url); return b; });
       this.buffers.set(url, p);
     }
     return p;
