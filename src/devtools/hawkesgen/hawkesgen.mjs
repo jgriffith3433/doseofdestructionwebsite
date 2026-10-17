@@ -66,7 +66,7 @@ export class HawkesGen {
   }
 
   async request(path, { method = 'GET', body, headers = {}, raw = false, signal } = {}) {
-    const h = { ...headers };
+    const h = { 'X-Hawkes-Client': `js/${CLIENT_VERSION}`, ...headers };
     if (this.key) h.Authorization = `Bearer ${this.key}`;
     let payload = body;
     if (body !== undefined && !(body instanceof Uint8Array) && !(typeof Blob !== 'undefined' && body instanceof Blob)) {
