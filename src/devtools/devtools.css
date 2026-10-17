@@ -427,3 +427,6 @@ button.link:hover { color: var(--gold); }
 .health.ok { border-color: rgba(126, 226, 160, 0.35); }
 .health.warn { border-color: rgba(255, 196, 107, 0.5); background: rgba(255, 196, 107, 0.06); }
 .health p { margin: 0; }
+
+/* The Library tab's Hawkes Gen web components, in the dev tools' colors. */
+hg-library, hg-entity, hg-slot { --hg-bg: var(--bg-2); --hg-panel: var(--panel); --hg-fg: var(--text); --hg-muted: var(--muted); --hg-line: var(--line-2); --hg-accent: var(--hot); }

@@ -16,6 +16,7 @@ import { voiceTab } from './tabs/voice.ts';
 import { scriptsTab } from './tabs/scripts.ts';
 import { gpuTab } from './tabs/gpu.ts';
 import { aiTab } from './tabs/ai.ts';
+import { libraryTab } from './tabs/library.ts';
 import { mountActivity } from './activity.ts';
 
 export interface Tab {
@@ -26,6 +27,7 @@ export interface Tab {
 
 const TABS: Record<string, Tab> = {
   fighters: fightersTab,
+  library: libraryTab,
   poses: posesTab,
   animations: animationsTab,
   clips: clipsTab,

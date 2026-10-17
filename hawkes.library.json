@@ -1,0 +1,14 @@
+{
+  "_about": "How DoD's fighter folders (AllTheCharacters/<Name>/) map to the Hawkes Gen library (hawkesgen/docs/library.md): each folder is a fighter entity, each file a slot version. node C:/Projects/hawkesgen/bin/hawkesgen-folders.mjs status|import|export hawkes.library.json [--only Break] [--dry]",
+  "project": "doseofdestruction",
+  "kind": "fighter",
+  "root": "../AllTheCharacters",
+  "skip": ["_*"],
+  "slots": [
+    { "slot": "concept", "current": "*.{jpg,jpeg,png}" },
+    { "slot": "reference", "current": "anims/_reference.png" },
+    { "slot": "side", "current": "anims/_side.png", "takes": "anims/_side-*.png", "recipe": "{file}.json" },
+    { "slot": "pose/{name}", "current": "poses/{name}.png", "takes": "poses/_takes/{name}-*.png", "recipe": "{file}.json" },
+    { "slot": "clip/{name}", "current": "anims/{name}.mp4", "takes": "anims/_takes/{name}-*.mp4", "old": "anims/_old/{name}-*.mp4", "recipe": "{file}.json" }
+  ]
+}

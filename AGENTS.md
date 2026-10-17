@@ -5,6 +5,24 @@ Platform fighter with every main IP character (doseofdestruction.com). The game 
 port 8089). Docs are in `docs/`. Check with `npm test` (sim) and `npm run typecheck`. Pushing `main`
 deploys the live site (GitHub Actions `pages.yml`): don't commit or push unless asked.
 
+## Library (Hawkes Gen)
+
+Dev Tools → **Library** shows every fighter in Hawkes Gen's library (`hawkesgen/docs/library.md`), the same one
+Studio, the other products and Claude use. Each slot keeps every version:
+- the slots: concept, reference, side, `pose/<name>`, `clip/<name>`
+- what you can do: pick, discard, note, revise with feedback, make more takes
+
+The recipes are DoD's tuned settings, in `hawkesgen/presets/doseofdestruction.json` under `kinds.fighter`.
+
+`hawkes.library.json` says which `AllTheCharacters` file is which slot.
+- **Import from AllTheCharacters** brings folders in. It's safe to run again.
+- A pick is written back to the fighter folder ("Write picks back", or **Write back**), so the game and the other
+  tabs keep reading the folders.
+- From a terminal: `node C:/Projects/hawkesgen/bin/hawkesgen-folders.mjs status|import|export hawkes.library.json [--only Break] [--dry]`.
+
+The web components are a copy of Hawkes Gen's (`src/devtools/hawkesgen/`; copy them again when Gen's change). They
+call Gen through this dev server (`/api/dev/gen/v1/...`), which adds the key.
+
 ## Playtests
 
 The game implements the Hawkes playtest contract v1 (`window.hawkesPlaytest`; spec in

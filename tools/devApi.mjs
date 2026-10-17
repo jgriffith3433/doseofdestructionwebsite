@@ -47,6 +47,10 @@
  *   POST /api/dev/gpu/side/choose       { fighter, file } picks a side view
  *   POST /api/dev/gpu/motion/promote    { fighter, clip } adds a clip to the motion library
  *   GET  /api/dev/gpu/motion?clip       a motion library video
+ *   ANY  /api/dev/gen/v1/...            Hawkes Gen's API, with this PC's key added here (the Library tab's web
+ *                                       components call it; the key never reaches the browser)
+ *   POST /api/dev/library/import        { only?, dry?, adopt? } AllTheCharacters into the library (hawkes.library.json)
+ *   POST /api/dev/library/export        { only?, dry? } the library's current versions into AllTheCharacters
  *
  * File access is limited to this project and the fighter art folder. The
  * ElevenLabs key is ELEVENLABS_API_KEY, from the environment or .env.
@@ -64,6 +68,9 @@ import { DEFAULTS, LIMITS } from './gpu/settings.mjs';
 import { mapIdeas } from './maps/idea.mjs';
 import { composite, designPreview, loadStage, paintPlan } from './maps/paint.mjs';
 import { reviewStage } from './maps/review.mjs';
+import { loadMapping, importFolders, exportFolders } from './gpu/hawkesgen-folders.mjs';
+import http from 'node:http';
+import https from 'node:https';
 
 const CONTENT = new Set(['stages', 'fighters', 'campaign', 'sounds', 'voice', 'anim-clips', 'generation', 'modes']);
 const VIDEO = new Set(['.mp4', '.mov', '.webm', '.mkv', '.gif', '.avi']);
@@ -77,6 +84,9 @@ const MIME = {
 const SAFE_ID = /^[a-z0-9][a-z0-9._-]{0,80}$/i;
 
 // ---------------------------------------------------------------- helpers
+
+/** { added: 3, same: 40 } from a library import/export report. */
+const countActions = (report) => report.reduce((n, r) => ({ ...n, [r.action]: (n[r.action] ?? 0) + 1 }), {});
 
 const send = (res, status, body) => {
   res.statusCode = status;
@@ -532,6 +542,40 @@ export function devApi({ root, artRoot, mapsRoot }) {
     const q = (k) => url.searchParams.get(k) ?? '';
 
     if (req.method === 'GET' && route === '/state') return send(res, 200, state());
+
+    // Hawkes Gen's API for the Library tab (hawkesgen-ui.mjs): the request goes on to Gen with this PC's key, and the
+    // answer (JSON, files, the live event stream) comes straight back.
+    if (route.startsWith('/gen/v1/')) {
+      const target = new URL(url.pathname.slice(4) + url.search, gen.url);
+      const headers = {};
+      for (const k of ['content-type', 'x-filename', 'accept', 'range']) if (req.headers[k]) headers[k] = req.headers[k];
+      if (gen.key) headers.authorization = `Bearer ${gen.key}`;
+      await new Promise((resolve) => {
+        const up = (target.protocol === 'https:' ? https : http).request(target, { method: req.method, headers }, (r) => {
+          res.writeHead(r.statusCode ?? 502, Object.fromEntries(Object.entries(r.headers).filter(([k]) => !['transfer-encoding', 'connection'].includes(k))));
+          r.pipe(res);
+          r.on('end', resolve);
+        });
+        up.on('error', (e) => { if (!res.headersSent) send(res, 502, { error: `Hawkes Gen: ${e.message}` }); resolve(); });
+        // The browser left (an event stream closed): stop asking Gen. (req's own 'close' fires once its body is read.)
+        res.on('close', () => up.destroy());
+        req.pipe(up);
+      });
+      return;
+    }
+    // The fighter folders <-> the library (hawkes.library.json: which file is which slot).
+    if (route === '/library/import' && req.method === 'POST') {
+      const b = await readJson(req);
+      const m = loadMapping(path.join(root, 'hawkes.library.json'));
+      const report = await importFolders(gen, m, { only: b.only || undefined, dry: !!b.dry, adopt: !!b.adopt });
+      return send(res, 200, { report, counts: countActions(report) });
+    }
+    if (route === '/library/export' && req.method === 'POST') {
+      const b = await readJson(req);
+      const m = loadMapping(path.join(root, 'hawkes.library.json'));
+      const report = await exportFolders(gen, m, { only: b.only || undefined, dry: !!b.dry });
+      return send(res, 200, { report, counts: countActions(report) });
+    }
 
     const content = /^\/content\/([a-z-]+)$/.exec(route);
     if (content) {
