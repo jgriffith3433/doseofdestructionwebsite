@@ -110,11 +110,14 @@ export interface CharacterDef {
   moves: Move[];
 }
 
+/** Playtest feedback: attacks felt slow. Every move's frame counts are scaled by this (1 = as authored). */
+const MOVE_TIME = 0.65;
+
 // The shared moveset, written for a fighter 110 units tall. Each character
 // scales it by height and their own tuning.
 function buildMoves(height: number, t: Tuning): Move[] {
   const s = height / 110;
-  const f = (n: number) => Math.max(1, Math.round(n * t.frames));
+  const f = (n: number) => Math.max(1, Math.round(n * t.frames * MOVE_TIME));
   const box = (x: number, y: number, r: number, dmg: number, angle: number, bkb: number, kbg: number): Hitbox => ({
     x: Math.round(x * s * t.reach),
     y: Math.round(y * s),

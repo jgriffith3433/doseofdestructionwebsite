@@ -35,6 +35,11 @@ html, body {
 
 [hidden] { display: none !important; }
 
+/* No double-tap zoom and no text selection (a game, not a page); fields stay selectable. */
+html, body { touch-action: manipulation; -webkit-touch-callout: none; }
+body { user-select: none; -webkit-user-select: none; }
+input, textarea { user-select: text; -webkit-user-select: text; }
+
 h1, h2, h3, .kicker, .logo, button.primary, button.secondary {
   font-family: Oswald, Barlow, sans-serif;
   font-weight: 600;
