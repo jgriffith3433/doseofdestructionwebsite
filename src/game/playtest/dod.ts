@@ -20,7 +20,8 @@ import { FX } from '../sim/fixed.ts';
 import { ACT } from '../sim/state.ts';
 import { CHAPTERS } from '../campaign/story.ts';
 import { stagesFor } from '../modes.ts';
-import { SOUNDS, VOICE } from '../audio.ts';
+import { SOUNDS, VOICE, audio } from '../audio.ts';
+import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
 import { loadAnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import type { SimEvent } from '../sim/step.ts';
@@ -47,6 +48,7 @@ const SCENARIOS = [
   { id: 'smoke', title: 'Boot, menus, a quick versus match for 20 s, quit to the menu', description: 'options: stage, fighter (ids) to play specific content', seconds: 50, tags: ['smoke'] },
   { id: 'match', title: 'A full 1v1 versus match against the CPU (2 stocks), to the results screen', description: 'options: stage, fighter (ids) to play specific content', seconds: 150, tags: ['full'] },
   { id: 'campaign', title: 'The campaign from chapter 1, as far as the bot gets in 10 minutes', seconds: 600, tags: ['full'] },
+  { id: 'sound-settings', title: 'Tap to play, sound on, Settings from the menu and Pause, a setting kept across a reload', description: 'Taps the Tap to play prompt with a pointer press on the spot (hit-tested, so a covered prompt fails), checks the AudioContext runs and the menu music plays with no more taps, opens Settings from the main menu, turns Sound off and Music to 40%, reloads (the run carries on through ?playtest=sound-settings), checks the prompt and the choice are back, then opens Settings from Pause in a match. The player\'s own hawkes.sound is put back at the end.', seconds: 120, tags: ['smoke', 'sound'] },
   { id: 'roster', title: 'Every fighter spawns in training and does each move once (starts matches directly)', seconds: 480, tags: ['full', 'roster'] },
 ];
 
@@ -59,7 +61,7 @@ const CORE_CLIPS = ['idle', 'walk', 'jump', 'fall', 'land', 'hurt', 'shield'];
 
 const SCREEN_NAMES: Record<ScreenId, string> = {
   title: 'Title', main: 'Main Menu', select: 'Character Select', stages: 'Stage Select', versus: 'VS',
-  campaign: 'Campaign Map', dialogue: 'Dialogue', howto: 'How To Play', settings: 'Settings', results: 'Results', match: 'Match',
+  campaign: 'Campaign Map', dialogue: 'Dialogue', howto: 'How To Play', results: 'Results', match: 'Match',
 };
 
 const MOVE_NAMES = Object.fromEntries(Object.entries(MOVE).map(([k, v]) => [v, k.toLowerCase()])) as Record<number, string>;
@@ -79,6 +81,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'match') await r.match();
         else if (id === 'campaign') await r.campaign();
         else if (id === 'roster') await r.roster();
+        else if (id === 'sound-settings') await r.soundSettings();
       } finally {
         r.dispose();
       }
@@ -230,7 +233,9 @@ class Run {
   private onPoll(): void {
     const id = currentScreen();
     const m = this.game.match();
-    if (id) this.t.scene(id === 'match' && m ? `Match · ${STAGES[m.state.stage].name}` : SCREEN_NAMES[id]);
+    if (promptShowing()) this.t.scene('Tap to play');
+    else if (settingsShowing()) this.t.scene(m ? 'Settings (paused)' : 'Settings');
+    else if (id) this.t.scene(id === 'match' && m ? `Match · ${STAGES[m.state.stage].name}` : SCREEN_NAMES[id]);
     // A match that is meant to be running but whose clock has stopped.
     const now = performance.now();
     if (m && this.game.phase() === 'play' && !m.state.over) {
@@ -332,8 +337,42 @@ class Run {
     return [...document.querySelectorAll<HTMLElement>(`${scope} button`)].find((b) => b.textContent?.trim() === text);
   }
 
+  /**
+   * A tap on a control the way a finger or mouse does it: pointer down and up at its centre, then the click.
+   * The press is hit-tested, so a control covered by something else is reported.
+   */
+  private async tap(find: () => HTMLElement | null | undefined, what: string, timeoutMs = 15000): Promise<void> {
+    let el: HTMLElement | null | undefined = null;
+    await this.t.until(() => {
+      el = find();
+      return !!el && el.getClientRects().length > 0 && !(el as HTMLButtonElement).disabled && !switching();
+    }, timeoutMs, what);
+    const r = (el as unknown as HTMLElement).getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    const target = (document.elementFromPoint(x, y) as HTMLElement | null) ?? (el as unknown as HTMLElement);
+    if (!(el as unknown as HTMLElement).contains(target)) this.t.problem('bug', `${what} is covered: a press on it lands on ${target.id ? `#${target.id}` : target.tagName.toLowerCase()}`);
+    const touch = matchMedia('(pointer: coarse)').matches;
+    const init = { pointerType: touch ? 'touch' : 'mouse', pointerId: touch ? 51 : 1, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y };
+    this.t.log(`tap ${what}`);
+    target.dispatchEvent(new PointerEvent('pointerdown', init));
+    await this.t.wait(60);
+    target.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }));
+    target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, button: 0 }));
+    this.t.add('interactions');
+    await this.t.wait(150);
+  }
+
+  /** The studio's Tap to play prompt, tapped like a player. */
+  private async tapToPlay(): Promise<void> {
+    await this.tap(() => this.q('#tap-to-play'), 'Tap to play');
+    await this.t.until(() => !promptShowing() && this.q('#tap-to-play')?.hidden, 5000, 'the Tap to play prompt to go');
+    this.t.event('tap-to-play', 'prompt tapped');
+  }
+
   private async toMainMenu(): Promise<void> {
     await this.screen('title', 30000);
+    if (promptShowing()) await this.tapToPlay();
     await this.click(() => this.q('#btn-start'), 'Press start');
     await this.screen('main');
   }
@@ -549,6 +588,163 @@ class Run {
     t.finish('done');
   }
 
+  // ---------------------------------------------------------- sound-settings
+
+  /** The studio standard: the Tap to play prompt, sound running, Settings from the menu and Pause, kept across a reload. */
+  async soundSettings(): Promise<void> {
+    const t = this.t;
+    const carried = (() => {
+      try {
+        return JSON.parse(sessionStorage.getItem(SOUND_RUN_KEY) ?? 'null') as { original: string | null; saved: string } | null;
+      } catch {
+        return null;
+      }
+    })();
+    const saved = () => {
+      try {
+        return JSON.parse(localStorage.getItem(SOUND_KEY) ?? 'null') as { on: boolean; music: number; sfx: number } | null;
+      } catch {
+        return null;
+      }
+    };
+    const checkPrompt = (where: string) => {
+      const prompt = this.q('#tap-to-play');
+      if (!prompt || !promptShowing()) {
+        t.problem('bug', `no Tap to play prompt ${where}`);
+        return;
+      }
+      const r = prompt.getBoundingClientRect();
+      if (r.width < innerWidth - 1 || r.height < innerHeight - 1) t.problem('bug', `the Tap to play prompt does not fill the screen ${where} (${Math.round(r.width)}x${Math.round(r.height)} of ${innerWidth}x${innerHeight})`);
+      t.event('prompt-shown', `${where}, ${innerWidth}x${innerHeight} ${innerWidth > innerHeight ? 'landscape' : 'portrait'}`);
+    };
+    const checkSound = async (where: string) => {
+      try {
+        await t.until(() => audio.state === 'running', 5000, 'the AudioContext to run');
+        t.event('audio-running', `AudioContext ${audio.state} ${where}`);
+      } catch (e) {
+        if (String(e).includes('stopped')) throw e;
+        t.problem('bug', `the AudioContext is "${audio.state}" ${where}`);
+      }
+    };
+    const checkMusic = async (where: string) => {
+      // The menu loop starts by itself once sound is on: no more taps.
+      if (!SOUNDS.find((s) => s.id === 'music-menu')?.file) return;
+      try {
+        await t.until(() => audio.musicPlaying === 'music-menu', 15000, 'the menu music');
+        t.event('music-playing', `music-menu ${where}, with no more taps`);
+      } catch (e) {
+        if (String(e).includes('stopped')) throw e;
+        t.problem('bug', `the menu music did not start ${where}`);
+      }
+    };
+    const slide = (id: string, percent: number, label: string) => {
+      // A range input has no drag a page can fake; set it as a drag ends and send the same events.
+      const input = this.q(id) as HTMLInputElement;
+      input.value = String(percent);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      t.add('interactions');
+      t.log(`slide ${label} to ${percent}%`);
+    };
+    const openFromMenu = async (where: string) => {
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, `Settings to open from the main menu ${where}`);
+      t.event('settings-open', `from the main menu ${where}`);
+    };
+
+    await this.screen('title', 30000);
+    if (!carried) {
+      checkPrompt('on load');
+      await t.wait(1200);
+      await this.tapToPlay();
+      await checkSound('after the tap');
+      await checkMusic('after the tap');
+      t.progress(0.15);
+
+      await this.tap(() => this.q('#btn-start'), 'Press start');
+      await this.screen('main');
+      await openFromMenu('');
+      const original = localStorage.getItem(SOUND_KEY);
+      if (!soundSettings().on) await this.tap(() => this.q('#sound-switch'), 'Sound on');
+      await t.wait(500);
+      await this.tap(() => this.q('#sound-switch'), 'Sound off');
+      slide('#vol-music', 40, 'Music');
+      await t.wait(800);
+      const now = saved();
+      if (!now || now.on !== false || Math.abs(now.music - 0.4) > 0.001) t.problem('bug', `hawkes.sound did not save Sound off and Music 40%: ${JSON.stringify(now)}`);
+      else t.event('setting-saved', JSON.stringify(now));
+      if (soundSettings().on !== false) t.problem('bug', 'Sound off did not apply right away');
+      t.progress(0.35);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(400);
+
+      sessionStorage.setItem(SOUND_RUN_KEY, JSON.stringify({ original, saved: JSON.stringify(now) }));
+      t.event('reload', 'the page reloads; the run carries on after it');
+      const url = new URL(location.href);
+      url.searchParams.set('playtest', 'sound-settings');
+      url.searchParams.set('seed', String(this.options.seed ?? 1));
+      url.searchParams.set('speed', String(this.options.speed ?? 1));
+      await t.wait(300);
+      location.replace(url.toString());
+      await new Promise(() => {}); // the page is going away
+      return;
+    }
+
+    sessionStorage.removeItem(SOUND_RUN_KEY);
+    t.event('before-reload:setting-saved', carried.saved);
+    checkPrompt('after the reload');
+    await t.wait(1000);
+    await this.tapToPlay();
+    await checkSound('after the reload');
+    t.progress(0.5);
+    const back = soundSettings();
+    if (back.on !== false || Math.abs(back.music - 0.4) > 0.001) t.problem('bug', `the setting did not survive the reload: ${JSON.stringify(back)}`);
+    else t.event('setting-survived-reload', JSON.stringify(back));
+
+    await this.tap(() => this.q('#btn-start'), 'Press start');
+    await this.screen('main');
+    await openFromMenu('after the reload');
+    const shows = `${this.q('#sound-switch')?.textContent} / Music ${(this.q('#vol-music') as HTMLInputElement).value}%`;
+    if (shows !== 'Off / Music 40%') t.problem('bug', `Settings shows "${shows}" after the reload, not Off / Music 40%`);
+    else t.event('settings-shows-saved', shows);
+    await t.wait(1200);
+    // Sound back on for the match, at the level the run found.
+    await this.tap(() => this.q('#sound-switch'), 'Sound on');
+    slide('#vol-music', 60, 'Music');
+    await checkMusic('with Sound back on');
+    await this.tap(() => this.q('#settings-done'), 'Done');
+    t.progress(0.65);
+
+    await this.startVersus(3);
+    await t.wait(2000);
+    await tapKey('Escape');
+    await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+    await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+    await t.until(settingsShowing, 3000, 'Settings to open from Pause');
+    t.event('settings-open', 'from Pause in a match');
+    await t.wait(800);
+    slide('#vol-sfx', 70, 'Effects');
+    const fx = saved();
+    if (!fx || Math.abs(fx.sfx - 0.7) > 0.001) t.problem('bug', `Effects 70% from Pause was not saved: ${JSON.stringify(fx)}`);
+    else t.event('setting-saved', `from Pause: ${JSON.stringify(fx)}`);
+    await t.wait(800);
+    await this.tap(() => this.q('#settings-done'), 'Done');
+    await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+    t.progress(0.9);
+    await this.click(() => this.q('#btn-quit'), 'Quit');
+    await this.screen('main');
+
+    // The player's own settings back as they were.
+    try {
+      if (carried.original === null) localStorage.removeItem(SOUND_KEY);
+      else localStorage.setItem(SOUND_KEY, carried.original);
+    } catch {
+      // Storage blocked.
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   /** Each of the fighter's moves once, from its input, like a player would press it. */
   private async everyMove(who: string): Promise<void> {
     const me = () => {
@@ -618,6 +814,18 @@ class Run {
 }
 
 // ---------------------------------------------------------------- helpers
+
+/** Carries the sound-settings run across its reload. */
+const SOUND_RUN_KEY = 'hawkes.playtest.sound-settings';
+
+function promptShowing(): boolean {
+  const prompt = document.getElementById('tap-to-play');
+  return !!prompt && !prompt.hidden && !prompt.classList.contains('gone');
+}
+
+function settingsShowing(): boolean {
+  return document.getElementById('settings')?.hidden === false;
+}
 
 function name(m: Match, slot: number): string {
   return CHARACTERS[m.state.fighters[slot].char].name;

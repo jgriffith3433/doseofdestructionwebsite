@@ -41,7 +41,7 @@
       <button class="menu-item" type="button" data-go="versus"><strong>Versus</strong><span>Up to four fighters, any mix of you and bots.</span></button>
       <button class="menu-item" type="button" data-go="training"><strong>Training</strong><span>A dummy, no stocks, hitboxes on H.</span></button>
       <button class="menu-item" type="button" data-go="howto"><strong>How to play</strong><span>Controls and the basics.</span></button>
-      <button class="menu-item" type="button" data-go="settings"><strong>Settings</strong><span>Music, effects and voice levels.</span></button>
+      <button class="menu-item" type="button" data-go="settings"><strong>Settings</strong><span>Sound on or off, music and effects.</span></button>
       <a class="menu-item quiet" href="/"><strong>Back to site</strong></a>
       <a class="version-tag in-menu" href="/whatsnew.html" data-hawkes-version data-prefix="What&rsquo;s new &middot; v" hidden></a>
     </nav>
@@ -123,20 +123,6 @@
     </div>
   </section>
 
-  <section id="settings" class="screen settings-screen" hidden>
-    <header class="screen-head">
-      <button class="back-btn" type="button" data-back data-autofocus>&larr; Back</button>
-      <h2>Settings</h2>
-    </header>
-    <div class="settings-body">
-      <label class="slider"><span>Master</span><input id="vol-master" type="range" min="0" max="100" step="1"><output id="vol-master-value"></output></label>
-      <label class="slider"><span>Music</span><input id="vol-music" type="range" min="0" max="100" step="1"><output id="vol-music-value"></output></label>
-      <label class="slider"><span>Effects</span><input id="vol-sfx" type="range" min="0" max="100" step="1"><output id="vol-sfx-value"></output></label>
-      <label class="slider"><span>Voice</span><input id="vol-voice" type="range" min="0" max="100" step="1"><output id="vol-voice-value"></output></label>
-      <p class="hint">Press <kbd>M</kbd> any time to mute.</p>
-    </div>
-  </section>
-
   <section id="results" class="screen results-screen" hidden>
     <div id="results-body" class="results-body"></div>
     <div id="results-actions" class="actions results-actions"></div>
@@ -150,14 +136,77 @@
       <div class="actions column">
         <button id="btn-resume" class="primary" type="button" data-autofocus>Resume</button>
         <button id="btn-restart" class="secondary" type="button">Restart</button>
+        <button id="btn-pause-settings" class="secondary" type="button">Settings</button>
         <button id="btn-quit" class="secondary" type="button">Quit</button>
       </div>
+    </div>
+  </div>
+
+  <div id="settings" class="overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+    <div class="panel settings-panel">
+      <h2 id="settings-title">Settings</h2>
+      <div class="setting-row">
+        <span>Sound</span>
+        <button id="sound-switch" class="switch" type="button" role="switch" aria-checked="true" data-autofocus>On</button>
+      </div>
+      <div id="settings-levels" class="settings-levels">
+        <label class="slider"><span>Music</span><input id="vol-music" type="range" min="0" max="100" step="1"><output id="vol-music-value"></output></label>
+        <label class="slider"><span>Effects</span><input id="vol-sfx" type="range" min="0" max="100" step="1"><output id="vol-sfx-value"></output></label>
+      </div>
+      <p class="hint">Effects covers hits, menus and voices. Press <kbd>M</kbd> any time to turn sound on or off.</p>
+      <button id="settings-done" class="primary" type="button">Done</button>
     </div>
   </div>
 
   <div id="loading" class="loading" hidden>Loading fighters&hellip;</div>
   <div id="wipe" class="wipe" aria-hidden="true"><i></i><i></i></div>
 
+  <!-- Studio standard: one tap before the game starts turns sound on (iOS needs a gesture). -->
+  <div id="tap-to-play" class="tap-to-play" role="button" tabindex="0" aria-label="Tap to play">
+    <div>
+      <p class="kicker">Live from the Foundry</p>
+      <h1 class="logo">Dose of <span>Destruction</span></h1>
+      <p class="tap-cta">Tap to play</p>
+      <p class="tap-note">Sound on. Turn it up.</p>
+    </div>
+  </div>
+  <script>
+    // The game's module may still be loading when the player taps: then this tap starts the AudioContext
+    // itself and audio.ts adopts it (window.__dodTap.ctx).
+    (function () {
+      var prompt = document.getElementById('tap-to-play');
+      var tap = window.__dodTap = { tapped: false, ctx: null, onTap: null };
+      prompt.focus();
+      var go = function () {
+        if (tap.tapped) return;
+        tap.tapped = true;
+        if (!tap.onTap) {
+          try {
+            var Ctor = window.AudioContext || window.webkitAudioContext;
+            if (Ctor) {
+              tap.ctx = new Ctor();
+              if (tap.ctx.resume) tap.ctx.resume().catch(function () {});
+            }
+          } catch (e) {}
+        }
+        // It keeps catching taps while it fades, so the tap's own click never lands on the title below.
+        prompt.classList.add('gone');
+        setTimeout(function () { prompt.hidden = true; document.dispatchEvent(new Event('dod:tapped')); }, 400);
+        if (tap.onTap) tap.onTap();
+      };
+      prompt.addEventListener('click', go);
+      prompt.addEventListener('pointerup', go);
+      prompt.addEventListener('touchend', go);
+      window.addEventListener('keydown', function (event) {
+        if (!prompt.hidden) {
+          // No key reaches the menus under the prompt; Enter, Space or J (the game's confirm) taps it.
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          if (!tap.tapped && !event.repeat && (event.key === 'Enter' || event.key === ' ' || event.code === 'KeyJ')) go();
+        }
+      }, true);
+    })();
+  </script>
   <script type="module" src="../src/game/main.ts"></script>
   <script src="/site/hawkes-release.js" data-releases="/releases.json" defer></script>
 </body>

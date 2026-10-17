@@ -501,11 +501,85 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 
 /* -------------------------------------------------------------- settings */
 
-.settings-body { display: grid; gap: 14px; max-width: 560px; margin: 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
-.slider { display: grid; grid-template-columns: 90px 1fr 50px; align-items: center; gap: 12px; font-weight: 700; }
-.slider input { accent-color: var(--hot); width: 100%; }
+/* A panel over whatever is behind it: the main menu or a paused match. */
+.overlay .settings-panel { width: min(460px, 100%); text-align: left; max-height: calc(100dvh - 32px); overflow-y: auto; }
+.settings-panel h2, .settings-panel > .primary { text-align: center; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 700; }
+.switch {
+  min-width: 84px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(12, 10, 9, 0.6);
+  color: var(--muted);
+  font: 600 15px Oswald, Barlow, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.switch[aria-checked="true"] { background: var(--hot); border-color: var(--hot); color: white; }
+.switch:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.settings-levels { display: grid; gap: 14px; }
+.settings-levels[data-off="true"] { opacity: 0.45; }
+.slider { display: grid; grid-template-columns: 70px 1fr 50px; align-items: center; gap: 12px; font-weight: 700; min-height: 44px; }
+.slider input { accent-color: var(--hot); width: 100%; min-height: 32px; }
 .slider output { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+/* A phone on its side: the whole panel, Done included, fits without scrolling. */
+@media (max-height: 520px) {
+  .overlay { padding: 8px; }
+  .overlay .settings-panel { padding: 10px 20px; gap: 6px; }
+  .settings-panel h2 { font-size: 20px; }
+  .settings-levels { gap: 0; }
+  .settings-panel .switch { min-height: 36px; }
+  .settings-panel .slider { min-height: 36px; }
+  .settings-panel .hint { font-size: 12px; }
+  .settings-panel > .primary { padding-top: 8px; padding-bottom: 8px; }
+}
+
+/* --------------------------------------------------------- tap to play */
+
+/* Studio standard: one tap unlocks sound before the game starts (audio.ts). Over everything, safe areas kept. */
+.tap-to-play {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 24px) calc(env(safe-area-inset-right, 0px) + 24px) calc(env(safe-area-inset-bottom, 0px) + 24px) calc(env(safe-area-inset-left, 0px) + 24px);
+  background: radial-gradient(ellipse at 50% 45%, #3a1608 0%, var(--bg) 70%) var(--bg);
+  text-align: center;
+  cursor: pointer;
+  outline: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.35s ease;
+}
+/* It keeps catching taps while it fades, so the tap's own click never lands on the title below. */
+.tap-to-play.gone { opacity: 0; }
+.tap-to-play .kicker { margin-bottom: 14px; }
+.tap-cta {
+  display: inline-block;
+  margin-top: 28px;
+  padding: 14px 32px;
+  border: 2px solid var(--hot);
+  border-radius: 999px;
+  font: 600 18px Oswald, Barlow, sans-serif;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  animation: tap-pulse 2.4s ease-in-out infinite;
+}
+.tap-note { margin-top: 16px; color: var(--muted); font-size: 14px; letter-spacing: 0.04em; }
+@keyframes tap-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tap-cta { animation: none; }
+}
 
 /* --------------------------------------------------------------- results */
 
