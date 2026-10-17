@@ -557,6 +557,14 @@ button.play {
 
 .footer-links a:hover { color: white; }
 
+/* The parent company (landing page) and the Hawkes Gen mark (every site page, not the game). */
+.footer-parent a { color: var(--gold); font-weight: 700; text-decoration: none; }
+.footer-parent a:hover { color: white; }
+.footer-credit { margin-top: 1.1rem; font-size: 0.85rem; letter-spacing: 0.04em; }
+.footer-credit a { color: var(--ink-soft); text-decoration: none; }
+.footer-credit strong { color: var(--ember); font-family: Oswald, "Arial Narrow", Impact, sans-serif; font-weight: 600; letter-spacing: 0.08em; }
+.footer-credit a:hover, .footer-credit a:hover strong { color: white; }
+
 .roster {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
