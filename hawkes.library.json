@@ -9,6 +9,7 @@
     { "slot": "reference", "current": "anims/_reference.png" },
     { "slot": "side", "current": "anims/_side.png", "takes": "anims/_side-*.png", "recipe": "{file}.json" },
     { "slot": "pose/{name}", "current": "poses/{name}.png", "takes": "poses/_takes/{name}-*.png", "recipe": "{file}.json" },
+    { "slot": "clip/{name}", "old": "anims/_old/take-{name}-*.mp4", "recipe": "{file}.json" },
     { "slot": "clip/{name}", "current": "anims/{name}.mp4", "takes": "anims/_takes/{name}-*.mp4", "old": "anims/_old/{name}-*.mp4", "recipe": "{file}.json" }
   ]
 }

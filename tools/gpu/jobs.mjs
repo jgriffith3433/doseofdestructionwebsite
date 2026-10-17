@@ -52,8 +52,10 @@ export class Jobs {
    * folderFor(id, create) gives a fighter's art folder, info(fighter, clip, pose)
    * their { name, action, seconds, frames, start, end } (start and end: the
    * clip's poses), clipNames() the clips the game knows and poseNames() the poses.
+   * onDone(job), if given, runs after a job finishes (the dev server mirrors the fighter into the library).
    */
-  constructor({ folderFor, info, clipNames, poseNames }) {
+  constructor({ folderFor, info, clipNames, poseNames, onDone }) {
+    this.onDone = onDone;
     this.folderFor = folderFor;
     this.info = info;
     this.clipNames = clipNames;
@@ -219,6 +221,11 @@ export class Jobs {
       if (next.type !== 'paint') next.resolved = resolve(next, this.info(next.fighter, next.clip, next.pose));
       await this[next.type](next);
       Object.assign(next, { status: 'done', finished: Date.now() });
+      try {
+        this.onDone?.(next);
+      } catch {
+        /* the job is done either way */
+      }
     } catch (e) {
       Object.assign(next, { status: e.message === 'Cancelled' ? 'cancelled' : 'failed', detail: e.message, finished: Date.now() });
       next.log.push(`error: ${e.message}`);
