@@ -106,6 +106,13 @@ class AudioSystem {
   /** Browsers only allow sound after a click or key press; call this from one. */
   unlock(): void {
     if (!this.ctx) {
+      // iOS mutes Web Audio while the ringer switch is on silent unless the page plays as media.
+      try {
+        const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+        if (session) session.type = 'playback';
+      } catch {
+        // Not supported: sound follows the ringer switch.
+      }
       const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!Ctx) return;
       this.ctx = new Ctx();
@@ -120,7 +127,7 @@ class AudioSystem {
       this.applyVolumes();
       if (this.wantMusic) this.playMusic(this.wantMusic);
     }
-    if (this.ctx.state === 'suspended') void this.ctx.resume();
+    if (this.ctx.state !== 'running') void this.ctx.resume();
   }
 
   private download(url: string): Promise<ArrayBuffer | null> {
@@ -245,7 +252,8 @@ class AudioSystem {
 
 export const audio = new AudioSystem();
 
-// The first click or key press anywhere turns sound on.
-for (const type of ['pointerdown', 'keydown'] as const) {
+// The first click, tap or key press anywhere turns sound on. iOS only counts touchend and click
+// as a gesture (not pointerdown), and can suspend the context again, so these keep trying.
+for (const type of ['pointerdown', 'touchend', 'click', 'keydown'] as const) {
   window.addEventListener(type, () => audio.unlock(), { capture: true });
 }
