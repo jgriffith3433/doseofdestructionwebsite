@@ -1,0 +1,227 @@
+// A small Nostr client: one pool of public relay sockets per page, shared by the lobby's presence and every match
+// room's signalling. Events are signed with Schnorr keys (NIP-01); nothing here needs an account or a server of ours.
+// Adapted from Yooba Land's hawkes-net (src/nostr.js).
+import { schnorr } from '@noble/curves/secp256k1.js';
+import { NOSTR_RELAYS, fromHex, netError, randomId, seconds, sha256Hex, toHex } from './util.ts';
+
+export interface NostrKey {
+  secret: Uint8Array;
+  secretHex: string;
+  pubkey: string;
+}
+
+export interface NostrEvent {
+  id: string;
+  pubkey: string;
+  created_at: number;
+  kind: number;
+  tags: string[][];
+  content: string;
+  sig: string;
+}
+
+export type Filter = Record<string, unknown>;
+
+export function makeKey(secretHex?: string): NostrKey {
+  const secret = secretHex ? fromHex(secretHex) : schnorr.utils.randomSecretKey();
+  return { secret, secretHex: toHex(secret), pubkey: toHex(schnorr.getPublicKey(secret)) };
+}
+
+export async function signEvent(key: NostrKey, kind: number, tags: string[][], content: string, createdAt?: number): Promise<NostrEvent> {
+  const created_at = createdAt || seconds();
+  const id = await sha256Hex(JSON.stringify([0, key.pubkey, created_at, kind, tags, content]));
+  const sig = toHex(schnorr.sign(fromHex(id), key.secret));
+  return { id, pubkey: key.pubkey, created_at, kind, tags, content, sig };
+}
+
+class Relay {
+  socket: WebSocket | null = null;
+  open = false;
+  failures = 0;
+  closed = false;
+  readonly pool: NostrPool;
+  readonly url: string;
+
+  constructor(pool: NostrPool, url: string) {
+    this.pool = pool;
+    this.url = url;
+    this.connect();
+  }
+
+  connect(): void {
+    if (this.closed) return;
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket(this.url);
+    } catch (e) {
+      netError(`relay ${this.url}: could not open a socket`, e);
+      this.retry();
+      return;
+    }
+    this.socket = socket;
+    const timeout = setTimeout(() => {
+      if (!this.open) socket.close();
+    }, 8000);
+    socket.onopen = () => {
+      clearTimeout(timeout);
+      this.open = true;
+      this.failures = 0;
+      this.pool.relayOpened(this);
+    };
+    socket.onmessage = (message) => {
+      let data: unknown;
+      try {
+        data = JSON.parse(String(message.data));
+      } catch {
+        return;
+      }
+      if (Array.isArray(data)) this.pool.received(this, data);
+    };
+    socket.onclose = () => {
+      clearTimeout(timeout);
+      this.open = false;
+      this.retry();
+    };
+    socket.onerror = () => {};
+  }
+
+  retry(): void {
+    if (this.closed) return;
+    this.failures++;
+    if (this.failures >= 3 && !this.pool.everOpened(this)) {
+      this.pool.relayGaveUp(this);
+      return;
+    }
+    const delay = Math.min(30000, 1500 * Math.pow(2, this.failures));
+    setTimeout(() => this.connect(), delay);
+  }
+
+  send(data: unknown): boolean {
+    if (this.open && this.socket && this.socket.readyState === 1) {
+      try {
+        this.socket.send(JSON.stringify(data));
+        return true;
+      } catch (e) {
+        netError(`relay ${this.url}: send failed`, e);
+      }
+    }
+    return false;
+  }
+
+  close(): void {
+    this.closed = true;
+    this.socket?.close();
+  }
+}
+
+interface Sub {
+  id: string;
+  filters: Filter[];
+  onEvent: (event: NostrEvent, url: string) => void;
+  onEose?: (url: string, count: number) => void;
+  seen: Set<string>;
+  eose: Set<string>;
+}
+
+export class NostrPool {
+  readonly urls: string[];
+  readonly max: number;
+  relays: Relay[] = [];
+  readonly subs = new Map<string, Sub>();
+  readonly opened = new Set<string>();
+  private next = 0;
+  published = 0;
+  receivedEvents = 0;
+  /** Every relay on the list refused to open (a network that blocks them): online can't work here. */
+  exhausted = false;
+
+  constructor(urls = NOSTR_RELAYS, max = 5) {
+    this.urls = urls.slice();
+    this.max = max;
+    for (let i = 0; i < Math.min(max, this.urls.length); i++) this.add();
+  }
+
+  private add(): void {
+    if (this.next >= this.urls.length) {
+      if (!this.relays.length) this.exhausted = true;
+      return;
+    }
+    this.relays.push(new Relay(this, this.urls[this.next++]));
+  }
+
+  everOpened(relay: Relay): boolean {
+    return this.opened.has(relay.url);
+  }
+
+  relayOpened(relay: Relay): void {
+    this.opened.add(relay.url);
+    for (const sub of this.subs.values()) relay.send(['REQ', sub.id, ...sub.filters]);
+  }
+
+  // A relay that never opened: swap in the next one on the list.
+  relayGaveUp(relay: Relay): void {
+    this.relays = this.relays.filter((r) => r !== relay);
+    this.add();
+  }
+
+  received(relay: Relay, data: unknown[]): void {
+    const [type, subId, payload] = data as [string, string, NostrEvent | undefined];
+    const sub = this.subs.get(subId);
+    if (type === 'EVENT' && sub && payload && payload.id) {
+      if (sub.seen.has(payload.id)) return;
+      sub.seen.add(payload.id);
+      if (sub.seen.size > 4000) sub.seen = new Set([...sub.seen].slice(-2000));
+      this.receivedEvents++;
+      sub.onEvent(payload, relay.url);
+    } else if (type === 'EOSE' && sub) {
+      sub.eose.add(relay.url);
+      sub.onEose?.(relay.url, sub.eose.size);
+    } else if (type === 'NOTICE' || (type === 'OK' && data[2] === false)) {
+      // A relay refusing an event (rate limits, a full queue) is worth knowing about, not fatal.
+      console.warn(`[dod-online] relay ${relay.url}: ${JSON.stringify(data).slice(0, 200)}`);
+    }
+  }
+
+  subscribe(filters: Filter[], onEvent: Sub['onEvent'], onEose?: Sub['onEose']): { close(): void } {
+    const sub: Sub = { id: 'h' + randomId(10), filters, onEvent, onEose, seen: new Set(), eose: new Set() };
+    this.subs.set(sub.id, sub);
+    for (const relay of this.relays) relay.send(['REQ', sub.id, ...filters]);
+    return {
+      close: () => {
+        this.subs.delete(sub.id);
+        for (const relay of this.relays) relay.send(['CLOSE', sub.id]);
+      },
+    };
+  }
+
+  publish(event: NostrEvent): number {
+    let sent = 0;
+    for (const relay of this.relays) if (relay.send(['EVENT', event])) sent++;
+    if (sent) this.published++;
+    return sent;
+  }
+
+  openUrls(): string[] {
+    return this.relays.filter((r) => r.open).map((r) => r.url);
+  }
+
+  /** Resolves once at least one relay is open (true), or after the timeout (false). */
+  ready(timeoutMs = 8000): Promise<boolean> {
+    if (this.openUrls().length) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const started = Date.now();
+      const timer = setInterval(() => {
+        if (this.openUrls().length || Date.now() - started > timeoutMs) {
+          clearInterval(timer);
+          resolve(this.openUrls().length > 0);
+        }
+      }, 100);
+    });
+  }
+}
+
+let shared: NostrPool | null = null;
+export function sharedPool(): NostrPool {
+  if (!shared) shared = new NostrPool();
+  return shared;
+}
