@@ -612,10 +612,8 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
   if (settingsOpen()) closeSettings();
   const won = end.winner === f.slot;
   const ending = ENDINGS[end.reason](f.opponent, won);
-  if (end.reason === 'game' || end.reason === 'time') {
-    // The sim's own Game! has played; give it its moment, as in a local match.
-    renderer.stageEvent('end');
-  } else banner(end.reason === 'desync' || end.reason === 'no-start' ? 'Void' : won ? 'You win' : 'Left');
+  // A game that ended in the sim has had its Game! banner; an early end gets its own.
+  if (end.reason !== 'game' && end.reason !== 'time') banner(end.reason === 'desync' || end.reason === 'no-start' ? 'Void' : won ? 'You win' : 'Left');
   for (let i = 0; i < 40 && switching(); i++) await new Promise((r) => setTimeout(r, 50));
   const actions: ResultAction[] = [
     {
@@ -771,6 +769,8 @@ renderer.engine.runRenderLoop(frame);
 
 // Online is always on: the lobby is joined now, with no clicks (docs/online.md). Never in the way of single player.
 startOnline();
+// Closing the tab mid-match tells the other player at once (they win) instead of after the link times out.
+addEventListener('pagehide', () => fight?.forfeit());
 initOnlineUi({
   start: (found) => void startOnlineMatch(found),
   inOnlineMatch: () => !!fight,
