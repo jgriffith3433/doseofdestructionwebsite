@@ -13,7 +13,7 @@ import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
 import { CHAPTERS, loadProgress, saveProgress, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
-import { $, formatTime, h, largeUrl, thumbUrl } from './ui/dom.ts';
+import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playDialogue, playVersus, showResults, type ResultAction } from './ui/views.ts';
@@ -681,7 +681,7 @@ function buildHud(m: Match): void {
       'div',
       { class: `hud-card${online ? ' online' : ''}`, style: `--player:${slotColor(m, f.id)}` },
       h('img', { src: thumbUrl(ch.id), alt: '' }),
-      avatar && avatar !== ch.id ? h('img', { class: 'hud-avatar', src: thumbUrl(avatar), alt: '' }) : null,
+      avatar && avatar !== ch.id ? h('img', { class: 'hud-avatar', src: headUrl(avatar), alt: '' }) : null,
       h('div', { class: 'hud-pct' }),
       h('div', { class: 'hud-meta' }, h('span', { class: 'hud-name' }, m.label(f.id)), h('span', { class: 'hud-stocks' })),
     );

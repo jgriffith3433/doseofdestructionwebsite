@@ -44,6 +44,11 @@ export function thumbUrl(id: string): string {
   return `/characters/thumb/${id}.webp`;
 }
 
+/** A square head-and-face crop for round profile pictures (tools/heads.mjs, boxes in content/heads.json). */
+export function headUrl(id: string): string {
+  return `/characters/head/${id}.webp`;
+}
+
 /** A large, cropped fighter image for previews, the VS screen and dialogue. */
 export function largeUrl(id: string): string {
   return `/characters/large/${id}.webp`;

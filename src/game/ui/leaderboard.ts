@@ -3,7 +3,7 @@
 // Profile and on the menu button. Everything reads the cached table first and redraws when the relays add to it.
 
 import { CHARACTERS } from '../sim/characters.ts';
-import { $, h, kids, thumbUrl } from './dom.ts';
+import { $, h, headUrl, kids } from './dom.ts';
 import { currentScreen } from './screens.ts';
 import { sharedBoard, type Leaderboard, type Tab } from '../net/board.ts';
 import { formatDelta, PAIR_PER_DAY, type PlayerStats } from '../net/ratings.ts';
@@ -78,7 +78,7 @@ export function renderBoard(): void {
 }
 
 function avatarImg(avatar: string): HTMLElement {
-  return avatar ? h('img', { src: thumbUrl(avatar), alt: '', loading: 'lazy' }) : h('i', { class: 'board-noimg' });
+  return avatar ? h('img', { src: headUrl(avatar), alt: '', loading: 'lazy' }) : h('i', { class: 'board-noimg' });
 }
 
 function row(board: Leaderboard, p: PlayerStats & { rank: number }, you: boolean, pinned = false): HTMLElement {

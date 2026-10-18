@@ -78,8 +78,13 @@ beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
 - A name and a picture, which is one of our fighters (`content/fighters.json`); online you fight as your picture.
 - Default: a generated show-crowd name ("Neon Rookie 42") and a random fighter. Kept in localStorage `dod.profile`.
 - Main menu → **Profile**: a name field (2–16 characters: letters, digits, spaces and `- _ . '`, after NFKC; anything
-  else is dropped; an unusable name keeps the old one), **Random name**, and a grid of every fighter's thumb.
+  else is dropped; an unusable name keeps the old one), **Random name**, and a grid of every fighter's face.
   Save sends it to the lobby at once.
+- Pictures are round head crops, `characters/head/<id>.webp` (square, 128 px), cut from the large image by
+  `node tools/heads.mjs` at the face box in `content/heads.json` (centre and side, as fractions of the image height).
+  Every round avatar (Profile, the online list, Match found, the HUD badge, the Leaderboard) uses them with plain
+  `object-fit: cover`, so the face is centred in every browser. A new or recut fighter: run `node tools/heads.mjs
+  --only <id> --sheet sheet.png`, look at the sheet, tune its box, run again; `npm test` fails until it has one.
 - Names and pictures from other players are cleaned the same way (`cleanName`, `cleanAvatar`) before they show.
 
 ## Pairing
