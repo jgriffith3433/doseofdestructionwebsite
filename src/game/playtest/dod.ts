@@ -25,9 +25,7 @@ import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
 import { loadAnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import type { SimEvent } from '../sim/step.ts';
-import { PLAYTEST_PEER, TEST_LOBBY, onlineParts } from '../net/online.ts';
-import { sharedBoard } from '../net/board.ts';
-import { profileId } from '../net/profile.ts';
+import { onlineReady } from '../net/loader.ts';
 
 export type MatchWatcher = (m: Match, events: SimEvent[]) => void;
 
@@ -574,13 +572,16 @@ class Run {
   /** Two tabs (peers: 2) in one private test lobby: see each other, rename, queue, get matched, fight, results. */
   async online(): Promise<void> {
     const t = this.t;
-    const peer = Math.max(0, PLAYTEST_PEER);
-    const parts = onlineParts();
-    if (!parts) {
+    // Online loads after boot (net/loader.ts): wait for it rather than race it.
+    const net = await Promise.race([onlineReady(), new Promise<null>((r) => setTimeout(() => r(null), 60000))]);
+    const parts = net?.onlineParts() ?? null;
+    if (!net || !parts) {
       t.problem('bug', 'online play did not start on this page (see the console)');
       t.finish('error');
       return;
     }
+    const { PLAYTEST_PEER, TEST_LOBBY, sharedBoard, profileId } = net;
+    const peer = Math.max(0, PLAYTEST_PEER);
     if (!TEST_LOBBY) {
       // Never pair a playtest bot with real players in the global lobby.
       t.problem('warning', 'the online scenario needs ?room=<id> (Hawkes Gen playtest.run with peers: 2); without it there is nobody to meet');

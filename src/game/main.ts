@@ -19,11 +19,10 @@ import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playDialogue, playVersus, showResults, type ResultAction } from './ui/views.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
-import { onlineParts, startOnline } from './net/online.ts';
-import { OnlineFight, type FightEnd } from './net/fight.ts';
+// Online code is never imported here: it loads after boot through the loader (a failure there can't stop the game).
+import type { OnlineFight, FightEnd } from './net/fight.ts';
 import type { Found } from './net/matchmaker.ts';
-import { closeProfile, findMatch, initOnlineUi, openProfile } from './ui/online.ts';
-import { initLeaderboardUi, renderBoard, showRatingChange } from './ui/leaderboard.ts';
+import { bootOnline, onlineApi } from './net/loader.ts';
 import { switching } from './ui/screens.ts';
 
 const TICK_MS = 1000 / 60;
@@ -114,9 +113,9 @@ function wireMenus(): void {
       else if (to === 'training') openTraining();
       else if (to === 'howto') go('howto');
       else if (to === 'settings') openSettings();
-      else if (to === 'online') findMatch();
-      else if (to === 'profile') openProfile();
-      else if (to === 'leaderboard') go('leaderboard', renderBoard);
+      else if (to === 'online') onlineCall('find match', (o) => o.findMatch());
+      else if (to === 'profile') onlineCall('profile', (o) => o.openProfile());
+      else if (to === 'leaderboard') go('leaderboard', () => onlineCall('leaderboard', (o) => o.renderBoard()));
     }),
   );
   document.querySelectorAll<HTMLButtonElement>('[data-back]').forEach((b) =>
@@ -300,7 +299,8 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   const stale = () => token !== startToken || (f !== null && f.phase === 'done');
   const seed = online ? online.seed : (playtestSeed ?? (Math.random() * 0x7fffffff) | 0);
   const m = new Match(setup, seed);
-  const f: OnlineFight | null = online ? new OnlineFight(online.found, m) : null;
+  const net = online ? onlineApi() : null;
+  const f: OnlineFight | null = online && net ? new net.OnlineFight(online.found, m) : null;
   if (f) {
     fight = f;
     f.onEnd = (end) => onlineEnded(m, f, end);
@@ -567,12 +567,26 @@ function finish(m: Match): void {
 
 // ------------------------------------------------------------------ online
 
+/** Runs `fn` with the online module if it loaded; an online failure is logged and never stops the game. */
+function onlineCall(what: string, fn: (o: NonNullable<ReturnType<typeof onlineApi>>) => void): void {
+  const o = onlineApi();
+  if (!o) {
+    console.error(`[dod-online] ${what}: online play isn't available on this page (see the earlier error)`);
+    return;
+  }
+  try {
+    fn(o);
+  } catch (e) {
+    console.error(`[dod-online] ${what} failed:`, e);
+  }
+}
+
 /** The match-found countdown ran out: whatever is on ends and the online match loads. */
 async function startOnlineMatch(found: Found): Promise<void> {
   const s = found.setup;
   // Out of any menu or panel first; a screen switch in progress finishes before ours starts.
   if (settingsOpen()) closeSettings();
-  closeProfile();
+  onlineCall('close profile', (o) => o.closeProfile());
   $('pause').hidden = true;
   chapter = null;
   for (let i = 0; i < 40 && switching(); i++) await new Promise((r) => setTimeout(r, 50));
@@ -609,7 +623,7 @@ const ENDINGS: Record<FightEnd['reason'], (opp: string, won: boolean) => { headl
 
 /** The online fight ended (any reason): results, then back to the lobby with Queue again. */
 async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<void> {
-  onlineParts()?.mm.matchOver();
+  onlineCall('match over', (o) => o.onlineParts()?.mm.matchOver());
   if (match === m) phase = 'idle';
   $('pause').hidden = true;
   if (settingsOpen()) closeSettings();
@@ -623,7 +637,7 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
       label: 'Queue again',
       primary: true,
       run: () => {
-        void go('main', spotlight).then(() => findMatch());
+        void go('main', spotlight).then(() => onlineCall('find match', (o) => o.findMatch()));
       },
     },
     { label: 'Main menu', run: () => go('main', spotlight) },
@@ -631,7 +645,7 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
   await go('results', () => {
     endMatch();
     showResults(m, actions, { ...ending, winner: end.winner >= 0 ? end.winner : undefined });
-    showRatingChange(end, f.slot);
+    onlineCall('rating change', (o) => o.showRatingChange(end, f.slot));
     audio.playMusic('music-results');
   });
   const winner = m.state.fighters[end.winner];
@@ -771,16 +785,6 @@ function frame(): void {
 wireMenus();
 renderer.engine.runRenderLoop(frame);
 
-// Online is always on: the lobby is joined now, with no clicks (docs/online.md). Never in the way of single player.
-startOnline();
-// Closing the tab mid-match tells the other player at once (they win) instead of after the link times out.
-addEventListener('pagehide', () => fight?.forfeit());
-initOnlineUi({
-  start: (found) => void startOnlineMatch(found),
-  inOnlineMatch: () => !!fight,
-});
-initLeaderboardUi();
-
 // Devtools playtests open /Game/?play&stage=pit&fighter=slice&vs=break&level=5
 // (vs=dummy for a training dummy) and land straight in the match.
 const params = new URLSearchParams(location.search);
@@ -841,6 +845,34 @@ installDodPlaytest({
   },
 });
 
+// Online is always on: the lobby is joined with no clicks (docs/online.md), but only now, after the game and the
+// playtest hook are up, and each part on its own guard: nothing online can stop single player.
+bootOnline((o) => {
+  const step = (what: string, fn: () => void) => {
+    try {
+      fn();
+    } catch (e) {
+      console.error(`[dod-online] ${what} failed (single player is unaffected):`, e);
+    }
+  };
+  step('joining the lobby', () => o.startOnline());
+  step('the online menus', () =>
+    o.initOnlineUi({
+      start: (found) => void startOnlineMatch(found),
+      inOnlineMatch: () => !!fight,
+    }),
+  );
+  step('the leaderboard', () => o.initLeaderboardUi());
+});
+// Closing the tab mid-match tells the other player at once (they win) instead of after the link times out.
+addEventListener('pagehide', () => {
+  try {
+    fight?.forfeit();
+  } catch (e) {
+    console.error('[dod-online] forfeit on leaving failed:', e);
+  }
+});
+
 if (import.meta.env.DEV) {
   // advance(n) runs n ticks without waiting on animation frames, for test drivers.
   const advance = (n: number) => {
@@ -867,4 +899,12 @@ if (import.meta.env.DEV) {
 if (import.meta.hot) {
   // Devtools saved a content file (a stage, a fighter, a sound): pick it up.
   import.meta.hot.on('dod:content', () => location.reload());
+  // The dev server can't build the online chunk (e.g. its packages aren't installed): that's logged, and Vite's
+  // full-screen error overlay, which would block the menus and the playtest's clicks, is taken down.
+  import.meta.hot.on('vite:error', (payload: { err?: { message?: string; id?: string } }) => {
+    const where = `${payload.err?.id ?? ''} ${payload.err?.message ?? ''}`;
+    if (!/\/src\/game\/(net\/|ui\/online|ui\/leaderboard)|@noble\//.test(where)) return;
+    console.error(`[dod-online] the dev server can't build online play (single player is unaffected): ${payload.err?.message ?? where}`);
+    setTimeout(() => document.querySelectorAll('vite-error-overlay').forEach((el) => el.remove()), 0);
+  });
 }
