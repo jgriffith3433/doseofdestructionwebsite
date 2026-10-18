@@ -284,9 +284,17 @@ export class OnlineFight {
     return { ...this.start, w, n, r };
   }
 
+  private readonly signed = new Map<string, string>();
+
+  /** Our signature on a result body (one per body: Schnorr signatures differ each time, and both copies should match). */
   private sign(body: Omit<ResultRecord, 'sig' | 'st'>): string {
+    const text = resultBody(body);
+    const old = this.signed.get(text);
+    if (old) return old;
     try {
-      return signBody(this.key.secret, resultBody(body));
+      const sig = signBody(this.key.secret, text);
+      this.signed.set(text, sig);
+      return sig;
     } catch (e) {
       netError('fight: signing the result failed (this match will not be rated)', e);
       return '';

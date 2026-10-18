@@ -45,6 +45,7 @@
       <button class="menu-item" type="button" data-go="versus"><strong>Versus</strong><span>Up to four fighters, any mix of you and bots.</span></button>
       <button id="btn-find" class="menu-item online-item" type="button" data-go="online"><strong>Find match</strong><span id="find-sub">Fight another player online. Play on while you wait.</span></button>
       <button id="btn-profile" class="menu-item profile-item" type="button" data-go="profile"><img id="profile-img" alt=""><strong>Profile</strong><span id="profile-sub">Your name and picture.</span></button>
+      <button id="btn-board" class="menu-item board-item" type="button" data-go="leaderboard"><strong>Leaderboard</strong><span id="board-sub">Top 100 online, this week and all time.</span></button>
       <button class="menu-item" type="button" data-go="training"><strong>Training</strong><span>A dummy, no stocks, hitboxes on H.</span></button>
       <button class="menu-item" type="button" data-go="howto"><strong>How to play</strong><span>Controls and the basics.</span></button>
       <button class="menu-item" type="button" data-go="settings"><strong>Settings</strong><span>Sound on or off, music and effects.</span></button>
@@ -129,6 +130,24 @@
     </div>
   </section>
 
+  <section id="leaderboard" class="screen leaderboard-screen" hidden>
+    <header class="screen-head">
+      <button class="back-btn" type="button" data-back>&larr; Back</button>
+      <div class="board-title"><p class="kicker">The ratings</p><h2>Leaderboard</h2></div>
+      <div id="board-tabs" class="board-tabs" role="group" aria-label="Period">
+        <button type="button" data-tab="week" aria-pressed="true" data-autofocus>This week</button>
+        <button type="button" data-tab="all" aria-pressed="false">All time</button>
+      </div>
+    </header>
+    <div class="board-body">
+      <p id="board-status" class="board-status" aria-live="polite"></p>
+      <div class="board-head" aria-hidden="true"><span>#</span><span></span><span>Player</span><span>Rating</span><span>W&ndash;L</span></div>
+      <ol id="board-list" class="board-list"></ol>
+      <div id="board-you" class="board-you"></div>
+      <p class="hint board-hint">Online matches only. Everyone starts at 1000; a result counts when both players&rsquo; games sign it. The week starts Monday (UTC).</p>
+    </div>
+  </section>
+
   <section id="results" class="screen results-screen" hidden>
     <div id="results-body" class="results-body"></div>
     <div id="results-actions" class="actions results-actions"></div>
@@ -168,6 +187,7 @@
     <div class="panel profile-panel">
       <h2 id="profile-title">Profile</h2>
       <p class="hint">Everyone online sees your name and picture. Online, you fight as your picture.</p>
+      <p id="profile-stats" class="profile-stats"></p>
       <label class="profile-name"><span>Name</span><input id="profile-name" type="text" maxlength="16" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done"></label>
       <button id="profile-random" class="secondary" type="button">Random name</button>
       <p class="profile-pick-label">Picture</p>

@@ -9,6 +9,7 @@ import { Lobby } from './lobby.ts';
 import { Matchmaker, type OnlineSetup } from './matchmaker.ts';
 import { avatarChar, onProfile, profile, profileId } from './profile.ts';
 import { netError, randomId } from './util.ts';
+import { leaderboard } from './board.ts';
 import { stagesFor } from '../modes.ts';
 
 const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
@@ -61,6 +62,8 @@ export function startOnline(): { lobby: Lobby; mm: Matchmaker } | null {
     mm = new Matchmaker(lobby, { me, makeSetup, sameMachine: PLAYTEST_PEER >= 0 });
     onProfile((next) => lobby?.update({ name: next.name, avatar: next.avatar }));
     lobby.start();
+    // The leaderboard refreshes in the background from the same relays; its cached table is there already.
+    leaderboard(LOBBY_ID).start();
     console.info(`[dod-online] joined lobby "${LOBBY_ID}" as ${p.name} (${lobby.id})`);
     return { lobby, mm };
   } catch (e) {
