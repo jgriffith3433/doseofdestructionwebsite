@@ -6,8 +6,8 @@ characters) and name. While players are waiting for a match they can play agains
 Once the match gets ready to start there should be an indicator … make it work on all platforms and without having to
 join rooms make it work automatically."
 
-Part 1 (this) is the lobby, the queue, profiles and the online fight. Part 2 is the leaderboard: it listens on the
-match-result event (below).
+Part 1 is the lobby, the queue, profiles and the online fight. Part 2 (J: "Make a leaderboard system too.") is the
+leaderboard: signed results on the same relays, Elo, the Leaderboard screen (below, "The leaderboard").
 
 ## Hard rules
 
@@ -38,11 +38,14 @@ match-result event (below).
 | `rollback.ts` | rollback netcode (pure) |
 | `fight.ts` | one online fight: the `Match` through the rollback over the link; how it ends |
 | `results.ts` | the match-result event |
-| `profile.ts` | name and picture in localStorage |
+| `profile.ts` | name and picture in localStorage; the profile key (the leaderboard's player id) |
+| `ratings.ts` | the leaderboard's rules (pure): result bodies, signatures, what counts, dedupe, Elo, the table |
+| `board.ts` | the leaderboard's data: results to and from the relays, the localStorage cache, the outbox |
 | `online.ts` | wiring: which lobby, the online rules, `startOnline()` |
 
-The UI is `src/game/ui/online.ts` (lobby strip, Find match, the searching chip, the match-found banner, Profile) and
-the markup in `Game/index.html`; `main.ts` runs the online fight in the match loop.
+The UI is `src/game/ui/online.ts` (lobby strip, Find match, the searching chip, the match-found banner, Profile),
+`src/game/ui/leaderboard.ts` (the Leaderboard screen, the rating line on the results, the Profile stats) and the
+markup in `Game/index.html`; `main.ts` runs the online fight in the match loop.
 
 ## The lobby
 
@@ -132,10 +135,72 @@ onMatchResult((r) => { /* r: MatchResult */ });
 // or: window.addEventListener('dod:match-result', (e) => e.detail)
 ```
 
-`{ matchId, self, players: [{ id, name, avatar, fighter }] (by slot, 0 hosts), winner: id | null, reason: game | time
-| forfeit | disconnect | desync | no-start, stage, frames, durationMs, endedAt, stocks }`. It is also logged as
-`[dod-online] match result {…}`. A `disconnect` is claimed by whoever is still connected on their own page; the
-leaderboard should count only results both pages agree on (or ignore disconnects).
+`{ matchId, self, players: [{ id, pid, name, avatar, fighter }] (by slot, 0 hosts; pid is the profile id), winner:
+id | null, reason: game | time | forfeit | disconnect | desync | no-start, stage, frames, durationMs, endedAt, stocks }`.
+It is also logged as `[dod-online] match result {…}`. The leaderboard doesn't trust this event: it counts the signed
+result the fight produces (`FightEnd.rated`, next section).
+
+## The leaderboard
+
+J, 2026-10-18: "Make a leaderboard system too." No server of ours, so results live on the same public Nostr relays as
+the lobby, and every page builds the table itself from them, with the same code, so every device shows the same one.
+
+**Who is who.** The profile gets a signing key (secp256k1, localStorage `dod.profile.key`, made on first visit); its
+public key is the player's **profile id**. Lobby ids stay per tab; the profile id is per browser, so a rating
+survives visits (and two tabs of one browser are one profile: their matches aren't rated). The handshake's `hello`
+carries it and the host's setup lists both (`pids`) with the setup time (`at`); the guest checks its own is there.
+
+**Signing a result** (`fight.ts`, rules in `ratings.ts`):
+- When a page has loaded the match it signs the **start** (match id, both profile ids, fighters, stage, time) and
+  sends it to the other (`ss`). It proves that player was in the match.
+- At the end each page signs the **result**: match id, both ids, the winning slot (-1 draw), fighters, stage, frames
+  played, the setup time and how it ended (`game`, `time`, or `left`), and sends its signature (`rs`). Both bodies are
+  the same (the fight ends on the same frame on both sides), so both pages end with the same record carrying both
+  signatures (`kind: full`). A Schnorr signature is made once per body, so the two copies match byte for byte.
+- **Leaving**: Leave match (or closing the tab) signs the player's own loss (`left`) before it sends `quit`, so a
+  forfeit is normally fully signed. A lost link, or a loser who never signs, is a `left` result signed by the winner
+  alone plus the leaver's start signature (`kind: claim`): it counts as a loss for the leaver, marked `left`.
+- Void ends (desync, no start) aren't rated. The end waits up to 6 s for the other signature.
+
+**Publishing.** A page publishes its record as a NIP-78 event (kind 30078, `d` = `hawkes-dod/result/<match id>`, tag
+`hawkes-dod/results/<lobby>`; test lobbies have their own table) signed with its profile key, with the publisher's
+name and picture (`me`) and the opponent's as seen (`o`, used only until that player's own arrives). Both players
+publish, so one missing still leaves the other. With no relay open it waits in an outbox (cached) and goes out later.
+
+**What counts** (`ratings.ts`, the same on every client):
+- Signatures checked: a `game`/`time` result needs both; a `left` one needs the winner's and the leaver's (on the
+  result, or on the start). A bad signature, a malformed field, the same profile on both sides, or a time before
+  2026-10-01 is ignored (and a result stamped over an hour ahead waits for its time).
+- **One result per match id**: a fully signed one wins over claims; two claims that disagree (both sides say the
+  other dropped, which a real network drop does) void the match.
+- **The same two players count 5 rated matches a UTC day** (`PAIR_PER_DAY`); later ones that day don't count at all.
+- **Elo**: everyone starts at 1000, K = 32, results applied in order of their setup time (ties by match id). The
+  expected score comes from an integer table (the FIDE way: rating difference → percent), so no floating point
+  differs between browsers; changes are zero-sum (+16 / −16 between two new players). A draw on time is half a win.
+- Per player: rating, wins, losses, draws, the current streak, the favourite fighter (played most; ties: last
+  played). Rank: rating, then wins, then fewer losses, then id.
+- **Weekly**: the same rules over results since Monday 00:00 UTC, from a fresh 1000.
+
+**Fast and offline-safe** (`board.ts`): the counted results, names and the outbox are cached in localStorage
+(`dod.board.<lobby>`, newest 3000), so the table shows at once and offline. On load it subscribes for results
+since a day before the newest it has; new events are checked a dozen at a time between frames, so nothing blocks the
+game. The table is recomputed only when results change.
+
+**Screens**:
+- Main menu → **Leaderboard** (its line shows "You: #3 · 1016 · 4–2"): This week / All time, the top 100 with rank,
+  picture, name, rating and W–L, your row highlighted and pinned at the bottom with your rank (or "Unranked"), and a
+  status line (Live / Saved results · updating… / Offline: showing the results this device has saved). Fits phones in
+  portrait and landscape.
+- The online results: "Rating 1016 +16 · <name> 984 (−16)" once both signatures are in ("confirming the result with
+  <name>…" before). A result only we signed (we left) shows the expected change with "Counts once <name>'s copy
+  reaches the board." Unrated matches say why (void, same profile, the day's limit for the pair).
+- Profile: "Rating 1016 · #3 all time · 4–2 · 3 wins in a row · mostly Break".
+
+**Limits**: with no server a cheat can't win a match they didn't (the loser's key never signs it), but they can void
+one they lost (refuse to sign and claim the other left: two claims void). Keys live in one browser: clearing site data
+starts a new profile at 1000, and many fresh profiles can farm one another (the pair limit slows it). Relays keep
+events at their discretion and pages don't republish old results, so history older than the relays' memory lives
+only in the players' caches.
 
 ## All platforms
 
@@ -159,4 +224,11 @@ leaderboard should count only results both pages agree on (or ignore disconnects
 - `node tools/online-live.test.ts` (with `npm i --no-save node-datachannel@0.33.4`) runs two players over the real
   public relays and WebRTC: both see "2 online", a rename shows for the other, both queue and pair, the fight plays to
   the same end on both, both go back to idle.
-- The playtest scenario `online` (Hawkes Gen `playtest.run` with `peers: 2`): see AGENTS.md.
+- `npm test` also runs `src/game/test/ratings.test.ts`: signatures (a changed field, a swapped key, one signature,
+  a bad one), `left` claims (with and without the leaver's start; disagreeing claims void), dedupe (both copies count
+  once, a full result beats a claim, the pair-per-day limit), Elo (the table, zero-sum, the same table from the same
+  results in any order and with repeats, streaks, favourites, +16/−16) and the weekly table.
+- `node tools/online-live.test.ts` also checks both sides end with the same fully signed result, and a third page that
+  only listens builds the same table from the relays.
+- The playtest scenario `online` (Hawkes Gen `playtest.run` with `peers: 2`): see AGENTS.md. After the match each
+  peer checks its rating change and the Leaderboard (both tabs: winner #1 at 1000 + d, loser #2 at 1000 − d).
