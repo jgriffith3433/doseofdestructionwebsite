@@ -134,6 +134,7 @@ export class NostrPool {
   receivedEvents = 0;
   /** Every relay on the list refused to open (a network that blocks them): online can't work here. */
   exhausted = false;
+  private readonly warned = new Set<string>();
 
   constructor(urls = NOSTR_RELAYS, max = 5) {
     this.urls = urls.slice();
@@ -177,8 +178,14 @@ export class NostrPool {
       sub.eose.add(relay.url);
       sub.onEose?.(relay.url, sub.eose.size);
     } else if (type === 'NOTICE' || (type === 'OK' && data[2] === false)) {
-      // A relay refusing an event (rate limits, a full queue) is worth knowing about, not fatal.
-      console.warn(`[dod-online] relay ${relay.url}: ${JSON.stringify(data).slice(0, 200)}`);
+      // A relay refusing an event (rate limits, its own policy) is worth knowing about once, not fatal: the others
+      // carry it.
+      const why = String(type === 'OK' ? data[3] : data[1]).slice(0, 160);
+      const key = `${relay.url}|${why.replace(/[0-9a-f]{16,}/g, '')}`;
+      if (!this.warned.has(key)) {
+        this.warned.add(key);
+        console.warn(`[dod-online] relay ${relay.url} refused: ${why}`);
+      }
     }
   }
 

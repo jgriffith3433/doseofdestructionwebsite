@@ -11,13 +11,13 @@ export const ICE_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.cloudflare.com:3478' },
 ];
 
-// Public Nostr relays that accept both the ephemeral signalling events and the stored presence events (Yooba Land
-// checked them 2026-10-18). A page uses the first few that open.
+// Public Nostr relays that accept both the ephemeral signalling events and the stored presence events (Yooba Land's
+// list, checked again 2026-10-18 for DoD: offchain.pub now refuses keys outside its web of trust, so it's out). A page
+// uses the first five that open; a relay that refuses an event is warned about once and the others carry it.
 export const NOSTR_RELAYS = [
   'wss://relay.damus.io',
   'wss://nos.lol',
   'wss://relay.primal.net',
-  'wss://offchain.pub',
   'wss://nostr.mom',
   'wss://relay.snort.social',
   'wss://nostr-pub.wellorder.net',
