@@ -25,6 +25,7 @@ import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
 import { loadAnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import type { SimEvent } from '../sim/step.ts';
+import { PLAYTEST_PEER, TEST_LOBBY, onlineParts } from '../net/online.ts';
 
 export type MatchWatcher = (m: Match, events: SimEvent[]) => void;
 
@@ -50,6 +51,7 @@ const SCENARIOS = [
   { id: 'campaign', title: 'The campaign from chapter 1, as far as the bot gets in 10 minutes', seconds: 600, tags: ['full'] },
   { id: 'sound-settings', title: 'Tap to play, sound on, Settings from the menu and Pause, a setting kept across a reload', description: 'Taps the Tap to play prompt with a pointer press on the spot (hit-tested, so a covered prompt fails), checks the AudioContext runs and the menu music plays with no more taps, opens Settings from the main menu, turns Sound off and Music to 40%, reloads (the run carries on through ?playtest=sound-settings), checks the prompt and the choice are back, then opens Settings from Pause in a match. The player\'s own hawkes.sound is put back at the end.', seconds: 120, tags: ['smoke', 'sound'] },
   { id: 'site-links', title: 'The website around the game: Powered by HAWKES GEN on every page, Hawkes Biomedical on the landing page, the game screen without them', description: 'Checks the game screen has no site footer marks, then opens the landing page over the game in a full-screen frame and walks the site through its own links (footer Characters, a fighter card picked from the seed, Privacy, What\'s new), checking on each page that "Powered by HAWKES GEN" links to https://hawkesgen.com (shown, not covered) and on the landing page that Hawkes Biomedical links to https://hawkesbiomedical.com. Every fighter page is also read and checked. The frame is removed at the end and the game checked again.', seconds: 60, tags: ['smoke', 'site'] },
+  { id: 'online', title: 'Two players online (peers: 2): the lobby with no clicks, a profile change seen by the other, Find match, CPU while searching, Match found, the online fight to its end, results', description: 'Needs Hawkes Gen playtest.run with peers: 2 (the two tabs share ?room=<id>, a private test lobby, and get ?peer=0/1). Both land in the lobby and see "2 online"; peer 1 renames itself in Profile and peer 0 sees the new name; peer 0 presses Find match and plays a CPU versus match while it searches; peer 1 presses Find match 30 s later; both see "Match found vs <name> · Starting in N", fight each other (the CPU bot on each pad; test lobbies play 1 stock, 90 s) with the names on the HUD, and see the result with Queue again.', seconds: 330, tags: ['full', 'online'] },
   { id: 'roster', title: 'Every fighter spawns in training and does each move once (starts matches directly)', seconds: 480, tags: ['full', 'roster'] },
 ];
 
@@ -84,6 +86,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'site-links') await r.siteLinks();
+        else if (id === 'online') await r.online();
       } finally {
         r.dispose();
       }
@@ -562,6 +565,114 @@ class Run {
     }
     t.progress(1);
     t.finish(outcome);
+  }
+
+  // ---------------------------------------------------------- online
+
+  /** Two tabs (peers: 2) in one private test lobby: see each other, rename, queue, get matched, fight, results. */
+  async online(): Promise<void> {
+    const t = this.t;
+    const peer = Math.max(0, PLAYTEST_PEER);
+    const parts = onlineParts();
+    if (!parts) {
+      t.problem('bug', 'online play did not start on this page (see the console)');
+      t.finish('error');
+      return;
+    }
+    if (!TEST_LOBBY) {
+      // Never pair a playtest bot with real players in the global lobby.
+      t.problem('warning', 'the online scenario needs ?room=<id> (Hawkes Gen playtest.run with peers: 2); without it there is nobody to meet');
+      t.finish('done');
+      return;
+    }
+    const { lobby, mm } = parts;
+    t.log(`peer ${peer} in lobby ${lobby.lobby} as ${lobby.me.name} (${lobby.id})`);
+    await this.toMainMenu();
+    t.progress(0.05);
+
+    // 1. The lobby, with no clicks: the other tab shows up.
+    await t.until(() => lobby.count() >= 2, 90000, 'the other player in the lobby ("2 online")');
+    const countText = this.q('#lobby-count')?.textContent ?? '';
+    if (!/\b2 online\b/.test(countText)) t.problem('bug', `the lobby count says "${countText}" with two players in the lobby`);
+    t.event('lobby', `${countText}: ${lobby.players().map((p) => p.name).join(', ')}`);
+    t.metric('online', lobby.count());
+    t.progress(0.1);
+
+    // 2. Profile: peer 1 renames itself and picks a picture; peer 0 sees both on its menu.
+    const NEW_NAME = 'Tester Two';
+    const avatar = CHARACTERS[Math.abs(this.options.seed * 13 + 5) % CHARACTERS.length].id;
+    if (peer === 1) {
+      await this.click(() => this.q('#btn-profile'), 'Profile');
+      const input = this.q('#profile-name') as HTMLInputElement;
+      input.focus();
+      input.value = NEW_NAME;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await this.click(() => this.q(`#profile-grid [data-avatar="${avatar}"]`), `picture ${avatar}`);
+      await this.click(() => this.q('#profile-save'), 'Save');
+      t.event('profile', `renamed to ${NEW_NAME}, picture ${avatar}`);
+    } else {
+      const seen = () => [...document.querySelectorAll<HTMLElement>('#lobby-list .lobby-player')].find((li) => li.textContent?.includes(NEW_NAME));
+      await t.until(() => !!seen(), 60000, `the other player's new name "${NEW_NAME}" on the menu`);
+      const img = seen()!.querySelector('img');
+      if (!img?.getAttribute('src')?.includes(avatar)) t.problem('bug', `the other player's new picture (${avatar}) isn't shown with their name`);
+      t.event('profile-seen', `the menu shows ${NEW_NAME} with ${avatar}`);
+    }
+    t.progress(0.2);
+
+    // 3. Find match. Peer 0 then plays a CPU match while it searches; peer 1 joins the queue 30 s later.
+    if (peer === 1) {
+      const other = () => lobby.players().find((p) => !p.self);
+      await t.until(() => other()?.status === 'queued', 60000, 'the other player to start searching');
+      await t.wait(30000);
+    }
+    await this.click(() => this.q('#btn-find'), 'Find match');
+    await t.until(() => mm.state !== 'idle', 5000, 'the search to start');
+    t.event('queued', 'searching for an opponent');
+    if (peer === 0) {
+      await t.until(() => !this.q('#mm-chip')?.hidden && /Searching for opponent/.test(this.q('#mm-chip')?.textContent ?? ''), 5000, 'the "Searching for opponent…" chip');
+      try {
+        await this.startVersus(3);
+      } catch (e) {
+        // The match was found before the CPU match got going: that's fine, the online one takes over.
+        if (mm.state === 'idle') throw e;
+        t.log(`the match was found while setting up the CPU match (${e instanceof Error ? e.message : e})`);
+      }
+      const chip = this.q('#mm-chip');
+      if (mm.state === 'searching' && (chip?.hidden || chip?.getClientRects().length === 0)) t.problem('bug', 'the searching chip is not shown during the CPU match');
+      else if (mm.state === 'searching') t.event('cpu-while-searching', `CPU match live, chip: ${chip?.textContent?.trim()}`);
+    }
+    t.progress(0.3);
+
+    // 4. Match found: the banner and its countdown, over whatever is on.
+    const banner = () => this.q('#mm-found');
+    await t.until(() => (banner() && !banner()!.hidden) || this.game.match()?.setup.mode === 'online', 150000, 'Match found');
+    const text = banner()?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+    if (!/Match found/.test(text) || !/vs /.test(text) || !/Starting in \d/.test(text)) t.problem('bug', `the match-found banner says "${text}"`);
+    t.event('match-found', text);
+    t.progress(0.4);
+
+    // 5. The online fight: names on the VS screen and the HUD, the bot on the pad.
+    await t.until(() => this.game.match()?.setup.mode === 'online' && currentScreen() === 'match' && this.game.phase() === 'play', 90000, 'the online match to start');
+    const m = this.game.match()!;
+    const names = m.setup.online!.names;
+    const opp = names[1 - m.player];
+    const hud = this.q('#hud')?.textContent ?? '';
+    if (!hud.includes(opp)) t.problem('bug', `the opponent's name (${opp}) isn't on the fight HUD`);
+    t.event('online-start', `${names[0]} vs ${names[1]} on ${STAGES[m.state.stage].name}, this tab is slot ${m.player}`);
+    this.progressNow = () => 0.45 + 0.45 * Math.min(1, (this.game.match()?.state.frame ?? 0) / Math.max(1, m.state.rules.timeLimit || 5400));
+    await t.until(() => currentScreen() === 'results', 5 * 60 * 1000, 'the online match to end');
+    this.progressNow = () => 0.95;
+
+    // 6. Results, with Queue again.
+    const headline = this.q('#results-body h2')?.textContent ?? '';
+    t.event('online-result', `${headline}${this.q('.results-note') ? ` (${this.q('.results-note')!.textContent})` : ''}`);
+    if (!this.button('#results-actions', 'Queue again')) t.problem('bug', 'no Queue again on the online results');
+    if (/void|lost/i.test(headline)) t.problem('bug', `the online match ended "${headline}": ${this.q('.results-note')?.textContent ?? ''}`);
+    const won = /^You win/.test(headline);
+    await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+    await this.screen('main');
+    t.progress(1);
+    t.finish(won ? 'won' : 'lost');
   }
 
   async roster(): Promise<void> {

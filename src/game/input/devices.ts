@@ -129,6 +129,8 @@ export function pausePressed(): boolean {
 /** Runs cb once per key press (auto-repeat ignored). */
 export function onKey(code: string, cb: () => void): void {
   window.addEventListener('keydown', (e) => {
+    const t = e.target;
+    if (t instanceof HTMLInputElement && t.type === 'text') return;
     if (e.code === code && !e.repeat) cb();
   });
 }

@@ -5,6 +5,19 @@ Platform fighter with every main IP character (doseofdestruction.com). The game 
 port 8089). Docs are in `docs/`. Check with `npm test` (sim) and `npm run typecheck`. Pushing `main`
 deploys the live site (GitHub Actions `pages.yml`): don't commit or push unless asked.
 
+## Online
+
+Online is always on (docs/online.md): every page joins one global lobby on load (Nostr presence beats on public
+relays, no server of ours, no codes), the main menu shows "N online" and who, **Find match** queues (the player keeps
+playing anything meanwhile under a "Searching for opponent…" chip), a pair is made by a deterministic rule plus a
+handshake, and the fight runs the sim through rollback netcode over a WebRTC data channel, with a desync hash. The
+code is `src/game/net/` (adapted from Yooba Land's `Tools/Web/net/src`, copied, not depended on) and
+`src/game/ui/online.ts`. **Profile** is a name and a fighter picture (localStorage `dod.profile`); online you fight as
+your picture. Every finished online match fires the match-result event (`net/results.ts` `onMatchResult`,
+`window` `dod:match-result`): the leaderboard's hook. `?room=<id>` is a private test lobby. Network errors go to
+`console.error("[dod-online] …")`. `npm test` covers pairing and the rollback; `node tools/online-live.test.ts`
+checks the real network from Node.
+
 ## Library (Hawkes Gen)
 
 Dev Tools → **Library** shows every fighter in Hawkes Gen's library (`hawkesgen/docs/library.md`), the same one
@@ -39,6 +52,7 @@ the CPU bot (`src/game/ai/bot.ts`, level 9) drives your fighter through a virtua
 | `campaign` (≤10 min) | The campaign from chapter 1: dialogue, fights, outros. Two tries per chapter; stops cleanly at 9.5 min. |
 | `sound-settings` (~2 min) | Studio standard: taps the Tap to play prompt (hit-tested pointer press), checks the AudioContext runs and the menu music starts, Settings from the main menu (Sound off, Music 40%), reloads the page (the run carries on via `sessionStorage`), checks the choice came back, then Settings from Pause in a match. Puts the player's `hawkes.sound` back. |
 | `site-links` (~1 min) | Checks the game screen has no site marks, then opens the website over the game in a full-screen frame and walks it by its own links (landing → footer Characters → a fighter card → Privacy → What's new), checking "Powered by HAWKES GEN" → https://hawkesgen.com on each page (and on every fighter page, read), and Hawkes Biomedical → https://hawkesbiomedical.com on the landing page. External links are checked, not followed. |
+| `online` (~5 min, `peers: 2`) | Two tabs in a private test lobby (`?room=<id>&peer=0/1`, which Hawkes Gen's `playtest.run` adds): both see "2 online" with no clicks; peer 1 renames itself to "Tester Two" with a new picture in Profile and peer 0 sees it; peer 0 presses Find match and plays a CPU versus match under the searching chip; peer 1 queues 30 s later; both see "Match found vs <name> · Starting in N", fight each other (bot on each pad; test lobbies play 1 stock, 90 s), names on the HUD, and see the result with Queue again. Events `lobby`, `profile`/`profile-seen`, `queued`, `cpu-while-searching`, `match-found`, `online-start`, `online-result`. Without `?room` it stops (never pairs with real players). |
 | `roster` (~8 min; 13 min in headless software rendering) | Setup shortcut: each fighter goes straight into training (no menus) and does all 14 moves from their inputs. |
 
 Every page load starts behind the studio's full-screen Tap to play prompt (`#tap-to-play` in `Game/index.html`; its

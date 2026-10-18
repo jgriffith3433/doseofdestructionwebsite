@@ -143,9 +143,17 @@ export function back(): void {
 }
 
 /** Keyboard menu controls. Matches have their own input, so this stands down during play. */
+/** A key press inside a text field. */
+export function typing(e: KeyboardEvent): boolean {
+  const t = e.target;
+  return t instanceof HTMLInputElement && (t.type === 'text' || t.type === 'search');
+}
+
 export function listenMenuKeys(inMatch: () => boolean): void {
   window.addEventListener('keydown', (e) => {
     if (inMatch() || busy) return;
+    // Typing a name (Profile): letters are letters; only Esc still backs out.
+    if (typing(e) && e.code !== 'Escape') return;
     if (e.target instanceof HTMLSelectElement && (e.code === 'ArrowUp' || e.code === 'ArrowDown')) return;
     const dirs: Record<string, [number, number]> = {
       ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],

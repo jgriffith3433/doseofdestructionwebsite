@@ -3,16 +3,18 @@
 
 import { CHARACTERS } from './sim/characters.ts';
 import { NO_INPUT } from './sim/input.ts';
-import { ACT, newGame, type GameState, type Rules } from './sim/state.ts';
+import { ACT, cloneState, newGame, type GameState, type Rules } from './sim/state.ts';
 import { step, type SimEvent } from './sim/step.ts';
 import { Bot } from './ai/bot.ts';
 
-export type Mode = 'versus' | 'training' | 'campaign';
+export type Mode = 'versus' | 'training' | 'campaign' | 'online';
 
 export interface SlotSetup {
   char: number;
-  /** null for the local player, 0 for a training dummy, 1-9 for a bot. */
+  /** null for a person (this player, or the other player online), 0 for a training dummy, 1-9 for a bot. */
   cpu: number | null;
+  /** Online: the other player's slot (their inputs come over the network). */
+  remote?: boolean;
   team?: number;
   scale?: number;
   startPercent?: number;
@@ -30,6 +32,25 @@ export interface MatchSetup {
   subtitle?: string;
   /** 'survive' wins by still standing when time runs out. */
   objective?: 'win' | 'survive';
+  /** Online matches: who is in each slot (net/online.ts). */
+  online?: OnlineSlots;
+}
+
+export interface OnlineSlots {
+  matchId: string;
+  /** Player names and profile pictures (fighter ids), by slot. */
+  names: string[];
+  avatars: string[];
+  ids: string[];
+}
+
+/** Everything a rollback restores: the sim state and the stats gathered from it. */
+export interface MatchSnapshot {
+  state: GameState;
+  stats: FighterStats[];
+  combo: { by: number; count: number }[];
+  timeline: number;
+  kos: number;
 }
 
 export interface FighterStats {
@@ -107,6 +128,36 @@ export class Match {
     return events;
   }
 
+  /** Runs one frame with every slot's input given (online: both players' inputs from the rollback). */
+  tickInputs(inputs: number[]): SimEvent[] {
+    const s = this.state;
+    const before = s.fighters.map((f) => f.percent);
+    const events = step(s, inputs);
+    this.record(events, before);
+    if (s.frame % SAMPLE_EVERY === 0) this.sample();
+    return events;
+  }
+
+  snapshot(): MatchSnapshot {
+    return {
+      state: cloneState(this.state),
+      stats: this.stats.map((x) => ({ ...x })),
+      combo: this.combo.map((c) => ({ ...c })),
+      timeline: this.timeline.length,
+      kos: this.kos.length,
+    };
+  }
+
+  /** Puts a snapshot back in place (the same state object, so the renderer and HUD keep their reference). */
+  restore(snap: MatchSnapshot): void {
+    const copy = cloneState(snap.state);
+    Object.assign(this.state, copy);
+    snap.stats.forEach((x, i) => Object.assign(this.stats[i], x));
+    snap.combo.forEach((c, i) => Object.assign(this.combo[i], c));
+    this.timeline.length = snap.timeline;
+    this.kos.length = snap.kos;
+  }
+
   private sample(): void {
     this.timeline.push({ frame: this.state.frame, percent: this.state.fighters.map((f) => f.percent) });
   }
@@ -150,7 +201,7 @@ export class Match {
 
   /** The local player's slot, or -1 if every fighter is a CPU. */
   get player(): number {
-    return this.setup.slots.findIndex((s) => s.cpu === null);
+    return this.setup.slots.findIndex((s) => s.cpu === null && !s.remote);
   }
 
   /** Whether the local player's side won. */
@@ -169,6 +220,8 @@ export class Match {
   label(i: number): string {
     const slot = this.setup.slots[i];
     const name = CHARACTERS[slot.char].name;
+    const online = this.setup.online;
+    if (online) return `${online.names[i] || 'Player'} · ${name}`;
     if (slot.cpu === null) return `You · ${name}`;
     if (slot.cpu === 0) return `Dummy · ${name}`;
     return `CPU ${slot.cpu} · ${name}`;
