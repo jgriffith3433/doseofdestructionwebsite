@@ -14,16 +14,27 @@ import { Rollback, type HashReport, type InputPacket } from './rollback.ts';
 import type { Found } from './matchmaker.ts';
 import { netError, now } from './util.ts';
 import { emitMatchResult, type EndReason, type MatchResult } from './results.ts';
+import { profileKey } from './profile.ts';
+import type { NostrKey } from './nostr.ts';
+import { checkRecord, resultBody, signBody, startBody, verifyBody, type ResultRecord } from './ratings.ts';
 
 const START_TIMEOUT_MS = 45000;
 const STALL_NOTICE_MS = 1500;
 const LINGER_MS = 5000;
+/** How long the end waits for the other player's signature on the result. */
+const SIGN_WAIT_MS = 6000;
 
 export interface FightEnd {
   reason: EndReason;
   /** The winning slot, or -1 (void, or the sim's draw). */
   winner: number;
   result: MatchResult;
+  /**
+   * The signed result for the leaderboard (docs/online.md, "The leaderboard"), once the other player's signature is
+   * in (or the wait ran out): `kind` says whether it counts as it is ("full", "claim") or carries only ours
+   * ("partial": the leaderboard can show the expected change but nobody else will count it). null: not rated (void).
+   */
+  rated: Promise<{ record: ResultRecord; kind: 'full' | 'claim' | 'partial' } | null>;
 }
 
 export class OnlineFight {
@@ -45,11 +56,26 @@ export class OnlineFight {
   onEnd: ((end: FightEnd) => void) | null = null;
   /** Both pages are ready: run the Ready… Go! count. */
   onStart: (() => void) | null = null;
+  private readonly key: NostrKey;
+  private readonly start: Pick<ResultRecord, 'm' | 'p' | 'f' | 's' | 't'>;
+  private readonly startSigs: [string, string] = ['', ''];
+  /** The other player's signature on the result, with the frame count they signed (a leaver's own). */
+  private theirs: { n: number; sig: string; w: number; r: string } | null = null;
+  private onTheirs: (() => void) | null = null;
 
-  constructor(found: Found, match: Match) {
+  constructor(found: Found, match: Match, key: NostrKey = profileKey()) {
     this.found = found;
     this.match = match;
     this.slot = found.slot;
+    this.key = key;
+    const setup = found.setup;
+    this.start = {
+      m: setup.matchId,
+      p: [setup.pids[0], setup.pids[1]],
+      f: [CHARACTERS[setup.chars[0]]?.id ?? '', CHARACTERS[setup.chars[1]]?.id ?? ''],
+      s: STAGES[setup.stage]?.id ?? '',
+      t: setup.at,
+    };
     const m = match;
     this.rb = new Rollback<MatchSnapshot>(
       {
@@ -94,6 +120,13 @@ export class OnlineFight {
   /** Our page has loaded the match (art, sounds): tell the other side; start when both have. */
   markLoaded(): void {
     this.loaded = true;
+    // Our signature on the match's start goes with it: if we leave, the other player's "left" result needs it.
+    try {
+      this.startSigs[this.slot] = signBody(this.key.secret, startBody(this.start));
+      this.found.room.send('ss', this.startSigs[this.slot], true);
+    } catch (e) {
+      netError('fight: signing the match start failed (this match will not be rated)', e);
+    }
     this.found.room.send('go', '', true);
     this.maybeStart();
   }
@@ -111,8 +144,25 @@ export class OnlineFight {
   }
 
   private onMessage(kind: string, data: string): void {
-    if (this.phase === 'done' && kind !== 'in') return;
+    if (this.phase === 'done' && kind !== 'in' && kind !== 'rs') return;
     try {
+      if (kind === 'ss') {
+        const other = 1 - this.slot;
+        if (verifyBody(this.start.p[other], startBody(this.start), data)) this.startSigs[other] = data;
+        else netError(`fight ${this.start.m}: ${this.opponent}'s start signature doesn't check out`);
+        return;
+      }
+      if (kind === 'rs') {
+        const rs = JSON.parse(data) as { n: number; sig: string; w: number; r: string; st?: string };
+        const other = 1 - this.slot;
+        // Their start signature rides along, in case the one sent at load time was missed.
+        if (!this.startSigs[other] && typeof rs.st === 'string' && verifyBody(this.start.p[other], startBody(this.start), rs.st)) this.startSigs[other] = rs.st;
+        if (Number.isInteger(rs.n) && typeof rs.sig === 'string') {
+          this.theirs = rs;
+          this.onTheirs?.();
+        }
+        return;
+      }
       if (kind === 'in') {
         this.lastPacketAt = now();
         this.rb.receive(JSON.parse(data) as InputPacket);
@@ -185,6 +235,9 @@ export class OnlineFight {
   /** Leave the match: the other player wins. */
   forfeit(): void {
     if (this.phase === 'done') return;
+    // We sign our own loss before we go, so the result counts in full.
+    const sig = this.sign(this.body('left', 1 - this.slot, this.match.state.frame));
+    if (sig) this.found.room.send('rs', JSON.stringify({ n: this.match.state.frame, sig, w: 1 - this.slot, r: 'left', st: this.startSigs[this.slot] }), true);
     this.found.room.send('quit', '', true);
     this.end('forfeit', 1 - this.slot);
   }
@@ -197,7 +250,7 @@ export class OnlineFight {
     const result: MatchResult = {
       matchId: setup.matchId,
       self: setup.ids[this.slot],
-      players: setup.ids.map((id, i) => ({ id, name: setup.names[i], avatar: setup.avatars[i], fighter: CHARACTERS[setup.chars[i]]?.id ?? '' })),
+      players: setup.ids.map((id, i) => ({ id, pid: setup.pids[i], name: setup.names[i], avatar: setup.avatars[i], fighter: CHARACTERS[setup.chars[i]]?.id ?? '' })),
       winner: winner >= 0 ? setup.ids[winner] : null,
       reason,
       stage: STAGES[setup.stage]?.id ?? '',
@@ -206,7 +259,7 @@ export class OnlineFight {
       endedAt: new Date().toISOString(),
       stocks: s.fighters.map((f) => Math.max(0, f.stocks)),
     };
-    const end: FightEnd = { reason, winner, result };
+    const end: FightEnd = { reason, winner, result, rated: this.rate(reason, winner) };
     try {
       emitMatchResult(result);
     } catch (e) {
@@ -225,6 +278,81 @@ export class OnlineFight {
       this.flush();
     }, 100);
     this.onEnd?.(end);
+  }
+
+  private body(r: ResultRecord['r'], w: number, n: number): Omit<ResultRecord, 'sig' | 'st'> {
+    return { ...this.start, w, n, r };
+  }
+
+  private readonly signed = new Map<string, string>();
+
+  /** Our signature on a result body (one per body: Schnorr signatures differ each time, and both copies should match). */
+  private sign(body: Omit<ResultRecord, 'sig' | 'st'>): string {
+    const text = resultBody(body);
+    const old = this.signed.get(text);
+    if (old) return old;
+    try {
+      const sig = signBody(this.key.secret, text);
+      this.signed.set(text, sig);
+      return sig;
+    } catch (e) {
+      netError('fight: signing the result failed (this match will not be rated)', e);
+      return '';
+    }
+  }
+
+  /**
+   * The leaderboard's signed result: we sign it, send our signature, and wait a moment for theirs. A game or time
+   * end needs both; a forfeit or a lost link is a "left" result the winner signs, with the leaver's signature on it
+   * (they sign before quitting) or on the start. Void ends aren't rated.
+   */
+  private rate(reason: EndReason, winner: number): FightEnd['rated'] {
+    if (reason === 'desync' || reason === 'no-start' || !this.start.p[0] || !this.start.p[1]) return Promise.resolve(null);
+    const left = reason === 'forfeit' || reason === 'disconnect';
+    const r: ResultRecord['r'] = left ? 'left' : reason;
+    const other = 1 - this.slot;
+    const make = (): { record: ResultRecord; kind: 'full' | 'claim' | 'partial' } | null => {
+      // A leaver signs the frame they left on; the winner signs the same body.
+      const n = left && this.theirs && this.theirs.r === 'left' ? this.theirs.n : this.match.state.frame;
+      const body = this.body(r, winner, n);
+      const sigs: [string, string] = ['', ''];
+      sigs[this.slot] = this.sign(body);
+      if (!sigs[this.slot]) return null;
+      if (this.theirs && verifyBody(this.start.p[other], resultBody(body), this.theirs.sig)) sigs[other] = this.theirs.sig;
+      const record: ResultRecord = { ...body, sig: sigs, st: [this.startSigs[0], this.startSigs[1]] };
+      return { record, kind: checkRecord(record) ?? 'partial' };
+    };
+    const first = make();
+    if (!first) return Promise.resolve(null);
+    // Ours goes to the other side (a forfeit already sent its own before quitting).
+    if (!(reason === 'forfeit' && winner !== this.slot)) {
+      this.found.room.send('rs', JSON.stringify({ n: first.record.n, sig: first.record.sig[this.slot], w: winner, r, st: this.startSigs[this.slot] }), true);
+    }
+    if (first.kind === 'full' || reason === 'disconnect' || (left && winner !== this.slot)) return Promise.resolve(first);
+    return new Promise((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        this.onTheirs = null;
+        const next = make();
+        if (next && next.kind === 'partial' && winner === this.slot) {
+          // They never confirmed their loss: it stands as a "left" result on our signature and their start.
+          netError(`fight ${this.start.m}: ${this.opponent} didn't sign the result; it counts as them leaving`);
+          const body = this.body('left', winner, this.match.state.frame);
+          const sigs: [string, string] = ['', ''];
+          sigs[this.slot] = this.sign(body);
+          const record: ResultRecord = { ...body, sig: sigs, st: [this.startSigs[0], this.startSigs[1]] };
+          resolve({ record, kind: checkRecord(record) ?? 'partial' });
+          return;
+        }
+        if (next && next.kind === 'partial' && this.theirs) netError(`fight ${this.start.m}: ${this.opponent}'s result signature doesn't match ours (frames ${this.theirs.n} vs ${next.record.n})`);
+        resolve(next);
+      };
+      const timer = setTimeout(done, SIGN_WAIT_MS);
+      this.onTheirs = () => {
+        const next = make();
+        if (next && next.kind !== 'partial') done();
+      };
+    });
   }
 
   dispose(): void {

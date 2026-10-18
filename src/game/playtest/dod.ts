@@ -26,6 +26,8 @@ import { loadAnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import type { SimEvent } from '../sim/step.ts';
 import { PLAYTEST_PEER, TEST_LOBBY, onlineParts } from '../net/online.ts';
+import { sharedBoard } from '../net/board.ts';
+import { profileId } from '../net/profile.ts';
 
 export type MatchWatcher = (m: Match, events: SimEvent[]) => void;
 
@@ -51,7 +53,7 @@ const SCENARIOS = [
   { id: 'campaign', title: 'The campaign from chapter 1, as far as the bot gets in 10 minutes', seconds: 600, tags: ['full'] },
   { id: 'sound-settings', title: 'Tap to play, sound on, Settings from the menu and Pause, a setting kept across a reload', description: 'Taps the Tap to play prompt with a pointer press on the spot (hit-tested, so a covered prompt fails), checks the AudioContext runs and the menu music plays with no more taps, opens Settings from the main menu, turns Sound off and Music to 40%, reloads (the run carries on through ?playtest=sound-settings), checks the prompt and the choice are back, then opens Settings from Pause in a match. The player\'s own hawkes.sound is put back at the end.', seconds: 120, tags: ['smoke', 'sound'] },
   { id: 'site-links', title: 'The website around the game: Powered by HAWKES GEN on every page, Hawkes Biomedical on the landing page, the game screen without them', description: 'Checks the game screen has no site footer marks, then opens the landing page over the game in a full-screen frame and walks the site through its own links (footer Characters, a fighter card picked from the seed, Privacy, What\'s new), checking on each page that "Powered by HAWKES GEN" links to https://hawkesgen.com (shown, not covered) and on the landing page that Hawkes Biomedical links to https://hawkesbiomedical.com. Every fighter page is also read and checked. The frame is removed at the end and the game checked again.', seconds: 60, tags: ['smoke', 'site'] },
-  { id: 'online', title: 'Two players online (peers: 2): the lobby with no clicks, a profile change seen by the other, Find match, CPU while searching, Match found, the online fight to its end, results', description: 'Needs Hawkes Gen playtest.run with peers: 2 (the two tabs share ?room=<id>, a private test lobby, and get ?peer=0/1). Both land in the lobby and see "2 online"; peer 1 renames itself in Profile and peer 0 sees the new name; peer 0 presses Find match and plays a CPU versus match while it searches; peer 1 presses Find match 30 s later; both see "Match found vs <name> · Starting in N", fight each other (the CPU bot on each pad; test lobbies play 1 stock, 90 s) with the names on the HUD, and see the result with Queue again.', seconds: 330, tags: ['full', 'online'] },
+  { id: 'online', title: 'Two players online (peers: 2): the lobby with no clicks, a profile change seen by the other, Find match, CPU while searching, Match found, the online fight to its end, results, both rating changes and the Leaderboard', description: 'Needs Hawkes Gen playtest.run with peers: 2 (the two tabs share ?room=<id>, a private test lobby, and get ?peer=0/1). Both land in the lobby and see "2 online"; peer 1 renames itself in Profile and peer 0 sees the new name; peer 0 presses Find match and plays a CPU versus match while it searches; peer 1 presses Find match 30 s later; both see "Match found vs <name> · Starting in N", fight each other (the CPU bot on each pad; test lobbies play 1 stock, 90 s) with the names on the HUD, and see the result with Queue again; then each sees its rating change on the result (+16 / −16 for a first match) and opens Leaderboard, where both players are listed with the same ranks and ratings (the test lobby has its own table), and the other player\'s own result arrives over the relays.', seconds: 420, tags: ['full', 'online'] },
   { id: 'roster', title: 'Every fighter spawns in training and does each move once (starts matches directly)', seconds: 480, tags: ['full', 'roster'] },
 ];
 
@@ -64,7 +66,7 @@ const CORE_CLIPS = ['idle', 'walk', 'jump', 'fall', 'land', 'hurt', 'shield'];
 
 const SCREEN_NAMES: Record<ScreenId, string> = {
   title: 'Title', main: 'Main Menu', select: 'Character Select', stages: 'Stage Select', versus: 'VS',
-  campaign: 'Campaign Map', dialogue: 'Dialogue', howto: 'How To Play', results: 'Results', match: 'Match',
+  campaign: 'Campaign Map', dialogue: 'Dialogue', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
 };
 
 const MOVE_NAMES = Object.fromEntries(Object.entries(MOVE).map(([k, v]) => [v, k.toLowerCase()])) as Record<number, string>;
@@ -669,7 +671,51 @@ class Run {
     if (!this.button('#results-actions', 'Queue again')) t.problem('bug', 'no Queue again on the online results');
     if (/void|lost/i.test(headline)) t.problem('bug', `the online match ended "${headline}": ${this.q('.results-note')?.textContent ?? ''}`);
     const won = /^You win/.test(headline);
+
+    // 7. The rating change on the result: both signatures in, "+16" / "−16" for two new players.
+    const rating = () => this.q('#results-rating');
+    await t.until(() => /confirmed|expected|void|same/.test(rating()?.dataset.state ?? ''), 20000, 'the rating change on the result');
+    const ratingText = rating()?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+    t.event('rating-change', ratingText);
+    if (rating()?.dataset.state !== 'confirmed') t.problem('bug', `the rating change isn't confirmed by both players: "${ratingText}"`);
+    const delta = Number(/([+\u2212])(\d+)/.exec(ratingText)?.slice(1).join('').replace('\u2212', '-') ?? NaN);
+    if (!Number.isFinite(delta) || (won ? delta <= 0 : delta >= 0)) t.problem('bug', `the rating change "${ratingText}" doesn't fit "${headline}"`);
+    t.metric('ratingChange', delta);
     await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+    await this.screen('main');
+    t.progress(0.97);
+
+    // 8. The Leaderboard: both players, the same ranks on both tabs (each peer checks the table it must be: the
+    // winner first at 1000 + d, the loser second at 1000 - d), and the other player's own result from the relays.
+    await this.click(() => this.q('#btn-board'), 'Leaderboard');
+    await this.screen('leaderboard');
+    const me = profileId();
+    const rows = () => [...document.querySelectorAll<HTMLElement>('#board-list .board-row')].map((li) => ({
+      id: li.dataset.player ?? '',
+      rank: Number(li.dataset.rank),
+      name: li.querySelector('.board-name strong')?.textContent ?? '',
+      rating: Number(li.querySelector('.board-rating')?.textContent),
+      wl: li.querySelector('.board-wl')?.textContent ?? '',
+    }));
+    for (const tab of ['all', 'week']) {
+      await this.click(() => this.q(`#board-tabs [data-tab="${tab}"]`), tab === 'all' ? 'All time' : 'This week');
+      await t.until(() => rows().length >= 2 && rows().some((r) => r.id === me) && rows().some((r) => r.name === opp), 30000, `both players on the ${tab === 'all' ? 'all-time' : 'weekly'} leaderboard`);
+      const list = rows();
+      t.event('leaderboard', `${tab}: ${list.map((r) => `#${r.rank} ${r.name} ${r.rating} ${r.wl}`).join(' | ')}`);
+      const mine = list.find((r) => r.id === me)!;
+      const theirs = list.find((r) => r.id !== me)!;
+      const d = Math.abs(delta);
+      const want = won ? { mine: [1, 1000 + d], theirs: [2, 1000 - d] } : { mine: [2, 1000 - d], theirs: [1, 1000 + d] };
+      if (mine.rank !== want.mine[0] || mine.rating !== want.mine[1] || theirs.rank !== want.theirs[0] || theirs.rating !== want.theirs[1]) {
+        t.problem('bug', `the ${tab} leaderboard shows #${mine.rank} ${mine.rating} (me) and #${theirs.rank} ${theirs.rating} (${theirs.name}); expected #${want.mine.join(' ')} and #${want.theirs.join(' ')}`);
+      }
+      if (!this.q('#board-you .board-row.you')) t.problem('bug', 'no pinned "You" row on the leaderboard');
+    }
+    const other = rows().find((r) => r.id !== me)?.id ?? '';
+    const heard = await t.until(() => !!sharedBoard()?.heardFrom.has(other), 60000, "the other player's own result over the relays").then(() => true, () => false);
+    if (heard) t.event('leaderboard-relay', `${opp}'s signed result arrived from the relays`);
+    else t.problem('warning', `${opp}'s own copy of the result never arrived from the relays (our local copy is what the table shows)`);
+    await this.click(() => this.q('#leaderboard [data-back]'), 'Back');
     await this.screen('main');
     t.progress(1);
     t.finish(won ? 'won' : 'lost');

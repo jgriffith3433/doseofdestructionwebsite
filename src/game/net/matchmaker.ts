@@ -17,13 +17,17 @@ import { STAGES } from '../sim/stage.ts';
 import { CHARACTERS } from '../sim/characters.ts';
 
 /** A setup from the other page is checked before it's used: ids in range, sane numbers, names cleaned. */
-export function checkSetup(s: OnlineSetup, ids: string[]): OnlineSetup | null {
+export function checkSetup(s: OnlineSetup, ids: string[], pids?: string[]): OnlineSetup | null {
   if (!s || typeof s !== 'object') return null;
   const int = (v: unknown, lo: number, hi: number) => Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
   if (typeof s.matchId !== 'string' || !/^[0-9a-z-]{8,60}$/.test(s.matchId)) return null;
   if (!int(s.seed, -0x80000000, 0x7fffffff) || !int(s.stage, 0, STAGES.length - 1) || !int(s.stocks, 1, 9) || !int(s.timeLimit, 0, 60 * 60 * 20)) return null;
   if (!Array.isArray(s.ids) || s.ids.length !== 2 || s.ids[0] !== ids[0] || s.ids[1] !== ids[1]) return null;
   if (!Array.isArray(s.chars) || s.chars.length !== 2 || !s.chars.every((c) => int(c, 0, CHARACTERS.length - 1))) return null;
+  // Profile ids (the leaderboard's): two different keys, ours where we sit; the time both will sign.
+  if (!Array.isArray(s.pids) || s.pids.length !== 2 || !s.pids.every((k) => typeof k === 'string' && /^[0-9a-f]{64}$/.test(k))) return null;
+  if (pids && (s.pids[0] !== pids[0] || s.pids[1] !== pids[1])) return null;
+  if (!int(s.at, 0, 0xffffffff)) return null;
   const rules: Partial<Rules> = {};
   if (s.rules && typeof s.rules === 'object') {
     if (int(s.rules.gravity, 10, 400)) rules.gravity = s.rules.gravity;
@@ -32,7 +36,7 @@ export function checkSetup(s: OnlineSetup, ids: string[]): OnlineSetup | null {
   }
   const names = [0, 1].map((i) => cleanName(s.names?.[i]) || 'Player');
   const avatars = [0, 1].map((i) => cleanAvatar(s.avatars?.[i]) || CHARACTERS[s.chars[i]].id);
-  return { matchId: s.matchId, seed: s.seed, stage: s.stage, stocks: s.stocks, timeLimit: s.timeLimit, rules, ids: s.ids.slice(), names, avatars, chars: s.chars.slice() };
+  return { matchId: s.matchId, seed: s.seed, stage: s.stage, stocks: s.stocks, timeLimit: s.timeLimit, rules, ids: s.ids.slice(), names, avatars, chars: s.chars.slice(), pids: s.pids.slice(), at: s.at };
 }
 
 const HANDSHAKE_MS = 20000;
@@ -53,6 +57,10 @@ export interface OnlineSetup {
   names: string[];
   avatars: string[];
   chars: number[];
+  /** Profile ids (public keys) by slot: who the leaderboard credits. */
+  pids: string[];
+  /** When the host set the match up, unix seconds: the time both players sign into the result. */
+  at: number;
 }
 
 export interface Opponent {
@@ -72,6 +80,8 @@ interface Me {
   name: string;
   avatar: string;
   char: number;
+  /** Profile id (public key). */
+  pid: string;
 }
 
 interface Pending {
@@ -79,6 +89,7 @@ interface Pending {
   name: string;
   avatar: string;
   char: number;
+  pid: string;
   host: boolean;
   room: PairRoom;
   startedAt: number;
@@ -97,7 +108,7 @@ export interface MatchmakerOptions {
 }
 
 type Msg =
-  | { t: 'hello'; q: number; you: number; n: string; a: string; c: number }
+  | { t: 'hello'; q: number; you: number; n: string; a: string; c: number; k: string }
   | { t: 'ok' }
   | { t: 'no' }
   | { t: 'setup'; s: OnlineSetup }
@@ -207,6 +218,7 @@ export class Matchmaker extends Emitter {
       name: other?.name ?? 'Player',
       avatar: other?.avatar ?? '',
       char: -1,
+      pid: '',
       host,
       room,
       startedAt: now(),
@@ -224,7 +236,7 @@ export class Matchmaker extends Emitter {
       this.linkFailures = 0;
       this.natTrouble = false;
       const me = this.opts.me();
-      this.send(p, { t: 'hello', q: this.queuedAt, you: partner.queuedAt, n: me.name, a: me.avatar, c: me.char });
+      this.send(p, { t: 'hello', q: this.queuedAt, you: partner.queuedAt, n: me.name, a: me.avatar, c: me.char, k: me.pid });
     });
     room.on('message', (m: { kind: string; data: string }) => {
       if (this.pending !== p || m.kind !== 'mm') return;
@@ -251,7 +263,8 @@ export class Matchmaker extends Emitter {
       p.name = cleanName(msg.n) || p.name;
       p.avatar = cleanAvatar(msg.a) || p.avatar;
       p.char = Number.isInteger(msg.c) ? msg.c : -1;
-      if (!fits) {
+      p.pid = typeof msg.k === 'string' && /^[0-9a-f]{64}$/.test(msg.k) ? msg.k : '';
+      if (!fits || !p.pid) {
         this.send(p, { t: 'no' });
         return;
       }
@@ -265,7 +278,7 @@ export class Matchmaker extends Emitter {
       if (!p.committed) this.fail(p, 'they paired with someone else', SKIP_DECLINED_MS);
     } else if (msg.t === 'setup') {
       if (!p.committed || p.host || p.done) return;
-      const setup = checkSetup(msg.s, [p.partner.id, this.lobby.id]);
+      const setup = checkSetup(msg.s, [p.partner.id, this.lobby.id], [p.pid, this.opts.me().pid]);
       if (!setup) {
         netError(`queue: ${p.name} sent a setup this game can't use`, JSON.stringify(msg.s).slice(0, 300));
         this.send(p, { t: 'cancel' });
@@ -292,7 +305,7 @@ export class Matchmaker extends Emitter {
     if (!p.host) return;
     const me = this.opts.me();
     const char = p.char >= 0 ? p.char : me.char;
-    const setup = this.opts.makeSetup({ ...me, id: this.lobby.id }, { name: p.name, avatar: p.avatar, char, id: p.partner.id });
+    const setup = this.opts.makeSetup({ ...me, id: this.lobby.id }, { name: p.name, avatar: p.avatar, char, pid: p.pid, id: p.partner.id });
     this.send(p, { t: 'setup', s: setup });
     this.found(p, setup);
   }

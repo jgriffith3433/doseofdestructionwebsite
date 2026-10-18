@@ -24,8 +24,8 @@ export interface MatchResult {
   matchId: string;
   /** This page's player id. */
   self: string;
-  /** By slot: 0 is the host. `fighter` and `avatar` are fighter ids. */
-  players: { id: string; name: string; avatar: string; fighter: string }[];
+  /** By slot: 0 is the host. `fighter` and `avatar` are fighter ids; `pid` is the profile id (the leaderboard's). */
+  players: { id: string; pid: string; name: string; avatar: string; fighter: string }[];
   /** The winner's player id, or null (void, draw). */
   winner: string | null;
   reason: EndReason;

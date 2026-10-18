@@ -23,6 +23,7 @@ import { onlineParts, startOnline } from './net/online.ts';
 import { OnlineFight, type FightEnd } from './net/fight.ts';
 import type { Found } from './net/matchmaker.ts';
 import { closeProfile, findMatch, initOnlineUi, openProfile } from './ui/online.ts';
+import { initLeaderboardUi, renderBoard, showRatingChange } from './ui/leaderboard.ts';
 import { switching } from './ui/screens.ts';
 
 const TICK_MS = 1000 / 60;
@@ -115,6 +116,7 @@ function wireMenus(): void {
       else if (to === 'settings') openSettings();
       else if (to === 'online') findMatch();
       else if (to === 'profile') openProfile();
+      else if (to === 'leaderboard') go('leaderboard', renderBoard);
     }),
   );
   document.querySelectorAll<HTMLButtonElement>('[data-back]').forEach((b) =>
@@ -125,6 +127,7 @@ function wireMenus(): void {
   onBack('stages', () => (lastSelect === 'training' ? openTraining() : openVersus()));
   onBack('campaign', () => go('main', spotlight));
   onBack('howto', () => go('main', spotlight));
+  onBack('leaderboard', () => go('main', spotlight));
 
   $('btn-resume').addEventListener('click', () => setPaused(false));
   $('btn-restart').addEventListener('click', () => {
@@ -531,7 +534,7 @@ function wireSettings(): void {
 }
 
 // Menus play the menu loop; matches pick their stage's loop when they start.
-const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'howto']);
+const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'howto', 'leaderboard']);
 setInterval(() => {
   const s = currentScreen();
   if (s && MENU_SCREENS.has(s)) audio.playMusic('music-menu');
@@ -628,6 +631,7 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
   await go('results', () => {
     endMatch();
     showResults(m, actions, { ...ending, winner: end.winner >= 0 ? end.winner : undefined });
+    showRatingChange(end, f.slot);
     audio.playMusic('music-results');
   });
   const winner = m.state.fighters[end.winner];
@@ -775,6 +779,7 @@ initOnlineUi({
   start: (found) => void startOnlineMatch(found),
   inOnlineMatch: () => !!fight,
 });
+initLeaderboardUi();
 
 // Devtools playtests open /Game/?play&stage=pit&fighter=slice&vs=break&level=5
 // (vs=dummy for a training dummy) and land straight in the match.

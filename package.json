@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc -p .",
-    "test": "node src/game/test/sim.test.ts && node src/game/test/net.test.ts"
+    "test": "node src/game/test/sim.test.ts && node src/game/test/net.test.ts && node src/game/test/ratings.test.ts"
   },
   "devDependencies": {
     "typescript": "^5.9.0",
@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@babylonjs/core": "9.30.0",
-    "@noble/curves": "2.4.0"
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0"
   }
 }

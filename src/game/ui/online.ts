@@ -10,6 +10,7 @@ import { onlineParts } from '../net/online.ts';
 import { NAME_MAX, generatedName, onProfile, profile, setProfile } from '../net/profile.ts';
 import type { Found } from '../net/matchmaker.ts';
 import type { Player } from '../net/lobby.ts';
+import { renderProfileStats } from './leaderboard.ts';
 
 const COUNTDOWN = 5;
 const LIST_MAX = 8;
@@ -206,6 +207,7 @@ export function openProfile(): void {
   input.value = p.name;
   input.maxLength = NAME_MAX;
   renderGrid();
+  renderProfileStats();
   $('profile').hidden = false;
   onPanelBack(closeProfile);
   focusFirst();

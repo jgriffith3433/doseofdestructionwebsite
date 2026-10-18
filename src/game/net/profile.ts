@@ -2,6 +2,7 @@
 // localStorage and shown to everyone in the lobby. Online, you fight as your picture's fighter.
 
 import { CHARACTERS } from '../sim/characters.ts';
+import { makeKey, type NostrKey } from './nostr.ts';
 
 export interface Profile {
   name: string;
@@ -96,4 +97,32 @@ export function onProfile(fn: (p: Profile) => void): () => void {
 /** The fighter index for a profile picture. */
 export function avatarChar(avatar: string): number {
   return Math.max(0, CHARACTERS.findIndex((c) => c.id === avatar));
+}
+
+// The profile id: a signing key kept in localStorage with the profile (`dod.profile.key`), its public key the id the
+// leaderboard knows the player by (docs/online.md, "The leaderboard"). Lobby ids stay per tab (two tabs are two
+// players); the profile id is per browser, so a player keeps their rating across visits.
+const KEY_STORE = 'dod.profile.key';
+let identity: NostrKey | null = null;
+
+export function profileKey(): NostrKey {
+  if (identity) return identity;
+  let secret = '';
+  try {
+    secret = localStorage.getItem(KEY_STORE) ?? '';
+  } catch {
+    // No storage: a key for this visit.
+  }
+  identity = makeKey(/^[0-9a-f]{64}$/.test(secret) ? secret : undefined);
+  try {
+    if (identity.secretHex !== secret) localStorage.setItem(KEY_STORE, identity.secretHex);
+  } catch {
+    // As above.
+  }
+  return identity;
+}
+
+/** This player's profile id (the public key, 64 hex). */
+export function profileId(): string {
+  return profileKey().pubkey;
 }

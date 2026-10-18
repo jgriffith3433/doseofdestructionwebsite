@@ -1,6 +1,7 @@
 // Online play over the real public network, from Node (docs/online.md, "Checks"): two players join a fresh test lobby
 // through the public Nostr relays, see each other, one renames, both queue, get paired, link over WebRTC, and play an
-// online fight (CPU bots on the pads) through the rollback to the same result on both sides.
+// online fight (CPU bots on the pads) through the rollback to the same result on both sides; then both sign the
+// result, it goes out on the relays, and a third page that only listens builds the same leaderboard from it.
 //
 // Not part of `npm test` (it needs the network and a WebRTC for Node):
 //   npm i --no-save node-datachannel@0.33.4      (or set DATACHANNEL=/path/to/node_modules/node-datachannel)
@@ -12,6 +13,9 @@ import { OnlineFight, type FightEnd } from '../src/game/net/fight.ts';
 import { Match, type MatchSetup } from '../src/game/match.ts';
 import { Bot } from '../src/game/ai/bot.ts';
 import { randomId } from '../src/game/net/util.ts';
+import { makeKey } from '../src/game/net/nostr.ts';
+import { Leaderboard } from '../src/game/net/board.ts';
+import { formatDelta } from '../src/game/net/ratings.ts';
 
 declare const process: { env: Record<string, string | undefined>; exit(code: number): never };
 
@@ -41,7 +45,8 @@ log(`lobby ${lobbyId}`);
 
 function player(name: string, char: number) {
   const lobby = new Lobby(lobbyId, { name, avatar: 'exit-punk' });
-  const me = { name, avatar: 'exit-punk', char };
+  const key = makeKey();
+  const me = { name, avatar: 'exit-punk', char, pid: key.pubkey };
   const mm = new Matchmaker(lobby, {
     me: () => me,
     makeSetup: (host, guest): OnlineSetup => ({
@@ -55,6 +60,8 @@ function player(name: string, char: number) {
       names: [host.name, guest.name],
       avatars: [host.avatar, guest.avatar],
       chars: [host.char, guest.char],
+      pids: [host.pid, guest.pid],
+      at: Math.floor(Date.now() / 1000),
     }),
   });
   let found: Found | null = null;
@@ -63,7 +70,7 @@ function player(name: string, char: number) {
     log(`${name}: match found vs ${f.opponent.name} (slot ${f.slot}, ${f.setup.matchId})`);
   });
   lobby.start();
-  return { lobby, mm, me, found: () => found };
+  return { lobby, mm, me, key, found: () => found };
 }
 
 const a = player('Live One', 0);
@@ -83,7 +90,7 @@ const fb = b.found()!;
 check(fa.setup.matchId === fb.setup.matchId && fa.slot !== fb.slot, `one match, two slots (host ${fa.slot === 0 ? 'Live One' : 'Tester Two'})`);
 check(a.lobby.players().find((p) => p.self)?.status === 'in-match', 'the lobby shows them in a match');
 
-function fightOf(f: Found) {
+function fightOf(f: Found, key: ReturnType<typeof makeKey>) {
   const s = f.setup;
   const setup: MatchSetup = {
     mode: 'online',
@@ -94,7 +101,7 @@ function fightOf(f: Found) {
     online: { matchId: s.matchId, names: s.names, avatars: s.avatars, ids: s.ids },
   };
   const m = new Match(setup, s.seed);
-  const fight = new OnlineFight(f, m);
+  const fight = new OnlineFight(f, m, key);
   const bot = new Bot(f.slot, 9, 77 + f.slot);
   let end: FightEnd | null = null;
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -110,8 +117,8 @@ function fightOf(f: Found) {
   return { m, fight, end: () => end };
 }
 
-const pa = fightOf(fa);
-const pb = fightOf(fb);
+const pa = fightOf(fa, a.key);
+const pb = fightOf(fb, b.key);
 check(await until(() => !!pa.end() && !!pb.end(), 150000, 'the fight to end'), 'the online fight plays to an end on both sides');
 const ea = pa.end();
 const eb = pb.end();
@@ -121,6 +128,20 @@ if (ea && eb) {
   check((ea.reason === 'game' || ea.reason === 'time') && ea.reason === eb.reason, 'it ends on the game (not a desync or a lost link)');
   check(ea.result.winner === eb.result.winner && ea.result.frames === eb.result.frames, 'both sides agree on the winner and the last frame');
   check(pa.fight.rb.hashesMatched > 5, 'desync hashes were compared along the way');
+}
+if (ea && eb) {
+  // The leaderboard: both sides sign the same result; it goes out on the relays and a listening page counts it.
+  const [ra, rb] = await Promise.all([ea.rated, eb.rated]);
+  check(ra?.kind === 'full' && rb?.kind === 'full', `both sides end with a fully signed result (${ra?.kind} / ${rb?.kind})`);
+  check(!!ra && !!rb && JSON.stringify(ra.record) === JSON.stringify(rb.record), 'the two signed results are the same');
+  const watcher = new Leaderboard(lobbyId);
+  watcher.start();
+  if (ra) new Leaderboard(lobbyId).addOwn(ra.record, { n: 'Tester Two', a: 'break' });
+  check(await until(() => watcher.board('all').table.length === 2, 30000, 'the result on the relays'), 'a page that only listens gets the result from the relays');
+  const table = watcher.board('all').table;
+  log(`board: ${table.map((p) => `#${p.rank} ${p.id.slice(0, 8)} ${p.rating} ${p.wins}-${p.losses}`).join(' | ')}`);
+  const d = watcher.board('all').deltas.get(ea.result.matchId);
+  check(!!d && d[0] === -d[1] && Math.abs(d[0]) === (ea.result.winner ? 16 : 0), `the rating change is ${d ? d.map(formatDelta).join(' / ') : 'missing'}`);
 }
 a.mm.matchOver();
 b.mm.matchOver();

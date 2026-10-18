@@ -7,8 +7,9 @@
 
 import { Lobby } from './lobby.ts';
 import { Matchmaker, type OnlineSetup } from './matchmaker.ts';
-import { avatarChar, onProfile, profile } from './profile.ts';
+import { avatarChar, onProfile, profile, profileId } from './profile.ts';
 import { netError, randomId } from './util.ts';
+import { leaderboard } from './board.ts';
 import { stagesFor } from '../modes.ts';
 
 const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
@@ -28,7 +29,7 @@ let mm: Matchmaker | null = null;
 
 function me() {
   const p = profile();
-  return { name: p.name, avatar: p.avatar, char: avatarChar(p.avatar) };
+  return { name: p.name, avatar: p.avatar, char: avatarChar(p.avatar), pid: profileId() };
 }
 
 function makeSetup(host: ReturnType<typeof me> & { id: string }, guest: ReturnType<typeof me> & { id: string }): OnlineSetup {
@@ -47,6 +48,8 @@ function makeSetup(host: ReturnType<typeof me> & { id: string }, guest: ReturnTy
     names: [host.name, guest.name],
     avatars: [host.avatar, guest.avatar],
     chars: [host.char, guest.char],
+    pids: [host.pid, guest.pid],
+    at: Math.floor(Date.now() / 1000),
   };
 }
 
@@ -59,6 +62,8 @@ export function startOnline(): { lobby: Lobby; mm: Matchmaker } | null {
     mm = new Matchmaker(lobby, { me, makeSetup, sameMachine: PLAYTEST_PEER >= 0 });
     onProfile((next) => lobby?.update({ name: next.name, avatar: next.avatar }));
     lobby.start();
+    // The leaderboard refreshes in the background from the same relays; its cached table is there already.
+    leaderboard(LOBBY_ID).start();
     console.info(`[dod-online] joined lobby "${LOBBY_ID}" as ${p.name} (${lobby.id})`);
     return { lobby, mm };
   } catch (e) {
