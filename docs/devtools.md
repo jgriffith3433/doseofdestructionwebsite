@@ -88,7 +88,7 @@ project's `.venv` (which has `rembg`), reads which source image to use from
 Modes: `birefnet` (default, cleanest), `union` (both models combined, keeps
 smoke and tendrils that fade into the backdrop), `isnet`. Masks are cached in
 `.cache/cutout/`. Afterwards run `_build_lineup.py` for the thumbnails, large
-images and home lineup. To set up `.venv` on a new machine:
+images and home lineup, then `node tools/heads.mjs --only <id>` for the profile-picture face crop. To set up `.venv` on a new machine:
 
 ```
 python -m venv .venv

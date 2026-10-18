@@ -4,7 +4,7 @@
 
 import { CHARACTERS } from '../sim/characters.ts';
 import { audio } from '../audio.ts';
-import { $, h, thumbUrl } from './dom.ts';
+import { $, h, headUrl } from './dom.ts';
 import { focusFirst, onPanelBack, syncPad } from './screens.ts';
 import { onlineParts } from '../net/online.ts';
 import { NAME_MAX, generatedName, onProfile, profile, setProfile } from '../net/profile.ts';
@@ -137,7 +137,7 @@ function playerChip(p: Player): HTMLElement {
   return h(
     'li',
     { class: `lobby-player ${p.status}`, 'data-player': p.id, title: status ? `${p.name} · ${status}` : p.name },
-    p.avatar ? h('img', { src: thumbUrl(p.avatar), alt: '' }) : null,
+    p.avatar ? h('img', { src: headUrl(p.avatar), alt: '' }) : null,
     h('span', { class: 'lobby-name' }, p.name),
     status ? h('em', {}, status) : null,
   );
@@ -149,7 +149,7 @@ function showFound(found: Found): void {
   hideFound();
   const el = $('mm-found');
   const opp = found.opponent;
-  $<HTMLImageElement>('mm-found-img').src = thumbUrl(opp.avatar || CHARACTERS[found.setup.chars[1 - found.slot]].id);
+  $<HTMLImageElement>('mm-found-img').src = headUrl(opp.avatar || CHARACTERS[found.setup.chars[1 - found.slot]].id);
   $('mm-found-name').textContent = `vs ${opp.name}`;
   el.hidden = false;
   el.classList.remove('pop');
@@ -195,7 +195,7 @@ let picked = '';
 
 function renderProfileButton(): void {
   const p = profile();
-  $<HTMLImageElement>('profile-img').src = thumbUrl(p.avatar);
+  $<HTMLImageElement>('profile-img').src = headUrl(p.avatar);
   $('profile-sub').textContent = p.name;
   renderLobby();
 }
@@ -235,7 +235,7 @@ function renderGrid(): void {
             }
           },
         },
-        h('img', { src: thumbUrl(c.id), alt: '', loading: 'lazy' }),
+        h('img', { src: headUrl(c.id), alt: '', loading: 'lazy' }),
       ),
     ),
   );

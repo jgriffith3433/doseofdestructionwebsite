@@ -272,11 +272,32 @@ class Run {
     if (missing.length) this.t.problem('bug', `sound files missing (404): ${missing.join(', ')}`);
   }
 
+  /**
+   * A round profile picture shows the fighter's face: the square head crop (characters/head/, boxes in
+   * content/heads.json), loaded, drawn square with cover. A full-body thumb in a circle shows the torso.
+   */
+  private async avatarFace(img: HTMLImageElement | null | undefined, where: string): Promise<void> {
+    const src = img?.getAttribute('src') ?? '';
+    if (!img || !src.includes('/characters/head/')) {
+      this.t.problem('bug', `${where}: the profile picture isn't a head crop (${src || 'no image'}), so it shows the body, not the face`);
+      return;
+    }
+    const loaded = await this.t.until(() => img.complete && img.naturalWidth > 0, 10000, `${where} picture to load`).then(() => true, () => false);
+    if (!loaded) { this.t.problem('bug', `${where}: the profile picture ${src} didn't load`); return; }
+    const box = img.getBoundingClientRect();
+    const fit = getComputedStyle(img).objectFit;
+    if (img.naturalWidth !== img.naturalHeight || fit !== 'cover' || (box.width && Math.abs(box.width - box.height) > 1)) {
+      this.t.problem('bug', `${where}: the face crop is distorted or off-centre (${img.naturalWidth}x${img.naturalHeight} image, ${Math.round(box.width)}x${Math.round(box.height)} box, object-fit ${fit})`);
+      return;
+    }
+    this.t.event('avatar-face', `${where}: ${src}`);
+  }
+
   private async checkFighter(id: string): Promise<void> {
     if (this.checked.has(id)) return;
     this.checked.add(id);
     const c = CHARACTERS.find((x) => x.id === id)!;
-    for (const url of [`/characters/large/${id}.webp`, `/characters/thumb/${id}.webp`]) {
+    for (const url of [`/characters/large/${id}.webp`, `/characters/thumb/${id}.webp`, `/characters/head/${id}.webp`]) {
       if (!(await exists(url))) this.t.problem('bug', `${c.name}: missing image ${url}`);
     }
     const set = await loadAnimSet(id);
@@ -613,12 +634,14 @@ class Run {
       await this.click(() => this.q(`#profile-grid [data-avatar="${avatar}"]`), `picture ${avatar}`);
       await this.click(() => this.q('#profile-save'), 'Save');
       t.event('profile', `renamed to ${NEW_NAME}, picture ${avatar}`);
+      await this.avatarFace(this.q('#profile-img') as HTMLImageElement, 'the Profile button');
     } else {
       const seen = () => [...document.querySelectorAll<HTMLElement>('#lobby-list .lobby-player')].find((li) => li.textContent?.includes(NEW_NAME));
       await t.until(() => !!seen(), 60000, `the other player's new name "${NEW_NAME}" on the menu`);
       const img = seen()!.querySelector('img');
       if (!img?.getAttribute('src')?.includes(avatar)) t.problem('bug', `the other player's new picture (${avatar}) isn't shown with their name`);
       t.event('profile-seen', `the menu shows ${NEW_NAME} with ${avatar}`);
+      await this.avatarFace(img, 'the online list');
     }
     t.progress(0.2);
 
@@ -653,6 +676,7 @@ class Run {
     const text = banner()?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
     if (!/Match found/.test(text) || !/vs /.test(text) || !/Starting in \d/.test(text)) t.problem('bug', `the match-found banner says "${text}"`);
     t.event('match-found', text);
+    if (banner() && !banner()!.hidden) await this.avatarFace(this.q('#mm-found-img') as HTMLImageElement, 'the match-found banner');
     t.progress(0.4);
 
     // 5. The online fight: names on the VS screen and the HUD, the bot on the pad.
@@ -699,6 +723,7 @@ class Run {
       rating: Number(li.querySelector('.board-rating')?.textContent),
       wl: li.querySelector('.board-wl')?.textContent ?? '',
     }));
+    const other0 = () => rows().find((r) => r.id !== me)?.id ?? '';
     for (const tab of ['all', 'week']) {
       await this.click(() => this.q(`#board-tabs [data-tab="${tab}"]`), tab === 'all' ? 'All time' : 'This week');
       await t.until(() => rows().length >= 2 && rows().some((r) => r.id === me) && rows().some((r) => r.name === opp), 30000, `both players on the ${tab === 'all' ? 'all-time' : 'weekly'} leaderboard`);
@@ -712,6 +737,7 @@ class Run {
         t.problem('bug', `the ${tab} leaderboard shows #${mine.rank} ${mine.rating} (me) and #${theirs.rank} ${theirs.rating} (${theirs.name}); expected #${want.mine.join(' ')} and #${want.theirs.join(' ')}`);
       }
       if (!this.q('#board-you .board-row.you')) t.problem('bug', 'no pinned "You" row on the leaderboard');
+      if (tab === 'all') await this.avatarFace(document.querySelector<HTMLImageElement>(`#board-list .board-row[data-player="${other0()}"] img`), 'the leaderboard');
     }
     const other = rows().find((r) => r.id !== me)?.id ?? '';
     const heard = await t.until(() => !!sharedBoard()?.heardFrom.has(other), 60000, "the other player's own result over the relays").then(() => true, () => false);
