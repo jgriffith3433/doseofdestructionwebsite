@@ -293,6 +293,28 @@
       }
     },
     {
+      "id": "announcer.searching",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Calling all challengers!",
+      "audio": "/audio/voice/announcer.searching.mp3",
+      "take": {
+        "text": "Calling all challengers!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.match-found",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "[shouting] We have a challenger on the line!",
+      "audio": "/audio/voice/announcer.match-found.mp3",
+      "take": {
+        "text": "[shouting] We have a challenger on the line!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
       "id": "announcer.name.ball-person",
       "group": "names",
       "who": "announcer",
