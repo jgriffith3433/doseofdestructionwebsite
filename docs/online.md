@@ -42,10 +42,20 @@ leaderboard: signed results on the same relays, Elo, the Leaderboard screen (bel
 | `ratings.ts` | the leaderboard's rules (pure): result bodies, signatures, what counts, dedupe, Elo, the table |
 | `board.ts` | the leaderboard's data: results to and from the relays, the localStorage cache, the outbox |
 | `online.ts` | wiring: which lobby, the online rules, `startOnline()` |
+| `entry.ts` | the online chunk: everything `main.ts` and the playtest use, re-exported |
+| `loader.ts` | loads `entry.ts` after boot (`bootOnline`, `onlineApi`, `onlineReady`) |
 
 The UI is `src/game/ui/online.ts` (lobby strip, Find match, the searching chip, the match-found banner, Profile),
 `src/game/ui/leaderboard.ts` (the Leaderboard screen, the rating line on the results, the Profile stats) and the
 markup in `Game/index.html`; `main.ts` runs the online fight in the match loop.
+
+**Online never stops the game.** `main.ts` and `playtest/dod.ts` import no online code (types only): `main.ts`
+installs `window.hawkesPlaytest` and boots single player, then `bootOnline()` imports `net/entry.ts` on the next
+task and starts the lobby, the online menus and the leaderboard, each on its own guard. A failure (a package not
+installed, no WebRTC, a menu that throws) goes to `console.error("[dod-online] …")` and the game plays on without
+online; on the dev server, Vite's error overlay for the online chunk is taken down so it can't cover the menus.
+Keep it that way: a new static import of `net/` or `ui/online|leaderboard` from `main.ts` or `dod.ts` brings back
+beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
 
 ## The lobby
 
