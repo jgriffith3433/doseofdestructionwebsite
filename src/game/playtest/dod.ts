@@ -632,7 +632,8 @@ class Run {
     await t.until(() => mm.state !== 'idle', 5000, 'the search to start');
     t.event('queued', 'searching for an opponent');
     if (peer === 0) {
-      await t.until(() => !this.q('#mm-chip')?.hidden && /Searching for opponent/.test(this.q('#mm-chip')?.textContent ?? ''), 5000, 'the "Searching for opponent…" chip');
+      // For its first 5 s the chip says "Searching. Play anything while you wait.", then "Searching for opponent…".
+      await t.until(() => !this.q('#mm-chip')?.hidden && /Searching( for opponent)?\b/.test(this.q('#mm-chip')?.textContent ?? ''), 10000, 'the "Searching for opponent…" chip');
       try {
         await this.startVersus(3);
       } catch (e) {
