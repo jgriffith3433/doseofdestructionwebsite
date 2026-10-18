@@ -37,8 +37,14 @@
   <section id="main" class="screen main-screen" hidden>
     <nav class="main-menu" aria-label="Main menu">
       <h1 class="logo small">Dose of <span>Destruction</span></h1>
+      <div id="lobby-strip" class="lobby-strip" aria-live="polite">
+        <p class="lobby-count"><i class="dot"></i><span id="lobby-count">Connecting&hellip;</span></p>
+        <ul id="lobby-list" class="lobby-list"></ul>
+      </div>
       <button class="menu-item" type="button" data-go="campaign" data-autofocus><strong>Campaign</strong><span>Eight chapters. One way off the air.</span></button>
       <button class="menu-item" type="button" data-go="versus"><strong>Versus</strong><span>Up to four fighters, any mix of you and bots.</span></button>
+      <button id="btn-find" class="menu-item online-item" type="button" data-go="online"><strong>Find match</strong><span id="find-sub">Fight another player online. Play on while you wait.</span></button>
+      <button id="btn-profile" class="menu-item profile-item" type="button" data-go="profile"><img id="profile-img" alt=""><strong>Profile</strong><span id="profile-sub">Your name and picture.</span></button>
       <button class="menu-item" type="button" data-go="training"><strong>Training</strong><span>A dummy, no stocks, hitboxes on H.</span></button>
       <button class="menu-item" type="button" data-go="howto"><strong>How to play</strong><span>Controls and the basics.</span></button>
       <button class="menu-item" type="button" data-go="settings"><strong>Settings</strong><span>Sound on or off, music and effects.</span></button>
@@ -157,6 +163,36 @@
       <button id="settings-done" class="primary" type="button">Done</button>
     </div>
   </div>
+
+  <div id="profile" class="overlay" role="dialog" aria-modal="true" aria-labelledby="profile-title" hidden>
+    <div class="panel profile-panel">
+      <h2 id="profile-title">Profile</h2>
+      <p class="hint">Everyone online sees your name and picture. Online, you fight as your picture.</p>
+      <label class="profile-name"><span>Name</span><input id="profile-name" type="text" maxlength="16" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done"></label>
+      <button id="profile-random" class="secondary" type="button">Random name</button>
+      <p class="profile-pick-label">Picture</p>
+      <div id="profile-grid" class="profile-grid" role="listbox" aria-label="Picture"></div>
+      <div class="actions">
+        <button id="profile-save" class="primary" type="button" data-autofocus>Save</button>
+        <button id="profile-cancel" class="secondary" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mm-chip" class="mm-chip" role="status" hidden>
+    <span id="mm-chip-text">Searching for opponent&hellip;</span>
+    <button id="mm-cancel" type="button">Cancel</button>
+  </div>
+  <div id="mm-found" class="mm-found" role="alert" hidden>
+    <img id="mm-found-img" alt="">
+    <div>
+      <p class="kicker">Match found</p>
+      <h2 id="mm-found-name"></h2>
+      <p id="mm-found-count">Starting in 5&hellip;</p>
+    </div>
+    <button id="mm-found-cancel" type="button">Cancel</button>
+  </div>
+  <p id="net-status" class="net-status" hidden></p>
 
   <div id="loading" class="loading" hidden>Loading fighters&hellip;</div>
   <div id="wipe" class="wipe" aria-hidden="true"><i></i><i></i></div>

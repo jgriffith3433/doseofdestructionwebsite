@@ -10,6 +10,7 @@ import { initTouchControls, showTouchControls } from './input/touch.ts';
 import { GAMEPAD_HELP, KEYBOARD_HELP, listenKeyboard, onKey, pausePressed, readLocal } from './input/devices.ts';
 import { PLAYER_COLORS, Renderer } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
+import type { SimEvent } from './sim/step.ts';
 import { CHAPTERS, loadProgress, saveProgress, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, largeUrl, thumbUrl } from './ui/dom.ts';
@@ -17,20 +18,29 @@ import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBac
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playDialogue, playVersus, showResults, type ResultAction } from './ui/views.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
+import { NO_INPUT } from './sim/input.ts';
+import { onlineParts, startOnline } from './net/online.ts';
+import { OnlineFight, type FightEnd } from './net/fight.ts';
+import type { Found } from './net/matchmaker.ts';
+import { closeProfile, findMatch, initOnlineUi, openProfile } from './ui/online.ts';
+import { switching } from './ui/screens.ts';
 
 const TICK_MS = 1000 / 60;
 
-type Phase = 'idle' | 'ready' | 'play' | 'pause';
+// 'wait': an online match is loaded here and waits for the other player's page.
+type Phase = 'idle' | 'wait' | 'ready' | 'play' | 'pause';
 
 const canvas = $<HTMLCanvasElement>('stage');
 const renderer = new Renderer(canvas);
 renderer.onSound = (id) => audio.sfx(id);
 listenKeyboard();
 initTouchControls(() => pauseKey());
-listenMenuKeys(() => phase === 'play' || phase === 'ready');
+listenMenuKeys(() => phase === 'play' || phase === 'ready' || phase === 'wait');
 
 let match: Match | null = null;
 let phase: Phase = 'idle';
+/** The online fight running `match`, or null for a local match. */
+let fight: OnlineFight | null = null;
 let readyFrames = 0;
 let acc = 0;
 let last = performance.now();
@@ -103,6 +113,8 @@ function wireMenus(): void {
       else if (to === 'training') openTraining();
       else if (to === 'howto') go('howto');
       else if (to === 'settings') openSettings();
+      else if (to === 'online') findMatch();
+      else if (to === 'profile') openProfile();
     }),
   );
   document.querySelectorAll<HTMLButtonElement>('[data-back]').forEach((b) =>
@@ -121,6 +133,13 @@ function wireMenus(): void {
   });
   $('btn-pause-settings').addEventListener('click', () => openSettings());
   $('btn-quit').addEventListener('click', () => {
+    if (fight) {
+      // Online: leaving is a forfeit; the results come from the fight's end.
+      $('pause').hidden = true;
+      phase = 'play';
+      fight.forfeit();
+      return;
+    }
     setPaused(false);
     endMatch();
     if (chapter) openCampaignScreen();
@@ -248,6 +267,8 @@ async function playChapter(c: Chapter): Promise<void> {
   const n = CHAPTERS.indexOf(c) + 1;
   const scene = playDialogueScreen(c.intro, `Chapter ${n} · ${c.title}`);
   await scene;
+  // A match found during the scene has taken over.
+  if (fight || chapter !== c) return;
   startMatch({ ...c.fight, title: `Chapter ${n} · ${c.title}`, subtitle: c.hint }, true);
 }
 
@@ -269,10 +290,21 @@ async function chapterCleared(c: Chapter): Promise<void> {
 
 // ------------------------------------------------------------------ match
 
-async function startMatch(setup: MatchSetup, withVersus: boolean): Promise<void> {
+async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { seed: number; found: Found }): Promise<void> {
   endMatch();
-  const seed = playtestSeed ?? (Math.random() * 0x7fffffff) | 0;
+  // A newer start (an online match found meanwhile) wins over this one.
+  const token = ++startToken;
+  const stale = () => token !== startToken || (f !== null && f.phase === 'done');
+  const seed = online ? online.seed : (playtestSeed ?? (Math.random() * 0x7fffffff) | 0);
   const m = new Match(setup, seed);
+  const f: OnlineFight | null = online ? new OnlineFight(online.found, m) : null;
+  if (f) {
+    fight = f;
+    f.onEnd = (end) => onlineEnded(m, f, end);
+    f.onStart = () => {
+      if (match === m && phase === 'wait') beginReady(m);
+    };
+  }
   renderer.setStage(setup.stage);
   // Everything the match shows and plays is loaded during the VS splash (or the loading
   // screen): clip sheets, stage art, sounds, music and voice lines. Nothing loads mid-fight.
@@ -290,12 +322,15 @@ async function startMatch(setup: MatchSetup, withVersus: boolean): Promise<void>
       splash = playVersus(setup);
     });
     await Promise.all([splash, loading]);
+    if (stale()) return;
   } else {
     // The loading screen stays up until the match's first frame is drawn (under the wipe).
     $('loading').hidden = false;
     await loading;
+    if (stale()) return;
   }
 
+  if (stale()) return;
   await go('match', () => {
     // The canvas may have changed size while menus were up.
     renderer.engine.resize();
@@ -309,7 +344,21 @@ async function startMatch(setup: MatchSetup, withVersus: boolean): Promise<void>
   });
   $('loading').hidden = true;
   if (match !== m) return;
+  if (f) {
+    if (f.phase === 'done') return;
+    // Both pages count Ready… Go! from when both have loaded.
+    phase = 'wait';
+    f.markLoaded();
+    if (phase === 'wait' && f.phase === 'started') beginReady(m);
+    return;
+  }
+  beginReady(m);
+}
+
+function beginReady(m: Match): void {
+  const setup = m.setup;
   phase = 'ready';
+  readyFrames = 0;
   banner('Ready');
   renderer.stageEvent('start');
   audio.line('announcer.ready');
@@ -319,6 +368,10 @@ async function startMatch(setup: MatchSetup, withVersus: boolean): Promise<void>
 }
 
 function endMatch(): void {
+  // Leaving an online match any other way (another match starting) is a forfeit.
+  if (fight && fight.phase !== 'done') fight.forfeit();
+  fight = null;
+  $('net-status').hidden = true;
   match = null;
   phase = 'idle';
   showTouchControls(false);
@@ -338,10 +391,14 @@ function pauseKey(): void {
 function setPaused(paused: boolean): void {
   if (!match) return;
   if (!paused && settingsOpen()) closeSettings();
+  // Online the match can't stop: the menu opens over it and your fighter stands still meanwhile.
+  if (fight && phase !== 'play' && phase !== 'pause') return;
   phase = paused ? 'pause' : 'play';
   $('pause').hidden = !paused;
+  $('btn-restart').hidden = !!fight;
+  $('pause').querySelector('h2')!.textContent = fight ? 'Menu (the match goes on)' : 'Paused';
   if (paused) {
-    $('btn-quit').textContent = chapter ? 'Quit to campaign' : 'Quit to menu';
+    $('btn-quit').textContent = fight ? 'Leave match (you lose)' : chapter ? 'Quit to campaign' : 'Quit to menu';
     ($('btn-resume') as HTMLButtonElement).focus();
     syncPad();
   } else {
@@ -350,9 +407,18 @@ function setPaused(paused: boolean): void {
 }
 
 let lastActions: number[] = [];
+let startToken = 0;
 
 function tick(m: Match): void {
-  const events = m.tick(readLocal());
+  afterTick(m, m.tick(readLocal()));
+}
+
+/** One online tick: the rollback runs zero, one or (after a late input) several frames. */
+function onlineTick(m: Match, f: OnlineFight): void {
+  afterTick(m, f.tick(phase === 'pause' ? NO_INPUT : readLocal()));
+}
+
+function afterTick(m: Match, events: SimEvent[]): void {
   renderer.onEvents(events);
   for (const w of matchWatchers) w(m, events);
   for (const e of events) if (e.type === 'hit' && !e.shield) bumpHud(e.victim);
@@ -365,7 +431,8 @@ function tick(m: Match): void {
     banner(s.timedOut ? 'Time!' : 'Game!');
     audio.line(s.timedOut ? 'announcer.time' : 'announcer.game');
   }
-  if (s.over && s.endTimer === 0) finish(m);
+  // Online, the fight decides when it's over (on a frame both sides agree on): onlineEnded.
+  if (s.over && s.endTimer === 0 && !fight) finish(m);
 }
 
 const SMASHES: ReadonlySet<number> = new Set([MOVE.FSMASH, MOVE.USMASH, MOVE.DSMASH]);
@@ -495,6 +562,81 @@ function finish(m: Match): void {
   syncPad();
 }
 
+// ------------------------------------------------------------------ online
+
+/** The match-found countdown ran out: whatever is on ends and the online match loads. */
+async function startOnlineMatch(found: Found): Promise<void> {
+  const s = found.setup;
+  // Out of any menu or panel first; a screen switch in progress finishes before ours starts.
+  if (settingsOpen()) closeSettings();
+  closeProfile();
+  $('pause').hidden = true;
+  chapter = null;
+  for (let i = 0; i < 40 && switching(); i++) await new Promise((r) => setTimeout(r, 50));
+  const setup: MatchSetup = {
+    mode: 'online',
+    stage: s.stage,
+    stocks: s.stocks,
+    rules: { ...s.rules, timeLimit: s.timeLimit },
+    slots: s.chars.map((char, i) => ({ char, cpu: null, remote: i !== found.slot })),
+    title: 'Online match',
+    subtitle: `${s.names[0]} vs ${s.names[1]}`,
+    online: { matchId: s.matchId, names: s.names, avatars: s.avatars, ids: s.ids },
+  };
+  await startMatch(setup, true, { seed: s.seed, found });
+}
+
+function showNetStatus(f: OnlineFight): void {
+  const el = $('net-status');
+  const waiting = f.phase === 'done' ? '' : f.waiting();
+  const text = waiting || (phase === 'play' || phase === 'pause' ? f.netLine() : '');
+  el.hidden = !text || currentScreen() !== 'match';
+  el.classList.toggle('waiting', !!waiting);
+  if (el.textContent !== text) el.textContent = text;
+}
+
+const ENDINGS: Record<FightEnd['reason'], (opp: string, won: boolean) => { headline: string; note?: string }> = {
+  game: (opp, won) => ({ headline: won ? 'You win' : `${opp} wins` }),
+  time: (opp, won) => ({ headline: won ? 'You win on time' : `${opp} wins on time` }),
+  forfeit: (opp, won) => (won ? { headline: 'You win', note: `${opp} left the match.` } : { headline: 'You left the match', note: `${opp} takes the win.` }),
+  disconnect: (opp) => ({ headline: 'Connection lost', note: `The link to ${opp} dropped. The win is yours.` }),
+  desync: () => ({ headline: 'Match void', note: 'The two games fell out of step (a desync). It has been reported. Queue again for a fresh match.' }),
+  'no-start': (opp) => ({ headline: 'Match void', note: `${opp}'s game never started. Back to the queue whenever you like.` }),
+};
+
+/** The online fight ended (any reason): results, then back to the lobby with Queue again. */
+async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<void> {
+  onlineParts()?.mm.matchOver();
+  if (match === m) phase = 'idle';
+  $('pause').hidden = true;
+  if (settingsOpen()) closeSettings();
+  const won = end.winner === f.slot;
+  const ending = ENDINGS[end.reason](f.opponent, won);
+  if (end.reason === 'game' || end.reason === 'time') {
+    // The sim's own Game! has played; give it its moment, as in a local match.
+    renderer.stageEvent('end');
+  } else banner(end.reason === 'desync' || end.reason === 'no-start' ? 'Void' : won ? 'You win' : 'Left');
+  for (let i = 0; i < 40 && switching(); i++) await new Promise((r) => setTimeout(r, 50));
+  const actions: ResultAction[] = [
+    {
+      label: 'Queue again',
+      primary: true,
+      run: () => {
+        void go('main', spotlight).then(() => findMatch());
+      },
+    },
+    { label: 'Main menu', run: () => go('main', spotlight) },
+  ];
+  await go('results', () => {
+    endMatch();
+    showResults(m, actions, { ...ending, winner: end.winner >= 0 ? end.winner : undefined });
+    audio.playMusic('music-results');
+  });
+  const winner = m.state.fighters[end.winner];
+  if (winner) setTimeout(() => audio.line(`fighter.${CHARACTERS[winner.char].id}.win`), 900);
+  syncPad();
+}
+
 function banner(text: string): void {
   const el = h('div', { class: 'banner' }, text);
   document.body.appendChild(el);
@@ -515,12 +657,15 @@ function buildHud(m: Match): void {
   const hud = $('hud');
   hud.replaceChildren();
   hudCache.length = 0;
+  const online = m.setup.online;
   for (const f of m.state.fighters) {
     const ch = CHARACTERS[f.char];
+    const avatar = online?.avatars[f.id];
     const card = h(
       'div',
-      { class: 'hud-card', style: `--player:${slotColor(m, f.id)}` },
+      { class: `hud-card${online ? ' online' : ''}`, style: `--player:${slotColor(m, f.id)}` },
       h('img', { src: thumbUrl(ch.id), alt: '' }),
+      avatar && avatar !== ch.id ? h('img', { class: 'hud-avatar', src: thumbUrl(avatar), alt: '' }) : null,
       h('div', { class: 'hud-pct' }),
       h('div', { class: 'hud-meta' }, h('span', { class: 'hud-name' }, m.label(f.id)), h('span', { class: 'hud-stocks' })),
     );
@@ -581,7 +726,7 @@ function bumpHud(id: number): void {
 
 function frame(): void {
   const now = performance.now();
-  acc += Math.min(100, now - last) * simSpeed;
+  acc += Math.min(100, now - last) * (fight ? 1 : simSpeed);
   last = now;
 
   if (match && phase !== 'idle' && pausePressed()) pauseKey();
@@ -594,8 +739,17 @@ function frame(): void {
         banner('Go!');
         audio.line('announcer.go');
         phase = 'play';
+        fight?.beginPlay();
         break;
       }
+    }
+  } else if (match && fight && (phase === 'play' || phase === 'pause')) {
+    // Online: always at 60 Hz (the playtest's speed-up would only run ahead of the other player).
+    let steps = 0;
+    while (acc >= TICK_MS && steps < 5 && match && fight) {
+      acc -= TICK_MS;
+      onlineTick(match, fight);
+      steps++;
     }
   } else if (match && phase === 'play') {
     let steps = 0;
@@ -607,12 +761,20 @@ function frame(): void {
   } else {
     acc = 0;
   }
+  if (fight) showNetStatus(fight);
 
   if (match && currentScreen() === 'match') renderer.render(match.state);
 }
 
 wireMenus();
 renderer.engine.runRenderLoop(frame);
+
+// Online is always on: the lobby is joined now, with no clicks (docs/online.md). Never in the way of single player.
+startOnline();
+initOnlineUi({
+  start: (found) => void startOnlineMatch(found),
+  inOnlineMatch: () => !!fight,
+});
 
 // Devtools playtests open /Game/?play&stage=pit&fighter=slice&vs=break&level=5
 // (vs=dummy for a training dummy) and land straight in the match.

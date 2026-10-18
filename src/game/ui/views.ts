@@ -114,7 +114,7 @@ export function playVersus(setup: MatchSetup): Promise<void> {
               'figure',
               { class: 'vs-fighter', style: `--slot:${color}` },
               h('img', { src: largeUrl(c.id), alt: '' }),
-              h('figcaption', {}, h('span', {}, s.cpu === null ? 'You' : s.cpu === 0 ? 'Dummy' : `CPU ${s.cpu}`), h('strong', {}, c.name)),
+              h('figcaption', {}, h('span', {}, setup.online ? setup.online.names[slot] : s.cpu === null ? 'You' : s.cpu === 0 ? 'Dummy' : `CPU ${s.cpu}`), h('strong', {}, c.name)),
               s.scale && s.scale > 100 ? h('em', { class: 'vs-tag' }, 'Giant') : null,
             );
           }),
@@ -234,7 +234,8 @@ export interface ResultAction {
   run: () => void;
 }
 
-export function showResults(m: Match, actions: ResultAction[]): void {
+/** `online`: an online match's ending, which can come before the sim's (a forfeit, a lost link, a desync). */
+export function showResults(m: Match, actions: ResultAction[], online?: { headline: string; note?: string; winner?: number }): void {
   const s = m.state;
   const teams = m.setup.slots.some((x) => x.team !== undefined) && new Set(m.setup.slots.map((x) => x.team)).size > 1;
   const colors = s.fighters.map((f, i) => (teams && m.setup.mode !== 'campaign' ? TEAM_COLORS[f.team < 0 ? 0 : f.team] : PLAYER_COLORS[i]));
@@ -249,8 +250,9 @@ export function showResults(m: Match, actions: ResultAction[]): void {
   let headline = winner ? `${m.label(winner.id).split(' · ')[1]} wins` : 'No contest';
   if (campaign) headline = won ? 'Cleared' : 'Knocked out';
   else if (s.winnerTeam >= 0) headline = `${s.winnerTeam === 0 ? 'Red' : 'Blue'} team wins`;
+  if (online) headline = online.headline;
 
-  const hero = winner ?? s.fighters[0];
+  const hero = (online?.winner !== undefined ? s.fighters[online.winner] : undefined) ?? winner ?? s.fighters[0];
   $('results-body').replaceChildren(
     h(
       'header',
@@ -262,6 +264,7 @@ export function showResults(m: Match, actions: ResultAction[]): void {
         h('p', { class: 'kicker' }, s.timedOut ? 'Time' : 'Game', ' · ', formatTime(s.frame)),
         h('h2', {}, headline),
         campaign && m.setup.objective === 'survive' && h('p', {}, won ? 'You lasted the whole minute.' : 'They took you off the air.'),
+        online?.note && h('p', { class: 'results-note' }, online.note),
       ),
     ),
     h(
