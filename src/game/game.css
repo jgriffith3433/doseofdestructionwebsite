@@ -1053,3 +1053,9 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   .board-row { min-height: 42px; padding-block: 3px; }
   .leaderboard-screen .screen-head { margin-bottom: 8px; }
 }
+
+/* Profile pictures are round: crop the full-body thumb to the head (top centre), not the torso. */
+.profile-tile img, .lobby-player img, .menu-item.profile-item img, .mm-found img, .hud-avatar, .board-row img {
+  object-position: 50% 0;
+  object-view-box: inset(2% 22% 56% 22%);
+}
