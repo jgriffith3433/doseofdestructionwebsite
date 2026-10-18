@@ -64,7 +64,7 @@ export function renderBoard(): void {
   const mine = table.find((p) => p.id === me);
   you.replaceChildren(
     mine
-      ? row(board, mine, true)
+      ? row(board, mine, true, true)
       : h(
           'div',
           { class: 'board-row you unranked' },
@@ -81,9 +81,9 @@ function avatarImg(avatar: string): HTMLElement {
   return avatar ? h('img', { src: thumbUrl(avatar), alt: '', loading: 'lazy' }) : h('i', { class: 'board-noimg' });
 }
 
-function row(board: Leaderboard, p: PlayerStats & { rank: number }, you: boolean): HTMLElement {
+function row(board: Leaderboard, p: PlayerStats & { rank: number }, you: boolean, pinned = false): HTMLElement {
   const who = board.who(p.id);
-  const tag = you && p.rank <= TOP ? 'li' : 'div';
+  const tag = pinned ? 'div' : 'li';
   return h(
     tag as 'li',
     { class: `board-row${you ? ' you' : ''}`, 'data-player': p.id, 'data-rank': p.rank },
