@@ -103,7 +103,12 @@ export class PairRoom extends Emitter {
   }
 
   private sdpFor(sdp: string): string {
-    return this.options.sameMachine ? sdp.replace(/ (\S+\.local) (\d+) typ host/g, ' 127.0.0.1 $2 typ host') : sdp;
+    // Browsers hide their LAN address behind an mDNS name (abc.local) that a second tab on the same device (iOS Safari,
+    // a private tab) often can't resolve. So every mDNS host candidate also goes out as a 127.0.0.1 copy: it only
+    // connects when the other player is on this device, and costs a failed check otherwise. The playtest's two tabs
+    // (sameMachine) use only the loopback one.
+    return sdp.replace(/^a=candidate:(\S+) (\d+) (\S+) (\d+) (\S+\.local) (\d+) typ host(.*)$/gm, (line, f, c, proto, prio, _h, port, rest) =>
+      this.options.sameMachine ? `a=candidate:${f} ${c} ${proto} ${prio} 127.0.0.1 ${port} typ host${rest}` : `${line}\r\na=candidate:l${f} ${c} ${proto} ${Number(prio) - 1} 127.0.0.1 ${port} typ host${rest}`);
   }
 
   private async sendSignal(message: Signal): Promise<void> {
