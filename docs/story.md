@@ -90,10 +90,19 @@ seen until the season's last line.
 | 3 | The Champion's Tax (`champions-tax`) | Susan (6) | Cursed Town (`cursed-town`) | Exit Punk starts every life at 60% (`startPercent: 600` on his slot); Susan starts at 0. 3 stocks each. |
 | 4 | Sponsored (`sponsored`) | Wallit (7), at 130% size | Humans In The Loop (`humans-in-the-loop`) | A bought fighter: Wallit is giant and damage is at 120% (`damage: 120`). 3 stocks each. |
 
-**The Ratings rule** is new. A Ratings fight is won by scoring N KOs before the clock runs out, and lost when
-the clock wins (or when the champion runs out of stocks). The HUD shows "Ratings 0/3" where Dead Weight shows
-"Survive". In data it would be `"objective": "ratings"` with `"kos": 3` and a `timeLimit`; it needs a small
-mechanic in `match.ts` (`playerWon`) and the HUD before Drop In can be built.
+**The Ratings rule** is new (built). A Ratings fight is won by scoring N KOs before the clock runs out, and
+lost when the clock wins (or when the champion runs out of stocks). The fight ends on the Nth KO, whatever
+stocks are left. In data it is `"objective": "ko"` with `"kos": 3` and a `timeLimit` in `rules`. The HUD
+shows "KOs 0/3" with the clock where Dead Weight shows "Survive", and counts up. Only the player's own KOs
+count (a fall nobody caused isn't scored). The results say which way it went:
+
+- 3 KOs: "3 KOs before the clock. That's the highlight reel."
+- on time: "Time ran out at 1 of 3 KOs. No highlights tonight."
+- out of stocks: "Out of stocks at 1 of 3 KOs. They cut to commercial."
+
+Pacing: three KOs from 0% in two minutes is hard. The playtest bot (level 9) mostly scores 1 or 2 against a
+CPU 1 to 3 on Rainbow Full Pipe. Drop In needs help to be fair: a longer clock, a lower CPU level, or
+Pyro Singer starting every life hurt (`startPercent`).
 
 ### 1. Title Defense: Shark Dude on City Top
 
@@ -149,7 +158,7 @@ later item. The finale isn't part of Season 2's four episodes.
 
 What it takes, in order:
 
-1. The Ratings objective (episode 2's mechanic), with a sim test.
+1. The Ratings objective (episode 2's mechanic), with a sim test. Built: `objective: "ko"`, above.
 2. The four chapters in `content/campaign.json` after `encore`, from the tables above, each with
    `"season": 2`. The map already shows seasons (below).
 3. The lines written out in full (the beats above are the outline) and voiced through Hawkes Gen

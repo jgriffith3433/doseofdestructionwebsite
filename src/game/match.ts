@@ -30,8 +30,13 @@ export interface MatchSetup {
   /** Shown on the VS screen. */
   title?: string;
   subtitle?: string;
-  /** 'survive' wins by still standing when time runs out. */
-  objective?: 'win' | 'survive';
+  /**
+   * 'survive' wins by still standing when time runs out. 'ko' wins by scoring `kos` KOs before
+   * time runs out (the match ends on the last one), and loses on time or out of stocks.
+   */
+  objective?: 'win' | 'survive' | 'ko';
+  /** The 'ko' objective's target: how many KOs the player must score. */
+  kos?: number;
   /** Online matches: who is in each slot (net/online.ts). */
   online?: OnlineSlots;
 }
@@ -124,6 +129,7 @@ export class Match {
     const before = s.fighters.map((f) => f.percent);
     const events = step(s, inputs);
     this.record(events, before);
+    this.checkObjective();
     if (s.frame % SAMPLE_EVERY === 0) this.sample();
     return events;
   }
@@ -134,6 +140,7 @@ export class Match {
     const before = s.fighters.map((f) => f.percent);
     const events = step(s, inputs);
     this.record(events, before);
+    this.checkObjective();
     if (s.frame % SAMPLE_EVERY === 0) this.sample();
     return events;
   }
@@ -199,6 +206,28 @@ export class Match {
     });
   }
 
+  /** The 'ko' objective: the match ends, won by the player, on the target KO. */
+  private checkObjective(): void {
+    const s = this.state;
+    const me = s.fighters[this.player];
+    if (s.over || this.setup.objective !== 'ko' || !me || this.koCount() < this.koTarget) return;
+    s.over = 1;
+    s.timedOut = 0;
+    s.winner = me.id;
+    s.winnerTeam = me.team;
+    s.endTimer = 120;
+  }
+
+  /** The 'ko' objective's target (3 when the setup leaves it out). */
+  get koTarget(): number {
+    return Math.max(1, this.setup.kos ?? 3);
+  }
+
+  /** KOs the local player has scored (self-destructs don't count). */
+  koCount(): number {
+    return this.stats[this.player]?.kos ?? 0;
+  }
+
   /** The local player's slot, or -1 if every fighter is a CPU. */
   get player(): number {
     return this.setup.slots.findIndex((s) => s.cpu === null && !s.remote);
@@ -212,6 +241,9 @@ export class Match {
     if (this.setup.objective === 'survive') {
       if (s.timedOut) return me.stocks > 0;
     }
+    // On time or out of stocks the target wasn't reached; every foe out of stocks first still wins.
+    if (this.setup.objective === 'ko' && this.koCount() >= this.koTarget) return true;
+    if (this.setup.objective === 'ko' && s.timedOut) return false;
     if (s.winnerTeam >= 0) return me.team === s.winnerTeam;
     return s.winner === me.id;
   }

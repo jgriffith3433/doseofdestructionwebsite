@@ -228,6 +228,16 @@ function chart(m: Match, colors: string[]): SVGElement {
   return root;
 }
 
+/** The 'ko' objective's results line: which way it ended. */
+function koLine(m: Match, won: boolean): string {
+  const n = m.koTarget;
+  const got = Math.min(m.koCount(), n);
+  if (won && got >= n) return `${n} KOs before the clock. That's the highlight reel.`;
+  if (won) return 'Nobody left to knock out. The network will take it.';
+  if (m.state.timedOut) return `Time ran out at ${got} of ${n} KOs. No highlights tonight.`;
+  return `Out of stocks at ${got} of ${n} KOs. They cut to commercial.`;
+}
+
 export interface ResultAction {
   label: string;
   primary?: boolean;
@@ -264,6 +274,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
         h('p', { class: 'kicker' }, s.timedOut ? 'Time' : 'Game', ' · ', formatTime(s.frame)),
         h('h2', {}, headline),
         campaign && m.setup.objective === 'survive' && h('p', {}, won ? 'You lasted the whole minute.' : 'They took you off the air.'),
+        m.setup.objective === 'ko' && h('p', { class: 'results-objective' }, koLine(m, won)),
         online?.note && h('p', { class: 'results-note' }, online.note),
       ),
     ),

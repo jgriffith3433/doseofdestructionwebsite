@@ -55,6 +55,7 @@ const SCENARIOS = [
   { id: 'sound-settings', title: 'Tap to play, sound on, Settings from the menu and Pause, a setting kept across a reload', description: 'Taps the Tap to play prompt with a pointer press on the spot (hit-tested, so a covered prompt fails), checks the AudioContext runs and the menu music plays with no more taps, opens Settings from the main menu, turns Sound off and Music to 40%, reloads (the run carries on through ?playtest=sound-settings), checks the prompt and the choice are back, then opens Settings from Pause in a match. The player\'s own hawkes.sound is put back at the end.', seconds: 120, tags: ['smoke', 'sound'] },
   { id: 'site-links', title: 'The website around the game: Powered by HAWKES GEN on every page, Hawkes Biomedical on the landing page, the game screen without them', description: 'Checks the game screen has no site footer marks, then opens the landing page over the game in a full-screen frame and walks the site through its own links (footer Characters, a fighter card picked from the seed, Privacy, What\'s new), checking on each page that "Powered by HAWKES GEN" links to https://hawkesgen.com (shown, not covered) and on the landing page that Hawkes Biomedical links to https://hawkesbiomedical.com. Every fighter page is also read and checked. The frame is removed at the end and the game checked again.', seconds: 60, tags: ['smoke', 'site'] },
   { id: 'online', title: 'Two players online (peers: 2): the lobby with no clicks, a profile change seen by the other, Find match, CPU while searching, Match found, the online fight to its end, results, both rating changes and the Leaderboard', description: 'Needs Hawkes Gen playtest.run with peers: 2 (the two tabs share ?room=<id>, a private test lobby, and get ?peer=0/1). Both land in the lobby and see "2 online"; peer 1 renames itself in Profile and peer 0 sees the new name; peer 0 presses Find match and plays a CPU versus match while it searches; peer 1 presses Find match 30 s later; both see "Match found vs <name> · Starting in N", fight each other (the CPU bot on each pad; test lobbies play 1 stock, 90 s) with the names on the HUD, and see the result with Queue again; then each sees its rating change on the result (+16 / −16 for a first match) and opens Leaderboard, where both players are listed with the same ranks and ratings (the test lobby has its own table), and the other player\'s own result arrives over the relays.', seconds: 420, tags: ['full', 'online'] },
+  { id: 'ko-objective', title: 'The ko objective: "KOs 0/3" with the clock, counting up, won on the third KO; then a round lost when time runs out', description: 'Setup shortcut: straight into each match as a campaign fight, no menus (the ko objective has no chapter yet). Round 1: Exit Punk (the bot) vs Kaelen (CPU 1, 9 stocks, every life at 120%) on Yo House, 3 KOs before a 2-minute clock; it ends on the third KO. Round 2: vs a giant Break (CPU 9, 9 stocks), 3 KOs before a 20-second clock; it ends on time. Each round checks the chip and the clock as the match starts, every change of the chip against the KOs scored, and the results line saying which way it ended. Events ko-chip, ko-clock, ko-count, ko-result.', seconds: 240, tags: ['full'] },
   { id: 'roster', title: 'Every fighter spawns in training and does each move once (starts matches directly)', seconds: 480, tags: ['full', 'roster'] },
 ];
 
@@ -86,6 +87,7 @@ export function installDodPlaytest(game: GameHooks): void {
         if (id === 'smoke') await r.smoke();
         else if (id === 'match') await r.match();
         else if (id === 'campaign') await r.campaign();
+        else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'site-links') await r.siteLinks();
@@ -873,6 +875,64 @@ class Run {
     await this.screen('main');
     t.progress(1);
     t.finish(won ? 'won' : 'lost');
+  }
+
+  /** The 'ko' objective, both ways it ends: on the third KO, and on time. */
+  async koObjective(): Promise<void> {
+    const t = this.t;
+    await this.toMainMenu();
+    const id = (list: { id: string }[], want: string) => Math.max(0, list.findIndex((x) => x.id === want));
+    const rounds: { name: string; foe: MatchSetup['slots'][number]; secs: number; expect: 'kos' | 'time' }[] = [
+      { name: 'Round 1 (3 KOs)', foe: { char: id(CHARACTERS, 'kaelen'), cpu: 1, team: 1, stocks: 9, startPercent: 1200 }, secs: 120, expect: 'kos' },
+      { name: 'Round 2 (time)', foe: { char: id(CHARACTERS, 'break'), cpu: 9, team: 1, stocks: 9, scale: 135 }, secs: 20, expect: 'time' },
+    ];
+    for (const [i, r] of rounds.entries()) {
+      t.progress(0.05 + i * 0.45);
+      t.event('round', r.name);
+      // Setup shortcut: straight into the match, no menus.
+      void this.game.startMatch({
+        // A campaign fight (the objective's home), so the results read Cleared / Knocked out.
+        mode: 'campaign', stage: id(STAGES, 'yo-house'), stocks: 9, rules: { timeLimit: r.secs * 60 },
+        objective: 'ko', kos: 3, title: r.name,
+        slots: [{ char: id(CHARACTERS, 'exit-punk'), cpu: null, team: 0, stocks: 9 }, r.foe],
+      });
+      await this.matchLive();
+      const m = this.game.match()!;
+      const chip = () => this.q('#objective');
+      const timer = () => this.q('#timer');
+      const shown = (el: HTMLElement | null) => !!el && !el.hidden && el.getClientRects().length > 0;
+      let last = chip()?.textContent ?? '';
+      if (!shown(chip()) || last !== 'KOs 0/3') { t.problem('bug', `the ko objective chip shows "${last}" (${shown(chip()) ? 'shown' : 'hidden'}), not "KOs 0/3"`); }
+      else t.event('ko-chip', last);
+      if (!shown(timer()) || !timer()!.textContent) { t.problem('bug', 'the ko objective match shows no clock'); }
+      else t.event('ko-clock', timer()!.textContent!);
+      this.progressNow = () => 0.1 + i * 0.45 + 0.35 * Math.min(1, m.state.frame / (r.secs * 60));
+      await this.fight(() => {
+        const now = chip()?.textContent ?? '';
+        if (now !== last) {
+          last = now;
+          const want = `KOs ${Math.min(3, m.koCount())}/3`;
+          if (now === want) t.event('ko-count', `${now} with ${timer()?.textContent ?? '?'} on the clock`);
+          else { t.problem('bug', `the ko chip says "${now}" after ${m.koCount()} KOs (want "${want}")`); }
+        }
+        return false;
+      }, (r.secs + 90) * 1000 * 4);
+      const ended = m.koCount() >= 3 && !m.state.timedOut ? 'kos' : m.state.timedOut ? 'time' : 'stocks';
+      await this.results();
+      const lineEl = () => this.q('#results-body .results-objective');
+      await this.t.until(() => !!lineEl()?.textContent, 10000, 'the ko objective results line').catch((e) => {
+        if (String(e).includes('stopped')) throw e;
+      });
+      const says = lineEl()?.textContent ?? '';
+      const right = ended === 'kos' ? says.startsWith('3 KOs') : ended === 'time' ? says.startsWith('Time ran out') : says.startsWith('Out of stocks');
+      if (!right) { t.problem('bug', `the results line "${says}" doesn't say the match ended ${ended === 'kos' ? 'on 3 KOs' : ended === 'time' ? 'on time' : 'out of stocks'}`); }
+      else t.event('ko-result', `${ended === 'kos' ? 'ended on 3 KOs' : ended === 'time' ? 'ended on time' : 'ended out of stocks'} at ${Math.round(m.state.frame / 60)} s: "${says}"`);
+      if (ended !== r.expect) t.problem('warning', `${r.name} was meant to end ${r.expect === 'kos' ? 'on 3 KOs' : 'on time'} but ended ${ended === 'kos' ? 'on 3 KOs' : ended === 'time' ? 'on time' : 'out of stocks'}`);
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+    }
+    t.progress(1);
+    t.finish('done');
   }
 
   async roster(): Promise<void> {

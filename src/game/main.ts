@@ -738,16 +738,26 @@ function buildHud(m: Match): void {
   const limit = m.state.rules.timeLimit;
   $('timer').hidden = limit <= 0;
   const objective = $('objective');
-  objective.hidden = m.setup.objective !== 'survive';
+  const shown = m.setup.objective === 'survive' || m.setup.objective === 'ko';
+  objective.hidden = !shown;
   objective.textContent = 'Survive';
-  $('match-top').hidden = limit <= 0 && m.setup.objective !== 'survive';
+  objective.classList.toggle('count', m.setup.objective === 'ko');
+  hudKos = -1;
+  $('match-top').hidden = limit <= 0 && !shown;
   updateHud(m);
 }
+
+/** The KO count last shown on the 'ko' objective's chip. */
+let hudKos = -1;
 
 function updateHud(m: Match): void {
   const s = m.state;
   const cards = $('hud').children;
   if (s.rules.timeLimit > 0) $('timer').textContent = formatTime(s.rules.timeLimit - s.frame);
+  if (m.setup.objective === 'ko' && hudKos !== m.koCount()) {
+    hudKos = m.koCount();
+    $('objective').textContent = `KOs ${Math.min(hudKos, m.koTarget)}/${m.koTarget}`;
+  }
   for (const f of s.fighters) {
     const card = cards[f.id] as HTMLElement | undefined;
     const cache = hudCache[f.id];
