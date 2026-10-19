@@ -28,7 +28,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # The build stamp every analytics event carries (tools/buildStamp.mjs); the version comes from releases.json.
       - run: npm run build
+        env:
+          DOD_BUILD_COMMIT: ${{ github.sha }}
       - name: Assemble site
         run: |
           mkdir _site

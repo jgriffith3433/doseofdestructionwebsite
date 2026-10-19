@@ -51,7 +51,7 @@ the CPU bot (`src/game/ai/bot.ts`, level 9) drives your fighter through a virtua
 | Scenario | What it does |
 |---|---|
 | `smoke` (~50 s) | Title → Versus → a 1v1 picked from the seed → fight 20 s of game time → Esc → Quit to the menu. |
-| `match` (~2.5 min) | A full 1v1 versus a CPU, 2 stocks, no time limit, to the results screen. Outcome won/lost. |
+| `match` (~2.5 min) | A full 1v1 versus a CPU, 2 stocks, no time limit, to the results screen; then the "How was that fight?" card appears and is dismissed, and the analytics events (screen, fighter_pick, stage_pick, level_start, death, level_end) are logged going out with the build and env. Outcome won/lost. |
 | `campaign` (≤10 min) | The campaign from chapter 1: dialogue, fights, outros. Two tries per chapter; stops cleanly at 9.5 min. |
 | `sound-settings` (~2 min) | Studio standard: taps the Tap to play prompt (hit-tested pointer press), checks the AudioContext runs and the menu music starts, Settings from the main menu (Sound off, Music 40%), reloads the page (the run carries on via `sessionStorage`), checks the choice came back, then Settings from Pause in a match. Puts the player's `hawkes.sound` back. |
 | `site-links` (~1 min) | Checks the game screen has no site marks, then opens the website over the game in a full-screen frame and walks it by its own links (landing → footer Characters → a fighter card → Privacy → What's new), checking "Powered by HAWKES GEN" → https://hawkesgen.com on each page (and on every fighter page, read), and Hawkes Biomedical → https://hawkesbiomedical.com on the landing page. External links are checked, not followed. |
@@ -74,6 +74,52 @@ Run one: start the dev server and open `http://localhost:8089/Game/?playtest=smo
 `hawkesPlaytest.report()` when it ends. Hawkes Gen's `playtest.run` does the same and records it.
 Headless Chromium renders in software here (~6–10 fps), so the sim runs at about half speed and the
 campaign gets through 2–3 chapters in its budget.
+
+## Analytics
+
+Hawkes Analytics (`hawkesgen/docs/analytics.md`) is the only analytics here; never add another tracker. The SDK is
+`site/hawkes-analytics.js`, a copy of `hawkesgen/clients/js/hawkes-analytics.js` (copy it again when Gen's changes;
+types: `src/game/hawkes-analytics.d.ts`). Every player-facing page loads it with `data-product="doseofdestruction"`:
+`Game/index.html` (before the game module) and every site page (`/site/build.js` first, then the SDK, above
+`site.js`; a new page copies those lines). `devtools.html` never loads it. The privacy page says what is collected
+(anonymous gameplay statistics, no cookies, no personal data, no IP stored): keep it true when events change.
+
+**Build:** `tools/buildStamp.mjs` makes `{ version, commit, date }`: version from `releases.json` `current` (else
+package.json), commit from `DOD_BUILD_COMMIT`/`GITHUB_SHA` (pages.yml passes it) else `git rev-parse`, date = build
+time. The game gets it as the Vite define `__DOD_BUILD__` (analytics.ts sets `window.HAWKES_BUILD`); the site pages
+get `dist/site/build.js` (pages.yml and Studio's beta build copy `dist/` over `site/`; the dev server serves it).
+
+**The game's events** all go through `src/game/analytics.ts` (nothing else calls `window.hawkesAnalytics`), at real
+moments only, never per frame:
+
+| Event | When (where it's called) | Props |
+|---|---|---|
+| `screen` | every screen switch (`ui/screens.ts` `show`) | ids: title, main, select, stages, versus, campaign, dialogue, howto, results, match, leaderboard |
+| `game_ready` | the title screen first shows (main.ts `titleUp`) | |
+| context | `mode` (versus, training, campaign, online), `fighter`, `opponent` (`a+b` for several), `stage`, `chapter`, `level`; match keys clear on menu screens, mode on title/main | |
+| `feature` `fighter_pick` | Fight on the select screen, one per person's slot | `value` fighter id, `mode`, `vs`, `cpu_level`, `players` |
+| `feature` `stage_pick` | a stage card | `value` stage id, `mode`, `random` |
+| `level_start` / `level_end` | each match from its Ready (`beginReady`) to its end; level = chapter id in the campaign, else the mode | end: `result` complete (won) / death (lost) / quit / restart, `won`, `match_seconds`, `stocks_left`, `damage_dealt`/`damage_taken` (percent), `kos`, `deaths` (the player's falls), `reason` |
+| `death` | every KO in the match (`matchEvents`, from the sim's events) | `cause` = the attacker's move (`fsmash`, `nair`…; `fall` for a self-destruct, `hazard`), `victim` (you, cpu, opponent, dummy, player), `fighter`, `by`, `by_role`, `stage`, `percent`, `x`, `y`, `at` |
+| `run_start` / `run_end` | a campaign run: the first chapter played from the map until the main menu (or every chapter cleared) | `from`, `cleared`, `result` win / lose / quit, `duration` |
+| `progress` | a chapter cleared for the first time | `step` (chapters done), `of`, `label` (the chapter it unlocks, or `complete`) |
+| `video` | each campaign scene (`<chapter>.intro`/`.outro`) | `action` complete / skip, `line`, `of` |
+| `feature` `settings.sound` / `settings.music` / `settings.sfx`, `settings_open` | Settings changes (sliders on release), M key | `value`, `from` menu / pause / key_m |
+| `pause`, `quit_to_menu` | Esc/Start into Pause; Quit from Pause | `mode`, `stage`, `at`, `to` |
+| `feature` `controls_keyboard` / `_gamepad` / `_touch` / `_mouse` | the first use of each in a session | |
+| `feature` `find_match`, `profile_open`, `profile_save` | the online menu items; Save in Profile (`value` = the picture's fighter; never the name) | |
+
+`death` counts every KO (filter `victim=you` for the player's own); `level_end` `deaths` is the player's falls.
+
+**Feedback cards** (`ask`, styled in the game's colours): "How was that fight?" (thumbs + comment, id `after-match`)
+on a versus or online match's results; "Rate tonight's episode: <title>" (stars + comment, id
+`after-episode-<chapter>`) on the campaign map after an episode's outro. Never during a match: `matchStart` removes a
+card still up. The card's focus goes back to the screen, so Enter still does what the screen says.
+
+**Playtests:** `?playtest=` turns the SDK's debug log on (also `?hawkes-analytics-debug=1`); every scenario's run
+does too. The `match` scenario ends by checking the "How was that fight?" card appears and closes with its ×, then
+logs each needed event (`analytics-event`) with how many went out and the build and env (`analytics`).
+`node src/game/test/analytics.test.ts` (in `npm test`) drives a real sim match through analytics.ts.
 
 ## The website
 

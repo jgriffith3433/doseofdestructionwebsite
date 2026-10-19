@@ -64,7 +64,7 @@ export function stageThumb(stage: StageDef): SVGElement {
 }
 
 /** The stage select: the stages a mode offers (content/modes.json), in its order. */
-export function openStages(list: { index: number; entry: ModeStage }[], onPick: (stage: number, entry: ModeStage) => void, chosen: number): void {
+export function openStages(list: { index: number; entry: ModeStage }[], onPick: (stage: number, entry: ModeStage, random?: boolean) => void, chosen: number): void {
   const grid = $('stage-grid');
   const focus = list.some((x) => x.index === chosen) ? chosen : list[0]?.index;
   grid.replaceChildren(
@@ -80,7 +80,7 @@ export function openStages(list: { index: number; entry: ModeStage }[], onPick: 
     }),
     h(
       'button',
-      { type: 'button', class: 'stage-card random', onclick: () => { const x = list[Math.floor(Math.random() * list.length)]; if (x) onPick(x.index, x.entry); } },
+      { type: 'button', class: 'stage-card random', onclick: () => { const x = list[Math.floor(Math.random() * list.length)]; if (x) onPick(x.index, x.entry, true); } },
       h('b', {}, '?'),
       h('strong', {}, 'Random'),
       h('span', {}, 'Let the broadcast decide.'),
@@ -363,8 +363,15 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
 /** The characters on your side of the story stand on the left. */
 const LEFT = new Set(['exit-punk', 'blog-man']);
 
+/** How a scene ended: skipped (and at which line), or read to the end. */
+export interface SceneEnd {
+  skipped: boolean;
+  /** The line it was on (0-based). */
+  line: number;
+}
+
 /** Plays a scene line by line. Resolves when it ends or is skipped. */
-export function playDialogue(lines: Line[], chapterTitle: string): Promise<void> {
+export function playDialogue(lines: Line[], chapterTitle: string): Promise<SceneEnd> {
   const left = $<HTMLImageElement>('dlg-left');
   const right = $<HTMLImageElement>('dlg-right');
   const name = $('dlg-name');
@@ -391,13 +398,13 @@ export function playDialogue(lines: Line[], chapterTitle: string): Promise<void>
     let i = -1;
     let timer = 0;
     let typing = false;
-    const end = () => {
+    const end = (skipped = false) => {
       clearInterval(timer);
       audio.stopVoice();
       next.onclick = null;
       skip.onclick = null;
       window.removeEventListener('keydown', onKey);
-      resolve();
+      resolve({ skipped, line: Math.max(0, Math.min(i, lines.length - 1)) });
     };
     const finishTyping = () => {
       clearInterval(timer);
@@ -445,7 +452,7 @@ export function playDialogue(lines: Line[], chapterTitle: string): Promise<void>
       }
     };
     next.onclick = advance;
-    skip.onclick = end;
+    skip.onclick = () => end(true);
     window.addEventListener('keydown', onKey);
     advance();
   });
