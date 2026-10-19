@@ -338,6 +338,7 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
         {
           type: 'button',
           class: `chapter ${cleared ? 'cleared' : open ? 'open' : 'locked'}`,
+          'data-chapter': c.id,
           disabled: !open,
           'data-autofocus': i === (nextIndex < 0 ? CHAPTERS.length - 1 : nextIndex) || undefined,
           onclick: () => onPlay(c),
