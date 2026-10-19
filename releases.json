@@ -1,8 +1,21 @@
 {
   "product": "doseofdestruction",
   "name": "Dose Of Destruction",
-  "current": "1.0.0",
+  "current": "1.1.0",
   "releases": [
+    {
+      "version": "1.1.0",
+      "date": "2026-10-19",
+      "build": "4ffacdf",
+      "title": "Multiplayer rooms, a leaderboard, and smoother play",
+      "notes": [
+        "Multiplayer puts everyone in one shared room, with a queue for players waiting to get in.",
+        "A leaderboard now ranks multiplayer players.",
+        "On-screen touch controls show up during matches, and double-tapping to block no longer gets in the way of them.",
+        "Sound now works on phones, with a tap to turn it on and a new Settings menu.",
+        "Frames stay smoother with fewer stutters, and the dark flashes between the title screen, menus and match exit are gone."
+      ]
+    },
     {
       "version": "1.0.0",
       "date": "2026-10-16",
