@@ -180,6 +180,23 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 }
 .menu-item.quiet strong { font-size: 18px; color: var(--muted); }
 
+/* Nine entries must fit a 1280x720 window; on shorter ones the descriptions go and the screen scrolls. */
+@media (max-height: 800px) {
+  .main-screen { align-items: safe center; }
+  .main-menu { gap: 6px; }
+  .main-menu .logo.small { margin-bottom: 6px; font-size: clamp(26px, 4vw, 38px); }
+  .menu-item { padding: 6px 16px; gap: 0; }
+  .menu-item strong { font-size: clamp(18px, 2.4vw, 24px); line-height: 1.15; }
+  .menu-item span { font-size: 13px; line-height: 1.2; }
+  .main-menu .menu-item.profile-item { grid-template-columns: 36px 1fr; }
+  .main-menu .menu-item.profile-item img { width: 36px; height: 36px; }
+  .menu-item.quiet strong { font-size: 16px; }
+}
+@media (max-height: 600px) {
+  .main-menu .menu-item span { display: none; }
+  .main-menu .menu-item.profile-item img { grid-row: 1; }
+}
+
 .main-spot { position: relative; height: min(80vh, 720px); display: grid; place-items: end center; }
 .main-spot::before {
   content: "";
