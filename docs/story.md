@@ -73,7 +73,7 @@ season the chapters unlock in order, as they always have. Once a season is clear
 
 The names and end lines live in `src/game/campaign/story.ts` (`SEASON_TEXT`) next to the chapter reader.
 
-## Season 2: The card is yours (outline, not built yet)
+## Season 2: The card is yours (as built)
 
 The show came back, the way the Orchestrator said it would. Exit Punk is the champion now, and the champion
 doesn't get an exit: he gets defenses. Four walk-ons the show has never put on the card come for it, one per
@@ -86,8 +86,8 @@ seen until the season's last line.
 | # | Episode (id) | Walk-on (CPU level) | Stage | Rule twist |
 |---|---|---|---|---|
 | 1 | Title Defense (`title-defense`) | Shark Dude (5) | City Top (`city-top`) | On the clock: 2 minutes (`timeLimit: 7200`), 2 stocks each. When time runs out, the most stocks left keeps the card. |
-| 2 | Drop In (`drop-in`) | Pyro Singer (6), 5 stocks | Rainbow Full Pipe (`rainbow-full-pipe`) | **Ratings**: score 3 KOs before the 2-minute clock runs out. Her stocks don't matter; the KO count does. The Drop In! skater keeps coming. |
-| 3 | The Champion's Tax (`champions-tax`) | Susan (6) | Cursed Town (`cursed-town`) | Exit Punk starts every life at 60% (`startPercent: 600` on his slot); Susan starts at 0. 3 stocks each. |
+| 2 | Drop In (`drop-in`) | Pyro Singer (6), 5 stocks, every life at 100% | Rainbow Full Pipe (`rainbow-full-pipe`) | **Ratings**: score 3 KOs before the 2-minute clock runs out. Her stocks don't matter; the KO count does. The Drop In! skater keeps coming. |
+| 3 | The Champion's Tax (`champions-tax`) | Susan (5) | Cursed Town (`cursed-town`) | Exit Punk starts every life at 60% (`startPercent: 600` on his slot); Susan starts at 0. 3 stocks each. |
 | 4 | Sponsored (`sponsored`) | Wallit (7), at 130% size | Humans In The Loop (`humans-in-the-loop`) | A bought fighter: Wallit is giant and damage is at 120% (`damage: 120`). 3 stocks each. |
 
 **The Ratings rule** is new (built). A Ratings fight is won by scoring N KOs before the clock runs out, and
@@ -102,7 +102,9 @@ count (a fall nobody caused isn't scored). The results say which way it went:
 
 Pacing: three KOs from 0% in two minutes is hard. The playtest bot (level 9) mostly scores 1 or 2 against a
 CPU 1 to 3 on Rainbow Full Pipe. Drop In needs help to be fair: a longer clock, a lower CPU level, or
-Pyro Singer starting every life hurt (`startPercent`).
+Pyro Singer starting every life hurt (`startPercent`). Built with the last: she starts every life at 100%
+(`startPercent: 1000`), CPU 6, 2-minute clock; the level-9 bot then wins about 5 fights in 8 in the sim. The
+Champion's Tax runs Susan at CPU 5 (not 6): at 60% a life, CPU 6 was harder than Encore.
 
 ### 1. Title Defense: Shark Dude on City Top
 
@@ -118,7 +120,7 @@ Pyro Singer starting every life hurt (`startPercent`).
 ### 2. Drop In: Pyro Singer on Rainbow Full Pipe
 
 *Tagline: She wants the ratings. So does the network.*
-*Hint: Ratings: 3 KOs before the clock runs out. Her aerials burn hard. Watch for the skater dropping in.*
+*Hint: Ratings: 3 KOs before the clock runs out. She starts every life hurt, but her aerials burn hard. Watch for the skater dropping in.*
 
 - Narrator: Rainbow Full Pipe. Ramps, decks, and a skater who drops in whether you're ready or not.
 - Blog Man: the network wants highlights, not survivors. Tonight is scored in KOs.
@@ -148,7 +150,7 @@ Pyro Singer starting every life hurt (`startPercent`).
 - After: the bat on the floor, the cash in the air. Blog Man: the highest ratings since the Encore.
 - Exit Punk: he came for the exit; he keeps finding a main event.
 
-**Season end.** Narrator: *"Four walk-ons. Four defenses. The card is still his."* Then the sign-up sheet
+**Season end** (the last lines of Sponsored's outro; the map's end line under Season 2 is the narrator's). Narrator: *"Four walk-ons. Four defenses. The card is still his."* Then the sign-up sheet
 for next season, one name on it, read by Blog Man: *"Walk-on. No sponsor. No record. One baton."*
 
 That's the Orchestrator, coming back as a fighter (never as scenery), in the new finale stage that's a
@@ -156,7 +158,7 @@ later item. The finale isn't part of Season 2's four episodes.
 
 ### Building Season 2
 
-What it takes, in order:
+What it took, in order (all built; the lines as said are in `content/campaign.json`):
 
 1. The Ratings objective (episode 2's mechanic), with a sim test. Built: `objective: "ko"`, above.
 2. The four chapters in `content/campaign.json` after `encore`, from the tables above, each with

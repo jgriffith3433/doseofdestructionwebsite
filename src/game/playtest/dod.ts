@@ -18,7 +18,7 @@ import { BTN, NO_INPUT, packInput } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
 import { ACT } from '../sim/state.ts';
-import { CHAPTERS } from '../campaign/story.ts';
+import { CHAPTERS, SEASONS } from '../campaign/story.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
@@ -604,6 +604,7 @@ class Run {
           cleared++;
           t.metric('chaptersCleared', cleared);
           t.event('chapter-cleared', label);
+          this.checkSeasonEnd(c.season, c.id);
           break;
         }
         if (attempt >= 2 || late()) {
@@ -621,6 +622,15 @@ class Run {
     }
     t.progress(1);
     t.finish(outcome);
+  }
+
+  /** After a season's last chapter is cleared, the map shows that season's end line under it (story.ts SEASON_TEXT). */
+  private checkSeasonEnd(season: number, chapterId: string): void {
+    const s = SEASONS.find((x) => x.number === season);
+    if (!s || s.chapters[s.chapters.length - 1]?.id !== chapterId) return;
+    const shown = this.q(`#chapter-path .season[data-season="${season}"] .season-end`)?.textContent?.trim() ?? '';
+    this.t.event('season-end', `Season ${season}: ${shown || 'no end line'}`);
+    if (shown !== s.end) this.t.problem('bug', `campaign map: Season ${season} is cleared but shows "${shown}" under it, not "${s.end}"`);
   }
 
   /**
