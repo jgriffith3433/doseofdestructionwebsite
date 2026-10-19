@@ -889,6 +889,13 @@ installDodPlaytest({
     endMatch();
     return go('main', spotlight);
   },
+  setCampaignProgress: (ids) => {
+    const before = [...progress];
+    progress.clear();
+    for (const id of ids) progress.add(id);
+    saveProgress(progress);
+    return before;
+  },
 });
 
 // Online is always on: the lobby is joined with no clicks (docs/online.md), but only now, after the game and the

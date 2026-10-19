@@ -44,12 +44,14 @@ export interface GameHooks {
   startMatch(setup: MatchSetup): Promise<void>;
   /** Setup shortcut (roster only): leave the match for the main menu. */
   quitMatch(): Promise<void>;
+  /** Setup shortcut (campaign `chapter` only): the cleared chapter ids (localStorage dod-campaign); returns the ones before. */
+  setCampaignProgress(ids: string[]): string[];
 }
 
 const SCENARIOS = [
   { id: 'smoke', title: 'Boot, menus, a quick versus match for 20 s, quit to the menu', description: 'options: stage, fighter (ids) to play specific content', seconds: 50, tags: ['smoke'] },
   { id: 'match', title: 'A full 1v1 versus match against the CPU (2 stocks), to the results screen, its analytics events and the feedback card', description: 'options: stage, fighter (ids) to play specific content. After the results: the "How was that fight?" card appears and is dismissed, and the Hawkes Analytics events of the run (screen, fighter_pick, stage_pick, level_start, death, level_end) are shown going out with the build and env (the SDK\'s debug log).', seconds: 160, tags: ['full', 'analytics'] },
-  { id: 'campaign', title: 'The campaign from chapter 1, as far as the bot gets in 10 minutes', seconds: 600, tags: ['full'] },
+  { id: 'campaign', title: 'The campaign from chapter 1 (or the chapter asked for), as far as the bot gets in 10 minutes', description: `options: chapter (a chapter id from content/campaign.json: ${CHAPTERS.map((c) => c.id).join(', ')}), or the contract's at with the same ids. Setup shortcut: every chapter before it is marked cleared (localStorage dod-campaign), then the bot opens it from the Campaign map and plays on from there. The player's own progress is put back at the end. An unknown id is reported as a problem.`, starts: CHAPTERS.map((c) => c.id), seconds: 600, tags: ['full'] },
   { id: 'sound-settings', title: 'Tap to play, sound on, Settings from the menu and Pause, a setting kept across a reload', description: 'Taps the Tap to play prompt with a pointer press on the spot (hit-tested, so a covered prompt fails), checks the AudioContext runs and the menu music plays with no more taps, opens Settings from the main menu, turns Sound off and Music to 40%, reloads (the run carries on through ?playtest=sound-settings), checks the prompt and the choice are back, then opens Settings from Pause in a match. The player\'s own hawkes.sound is put back at the end.', seconds: 120, tags: ['smoke', 'sound'] },
   { id: 'site-links', title: 'The website around the game: Powered by HAWKES GEN on every page, Hawkes Biomedical on the landing page, the game screen without them', description: 'Checks the game screen has no site footer marks, then opens the landing page over the game in a full-screen frame and walks the site through its own links (footer Characters, a fighter card picked from the seed, Privacy, What\'s new), checking on each page that "Powered by HAWKES GEN" links to https://hawkesgen.com (shown, not covered) and on the landing page that Hawkes Biomedical links to https://hawkesbiomedical.com. Every fighter page is also read and checked. The frame is removed at the end and the game checked again.', seconds: 60, tags: ['smoke', 'site'] },
   { id: 'online', title: 'Two players online (peers: 2): the lobby with no clicks, a profile change seen by the other, Find match, CPU while searching, Match found, the online fight to its end, results, both rating changes and the Leaderboard', description: 'Needs Hawkes Gen playtest.run with peers: 2 (the two tabs share ?room=<id>, a private test lobby, and get ?peer=0/1). Both land in the lobby and see "2 online"; peer 1 renames itself in Profile and peer 0 sees the new name; peer 0 presses Find match and plays a CPU versus match while it searches; peer 1 presses Find match 30 s later; both see "Match found vs <name> · Starting in N", fight each other (the CPU bot on each pad; test lobbies play 1 stock, 90 s) with the names on the HUD, and see the result with Queue again; then each sees its rating change on the result (+16 / −16 for a first match) and opens Leaderboard, where both players are listed with the same ranks and ratings (the test lobby has its own table), and the other player\'s own result arrives over the relays.', seconds: 420, tags: ['full', 'online'] },
@@ -544,19 +546,42 @@ class Run {
     const t = this.t;
     const t0 = performance.now();
     const late = () => performance.now() - t0 > CAMPAIGN_BUDGET_MS;
+    // options.chapter (or the contract's options.at) starts at that chapter, picked by id.
+    const asked = this.options.chapter ?? this.options.at;
+    let from = 0;
+    let before: string[] | null = null;
+    if (asked != null && asked !== '') {
+      from = CHAPTERS.findIndex((c) => c.id === asked);
+      if (from < 0) {
+        t.problem('bug', `chapter "${String(asked)}" is not in the campaign (content/campaign.json ids: ${CHAPTERS.map((c) => c.id).join(', ')})`);
+        t.finish('error');
+        return;
+      }
+      before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((c) => c.id));
+      t.log(`setup shortcut: chapters 1-${from} marked cleared, starting at ${CHAPTERS[from].id}`);
+    }
+    try {
+      await this.campaignFrom(from, late);
+    } finally {
+      if (before) this.game.setCampaignProgress(before);
+    }
+  }
+
+  private async campaignFrom(from: number, late: () => boolean): Promise<void> {
+    const t = this.t;
     await this.toMainMenu();
     await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
     await this.screen('campaign');
     let cleared = 0;
     let outcome: Outcome = 'won';
     t.metric('chaptersCleared', 0);
-    chapters: for (let i = 0; i < CHAPTERS.length; i++) {
+    chapters: for (let i = from; i < CHAPTERS.length; i++) {
       const c = CHAPTERS[i];
       const label = `Chapter ${i + 1} · ${c.title}`;
       this.progressNow = () => (i + 0.5) / CHAPTERS.length;
       t.event('chapter', label);
       t.metric('chapter', i + 1);
-      await this.click(() => document.querySelectorAll<HTMLElement>('#chapter-path .chapter')[i], label);
+      await this.click(() => this.q(`#chapter-path .chapter[data-chapter="${c.id}"]`), label);
       await this.playDialogue();
       await this.matchLive();
       for (let attempt = 1; ; attempt++) {
