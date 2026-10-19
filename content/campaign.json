@@ -759,5 +759,433 @@
         }
       ]
     }
+  },
+  {
+    "id": "title-defense",
+    "season": 2,
+    "title": "Title Defense",
+    "tagline": "The champion's first night back on the roof where it started.",
+    "hint": "Two minutes on the clock. Keep more stocks than he does. He comes straight at you: shield, then punish.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "The Foundry lights come back on. Midnight again, and the whole city tunes in again.",
+        "audio": "/audio/voice/campaign.title-defense.intro-mvflk3dr.mp3",
+        "take": {
+          "text": "The Foundry lights come back on. Midnight again, and the whole city tunes in again.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
+      },
+      {
+        "who": "blog-man",
+        "text": "Welcome back to Dose of Destruction. I'm your host. Headline: 'Writer Handed Microphone, Promises Short Show, Already Running Long.'",
+        "audio": "/audio/voice/campaign.title-defense.intro-mvflk3ds.mp3",
+        "take": {
+          "text": "Welcome back to Dose of Destruction. I'm your host. Headline: 'Writer Handed Microphone, Promises Short Show, Already Running Long.'",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
+      },
+      {
+        "who": "blog-man",
+        "text": "First walk-on of the season. No record. One fin.",
+        "audio": "/audio/voice/campaign.title-defense.intro-mvflk3dt.mp3",
+        "take": {
+          "text": "First walk-on of the season. No record. One fin.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
+      },
+      {
+        "who": "shark-dude",
+        "text": "I'm here for the belt.",
+        "audio": "/audio/voice/campaign.title-defense.intro-mvflk3du.mp3",
+        "take": {
+          "text": "I'm here for the belt.",
+          "voice": "N2lVS1w4EtoT3dr4eOWO"
+        }
+      },
+      {
+        "who": "exit-punk",
+        "text": "There's no belt. There's a card.",
+        "audio": "/audio/voice/campaign.title-defense.intro-mvflk3dv.mp3",
+        "take": {
+          "text": "There's no belt. There's a card.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
+      },
+      {
+        "who": "shark-dude",
+        "text": "Then I'm here for the card.",
+        "audio": "/audio/voice/campaign.title-defense.intro-mvflk3dw.mp3",
+        "take": {
+          "text": "Then I'm here for the card.",
+          "voice": "N2lVS1w4EtoT3dr4eOWO"
+        }
+      }
+    ],
+    "outro": [
+      {
+        "who": "shark-dude",
+        "text": "One more bite. I just needed one more bite.",
+        "audio": "/audio/voice/campaign.title-defense.outro-mvflk3dx.mp3",
+        "take": {
+          "text": "One more bite. I just needed one more bite.",
+          "voice": "N2lVS1w4EtoT3dr4eOWO"
+        }
+      },
+      {
+        "who": "exit-punk",
+        "text": "Next.",
+        "audio": "/audio/voice/campaign.title-defense.outro-mvflk3dy.mp3",
+        "take": {
+          "text": "Next.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
+      },
+      {
+        "who": "blog-man",
+        "text": "The champion keeps the card. Night one goes to the kid.",
+        "audio": "/audio/voice/campaign.title-defense.outro-mvflk3dz.mp3",
+        "take": {
+          "text": "The champion keeps the card. Night one goes to the kid.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
+      }
+    ],
+    "fight": {
+      "stage": "city-top",
+      "stocks": 2,
+      "rules": {
+        "timeLimit": 7200
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 2
+        },
+        {
+          "char": "shark-dude",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "drop-in",
+    "season": 2,
+    "title": "Drop In",
+    "tagline": "She wants the ratings. So does the network.",
+    "hint": "Ratings: 3 KOs before the clock runs out. She starts every life hurt, but her aerials burn hard. Watch for the skater dropping in.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Rainbow Full Pipe. Ramps, decks, and a skater who drops in whether you're ready or not.",
+        "audio": "/audio/voice/campaign.drop-in.intro-mvflk3e0.mp3",
+        "take": {
+          "text": "Rainbow Full Pipe. Ramps, decks, and a skater who drops in whether you're ready or not.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
+      },
+      {
+        "who": "blog-man",
+        "text": "The network wants highlights, not survivors. Tonight is scored in KOs. Three before the clock.",
+        "audio": "/audio/voice/campaign.drop-in.intro-mvflk3e1.mp3",
+        "take": {
+          "text": "The network wants highlights, not survivors. Tonight is scored in KOs. Three before the clock.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
+      },
+      {
+        "who": "pyro-singer",
+        "text": "I sing the opener. I sing the closer. You're the chorus.",
+        "audio": "/audio/voice/campaign.drop-in.intro-mvflk3e2.mp3",
+        "take": {
+          "text": "I sing the opener. I sing the closer. You're the chorus.",
+          "voice": "9BWtsMINqrJLrRacOk9x"
+        }
+      },
+      {
+        "who": "exit-punk",
+        "text": "I've been here before. On a board.",
+        "audio": "/audio/voice/campaign.drop-in.intro-mvflk3e3.mp3",
+        "take": {
+          "text": "I've been here before. On a board.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
+      }
+    ],
+    "outro": [
+      {
+        "who": "pyro-singer",
+        "text": "Three already? The song was supposed to be longer.",
+        "audio": "/audio/voice/campaign.drop-in.outro-mvflk3e4.mp3",
+        "take": {
+          "text": "Three already? The song was supposed to be longer.",
+          "voice": "9BWtsMINqrJLrRacOk9x"
+        }
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: 'Three KOs, Clock Still Running, Ratings Through the Furnace Roof, Network Asks for Four.'",
+        "audio": "/audio/voice/campaign.drop-in.outro-mvflk3e5.mp3",
+        "take": {
+          "text": "Headline: 'Three KOs, Clock Still Running, Ratings Through the Furnace Roof, Network Asks for Four.'",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
+      },
+      {
+        "who": "exit-punk",
+        "text": "Shorter.",
+        "audio": "/audio/voice/campaign.drop-in.outro-mvflk3e6.mp3",
+        "take": {
+          "text": "Shorter.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
+      }
+    ],
+    "fight": {
+      "stage": "rainbow-full-pipe",
+      "stocks": 5,
+      "rules": {
+        "timeLimit": 7200
+      },
+      "objective": "ko",
+      "kos": 3,
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "pyro-singer",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 5,
+          "startPercent": 1000
+        }
+      ]
+    }
+  },
+  {
+    "id": "champions-tax",
+    "season": 2,
+    "title": "The Champion's Tax",
+    "tagline": "The champion pays to fight. The challenger doesn't.",
+    "hint": "You start every life at 60%. Susan drifts and reaches far. Stay on the rooftops, out of the fog.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Cursed Town. The fog in the street eats you alive, and something below is reaching up.",
+        "audio": "/audio/voice/campaign.champions-tax.intro-mvflk3e7.mp3",
+        "take": {
+          "text": "Cursed Town. The fog in the street eats you alive, and something below is reaching up.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
+      },
+      {
+        "who": "blog-man",
+        "text": "New rule from the network. The champion starts every round already hurt.",
+        "audio": "/audio/voice/campaign.champions-tax.intro-mvflk3e8.mp3",
+        "take": {
+          "text": "New rule from the network. The champion starts every round already hurt.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
+      },
+      {
+        "who": "susan",
+        "text": "I came in with the fog. That's all you get.",
+        "audio": "/audio/voice/campaign.champions-tax.intro-mvflk3e9.mp3",
+        "take": {
+          "text": "I came in with the fog. That's all you get.",
+          "voice": "EXAVITQu4vr4xnSDxMaL"
+        }
+      },
+      {
+        "who": "exit-punk",
+        "text": "Is that allowed?",
+        "audio": "/audio/voice/campaign.champions-tax.intro-mvflk3ea.mp3",
+        "take": {
+          "text": "Is that allowed?",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
+      },
+      {
+        "who": "blog-man",
+        "text": "It's a broadcast.",
+        "audio": "/audio/voice/campaign.champions-tax.intro-mvflk3eb.mp3",
+        "take": {
+          "text": "It's a broadcast.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
+      }
+    ],
+    "outro": [
+      {
+        "who": "susan",
+        "text": "Keep your card. I'll keep the fog.",
+        "audio": "/audio/voice/campaign.champions-tax.outro-mvflk3ec.mp3",
+        "take": {
+          "text": "Keep your card. I'll keep the fog.",
+          "voice": "EXAVITQu4vr4xnSDxMaL"
+        }
+      },
+      {
+        "who": "exit-punk",
+        "text": "Tell the network the tax is paid.",
+        "audio": "/audio/voice/campaign.champions-tax.outro-mvflk3ed.mp3",
+        "take": {
+          "text": "Tell the network the tax is paid.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
+      }
+    ],
+    "fight": {
+      "stage": "cursed-town",
+      "stocks": 3,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3,
+          "startPercent": 600
+        },
+        {
+          "char": "susan",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "sponsored",
+    "season": 2,
+    "title": "Sponsored",
+    "tagline": "Someone bought a fighter. And then bought a bigger one.",
+    "hint": "The final defense: a giant Wallit, and every hit lands harder. Stay out of the bat's reach and punish the swing.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "The arena show. The same lights that went quiet at the end of last season.",
+        "audio": "/audio/voice/campaign.sponsored.intro-mvflk3ee.mp3",
+        "take": {
+          "text": "The arena show. The same lights that went quiet at the end of last season.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
+      },
+      {
+        "who": "blog-man",
+        "text": "Tonight's walk-on comes with a sponsor. The champion came with one skateboard.",
+        "audio": "/audio/voice/campaign.sponsored.intro-mvflk3ef.mp3",
+        "take": {
+          "text": "Tonight's walk-on comes with a sponsor. The champion came with one skateboard.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
+      },
+      {
+        "who": "wallit",
+        "text": "Everything on this card has a price. I'm paying it.",
+        "audio": "/audio/voice/campaign.sponsored.intro-mvflk3eg.mp3",
+        "take": {
+          "text": "Everything on this card has a price. I'm paying it.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
+      },
+      {
+        "who": "exit-punk",
+        "text": "It's not for sale.",
+        "audio": "/audio/voice/campaign.sponsored.intro-mvflk3eh.mp3",
+        "take": {
+          "text": "It's not for sale.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
+      },
+      {
+        "who": "wallit",
+        "text": "Everything's for sale. Look how big I got.",
+        "audio": "/audio/voice/campaign.sponsored.intro-mvflk3ei.mp3",
+        "take": {
+          "text": "Everything's for sale. Look how big I got.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
+      }
+    ],
+    "outro": [
+      {
+        "who": "narrator",
+        "text": "The bat hits the floor. The cash comes down like confetti.",
+        "audio": "/audio/voice/campaign.sponsored.outro-mvflk3ej.mp3",
+        "take": {
+          "text": "The bat hits the floor. The cash comes down like confetti.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
+      },
+      {
+        "who": "blog-man",
+        "text": "Highest ratings since the Encore. Headline to follow. It's a long one.",
+        "audio": "/audio/voice/campaign.sponsored.outro-mvflk3ek.mp3",
+        "take": {
+          "text": "Highest ratings since the Encore. Headline to follow. It's a long one.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
+      },
+      {
+        "who": "exit-punk",
+        "text": "I came for the exit. I keep finding a main event.",
+        "audio": "/audio/voice/campaign.sponsored.outro-mvflk3el.mp3",
+        "take": {
+          "text": "I came for the exit. I keep finding a main event.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
+      },
+      {
+        "who": "narrator",
+        "text": "Four walk-ons. Four defenses. The card is still his.",
+        "audio": "/audio/voice/campaign.sponsored.outro-mvflk3em.mp3",
+        "take": {
+          "text": "Four walk-ons. Four defenses. The card is still his.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
+      },
+      {
+        "who": "blog-man",
+        "text": "Next season's sign-up sheet. One name on it. 'Walk-on. No sponsor. No record. One baton.'",
+        "audio": "/audio/voice/campaign.sponsored.outro-mvflk3en.mp3",
+        "take": {
+          "text": "Next season's sign-up sheet. One name on it. 'Walk-on. No sponsor. No record. One baton.'",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
+      }
+    ],
+    "fight": {
+      "stage": "humans-in-the-loop",
+      "stocks": 3,
+      "rules": {
+        "damage": 120
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "wallit",
+          "cpu": 7,
+          "team": 1,
+          "scale": 130,
+          "stocks": 3
+        }
+      ]
+    }
   }
 ]

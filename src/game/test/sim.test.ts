@@ -177,6 +177,15 @@ STAGES.forEach((stage, si) => {
     const all = new Set(before);
     check(`season ${s.number} waits on the season before`, !seasonOpen(s.number, allButOne) && !isOpen(first, allButOne) && seasonOpen(s.number, all) && isOpen(first, all));
   }
+  // Season 2 (docs/story.md): four walk-ons Season 1 never used, one Ratings fight, one on Rainbow Full Pipe, every line recorded.
+  const s2 = CHAPTERS.filter((c) => c.season === 2);
+  const s1Chars = new Set(CHAPTERS.filter((c) => c.season === 1).flatMap((c) => c.fight.slots.map((sl) => sl.char)));
+  const foes = s2.flatMap((c) => c.fight.slots.filter((sl) => sl.cpu !== null).map((sl) => sl.char));
+  check('season 2 has four episodes', s2.length === 4, s2.map((c) => c.id).join(' '));
+  check('season 2 walk-ons are new to the card', foes.length === 4 && new Set(foes).size === 4 && foes.every((f) => !s1Chars.has(f)), foes.map((f) => CHARACTERS[f].id).join(' '));
+  check('season 2 has a Ratings fight and a Rainbow Full Pipe night', s2.some((c) => c.fight.objective === 'ko') && s2.some((c) => STAGES[c.fight.stage].id === 'rainbow-full-pipe'));
+  const unrecorded = s2.flatMap((c) => [...c.intro, ...c.outro]).filter((l) => !l.audio || l.take?.text !== l.text);
+  check('season 2 lines are all recorded', unrecorded.length === 0, unrecorded.map((l) => l.text).join(' / '));
 }
 
 {
