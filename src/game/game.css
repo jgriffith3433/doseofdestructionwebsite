@@ -834,6 +834,7 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
 .match-top { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); display: grid; justify-items: center; gap: 4px; pointer-events: none; z-index: 5; }
 .timer { font-family: Oswald, sans-serif; font-size: 34px; text-shadow: 0 3px 0 rgba(0, 0, 0, 0.7); }
 .objective { font-family: Oswald, sans-serif; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: #1a0d08; background: var(--gold); padding: 2px 12px; border-radius: 999px; }
+.objective.count { text-transform: none; letter-spacing: 0.08em; }
 
 .banner {
   position: fixed;

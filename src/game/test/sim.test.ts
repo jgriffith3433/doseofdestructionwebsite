@@ -10,6 +10,7 @@ import { STAGES } from '../sim/stage.ts';
 import { cloneState, hashState, newGame, type FighterSetup, type GameOptions, type GameState } from '../sim/state.ts';
 import { step } from '../sim/step.ts';
 import { Bot } from '../ai/bot.ts';
+import { Match, type SlotSetup } from '../match.ts';
 import { CHAPTERS, SEASONS, isOpen, seasonOpen } from '../campaign/story.ts';
 
 declare const process: { exit(code: number): never };
@@ -176,6 +177,29 @@ STAGES.forEach((stage, si) => {
     const all = new Set(before);
     check(`season ${s.number} waits on the season before`, !seasonOpen(s.number, allButOne) && !isOpen(first, allButOne) && seasonOpen(s.number, all) && isOpen(first, all));
   }
+}
+
+{
+  // The 'ko' objective: N KOs before the clock wins (the match ends on the last one); the clock running out loses.
+  const char = (id: string) => CHARACTERS.findIndex((c) => c.id === id);
+  const koMatch = (foe: SlotSetup, timeLimit: number, seed: number) => {
+    const m = new Match({ mode: 'campaign', stage: STAGES.findIndex((st) => st.id === 'yo-house'), stocks: 9, rules: { timeLimit }, objective: 'ko', kos: 3, slots: [{ char: char('exit-punk'), cpu: null, team: 0 }, { team: 1, stocks: 9, ...foe }] }, seed);
+    const me = new Bot(0, 9, seed + 1);
+    for (let i = 0; i < 60 * 60 * 5 && !m.state.over; i++) m.tick(me.think(m.state));
+    return m;
+  };
+  // Kaelen starts every life at 120%, so three KOs come well inside the 2 minutes.
+  const win = koMatch({ char: char('kaelen'), cpu: 1, startPercent: 1200 }, 60 * 120, 11);
+  const foeLeft = win.state.fighters[1].stocks;
+  check('ko objective: 3 KOs before the clock wins', win.state.over === 1 && !win.state.timedOut && win.playerWon() && win.koCount() === 3, `${Math.round(win.state.frame / 60)}s, ${win.koCount()} KOs`);
+  check('ko objective: the match ends on the third KO, foe still in', foeLeft > 0 && win.state.winner === 0 && win.state.frame < 60 * 120, `foe has ${foeLeft} stocks`);
+  const late = koMatch({ char: char('break'), cpu: 9, scale: 135 }, 60 * 15, 12);
+  check('ko objective: time running out first loses', late.state.over === 1 && late.state.timedOut === 1 && !late.playerWon() && late.koCount() < 3, `${late.koCount()} KOs in 15s`);
+  // Two KOs scored when the clock runs out is still a loss.
+  const short = new Match({ mode: 'campaign', stage: 0, stocks: 9, rules: { timeLimit: 60 }, objective: 'ko', kos: 3, slots: [{ char: char('exit-punk'), cpu: null }, { char: char('kaelen'), cpu: 0, stocks: 9 }] }, 3);
+  short.stats[0].kos = 2;
+  while (!short.state.over) short.tick(0);
+  check('ko objective: 2 of 3 KOs at the bell is a loss', short.state.timedOut === 1 && !short.playerWon());
 }
 
 if (failed) {
