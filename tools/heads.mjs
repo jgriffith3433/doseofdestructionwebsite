@@ -3,7 +3,8 @@
 // Where each head sits is data, in content/heads.json: { "<id>": { "x", "y", "size" } }, the centre of the
 // face and the side of the square crop, as fractions of the large image's height (x too, so a square stays
 // square). A fighter missing there gets a guess from the cutout's alpha (top of the figure, centred on the
-// solid pixels below it), written back so it can be tuned by hand. Needs ffmpeg (with libwebp) on the PATH.
+// solid pixels below it, grown until hair and ears clear the frame), written back so it can be tuned by hand.
+// "fills": true marks a head that is the whole picture on purpose (the edge check in heads.test.mjs skips it). Needs ffmpeg (with libwebp) on the PATH.
 //
 //   node tools/heads.mjs                # every fighter: fill in missing boxes, write the head images
 //   node tools/heads.mjs --only slice   # one fighter
@@ -37,19 +38,34 @@ function size(file) {
   return { w, h };
 }
 
-/** A first guess: the top of the solid figure, centred on its solid pixels a little below the top. */
+/**
+ * A first guess that keeps the whole head in frame: start at the top of the solid figure, centre on the solid
+ * pixels of its top rows, and grow the square until no solid pixel touches its top or side edges in the head rows
+ * (so hair, hats and ears are never cut; shoulders below don't count). Capped, and kept inside the image.
+ */
 function guess(file) {
   const { w, h } = size(file);
   const rgba = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-f', 'rawvideo', '-pix_fmt', 'rgba', '-'], { maxBuffer: 64 << 20 });
-  const solid = (x, y) => rgba[(y * w + x) * 4 + 3] > 110;
+  const solid = (x, y) => x >= 0 && x < w && y >= 0 && y < h && rgba[(y * w + x) * 4 + 3] > 110;
   let top = 0;
   find: for (; top < h; top++) for (let x = 0; x < w; x++) if (solid(x, top)) break find;
-  const side = Math.min(0.22 * h, w);
-  let sx = 0, n = 0;
-  for (let y = top; y < Math.min(h, top + side * 0.6); y++) for (let x = 0; x < w; x++) if (solid(x, y)) { sx += x; n++; }
-  const cx = n ? sx / n : w / 2;
+  const cap = Math.min(0.34 * h, w);
+  let side = Math.min(0.2 * h, w);
+  let cx = w / 2;
+  for (let i = 0; i < 40; i++) {
+    let sx = 0, n = 0;
+    for (let y = top; y < Math.min(h, top + side * 0.5); y++) for (let x = 0; x < w; x++) if (solid(x, y)) { sx += x; n++; }
+    cx = n ? sx / n : w / 2;
+    const left = Math.round(cx - side / 2), right = left + Math.round(side) - 1;
+    const rows = Math.round(side * 0.5);
+    let cut = false;
+    for (let y = top; y < Math.min(h, top + rows) && !cut; y++) if (solid(left, y) || solid(right, y)) cut = true;
+    if (!cut || side >= cap) break;
+    side = Math.min(cap, side * 1.05);
+  }
+  cx = Math.min(Math.max(cx, side / 2), w - side / 2);
   const r = (v) => Math.round((v / h) * 1000) / 1000;
-  return { x: r(cx), y: r(top + side * 0.45), size: r(side) };
+  return { x: r(cx), y: r(top + side * 0.46), size: r(side) };
 }
 
 function crop(id, box, file) {
