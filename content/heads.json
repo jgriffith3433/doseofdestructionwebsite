@@ -111,9 +111,9 @@
     "size": 0.2
   },
   "spider-bot": {
-    "x": 0.95,
-    "y": 0.19,
-    "size": 0.36,
+    "x": 1.08,
+    "y": 0.24,
+    "size": 0.68,
     "fills": true
   },
   "ss-boulder": {
