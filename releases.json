@@ -1,8 +1,17 @@
 {
   "product": "doseofdestruction",
   "name": "Dose Of Destruction",
-  "current": "1.1.1",
+  "current": "1.1.2",
   "releases": [
+    {
+      "version": "1.1.2",
+      "date": "2026-10-19",
+      "build": "f153ebb",
+      "title": "Profile pictures show in full",
+      "notes": [
+        "Profile pictures now show in full instead of being cut off at the edges."
+      ]
+    },
     {
       "version": "1.1.1",
       "date": "2026-10-19",
