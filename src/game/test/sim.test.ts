@@ -10,6 +10,7 @@ import { STAGES } from '../sim/stage.ts';
 import { cloneState, hashState, newGame, type FighterSetup, type GameOptions, type GameState } from '../sim/state.ts';
 import { step } from '../sim/step.ts';
 import { Bot } from '../ai/bot.ts';
+import { CHAPTERS, SEASONS, isOpen, seasonOpen } from '../campaign/story.ts';
 
 declare const process: { exit(code: number): never };
 
@@ -161,6 +162,20 @@ STAGES.forEach((stage, si) => {
   let fired = 0;
   for (let i = 0; i < 60 * 30; i++) fired += step(quiet, [0, 0]).filter((e) => e.type === 'stage' || e.type === 'hurt').length;
   check('hazards off keeps the stage quiet', fired === 0);
+}
+
+{
+  // The campaign map's seasons: in order, every chapter in one, and a season opens once the one before is cleared.
+  check('chapters run in season order', CHAPTERS.every((c, i) => i === 0 || CHAPTERS[i - 1].season <= c.season));
+  check('every chapter is in a season', SEASONS.reduce((n, s) => n + s.chapters.length, 0) === CHAPTERS.length, SEASONS.map((s) => `S${s.number}: ${s.chapters.length}`).join(', '));
+  check('season 1 opens with nothing cleared', seasonOpen(1, new Set()) && isOpen(0, new Set()));
+  for (const s of SEASONS.slice(1)) {
+    const before = CHAPTERS.filter((c) => c.season < s.number).map((c) => c.id);
+    const first = CHAPTERS.indexOf(s.chapters[0]);
+    const allButOne = new Set(before.slice(0, -1));
+    const all = new Set(before);
+    check(`season ${s.number} waits on the season before`, !seasonOpen(s.number, allButOne) && !isOpen(first, allButOne) && seasonOpen(s.number, all) && isOpen(first, all));
+  }
 }
 
 if (failed) {

@@ -60,6 +60,19 @@ Season end: *"Dose of Destruction will return. The card is yours now."*
 Fighters Season 1 used (none of them is a Season 2 walk-on): exit-punk, kaelen, break, dj-wont-read,
 shutup-bot, small-weather, blog-man, evil-blue-bird, got-ur-back, slice, ss-boulder, stratabots, orchestrator.
 
+## Seasons on the map
+
+A chapter's optional `season` in `content/campaign.json` says which season it airs in (left out, it's 1).
+The Campaign map shows each season under its own heading, "Season 1", "Season 2", with the season's name
+beside it, and numbers the episodes from 01 within each season. A season is locked until every chapter of
+the season before it is cleared, and its first card says so ("Clear Season 1 to open it."). Inside a
+season the chapters unlock in order, as they always have. Once a season is cleared its end line shows under it:
+
+- Season 1, *Open Mic to Encore*: "Season 1 cleared. The card is yours now."
+- Season 2, *The card is yours*: "Four walk-ons. Four defenses. The card is still his."
+
+The names and end lines live in `src/game/campaign/story.ts` (`SEASON_TEXT`) next to the chapter reader.
+
 ## Season 2: The card is yours (outline, not built yet)
 
 The show came back, the way the Orchestrator said it would. Exit Punk is the champion now, and the champion
@@ -137,8 +150,8 @@ later item. The finale isn't part of Season 2's four episodes.
 What it takes, in order:
 
 1. The Ratings objective (episode 2's mechanic), with a sim test.
-2. The four chapters in `content/campaign.json` after `encore`, from the tables above. A chapter map split
-   into seasons is optional; the chapters unlock in order like Season 1's.
+2. The four chapters in `content/campaign.json` after `encore`, from the tables above, each with
+   `"season": 2`. The map already shows seasons (below).
 3. The lines written out in full (the beats above are the outline) and voiced through Hawkes Gen
    (`dod-voice-music`): Blog Man as host, narrator, Exit Punk and the four walk-ons. Voice lines cost cents,
    no GPU.

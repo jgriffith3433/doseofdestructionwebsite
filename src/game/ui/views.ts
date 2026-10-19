@@ -4,7 +4,7 @@
 import { CHARACTERS } from '../sim/characters.ts';
 import { STAGES, type StageDef } from '../sim/stage.ts';
 import type { Match, MatchSetup } from '../match.ts';
-import { CHAPTERS, isOpen, type Chapter, type Line } from '../campaign/story.ts';
+import { CHAPTERS, SEASONS, isOpen, seasonCleared, seasonOpen, type Chapter, type Line } from '../campaign/story.ts';
 import { PLAYER_COLORS } from '../render/renderer.ts';
 import { TEAM_COLORS } from './select.ts';
 import { $, formatTime, h, kids, largeUrl, pct, thumbUrl } from './dom.ts';
@@ -327,31 +327,51 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
 export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => void, onReset: () => void): void {
   const path = $('chapter-path');
   const nextIndex = CHAPTERS.findIndex((c) => !done.has(c.id));
+  const focus = CHAPTERS[nextIndex < 0 ? CHAPTERS.length - 1 : nextIndex];
+  const chapter = (c: Chapter, n: number) => {
+    const i = CHAPTERS.indexOf(c);
+    const open = isOpen(i, done);
+    const cleared = done.has(c.id);
+    const status = cleared ? 'Cleared' : open ? 'Next' : 'Locked';
+    const foe = c.fight.slots.find((s) => s.cpu !== null && s.team !== 0) ?? c.fight.slots[1];
+    // The first chapter of a locked season waits on the season before, not on a chapter.
+    const why = n === 0 && c.season > 1 ? `Clear Season ${c.season - 1} to open it.` : 'Clear the chapter before it.';
+    return h(
+      'button',
+      {
+        type: 'button',
+        class: `chapter ${cleared ? 'cleared' : open ? 'open' : 'locked'}`,
+        'data-chapter': c.id,
+        disabled: !open,
+        'data-autofocus': c === focus || undefined,
+        onclick: () => onPlay(c),
+      },
+      h('span', { class: 'chapter-no' }, String(n + 1).padStart(2, '0')),
+      h('img', { src: thumbUrl(CHARACTERS[foe.char].id), alt: '' }),
+      h('strong', {}, open ? c.title : '???'),
+      h('span', { class: 'chapter-tag' }, open ? c.tagline : why),
+      h('em', { class: 'chapter-status' }, status, open ? ` · ${STAGES[c.fight.stage].name}` : ''),
+    );
+  };
   path.replaceChildren(
-    ...CHAPTERS.map((c, i) => {
-      const open = isOpen(i, done);
-      const cleared = done.has(c.id);
-      const status = cleared ? 'Cleared' : open ? 'Next' : 'Locked';
-      const foe = c.fight.slots.find((s) => s.cpu !== null && s.team !== 0) ?? c.fight.slots[1];
+    ...SEASONS.map((s) => {
+      const open = seasonOpen(s.number, done);
+      const cleared = seasonCleared(s.number, done);
       return h(
-        'button',
-        {
-          type: 'button',
-          class: `chapter ${cleared ? 'cleared' : open ? 'open' : 'locked'}`,
-          'data-chapter': c.id,
-          disabled: !open,
-          'data-autofocus': i === (nextIndex < 0 ? CHAPTERS.length - 1 : nextIndex) || undefined,
-          onclick: () => onPlay(c),
-        },
-        h('span', { class: 'chapter-no' }, String(i + 1).padStart(2, '0')),
-        h('img', { src: thumbUrl(CHARACTERS[foe.char].id), alt: '' }),
-        h('strong', {}, open ? c.title : '???'),
-        h('span', { class: 'chapter-tag' }, open ? c.tagline : 'Clear the chapter before it.'),
-        h('em', { class: 'chapter-status' }, status, open ? ` · ${STAGES[c.fight.stage].name}` : ''),
+        'section',
+        { class: `season ${cleared ? 'cleared' : open ? 'open' : 'locked'}`, 'data-season': s.number },
+        h(
+          'header',
+          { class: 'season-head' },
+          h('h3', {}, `Season ${s.number}`),
+          s.subtitle ? h('span', { class: 'season-sub' }, open ? s.subtitle : '???') : null,
+          open ? null : h('em', { class: 'season-lock' }, `Locked · Clear Season ${s.number - 1} first`),
+        ),
+        h('div', { class: 'season-chapters' }, ...s.chapters.map(chapter)),
+        cleared ? h('p', { class: 'season-end' }, s.end) : null,
       );
     }),
   );
-  $('campaign-done').hidden = nextIndex >= 0;
   const reset = $<HTMLButtonElement>('btn-campaign-reset');
   reset.onclick = () => {
     if (confirm('Start the campaign over? Cleared chapters will be locked again.')) onReset();

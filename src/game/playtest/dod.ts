@@ -572,6 +572,7 @@ class Run {
     await this.toMainMenu();
     await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
     await this.screen('campaign');
+    this.checkCampaignMap();
     let cleared = 0;
     let outcome: Outcome = 'won';
     t.metric('chaptersCleared', 0);
@@ -618,6 +619,35 @@ class Run {
     }
     t.progress(1);
     t.finish(outcome);
+  }
+
+  /**
+   * The campaign map: a "Season N" heading over each season's chapters (as content/campaign.json
+   * places them), nothing wider than the window, and on a 720p-or-taller window Season 1 fits on screen.
+   */
+  private checkCampaignMap(): void {
+    const t = this.t;
+    const screen = this.q('#campaign');
+    const sections = [...document.querySelectorAll<HTMLElement>('#chapter-path .season')];
+    for (const n of new Set(CHAPTERS.map((c) => c.season))) {
+      const sec = sections.find((e) => e.dataset.season === String(n));
+      const heading = sec?.querySelector('.season-head h3')?.textContent ?? '';
+      const shown = [...(sec?.querySelectorAll<HTMLElement>('.chapter') ?? [])].map((e) => e.dataset.chapter);
+      const want = CHAPTERS.filter((c) => c.season === n).map((c) => c.id);
+      t.event('season', `${heading || `no heading for season ${n}`}: ${shown.length} chapters (${shown.join(', ')})${sec?.classList.contains('locked') ? ', locked' : ''}`);
+      if (heading !== `Season ${n}`) t.problem('bug', `campaign map: season ${n} has the heading "${heading}", not "Season ${n}"`);
+      if (shown.join() !== want.join()) t.problem('bug', `campaign map: Season ${n} shows ${shown.join(', ') || 'nothing'}, not ${want.join(', ')}`);
+    }
+    const vw = document.documentElement.clientWidth;
+    const vh = window.innerHeight;
+    const wide = [...document.querySelectorAll<HTMLElement>('#campaign .season-head, #campaign .chapter, #campaign .season-end')]
+      .filter((e) => e.getBoundingClientRect().right > vw + 1 || e.getBoundingClientRect().left < -1);
+    const sideways = screen ? screen.scrollWidth > screen.clientWidth + 1 : false;
+    const firstSeason = sections[0]?.querySelectorAll<HTMLElement>('.chapter');
+    const bottom = firstSeason?.length ? Math.max(...[...firstSeason].map((e) => e.getBoundingClientRect().bottom)) : 0;
+    t.event('map-fit', `${vw}x${vh}: ${sideways || wide.length ? 'overflows sideways' : 'no sideways overflow'}; Season 1 ends at ${Math.round(bottom)}px`);
+    if (sideways || wide.length) t.problem('bug', `campaign map overflows a ${vw}x${vh} window sideways (${wide.length} cards or headings past the edge)`);
+    if (vh >= 720 && vw >= 1200 && bottom > vh) t.problem('polish', `campaign map: Season 1 runs past the bottom of a ${vw}x${vh} window (${Math.round(bottom)}px)`);
   }
 
   // ---------------------------------------------------------- analytics (Hawkes Analytics, analytics.ts)

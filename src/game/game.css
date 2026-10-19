@@ -431,12 +431,21 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 
 .campaign-screen > .lede { max-width: 1280px; margin: 0 auto 18px; }
 .chapter-path {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
   max-width: 1280px;
   margin: 0 auto;
-  counter-reset: chapter;
+}
+.season-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin-bottom: 10px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.season-head h3 { margin: 0; font-family: Oswald, sans-serif; font-size: 26px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); }
+.season-sub { color: var(--muted); font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.08em; }
+.season-lock { font-style: normal; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.season.locked .season-head h3 { color: var(--muted); }
+.season-chapters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
 }
 .chapter {
   position: relative;
@@ -461,7 +470,18 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 .chapter-tag { color: var(--muted); font-size: 14px; }
 .chapter-status { font-style: normal; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold); }
 .chapter.cleared .chapter-status { color: #5ce08a; }
-.campaign-done { text-align: center; margin-top: 20px; font-family: Oswald, sans-serif; font-size: 22px; color: var(--gold); text-transform: uppercase; }
+.season-end { text-align: center; margin: 14px 0 0; font-family: Oswald, sans-serif; font-size: 22px; color: var(--gold); text-transform: uppercase; }
+/* A season of eight must fit a 1280x720 window under its heading; shorter windows scroll the map. */
+@media (max-height: 800px) {
+  .campaign-screen .screen-head { margin-bottom: 8px; }
+  .campaign-screen > .lede { margin-bottom: 10px; }
+  .season-head { margin-bottom: 8px; }
+  .season-head h3 { font-size: 22px; }
+  .season-chapters { gap: 10px; }
+  .chapter { grid-template-rows: auto 96px auto auto auto; gap: 2px; padding: 8px 10px; }
+  .chapter strong { font-size: 19px; line-height: 1.15; }
+  .chapter-tag { font-size: 13px; line-height: 1.25; }
+}
 
 /* -------------------------------------------------------------- dialogue */
 
@@ -848,14 +868,14 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   .preview { grid-template-columns: 110px 1fr; align-items: end; column-gap: 12px; }
   .preview img { grid-row: 1 / 6; height: 150px; }
   .grid { overflow: visible; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
-  .chapter-path { grid-template-columns: repeat(2, 1fr); }
+  .season-chapters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .howto-body, .results-grid { grid-template-columns: 1fr; }
   .rules { margin-left: 0; }
   .standing dl { grid-template-columns: repeat(3, auto); }
 }
 
 @media (max-width: 560px) {
-  .chapter-path { grid-template-columns: 1fr; }
+  .season-chapters { grid-template-columns: minmax(0, 1fr); }
   .chapter { grid-template-rows: auto 110px auto auto auto; }
   .slot { max-width: none; }
   .slots .fight { width: 100%; }
