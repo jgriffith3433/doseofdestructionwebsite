@@ -1,6 +1,8 @@
 // Page wiring: the screen flow, the fixed 60 Hz match loop, the HUD, and the
 // campaign's scene-fight-scene rhythm.
 
+// First: analytics (Hawkes Analytics, analytics.ts) marks the load start and stamps the build.
+import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
 import { audio, tapState } from './audio.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
@@ -16,7 +18,7 @@ import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
-import { openCampaign, openStages, playDialogue, playVersus, showResults, type ResultAction } from './ui/views.ts';
+import { openCampaign, openStages, playDialogue, playVersus, showResults, type ResultAction, type SceneEnd } from './ui/views.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
 // Online code is never imported here: it loads after boot through the loader (a failure there can't stop the game).
@@ -108,6 +110,7 @@ function wireMenus(): void {
   document.querySelectorAll<HTMLButtonElement>('[data-go]').forEach((b) =>
     b.addEventListener('click', () => {
       const to = b.dataset.go;
+      if (to === 'online' || to === 'profile') analytics.feature(to === 'online' ? 'find_match' : 'profile_open');
       if (to === 'campaign') openCampaignScreen();
       else if (to === 'versus') openVersus();
       else if (to === 'training') openTraining();
@@ -131,7 +134,10 @@ function wireMenus(): void {
   $('btn-resume').addEventListener('click', () => setPaused(false));
   $('btn-restart').addEventListener('click', () => {
     setPaused(false);
-    if (match) startMatch(match.setup, false);
+    if (match) {
+      analytics.matchEnd(match, 'restart');
+      startMatch(match.setup, false);
+    }
   });
   $('btn-pause-settings').addEventListener('click', () => openSettings());
   $('btn-quit').addEventListener('click', () => {
@@ -143,6 +149,10 @@ function wireMenus(): void {
       return;
     }
     setPaused(false);
+    if (match) {
+      analytics.quitToMenu(match, chapter ? 'campaign' : 'main');
+      analytics.matchEnd(match, 'quit', { reason: 'pause_quit' });
+    }
     endMatch();
     if (chapter) openCampaignScreen();
     else go('main', spotlight);
@@ -152,6 +162,7 @@ function wireMenus(): void {
   });
   onKey('KeyM', () => {
     const on = audio.toggleSound();
+    analytics.setting('sound', on, 'key_m');
     if (match) banner(on ? 'Sound on' : 'Sound off');
   });
 
@@ -209,6 +220,7 @@ let lastSelect: 'versus' | 'training' = 'versus';
 function openVersus(): void {
   lastSelect = 'versus';
   chapter = null;
+  analytics.setMode('versus');
   go('select', () =>
     openSelect({
       mode: 'versus',
@@ -216,6 +228,7 @@ function openVersus(): void {
       onDone: (cfg) => {
         versus = cfg;
         saveVersus();
+        analytics.fighterPicks('versus', cfg.slots);
         go('stages', () => openStages(stagesFor('versus'), pickStage, stageChoice));
       },
     }),
@@ -225,21 +238,24 @@ function openVersus(): void {
 function openTraining(): void {
   lastSelect = 'training';
   chapter = null;
+  analytics.setMode('training');
   go('select', () =>
     openSelect({
       mode: 'training',
       config: training,
       onDone: (cfg) => {
         training = cfg;
+        analytics.fighterPicks('training', cfg.slots);
         go('stages', () => openStages(stagesFor('training'), pickStage, stageChoice));
       },
     }),
   );
 }
 
-function pickStage(stage: number, entry: ModeStage): void {
+function pickStage(stage: number, entry: ModeStage, random = false): void {
   stageChoice = stage;
   const cfg = lastSelect === 'training' ? training : versus;
+  analytics.stagePick(lastSelect, stage, random);
   const setup: MatchSetup = {
     mode: lastSelect,
     stage,
@@ -253,9 +269,9 @@ function pickStage(stage: number, entry: ModeStage): void {
 
 // ------------------------------------------------------------- campaign
 
-function openCampaignScreen(): void {
+function openCampaignScreen(): Promise<void> {
   chapter = null;
-  go('campaign', () =>
+  return go('campaign', () =>
     openCampaign(progress, playChapter, () => {
       progress.clear();
       saveProgress(progress);
@@ -266,28 +282,33 @@ function openCampaignScreen(): void {
 
 async function playChapter(c: Chapter): Promise<void> {
   chapter = c;
+  analytics.chapterPlayed(c);
   const n = CHAPTERS.indexOf(c) + 1;
-  const scene = playDialogueScreen(c.intro, `Chapter ${n} · ${c.title}`);
+  const scene = playDialogueScreen(c.intro, `Chapter ${n} · ${c.title}`, `${c.id}.intro`);
   await scene;
   // A match found during the scene has taken over.
   if (fight || chapter !== c) return;
   startMatch({ ...c.fight, title: `Chapter ${n} · ${c.title}`, subtitle: c.hint }, true);
 }
 
-async function playDialogueScreen(lines: Chapter['intro'], title: string): Promise<void> {
-  let scene: Promise<void> = Promise.resolve();
+async function playDialogueScreen(lines: Chapter['intro'], title: string, id: string): Promise<void> {
+  let scene: Promise<SceneEnd> | null = null;
   await go('dialogue', () => {
     scene = playDialogue(lines, title);
   });
-  await scene;
+  if (scene) analytics.scene(id, await scene, lines.length);
 }
 
 async function chapterCleared(c: Chapter): Promise<void> {
   const n = CHAPTERS.indexOf(c) + 1;
-  await playDialogueScreen(c.outro, `Chapter ${n} · ${c.title}`);
+  await playDialogueScreen(c.outro, `Chapter ${n} · ${c.title}`, `${c.id}.outro`);
+  const firstTime = !progress.has(c.id);
   progress.add(c.id);
   saveProgress(progress);
-  openCampaignScreen();
+  analytics.chapterCleared(c, firstTime, progress);
+  await openCampaignScreen();
+  // Back on the map, the episode over: the stars card.
+  if (currentScreen() === 'campaign') analytics.askAfterEpisode(c);
 }
 
 // ------------------------------------------------------------------ match
@@ -360,6 +381,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
 
 function beginReady(m: Match): void {
   const setup = m.setup;
+  analytics.matchStart(m, chapter);
   phase = 'ready';
   readyFrames = 0;
   banner('Ready');
@@ -371,6 +393,8 @@ function beginReady(m: Match): void {
 }
 
 function endMatch(): void {
+  // A match left any other way than its end, a restart or Quit (another match starting over it) ends its level here.
+  if (match) analytics.matchEnd(match, 'quit', { reason: 'left' });
   // Leaving an online match any other way (another match starting) is a forfeit.
   if (fight && fight.phase !== 'done') fight.forfeit();
   fight = null;
@@ -396,6 +420,7 @@ function setPaused(paused: boolean): void {
   if (!paused && settingsOpen()) closeSettings();
   // Online the match can't stop: the menu opens over it and your fighter stands still meanwhile.
   if (fight && phase !== 'play' && phase !== 'pause') return;
+  if (paused && phase !== 'pause') analytics.paused(match);
   phase = paused ? 'pause' : 'play';
   $('pause').hidden = !paused;
   $('btn-restart').hidden = !!fight;
@@ -423,6 +448,7 @@ function onlineTick(m: Match, f: OnlineFight): void {
 
 function afterTick(m: Match, events: SimEvent[]): void {
   renderer.onEvents(events);
+  analytics.matchEvents(m, events);
   for (const w of matchWatchers) w(m, events);
   for (const e of events) if (e.type === 'hit' && !e.shield) bumpHud(e.victim);
   playEventSounds(m, events);
@@ -499,6 +525,7 @@ function renderSettings(): void {
 }
 
 function openSettings(): void {
+  analytics.feature('settings_open', { from: match ? 'pause' : 'menu' });
   renderSettings();
   // From Pause, the panel takes the pause menu's place until Done.
   $('pause').hidden = true;
@@ -523,10 +550,16 @@ function closeSettings(): void {
 function wireSettings(): void {
   renderSettings();
   onSoundSettings(renderSettings);
-  $('sound-switch').addEventListener('click', () => setSoundSettings({ on: !soundSettings().on }));
+  const from = () => (match ? 'pause' : 'menu');
+  $('sound-switch').addEventListener('click', () => {
+    setSoundSettings({ on: !soundSettings().on });
+    analytics.setting('sound', soundSettings().on, from());
+  });
   for (const k of ['music', 'sfx'] as const) {
     const input = $<HTMLInputElement>(`vol-${k}`);
     input.addEventListener('input', () => setSoundSettings({ [k]: Number(input.value) / 100 }));
+    // Where the slider was let go, not every step of the drag.
+    input.addEventListener('change', () => analytics.setting(k, Number(input.value), from()));
   }
   // A hit at the new level, so the slider is heard as it lets go.
   $('vol-sfx').addEventListener('change', () => audio.sfx('hit-medium'));
@@ -545,6 +578,7 @@ function finish(m: Match): void {
   phase = 'idle';
   const won = m.playerWon();
   const c = chapter;
+  analytics.matchEnd(m, won ? 'complete' : 'death');
   const actions: ResultAction[] = [];
   if (m.setup.mode === 'campaign' && c) {
     if (won) actions.push({ label: 'Continue', primary: true, run: () => chapterCleared(c) });
@@ -555,11 +589,11 @@ function finish(m: Match): void {
     actions.push({ label: 'Change fighters', run: () => openVersus() });
     actions.push({ label: 'Main menu', run: () => go('main', spotlight) });
   }
-  go('results', () => {
+  void go('results', () => {
     endMatch();
     showResults(m, actions);
     audio.playMusic('music-results');
-  });
+  }).then(() => askOnResults(m));
   const winner = m.state.fighters[m.state.winner];
   if (winner) setTimeout(() => audio.line(`fighter.${CHARACTERS[winner.char].id}.win`), 900);
   syncPad();
@@ -629,6 +663,8 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
   if (settingsOpen()) closeSettings();
   const won = end.winner === f.slot;
   const ending = ENDINGS[end.reason](f.opponent, won);
+  const voided = end.reason === 'desync' || end.reason === 'no-start';
+  analytics.matchEnd(m, voided || (end.reason === 'forfeit' && !won) ? 'quit' : won ? 'complete' : 'death', { reason: end.reason });
   // A game that ended in the sim has had its Game! banner; an early end gets its own.
   if (end.reason !== 'game' && end.reason !== 'time') banner(end.reason === 'desync' || end.reason === 'no-start' ? 'Void' : won ? 'You win' : 'Left');
   for (let i = 0; i < 40 && switching(); i++) await new Promise((r) => setTimeout(r, 50));
@@ -648,9 +684,19 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
     onlineCall('rating change', (o) => o.showRatingChange(end, f.slot));
     audio.playMusic('music-results');
   });
+  if (!voided) askOnResults(m);
   const winner = m.state.fighters[end.winner];
   if (winner) setTimeout(() => audio.line(`fighter.${CHARACTERS[winner.char].id}.win`), 900);
   syncPad();
+}
+
+/** "How was that fight?" on a versus or online match's results, once they have settled in. Campaign fights get the
+ * episode's card on the map instead. */
+function askOnResults(m: Match): void {
+  if (m.setup.mode !== 'versus' && m.setup.mode !== 'online') return;
+  setTimeout(() => {
+    if (currentScreen() === 'results' && !match) analytics.askAfterMatch(m);
+  }, 900);
 }
 
 function banner(text: string): void {
@@ -797,11 +843,13 @@ const tapped = (): Promise<void> =>
   });
 // Once the prompt has gone, the title's Press start takes the focus.
 document.addEventListener('dod:tapped', () => focusFirst());
+// The title screen is up: the game is playable (game_ready).
+const titleUp = go('title').then(() => analytics.ready());
 const playtestChapter = CHAPTERS.find((c) => c.id === params.get('chapter'));
 if (playtestChapter) {
   // Devtools' Story tab: /Game/?chapter=<id> plays that chapter, scene to scene.
   // These wait for the tap, so the chapter starts with its sound.
-  go('title').then(tapped).then(() => playChapter(playtestChapter));
+  titleUp.then(tapped).then(() => playChapter(playtestChapter));
 } else if (params.has('play')) {
   const find = (id: string | null, fallback: number) => {
     const i = CHARACTERS.findIndex((c) => c.id === id);
@@ -811,7 +859,7 @@ if (playtestChapter) {
   const stage = Math.max(0, STAGES.findIndex((s) => s.id === params.get('stage')));
   const level = Number(params.get('level') ?? 5);
   const me = find(params.get('fighter'), 0);
-  go('title').then(tapped).then(() =>
+  titleUp.then(tapped).then(() =>
     startMatch(
       {
         mode: vs === 'dummy' ? 'training' : 'versus',
@@ -823,8 +871,6 @@ if (playtestChapter) {
       false,
     ),
   );
-} else {
-  go('title');
 }
 
 // The Hawkes playtest contract (window.hawkesPlaytest). Idle until the runner

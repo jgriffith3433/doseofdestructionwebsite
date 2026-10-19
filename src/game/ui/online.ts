@@ -11,6 +11,7 @@ import { NAME_MAX, generatedName, onProfile, profile, setProfile } from '../net/
 import type { Found } from '../net/matchmaker.ts';
 import type { Player } from '../net/lobby.ts';
 import { renderProfileStats } from './leaderboard.ts';
+import { feature } from '../analytics.ts';
 
 const COUNTDOWN = 5;
 const LIST_MAX = 8;
@@ -256,7 +257,10 @@ function wireProfile(): void {
   });
   const save = () => {
     const before = profile().name;
+    const was = profile();
     const next = setProfile({ name: input.value, avatar: picked });
+    // The picture is a fighter (who players like to be); the name stays on the device and the relays, never here.
+    feature('profile_save', { value: next.avatar, picture_changed: next.avatar !== was.avatar, renamed: next.name !== was.name });
     if (input.value.trim() && next.name === before && input.value.trim() !== before) say('That name can’t be used (2–16 letters, numbers, spaces, - _ . \'). Kept the old one.');
     closeProfile();
   };

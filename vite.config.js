@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { defineConfig } from 'vite';
 import { devApi } from './tools/devApi.mjs';
+import { buildStamp } from './tools/buildStamp.mjs';
 import { sharedRoot } from './tools/roots.mjs';
 
 const root = process.cwd();
@@ -13,8 +14,8 @@ const mapsRoot = sharedRoot('AllTheMaps', 'DOD_MAPS_ROOT', root);
 export default defineConfig({
   base: './',
   appType: 'mpa',
-  // devtools.html and its API exist only on the dev server.
-  plugins: [devApi({ root, artRoot, mapsRoot })],
+  // devtools.html and its API exist only on the dev server. buildStamp: which build this is, for Hawkes Analytics.
+  plugins: [devApi({ root, artRoot, mapsRoot }), buildStamp(root)],
   build: {
     outDir: 'dist',
     emptyOutDir: true,

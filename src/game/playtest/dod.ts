@@ -26,6 +26,7 @@ import { loadAnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import type { SimEvent } from '../sim/step.ts';
 import { onlineReady } from '../net/loader.ts';
+import { analyticsDebug } from '../analytics.ts';
 
 export type MatchWatcher = (m: Match, events: SimEvent[]) => void;
 
@@ -47,7 +48,7 @@ export interface GameHooks {
 
 const SCENARIOS = [
   { id: 'smoke', title: 'Boot, menus, a quick versus match for 20 s, quit to the menu', description: 'options: stage, fighter (ids) to play specific content', seconds: 50, tags: ['smoke'] },
-  { id: 'match', title: 'A full 1v1 versus match against the CPU (2 stocks), to the results screen', description: 'options: stage, fighter (ids) to play specific content', seconds: 150, tags: ['full'] },
+  { id: 'match', title: 'A full 1v1 versus match against the CPU (2 stocks), to the results screen, its analytics events and the feedback card', description: 'options: stage, fighter (ids) to play specific content. After the results: the "How was that fight?" card appears and is dismissed, and the Hawkes Analytics events of the run (screen, fighter_pick, stage_pick, level_start, death, level_end) are shown going out with the build and env (the SDK\'s debug log).', seconds: 160, tags: ['full', 'analytics'] },
   { id: 'campaign', title: 'The campaign from chapter 1, as far as the bot gets in 10 minutes', seconds: 600, tags: ['full'] },
   { id: 'sound-settings', title: 'Tap to play, sound on, Settings from the menu and Pause, a setting kept across a reload', description: 'Taps the Tap to play prompt with a pointer press on the spot (hit-tested, so a covered prompt fails), checks the AudioContext runs and the menu music plays with no more taps, opens Settings from the main menu, turns Sound off and Music to 40%, reloads (the run carries on through ?playtest=sound-settings), checks the prompt and the choice are back, then opens Settings from Pause in a match. The player\'s own hawkes.sound is put back at the end.', seconds: 120, tags: ['smoke', 'sound'] },
   { id: 'site-links', title: 'The website around the game: Powered by HAWKES GEN on every page, Hawkes Biomedical on the landing page, the game screen without them', description: 'Checks the game screen has no site footer marks, then opens the landing page over the game in a full-screen frame and walks the site through its own links (footer Characters, a fighter card picked from the seed, Privacy, What\'s new), checking on each page that "Powered by HAWKES GEN" links to https://hawkesgen.com (shown, not covered) and on the landing page that Hawkes Biomedical links to https://hawkesbiomedical.com. Every fighter page is also read and checked. The frame is removed at the end and the game checked again.', seconds: 60, tags: ['smoke', 'site'] },
@@ -130,6 +131,8 @@ class Run {
     game.setSeed(options.seed);
     game.setSpeed(options.speed);
     setVirtualPad(() => this.read());
+    // Every analytics event of the run stays on hawkesAnalytics.debugLog (analytics.ts), so it can be shown going out.
+    analyticsDebug();
     this.unwatch = game.watch((m, ev) => this.onTick(m, ev));
     this.poll = window.setInterval(() => this.onPoll(), 250);
     void this.checkSounds();
@@ -512,6 +515,8 @@ class Run {
 
   async match(): Promise<void> {
     const t = this.t;
+    // The feedback card shows once per session and sleeps 7 days once closed: this browser may have closed it before.
+    resetAsk(MATCH_ASK);
     await this.toMainMenu();
     t.progress(0.05);
     await this.startVersus(2);
@@ -527,6 +532,8 @@ class Run {
     };
     await this.fight(() => false, 6 * 60 * 1000);
     const won = await this.results();
+    await this.feedbackCard(MATCH_ASK, 'How was that fight?');
+    await this.analyticsSent(['screen', 'fighter_pick', 'stage_pick', 'level_start', 'death', 'level_end']);
     await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
     await this.screen('main');
     t.progress(1);
@@ -586,6 +593,70 @@ class Run {
     }
     t.progress(1);
     t.finish(outcome);
+  }
+
+  // ---------------------------------------------------------- analytics (Hawkes Analytics, analytics.ts)
+
+  /** The feedback card after a match: it appears (not mid-match), and its close button dismisses it. */
+  private async feedbackCard(id: string, question: string): Promise<void> {
+    const t = this.t;
+    const host = () => document.querySelector<HTMLElement>(`[data-hawkes-ask="${id}"]`);
+    try {
+      await t.until(() => host()?.shadowRoot?.querySelector('.ha-c'), 6000, `the "${question}" card`);
+    } catch {
+      t.problem('bug', `the "${question}" feedback card did not appear on the results screen`);
+      return;
+    }
+    const root = host()!.shadowRoot!;
+    const asked = root.querySelector('.ha-q')?.textContent ?? '';
+    if (asked !== question) t.problem('bug', `the feedback card asks "${asked}", not "${question}"`);
+    t.event('feedback-prompt', `"${asked}" (${root.querySelectorAll('.ha-r button').length} choices) on the results screen`);
+    // Seen for a moment, then closed with its × like a player who doesn't want to answer.
+    await t.wait(1500);
+    t.log('click the feedback card\'s close button');
+    root.querySelector<HTMLElement>('.ha-x')?.click();
+    try {
+      await t.until(() => !host(), 3000, 'the feedback card to close');
+      t.event('feedback-dismissed', `"${asked}" closed with ×`);
+    } catch {
+      t.problem('bug', 'the feedback card did not close when its × was pressed');
+    }
+  }
+
+  /** The analytics events of this run, as they went out: each name in `need`, with the build and env they carry. */
+  private async analyticsSent(need: string[]): Promise<void> {
+    const t = this.t;
+    const a = window.hawkesAnalytics as typeof window.hawkesAnalytics | undefined;
+    if (!a?.version) {
+      t.problem('bug', 'Hawkes Analytics did not load on the game page (/site/hawkes-analytics.js)');
+      return;
+    }
+    const cfg = a.config();
+    const key = (e: { name: string; props?: Record<string, unknown> }) => (e.name === 'feature' ? String(e.props?.name ?? '') : e.name);
+    const mine = () => a.debugLog.filter((e) => need.includes(key(e)));
+    // Batches go every 5 s: send now, then wait for each one's `sent` mark.
+    a.flush();
+    await t.until(() => need.every((n) => mine().some((e) => key(e) === n && e.sent)), 12000, 'the analytics events to go out').catch(() => undefined);
+    const build = cfg.build ? `${cfg.build.version ?? '?'} (commit ${cfg.build.commit ?? 'none'}, ${cfg.build.date ?? 'no date'})` : 'no build';
+    t.event('analytics', `product ${cfg.product} · build ${build} · env ${cfg.env} · ${a.debugLog.length} events so far`);
+    if (!cfg.build?.commit || !cfg.build?.date) t.problem('bug', `analytics events carry no build commit or date (${build})`);
+    for (const n of need) {
+      const list = a.debugLog.filter((e) => key(e) === n);
+      const last = list[list.length - 1];
+      if (!last) {
+        t.problem('bug', `no "${n}" analytics event was made in this run`);
+        continue;
+      }
+      const props = Object.entries(last.props ?? {})
+        .filter(([k, v]) => k !== 'name' && v !== undefined)
+        .slice(0, 6)
+        .map(([k, v]) => `${k} ${v}`)
+        .join(', ');
+      const sent = list.filter((e) => e.sent).length;
+      t.event('analytics-event', `${n} ×${list.length} (${sent} sent) · screen ${last.screen ?? '-'} · ${props}`);
+      if (!sent) t.problem('bug', `the "${n}" analytics event was made but its batch never went out`);
+    }
+    t.metric('analyticsEvents', a.debugLog.length);
   }
 
   // ---------------------------------------------------------- online
@@ -1136,6 +1207,23 @@ const HAWKES_BIOMEDICAL = 'https://hawkesbiomedical.com';
 
 /** Carries the sound-settings run across its reload. */
 const SOUND_RUN_KEY = 'hawkes.playtest.sound-settings';
+/** The feedback card after a versus match (analytics.ts askAfterMatch). */
+const MATCH_ASK = 'after-match';
+
+/** Lets the feedback card `id` show again in this browser (the SDK's once-per-session and 7-day snooze marks). */
+function resetAsk(id: string): void {
+  try {
+    const shown = JSON.parse(sessionStorage.getItem('hawkes.asked') ?? '[]');
+    if (Array.isArray(shown)) sessionStorage.setItem('hawkes.asked', JSON.stringify(shown.filter((x) => x !== id)));
+    const snoozed = JSON.parse(localStorage.getItem('hawkes.askSnoozed') ?? '{}');
+    if (snoozed && typeof snoozed === 'object') {
+      delete snoozed[id];
+      localStorage.setItem('hawkes.askSnoozed', JSON.stringify(snoozed));
+    }
+  } catch {
+    // Storage blocked: the card shows anyway in a fresh browser.
+  }
+}
 
 function promptShowing(): boolean {
   const prompt = document.getElementById('tap-to-play');

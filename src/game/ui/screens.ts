@@ -5,6 +5,7 @@
 
 import { pads } from '../input/devices.ts';
 import { audio } from '../audio.ts';
+import { screen as trackScreen } from '../analytics.ts';
 
 export type ScreenId =
   | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'dialogue' | 'howto' | 'results' | 'match' | 'leaderboard';
@@ -65,6 +66,7 @@ function show(id: ScreenId): void {
     el.hidden = el.id !== id;
   });
   document.body.dataset.screen = id;
+  trackScreen(id);
 }
 
 export function screenEl(id: ScreenId): HTMLElement {

@@ -27,16 +27,20 @@
     <div class="page-hero-inner">
       <p class="kicker">Privacy</p>
       <h1>Privacy policy</h1>
-      <p>Updated October 14, 2026. This covers doseofdestruction.com and the game opened from Play.</p>
+      <p>Updated October 19, 2026. This covers doseofdestruction.com and the game opened from Play.</p>
     </div>
   </header>
 
   <article class="article">
     <h2>The website</h2>
-    <p>Home, the roster, and this page are ordinary web pages. They do not ask you to make an account. They do not set advertising or analytics cookies.</p>
+    <p>Home, the roster, and this page are ordinary web pages. They do not ask you to make an account. They do not set cookies of any kind.</p>
 
     <h2>The game on your device</h2>
-    <p>Play opens the game in the browser. It remembers your last menu choices (fighters, bot levels, rules) and which campaign chapters you have cleared, in your browser&rsquo;s local storage, so you pick up where you left off. That stays on your device and is never sent to us. Clear site data for doseofdestruction.com in your browser and it goes away.</p>
+    <p>Play opens the game in the browser. It remembers your last menu choices (fighters, bot levels, rules) and which campaign chapters you have cleared, in your browser&rsquo;s local storage, so you pick up where you left off. Those saved choices stay on your device. Clear site data for doseofdestruction.com in your browser and it goes away.</p>
+
+    <h2>Anonymous gameplay statistics</h2>
+    <p>To improve the game, the site and the game send anonymous gameplay statistics to Hawkes Gen, our own service (no third party sees them): which pages and screens are opened, which fighters and stages are picked, how matches and campaign chapters go (wins, losses, KOs, time played), settings changes, whether you play with a keyboard, a gamepad or touch, loading times, frame rate and errors, your browser and kind of device, and a rough place (country and city).</p>
+    <p>No cookies and no personal data. A random ID in your browser&rsquo;s local storage tells one visit from the next; it is not tied to your name or account. Your IP address is used for the rough place and then thrown away; it is never stored. If you answer a feedback card (&ldquo;How was that fight?&rdquo;), your rating and anything you type in it are sent too. The statistics are not sold or used for ads.</p>
 
     <h2>What this site does not collect</h2>
     <p>This site does not collect a headset identifier, a phone number, or a payment card. Personal information is not sold.</p>
@@ -64,6 +68,9 @@
       <p class="footer-version"><a href="/whatsnew.html" data-hawkes-version data-prefix="Version " hidden></a></p>
     </div>
   </footer>
+  <!-- Hawkes Analytics: anonymous gameplay statistics (see Privacy). build.js is written by the game's build. -->
+  <script src="/site/build.js"></script>
+  <script src="/site/hawkes-analytics.js" data-product="doseofdestruction" defer></script>
   <script src="/site/site.js"></script>
   <script src="/site/hawkes-release.js" data-releases="/releases.json" defer></script>
 </body>

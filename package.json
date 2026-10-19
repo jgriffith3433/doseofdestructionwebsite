@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc -p .",
-    "test": "node src/game/test/sim.test.ts && node src/game/test/net.test.ts && node src/game/test/ratings.test.ts && node tools/heads.test.mjs"
+    "test": "node src/game/test/sim.test.ts && node src/game/test/net.test.ts && node src/game/test/ratings.test.ts && node src/game/test/analytics.test.ts && node tools/heads.test.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.0",
