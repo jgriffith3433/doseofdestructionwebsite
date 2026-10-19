@@ -159,10 +159,11 @@ class AudioSystem {
     let p = this.raw.get(url);
     if (!p) {
       const get = () => fetch(url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`${r.status}`))));
-      // One retry after a short wait (a transient 503 from the host), then fail quietly; a failure isn't kept,
+      // Two retries with a growing wait (a transient 503 from the host), then fail quietly; a failure isn't kept,
       // so the next play tries again instead of staying silent for the session.
       p = get()
         .catch(() => new Promise<void>((r) => setTimeout(r, 400)).then(get))
+        .catch(() => new Promise<void>((r) => setTimeout(r, 1500)).then(get))
         .catch(() => { if (this.raw.get(url) === p) this.raw.delete(url); return null; });
       this.raw.set(url, p);
     }
