@@ -1,8 +1,17 @@
 {
   "product": "doseofdestruction",
   "name": "Dose Of Destruction",
-  "current": "1.1.2",
+  "current": "1.2.0",
   "releases": [
+    {
+      "version": "1.2.0",
+      "date": "2026-10-20",
+      "build": "e3f3b80",
+      "title": "Improvements and fixes",
+      "notes": [
+        "Improvements and fixes."
+      ]
+    },
     {
       "version": "1.1.2",
       "date": "2026-10-19",
