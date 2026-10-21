@@ -20,9 +20,9 @@ export function touchDevice(): boolean {
   return window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
 }
 
-/** Builds the overlay once. Does nothing without a touch screen. It stays hidden until showTouchControls(true). */
-export function initTouchControls(onPause: () => void): void {
-  if (root || !touchDevice()) return;
+/** Builds the overlay once. On non-touch devices it stays hidden unless force-shown by a playtest. */
+export function initTouchControls(onPause: () => void, forceBuild = false): void {
+  if (root || (!touchDevice() && !forceBuild)) return;
   root = document.createElement('div');
   root.className = 'touch';
   root.hidden = true;
@@ -119,7 +119,7 @@ export function initTouchControls(onPause: () => void): void {
 }
 
 export function showTouchControls(show: boolean): void {
-  if (!root) return;
+  if (!root || (!touchDevice() && show)) return;
   root.hidden = !show;
   if (!show) {
     stickX = 0;
@@ -128,6 +128,10 @@ export function showTouchControls(show: boolean): void {
     root.querySelectorAll('.touch-btn.down').forEach((el) => el.classList.remove('down'));
     (root.querySelector('.touch-knob') as HTMLElement).style.transform = '';
   }
+}
+
+export function touchOverlay(): HTMLElement | null {
+  return root;
 }
 
 /** The touch controls' current stick and buttons. */
