@@ -12,23 +12,25 @@ export const ICE_SERVERS: RTCIceServer[] = [
 ];
 
 // Public Nostr relays that accept both the ephemeral signalling events and the stored presence events (Yooba Land's
-// list, checked again 2026-10-18 for DoD: offchain.pub now refuses keys outside its web of trust, so it's out). A page
-// uses the first five that open; a relay that refuses an event is warned about once and the others carry it.
+// list, probed from AWS: relay.damus.io 503-rate-limits and bans this server's IP after test runs, so it is out, as is
+// offchain.pub for its web-of-trust policy). A page uses the first five that open and accept; a relay that fails to
+// open or refuses events is swapped for the next one on the list (nostr.ts).
 export const NOSTR_RELAYS = [
-  'wss://relay.damus.io',
   'wss://nos.lol',
   'wss://relay.primal.net',
   'wss://nostr.mom',
-  'wss://relay.snort.social',
-  'wss://nostr-pub.wellorder.net',
+  'wss://purplerelay.com',
   'wss://relay.nostr.net',
+  'wss://nostr-pub.wellorder.net',
+  'wss://relay.snort.social',
+  'wss://nostr.oxtr.dev',
 ];
 
-// Public WebTorrent trackers: the fallback signalling path for a match's link.
+// Public WebTorrent trackers: the fallback signalling path for a match's link (tracker.files.fm no longer answers).
 export const TRACKERS = [
   'wss://tracker.openwebtorrent.com',
+  'wss://tracker.novage.com.ua',
   'wss://tracker.webtorrent.dev',
-  'wss://tracker.files.fm:7073/announce',
 ];
 
 const encoder = new TextEncoder();

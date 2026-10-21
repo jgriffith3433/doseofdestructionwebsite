@@ -11,6 +11,8 @@ import { hashState } from '../sim/state.ts';
 import { Match, type MatchSetup, type MatchSnapshot } from '../match.ts';
 import { pairFor, allPairs, type QueueEntry } from '../net/pairing.ts';
 import { Rollback, type InputPacket, type HashReport } from '../net/rollback.ts';
+import { NostrPool } from '../net/nostr.ts';
+import { NOSTR_RELAYS } from '../net/util.ts';
 
 declare const process: { exit(code: number): never };
 
@@ -187,6 +189,69 @@ function playOnline(opts: { ms: number; delay: [number, number]; loss: number; s
 {
   const run = playOnline({ ms: 30_000, delay: [20, 60], loss: 0.05, drift: 600, seed: 5 });
   check(run.desyncs.length >= 2 && run.desyncs.every((f) => f >= 599), `rollback: a sim that drifts at frame 600 is reported on both sides (at ${run.desyncs.join(', ')})`);
+}
+
+// ------------------------------------------------------------------ relays
+
+{
+  check(!NOSTR_RELAYS.includes('wss://relay.damus.io') && NOSTR_RELAYS.length >= 7, `relays: ${NOSTR_RELAYS.length} public relays configured without relay.damus.io`);
+
+  const origWS = globalThis.WebSocket;
+  const attempts: string[] = [];
+  const sockets = new Map<string, FakeWS>();
+  class FakeWS {
+    url: string;
+    readyState = 0;
+    onopen: (() => void) | null = null;
+    onclose: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    onmessage: ((e: { data: string }) => void) | null = null;
+    constructor(url: string) {
+      this.url = url;
+      attempts.push(url);
+      sockets.set(url, this);
+    }
+    send() {}
+    close() {
+      this.readyState = 3;
+      this.onclose?.();
+    }
+  }
+  (globalThis as unknown as { WebSocket: unknown }).WebSocket = FakeWS;
+  try {
+    const urls = ['wss://bad1.example', 'wss://ok1.example', 'wss://refuse.example', 'wss://fallback1.example', 'wss://fallback2.example'];
+    const pool = new NostrPool(urls, 3);
+    check(attempts.length === 3, 'relay pool: opens initial relays in parallel');
+
+    // A relay that never opened fails once (e.g. 503): swapped immediately for a fallback, not retried.
+    sockets.get('wss://bad1.example')!.onclose?.();
+    check(
+      attempts.filter((u) => u === 'wss://bad1.example').length === 1 && pool.relays.some((r) => r.url === 'wss://fallback1.example'),
+      'relay pool: a relay that fails to open is swapped immediately without retrying',
+    );
+
+    // Open the active relays; refuse.example refuses twice and gets swapped out for fallback2.example.
+    for (const u of ['wss://ok1.example', 'wss://refuse.example', 'wss://fallback1.example']) {
+      const ws = sockets.get(u)!;
+      ws.readyState = 1;
+      ws.onopen?.();
+    }
+    sockets.get('wss://refuse.example')!.onmessage?.({ data: JSON.stringify(['OK', 'e1', false, 'blocked: rate-limit violations']) });
+    sockets.get('wss://refuse.example')!.onmessage?.({ data: JSON.stringify(['OK', 'e2', false, 'blocked: rate-limit violations']) });
+    check(
+      !pool.openUrls().includes('wss://refuse.example') && pool.relays.some((r) => r.url === 'wss://fallback2.example'),
+      'relay pool: a relay that refuses events is swapped out and excluded from openUrls()',
+    );
+
+    // Exhausted pool when every relay fails to open.
+    const deadPool = new NostrPool(['wss://dead1.example', 'wss://dead2.example'], 2);
+    sockets.get('wss://dead1.example')!.onclose?.();
+    sockets.get('wss://dead2.example')!.onclose?.();
+    check(deadPool.exhausted && deadPool.openUrls().length === 0, 'relay pool: marks exhausted and 0 open when all relays fail');
+    for (const r of pool.relays) r.close();
+  } finally {
+    (globalThis as unknown as { WebSocket: unknown }).WebSocket = origWS;
+  }
 }
 
 if (failed) {

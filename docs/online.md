@@ -224,9 +224,9 @@ only in the players' caches.
 - **Limits**: no TURN server (none is free and keyless). Two players whose networks both refuse a direct link (strict
   or symmetric NATs, some carriers and offices) can't play each other: the search says it couldn't connect and keeps
   looking for someone else. A browser without WebRTC (some in-app webviews) can't link; it says so and stays single
-  player. Public relays can rate-limit or refuse events (seen: relay.damus.io rate-limiting this server's IP after
-  heavy testing; offchain.pub refusing keys outside its web of trust, removed from the list); the pool uses five at
-  once so one refusing doesn't matter.
+  player. Public relays can rate-limit or refuse events (seen: relay.damus.io 503-rate-limiting and banning this
+  server's IP after heavy testing, removed from the list; offchain.pub refusing keys outside its web of trust, removed
+  from the list); the pool uses five at once and swaps out any relay that fails to open or refuses events.
 - With no server everything a page sends can be faked (a name, a result). Names and setups are cleaned and checked;
   results are claims from each page.
 
