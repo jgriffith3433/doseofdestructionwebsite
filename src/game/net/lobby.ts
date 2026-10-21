@@ -94,15 +94,44 @@ export class Lobby extends Emitter {
       this.beat();
     });
     // Keep the state honest if relays drop or come back later.
+    let wakeEvery = 15000;
+    let wakeNext = 0;
+    const wake = () => {
+      wakeEvery = 15000;
+      wakeNext = 0;
+      if (!this.pool.openUrls().length) this.pool.revive();
+    };
     setInterval(() => {
       const open = this.pool.openUrls().length > 0;
       if (open && this.state !== 'online') {
         this.setState('online');
         this.beat();
-      } else if (!open && this.state === 'online') this.setState('offline');
+      } else if (!open && this.state === 'online') {
+        this.setState('offline');
+      }
+      if (!open && this.state === 'offline') {
+        const t = now();
+        if (t >= wakeNext) {
+          wakeNext = t + wakeEvery;
+          wakeEvery = Math.min(120000, wakeEvery * 2);
+          this.pool.revive();
+        }
+      } else {
+        wakeEvery = 15000;
+        wakeNext = 0;
+      }
       this.expire();
     }, 2000);
-    if (typeof addEventListener === 'function') addEventListener('pagehide', () => this.leave());
+    if (typeof addEventListener === 'function') {
+      addEventListener('pagehide', () => this.leave());
+      addEventListener('online', wake);
+      addEventListener('pageshow', wake);
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') wake();
+        });
+      }
+    }
   }
 
   private setState(s: Lobby['state']): void {

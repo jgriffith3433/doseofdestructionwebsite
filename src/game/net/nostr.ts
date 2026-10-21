@@ -39,6 +39,11 @@ class Relay {
   open = false;
   failures = 0;
   closed = false;
+  accepted = 0;
+  refused = 0;
+  lastRefusal = '';
+  private refusedAt: number[] = [];
+  private retryTimer: ReturnType<typeof setTimeout> | undefined;
   readonly pool: NostrPool;
   readonly url: string;
 
@@ -88,12 +93,30 @@ class Relay {
   retry(): void {
     if (this.closed) return;
     this.failures++;
-    if (this.failures >= 3 && !this.pool.everOpened(this)) {
+    clearTimeout(this.retryTimer);
+    // A relay that never opened on the first try (or failed 3 times after opening before) is swapped out for a
+    // fallback right away so the browser does not log repeated WebSocket 503/connection errors for a dead relay.
+    if ((!this.pool.everOpened(this) && this.failures >= 1) || this.failures >= 3) {
       this.pool.relayGaveUp(this);
       return;
     }
     const delay = Math.min(30000, 1500 * Math.pow(2, this.failures));
-    setTimeout(() => this.connect(), delay);
+    this.retryTimer = setTimeout(() => this.connect(), delay);
+  }
+
+  recordRefusal(why: string): boolean {
+    const t = Date.now();
+    this.refused++;
+    this.lastRefusal = why;
+    this.refusedAt = this.refusedAt.filter((at) => t - at < 60000).concat(t);
+    return (this.refused >= 2 && this.accepted === 0) || this.refusedAt.length >= 3;
+  }
+
+  // Back from the background or the network: a closed socket tries again now, not at the end of its back-off.
+  wake(): void {
+    if (this.closed || this.open || !this.socket || this.socket.readyState === 0) return;
+    clearTimeout(this.retryTimer);
+    this.connect();
   }
 
   send(data: unknown): boolean {
@@ -110,9 +133,14 @@ class Relay {
 
   close(): void {
     this.closed = true;
+    clearTimeout(this.retryTimer);
     this.socket?.close();
   }
 }
+
+// What a relay says when it will not take our events (rate limits, bans, web-of-trust and sign-up policies, NIP-05,
+// kinds it does not allow, proof of work, auth). Two of these and the relay is swapped for the next one.
+const REFUSED = /rate|limit|banned|blocked|restricted|policy|trust|not allowed|pow|auth|sign up|nip-05|paid|whitelist/i;
 
 interface Sub {
   id: string;
@@ -159,10 +187,26 @@ export class NostrPool {
     for (const sub of this.subs.values()) relay.send(['REQ', sub.id, ...sub.filters]);
   }
 
-  // A relay that never opened: swap in the next one on the list.
+  // A relay that never opened, or that refuses our events: swap in the next one on the list.
   relayGaveUp(relay: Relay): void {
+    relay.close();
     this.relays = this.relays.filter((r) => r !== relay);
     this.add();
+    if (!this.relays.length) this.exhausted = true;
+  }
+
+  /** Every relay gave up (a network that blocked them all, or a device that was offline): start the list again. */
+  revive(): void {
+    if (this.relays.some((r) => !r.closed && !r.open)) {
+      for (const relay of this.relays) relay.wake();
+      return;
+    }
+    if (this.openUrls().length) return;
+    for (const relay of this.relays) relay.close();
+    this.relays = [];
+    this.next = 0;
+    this.exhausted = false;
+    for (let i = 0; i < Math.min(this.max, this.urls.length); i++) this.add();
   }
 
   received(relay: Relay, data: unknown[]): void {
@@ -177,14 +221,19 @@ export class NostrPool {
     } else if (type === 'EOSE' && sub) {
       sub.eose.add(relay.url);
       sub.onEose?.(relay.url, sub.eose.size);
+    } else if (type === 'OK' && data[2] === true) {
+      relay.accepted++;
     } else if (type === 'NOTICE' || (type === 'OK' && data[2] === false)) {
       // A relay refusing an event (rate limits, its own policy) is worth knowing about once, not fatal: the others
-      // carry it.
+      // carry it, and a relay that keeps refusing is swapped for the next one on the list.
       const why = String(type === 'OK' ? data[3] : data[1]).slice(0, 160);
       const key = `${relay.url}|${why.replace(/[0-9a-f]{16,}/g, '')}`;
       if (!this.warned.has(key)) {
         this.warned.add(key);
         console.warn(`[dod-online] relay ${relay.url} refused: ${why}`);
+      }
+      if (type === 'OK' && REFUSED.test(why) && relay.recordRefusal(why)) {
+        this.relayGaveUp(relay);
       }
     }
   }
@@ -209,16 +258,16 @@ export class NostrPool {
   }
 
   openUrls(): string[] {
-    return this.relays.filter((r) => r.open).map((r) => r.url);
+    return this.relays.filter((r) => r.open && !(r.refused >= 2 && r.accepted === 0)).map((r) => r.url);
   }
 
-  /** Resolves once at least one relay is open (true), or after the timeout (false). */
+  /**Resolves once at least one relay is open (true), or after the timeout (false). */
   ready(timeoutMs = 8000): Promise<boolean> {
     if (this.openUrls().length) return Promise.resolve(true);
     return new Promise((resolve) => {
       const started = Date.now();
       const timer = setInterval(() => {
-        if (this.openUrls().length || Date.now() - started > timeoutMs) {
+        if (this.openUrls().length || this.exhausted || Date.now() - started > timeoutMs) {
           clearInterval(timer);
           resolve(this.openUrls().length > 0);
         }
