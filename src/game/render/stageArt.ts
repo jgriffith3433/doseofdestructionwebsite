@@ -96,6 +96,7 @@ export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, 
 
 interface Part {
   mesh: Mesh;
+  round: boolean;
   x: number;
   y: number;
   vx: number;
@@ -119,6 +120,9 @@ const STREAMS = new Set(['dust', 'rain', 'embers', 'confetti']);
 const DEFAULT_COLORS = ['#ffd15a', '#ff5a1f', '#3fa7ff', '#ff4fd8', '#7ee2a0', '#ffffff'];
 /** Fireworks happen this far behind the fighters. */
 const SKY_Z = 6;
+/** Maximum live stage-effect particles (and dust discs) at once, so long bursts never stack or wash out the screen. */
+const MAX_PARTS = 120;
+const MAX_DUST = 24;
 
 export interface FxHooks {
   sound?: (id: string) => void;
@@ -130,23 +134,82 @@ export interface FxHooks {
 /** Runs a stage's effects. trigger() on match events; update() every rendered frame. */
 export class StageFx {
   private parts: Part[] = [];
+  private planePool: Mesh[] = [];
+  private discPool: Mesh[] = [];
   private mats = new Map<string, StandardMaterial>();
   private pending: { at: number; run: () => void }[] = [];
   private ambient: { fx: StageEffect; next: number }[] = [];
   private last = performance.now();
   private scene: Scene;
   private stage: StageDef;
+  private glow?: GlowLayer;
   private hooks: FxHooks;
   /** Effects that keep spawning while their event runs. */
   private streams: { fx: StageEffect; id: string; next: number }[] = [];
   private clock: StageClock | null = null;
 
-  constructor(scene: Scene, stage: StageDef, hooks: FxHooks = {}) {
+  constructor(scene: Scene, stage: StageDef, hooks: FxHooks = {}, glow?: GlowLayer) {
     this.scene = scene;
     this.stage = stage;
     this.hooks = hooks;
+    this.glow = glow;
     const now = performance.now();
     for (const fx of stage.effects ?? []) if (fx.on === 'ambient') this.ambient.push({ fx, next: now + (fx.every ?? 4) * 500 });
+  }
+
+  /** Number of active stage particles and how many sit behind the fighters (z > 0.5). */
+  stats(): { active: number; dustBehind: number; dustInFront: number; maxCap: number } {
+    let dustBehind = 0;
+    let dustInFront = 0;
+    for (const p of this.parts) {
+      if (p.round && p.size >= 0.4) {
+        if (p.mesh.position.z > 0.5) dustBehind++;
+        else dustInFront++;
+      }
+    }
+    return { active: this.parts.length, dustBehind, dustInFront, maxCap: MAX_PARTS };
+  }
+
+  /** Pre-builds every effect material and particle mesh pool for this stage during the VS screen. */
+  warmUp(): void {
+    const colors = new Set<string>(['#fff2c0', ...DEFAULT_COLORS]);
+    for (const fx of this.stage.effects ?? []) {
+      for (const c of fx.colors ?? []) colors.add(c);
+    }
+    const colorList = [...colors];
+    for (const c of colorList) this.mat(c);
+    const wantPlanes = Math.max(48, colorList.length * 2);
+    const wantDiscs = Math.max(24, colorList.length);
+    for (let i = 0; i < wantPlanes; i++) {
+      const m = this.acquire(false);
+      m.material = this.mat(colorList[i % colorList.length]);
+      m.position.set(0, REF_EYE, SKY_Z);
+      m.scaling.setAll(0.1);
+      m.visibility = 0.01;
+      m.setEnabled(true);
+      this.planePool.push(m);
+    }
+    for (let i = 0; i < wantDiscs; i++) {
+      const m = this.acquire(true);
+      m.material = this.mat(colorList[i % colorList.length]);
+      m.position.set(0, REF_EYE, 2);
+      m.scaling.setAll(0.2);
+      m.visibility = 0.01;
+      m.setEnabled(true);
+      this.discPool.push(m);
+    }
+  }
+
+  /** Parks warmed-up pool meshes after the warm-up frames have compiled their shaders. */
+  endWarmUp(): void {
+    for (const m of this.planePool) {
+      m.visibility = 1;
+      m.setEnabled(false);
+    }
+    for (const m of this.discPool) {
+      m.visibility = 1;
+      m.setEnabled(false);
+    }
   }
 
   /** The sim state, so effects tied to an event know when it ends. */
@@ -168,8 +231,8 @@ export class StageFx {
         if (fx.sound) this.hooks.sound?.(fx.sound);
         continue;
       }
-      // The finale spreads its fireworks over the two seconds before the results.
-      const n = Math.max(1, fx.count ?? (on === 'end' ? 12 : 1));
+      // Dust already spawns fx.count puffs inside play(); only fireworks/bursts repeat play() n times.
+      const n = fx.kind === 'dust' ? 1 : Math.max(1, fx.count ?? (on === 'end' ? 12 : 1));
       const spread = on === 'end' ? 1800 : n > 1 ? 400 : 0;
       for (let i = 0; i < n; i++) this.later(i === 0 ? 0 : Math.random() * spread, () => this.play(fx, where));
       if (fx.sound) this.hooks.sound?.(fx.sound);
@@ -201,12 +264,15 @@ export class StageFx {
         this.spawn({ x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r, vx: Math.cos(a) * 0.01, vy: Math.sin(a) * 0.01, life, max: life, gravity: 0.0004, drag: 0.85, size: 0.12 + Math.random() * 0.22, fade: 0.9 }, pick(), -0.35, true);
       }
     } else if (fx.kind === 'dust') {
-      const n = fx.count ?? 4;
-      for (let i = 0; i < n; i++) {
-        const y = REF_EYE + (Math.random() * 1.4 - 0.9) * 3;
+      const n = Math.min(8, fx.count ?? 4);
+      let dustActive = 0;
+      for (const p of this.parts) if (p.round && p.size >= 0.4) dustActive++;
+      for (let i = 0; i < n && dustActive < MAX_DUST; i++, dustActive++) {
+        const y = REF_EYE + (Math.random() * 1.4 - 0.5) * 2.5;
         const x = (dir > 0 ? b.left : b.right) * W * 0.8;
-        const life = 150 + Math.random() * 80;
-        this.spawn({ x, y, vx: dir * (0.06 + Math.random() * 0.04), vy: (Math.random() - 0.5) * 0.004, life, max: life, gravity: 0, drag: 1, size: 0.8 + Math.random() * 1.6, fade: 0.28 }, pick(), -0.8 + Math.random() * 2, true);
+        const life = 140 + Math.random() * 70;
+        // Behind the fighters and stage platforms (z >= 1.5), subtle alpha so the lower screen never washes out.
+        this.spawn({ x, y, vx: dir * (0.06 + Math.random() * 0.04), vy: (Math.random() - 0.5) * 0.004, life, max: life, gravity: 0, drag: 1, size: 0.5 + Math.random() * 0.9, fade: 0.14 }, pick(), 1.5 + Math.random() * 2.5, true);
       }
     } else if (fx.kind === 'rain') {
       const n = fx.count ?? 10;
@@ -224,7 +290,7 @@ export class StageFx {
       }
     } else if (fx.kind === 'burst') {
       const p = where && fx.at !== 'sky' ? where : this.skyPoint();
-      this.burst(p.x, p.y, where && fx.at !== 'sky' ? -0.4 : SKY_Z, [pick(), pick()], 40);
+      this.burst(p.x, p.y, where && fx.at !== 'sky' ? -0.4 : SKY_Z, [pick(), pick()], 24);
     } else if (fx.kind === 'firework') {
       const target = this.skyPoint();
       const start = { x: target.x + (Math.random() - 0.5) * 1.2, y: REF_EYE - 4 };
@@ -232,7 +298,7 @@ export class StageFx {
       const g = 0.0012;
       // Launch speed that peaks at the target height after `frames` frames.
       const vy = (target.y - start.y) / frames + (g * frames) / 2;
-      this.spawn({ x: start.x, y: start.y, vx: (target.x - start.x) / frames, vy, life: frames, max: frames, gravity: g, drag: 1, size: 0.12, burst: { colors: [pick(), pick()], n: 36 } }, '#fff2c0', SKY_Z);
+      this.spawn({ x: start.x, y: start.y, vx: (target.x - start.x) / frames, vy, life: frames, max: frames, gravity: g, drag: 1, size: 0.12, burst: { colors: [pick(), pick()], n: 28 } }, '#fff2c0', SKY_Z);
     } else if (fx.kind === 'embers') {
       const n = fx.count ?? 6;
       const b = this.stage.blast;
@@ -263,15 +329,34 @@ export class StageFx {
     }
   }
 
-  private spawn(p: Omit<Part, 'mesh'>, color: string, z: number, round = false): void {
+  private acquire(round: boolean): Mesh {
+    const pool = round ? this.discPool : this.planePool;
+    const reused = pool.pop();
+    if (reused) return reused;
     const mesh = round ? CreateDisc('fx', { radius: 0.5, tessellation: 18 }, this.scene) : CreatePlane('fx', { size: 1 }, this.scene);
+    mesh.isPickable = false;
+    if (round && this.glow) this.glow.addExcludedMesh(mesh);
+    return mesh;
+  }
+
+  private release(p: Part): void {
+    p.mesh.setEnabled(false);
+    (p.round ? this.discPool : this.planePool).push(p.mesh);
+  }
+
+  private spawn(p: Omit<Part, 'mesh' | 'round'>, color: string, z: number, round = false): void {
+    if (this.parts.length >= MAX_PARTS) {
+      const oldest = this.parts.shift();
+      if (oldest) this.release(oldest);
+    }
+    const mesh = this.acquire(round);
     mesh.material = this.mat(color);
+    mesh.setEnabled(true);
     mesh.position.set(p.x, p.y, z);
     mesh.scaling.set(p.size, p.size * (p.streak ?? 1), 1);
-    if (p.fade !== undefined) mesh.visibility = p.fade;
-    if (p.streak) mesh.rotation.z = Math.atan2(p.vx, -p.vy);
-    mesh.isPickable = false;
-    this.parts.push({ ...p, mesh });
+    mesh.visibility = p.fade ?? 1;
+    mesh.rotation.z = p.streak ? Math.atan2(p.vx, -p.vy) : 0;
+    this.parts.push({ ...p, mesh, round });
   }
 
   private mat(color: string): StandardMaterial {
@@ -281,6 +366,8 @@ export class StageFx {
       m.disableLighting = true;
       m.emissiveColor = Color3.FromHexString(color);
       m.backFaceCulling = false;
+      m.alphaMode = Constants.ALPHA_COMBINE;
+      m.disableDepthWrite = true;
       this.mats.set(color, m);
     }
     return m;
@@ -305,7 +392,7 @@ export class StageFx {
         continue;
       }
       if (now >= st.next) {
-        st.next = now + (st.fx.every ?? (st.fx.kind === 'rain' ? 0.1 : st.fx.kind === 'dust' ? 0.35 : 0.5)) * 1000;
+        st.next = now + (st.fx.every ?? (st.fx.kind === 'rain' ? 0.1 : st.fx.kind === 'dust' ? 0.45 : 0.5)) * 1000;
         this.play(st.fx);
       }
     }
@@ -332,7 +419,7 @@ export class StageFx {
       else p.mesh.scaling.setAll(p.size * (0.4 + 0.6 * k));
       if (p.life <= 0) {
         if (p.burst) this.burst(p.x, p.y, p.mesh.position.z, p.burst.colors, p.burst.n);
-        p.mesh.dispose();
+        this.release(p);
         this.parts.splice(i, 1);
       }
     }
@@ -340,7 +427,11 @@ export class StageFx {
 
   dispose(): void {
     for (const p of this.parts) p.mesh.dispose();
+    for (const m of this.planePool) m.dispose();
+    for (const m of this.discPool) m.dispose();
     this.parts = [];
+    this.planePool = [];
+    this.discPool = [];
     this.pending = [];
     this.streams = [];
     for (const m of this.mats.values()) m.dispose();

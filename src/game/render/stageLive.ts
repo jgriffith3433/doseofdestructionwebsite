@@ -122,6 +122,34 @@ export class StageLive {
     this.toggles.push({ node, index });
   }
 
+  /** Enables every stage layer, zone, hazard and toggle during warm-up so their textures and shaders compile before the fight. */
+  warmUp(): void {
+    for (const pl of this.placed) {
+      pl.mesh.setEnabled(true);
+      if (pl.layer.reacts?.some((r) => r.kind === 'flash')) {
+        pl.mesh.renderOverlay = true;
+        pl.mesh.overlayColor = Color3.White();
+        pl.mesh.overlayAlpha = 0.01;
+      }
+    }
+    for (const z of this.zones) z.mesh.setEnabled(true);
+    for (const h of this.hazards) {
+      h.mesh.setEnabled(true);
+      h.ring.setEnabled(true);
+    }
+    for (const tg of this.toggles) tg.node.setEnabled(true);
+  }
+
+  /** Number of stage art layers whose textures are ready on the GPU. */
+  readyLayers(): { ready: number; total: number } {
+    let ready = 0;
+    for (const pl of this.placed) {
+      const tex = pl.mat.diffuseTexture as Texture | null;
+      if (!tex || tex.isReady()) ready++;
+    }
+    return { ready, total: this.placed.length };
+  }
+
   /** A match moment or stage event ('ko', 'hit', 'start', 'end', 'event:<id>', 'warn:<id>', 'eventEnd:<id>'). */
   trigger(on: string): void {
     const now = performance.now();

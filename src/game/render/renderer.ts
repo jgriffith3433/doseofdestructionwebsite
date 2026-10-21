@@ -179,7 +179,7 @@ export class Renderer {
         this.flashMat.alpha = 0.75;
         this.flashPlane.setEnabled(true);
       },
-    });
+    }, this.glow);
 
     const body = new StandardMaterial('stage-body', this.scene);
     body.diffuseColor = Color3.FromHexString(t.body);
@@ -391,21 +391,38 @@ export class Renderer {
    */
   async warmUp(state: GameState, timeoutMs = 15000): Promise<void> {
     this.engine.resize();
-    // Draw a spark burst and the KO flash once, so their shaders (and the glow layer's variants)
-    // compile now instead of on the first hit of the match, and fill the spark pool.
-    this.burst(this.camTarget.x, this.camTarget.y, 48, 0);
+    this.render(state);
+    // Enable every stage layer, hazard, shield, hit-flash overlay, spark burst, KO burst material
+    // and KO flash once, so their shaders (and the glow layer's variants) compile now instead of on
+    // the first hit, event or KO, and the particle pools are filled.
+    this.burst(this.camTarget.x, this.camTarget.y, 64, 0);
+    this.fx?.warmUp();
+    this.live?.warmUp();
+    for (const v of this.views) {
+      v.shield.setEnabled(true);
+      if (v.ghost) v.ghost.setEnabled(true);
+      v.body.renderOverlay = true;
+      v.body.overlayColor = Color3.White();
+      v.body.overlayAlpha = 0.01;
+    }
     this.flashMat.alpha = 0.5;
     this.flashPlane.setEnabled(true);
-    this.render(state);
     await this.ready(timeoutMs);
-    // Two more presented frames; the timeout covers a hidden page, where rAF never fires.
-    for (let i = 0; i < 2; i++) {
-      await new Promise((r) => {
-        requestAnimationFrame(r);
-        setTimeout(r, 100);
-      });
-      this.render(state);
+    this.scene.render();
+    // Warm up every clip texture on the fighter materials in lockstep so the first attack/jump/hurt doesn't upload a sheet mid-fight.
+    const lists = this.views.map((v) => [...v.clipTex.values()]);
+    const maxClips = Math.max(0, ...lists.map((l) => l.length));
+    for (let i = 0; i < maxClips; i++) {
+      for (let slot = 0; slot < this.views.length; slot++) {
+        const v = this.views[slot];
+        const tex = lists[slot][i];
+        if (!tex) continue;
+        setTexture(v.mat, tex);
+        if (v.ghostMat) v.ghostMat.diffuseTexture = tex;
+      }
+      this.scene.render();
     }
+    this.fx?.endWarmUp();
     for (const s of this.sparks) {
       s.mesh.setEnabled(false);
       this.sparkPool.push(s.mesh);
@@ -413,6 +430,36 @@ export class Renderer {
     this.sparks = [];
     this.flashMat.alpha = 0;
     this.flashPlane.setEnabled(false);
+    // Two more presented frames in normal state; the timeout covers a hidden page, where rAF never fires.
+    for (let i = 0; i < 2; i++) {
+      await new Promise((r) => {
+        requestAnimationFrame(r);
+        setTimeout(r, 100);
+      });
+      this.render(state);
+    }
+  }
+
+  /** Current particle and warm-up diagnostics for playtest verification. */
+  fxStats(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number } {
+    const fx = this.fx?.stats() ?? { active: 0, dustBehind: 0, dustInFront: 0, maxCap: 120 };
+    const layers = this.live?.readyLayers() ?? { ready: 0, total: 0 };
+    let readyClips = 0;
+    let totalClips = 0;
+    for (const v of this.views) {
+      for (const tex of v.clipTex.values()) {
+        totalClips++;
+        if (tex.isReady()) readyClips++;
+      }
+    }
+    return {
+      ...fx,
+      sparkPool: this.sparkPool.length,
+      readyLayers: layers.ready,
+      totalLayers: layers.total,
+      readyClips,
+      totalClips,
+    };
   }
 
   private clipTexture(v: FighterView, key: string): Texture | null {

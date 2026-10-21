@@ -36,7 +36,7 @@ const canvas = $<HTMLCanvasElement>('stage');
 const renderer = new Renderer(canvas);
 renderer.onSound = (id) => audio.sfx(id);
 listenKeyboard();
-initTouchControls(() => pauseKey());
+initTouchControls(() => pauseKey(), true);
 listenMenuKeys(() => phase === 'play' || phase === 'ready' || phase === 'wait');
 
 let match: Match | null = null;
@@ -906,6 +906,7 @@ installDodPlaytest({
     saveProgress(progress);
     return before;
   },
+  fxStats: () => renderer.fxStats(),
 });
 
 // Online is always on: the lobby is joined with no clicks (docs/online.md), but only now, after the game and the

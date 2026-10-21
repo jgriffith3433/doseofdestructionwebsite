@@ -12,6 +12,7 @@
 import { installPlaytest, type Outcome, type RunOptions, type Tracker } from './hawkes-playtest.js';
 import { Bot } from '../ai/bot.ts';
 import { setVirtualPad } from '../input/devices.ts';
+import { touchDevice, touchOverlay } from '../input/touch.ts';
 import { currentScreen, switching, type ScreenId } from '../ui/screens.ts';
 import { CHARACTERS, MOVE, MOVE_KEYS } from '../sim/characters.ts';
 import { BTN, NO_INPUT, packInput } from '../sim/input.ts';
@@ -46,6 +47,8 @@ export interface GameHooks {
   quitMatch(): Promise<void>;
   /** Setup shortcut (campaign `chapter` only): the cleared chapter ids (localStorage dod-campaign); returns the ones before. */
   setCampaignProgress(ids: string[]): string[];
+  /** Renderer particle and warm-up diagnostics. */
+  fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
 }
 
 const SCENARIOS = [
@@ -203,6 +206,21 @@ class Run {
         this.t.problem('bug', `${name(m, f.id)} is out of bounds on ${STAGES[s.stage].name} without being KO'd (${Math.round(f.x / FX)}, ${Math.round(f.y / FX)})`);
       }
     }
+    const fx = this.game.fxStats?.();
+    if (fx) {
+      if (fx.dustInFront > 0 && !this.checked.has('dust-front-bug')) {
+        this.checked.add('dust-front-bug');
+        this.t.problem('bug', `${STAGES[s.stage].name}: ${fx.dustInFront} dust particles rendered in front of fighters`);
+      }
+      if (fx.active > fx.maxCap && !this.checked.has('fx-cap-bug')) {
+        this.checked.add('fx-cap-bug');
+        this.t.problem('bug', `${STAGES[s.stage].name}: ${fx.active} active stage particles exceeded cap ${fx.maxCap}`);
+      }
+      if (fx.dustBehind > 0 && !this.checked.has(`dust-seen:${STAGES[s.stage].id}`)) {
+        this.checked.add(`dust-seen:${STAGES[s.stage].id}`);
+        this.t.event('dust-effects', `${STAGES[s.stage].name}: ${fx.dustBehind} dust particles active behind fighters (0 in front, cap ${fx.maxCap})`);
+      }
+    }
     if (!s.over && s.frame - this.lastHitFrame > 30 * 60 && !this.quietWarned && m.setup.mode !== 'training') {
       this.quietWarned = true;
       this.t.problem('warning', `no hits for 30 s in a match on ${STAGES[s.stage].name} (fighters can't reach each other?)`);
@@ -238,6 +256,12 @@ class Run {
     const st = STAGES[m.state.stage];
     const who = m.state.fighters.map((f) => name(m, f.id)).join(' vs ');
     this.t.event('match-start', `${who} on ${st.name}`);
+    const fx = this.game.fxStats?.();
+    if (fx) {
+      this.t.event('warmup', `${st.name}: ${fx.readyLayers}/${fx.totalLayers} stage layers, ${fx.readyClips}/${fx.totalClips} fighter clips, ${fx.sparkPool} sparks warmed up`);
+      if (fx.sparkPool < 32) this.t.problem('bug', `${st.name}: spark/KO burst pool not warmed up before match start (${fx.sparkPool})`);
+    }
+    void this.checkTouchControls();
     for (const f of m.state.fighters) void this.checkFighter(CHARACTERS[f.char].id);
     void this.checkStage(m.state.stage);
   }
@@ -341,6 +365,52 @@ class Run {
     if (missing.length) this.t.problem('bug', `${st.name}: stage art missing (404): ${missing.join(', ')}`);
     const music = SOUNDS.find((s) => s.id === `music-${st.id}`);
     if (!music?.file) this.t.problem('polish', `${st.name}: no stage music (music-${st.id})`);
+    for (const l of layers) {
+      if (/dust|smoke/i.test(l.id)) {
+        if (l.z <= 0) this.t.problem('bug', `${st.name}: dust/smoke layer "${l.id}" is in front of fighters (z=${l.z})`);
+        if ((l.opacity ?? 1) > 0.4) this.t.problem('bug', `${st.name}: dust/smoke layer "${l.id}" opacity ${l.opacity ?? 1} is too high and washes out the stage`);
+        if (l.glow) this.t.problem('bug', `${st.name}: dust/smoke layer "${l.id}" uses additive glow`);
+        this.t.event('dust-layer', `${st.name} ${l.id}: z=${l.z} (behind fighters), opacity=${l.opacity ?? 1}`);
+      }
+    }
+  }
+
+  private async checkTouchControls(): Promise<void> {
+    if (this.checked.has('touch-controls')) return;
+    this.checked.add('touch-controls');
+    const root = touchOverlay() ?? this.q('.touch');
+    if (!root) {
+      this.t.problem('bug', 'touch controls overlay (.touch) was not built');
+      return;
+    }
+    const wasHidden = root.hidden;
+    root.hidden = false;
+    const btn = root.querySelector<HTMLElement>('.touch-btn');
+    const pause = root.querySelector<HTMLElement>('.touch-pause');
+    if (!btn || !pause) {
+      this.t.problem('bug', 'touch control buttons (.touch-btn, .touch-pause) missing');
+      if (wasHidden && !touchDevice()) root.hidden = true;
+      return;
+    }
+    const bs = getComputedStyle(btn);
+    const ps = getComputedStyle(pause);
+    const fontPx = parseFloat(bs.fontSize);
+    const pausePx = parseFloat(ps.fontSize);
+    const rgba = bs.backgroundColor.match(/[\d.]+/g)?.map(Number) ?? [];
+    const alpha = rgba.length >= 4 ? rgba[3] : 1;
+    const lum = rgba.length >= 3 ? (rgba[0] + rgba[1] + rgba[2]) / 3 : 255;
+    if (fontPx < 13 || pausePx < 13) {
+      this.t.problem('bug', `touch button labels are too small (${fontPx}px / ${pausePx}px, expected >= 13px)`);
+    }
+    if (alpha < 0.45 || lum > 40) {
+      this.t.problem('bug', `touch button fill is not dark semi-opaque (${bs.backgroundColor})`);
+    }
+    if (!bs.textShadow || bs.textShadow === 'none') {
+      this.t.problem('bug', 'touch button labels have no text-shadow for readability over bright stages');
+    }
+    this.t.event('touch-controls', `fill ${bs.backgroundColor}, font ${fontPx}px/${pausePx}px, text-shadow on`);
+    await this.t.wait(2500);
+    if (wasHidden && !touchDevice()) root.hidden = true;
   }
 
   // ---------------------------------------------------------- menu driving
