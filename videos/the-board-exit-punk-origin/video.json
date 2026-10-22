@@ -5,9 +5,9 @@
   "width": 1920,
   "height": 1080,
   "fps": 24,
-  "seconds": 83.6
+  "seconds": 90.8
  },
- "version": 4,
+ "version": 5,
  "gpu": "about $2.3 of the $2.50 budget (voices, music and sfx included)",
  "cast": [
   {
@@ -57,7 +57,13 @@
   "E7": "a_72e6b35d63dbbcb5",
   "M9": "a_262302c6c25a06e1",
   "ANN": "a_a49f0d084cc8a9e9",
-  "E8": "a_2bc017f828d78e2b"
+  "E8": "a_2bc017f828d78e2b",
+  "M10": "a_4f12e3e31f3b79bd",
+  "E10": "a_a7050137a851ea25",
+  "M11": "a_25d1d945c4e7dd90",
+  "E11": "a_a1e93286d3a90af3",
+  "M12": "a_71614253a716f52b",
+  "E12": "a_23ce0f141a7f905e"
  },
  "music": {
   "hum": "a_4654bbf55d8700bb",
@@ -69,7 +75,8 @@
   "file": "a_c62d527359a0bc36",
   "wheel": "a_260977340b81f5d3",
   "creeper": "a_bc689d19efc3c6e5",
-  "crowd": "a_36943fc92c42a7a8"
+  "crowd": "a_36943fc92c42a7a8",
+  "crash": "a_b9fa511eb6f9f950"
  },
  "keyframes": {
   "ep_cu": "a_4252afca02c933d6",
@@ -111,8 +118,8 @@
  },
  "cut": {
   "file": "videos/the-board-exit-punk-origin/out/cut.mp4",
-  "built_by": "videos/the-board-exit-punk-origin/build_v4.py",
-  "seconds": 83.6,
+  "built_by": "videos/the-board-exit-punk-origin/build_v5.py",
+  "seconds": 90.8,
   "stage": "animatic"
  },
  "notes": "v4: new keyframes for the review notes; build_v4.py + keys.json; GPU for v4 about $0.2 (12 image.edit jobs x 2 takes)",
@@ -165,5 +172,7 @@
   "ride_wheels": "a_02b93d8ce624929b",
   "ride_front": "a_15633c11a42e7937",
   "grate_face": "a_472f133bf51c47df"
- }
+ },
+ "seconds": 90.8,
+ "summary": "v5 animatic, answering J's v4 note \"make it funnier\". Same story and shots; six new deadpan lines in the characters' own voices and one sound gag, no new images: Mechanic 'I counted.' after 'eleven seconds late' (watch insert); kid 'I'm not watching.' / Mechanic 'Nobody asked.' over the montage watching shots; callback 'Which bolt?' / 'THE bolt.' after 'bring the bolt back'; after the drop, black, a crash, and the kid's 'Mostly.' before the end card (wheels-down rule, paid off as a joke). Length 90.8 s. Cost about $0.07."
 }
