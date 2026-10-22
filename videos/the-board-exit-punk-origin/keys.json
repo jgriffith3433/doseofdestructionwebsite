@@ -6,7 +6,7 @@
   "file": "hook_land.jpg",
   "crop": [
    0.3,
-   0.0,
+   0,
    0.7,
    0.9
   ]
@@ -141,6 +141,66 @@
    0.0,
    0.95,
    0.9
+  ]
+ },
+ "hook_face": {
+  "file": "hook_face.jpg"
+ },
+ "hook_launch": {
+  "file": "hook_launch.jpg"
+ },
+ "two_high": {
+  "file": "two_high.jpg"
+ },
+ "handoff2": {
+  "file": "handoff2.jpg"
+ },
+ "sit_up": {
+  "file": "sit_up.jpg"
+ },
+ "tv_glow": {
+  "file": "tv_glow.jpg"
+ },
+ "ep_eyes": {
+  "file": "ep_eyes.jpg"
+ },
+ "ride_wide": {
+  "file": "ride_wide.jpg"
+ },
+ "ride_wheels": {
+  "file": "ride_wheels.jpg"
+ },
+ "ride_front": {
+  "file": "ride_front.jpg"
+ },
+ "grate_face": {
+  "file": "grate_face.jpg"
+ },
+ "mech_stops": {
+  "file": "mech_stops.jpg",
+  "crop": [
+   0,
+   0,
+   0.62,
+   1
+  ]
+ },
+ "mech_soft_0c": {
+  "file": "mech_soft_0.jpg",
+  "crop": [
+   0.15,
+   0.05,
+   0.7,
+   0.8
+  ]
+ },
+ "mech_stern_1c": {
+  "file": "mech_stern_1.jpg",
+  "crop": [
+   0.15,
+   0.05,
+   0.7,
+   0.8
   ]
  }
 }

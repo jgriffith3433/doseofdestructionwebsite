@@ -1,300 +1,335 @@
 [
  {
   "t": 0.0,
-  "seconds": 1.0,
-  "key": "hook",
+  "seconds": 1.2,
+  "key": "hook_launch",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 1.0,
+  "t": 1.2,
+  "seconds": 1.0,
+  "key": "hook_face",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 2.2,
   "seconds": 1.0,
   "key": "hook_land",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 2.0,
-  "seconds": 1.2,
-  "key": "ride_1",
+  "t": 3.2,
+  "seconds": 1.6,
+  "key": "creeper2",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 3.2,
-  "seconds": 1.8,
-  "key": "creeper2",
-  "line": "MECHANIC: You're late.",
-  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
- },
- {
-  "t": 5.0,
+  "t": 4.8,
   "seconds": 1.0,
   "key": "watch",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 6.0,
-  "seconds": 2.1,
+  "t": 5.8,
+  "seconds": 1.7,
+  "key": "sit_up",
+  "line": "MECHANIC: You're late.",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 7.5,
+  "seconds": 2.3,
   "key": "ep_defensive_1",
   "line": "EXIT PUNK: I'm eleven seconds late.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 8.1,
-  "seconds": 2.5,
+  "t": 9.8,
+  "seconds": 3.1,
   "key": "ots_mech2",
   "line": "MECHANIC: Eleven seconds is how a furnace goes out.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 10.6,
-  "seconds": 1.9,
+  "t": 12.9,
+  "seconds": 1.4,
   "key": "ep_sheepish_0",
   "line": "EXIT PUNK: It's a bolt.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 12.5,
-  "seconds": 2.0,
+  "t": 14.3,
+  "seconds": 1.5,
   "key": "mech_stern_1",
   "line": "MECHANIC: It's THE bolt.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 14.5,
-  "seconds": 1.5,
+  "t": 15.8,
+  "seconds": 2.0,
   "key": "board_snapped_1",
-  "line": "MECHANIC: That deck's snapped.",
+  "line": "That deck's snapped.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 16.0,
-  "seconds": 1.6,
+  "t": 17.8,
+  "seconds": 1.9,
   "key": "ep_smirk_0",
   "line": "EXIT PUNK: It's fine. It's held together by optimism.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 17.6,
-  "seconds": 1.6,
-  "key": "ep_smirk_1",
+  "t": 19.7,
+  "seconds": 1.4,
+  "key": "mech_stern_0",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 19.2,
+  "t": 21.1,
   "seconds": 2.1,
   "key": "mech_soft_1",
-  "line": "MECHANIC: It's held together by me. Third time this month. Sit.",
+  "line": "MECHANIC: It's held together by me. Third time this month.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 21.3,
+  "t": 23.2,
   "seconds": 1.2,
   "key": "ep_defensive_0",
-  "line": null,
+  "line": "Sit.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 22.5,
-  "seconds": 1.0,
+  "t": 24.4,
+  "seconds": 1.2,
   "key": "wrench",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 23.5,
-  "seconds": 2.0,
+  "t": 25.6,
+  "seconds": 1.8,
   "key": "weld",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 25.5,
-  "seconds": 1.8,
+  "t": 27.4,
+  "seconds": 1.6,
   "key": "ep_watching_0",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 27.3,
-  "seconds": 1.8,
+  "t": 29.0,
+  "seconds": 1.6,
   "key": "file",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 29.1,
-  "seconds": 1.6,
+  "t": 30.6,
+  "seconds": 1.5,
   "key": "wheel_0",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 30.7,
+  "t": 32.1,
   "seconds": 1.3,
   "key": "ep_watching_1",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 32.0,
-  "seconds": 2.5,
-  "key": "board_between",
+  "t": 33.4,
+  "seconds": 2.4,
+  "key": "two_high",
   "line": "MECHANIC: You know why you keep breaking it?",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 34.5,
-  "seconds": 2.1,
+  "t": 35.8,
+  "seconds": 2.2,
   "key": "ep_smirk_1",
   "line": "EXIT PUNK: I'm bad at stopping.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 36.6,
+  "t": 38.0,
   "seconds": 2.8,
   "key": "mech_soft_0",
   "line": "MECHANIC: You never ride it anywhere you're allowed.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 39.4,
-  "seconds": 1.8,
+  "t": 40.8,
+  "seconds": 1.6,
   "key": "ep_hurt_1",
   "line": "EXIT PUNK: Nowhere I'm allowed to ride has an exit.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 41.2,
-  "seconds": 1.1,
-  "key": "ep_hurt_0",
+  "t": 42.4,
+  "seconds": 1.3,
+  "key": "ep_eyes",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 42.3,
+  "t": 43.7,
+  "seconds": 1.8,
+  "key": "mech_stops",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 45.5,
   "seconds": 1.5,
-  "key": "mech_soft_1",
-  "line": null,
-  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
- },
- {
-  "t": 43.8,
-  "seconds": 3.0,
   "key": "ots_mech3",
-  "line": "MECHANIC: There's a window upstairs. Gets the broadcast.",
+  "line": "MECHANIC: There's a window upstairs.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 46.8,
+  "t": 47.0,
+  "seconds": 1.5,
+  "key": "tv_glow",
+  "line": "Gets the broadcast.",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 48.5,
   "seconds": 3.0,
   "key": "mech_grave_0",
   "line": "Whole city watching the floor at midnight.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 49.8,
-  "seconds": 1.2,
-  "key": "ep_hurt_1",
-  "line": "People who walk onto that stage",
-  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
- },
- {
-  "t": 51.0,
-  "seconds": 3.0,
+  "t": 51.5,
+  "seconds": 2.0,
   "key": "mech_grave_1",
-  "line": "don't come back the same. Or at all.",
+  "line": "People who walk onto that stage don't come back the same.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 54.0,
+  "t": 53.5,
+  "seconds": 2.1,
+  "key": "ep_hurt_0",
+  "line": "Or at all.",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 55.6,
   "seconds": 1.9,
   "key": "ep_hopeful_1",
   "line": "EXIT PUNK: Sounds like a way out.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 55.9,
+  "t": 57.5,
   "seconds": 1.6,
-  "key": "mech_grave_0",
+  "key": "mech_stern_0",
   "line": "MECHANIC: It's a way in.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 57.5,
-  "seconds": 2.5,
-  "key": "handoff_1",
-  "line": "MECHANIC: New rule. Wheels down.",
+  "t": 59.1,
+  "seconds": 2.4,
+  "key": "handoff2",
+  "line": "New rule. Wheels down.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 60.0,
+  "t": 61.5,
   "seconds": 1.8,
   "key": "handoff_0",
-  "line": "MECHANIC: Whatever you land on, wheels down.",
+  "line": "Whatever you land on, wheels down.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 61.8,
+  "t": 63.3,
   "seconds": 1.4,
   "key": "ep_hopeful_0",
   "line": "EXIT PUNK: That's the rule?",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 63.2,
+  "t": 64.7,
   "seconds": 2.0,
-  "key": "mech_soft_0",
+  "key": "mech_soft_0c",
   "line": "MECHANIC: Only one I ever kept.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 65.2,
-  "seconds": 2.0,
-  "key": "mech_stern_0",
-  "line": "MECHANIC: And bring the bolt back.",
+  "t": 66.7,
+  "seconds": 2.2,
+  "key": "mech_stern_1c",
+  "line": "And bring the bolt back.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 67.2,
-  "seconds": 2.0,
+  "t": 68.9,
+  "seconds": 1.8,
+  "key": "ride_wide",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 70.7,
+  "seconds": 1.2,
+  "key": "ride_wheels",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 71.9,
+  "seconds": 1.6,
+  "key": "ride_front",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 73.5,
+  "seconds": 1.4,
   "key": "ride_0",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 69.2,
-  "seconds": 1.8,
+  "t": 74.9,
+  "seconds": 1.4,
   "key": "ride_1",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 71.0,
-  "seconds": 1.8,
-  "key": "grate_ep",
+  "t": 76.3,
+  "seconds": 2.2,
+  "key": "grate_face",
   "line": "ANNOUNCER: Tonight, a walk-on.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 72.8,
-  "seconds": 1.6,
+  "t": 78.5,
+  "seconds": 1.8,
   "key": "ep_resolve_1",
   "line": "EXIT PUNK: Wheels down.",
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 74.4,
+  "t": 80.3,
   "seconds": 1.2,
   "key": "drop_1",
   "line": null,
   "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 75.6,
+  "t": 81.5,
   "seconds": 0.6,
   "key": "drop_0",
   "line": null,

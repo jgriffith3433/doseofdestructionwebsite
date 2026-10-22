@@ -5,9 +5,9 @@
   "width": 1920,
   "height": 1080,
   "fps": 24,
-  "seconds": 77.3
+  "seconds": 83.6
  },
- "version": 3,
+ "version": 4,
  "gpu": "about $2.3 of the $2.50 budget (voices, music and sfx included)",
  "cast": [
   {
@@ -111,11 +111,11 @@
  },
  "cut": {
   "file": "videos/the-board-exit-punk-origin/out/cut.mp4",
-  "built_by": "videos/the-board-exit-punk-origin/build_v3.py",
-  "seconds": 77.6,
+  "built_by": "videos/the-board-exit-punk-origin/build_v4.py",
+  "seconds": 83.6,
   "stage": "animatic"
  },
- "notes": "v3: re-cut for review notes; build_v3.py + keys.json; captions 2 lines <=38 chars; GPU for v3 about $0.15",
+ "notes": "v4: new keyframes for the review notes; build_v4.py + keys.json; GPU for v4 about $0.2 (12 image.edit jobs x 2 takes)",
  "stage": "animatic",
  "look": "one 3D-cartoon render; every keyframe is an image.edit of the v1 two-shot plate a_c2fc1eadd24da955 with the DoD references a_5ba184e1455c5dad (Exit Punk) and a_8b18077371927f6d (Mechanic)",
  "keyframes_v2": {
@@ -151,5 +151,19 @@
   "wrench": "a_8eeb530ce8c34a26 (cropped)",
   "board_between": "a_1512ffd46c8fa8da",
   "rejected": "hook (all 3 drew a dark-haired kid), grate_ep (all 3 show the Mechanic): ride_1/ride_0 used instead"
+ },
+ "keyframes_v4": {
+  "hook_face": "a_9133d0e1e234629a",
+  "hook_launch": "a_b7a58ec12cb917e1",
+  "two_high": "a_8ea9628bf89b205c",
+  "handoff2": "a_1458afb36a41b787",
+  "sit_up": "a_284b050debd99dad",
+  "tv_glow": "a_c0e3db8675c9419d",
+  "ep_eyes": "a_8b5e8cb8c6431143",
+  "mech_stops": "a_313885502a012c7d",
+  "ride_wide": "a_6fd879f518d85766",
+  "ride_wheels": "a_02b93d8ce624929b",
+  "ride_front": "a_15633c11a42e7937",
+  "grate_face": "a_472f133bf51c47df"
  }
 }
