@@ -144,5 +144,34 @@
   }
  },
  "shots": [],
- "cut": null
+ "cut": null,
+ "picked_keyframes": {
+  "hook": "a_7d2674bd341afac5",
+  "SW_descends": "a_baebd122248c4926",
+  "grind": "a_5400ff82e3190cfb",
+  "two_shot": "a_3b02473325c2c158",
+  "skid_cloud": "a_6918c589de596098"
+ },
+ "queued": {
+  "portraits": [
+   "j_b9101a1b8354",
+   "j_51e580a94b79"
+  ],
+  "i2v": [
+   "j_2f7bad7dadbc",
+   "j_13131b069244",
+   "j_99224276417b",
+   "j_3f5d314f53f9",
+   "j_5166a55c81f6"
+  ],
+  "talk_SW": [
+   "j_a4babfb38a67",
+   "j_12a466f57ee0",
+   "j_649c099575b5",
+   "j_ad03515f0791",
+   "j_d979adf19fe5",
+   "j_7fb076aa18cb"
+  ]
+ },
+ "notes": "Exit Punk is the blond kid in the yellow tee (his reference); Small Weather the glasses/navy jacket man. Keyframes judged on-model. Spent ~$0.25 so far."
 }
