@@ -8,7 +8,7 @@
     "seconds": 93
   },
   "version": 0,
-  "status": "plates judged and saved; portraits queued",
+  "status": "talking heads queued",
   "cast": [
     {
       "name": "Blog Man",
@@ -207,10 +207,33 @@
   ],
   "plan": "plates -> image.edit portraits (plate + reference) -> video.talk per line -> ffmpeg halftone montage -> video.compose. Blender is not used: the budget ($2.50) cannot pay for Blender+LTX repaints of 30+ shots, and both heroes exist only as 2D art.",
   "cost": "voices about $0.35 so far; plates queued",
-  "portraits": [
-    "j_aafb70975a80",
-    "j_64e5c59382a5",
-    "j_3ee9aaae32a5",
-    "j_493c0d5d7742"
-  ]
+  "portraits": {
+    "blog-man boom": [
+      "a_d932fd6d7b386937",
+      "a_dd756d52269ec4d9"
+    ],
+    "blog-man moved": [
+      "a_e8193ffcc0df20ea",
+      "a_1d60d8c5bb26ad86"
+    ],
+    "exit-punk deadpan": [
+      "a_728847f939f4bc48",
+      "a_d5ed9f3628cf1e46"
+    ],
+    "exit-punk curious": [
+      "a_9d12accb4813b348",
+      "a_312b6aff189b4dfc"
+    ],
+    "judged": "all on-model (face, hair, glasses, cape, shirt)"
+  },
+  "talk": {
+    "C1": "j_51d4f4fc6aa7",
+    "C2": "j_3203afb797da",
+    "C4": "j_9cb1243858a4",
+    "C5": "j_ce14283fde32",
+    "C6": "j_dbf5509fff47",
+    "C7": "j_e1d4c6c39c08",
+    "C8": "j_29239010157a",
+    "note": "voice lines of one speaker stitched into chunks (talk/C*.wav, offsets in talk/chunks.json); lines are cut out of each clip by offset"
+  }
 }
