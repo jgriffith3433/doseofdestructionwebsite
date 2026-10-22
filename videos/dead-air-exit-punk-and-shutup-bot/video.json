@@ -1,0 +1,16 @@
+{
+ "slug": "dead-air-exit-punk-and-shutup-bot",
+ "format": "wide 1920x1080",
+ "status": "part 1: keyframes, voices and the Gen video clips queued; cut not yet composed",
+ "cast": [
+  {"name": "Exit Punk", "voice": "bIHbv24MWmeRgasZH58o (eleven_v4)", "forms": ["DoD fighter reference doseofdestruction/exit-punk (asset a_5ba184e1455c5dad)", "keyframes k1..k18 drawn from it"]},
+  {"name": "Shutup Bot", "voice": "SAz9YHcvj6GT2YYXdXww (deadpan, 'Fine.' only)", "forms": ["DoD fighter reference (asset a_d05109a8ddd7680d); face is a CRT screen, so it is never lip-synced", "keyframes k19..k22"]}
+ ],
+ "voice_assets": {"E1a":"a_5249c2bd36320373","E1b":"a_bb35db2cc2a1693a","E2a":"a_a87344d045cd4320","E2b":"a_cd7a70a7a2bddd84","E3a":"a_6addd6f1c0990d07","E3b":"a_40076e0983884720","E3c":"a_121a82acf8e761d8","E4":"a_797cf62f66cd8634","E5":"a_1ab7cfab91140337","E6":"a_c529ee55fe395fe7","E7":"a_9fb5f4759e25ca8e"},
+ "keyframes": "kf/PICKS.txt (image.edit jobs j_fbfe183f7aa6 ... j_a3aab3cd7fcf, ~$0.3)",
+ "gen_jobs": {
+  "talk E1a hook": "j_d5a960c8001f", "talk E2b ots": "j_a58a1d45dd52", "talk E3b": "j_693971e4b0ce", "talk E3c": "j_07b2a66e74e6",
+  "talk E5": "j_49b79383cf59", "talk E6": "j_562c0c62be78", "talk E7": "j_6dd630ba970f",
+  "i2v slide": "j_a2be3f58c4c1", "i2v eyes": "j_ab9a9660e95f", "i2v doors": "j_01144c19470b", "i2v bothelp": "j_a11b5f7a452a"
+ }
+}
