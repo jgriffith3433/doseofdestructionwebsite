@@ -1,0 +1,242 @@
+{
+ "slug": "thin-air-exit-punk-vs-small-weather",
+ "format": {
+  "kind": "wide",
+  "width": 1920,
+  "height": 1080,
+  "fps": 24,
+  "seconds": 51.7
+ },
+ "version": 1,
+ "gpu": "$2.50 approved; keyframes queued, motion/talk after judging",
+ "cast": [
+  {
+   "name": "Exit Punk",
+   "voice": "bIHbv24MWmeRgasZH58o",
+   "model": "eleven_v4",
+   "forms": [
+    {
+     "kind": "reference",
+     "source": "doseofdestruction/exit-punk reference a_5ba184e1455c5dad, side a_2f943d6731c0e9f2"
+    },
+    {
+     "kind": "clips2d",
+     "source": "doseofdestruction/exit-punk clip/*"
+    }
+   ]
+  },
+  {
+   "name": "Small Weather",
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "model": "eleven_v4",
+   "forms": [
+    {
+     "kind": "reference",
+     "source": "doseofdestruction/small-weather reference a_02d916892b5b8a2d"
+    }
+   ]
+  }
+ ],
+ "voices": [
+  {
+   "line": "SW1 The Orchestrator asked for drama...",
+   "asset": "a_e2888948a1fcb46e",
+   "job": "j_c9c3f4522b89",
+   "seconds": 4.28,
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "file": "voice/audio-voice-a_e2888948a1fcb46e.mp3"
+  },
+  {
+   "line": "EP1 Is that allowed?",
+   "asset": "a_a73b52f263935984",
+   "job": "j_05da2689fb5d",
+   "seconds": 1.23,
+   "voice": "bIHbv24MWmeRgasZH58o",
+   "file": "voice/audio-voice-a_a73b52f263935984.mp3"
+  },
+  {
+   "line": "SW2 It's a broadcast.",
+   "asset": "a_ff7d89f33b5a4f6c",
+   "job": "j_424d283003ae",
+   "seconds": 1.88,
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "file": "voice/audio-voice-a_ff7d89f33b5a4f6c.mp3"
+  },
+  {
+   "line": "SW3 Huh. You fall like you mean it.",
+   "asset": "a_2af3bd3436620efb",
+   "job": "j_7733a485706d",
+   "seconds": 3.55,
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "file": "voice/audio-voice-a_2af3bd3436620efb.mp3"
+  },
+  {
+   "line": "SW4 When I first showed up...",
+   "asset": "a_9c9816ac9fad5817",
+   "job": "j_86cee7ab4bcf",
+   "seconds": 7.55,
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "file": "voice/audio-voice-a_9c9816ac9fad5817.mp3"
+  },
+  {
+   "line": "EP2 What happened?",
+   "asset": "a_0962a2e788e401a4",
+   "job": "j_dff1b240f3d5",
+   "seconds": 1.07,
+   "voice": "bIHbv24MWmeRgasZH58o",
+   "file": "voice/audio-voice-a_0962a2e788e401a4.mp3"
+  },
+  {
+   "line": "SW5 A newer cloud.",
+   "asset": "a_59220ce4c24848ae",
+   "job": "j_d1269d3f2c68",
+   "seconds": 1.65,
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "file": "voice/audio-voice-a_59220ce4c24848ae.mp3"
+  },
+  {
+   "line": "EP3 ...That's rough.",
+   "asset": "a_d4175297d9888c67",
+   "job": "j_39541156bf24",
+   "seconds": 1.41,
+   "voice": "bIHbv24MWmeRgasZH58o",
+   "file": "voice/audio-voice-a_d4175297d9888c67.mp3"
+  },
+  {
+   "line": "SW6 It rains harder when no one's looking...",
+   "asset": "a_1a2d1800602ddb3f",
+   "job": "j_3b7023d9aacd",
+   "seconds": 4.13,
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "file": "voice/audio-voice-a_1a2d1800602ddb3f.mp3"
+  },
+  {
+   "line": "EP4 Turn the gravity back on...",
+   "asset": "a_bd4a99208f52dc2d",
+   "job": "j_3fa9b3e825e1",
+   "seconds": 2.69,
+   "voice": "bIHbv24MWmeRgasZH58o",
+   "file": "voice/audio-voice-a_bd4a99208f52dc2d.mp3"
+  },
+  {
+   "line": "SW7 It was only ever me holding it up.",
+   "asset": "a_d33ec42e8f876164",
+   "job": "j_2871c5191b9b",
+   "seconds": 2.59,
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "file": "voice/audio-voice-a_d33ec42e8f876164.mp3"
+  }
+ ],
+ "stills": {
+  "portrait_SW_calm": {
+   "job": "j_7e7a4c529797",
+   "assets": [
+    "a_abe8b914b0afecbe",
+    "a_8c18f68c859ab657"
+   ]
+  },
+  "queued_keyframes": {
+   "hook_truck": "j_49c968b087b0",
+   "SW_descends": "j_d927bd7e6ae3",
+   "grind_lightning": "j_c61b0722dbde",
+   "quiet_two_shot": "j_4bf41687a32f",
+   "skid_and_cloud": "j_ab11599a2b46"
+  }
+ },
+ "shots": [],
+ "cut": {
+  "job": "j_a3f975917ac8",
+  "asset": "a_de96d7fea71425e7",
+  "poster": "a_79f5aef74ffe9aa4",
+  "seconds": 51.7,
+  "file": "out/cut.mp4",
+  "note": "end card appended locally with ffmpeg (out/endcard.mp4); compose can't take local files, so the Gen asset is the cut without it"
+ },
+ "picked_keyframes": {
+  "hook": "a_7d2674bd341afac5",
+  "SW_descends": "a_baebd122248c4926",
+  "grind": "a_5400ff82e3190cfb",
+  "two_shot": "a_3b02473325c2c158",
+  "skid_cloud": "a_6918c589de596098"
+ },
+ "queued": {
+  "portraits": [
+   "j_b9101a1b8354",
+   "j_51e580a94b79"
+  ],
+  "i2v": [
+   "j_2f7bad7dadbc",
+   "j_13131b069244",
+   "j_99224276417b",
+   "j_3f5d314f53f9",
+   "j_5166a55c81f6"
+  ],
+  "talk_SW": [
+   "j_a4babfb38a67",
+   "j_12a466f57ee0",
+   "j_649c099575b5",
+   "j_ad03515f0791",
+   "j_d979adf19fe5",
+   "j_7fb076aa18cb"
+  ],
+  "talk_retry": [
+   "j_d16137bf2e72",
+   "j_f1b1edf9288a",
+   "j_7b4eed461817",
+   "j_3485d697663e",
+   "j_de6e6dd6decc",
+   "j_40a5986fb85a",
+   "j_be61440841b1",
+   "j_662c357b274c",
+   "j_f8f3ba48d47e",
+   "j_e4350f242f80",
+   "j_afc58e1cd15f"
+  ]
+ },
+ "notes": "Exit Punk is the blond kid in the yellow tee (his reference); Small Weather the glasses/navy jacket man. Keyframes judged on-model. Spent ~$0.25 so far. First talk batch (j_a4babfb38a67 etc.) failed on frame counts; retried with 8k+1 frames.",
+ "clips_i2v": {
+  "hook": {
+   "job": "j_2f7bad7dadbc",
+   "asset": "a_da9196ee5b2ff12c",
+   "note": "truck barely rises; acceptable, drop falls out of frame"
+  },
+  "SW_descends": {
+   "job": "j_13131b069244",
+   "asset": "a_8ac44b96360b381f"
+  },
+  "grind": {
+   "job": "j_99224276417b",
+   "asset": "a_0bb6ac95fb2428d6",
+   "note": "best shot"
+  },
+  "two_shot": {
+   "job": "j_3f5d314f53f9",
+   "asset": "a_4f8bf28528e23614",
+   "note": "near-static, fine for a hold"
+  },
+  "skid": {
+   "job": "j_5166a55c81f6",
+   "asset": "a_2975033644f5ce4f",
+   "note": "use first ~2.5 s, board morphs later"
+  }
+ },
+ "portraits": {
+  "EP_gentle": "a_a27903b3abc2c617",
+  "SW_cracked": "a_6de4143e75eb69f7",
+  "SW_calm": "a_abe8b914b0afecbe"
+ },
+ "talk": {
+  "SW1": "j_f1b1edf9288a",
+  "SW2": "j_d16137bf2e72",
+  "SW3": "j_7b4eed461817",
+  "SW4": "j_3485d697663e",
+  "SW5": "j_de6e6dd6decc",
+  "SW6": "j_40a5986fb85a",
+  "SW7": "j_be61440841b1",
+  "EP1": "j_662c357b274c",
+  "EP2": "j_f8f3ba48d47e",
+  "EP3": "j_e4350f242f80",
+  "EP4": "j_afc58e1cd15f"
+ },
+ "cost": "about $2.0 of the $2.50 (voices, keyframes, 5 i2v, 11 talk, failed first talk batch)"
+}
