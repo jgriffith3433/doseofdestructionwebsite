@@ -1,40 +1,216 @@
 {
   "slug": "headline-blog-mans-newsroom",
-  "format": { "kind": "wide", "width": 1920, "height": 1080, "fps": 24, "seconds": 93 },
+  "format": {
+    "kind": "wide",
+    "width": 1920,
+    "height": 1080,
+    "fps": 24,
+    "seconds": 93
+  },
   "version": 0,
-  "status": "in progress: voices and plates queued; no cut yet",
+  "status": "plates judged and saved; portraits queued",
   "cast": [
-    { "name": "Blog Man", "voice": "CwhRBWXzGAHq8TQ4Fs17", "model": "eleven_v4", "forms": [{ "kind": "still", "source": "doseofdestruction/blog-man reference a_fefe2d726f6431c6, side a_253a98a4473755bc; 2D clips in characters/anim/blog-man" }] },
-    { "name": "Exit Punk", "voice": "bIHbv24MWmeRgasZH58o", "model": "eleven_v4", "forms": [{ "kind": "still", "source": "doseofdestruction/exit-punk reference a_5ba184e1455c5dad; 2D clips in characters/anim/exit-punk" }] },
-    { "name": "Announcer", "voice": "nPczCjzI2devNBz1zQrb", "model": "eleven_v4", "forms": [] }
+    {
+      "name": "Blog Man",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "model": "eleven_v4",
+      "forms": [
+        {
+          "kind": "still",
+          "source": "doseofdestruction/blog-man reference a_fefe2d726f6431c6, side a_253a98a4473755bc; 2D clips in characters/anim/blog-man"
+        }
+      ]
+    },
+    {
+      "name": "Exit Punk",
+      "voice": "bIHbv24MWmeRgasZH58o",
+      "model": "eleven_v4",
+      "forms": [
+        {
+          "kind": "still",
+          "source": "doseofdestruction/exit-punk reference a_5ba184e1455c5dad; 2D clips in characters/anim/exit-punk"
+        }
+      ]
+    },
+    {
+      "name": "Announcer",
+      "voice": "nPczCjzI2devNBz1zQrb",
+      "model": "eleven_v4",
+      "forms": []
+    }
   ],
   "voices": [
-    { "line": "bm1", "asset": "a_7bc72be7da9b6c14", "job": "j_3200f3fb0cd6", "seconds": 5.41 },
-    { "line": "ep1", "asset": "a_67ec051309ae1b6a", "job": "j_6c383fcf0a21", "seconds": 3.71 },
-    { "line": "bm2", "asset": "a_b8b2991f3f151345", "job": "j_6a7939291e49", "seconds": 4.21 },
-    { "line": "ep2", "asset": "a_e49d9da60067b455", "job": "j_81cbe7613d37", "seconds": 2.27 },
-    { "line": "bm3", "asset": "a_bb7916fd6df2753c", "job": "j_088baa1b0be5", "seconds": 3.79 },
-    { "line": "ep3", "asset": "a_7f16dd4f75a31112", "job": "j_880faf009083", "seconds": 1.15 },
-    { "line": "bm4", "asset": "a_9b618023072d85e7", "job": "j_58c3c695cc81", "seconds": 5.72 },
-    { "line": "bm5", "asset": "a_1096f46b35535e07", "job": "j_65881c3cdedc", "seconds": 10.37 },
-    { "line": "ep4", "asset": "a_a51d540bf31b928b", "job": "j_7a11b52b15f4", "seconds": 2.43 },
-    { "line": "bm6", "asset": "a_b42f244065c5d9cf", "job": "j_b6498353240f", "seconds": 2.35 },
-    { "line": "ep5", "asset": "a_73765c3f92e69d7a", "job": "j_457dc61d206b", "seconds": 1.72 },
-    { "line": "bm7", "asset": "a_42cf00a704fc5f81", "job": "j_b045a81dfe51", "seconds": 5.25 },
-    { "line": "ep6", "asset": "a_6edfcc44b2b83a19", "job": "j_98cb4afbbb04", "seconds": 1.07 },
-    { "line": "bm8a", "asset": "a_6cbb48d2b03d06c5", "job": "j_a389268ffcb6", "seconds": 3.0 },
-    { "line": "bm8b", "asset": "a_86972b615f3ca0b4", "job": "j_a586d09e75af", "seconds": 9.33 },
-    { "line": "bm9", "asset": "a_927db2946eda5dd5", "job": "j_a586d09e75af", "seconds": 2.12 },
-    { "line": "ep7", "asset": "a_2f3fc4d602c0131b", "job": "j_e88d3dfa1121", "seconds": 1.8 },
-    { "line": "bm10", "asset": "a_acae895ac9a7da12", "job": "j_b1307bad5c6e", "seconds": 1.65 },
-    { "line": "bm11", "asset": "a_77dec9efdbead641", "job": "j_4fdd24af207b", "seconds": 3.47 },
-    { "line": "an1", "asset": "a_3fa571fc0ea2cc7c", "job": "j_9f7db0002f2f", "seconds": 1.57 }
+    {
+      "line": "bm1",
+      "asset": "a_7bc72be7da9b6c14",
+      "job": "j_3200f3fb0cd6",
+      "seconds": 5.41
+    },
+    {
+      "line": "ep1",
+      "asset": "a_67ec051309ae1b6a",
+      "job": "j_6c383fcf0a21",
+      "seconds": 3.71
+    },
+    {
+      "line": "bm2",
+      "asset": "a_b8b2991f3f151345",
+      "job": "j_6a7939291e49",
+      "seconds": 4.21
+    },
+    {
+      "line": "ep2",
+      "asset": "a_e49d9da60067b455",
+      "job": "j_81cbe7613d37",
+      "seconds": 2.27
+    },
+    {
+      "line": "bm3",
+      "asset": "a_bb7916fd6df2753c",
+      "job": "j_088baa1b0be5",
+      "seconds": 3.79
+    },
+    {
+      "line": "ep3",
+      "asset": "a_7f16dd4f75a31112",
+      "job": "j_880faf009083",
+      "seconds": 1.15
+    },
+    {
+      "line": "bm4",
+      "asset": "a_9b618023072d85e7",
+      "job": "j_58c3c695cc81",
+      "seconds": 5.72
+    },
+    {
+      "line": "bm5",
+      "asset": "a_1096f46b35535e07",
+      "job": "j_65881c3cdedc",
+      "seconds": 10.37
+    },
+    {
+      "line": "ep4",
+      "asset": "a_a51d540bf31b928b",
+      "job": "j_7a11b52b15f4",
+      "seconds": 2.43
+    },
+    {
+      "line": "bm6",
+      "asset": "a_b42f244065c5d9cf",
+      "job": "j_b6498353240f",
+      "seconds": 2.35
+    },
+    {
+      "line": "ep5",
+      "asset": "a_73765c3f92e69d7a",
+      "job": "j_457dc61d206b",
+      "seconds": 1.72
+    },
+    {
+      "line": "bm7",
+      "asset": "a_42cf00a704fc5f81",
+      "job": "j_b045a81dfe51",
+      "seconds": 5.25
+    },
+    {
+      "line": "ep6",
+      "asset": "a_6edfcc44b2b83a19",
+      "job": "j_98cb4afbbb04",
+      "seconds": 1.07
+    },
+    {
+      "line": "bm8a",
+      "asset": "a_6cbb48d2b03d06c5",
+      "job": "j_a389268ffcb6",
+      "seconds": 3.0
+    },
+    {
+      "line": "bm8b",
+      "asset": "a_86972b615f3ca0b4",
+      "job": "j_a586d09e75af",
+      "seconds": 9.33
+    },
+    {
+      "line": "bm9",
+      "asset": "a_927db2946eda5dd5",
+      "job": "j_a586d09e75af",
+      "seconds": 2.12
+    },
+    {
+      "line": "ep7",
+      "asset": "a_2f3fc4d602c0131b",
+      "job": "j_e88d3dfa1121",
+      "seconds": 1.8
+    },
+    {
+      "line": "bm10",
+      "asset": "a_acae895ac9a7da12",
+      "job": "j_b1307bad5c6e",
+      "seconds": 1.65
+    },
+    {
+      "line": "bm11",
+      "asset": "a_77dec9efdbead641",
+      "job": "j_4fdd24af207b",
+      "seconds": 3.47
+    },
+    {
+      "line": "an1",
+      "asset": "a_3fa571fc0ea2cc7c",
+      "job": "j_9f7db0002f2f",
+      "seconds": 1.57
+    }
   ],
   "plates": [
-    { "id": "P1 newsroom wide", "job": "j_6555f2921900" }, { "id": "P2 reverse angle", "job": "j_066c0def24f6" },
-    { "id": "P3 wall of pages", "job": "j_fe3b9c2b7cf8" }, { "id": "P4 typewriter CU", "job": "j_baac6826bea2" },
-    { "id": "P5 pneumatic tube", "job": "j_859c194da62d" }, { "id": "P6 front page", "job": "j_4272734f471e" }
+    {
+      "id": "P1 newsroom wide",
+      "job": "j_6555f2921900",
+      "asset": "a_7f689fe5de317af9",
+      "file": "plates/P1.png",
+      "judged": "ok (headline text on the pinned pages is garbled, kept as blurred copy)"
+    },
+    {
+      "id": "P2 reverse angle",
+      "job": "j_066c0def24f6",
+      "asset": "a_068cbe6cc0221230",
+      "file": "plates/P2.png",
+      "judged": "ok (headline text on the pinned pages is garbled, kept as blurred copy)"
+    },
+    {
+      "id": "P3 wall of pages",
+      "job": "j_fe3b9c2b7cf8",
+      "asset": "a_c0bf7a02ea1ab217",
+      "file": "plates/P3.png",
+      "judged": "ok (headline text on the pinned pages is garbled, kept as blurred copy)"
+    },
+    {
+      "id": "P4 typewriter CU",
+      "job": "j_baac6826bea2",
+      "asset": "a_1f10af8c1fabf351",
+      "file": "plates/P4.png",
+      "judged": "ok (headline text on the pinned pages is garbled, kept as blurred copy)"
+    },
+    {
+      "id": "P5 pneumatic tube",
+      "job": "j_859c194da62d",
+      "asset": "a_afacef29d5b3d6d1",
+      "file": "plates/P5.png",
+      "judged": "ok (headline text on the pinned pages is garbled, kept as blurred copy)"
+    },
+    {
+      "id": "P6 front page",
+      "job": "j_4272734f471e",
+      "asset": "a_04c50a4de0bd463e",
+      "file": "plates/P6.png",
+      "judged": "ok (headline text on the pinned pages is garbled, kept as blurred copy)"
+    }
   ],
   "plan": "plates -> image.edit portraits (plate + reference) -> video.talk per line -> ffmpeg halftone montage -> video.compose. Blender is not used: the budget ($2.50) cannot pay for Blender+LTX repaints of 30+ shots, and both heroes exist only as 2D art.",
-  "cost": "voices about $0.35 so far; plates queued"
+  "cost": "voices about $0.35 so far; plates queued",
+  "portraits": [
+    "j_aafb70975a80",
+    "j_64e5c59382a5",
+    "j_3ee9aaae32a5",
+    "j_493c0d5d7742"
+  ]
 }
