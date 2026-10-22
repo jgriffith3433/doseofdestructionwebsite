@@ -1,0 +1,535 @@
+[
+ {
+  "t": 0.0,
+  "seconds": 1.2,
+  "shot": "insert",
+  "angle": "low",
+  "camera": "static",
+  "who": [],
+  "line": null,
+  "action": "a page is ripped out of the typewriter carriage",
+  "expression": "",
+  "sfx": "typewriter bell, rip",
+  "vfx": "paper flutter",
+  "method": "plate (image.generate newsroom) + ffmpeg move",
+  "why": "hook in the first frame: sound and motion"
+ },
+ {
+  "t": 1.2,
+  "seconds": 1.4,
+  "shot": "insert",
+  "angle": "top",
+  "camera": "push-in",
+  "who": [],
+  "line": null,
+  "action": "front page; the headline types itself in huge letters",
+  "expression": "",
+  "sfx": "key clacks",
+  "vfx": "stamp shake, ink flash",
+  "method": "front-page plate + ffmpeg typed-on headline",
+  "why": "smash cut"
+ },
+ {
+  "t": 2.6,
+  "seconds": 1.0,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Blog Man"
+  ],
+  "line": null,
+  "action": "fist slams the desk, pens jump",
+  "expression": "jaw set",
+  "sfx": "desk slam",
+  "vfx": "impact flash + 6-frame shake",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": "physical beat"
+ },
+ {
+  "t": 3.6,
+  "seconds": 4.4,
+  "shot": "MCU",
+  "angle": "low",
+  "camera": "push-in",
+  "who": [
+   "Blog Man"
+  ],
+  "line": "Headline. 'Local Skater Defeats Large Shark. Shark Declines Comment.'",
+  "action": "reads the headline like thunder",
+  "expression": "booming, proud",
+  "sfx": "",
+  "vfx": null,
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": "his entrance voice; slow push on the joke"
+ },
+ {
+  "t": 8.0,
+  "seconds": 1.5,
+  "shot": "WS",
+  "angle": "eye",
+  "camera": "truck",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": null,
+  "action": "walks in, paper held like it owes him money",
+  "expression": "flat",
+  "sfx": "footsteps",
+  "vfx": "",
+  "method": "plate (image.generate newsroom) + ffmpeg move (cut-out walk)",
+  "why": "Exit Punk's entrance"
+ },
+ {
+  "t": 9.0,
+  "seconds": 3.0,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "He commented. He said he needed one more bite.",
+  "action": "deadpan, lifts the paper",
+  "expression": "deadpan",
+  "sfx": "",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": "his dry voice"
+ },
+ {
+  "t": 12.0,
+  "seconds": 1.2,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Blog Man"
+  ],
+  "line": null,
+  "action": "reaction: eyebrow up",
+  "expression": "insulted pride",
+  "sfx": "",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": "reaction held a beat"
+ },
+ {
+  "t": 13.2,
+  "seconds": 3.3,
+  "shot": "OTS",
+  "angle": "low",
+  "camera": "push-in",
+  "who": [
+   "Blog Man",
+   "Exit Punk"
+  ],
+  "line": "A man's last words aren't a comment. They're a pull quote.",
+  "action": "finger raised",
+  "expression": "loftily",
+  "sfx": "",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": "over-the-shoulder to vary the pair"
+ },
+ {
+  "t": 16.8,
+  "seconds": 2.3,
+  "shot": "MCU",
+  "angle": "high",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "Can you stop writing about me?",
+  "action": "",
+  "expression": "tired",
+  "sfx": "",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": ""
+ },
+ {
+  "t": 19.4,
+  "seconds": 3.8,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Blog Man"
+  ],
+  "line": "I'm on the sports desk. You are the sports.",
+  "action": "taps the desk",
+  "expression": "smug",
+  "sfx": "type clack",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": "punchline"
+ },
+ {
+  "t": 23.2,
+  "seconds": 1.5,
+  "shot": "CU",
+  "angle": "dutch",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "Shorter.",
+  "action": "one word, no blink",
+  "expression": "flat",
+  "sfx": "",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": "the setup for the whole video"
+ },
+ {
+  "t": 24.7,
+  "seconds": 5.7,
+  "shot": "MS",
+  "angle": "eye",
+  "camera": "pull-out",
+  "who": [
+   "Blog Man",
+   "Exit Punk"
+  ],
+  "line": "Everyone says shorter. Do you know how many words a legend gets? Sit down. I'll show you.",
+  "action": "waves Exit Punk to a chair",
+  "expression": "grand",
+  "sfx": "chair scrape",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line; pull-out to the two-shot",
+  "why": ""
+ },
+ {
+  "t": 30.4,
+  "seconds": 10.4,
+  "shot": "insert",
+  "angle": "top",
+  "camera": "whip-pan",
+  "who": [
+   "Blog Man (voice)"
+  ],
+  "line": "Night one. Kaelen. 'Hi, Bye.' Night two. The house fell off the house. Night three, I lost count of the floors he fell...",
+  "action": "three front pages each whip-panned to: Kaelen/City Top, Break/Yo House, floors; headline stamps on over a playing halftone clip",
+  "expression": "",
+  "sfx": "stamp thunk x3, press rumble",
+  "vfx": "halftone, ink stamp, speed lines",
+  "method": "ffmpeg halftone of the fight art/clips (video.control repaint of recorded gameplay is the pending upgrade)",
+  "why": "the front pages literally play"
+ },
+ {
+  "t": 41.2,
+  "seconds": 2.4,
+  "shot": "OTS",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "That one doesn't even make sense.",
+  "action": "reads over his shoulder",
+  "expression": "skeptical",
+  "sfx": "",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": ""
+ },
+ {
+  "t": 43.6,
+  "seconds": 2.4,
+  "shot": "CU",
+  "angle": "low",
+  "camera": "push-in",
+  "who": [
+   "Blog Man"
+  ],
+  "line": "It's the best sentence in the building.",
+  "action": "",
+  "expression": "unbothered",
+  "sfx": "",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": ""
+ },
+ {
+  "t": 46.0,
+  "seconds": 2.4,
+  "shot": "WS",
+  "angle": "eye",
+  "camera": "pull-out",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": null,
+  "action": "turns to the wall of a hundred pages: all different names",
+  "expression": "quiet",
+  "sfx": "room tone, a lone clock",
+  "vfx": "",
+  "method": "wall plate + ffmpeg slow push",
+  "why": "the beat of quiet"
+ },
+ {
+  "t": 48.4,
+  "seconds": 1.8,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "Who are all these?",
+  "action": "",
+  "expression": "quiet curiosity",
+  "sfx": "",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": ""
+ },
+ {
+  "t": 50.2,
+  "seconds": 5.4,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "push-in",
+  "who": [
+   "Blog Man"
+  ],
+  "line": "The card changed every night. Nobody kept the paper. I keep the paper.",
+  "action": "adjusts a pin",
+  "expression": "soft",
+  "sfx": "pin click",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": "slow push on the line that matters"
+ },
+ {
+  "t": 55.6,
+  "seconds": 1.2,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "Why?",
+  "action": "",
+  "expression": "",
+  "sfx": "",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": ""
+ },
+ {
+  "t": 56.8,
+  "seconds": 3.2,
+  "shot": "CU",
+  "angle": "low",
+  "camera": "push-in",
+  "who": [
+   "Blog Man"
+  ],
+  "line": "Because somebody should know your name after you're gone.",
+  "action": "",
+  "expression": "sincere",
+  "sfx": "",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": "heart of the video"
+ },
+ {
+  "t": 60.0,
+  "seconds": 1.0,
+  "shot": "insert",
+  "angle": "eye",
+  "camera": "static",
+  "who": [],
+  "line": null,
+  "action": "beat of silence on the wall",
+  "expression": "",
+  "sfx": "room tone",
+  "vfx": "",
+  "method": "plate (image.generate newsroom) + ffmpeg move",
+  "why": "the beat before the joke"
+ },
+ {
+  "t": 61.0,
+  "seconds": 9.4,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Blog Man"
+  ],
+  "line": "And because the art desk makes the front-page picture in forty seconds. Hawkes Gen. Fastest coworker I have ever had. And the quietest.",
+  "action": "brightens; glances at the art desk",
+  "expression": "proud",
+  "sfx": "",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": "the one Hawkes Gen line"
+ },
+ {
+  "t": 70.6,
+  "seconds": 2.0,
+  "shot": "insert",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": null,
+  "action": "takes a blank page and rolls it into the typewriter",
+  "expression": "",
+  "sfx": "paper roll, ratchet",
+  "vfx": "",
+  "method": "plate (image.generate newsroom) + ffmpeg move",
+  "why": ""
+ },
+ {
+  "t": 72.6,
+  "seconds": 2.4,
+  "shot": "ECU",
+  "angle": "eye",
+  "camera": "push-in",
+  "who": [],
+  "line": null,
+  "action": "keys type S-T-I-L-L H-E-R-E",
+  "expression": "",
+  "sfx": "key clacks, bell",
+  "vfx": "key flash",
+  "method": "plate (image.generate newsroom) + ffmpeg move + ffmpeg keys",
+  "why": "CU on the keys"
+ },
+ {
+  "t": 75.0,
+  "seconds": 1.4,
+  "shot": "insert",
+  "angle": "top",
+  "camera": "static",
+  "who": [],
+  "line": null,
+  "action": "INSERT: STILL HERE.",
+  "expression": "",
+  "sfx": "",
+  "vfx": "stamp",
+  "method": "front-page plate + ffmpeg headline",
+  "why": ""
+ },
+ {
+  "t": 76.4,
+  "seconds": 2.2,
+  "shot": "OTS",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Blog Man",
+   "Exit Punk"
+  ],
+  "line": "That's... two words.",
+  "action": "reads over his shoulder",
+  "expression": "stunned",
+  "sfx": "",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": ""
+ },
+ {
+  "t": 78.8,
+  "seconds": 1.9,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "You asked for shorter.",
+  "action": "",
+  "expression": "deadpan, a flicker of a smile",
+  "sfx": "",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": "the punchline"
+ },
+ {
+  "t": 80.9,
+  "seconds": 2.6,
+  "shot": "ECU",
+  "angle": "eye",
+  "camera": "push-in",
+  "who": [
+   "Blog Man"
+  ],
+  "line": "Run it.",
+  "action": "long pause, then quietly",
+  "expression": "honestly moved",
+  "sfx": "room tone",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": "reaction to the reveal, held a beat"
+ },
+ {
+  "t": 83.5,
+  "seconds": 3.6,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Blog Man"
+  ],
+  "line": "Of course I'd have used a bigger font.",
+  "action": "catches himself, straightens his glasses",
+  "expression": "recovering",
+  "sfx": "throat clear",
+  "vfx": "",
+  "method": "on-model portrait (image.edit: plate + character reference) -> video.talk with the line",
+  "why": ""
+ },
+ {
+  "t": 87.1,
+  "seconds": 2.2,
+  "shot": "insert",
+  "angle": "eye",
+  "camera": "pan",
+  "who": [],
+  "line": null,
+  "action": "page into the pneumatic tube; thunk",
+  "expression": "",
+  "sfx": "tube thunk, whoosh",
+  "vfx": "speed lines",
+  "method": "tube plate + ffmpeg",
+  "why": ""
+ },
+ {
+  "t": 89.3,
+  "seconds": 2.2,
+  "shot": "WS",
+  "angle": "high",
+  "camera": "crane-up",
+  "who": [
+   "Announcer (voice)"
+  ],
+  "line": "Still here.",
+  "action": "pages print a million times",
+  "expression": "",
+  "sfx": "press roar, loudspeaker",
+  "vfx": "page-flurry composite",
+  "method": "front-page plate + ffmpeg tiling",
+  "why": "payoff"
+ },
+ {
+  "t": 91.5,
+  "seconds": 1.5,
+  "shot": "insert",
+  "angle": "eye",
+  "camera": "static",
+  "who": [],
+  "line": null,
+  "action": "END CARD: Dose Of Destruction / Made with Hawkes Gen \u00b7 hawkesgen.com",
+  "expression": "",
+  "sfx": "",
+  "vfx": "",
+  "method": "ffmpeg title card",
+  "why": ""
+ }
+]
