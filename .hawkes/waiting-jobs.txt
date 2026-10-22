@@ -1,0 +1,1 @@
+j_4012fdf8139e v5 rooftop scene (14 s, 9:16, voices baked in): judge frames vs beat sheet (both on-model, one room, lips, hit+dent), then re-cut 5-16 s from it with v4 walk-off/end-card fixes; use .hawkes/gen/v5aud/scene.wav as the timing reference
