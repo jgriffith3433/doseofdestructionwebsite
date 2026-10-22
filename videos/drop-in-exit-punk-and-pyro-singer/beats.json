@@ -1,0 +1,516 @@
+[
+ {
+  "t": 0.0,
+  "seconds": 1.0,
+  "shot": "WS",
+  "angle": "low",
+  "camera": "static",
+  "who": [
+   "Pyro Singer"
+  ],
+  "line": null,
+  "action": "crash cymbal; she exhales a ribbon of fire; the pipe lights end to end in rainbow",
+  "expression": "eyes narrowed",
+  "sfx": "crash cymbal, fire whoosh",
+  "vfx": "fire ribbon + rainbow light sweep (ffmpeg gradient wipe on the graded stage)",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "hook in the first second"
+ },
+ {
+  "t": 1.0,
+  "seconds": 1.8,
+  "shot": "ECU",
+  "angle": "eye",
+  "camera": "push-in",
+  "who": [
+   "Pyro Singer"
+  ],
+  "line": null,
+  "action": "eyes lit by fire, mic at chin",
+  "expression": "tired, wry",
+  "sfx": "fire crackle",
+  "vfx": "ember particles",
+  "method": "Pyro Singer face still (image.edit from her reference) -> video.i2v micro-motion -> ffmpeg push-in",
+  "why": "the first face"
+ },
+ {
+  "t": 2.8,
+  "seconds": 3.0,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "push-in",
+  "who": [
+   "Pyro Singer"
+  ],
+  "line": "I sing the opener. I sing the closer. You're the chorus.",
+  "action": "to camera, mic in hand",
+  "expression": "tired, wry",
+  "sfx": "",
+  "vfx": "",
+  "method": "Pyro Singer face still (image.edit from her reference) -> video.i2v micro-motion -> ffmpeg push-in + lip flap",
+  "why": "sets her grievance"
+ },
+ {
+  "t": 5.8,
+  "seconds": 1.8,
+  "shot": "MCU",
+  "angle": "low",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "I don't sing.",
+  "action": "board under arm, looks away",
+  "expression": "nervous, flat",
+  "sfx": "board clack",
+  "vfx": "",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "his answer"
+ },
+ {
+  "t": 7.6,
+  "seconds": 1.7,
+  "shot": "CU",
+  "angle": "dutch",
+  "camera": "whip-pan",
+  "who": [
+   "Pyro Singer"
+  ],
+  "line": "Nobody asked.",
+  "action": "flat look",
+  "expression": "deadpan",
+  "sfx": "",
+  "vfx": "",
+  "method": "Pyro Singer face still (image.edit from her reference) -> video.i2v micro-motion -> ffmpeg push-in",
+  "why": "punchline then reaction"
+ },
+ {
+  "t": 9.3,
+  "seconds": 6.0,
+  "shot": "MS",
+  "angle": "eye",
+  "camera": "pan",
+  "who": [
+   "Pyro Singer"
+  ],
+  "line": "They hand me a light and they tell me when to burn. / Opener, closer, I wait for my turn.",
+  "action": "VERSE 1 begins: she performs to camera between the ramps, mic-stand moves",
+  "expression": "showy",
+  "sfx": "band in",
+  "vfx": "spotlight sweep",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "showy performance"
+ },
+ {
+  "t": 15.3,
+  "seconds": 2.5,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "push-in",
+  "who": [
+   "Pyro Singer"
+  ],
+  "line": "Every night the same song, a different crowd.",
+  "action": "face cracks from showy to honest",
+  "expression": "honest, eyes soft",
+  "sfx": "",
+  "vfx": "",
+  "method": "Pyro Singer face still (image.edit from her reference) -> video.i2v micro-motion -> ffmpeg push-in",
+  "why": "performance cracks"
+ },
+ {
+  "t": 17.8,
+  "seconds": 3.0,
+  "shot": "CU",
+  "angle": "low",
+  "camera": "push-in",
+  "who": [
+   "Pyro Singer"
+  ],
+  "line": "I've been loud so long I forgot how loud.",
+  "action": "fire ripples through her hair on the high note",
+  "expression": "raw",
+  "sfx": "",
+  "vfx": "fire ripple in hair (ffmpeg displace + glow on matte)",
+  "method": "Pyro Singer face still (image.edit from her reference) -> video.i2v micro-motion -> ffmpeg push-in",
+  "why": "high note"
+ },
+ {
+  "t": 20.8,
+  "seconds": 2.0,
+  "shot": "EWS",
+  "angle": "top",
+  "camera": "crane-down",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": null,
+  "action": "he drops in at the lip of the pipe",
+  "expression": "grin",
+  "sfx": "board whoosh",
+  "vfx": "speed lines",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "entrance: the drop"
+ },
+ {
+  "t": 22.8,
+  "seconds": 4.0,
+  "shot": "WS",
+  "angle": "low",
+  "camera": "orbit",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": null,
+  "action": "carves down the pipe; board sparks; his shadow stretches across the rainbow",
+  "expression": "focused",
+  "sfx": "wheels, sparks",
+  "vfx": "sparks at the board",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "orbit camera, shadow"
+ },
+ {
+  "t": 26.8,
+  "seconds": 4.5,
+  "shot": "MS",
+  "angle": "eye",
+  "camera": "follow",
+  "who": [
+   "Pyro Singer",
+   "Exit Punk"
+  ],
+  "line": "Drop in, drop in, don't look at the floor. Fire on the way down and a little bit more.",
+  "action": "first chorus together, 'Drop in, drop in'",
+  "expression": "both singing",
+  "sfx": "",
+  "vfx": "fire arc",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "chorus"
+ },
+ {
+  "t": 31.3,
+  "seconds": 2.0,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "Nobody came for the plan.",
+  "action": "half-step flat on 'plan'",
+  "expression": "strains, cracks",
+  "sfx": "",
+  "vfx": "",
+  "method": "Pyro Singer face still (image.edit from her reference) -> video.i2v micro-motion -> ffmpeg push-in",
+  "why": "the flat note"
+ },
+ {
+  "t": 33.3,
+  "seconds": 1.2,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Pyro Singer"
+  ],
+  "line": null,
+  "action": "one eyebrow lifts",
+  "expression": "dry, skeptical",
+  "sfx": "",
+  "vfx": "",
+  "method": "Pyro Singer face still (image.edit from her reference) -> video.i2v micro-motion -> ffmpeg push-in",
+  "why": "reaction"
+ },
+ {
+  "t": 34.5,
+  "seconds": 1.5,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "push-in",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "I know.",
+  "action": "winces",
+  "expression": "sheepish",
+  "sfx": "",
+  "vfx": "",
+  "method": "Pyro Singer face still (image.edit from her reference) -> video.i2v micro-motion -> ffmpeg push-in",
+  "why": "reaction: he knows"
+ },
+ {
+  "t": 36.0,
+  "seconds": 4.0,
+  "shot": "MS",
+  "angle": "eye",
+  "camera": "handheld",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "I've got one skateboard and no record to show. I can't hold a note but I know where to go.",
+  "action": "VERSE 2, nervous, spoken more than sung",
+  "expression": "nervous",
+  "sfx": "",
+  "vfx": "",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "verse 2"
+ },
+ {
+  "t": 40.0,
+  "seconds": 2.5,
+  "shot": "WS",
+  "angle": "low",
+  "camera": "follow",
+  "who": [
+   "Exit Punk",
+   "rival"
+  ],
+  "line": null,
+  "action": "KO one: he rams a rival off the lip",
+  "expression": "focused",
+  "sfx": "hit",
+  "vfx": "slow-motion impact, flash",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "fight in the pipe"
+ },
+ {
+  "t": 42.5,
+  "seconds": 2.0,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "Don't ask me for rhythm, I've got speed instead.",
+  "action": "kicks off the board, breath",
+  "expression": "nervous",
+  "sfx": "",
+  "vfx": "",
+  "method": "Pyro Singer face still (image.edit from her reference) -> video.i2v micro-motion -> ffmpeg push-in",
+  "why": ""
+ },
+ {
+  "t": 44.5,
+  "seconds": 2.5,
+  "shot": "WS",
+  "angle": "low",
+  "camera": "orbit",
+  "who": [
+   "Exit Punk",
+   "rival"
+  ],
+  "line": "",
+  "action": "KO two and three; Pyro Singer's fire as the exclamation",
+  "expression": "",
+  "sfx": "hit x2, fire burst",
+  "vfx": "slow-motion, shockwave",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "slow-mo KOs"
+ },
+ {
+  "t": 47.0,
+  "seconds": 2.0,
+  "shot": "insert",
+  "angle": "top",
+  "camera": "static",
+  "who": [],
+  "line": "",
+  "action": "the scoreboard ticks to 3",
+  "expression": "",
+  "sfx": "crowd roar",
+  "vfx": "number flip",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "scoreboard tick"
+ },
+ {
+  "t": 49.0,
+  "seconds": 3.0,
+  "shot": "MS",
+  "angle": "eye",
+  "camera": "pull-out",
+  "who": [
+   "Blog Man",
+   "Chooser",
+   "Got Ur Back"
+  ],
+  "line": "I just don't stop till the thing's been said.",
+  "action": "crowd roars, Blog Man scribbles",
+  "expression": "",
+  "sfx": "crowd",
+  "vfx": "",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "crowd cutaway"
+ },
+ {
+  "t": 52.0,
+  "seconds": 3.0,
+  "shot": "EWS",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Pyro Singer",
+   "Exit Punk"
+  ],
+  "line": null,
+  "action": "BRIDGE: single sustained note; both on the lip, long shot from behind",
+  "expression": "",
+  "sfx": "sustained note, wind",
+  "vfx": "",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "quiet before the loud"
+ },
+ {
+  "t": 55.0,
+  "seconds": 3.0,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Pyro Singer"
+  ],
+  "line": "Three already? The song was supposed to be longer.",
+  "action": "amazed",
+  "expression": "breathless",
+  "sfx": "",
+  "vfx": "",
+  "method": "Pyro Singer face still (image.edit from her reference) -> video.i2v micro-motion -> ffmpeg push-in",
+  "why": ""
+ },
+ {
+  "t": 58.0,
+  "seconds": 2.0,
+  "shot": "MCU",
+  "angle": "low",
+  "camera": "push-in",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "Sing it again.",
+  "action": "quiet grin",
+  "expression": "quiet pride",
+  "sfx": "",
+  "vfx": "",
+  "method": "Pyro Singer face still (image.edit from her reference) -> video.i2v micro-motion -> ffmpeg push-in",
+  "why": "the turn"
+ },
+ {
+  "t": 60.0,
+  "seconds": 12.0,
+  "shot": "EWS",
+  "angle": "top",
+  "camera": "crane-down",
+  "who": [
+   "Pyro Singer",
+   "Exit Punk",
+   "crowd"
+  ],
+  "line": "Drop in, drop in... (final chorus)",
+  "action": "FINAL CHORUS: whole arena, fire, confetti, one long crane-down from the top of the pipe",
+  "expression": "full band",
+  "sfx": "full band, crowd",
+  "vfx": "fire, confetti",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "payoff crane"
+ },
+ {
+  "t": 72.0,
+  "seconds": 4.0,
+  "shot": "MS",
+  "angle": "eye",
+  "camera": "handheld",
+  "who": [
+   "Got Ur Back",
+   "Chooser",
+   "Blog Man"
+  ],
+  "line": "",
+  "action": "cheering: Got Ur Back crying, Chooser jumping, Blog Man scribbling",
+  "expression": "",
+  "sfx": "crowd",
+  "vfx": "confetti",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "cheer cutaways"
+ },
+ {
+  "t": 78.0,
+  "seconds": 4.0,
+  "shot": "WS",
+  "angle": "low",
+  "camera": "static",
+  "who": [],
+  "line": null,
+  "action": "after, quiet: the empty pipe, embers",
+  "expression": "",
+  "sfx": "embers, room tone",
+  "vfx": "embers",
+  "method": "DoD clip (green screen, keyed) on graded Rainbow Full Pipe reference, ffmpeg camera crop",
+  "why": "quiet after"
+ },
+ {
+  "t": 82.0,
+  "seconds": 2.0,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Pyro Singer"
+  ],
+  "line": "You were flat.",
+  "action": "tired, fond",
+  "expression": "deadpan",
+  "sfx": "",
+  "vfx": "",
+  "method": "Pyro Singer face still (image.edit from her reference) -> video.i2v micro-motion -> ffmpeg push-in",
+  "why": ""
+ },
+ {
+  "t": 84.0,
+  "seconds": 1.6,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "I'm a chorus.",
+  "action": "earnest",
+  "expression": "earnest",
+  "sfx": "",
+  "vfx": "",
+  "method": "Pyro Singer face still (image.edit from her reference) -> video.i2v micro-motion -> ffmpeg push-in",
+  "why": ""
+ },
+ {
+  "t": 85.6,
+  "seconds": 3.0,
+  "shot": "CU",
+  "angle": "low",
+  "camera": "push-in",
+  "who": [
+   "Pyro Singer"
+  ],
+  "line": "Stay flat.",
+  "action": "a small smile",
+  "expression": "smile",
+  "sfx": "",
+  "vfx": "",
+  "method": "Pyro Singer face still (image.edit from her reference) -> video.i2v micro-motion -> ffmpeg push-in",
+  "why": "the button"
+ },
+ {
+  "t": 88.6,
+  "seconds": 1.5,
+  "shot": "card",
+  "angle": "eye",
+  "camera": "static",
+  "who": [],
+  "line": null,
+  "action": "END CARD: Dose Of Destruction / Made with Hawkes Gen \u00b7 hawkesgen.com",
+  "expression": "",
+  "sfx": "",
+  "vfx": "",
+  "method": "ffmpeg drawtext",
+  "why": "only selling"
+ }
+]

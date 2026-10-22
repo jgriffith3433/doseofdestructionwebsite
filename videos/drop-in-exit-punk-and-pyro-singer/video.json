@@ -1,0 +1,31 @@
+{
+  "slug": "drop-in-exit-punk-and-pyro-singer",
+  "format": { "kind": "wide", "width": 1920, "height": 1080, "fps": 24, "seconds": 90 },
+  "version": 0,
+  "status": "pass 1: voices made, song and portraits queued; cut not built yet",
+  "cast": [
+    { "name": "Pyro Singer", "voice": "9BWtsMINqrJLrRacOk9x (Aria)", "model": "eleven_v4",
+      "forms": [{ "kind": "clips2d", "source": "doseofdestruction/pyro-singer: reference a_5fe2890019ac78db, side a_aed5f83855029fca, clips idle/walk/jab/fair/fsmash/uair/nspecial/hurt/jump (green screen)" }] },
+    { "name": "Exit Punk", "voice": "bIHbv24MWmeRgasZH58o (Will)", "model": "eleven_v4",
+      "forms": [{ "kind": "clips2d", "source": "doseofdestruction/exit-punk: reference a_5ba184e1455c5dad, side a_2f943d6731c0e9f2, clips idle/walk/jab/fair/fsmash/nair/fall/hurt/jump" }] },
+    { "name": "Blog Man / Chooser / Got Ur Back", "forms": [{ "kind": "clips2d", "source": "doseofdestruction/<id> reference, clip/idle, clip/jump, clip/hurt (crowd cutaways, silhouettes)" }] }
+  ],
+  "set": "stages/rainbow-full-pipe/reference.webp (graded dark, concert light) and wide/stage-art.webp",
+  "voices": [
+    { "line": "PYRO hook: I sing the opener...", "asset": "a_7abfab8caf2cafb1", "job": "j_6e199d604d6c", "seconds": 4.75 },
+    { "line": "PYRO: Nobody asked.", "asset": "a_19169aa7e8214483", "job": "j_19cb4f27a93f", "seconds": 1.72 },
+    { "line": "PYRO: Three already?...", "asset": "a_b58023aed3dd11d4", "job": "j_f034882e4a2a", "seconds": 3.71 },
+    { "line": "PYRO: You were flat.", "asset": "a_477bf6cad5a8bf8d", "job": "j_9066b8a68220", "seconds": 1.57 },
+    { "line": "PYRO: Stay flat.", "asset": "a_cd4eff453aed26d4", "job": "j_912a4a417a85", "seconds": 2.19 },
+    { "line": "EXIT PUNK: I don't sing.", "asset": "a_c2c7e59079ee21b5", "job": "j_f838b1203d8b", "seconds": 1.88 },
+    { "line": "EXIT PUNK: I know.", "asset": "a_ae4638cafdec50cd", "job": "j_c18720eb8b18", "seconds": 1.96 },
+    { "line": "EXIT PUNK: Sing it again.", "asset": "a_715802edb8326271", "job": "j_e5d257d2b48e", "seconds": 1.49 },
+    { "line": "EXIT PUNK: I'm a chorus.", "asset": "a_0971c565c6b2d60f", "job": "j_733d24a63ddb", "seconds": 1.49 }
+  ],
+  "gpuJobs": {
+    "song (audio.music, 2 takes, 100 s, 118 bpm)": "j_26d08ff39f39",
+    "portraits (image.edit)": ["j_eada77c20326 pyro eyes", "j_9c3c822272f1 pyro singing", "j_58d4974e5fa3 pyro eyebrow", "j_52dc1ad8e3a1 punk sheepish", "j_fef203cb6235 punk grin"]
+  },
+  "next": "judge song (pick take, find section times, retime beats.json to the beat); judge portraits; queue video.i2v micro-motion for reaction CUs (one batch); build the cut with ffmpeg composite + video.compose; karaoke captions; end card",
+  "cost": "voices about $0.10; GPU est. about $0.06 song + $0.15 portraits so far"
+}
