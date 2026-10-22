@@ -5,7 +5,7 @@
   "width": 1920,
   "height": 1080,
   "fps": 24,
-  "seconds": "~60-70 first part"
+  "seconds": 51.7
  },
  "version": 1,
  "gpu": "$2.50 approved; keyframes queued, motion/talk after judging",
@@ -144,7 +144,14 @@
   }
  },
  "shots": [],
- "cut": null,
+ "cut": {
+  "job": "j_a3f975917ac8",
+  "asset": "a_de96d7fea71425e7",
+  "poster": "a_79f5aef74ffe9aa4",
+  "seconds": 51.7,
+  "file": "out/cut.mp4",
+  "note": "end card appended locally with ffmpeg (out/endcard.mp4); compose can't take local files, so the Gen asset is the cut without it"
+ },
  "picked_keyframes": {
   "hook": "a_7d2674bd341afac5",
   "SW_descends": "a_baebd122248c4926",
@@ -217,5 +224,19 @@
   "EP_gentle": "a_a27903b3abc2c617",
   "SW_cracked": "a_6de4143e75eb69f7",
   "SW_calm": "a_abe8b914b0afecbe"
- }
+ },
+ "talk": {
+  "SW1": "j_f1b1edf9288a",
+  "SW2": "j_d16137bf2e72",
+  "SW3": "j_7b4eed461817",
+  "SW4": "j_3485d697663e",
+  "SW5": "j_de6e6dd6decc",
+  "SW6": "j_40a5986fb85a",
+  "SW7": "j_be61440841b1",
+  "EP1": "j_662c357b274c",
+  "EP2": "j_f8f3ba48d47e",
+  "EP3": "j_e4350f242f80",
+  "EP4": "j_afc58e1cd15f"
+ },
+ "cost": "about $2.0 of the $2.50 (voices, keyframes, 5 i2v, 11 talk, failed first talk batch)"
 }
