@@ -171,7 +171,51 @@
    "j_ad03515f0791",
    "j_d979adf19fe5",
    "j_7fb076aa18cb"
+  ],
+  "talk_retry": [
+   "j_d16137bf2e72",
+   "j_f1b1edf9288a",
+   "j_7b4eed461817",
+   "j_3485d697663e",
+   "j_de6e6dd6decc",
+   "j_40a5986fb85a",
+   "j_be61440841b1",
+   "j_662c357b274c",
+   "j_f8f3ba48d47e",
+   "j_e4350f242f80",
+   "j_afc58e1cd15f"
   ]
  },
- "notes": "Exit Punk is the blond kid in the yellow tee (his reference); Small Weather the glasses/navy jacket man. Keyframes judged on-model. Spent ~$0.25 so far."
+ "notes": "Exit Punk is the blond kid in the yellow tee (his reference); Small Weather the glasses/navy jacket man. Keyframes judged on-model. Spent ~$0.25 so far. First talk batch (j_a4babfb38a67 etc.) failed on frame counts; retried with 8k+1 frames.",
+ "clips_i2v": {
+  "hook": {
+   "job": "j_2f7bad7dadbc",
+   "asset": "a_da9196ee5b2ff12c",
+   "note": "truck barely rises; acceptable, drop falls out of frame"
+  },
+  "SW_descends": {
+   "job": "j_13131b069244",
+   "asset": "a_8ac44b96360b381f"
+  },
+  "grind": {
+   "job": "j_99224276417b",
+   "asset": "a_0bb6ac95fb2428d6",
+   "note": "best shot"
+  },
+  "two_shot": {
+   "job": "j_3f5d314f53f9",
+   "asset": "a_4f8bf28528e23614",
+   "note": "near-static, fine for a hold"
+  },
+  "skid": {
+   "job": "j_5166a55c81f6",
+   "asset": "a_2975033644f5ce4f",
+   "note": "use first ~2.5 s, board morphs later"
+  }
+ },
+ "portraits": {
+  "EP_gentle": "a_a27903b3abc2c617",
+  "SW_cracked": "a_6de4143e75eb69f7",
+  "SW_calm": "a_abe8b914b0afecbe"
+ }
 }
