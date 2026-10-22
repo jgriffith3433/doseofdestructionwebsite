@@ -1,7 +1,7 @@
 {
  "slug": "dead-air-exit-punk-and-shutup-bot",
  "format": "wide 1920x1080",
- "status": "part 1: keyframes, voices and the Gen video clips queued; cut not yet composed",
+ "status": "cut v1 composed locally with build.py (ffmpeg): out/cut.mp4, 1920x1080, 85.8 s",
  "cast": [
   {
    "name": "Exit Punk",
@@ -61,5 +61,23 @@
    "doors": "a_11dc852e1e7fb150",
    "bothelp": "a_0be9759a2dfeaf5b"
   }
+ },
+ "cut": {
+  "file": "out/cut.mp4",
+  "seconds": 85.8,
+  "timeline": "out/timeline.json (actual segment starts; beats.json times are the plan)"
+ },
+ "clip_assets": {
+  "E1a": "a_f0e62495922379ae",
+  "E2b": "a_59ebf26aab11ee11",
+  "E3b": "a_7bfe79aa498920b7",
+  "E3c": "a_a20eb083e66f1b27",
+  "E5": "a_aa5e76ce15125eb3",
+  "E6": "a_de6d6e2fc009a194",
+  "E7": "a_c93abe8342999875",
+  "slide": "a_04404c887de28400",
+  "eyes": "a_cc535291dce23aca",
+  "doors": "a_11dc852e1e7fb150",
+  "bothelp": "a_0be9759a2dfeaf5b"
  }
 }
