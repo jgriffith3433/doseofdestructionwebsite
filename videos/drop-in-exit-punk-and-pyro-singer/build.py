@@ -472,10 +472,10 @@ def s09(t, T):
     for i in range(70):
         ph = rnd.random() * 6.28
         age = (t * 1.6 + rnd.random()) % 1
-        x = W * (0.36 + rnd.random() * 0.2) + math.sin(t * 7 + ph) * 22
-        y = H * 0.35 - age * H * 0.3 + rnd.random() * 90
-        r = (1 - age) * 34 * SC + 3
-        d.ellipse((x - r, y - r, x + r, y + r), fill=(255, int(190 - 120 * age), 40, int(190 * (1 - age))))
+        x = W * (0.12 + rnd.random() * 0.42) + math.sin(t * 7 + ph) * 22
+        y = H * 0.20 - age * H * 0.2 + rnd.random() * 80
+        r = (1 - age) * 15 * SC + 2
+        d.ellipse((x - r, y - r * 2.2, x + r, y + r * 1.2), fill=(255, int(150 - 100 * age), 30, int(120 * (1 - age))))
     ember_overlay(im, t, 90, 14, speed=130)
     return finish(im, t, T, bloom_s=0.55, lit_flash=0.12 * pulse(18.0 + t))
 
