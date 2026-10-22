@@ -1,0 +1,245 @@
+{
+  "slug": "headline-blog-mans-newsroom",
+  "format": {
+    "kind": "wide",
+    "width": 1920,
+    "height": 1080,
+    "fps": 24,
+    "seconds": 93
+  },
+  "version": 1,
+  "status": "cut v1 built",
+  "cast": [
+    {
+      "name": "Blog Man",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "model": "eleven_v4",
+      "forms": [
+        {
+          "kind": "still",
+          "source": "doseofdestruction/blog-man reference a_fefe2d726f6431c6, side a_253a98a4473755bc; 2D clips in characters/anim/blog-man"
+        }
+      ]
+    },
+    {
+      "name": "Exit Punk",
+      "voice": "bIHbv24MWmeRgasZH58o",
+      "model": "eleven_v4",
+      "forms": [
+        {
+          "kind": "still",
+          "source": "doseofdestruction/exit-punk reference a_5ba184e1455c5dad; 2D clips in characters/anim/exit-punk"
+        }
+      ]
+    },
+    {
+      "name": "Announcer",
+      "voice": "nPczCjzI2devNBz1zQrb",
+      "model": "eleven_v4",
+      "forms": []
+    }
+  ],
+  "voices": [
+    {
+      "line": "bm1",
+      "asset": "a_7bc72be7da9b6c14",
+      "job": "j_3200f3fb0cd6",
+      "seconds": 5.41
+    },
+    {
+      "line": "ep1",
+      "asset": "a_67ec051309ae1b6a",
+      "job": "j_6c383fcf0a21",
+      "seconds": 3.71
+    },
+    {
+      "line": "bm2",
+      "asset": "a_b8b2991f3f151345",
+      "job": "j_6a7939291e49",
+      "seconds": 4.21
+    },
+    {
+      "line": "ep2",
+      "asset": "a_e49d9da60067b455",
+      "job": "j_81cbe7613d37",
+      "seconds": 2.27
+    },
+    {
+      "line": "bm3",
+      "asset": "a_bb7916fd6df2753c",
+      "job": "j_088baa1b0be5",
+      "seconds": 3.79
+    },
+    {
+      "line": "ep3",
+      "asset": "a_7f16dd4f75a31112",
+      "job": "j_880faf009083",
+      "seconds": 1.15
+    },
+    {
+      "line": "bm4",
+      "asset": "a_9b618023072d85e7",
+      "job": "j_58c3c695cc81",
+      "seconds": 5.72
+    },
+    {
+      "line": "bm5",
+      "asset": "a_1096f46b35535e07",
+      "job": "j_65881c3cdedc",
+      "seconds": 10.37
+    },
+    {
+      "line": "ep4",
+      "asset": "a_a51d540bf31b928b",
+      "job": "j_7a11b52b15f4",
+      "seconds": 2.43
+    },
+    {
+      "line": "bm6",
+      "asset": "a_b42f244065c5d9cf",
+      "job": "j_b6498353240f",
+      "seconds": 2.35
+    },
+    {
+      "line": "ep5",
+      "asset": "a_73765c3f92e69d7a",
+      "job": "j_457dc61d206b",
+      "seconds": 1.72
+    },
+    {
+      "line": "bm7",
+      "asset": "a_42cf00a704fc5f81",
+      "job": "j_b045a81dfe51",
+      "seconds": 5.25
+    },
+    {
+      "line": "ep6",
+      "asset": "a_6edfcc44b2b83a19",
+      "job": "j_98cb4afbbb04",
+      "seconds": 1.07
+    },
+    {
+      "line": "bm8a",
+      "asset": "a_6cbb48d2b03d06c5",
+      "job": "j_a389268ffcb6",
+      "seconds": 3.0
+    },
+    {
+      "line": "bm8b",
+      "asset": "a_86972b615f3ca0b4",
+      "job": "j_a586d09e75af",
+      "seconds": 9.33
+    },
+    {
+      "line": "bm9",
+      "asset": "a_927db2946eda5dd5",
+      "job": "j_a586d09e75af",
+      "seconds": 2.12
+    },
+    {
+      "line": "ep7",
+      "asset": "a_2f3fc4d602c0131b",
+      "job": "j_e88d3dfa1121",
+      "seconds": 1.8
+    },
+    {
+      "line": "bm10",
+      "asset": "a_acae895ac9a7da12",
+      "job": "j_b1307bad5c6e",
+      "seconds": 1.65
+    },
+    {
+      "line": "bm11",
+      "asset": "a_77dec9efdbead641",
+      "job": "j_4fdd24af207b",
+      "seconds": 3.47
+    },
+    {
+      "line": "an1",
+      "asset": "a_3fa571fc0ea2cc7c",
+      "job": "j_9f7db0002f2f",
+      "seconds": 1.57
+    }
+  ],
+  "plates": [
+    {
+      "id": "P1 newsroom wide",
+      "job": "j_6555f2921900",
+      "asset": "a_7f689fe5de317af9",
+      "file": "plates/P1.png",
+      "judged": "ok (headline text on the pinned pages is garbled, kept as blurred copy)"
+    },
+    {
+      "id": "P2 reverse angle",
+      "job": "j_066c0def24f6",
+      "asset": "a_068cbe6cc0221230",
+      "file": "plates/P2.png",
+      "judged": "ok (headline text on the pinned pages is garbled, kept as blurred copy)"
+    },
+    {
+      "id": "P3 wall of pages",
+      "job": "j_fe3b9c2b7cf8",
+      "asset": "a_c0bf7a02ea1ab217",
+      "file": "plates/P3.png",
+      "judged": "ok (headline text on the pinned pages is garbled, kept as blurred copy)"
+    },
+    {
+      "id": "P4 typewriter CU",
+      "job": "j_baac6826bea2",
+      "asset": "a_1f10af8c1fabf351",
+      "file": "plates/P4.png",
+      "judged": "ok (headline text on the pinned pages is garbled, kept as blurred copy)"
+    },
+    {
+      "id": "P5 pneumatic tube",
+      "job": "j_859c194da62d",
+      "asset": "a_afacef29d5b3d6d1",
+      "file": "plates/P5.png",
+      "judged": "ok (headline text on the pinned pages is garbled, kept as blurred copy)"
+    },
+    {
+      "id": "P6 front page",
+      "job": "j_4272734f471e",
+      "asset": "a_04c50a4de0bd463e",
+      "file": "plates/P6.png",
+      "judged": "ok (headline text on the pinned pages is garbled, kept as blurred copy)"
+    }
+  ],
+  "plan": "plates -> image.edit portraits (plate + reference) -> video.talk per line -> ffmpeg halftone montage -> video.compose. Blender is not used: the budget ($2.50) cannot pay for Blender+LTX repaints of 30+ shots, and both heroes exist only as 2D art.",
+  "cost": "voices about $0.35 so far; plates queued",
+  "portraits": {
+    "blog-man boom": [
+      "a_d932fd6d7b386937",
+      "a_dd756d52269ec4d9"
+    ],
+    "blog-man moved": [
+      "a_e8193ffcc0df20ea",
+      "a_1d60d8c5bb26ad86"
+    ],
+    "exit-punk deadpan": [
+      "a_728847f939f4bc48",
+      "a_d5ed9f3628cf1e46"
+    ],
+    "exit-punk curious": [
+      "a_9d12accb4813b348",
+      "a_312b6aff189b4dfc"
+    ],
+    "judged": "all on-model (face, hair, glasses, cape, shirt)"
+  },
+  "talk": {
+    "C1": "j_51d4f4fc6aa7",
+    "C2": "j_3203afb797da",
+    "C4": "j_9cb1243858a4",
+    "C5": "j_ce14283fde32",
+    "C6": "j_dbf5509fff47",
+    "C7": "j_e1d4c6c39c08",
+    "C8": "j_29239010157a",
+    "note": "voice lines of one speaker stitched into chunks (talk/C*.wav, offsets in talk/chunks.json); lines are cut out of each clip by offset"
+  },
+  "stage": "final",
+  "talk_jobs": {
+    "C1": "j_79e02d5ad71f",
+    "C5": "j_a41720b3569c",
+    "C8": "j_ebe41afdde24"
+  }
+}

@@ -1,0 +1,454 @@
+{
+ "file": "videos/dead-air-exit-punk-and-shutup-bot/out/cut.mp4",
+ "poster": "videos/dead-air-exit-punk-and-shutup-bot/out/poster.png",
+ "seconds": 88.3,
+ "summary": "v2 (make it funnier, no new GPU): J's lines and the 8 s silence unchanged. Added the Bot's deadpan as comedy: a floor chime ding right after 'We're not moving', the Bot blinks once after the 'paid to hit you' joke (cutaway before Exit Punk's no-laugh face), and after 'Was that a joke? Was that you?' its CRT types three dots, then deletes them (nothing). Tightened the no-laugh reaction and the pause after the question. Still the v1 shots; clips are soft.",
+ "caption": "Stuck in an elevator with the guy who's paid to hit you. #DoseOfDestruction #ExitPunk #ShutupBot #HawkesGen hawkesgen.com",
+ "beats": [
+  {
+   "t": 0,
+   "seconds": 0.4,
+   "shot": "ECU",
+   "angle": "low",
+   "camera": "static",
+   "who": [
+    "Exit Punk"
+   ],
+   "line": null,
+   "action": "elevator lurches; lights die; red emergency light slams on",
+   "expression": "eyes wide",
+   "sfx": "cable groan, thunk, power-down whine",
+   "vfx": "blackout flash then red",
+   "method": "k1 keyframe, cut: black + red flash",
+   "why": ""
+  },
+  {
+   "t": 0.4,
+   "seconds": 4.8,
+   "shot": "CU",
+   "angle": "low",
+   "camera": "handheld",
+   "who": [
+    "Exit Punk"
+   ],
+   "line": "No no no no. Hey. Hi. Hey. You're my nine o'clock.",
+   "action": "mid-word, face lit from below, glances into the dark at the Bot",
+   "expression": "panic collapsing into a nervous grin",
+   "sfx": "room tone, red lamp buzz",
+   "vfx": "red flicker",
+   "method": "keyframe image.edit from Exit Punk reference + elevator blockout -> video.talk (InfiniteTalk) with ElevenLabs line (k1)",
+   "why": "J: hook is Exit Punk's face mid-word"
+  },
+  {
+   "t": 5.2,
+   "seconds": 1.2,
+   "shot": "CU",
+   "angle": "eye",
+   "camera": "push-in",
+   "who": [
+    "Shutup Bot"
+   ],
+   "line": null,
+   "action": "CRT face: a single flat cyan line, red lamp on its shell",
+   "expression": "flat line",
+   "sfx": "low CRT hum",
+   "vfx": "scanline flicker",
+   "method": "k19 keyframe, slow push-in in the cut",
+   "why": "Bot never speaks; the silence is the joke"
+  },
+  {
+   "t": 6.4,
+   "seconds": 3.0,
+   "shot": "MS",
+   "angle": "eye",
+   "camera": "static",
+   "who": [
+    "Exit Punk"
+   ],
+   "line": "I'll count floors. We're not moving.",
+   "action": "counts on fingers, deflates",
+   "expression": "forced cheer to dread",
+   "sfx": "finger taps",
+   "vfx": "None",
+   "method": "k4 pacing keyframe (hands up) with VO over it, slight shake",
+   "why": "line over a physical reaction on purpose"
+  },
+  {
+   "t": 9.4,
+   "seconds": 5.6,
+   "shot": "OTS",
+   "angle": "eye",
+   "camera": "static",
+   "who": [
+    "Exit Punk",
+    "Shutup Bot"
+   ],
+   "line": "You know it's a good sign when the elevator dies and you're in here with the guy who's paid to hit you.",
+   "action": "dry joke over the Bot's soft-focus shoulder",
+   "expression": "wry half smile",
+   "sfx": "none",
+   "vfx": "None",
+   "method": "keyframe image.edit from Exit Punk reference + elevator blockout -> video.talk (InfiniteTalk) with ElevenLabs line (k2)",
+   "why": "over-the-shoulder, the joke aimed at a wall of rust"
+  },
+  {
+   "t": 15.0,
+   "seconds": 1.8,
+   "shot": "CU",
+   "angle": "eye",
+   "camera": "push-in",
+   "who": [
+    "Exit Punk"
+   ],
+   "line": null,
+   "action": "waits for a laugh that doesn't come, smile fades",
+   "expression": "hopeful then fading",
+   "sfx": "one long silence, lamp buzz",
+   "vfx": "None",
+   "method": "k3 keyframe, push-in in the cut",
+   "why": "reaction on the punchline, held on purpose"
+  },
+  {
+   "t": 16.8,
+   "seconds": 2.4,
+   "shot": "MS",
+   "angle": "eye",
+   "camera": "handheld",
+   "who": [
+    "Exit Punk"
+   ],
+   "line": "Do you like it? Fighting?",
+   "action": "circles the tiny room trying things, hands up",
+   "expression": "restless",
+   "sfx": "sneaker squeaks",
+   "vfx": "None",
+   "method": "k5 keyframe, handheld shake in the cut",
+   "why": "handheld circling per J"
+  },
+  {
+   "t": 19.2,
+   "seconds": 4.4,
+   "shot": "CU",
+   "angle": "eye",
+   "camera": "handheld",
+   "who": [
+    "Exit Punk"
+   ],
+   "line": "I don't mind the fighting. It's the thing before. The waiting.",
+   "action": "earnest, looking off to the side",
+   "expression": "trying to sound casual",
+   "sfx": null,
+   "vfx": "None",
+   "method": "keyframe image.edit from Exit Punk reference + elevator blockout -> video.talk (InfiniteTalk) with ElevenLabs line (k3)",
+   "why": "change of angle from the OTS"
+  },
+  {
+   "t": 23.6,
+   "seconds": 5.6,
+   "shot": "MCU",
+   "angle": "dutch",
+   "camera": "handheld",
+   "who": [
+    "Exit Punk"
+   ],
+   "line": "First round I threw up in a bucket. Please don't tell anyone, they'll put it on a poster.",
+   "action": "hand beside mouth, confessing, then whispering",
+   "expression": "embarrassed",
+   "sfx": "None",
+   "vfx": "None",
+   "method": "keyframe image.edit from Exit Punk reference + elevator blockout -> video.talk (InfiniteTalk) with ElevenLabs line (k6)",
+   "why": "dutch angle for the shame"
+  },
+  {
+   "t": 29.2,
+   "seconds": 1.6,
+   "shot": "insert",
+   "angle": "eye",
+   "camera": "static",
+   "who": [
+    "Shutup Bot"
+   ],
+   "line": null,
+   "action": "CRT face flickers from the flat line to a small polite pixel bucket",
+   "expression": "tiny bucket icon",
+   "sfx": "CRT blip",
+   "vfx": "CRT flicker cut",
+   "method": "k19 -> k20 stills, flicker cut",
+   "why": "insert: the Bot's only reply"
+  },
+  {
+   "t": 30.8,
+   "seconds": 2.4,
+   "shot": "CU",
+   "angle": "eye",
+   "camera": "static",
+   "who": [
+    "Exit Punk"
+   ],
+   "line": "Was that a joke? Was that you? (silence)",
+   "action": "stares at the Bot, hopeful",
+   "expression": "hope then nothing",
+   "sfx": "None",
+   "vfx": "None",
+   "method": "k7 keyframe, line from VO over it",
+   "why": "reaction CU, held a beat"
+  },
+  {
+   "t": 33.2,
+   "seconds": 3.0,
+   "shot": "WS",
+   "angle": "high",
+   "camera": "static",
+   "who": [
+    "Exit Punk",
+    "Shutup Bot"
+   ],
+   "line": null,
+   "action": "he gives up and slides down the wall; the Bot doesn't move",
+   "expression": "defeated",
+   "sfx": "wall squeak, thud",
+   "vfx": "None",
+   "method": "video.i2v from k8 keyframe",
+   "why": "physical reaction: the slide"
+  },
+  {
+   "t": 36.2,
+   "seconds": 8.0,
+   "shot": "MS",
+   "angle": "eye",
+   "camera": "push-in",
+   "who": [
+    "Exit Punk"
+   ],
+   "line": null,
+   "action": "EIGHT SECONDS OF SILENCE, red light pulsing; slow push-in; shoulders drop; he stops talking",
+   "expression": "staring at the floor",
+   "sfx": "only room tone and the pulse",
+   "vfx": "red pulse",
+   "method": "k9 keyframe, 8 s slow push-in in the cut (deliberate hold: J asked for it)",
+   "why": "deliberate long hold: the heart of the film"
+  },
+  {
+   "t": 44.2,
+   "seconds": 1.8,
+   "shot": "ECU",
+   "angle": "eye",
+   "camera": "static",
+   "who": [
+    "Exit Punk"
+   ],
+   "line": null,
+   "action": "faint hum; his eyes move toward it",
+   "expression": "listening",
+   "sfx": "faint off-key hold-music hum fades in",
+   "vfx": null,
+   "method": "video.i2v from k10 keyframe",
+   "why": "the first sound in the room"
+  },
+  {
+   "t": 46.0,
+   "seconds": 3.0,
+   "shot": "WS",
+   "angle": "eye",
+   "camera": "pull-out",
+   "who": [
+    "Exit Punk",
+    "Shutup Bot"
+   ],
+   "line": null,
+   "action": "reveal: the hum is coming from the Bot, who has been humming under everything",
+   "expression": "surprise",
+   "sfx": "hum swells",
+   "vfx": "None",
+   "method": "k11 two-shot, pull-out in the cut",
+   "why": "wide reveal per J"
+  },
+  {
+   "t": 49.0,
+   "seconds": 2.6,
+   "shot": "MCU",
+   "angle": "eye",
+   "camera": "push-in",
+   "who": [
+    "Exit Punk"
+   ],
+   "line": "You've been humming this whole time.",
+   "action": "turns, dawning",
+   "expression": "dawning surprise",
+   "sfx": "None",
+   "vfx": "None",
+   "method": "keyframe image.edit from Exit Punk reference + elevator blockout -> video.talk (InfiniteTalk) with ElevenLabs line (k12)",
+   "why": "reveal line in his face"
+  },
+  {
+   "t": 51.6,
+   "seconds": 1.4,
+   "shot": "CU",
+   "angle": "eye",
+   "camera": "static",
+   "who": [
+    "Shutup Bot"
+   ],
+   "line": "Fine.",
+   "action": "Bot answers, CRT flat line",
+   "expression": "flat",
+   "sfx": "servo click",
+   "vfx": "None",
+   "method": "k19 still + the Bot voice line (it never lip-syncs: its face is a screen)",
+   "why": "the Bot's first word"
+  },
+  {
+   "t": 53.0,
+   "seconds": 4.3,
+   "shot": "CU",
+   "angle": "eye",
+   "camera": "static",
+   "who": [
+    "Exit Punk"
+   ],
+   "line": "Okay. Okay. Keep going.",
+   "action": "dazed laugh, eyes glassy",
+   "expression": "relieved",
+   "sfx": "None",
+   "vfx": "None",
+   "method": "keyframe image.edit from Exit Punk reference + elevator blockout -> video.talk (InfiniteTalk) with ElevenLabs line (k13)",
+   "why": "emotional turn"
+  },
+  {
+   "t": 57.3,
+   "seconds": 3.6,
+   "shot": "MWS",
+   "angle": "eye",
+   "camera": "static",
+   "who": [
+    "Exit Punk",
+    "Shutup Bot"
+   ],
+   "line": null,
+   "action": "side by side on the floor, the hum, he joins in flat and wrong",
+   "expression": "small peace",
+   "sfx": "two flat hums",
+   "vfx": "None",
+   "method": "k14 keyframe, slow push-in in the cut",
+   "why": "the two-shot payoff"
+  },
+  {
+   "t": 60.9,
+   "seconds": 1.6,
+   "shot": "ECU",
+   "angle": "eye",
+   "camera": "static",
+   "who": [
+    "Shutup Bot"
+   ],
+   "line": null,
+   "action": "CRT face: a small smile of two pixels",
+   "expression": "tiny smile",
+   "sfx": "CRT blip",
+   "vfx": "None",
+   "method": "k21 keyframe",
+   "why": "the smile"
+  },
+  {
+   "t": 62.5,
+   "seconds": 2.6,
+   "shot": "WS",
+   "angle": "low",
+   "camera": "static",
+   "who": [
+    "Exit Punk",
+    "Shutup Bot"
+   ],
+   "line": null,
+   "action": "elevator jolts back to life; the doors open onto blinding stage light and a roaring crowd",
+   "expression": "shock",
+   "sfx": "jolt, door slide, crowd roar",
+   "vfx": "lens flare, light beams",
+   "method": "video.i2v from k15 keyframe",
+   "why": "the reveal of the stage"
+  },
+  {
+   "t": 65.1,
+   "seconds": 2.8,
+   "shot": "MS",
+   "angle": "low",
+   "camera": "static",
+   "who": [
+    "Shutup Bot"
+   ],
+   "line": null,
+   "action": "the Bot stands first, backlit, offers a hand and pulls him up",
+   "expression": "stiff, kind",
+   "sfx": "servo, door",
+   "vfx": "rim light",
+   "method": "video.i2v from k16 keyframe",
+   "why": "bespoke servo motion for the Bot"
+  },
+  {
+   "t": 67.9,
+   "seconds": 3.9,
+   "shot": "CU",
+   "angle": "eye",
+   "camera": "static",
+   "who": [
+    "Exit Punk"
+   ],
+   "line": "I'm going to lose to you so hard.",
+   "action": "grinning, stage light behind",
+   "expression": "grinning",
+   "sfx": null,
+   "vfx": "flare",
+   "method": "keyframe image.edit from Exit Punk reference + elevator blockout -> video.talk (InfiniteTalk) with ElevenLabs line (k17)",
+   "why": "his line, in the light"
+  },
+  {
+   "t": 71.8,
+   "seconds": 1.2,
+   "shot": "CU",
+   "angle": "eye",
+   "camera": "static",
+   "who": [
+    "Shutup Bot"
+   ],
+   "line": "Fine.",
+   "action": "backlit, flat line",
+   "expression": "flat",
+   "sfx": null,
+   "vfx": "None",
+   "method": "k22 keyframe + Bot voice",
+   "why": "the Bot's last word"
+  },
+  {
+   "t": 73.0,
+   "seconds": 1.5,
+   "shot": "ECU",
+   "angle": "eye",
+   "camera": "static",
+   "who": [
+    "Exit Punk"
+   ],
+   "line": null,
+   "action": "grinning for the first time, hard cut to black",
+   "expression": "grin",
+   "sfx": "crowd roar cuts out",
+   "vfx": "None",
+   "method": "k18 keyframe",
+   "why": "reaction CU, then hard cut to black"
+  },
+  {
+   "t": 74.5,
+   "seconds": 1.5,
+   "shot": "insert",
+   "angle": "eye",
+   "camera": "static",
+   "who": [],
+   "line": null,
+   "action": "END CARD: Dose Of Destruction; Made with Hawkes Gen \u00b7 hawkesgen.com (small)",
+   "expression": null,
+   "sfx": null,
+   "vfx": null,
+   "method": "ffmpeg card",
+   "why": "the only selling"
+  }
+ ]
+}
