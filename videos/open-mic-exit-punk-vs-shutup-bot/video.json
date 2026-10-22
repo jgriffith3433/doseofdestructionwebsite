@@ -1,0 +1,31 @@
+{
+  "slug": "open-mic-exit-punk-vs-shutup-bot",
+  "format": { "kind": "short", "width": 1080, "height": 1920, "fps": 24, "seconds": 22 },
+  "version": 1,
+  "gpu": "none",
+  "cast": [
+    { "name": "Announcer", "voice": "nPczCjzI2devNBz1zQrb", "model": "eleven_v4", "forms": [] },
+    { "name": "Exit Punk", "voice": "bIHbv24MWmeRgasZH58o", "model": "eleven_v4",
+      "forms": [{ "kind": "clips2d", "source": "doseofdestruction/exit-punk clip/walk a_fe8e6cdbe692b5ca, clip/idle a_02dc41a792468956, clip/fair a_b4c48657f3a3e74a", "notes": "640x640 on #00FF00, 16 fps" }] },
+    { "name": "Shutup Bot", "voice": "SAz9YHcvj6GT2YYXdXww", "model": "eleven_v4",
+      "forms": [{ "kind": "clips2d", "source": "doseofdestruction/shutup-bot clip/idle a_e8ccced57a40f4ce", "notes": "mirrored to face left" }] }
+  ],
+  "voices": [
+    { "line": "ANNOUNCER 1", "asset": "a_ee14e0ea1048b835", "job": "j_f8fa1549b1a3", "seconds": 5.07, "start": 0.3 },
+    { "line": "EXIT PUNK 1", "asset": "a_d7241779a202bd0a", "job": "j_a1ca5411599b", "seconds": 2.59, "start": 5.6 },
+    { "line": "SHUTUP BOT 1", "asset": "a_0601a01c5194a3ad", "job": "j_c87a66a6c1db", "seconds": 2.12, "start": 8.5 },
+    { "line": "EXIT PUNK 2", "asset": "a_f9dca3af28f29716", "job": "j_d81d3cbd30b0", "seconds": 3.40, "start": 10.9 },
+    { "line": "SHUTUP BOT 2", "asset": "a_bb7b038627870c98", "job": "j_32383fe0e1f8", "seconds": 0.76, "start": 15.0 },
+    { "line": "SHUTUP BOT 3", "asset": "a_ffac42b53eb8d1a9", "job": "j_6eab69d4883e", "seconds": 0.99, "start": 17.4 },
+    { "line": "ANNOUNCER 2", "asset": "a_9bbfe98221105268", "job": "j_fa980dcda531", "seconds": 1.72, "start": 18.9 }
+  ],
+  "shots": [
+    { "id": "s1-scene", "method": "ffmpeg composite (chroma-keyed DoD clips over City Top stage art), build_scene.sh",
+      "characters": [{ "name": "Exit Punk", "form": "walk 0.3-2.3 s sliding in, idle, fair at 16.0 s" }, { "name": "Shutup Bot", "form": "idle, never moves" }],
+      "camera": "locked, vertical crop", "seconds": 20.5, "blob": "blob:713d85c3155d4e2d9451e27dd0c957e8b6c000f600971524b91f708d79dd7fb1" },
+    { "id": "s2-card", "method": "ffmpeg drawtext end card", "seconds": 1.5 }
+  ],
+  "captions": "burned in the scene (drawtext, y=1420, above TikTok's bottom 20%); text in captions/",
+  "cut": { "job": "j_52d13112b0b1", "asset": "a_59ef96d94fa10f84", "poster": "a_92bf5d893d8d4d88", "seconds": 22 },
+  "cost": "about $0.06 (voices only)"
+}
