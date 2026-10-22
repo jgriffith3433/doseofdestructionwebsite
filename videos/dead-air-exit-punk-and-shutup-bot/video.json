@@ -1,7 +1,7 @@
 {
  "slug": "dead-air-exit-punk-and-shutup-bot",
  "format": "wide 1920x1080",
- "status": "cut v1 composed locally with build.py (ffmpeg): out/cut.mp4, 1920x1080, 85.8 s",
+ "status": "cut v2 (funnier: Bot CRT gags + floor chime) composed with build.py, 88.3 s",
  "cast": [
   {
    "name": "Exit Punk",

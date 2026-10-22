@@ -1,0 +1,1 @@
+- convention: Bot CRT gags — drawbox patches over the flat line on the Bot keyframe (crt() in build.py) give blink/typing-dots jokes with no GPU.

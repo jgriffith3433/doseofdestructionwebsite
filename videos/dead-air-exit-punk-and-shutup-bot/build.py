@@ -26,17 +26,26 @@ def clipseg(name,d,extra="",trim=None):
 def stillseg(name,k,dur,kind,audio=None,extra=""):
     S(name,kf(k),dur,still_vf(dur,kind),audio=audio,extra=extra)
 A=lambda x:f'audio/{x}.mp3'
+# CRT gags on the Bot's flat-line screen: black patch over the line, then cyan marks drawn on it (screen interior only)
+def crt(blank,*marks):
+    f=",drawbox=x=740:y=535:w=470:h=64:color=0x050708:t=fill:enable='between(t,%s,%s)'"%blank
+    for (x,y,w,h,a,b) in marks: f+=",drawbox=x=%d:y=%d:w=%d:h=%d:color=0x19e6ff:t=fill:enable='between(t,%s,%s)'"%(x,y,w,h,a,b)
+    return f
 clipseg('s01_hook','E1a',extra=",fade=t=in:st=0:d=0.3,eq=brightness='0.05*sin(t*40)*exp(-t*1.5)':eval=frame")
 stillseg('s02_botflat','k19_bot_flat'.split('_')[0] if False else 'botflat',1.6,'push')
 stillseg('s03_count','pace1',dur_of(A('E2a'))+0.3,'hand',audio=A('E2a'))
 clipseg('s04_dry','E2b')
-stillseg('s05_nolaugh','wait',2.0,'push')
+stillseg('s04b_botblink','botflat',1.0,'static',extra=crt((0.3,0.7),(950,562,22,22,0.3,0.7)))   # the Bot blinks. once. that's the review
+stillseg('s05_nolaugh','wait',1.7,'push')
 stillseg('s06_do_you_like','pace2',dur_of(A('E3a'))+0.4,'hand',audio=A('E3a'))
 clipseg('s07_waiting','E3b')
 clipseg('s08_bucket','E3c')
 stillseg('s09_bucketicon_a','botflat',0.5,'push')
 stillseg('s09_bucketicon_b','botbucket',1.2,'push')
-stillseg('s10_joke','hopeful',dur_of(A('E4'))+1.0,'push',audio=A('E4'))
+stillseg('s10_joke','hopeful',dur_of(A('E4'))+0.7,'push',audio=A('E4'))
+dots=[(820+i*110,565,26,26,0.35+0.4*i,1.9) for i in range(3)]
+stillseg('s10b_typing','botflat',2.0,'static',extra=crt((0.3,1.9),*dots))   # three dots: it starts to answer, then deletes it
+
 clipseg('s11_slide','slide')
 stillseg('s12_silence','sit',8.0,'push',extra=",eq=brightness='0.07*sin(2*PI*t*0.7)-0.03':eval=frame")
 clipseg('s13_eyes','eyes')
@@ -94,6 +103,11 @@ add(tune,hum_on,0.05,"lowpass=f=1500,afade=t=in:d=1.2")
 # Exit Punk joining the hum (flat and wrong), from the 'together' shot
 add("aevalsrc='0.5*sin(2*PI*(233+20*mod(floor(t*2.2),5)*7)*t)':d=%.2f:s=48000"%(hum_end-st['s18_together']),st['s18_together']+0.4,0.045,"lowpass=f=1200")
 # SFX
+def ding(at,vol=0.2): add("aevalsrc='sin(2*PI*1318*t)*exp(-t*5)':d=1.2:s=48000",at,vol)
+ding(st['s03_count']+3.45)                                    # floor chime, while not moving
+add("sine=f=700:d=0.08:r=48000",st['s04b_botblink']+0.3,0.12); add("sine=f=700:d=0.08:r=48000",st['s04b_botblink']+0.7,0.12)
+for i in range(3): add("sine=f=%d:d=0.06:r=48000"%(600+60*i),st['s10b_typing']+0.35+0.4*i,0.1)
+add("sine=f=400:d=0.25:r=48000",st['s10b_typing']+1.9,0.08,"afade=t=out:d=0.25")   # delete
 add("anoisesrc=d=0.8:c=brown:r=48000:a=0.9",0.0,0.6,"lowpass=f=180,afade=t=out:d=0.8")                 # lurch/power-down thud
 add("sine=f=700:d=0.08:r=48000",st['s09_bucketicon_a'],0.12)                                            # CRT blip
 add("sine=f=900:d=0.08:r=48000",st['s19_smile'],0.12)
