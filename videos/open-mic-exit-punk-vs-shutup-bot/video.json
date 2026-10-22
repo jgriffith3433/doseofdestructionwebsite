@@ -114,5 +114,21 @@
   "skate_in": "j_af5ed3ef4c15 a_021c3bec3dc32595",
   "talk1": "j_ed4de7e149d7 a_8e5b7cf3135d677d",
   "talk2": "j_ba31f3417741 a_ae056c1a908fd5a2"
+ },
+ "v3": {
+  "cut": "out/cut.mp4",
+  "build": [
+   "build_v2.sh",
+   "build_v3.sh"
+  ],
+  "jobs": {
+   "board": "j_0087436a8601",
+   "hit": "j_42dcbcd9bd55",
+   "dent": "j_a466421945fd",
+   "smirk": "j_8c1629d94f75",
+   "satisfied": "j_f078b66f5224",
+   "swing_i2v": "j_b4478e57d754 (a_42dee65288ce404a)"
+  },
+  "stills": "stills/PICKS.md"
  }
 }
