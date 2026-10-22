@@ -1,0 +1,148 @@
+{
+ "slug": "thin-air-exit-punk-vs-small-weather",
+ "format": {
+  "kind": "wide",
+  "width": 1920,
+  "height": 1080,
+  "fps": 24,
+  "seconds": "~60-70 first part"
+ },
+ "version": 1,
+ "gpu": "$2.50 approved; keyframes queued, motion/talk after judging",
+ "cast": [
+  {
+   "name": "Exit Punk",
+   "voice": "bIHbv24MWmeRgasZH58o",
+   "model": "eleven_v4",
+   "forms": [
+    {
+     "kind": "reference",
+     "source": "doseofdestruction/exit-punk reference a_5ba184e1455c5dad, side a_2f943d6731c0e9f2"
+    },
+    {
+     "kind": "clips2d",
+     "source": "doseofdestruction/exit-punk clip/*"
+    }
+   ]
+  },
+  {
+   "name": "Small Weather",
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "model": "eleven_v4",
+   "forms": [
+    {
+     "kind": "reference",
+     "source": "doseofdestruction/small-weather reference a_02d916892b5b8a2d"
+    }
+   ]
+  }
+ ],
+ "voices": [
+  {
+   "line": "SW1 The Orchestrator asked for drama...",
+   "asset": "a_e2888948a1fcb46e",
+   "job": "j_c9c3f4522b89",
+   "seconds": 4.28,
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "file": "voice/audio-voice-a_e2888948a1fcb46e.mp3"
+  },
+  {
+   "line": "EP1 Is that allowed?",
+   "asset": "a_a73b52f263935984",
+   "job": "j_05da2689fb5d",
+   "seconds": 1.23,
+   "voice": "bIHbv24MWmeRgasZH58o",
+   "file": "voice/audio-voice-a_a73b52f263935984.mp3"
+  },
+  {
+   "line": "SW2 It's a broadcast.",
+   "asset": "a_ff7d89f33b5a4f6c",
+   "job": "j_424d283003ae",
+   "seconds": 1.88,
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "file": "voice/audio-voice-a_ff7d89f33b5a4f6c.mp3"
+  },
+  {
+   "line": "SW3 Huh. You fall like you mean it.",
+   "asset": "a_2af3bd3436620efb",
+   "job": "j_7733a485706d",
+   "seconds": 3.55,
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "file": "voice/audio-voice-a_2af3bd3436620efb.mp3"
+  },
+  {
+   "line": "SW4 When I first showed up...",
+   "asset": "a_9c9816ac9fad5817",
+   "job": "j_86cee7ab4bcf",
+   "seconds": 7.55,
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "file": "voice/audio-voice-a_9c9816ac9fad5817.mp3"
+  },
+  {
+   "line": "EP2 What happened?",
+   "asset": "a_0962a2e788e401a4",
+   "job": "j_dff1b240f3d5",
+   "seconds": 1.07,
+   "voice": "bIHbv24MWmeRgasZH58o",
+   "file": "voice/audio-voice-a_0962a2e788e401a4.mp3"
+  },
+  {
+   "line": "SW5 A newer cloud.",
+   "asset": "a_59220ce4c24848ae",
+   "job": "j_d1269d3f2c68",
+   "seconds": 1.65,
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "file": "voice/audio-voice-a_59220ce4c24848ae.mp3"
+  },
+  {
+   "line": "EP3 ...That's rough.",
+   "asset": "a_d4175297d9888c67",
+   "job": "j_39541156bf24",
+   "seconds": 1.41,
+   "voice": "bIHbv24MWmeRgasZH58o",
+   "file": "voice/audio-voice-a_d4175297d9888c67.mp3"
+  },
+  {
+   "line": "SW6 It rains harder when no one's looking...",
+   "asset": "a_1a2d1800602ddb3f",
+   "job": "j_3b7023d9aacd",
+   "seconds": 4.13,
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "file": "voice/audio-voice-a_1a2d1800602ddb3f.mp3"
+  },
+  {
+   "line": "EP4 Turn the gravity back on...",
+   "asset": "a_bd4a99208f52dc2d",
+   "job": "j_3fa9b3e825e1",
+   "seconds": 2.69,
+   "voice": "bIHbv24MWmeRgasZH58o",
+   "file": "voice/audio-voice-a_bd4a99208f52dc2d.mp3"
+  },
+  {
+   "line": "SW7 It was only ever me holding it up.",
+   "asset": "a_d33ec42e8f876164",
+   "job": "j_2871c5191b9b",
+   "seconds": 2.59,
+   "voice": "cjVigY5qzO86Huf0OWal",
+   "file": "voice/audio-voice-a_d33ec42e8f876164.mp3"
+  }
+ ],
+ "stills": {
+  "portrait_SW_calm": {
+   "job": "j_7e7a4c529797",
+   "assets": [
+    "a_abe8b914b0afecbe",
+    "a_8c18f68c859ab657"
+   ]
+  },
+  "queued_keyframes": {
+   "hook_truck": "j_49c968b087b0",
+   "SW_descends": "j_d927bd7e6ae3",
+   "grind_lightning": "j_c61b0722dbde",
+   "quiet_two_shot": "j_4bf41687a32f",
+   "skid_and_cloud": "j_ab11599a2b46"
+  }
+ },
+ "shots": [],
+ "cut": null
+}
