@@ -7,8 +7,8 @@
     "fps": 24,
     "seconds": 93
   },
-  "version": 0,
-  "status": "talking heads queued",
+  "version": 1,
+  "status": "cut v1 built",
   "cast": [
     {
       "name": "Blog Man",
@@ -235,5 +235,11 @@
     "C7": "j_e1d4c6c39c08",
     "C8": "j_29239010157a",
     "note": "voice lines of one speaker stitched into chunks (talk/C*.wav, offsets in talk/chunks.json); lines are cut out of each clip by offset"
+  },
+  "stage": "final",
+  "talk_jobs": {
+    "C1": "j_79e02d5ad71f",
+    "C5": "j_a41720b3569c",
+    "C8": "j_ebe41afdde24"
   }
 }
