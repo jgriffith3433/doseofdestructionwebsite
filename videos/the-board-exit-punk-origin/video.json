@@ -1,0 +1,28 @@
+{
+  "slug": "the-board-exit-punk-origin",
+  "format": { "kind": "wide", "width": 1920, "height": 1080, "fps": 24, "seconds": 80.75 },
+  "version": 1,
+  "gpu": "about $2.3 of the $2.50 budget (voices, music and sfx included)",
+  "cast": [
+    { "name": "Exit Punk", "voice": "bIHbv24MWmeRgasZH58o", "model": "eleven_v4", "forms": [{ "kind": "still art", "source": "doseofdestruction/exit-punk reference a_5ba184e1455c5dad, side a_2f943d6731c0e9f2" }] },
+    { "name": "The Mechanic", "voice": "iP95p4xoKVk53GoZ742B", "model": "eleven_v4", "forms": [{ "kind": "still art", "source": "doseofdestruction/the-mechanic reference a_8b18077371927f6d" }] },
+    { "name": "Announcer", "voice": "nPczCjzI2devNBz1zQrb", "model": "eleven_v4", "forms": [] }
+  ],
+  "voices": {
+    "M1": "a_59451c0f6415f95a", "E1": "a_d2f5c4d3b0b60712", "M2": "a_5e4a77b233491db4", "E2": "a_7498629fee763cb3",
+    "M3": "a_1854b0f44971ad02", "E3": "a_3d71bda353b715bc", "M4": "a_bcebd960d64817f6", "M5": "a_a58a080db6ab28c2",
+    "E4": "a_aff55379344152f9", "M6": "a_d7a6c75648d2f821", "E5": "a_aa92fe9415fc21aa", "M7": "a_4e00a5b2fbb79855",
+    "E6": "a_fe041051cbe6874b", "M8": "a_a0028d5548e51983", "E7": "a_72e6b35d63dbbcb5", "M9": "a_262302c6c25a06e1",
+    "ANN": "a_a49f0d084cc8a9e9", "E8": "a_2bc017f828d78e2b"
+  },
+  "music": { "hum": "a_4654bbf55d8700bb", "drums": "a_8d43f0a7fab8303f" },
+  "sfx": { "land": "a_b23d3700427ee79f", "weld": "a_4ebd44a98b985814", "file": "a_c62d527359a0bc36", "wheel": "a_260977340b81f5d3", "creeper": "a_bc689d19efc3c6e5", "crowd": "a_36943fc92c42a7a8" },
+  "keyframes": { "ep_cu": "a_4252afca02c933d6", "mech_cu": "a_9e4f8e16c75b8448,a_a692852bd68b6ef8", "ep_stage_light": "a_5ceeee2797920e8d", "hook": "a_38b650987261930b", "creeper": "a_e5a26ba800768aef", "weld": "a_174416cb6233750b", "file": "a_f480ad4f475f3456", "wheel": "a_ebd36a501da2bf2b", "ep_watch": "a_1d1d1dcd91ef2493", "two_shot": "a_c2fc1eadd24da955", "ride": "a_131af5da7a1938c8", "drop": "a_4791db65b1286f9d" },
+  "shots": {
+    "hook": "a_8a302f6f0000bc66", "creeper": "a_e2b29afff5b2e573", "weld": "a_cea7c95f7b15e603", "file": "a_d0c85043130d5697", "wheel": "a_4940a431f6e1610a",
+    "ep_watch": "a_2bc8d153febd9cce", "two_shot": "a_a4d0e5aa1f2f5d87", "ride": "a_0967feaafe102609", "drop": "a_8e9c151acf8be87e", "ep_react": "a_024377f219b32546",
+    "talk": { "E1": "a_f80f4e386a779eb6", "E2": "a_73265723e931080f", "E3": "a_36c0c8a63f0dfd9a", "E5": "a_315c46866fc3ff69", "E8": "a_b6de2a9d06a83269", "M2": "a_8737706358d165d4", "M3": "a_7adf435770f7a0b4", "M4": "a_ab3c31c9d1acc34c", "M7": "a_7733a6cf201b2e72", "M8": "a_aa6d777df16e067c" }
+  },
+  "cut": { "job": "j_de311ca661c3", "asset": "a_f044b86541adf9ac", "poster": "a_70470caa50a7af9f", "seconds": 80.75 },
+  "notes": "v1 has no Blender shots (no 3D forms of either character exist in the library): the long ride is an image-to-video shot, not an unbroken Blender camera. Talk clips need frames = 4n+1."
+}

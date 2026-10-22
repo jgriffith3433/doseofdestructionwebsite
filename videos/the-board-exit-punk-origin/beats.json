@@ -1,0 +1,428 @@
+[
+ {
+  "t": 0,
+  "seconds": 4.5,
+  "shot": "EWS",
+  "angle": "low",
+  "camera": "follow",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": null,
+  "action": "launches off the conveyor, board spinning, bolt in fist; wheels hit steel in a spray of sparks",
+  "expression": "grinning, wide-eyed",
+  "sfx": "land + sparks",
+  "vfx": "orange sparks",
+  "method": "image.edit first frame -> video.i2v (whip-pan prompt)",
+  "why": "hook: motion in the first frame; one continuous move, deliberate 4.5 s hold"
+ },
+ {
+  "t": 4.5,
+  "seconds": 3.5,
+  "shot": "WS",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "The Mechanic",
+   "Exit Punk"
+  ],
+  "line": "MECHANIC: You're late.",
+  "action": "slides out on a creeper, never looks up, checks plate-sized watch",
+  "expression": "weary, flat",
+  "sfx": "creeper roll, clock tick",
+  "vfx": "furnace flicker",
+  "method": "image.edit -> video.i2v",
+  "why": "establish the Mechanic and the board"
+ },
+ {
+  "t": 8,
+  "seconds": 2.3,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "EXIT PUNK: I'm eleven seconds late.",
+  "action": "chin lifts, defensive",
+  "expression": "dry, defensive",
+  "sfx": "",
+  "vfx": "sparks",
+  "method": "portrait -> video.talk",
+  "why": "face for the line"
+ },
+ {
+  "t": 10.3,
+  "seconds": 3.3,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "The Mechanic"
+  ],
+  "line": "MECHANIC: Eleven seconds is how a furnace goes out.",
+  "action": "speaks without looking up",
+  "expression": "flat",
+  "sfx": "",
+  "vfx": "furnace glow",
+  "method": "portrait -> video.talk",
+  "why": "the Mechanic's rule of the place"
+ },
+ {
+  "t": 13.6,
+  "seconds": 1.4,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "EXIT PUNK: It's a bolt.",
+  "action": "small shrug",
+  "expression": "deadpan",
+  "sfx": "",
+  "vfx": "",
+  "method": "video.talk",
+  "why": "quick comeback"
+ },
+ {
+  "t": 15,
+  "seconds": 3.5,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "The Mechanic"
+  ],
+  "line": "MECHANIC: It's THE bolt. That deck's snapped.",
+  "action": "head tilt on 'snapped'",
+  "expression": "tired, noticing",
+  "sfx": "",
+  "vfx": "",
+  "method": "video.talk",
+  "why": "the reveal, in his face"
+ },
+ {
+  "t": 18.5,
+  "seconds": 3.3,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "EXIT PUNK: It's fine. It's held together by optimism.",
+  "action": "shrug",
+  "expression": "dry",
+  "sfx": "",
+  "vfx": "",
+  "method": "video.talk",
+  "why": "punchline"
+ },
+ {
+  "t": 21.8,
+  "seconds": 4.5,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "The Mechanic"
+  ],
+  "line": "MECHANIC: It's held together by me. Third time this month. Sit.",
+  "action": "slow blink",
+  "expression": "flat, firm",
+  "sfx": "",
+  "vfx": "",
+  "method": "video.talk",
+  "why": "his answer lands"
+ },
+ {
+  "t": 26.25,
+  "seconds": 2.5,
+  "shot": "ECU",
+  "angle": "low",
+  "camera": "push-in",
+  "who": [
+   "The Mechanic"
+  ],
+  "line": null,
+  "action": "welding the deck",
+  "expression": "",
+  "sfx": "arc weld crackle",
+  "vfx": "white-blue sparks",
+  "method": "image.edit -> video.i2v",
+  "why": "montage, no dialogue"
+ },
+ {
+  "t": 28.75,
+  "seconds": 2.5,
+  "shot": "ECU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "The Mechanic"
+  ],
+  "line": null,
+  "action": "file along the edge, shavings",
+  "expression": "",
+  "sfx": "file rasp",
+  "vfx": "wood shavings",
+  "method": "image.edit -> video.i2v",
+  "why": "montage"
+ },
+ {
+  "t": 31.25,
+  "seconds": 2.5,
+  "shot": "ECU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "The Mechanic"
+  ],
+  "line": null,
+  "action": "spins a wheel, checks by ear",
+  "expression": "half-closed eyes",
+  "sfx": "wheel whirr",
+  "vfx": "",
+  "method": "image.edit -> video.i2v",
+  "why": "montage: wheels checked by ear"
+ },
+ {
+  "t": 33.75,
+  "seconds": 2.5,
+  "shot": "MS",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": null,
+  "action": "swings legs, trying not to care, glances sideways",
+  "expression": "feigned boredom",
+  "sfx": "",
+  "vfx": "sparks",
+  "method": "image.edit -> video.i2v",
+  "why": "reaction"
+ },
+ {
+  "t": 36.25,
+  "seconds": 2,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": null,
+  "action": "blinks, half-smile fades to concern",
+  "expression": "soft",
+  "sfx": "",
+  "vfx": "",
+  "method": "video.i2v from portrait",
+  "why": "reaction"
+ },
+ {
+  "t": 38.25,
+  "seconds": 4.5,
+  "shot": "MS",
+  "angle": "eye",
+  "camera": "push-in",
+  "who": [
+   "The Mechanic",
+   "Exit Punk"
+  ],
+  "line": "MECHANIC: You know why you keep breaking it? / EXIT PUNK: I'm bad at stopping.",
+  "action": "the board finished between them; the Mechanic reaches for it",
+  "expression": "quiet",
+  "sfx": "",
+  "vfx": "",
+  "method": "image.edit two-shot -> video.i2v",
+  "why": "quiet two-shot; deliberate hold over two lines"
+ },
+ {
+  "t": 42.75,
+  "seconds": 2.7,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "MECHANIC: You never ride it anywhere you're allowed.",
+  "action": "listens, eyes drop",
+  "expression": "caught",
+  "sfx": "",
+  "vfx": "",
+  "method": "video.i2v",
+  "why": "line plays over the reaction on purpose"
+ },
+ {
+  "t": 45.5,
+  "seconds": 2.9,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "EXIT PUNK: Nowhere I'm allowed to ride has an exit.",
+  "action": "eyes drop then lift",
+  "expression": "honest",
+  "sfx": "",
+  "vfx": "",
+  "method": "video.talk",
+  "why": "the thesis"
+ },
+ {
+  "t": 48.4,
+  "seconds": 10.1,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "The Mechanic"
+  ],
+  "line": "MECHANIC: There's a window upstairs... Or at all.",
+  "action": "looks up toward the ceiling on 'window'",
+  "expression": "long beat, quiet",
+  "sfx": "",
+  "vfx": "furnace hum",
+  "method": "portrait -> video.talk",
+  "why": "deliberate hold: the one long speech"
+ },
+ {
+  "t": 58.5,
+  "seconds": 2,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "EXIT PUNK: Sounds like a way out.",
+  "action": "looks away to the sparks",
+  "expression": "hope",
+  "sfx": "",
+  "vfx": "",
+  "method": "video.i2v (reuse)",
+  "why": "reaction; reuses the MS clip, a trim"
+ },
+ {
+  "t": 60.5,
+  "seconds": 5.8,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "The Mechanic"
+  ],
+  "line": "MECHANIC: It's a way in. New rule. Wheels down...",
+  "action": "meets his eye",
+  "expression": "serious",
+  "sfx": "",
+  "vfx": "",
+  "method": "video.talk",
+  "why": "seeds 'wheels down'"
+ },
+ {
+  "t": 66.25,
+  "seconds": 1.5,
+  "shot": "MS",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "The Mechanic",
+   "Exit Punk"
+  ],
+  "line": "EXIT PUNK: That's the rule?",
+  "action": "board handed back",
+  "expression": "",
+  "sfx": "board clack",
+  "vfx": "",
+  "method": "video.i2v tail",
+  "why": "the hand-off"
+ },
+ {
+  "t": 67.8,
+  "seconds": 3,
+  "shot": "ECU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "The Mechanic"
+  ],
+  "line": "MECHANIC: Only one I ever kept. And bring the bolt back.",
+  "action": "spins the wheel, last check",
+  "expression": "",
+  "sfx": "wheel whirr",
+  "vfx": "",
+  "method": "video.i2v (reuse)",
+  "why": "last word; plays over the wheel insert"
+ },
+ {
+  "t": 70.8,
+  "seconds": 3.4,
+  "shot": "WS",
+  "angle": "eye",
+  "camera": "follow",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "ANNOUNCER (muffled): Tonight, a walk-on.",
+  "action": "skates down the Foundry to the stage-door grate",
+  "expression": "",
+  "sfx": "drum loop, crowd swell",
+  "vfx": "sparks streaming",
+  "method": "image.edit -> video.i2v",
+  "why": "the ride; crane-up cut before it goes dark"
+ },
+ {
+  "t": 74.25,
+  "seconds": 2.4,
+  "shot": "ECU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "EXIT PUNK: Wheels down.",
+  "action": "stage light in his eyes",
+  "expression": "resolve",
+  "sfx": "",
+  "vfx": "light bloom",
+  "method": "portrait -> video.talk",
+  "why": "the vow"
+ },
+ {
+  "t": 76.7,
+  "seconds": 3,
+  "shot": "WS",
+  "angle": "low",
+  "camera": "push-in",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": null,
+  "action": "drops in toward the stage",
+  "expression": "",
+  "sfx": "",
+  "vfx": "white bloom -> fade to black",
+  "method": "image.edit -> video.i2v",
+  "why": "cut to black"
+ },
+ {
+  "t": 79.25,
+  "seconds": 1.5,
+  "shot": "insert",
+  "angle": "eye",
+  "camera": "static",
+  "who": [],
+  "line": null,
+  "action": "END CARD",
+  "expression": "",
+  "sfx": "",
+  "vfx": "",
+  "method": "ffmpeg drawtext",
+  "why": "end card"
+ }
+]
