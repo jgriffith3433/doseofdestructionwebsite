@@ -7,8 +7,8 @@
     "fps": 24,
     "seconds": 111.9
   },
-  "version": 1,
-  "status": "v1 cut built with stills for the close-ups; i2v close-up motion queued",
+  "version": 2,
+  "status": "v2: i2v face motion swapped into the close-ups",
   "cast": [
     {
       "name": "Pyro Singer",
@@ -120,7 +120,7 @@
       "j_09d463e1e6d4 py_smile"
     ]
   },
-  "next": "when the i2v jobs finish: download to portraits/<name>.mp4 (py_eyes, py_sing_i2v, py_brow, ep_shy, ep_grin, py_smile), rerun build.py for the portrait shots, re-concat, update out/cut.mp4",
+  "next": "notes from J; optional: video.talk lip-sync, Blender rig-proxy pass for the wides",
   "cost": "voices about $0.10, song about $0.03, 11 portraits about $0.1, i2v est. $0.45 (queued); total well under the $2.50 budget",
   "song": {
     "job": "j_26d08ff39f39",
