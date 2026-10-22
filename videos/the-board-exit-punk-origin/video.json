@@ -7,7 +7,7 @@
   "fps": 24,
   "seconds": 77.3
  },
- "version": 2,
+ "version": 3,
  "gpu": "about $2.3 of the $2.50 budget (voices, music and sfx included)",
  "cast": [
   {
@@ -111,11 +111,11 @@
  },
  "cut": {
   "file": "videos/the-board-exit-punk-origin/out/cut.mp4",
-  "built_by": "videos/the-board-exit-punk-origin/build_animatic.py",
-  "seconds": 77.3,
+  "built_by": "videos/the-board-exit-punk-origin/build_v3.py",
+  "seconds": 77.6,
   "stage": "animatic"
  },
- "notes": "v2 animatic: held on-model stills with moves, v1 voice takes (no extended or stitched clips, so no sync joins). Voices placed per line start; see out timeline in build_animatic.py.",
+ "notes": "v3: re-cut for review notes; build_v3.py + keys.json; captions 2 lines <=38 chars; GPU for v3 about $0.15",
  "stage": "animatic",
  "look": "one 3D-cartoon render; every keyframe is an image.edit of the v1 two-shot plate a_c2fc1eadd24da955 with the DoD references a_5ba184e1455c5dad (Exit Punk) and a_8b18077371927f6d (Mechanic)",
  "keyframes_v2": {
@@ -140,5 +140,16 @@
   "ride": "a_2401c918cae7f12a,a_78bac78480c9c995",
   "grate": "a_b1e795994c7171af,a_2d0559e7b70c44d2 (unused: shows both characters)",
   "drop": "a_ce593faea85b408d,a_7cde45569e15f195"
+ },
+ "keyframes_v3": {
+  "hook_land": "a_f70a7a4f121ac4d7 (take 0, cropped)",
+  "creeper2": "a_45d43ad7984cdd3e",
+  "watch": "a_d6eab88029345656",
+  "ots_mech2": "a_1ed26669d5ded80d",
+  "ots_mech3": "a_bfa4d910c8e300e4",
+  "file": "a_7bb0bdd468017d38",
+  "wrench": "a_8eeb530ce8c34a26 (cropped)",
+  "board_between": "a_1512ffd46c8fa8da",
+  "rejected": "hook (all 3 drew a dark-haired kid), grate_ep (all 3 show the Mechanic): ride_1/ride_0 used instead"
  }
 }

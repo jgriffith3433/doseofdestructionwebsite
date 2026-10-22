@@ -34,7 +34,7 @@ S = [
  (39.4,1.8,'ep_hurt_1','zin','EXIT PUNK: Nowhere I\'m allowed to ride has an exit.'),
  (41.2,1.1,'ep_hurt_0','zin',''),
  (42.3,1.5,'mech_soft_1','zin',''),
- (43.8,3.0,'ots_mech2','zin','MECHANIC: There\'s a window upstairs. Gets the broadcast.'),
+ (43.8,3.0,'ots_mech3','zin','MECHANIC: There\'s a window upstairs. Gets the broadcast.'),
  (46.8,3.0,'mech_grave_0','zin','Whole city watching the floor at midnight.'),
  (49.8,1.2,'ep_hurt_1','zin','People who walk onto that stage'),
  (51.0,3.0,'mech_grave_1','zin','don\'t come back the same. Or at all.'),

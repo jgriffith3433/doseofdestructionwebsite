@@ -3,12 +3,12 @@
   "file": "ride_1.jpg"
  },
  "hook_land": {
-  "file": "ride_0.jpg",
+  "file": "hook_land.jpg",
   "crop": [
+   0.3,
    0.0,
-   0.45,
-   0.6,
-   0.55
+   0.7,
+   0.9
   ]
  },
  "ride_0": {
@@ -18,40 +18,34 @@
   "file": "ride_1.jpg"
  },
  "creeper2": {
-  "file": "handoff_0.jpg"
+  "file": "creeper2.jpg"
  },
  "watch": {
-  "file": "mech_stern_0.jpg",
-  "crop": [
-   0.4,
-   0.45,
-   0.5,
-   0.5
-  ]
+  "file": "watch.jpg"
  },
  "ots_mech2": {
-  "file": "mech_stern_1.jpg"
- },
- "file": {
-  "file": "weld_0.jpg",
+  "file": "ots_mech2.jpg",
   "crop": [
    0.0,
-   0.3,
-   0.6,
-   0.7
+   0.05,
+   0.95,
+   0.85
   ]
  },
+ "file": {
+  "file": "file.jpg"
+ },
  "wrench": {
-  "file": "mech_grave_1.jpg",
+  "file": "wrench.jpg",
   "crop": [
-   0.5,
-   0.55,
-   0.5,
-   0.45
+   0.0,
+   0.45,
+   0.8,
+   0.55
   ]
  },
  "board_between": {
-  "file": "handoff_0.jpg"
+  "file": "board_between.jpg"
  },
  "grate_ep": {
   "file": "ride_0.jpg",
@@ -139,5 +133,14 @@
  },
  "drop_1": {
   "file": "drop_1.jpg"
+ },
+ "ots_mech3": {
+  "file": "ots_mech3.jpg",
+  "crop": [
+   0.0,
+   0.0,
+   0.95,
+   0.9
+  ]
  }
 }

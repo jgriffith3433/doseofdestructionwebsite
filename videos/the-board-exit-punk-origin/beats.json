@@ -1,615 +1,303 @@
 [
  {
-  "t": 0,
-  "seconds": 2.0,
-  "shot": "WS",
-  "angle": "low",
-  "camera": "follow",
-  "who": [
-   "Exit Punk"
-  ],
-  "line": null,
-  "action": "launches off the conveyor at the back of the corner, board spinning, bolt in fist",
-  "expression": "grin, eyes wide",
-  "sfx": "board whirr",
-  "vfx": "sparks",
+  "t": 0.0,
+  "seconds": 1.0,
   "key": "hook",
-  "why": "hook: motion in frame one",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 1.0,
+  "seconds": 1.0,
+  "key": "hook_land",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
   "t": 2.0,
-  "seconds": 1.4,
-  "shot": "MS",
-  "angle": "low",
-  "camera": "whip-pan",
-  "who": [
-   "Exit Punk"
-  ],
+  "seconds": 1.2,
+  "key": "ride_1",
   "line": null,
-  "action": "wheels hit steel, sparks, he weaves past the machine toward the Mechanic",
-  "expression": "focused",
-  "sfx": "land + skid",
-  "vfx": "sparks",
-  "key": "hook_land",
-  "why": "the whip-pan shows where he is going: the corner",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 3.4,
-  "seconds": 1.6,
-  "shot": "WS",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "The Mechanic",
-   "Exit Punk"
-  ],
+  "t": 3.2,
+  "seconds": 1.8,
+  "key": "creeper2",
   "line": "MECHANIC: You're late.",
-  "action": "Mechanic rolls out on the creeper, never looks up, checks the plate-sized watch; kid skids to a stop screen-right",
-  "expression": "weary / caught",
-  "sfx": "creeper roll",
-  "vfx": "steam wisp",
-  "key": "creeper",
-  "why": "establish both in one frame, eyelines set",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
   "t": 5.0,
-  "seconds": 1.2,
-  "shot": "insert",
-  "angle": "high",
-  "camera": "static",
-  "who": [
-   "The Mechanic"
-  ],
-  "line": null,
-  "action": "the watch face, the second hand",
-  "expression": "-",
-  "sfx": "tick",
-  "vfx": "-",
+  "seconds": 1.0,
   "key": "watch",
-  "why": "the clock is the stakes",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 6.2,
+  "t": 6.0,
   "seconds": 2.1,
-  "shot": "MCU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "Exit Punk"
-  ],
+  "key": "ep_defensive_1",
   "line": "EXIT PUNK: I'm eleven seconds late.",
-  "action": "chin up, holds out the bolt",
-  "expression": "defensive, dry",
-  "sfx": "",
-  "vfx": "-",
-  "key": "ep_defensive",
-  "why": "his answer lands on his face",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 8.3,
-  "seconds": 3.5,
-  "shot": "OTS",
-  "angle": "eye",
-  "camera": "push-in",
-  "who": [
-   "The Mechanic"
-  ],
+  "t": 8.1,
+  "seconds": 2.5,
+  "key": "ots_mech2",
   "line": "MECHANIC: Eleven seconds is how a furnace goes out.",
-  "action": "looks up for the first time, at the kid, then at the furnace glow behind him",
-  "expression": "flat, serious",
-  "sfx": "furnace roar low",
-  "vfx": "glow flicker",
-  "key": "ots_mech",
-  "why": "explains the stakes: a furnace goes out",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 11.8,
-  "seconds": 1.2,
-  "shot": "CU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "Exit Punk"
-  ],
+  "t": 10.6,
+  "seconds": 1.9,
+  "key": "ep_sheepish_0",
   "line": "EXIT PUNK: It's a bolt.",
-  "action": "shrugs, eyes slide away",
-  "expression": "sheepish",
-  "sfx": "",
-  "vfx": "-",
-  "key": "ep_sheepish",
-  "why": "reaction",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 13.0,
-  "seconds": 3.5,
-  "shot": "MCU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "The Mechanic"
-  ],
+  "t": 12.5,
+  "seconds": 2.0,
+  "key": "mech_stern_1",
   "line": "MECHANIC: It's THE bolt.",
-  "action": "snatches it, thumbs it, then spots the board under the kid's arm",
-  "expression": "intense then surprised",
-  "sfx": "metal clink",
-  "vfx": "-",
-  "key": "mech_stern",
-  "why": "THE bolt: it matters",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 16.5,
+  "t": 14.5,
   "seconds": 1.5,
-  "shot": "insert",
-  "angle": "low",
-  "camera": "static",
-  "who": [
-   "Exit Punk"
-  ],
+  "key": "board_snapped_1",
   "line": "MECHANIC: That deck's snapped.",
-  "action": "the board, cracked across the middle, held by tape",
-  "expression": "-",
-  "sfx": "creak",
-  "vfx": "-",
-  "key": "board_snapped",
-  "why": "the second problem, seen",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 18.0,
-  "seconds": 3.2,
-  "shot": "CU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "Exit Punk"
-  ],
+  "t": 16.0,
+  "seconds": 1.6,
+  "key": "ep_smirk_0",
   "line": "EXIT PUNK: It's fine. It's held together by optimism.",
-  "action": "tries to hide the board behind his leg, half-smile",
-  "expression": "cocky, then caught",
-  "sfx": "",
-  "vfx": "-",
-  "key": "ep_smirk",
-  "why": "the joke is also a plea",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 21.2,
-  "seconds": 4.3,
-  "shot": "MCU",
-  "angle": "eye",
-  "camera": "push-in",
-  "who": [
-   "The Mechanic"
-  ],
+  "t": 17.6,
+  "seconds": 1.6,
+  "key": "ep_smirk_1",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 19.2,
+  "seconds": 2.1,
+  "key": "mech_soft_1",
   "line": "MECHANIC: It's held together by me. Third time this month. Sit.",
-  "action": "sets the wrench down, points at the crate",
-  "expression": "tired, fond",
-  "sfx": "",
-  "vfx": "-",
-  "key": "mech_soft",
-  "why": "he is not angry: he is tired of worrying",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 21.3,
+  "seconds": 1.2,
+  "key": "ep_defensive_0",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 22.5,
+  "seconds": 1.0,
+  "key": "wrench",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 23.5,
+  "seconds": 2.0,
+  "key": "weld",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
   "t": 25.5,
-  "seconds": 2.2,
-  "shot": "ECU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "The Mechanic"
-  ],
-  "line": null,
-  "action": "welding torch, sparks, goggles reflecting the blue",
-  "expression": "focused",
-  "sfx": "weld hiss",
-  "vfx": "welding sparks",
-  "key": "weld",
-  "why": "he fixes it: care shown as work",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
- },
- {
-  "t": 27.7,
   "seconds": 1.8,
-  "shot": "CU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "Exit Punk"
-  ],
+  "key": "ep_watching_0",
   "line": null,
-  "action": "sits on the bench swinging his legs, glances at the work, looks away",
-  "expression": "trying not to care",
-  "sfx": "",
-  "vfx": "-",
-  "key": "ep_watching",
-  "why": "he cares",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 29.5,
-  "seconds": 2.0,
-  "shot": "ECU",
-  "angle": "low",
-  "camera": "static",
-  "who": [
-   "The Mechanic"
-  ],
-  "line": null,
-  "action": "a file drawn along the deck edge, shavings falling",
-  "expression": "focused",
-  "sfx": "file rasp",
-  "vfx": "shavings",
+  "t": 27.3,
+  "seconds": 1.8,
   "key": "file",
-  "why": "craft",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
- },
- {
-  "t": 31.5,
-  "seconds": 2.0,
-  "shot": "ECU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "The Mechanic"
-  ],
   "line": null,
-  "action": "wheel spun by a gloved finger, his ear tilted to it",
-  "expression": "listening",
-  "sfx": "wheel whirr",
-  "vfx": "-",
-  "key": "wheel",
-  "why": "checked by ear: he knows the board",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 33.5,
+  "t": 29.1,
+  "seconds": 1.6,
+  "key": "wheel_0",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 30.7,
+  "seconds": 1.3,
+  "key": "ep_watching_1",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 32.0,
   "seconds": 2.5,
-  "shot": "OTS",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "Exit Punk",
-   "The Mechanic"
-  ],
-  "line": null,
-  "action": "the board finished on the crate between them; both look at it",
-  "expression": "quiet",
-  "sfx": "",
-  "vfx": "-",
-  "key": "two_shot",
-  "why": "the board, mended, between them",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
- },
- {
-  "t": 36.0,
-  "seconds": 2.3,
-  "shot": "MCU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "The Mechanic"
-  ],
+  "key": "board_between",
   "line": "MECHANIC: You know why you keep breaking it?",
-  "action": "looks up at the kid",
-  "expression": "gentle, direct",
-  "sfx": "",
-  "vfx": "-",
-  "key": "mech_soft",
-  "why": "the turn begins",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 38.3,
-  "seconds": 1.2,
-  "shot": "CU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "Exit Punk"
-  ],
+  "t": 34.5,
+  "seconds": 2.1,
+  "key": "ep_smirk_1",
   "line": "EXIT PUNK: I'm bad at stopping.",
-  "action": "deflects with a smile",
-  "expression": "deflecting",
-  "sfx": "",
-  "vfx": "-",
-  "key": "ep_smirk",
-  "why": "the cover",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 39.5,
-  "seconds": 2.7,
-  "shot": "MCU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "The Mechanic"
-  ],
+  "t": 36.6,
+  "seconds": 2.8,
+  "key": "mech_soft_0",
   "line": "MECHANIC: You never ride it anywhere you're allowed.",
-  "action": "shakes his head slowly",
-  "expression": "knowing",
-  "sfx": "",
-  "vfx": "-",
-  "key": "mech_soft",
-  "why": "he knows",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 42.2,
-  "seconds": 2.9,
-  "shot": "CU",
-  "angle": "eye",
-  "camera": "push-in",
-  "who": [
-   "Exit Punk"
-  ],
+  "t": 39.4,
+  "seconds": 1.8,
+  "key": "ep_hurt_1",
   "line": "EXIT PUNK: Nowhere I'm allowed to ride has an exit.",
-  "action": "the smile goes; looks at the floor",
-  "expression": "hurt, honest",
-  "sfx": "",
-  "vfx": "-",
-  "key": "ep_hurt",
-  "why": "THE TURN: first true thing",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 45.1,
-  "seconds": 4.0,
-  "shot": "OTS",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "The Mechanic"
-  ],
-  "line": "MECHANIC: There's a window upstairs. Gets the broadcast. Whole city watching the floor at midnight.",
-  "action": "looks up toward the ceiling, then back",
-  "expression": "weighing it",
-  "sfx": "distant crowd",
-  "vfx": "-",
-  "key": "ots_mech",
-  "why": "he decides to tell him",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
- },
- {
-  "t": 49.1,
-  "seconds": 2.0,
-  "shot": "insert",
-  "angle": "high",
-  "camera": "pan",
-  "who": [
-   "The Mechanic"
-  ],
+  "t": 41.2,
+  "seconds": 1.1,
+  "key": "ep_hurt_0",
   "line": null,
-  "action": "ceiling pipes, a staircase vanishing up, a faint glow at the top",
-  "expression": "-",
-  "sfx": "distant crowd",
-  "vfx": "light",
-  "key": "stairs",
-  "why": "where the window is",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 51.1,
-  "seconds": 4.0,
-  "shot": "CU",
-  "angle": "low",
-  "camera": "push-in",
-  "who": [
-   "The Mechanic"
-  ],
-  "line": "MECHANIC: People who walk onto that stage don't come back the same. Or at all.",
-  "action": "holds the kid's eyes",
-  "expression": "grave",
-  "sfx": "",
-  "vfx": "-",
-  "key": "mech_grave",
-  "why": "the cost",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
- },
- {
-  "t": 55.1,
-  "seconds": 2.0,
-  "shot": "CU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "Exit Punk"
-  ],
-  "line": "EXIT PUNK: Sounds like a way out.",
-  "action": "eyes light up",
-  "expression": "hopeful",
-  "sfx": "",
-  "vfx": "-",
-  "key": "ep_hopeful",
-  "why": "the kid hears only the exit",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
- },
- {
-  "t": 57.1,
+  "t": 42.3,
   "seconds": 1.5,
-  "shot": "MCU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "The Mechanic"
-  ],
-  "line": "MECHANIC: It's a way in.",
-  "action": "a small exhale",
-  "expression": "sad",
-  "sfx": "",
-  "vfx": "-",
-  "key": "mech_grave",
-  "why": "he corrects him, gently",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "key": "mech_soft_1",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 58.6,
-  "seconds": 2.5,
-  "shot": "insert",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "The Mechanic",
-   "Exit Punk"
-  ],
-  "line": "MECHANIC: New rule. Wheels down.",
-  "action": "hands the board back, the kid takes it",
-  "expression": "-",
-  "sfx": "board clack",
-  "vfx": "-",
-  "key": "handoff",
-  "why": "touch the same prop: the handover",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
- },
- {
-  "t": 61.1,
-  "seconds": 3.1,
-  "shot": "MCU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "The Mechanic"
-  ],
-  "line": "MECHANIC: Whatever you land on, wheels down.",
-  "action": "certain",
-  "expression": "firm",
-  "sfx": "",
-  "vfx": "-",
-  "key": "mech_soft",
-  "why": "the rule",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
- },
- {
-  "t": 64.2,
-  "seconds": 1.2,
-  "shot": "CU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "Exit Punk"
-  ],
-  "line": "EXIT PUNK: That's the rule?",
-  "action": "blinks, looks up",
-  "expression": "moved, wary",
-  "sfx": "",
-  "vfx": "-",
-  "key": "ep_hopeful",
-  "why": "reaction",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
- },
- {
-  "t": 65.4,
-  "seconds": 3.2,
-  "shot": "ECU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "The Mechanic"
-  ],
-  "line": "MECHANIC: Only one I ever kept. And bring the bolt back.",
-  "action": "half-smile, eyes wet",
-  "expression": "fond, hiding it",
-  "sfx": "",
-  "vfx": "-",
-  "key": "mech_soft",
-  "why": "a promise to return: the bolt",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
- },
- {
-  "t": 68.6,
+  "t": 43.8,
   "seconds": 3.0,
-  "shot": "WS",
-  "angle": "low",
-  "camera": "follow",
-  "who": [
-   "Exit Punk"
-  ],
-  "line": null,
-  "action": "he skates the length of the Foundry toward the stage door, drum loop kicks in",
-  "expression": "alive",
-  "sfx": "wheels, drums",
-  "vfx": "sparks",
-  "key": "ride",
-  "why": "the answer: an exit",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "key": "ots_mech3",
+  "line": "MECHANIC: There's a window upstairs. Gets the broadcast.",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 71.6,
-  "seconds": 2.0,
-  "shot": "POV",
-  "angle": "eye",
-  "camera": "crane-up",
-  "who": [
-   "Exit Punk"
-  ],
-  "line": "ANNOUNCER (muffled): Tonight, a walk-on.",
-  "action": "through the door grate: midnight lights come up",
-  "expression": "-",
-  "sfx": "crowd, announcer",
-  "vfx": "light",
-  "key": "grate",
-  "why": "the world he is entering",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "t": 46.8,
+  "seconds": 3.0,
+  "key": "mech_grave_0",
+  "line": "Whole city watching the floor at midnight.",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 73.6,
-  "seconds": 2.2,
-  "shot": "ECU",
-  "angle": "eye",
-  "camera": "static",
-  "who": [
-   "Exit Punk"
-  ],
-  "line": "EXIT PUNK: Wheels down.",
-  "action": "stage light in his eyes",
-  "expression": "resolve",
-  "sfx": "",
-  "vfx": "-",
-  "key": "ep_resolve",
-  "why": "the payoff: the rule becomes his",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
- },
- {
-  "t": 75.8,
+  "t": 49.8,
   "seconds": 1.2,
-  "shot": "WS",
-  "angle": "high",
-  "camera": "pull-out",
-  "who": [
-   "Exit Punk"
-  ],
-  "line": null,
-  "action": "he drops in, cut to black",
-  "expression": "-",
-  "sfx": "drop",
-  "vfx": "-",
-  "key": "drop",
-  "why": "the exit",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "key": "ep_hurt_1",
+  "line": "People who walk onto that stage",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  },
  {
-  "t": 77.0,
-  "seconds": 1.5,
-  "shot": "card",
-  "angle": "-",
-  "camera": "static",
-  "who": [],
+  "t": 51.0,
+  "seconds": 3.0,
+  "key": "mech_grave_1",
+  "line": "don't come back the same. Or at all.",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 54.0,
+  "seconds": 1.9,
+  "key": "ep_hopeful_1",
+  "line": "EXIT PUNK: Sounds like a way out.",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 55.9,
+  "seconds": 1.6,
+  "key": "mech_grave_0",
+  "line": "MECHANIC: It's a way in.",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 57.5,
+  "seconds": 2.5,
+  "key": "handoff_1",
+  "line": "MECHANIC: New rule. Wheels down.",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 60.0,
+  "seconds": 1.8,
+  "key": "handoff_0",
+  "line": "MECHANIC: Whatever you land on, wheels down.",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 61.8,
+  "seconds": 1.4,
+  "key": "ep_hopeful_0",
+  "line": "EXIT PUNK: That's the rule?",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 63.2,
+  "seconds": 2.0,
+  "key": "mech_soft_0",
+  "line": "MECHANIC: Only one I ever kept.",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 65.2,
+  "seconds": 2.0,
+  "key": "mech_stern_0",
+  "line": "MECHANIC: And bring the bolt back.",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 67.2,
+  "seconds": 2.0,
+  "key": "ride_0",
   "line": null,
-  "action": "Dose Of Destruction / Made with Hawkes Gen · hawkesgen.com",
-  "expression": "-",
-  "sfx": "",
-  "vfx": "-",
-  "key": "card",
-  "why": "end card",
-  "method": "animatic: on-model still from the one set plate, held with a move; real voices"
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 69.2,
+  "seconds": 1.8,
+  "key": "ride_1",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 71.0,
+  "seconds": 1.8,
+  "key": "grate_ep",
+  "line": "ANNOUNCER: Tonight, a walk-on.",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 72.8,
+  "seconds": 1.6,
+  "key": "ep_resolve_1",
+  "line": "EXIT PUNK: Wheels down.",
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 74.4,
+  "seconds": 1.2,
+  "key": "drop_1",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
+ },
+ {
+  "t": 75.6,
+  "seconds": 0.6,
+  "key": "drop_0",
+  "line": null,
+  "method": "animatic: on-model still from the one Foundry plate, held with a move; real voices"
  }
 ]
