@@ -5,10 +5,10 @@
   "width": 1080,
   "height": 1920,
   "fps": 24,
-  "seconds": 22
+  "seconds": 21.6
  },
  "version": 2,
- "gpu": "phase 1 queued: j_7d0b0a0b15bc j_2af46aafa34f j_1a05e9fcd17d j_af5ed3ef4c15",
+ "gpu": "spent about $1.77 of $2.67 (4 image/video jobs $1.62 + 2 talk jobs $0.15)",
  "cast": [
   {
    "name": "Announcer",
@@ -94,36 +94,25 @@
  ],
  "shots": [
   {
-   "id": "s1-scene",
-   "method": "ffmpeg composite (chroma-keyed DoD clips over City Top stage art), build_scene.sh",
-   "characters": [
-    {
-     "name": "Exit Punk",
-     "form": "walk 0.3-2.3 s sliding in, idle, fair at 16.0 s"
-    },
-    {
-     "name": "Shutup Bot",
-     "form": "idle, never moves"
-    }
-   ],
-   "camera": "locked, vertical crop",
-   "seconds": 20.5,
-   "blob": "blob:713d85c3155d4e2d9451e27dd0c957e8b6c000f600971524b91f708d79dd7fb1"
-  },
-  {
-   "id": "s2-card",
-   "method": "ffmpeg drawtext end card",
-   "seconds": 1.5
+   "id": "s01-s12",
+   "method": "see beats.json; build_v2.sh (ffmpeg): Gen skate-in i2v and video.talk close-ups, procedural CRT face on the Gen screen portrait, DoD idle/fair clips on the City Top plate, ffmpeg VFX and synthesized SFX"
   }
  ],
  "captions": "burned in the scene (drawtext, y=1420, above TikTok's bottom 20%); text in captions/",
  "cut": {
-  "job": "j_52d13112b0b1",
-  "asset": "a_59ef96d94fa10f84",
-  "poster": "a_92bf5d893d8d4d88",
-  "seconds": 22
+  "local": "out/cut.mp4",
+  "asset": null,
+  "note": "Built locally; the agent cannot upload files to Gen, so no asset id yet"
  },
  "cost": "about $0.06 (voices only)",
  "beats": "beats.json",
- "notes": "v2 redo: v1 was one wide locked shot. Gen cannot take local uploads from the agent, so inputs are library asset ids (references a_5ba184e1455c5dad, a_d05109a8ddd7680d; side a_2f943d6731c0e9f2)."
+ "notes": "v2 redo: v1 was one wide locked shot. Gen cannot take local uploads from the agent, so inputs are library asset ids (references a_5ba184e1455c5dad, a_d05109a8ddd7680d; side a_2f943d6731c0e9f2).",
+ "jobs": {
+  "portraits_ep_cu": "j_7d0b0a0b15bc a_9279776c5b58cb43 (pick)",
+  "portraits_ep_mcu": "j_2af46aafa34f a_e2b106baffcb7ca2 (pick)",
+  "sb_screen": "j_1a05e9fcd17d a_32d60e19b4b3bce4 (pick)",
+  "skate_in": "j_af5ed3ef4c15 a_021c3bec3dc32595",
+  "talk1": "j_ed4de7e149d7 a_8e5b7cf3135d677d",
+  "talk2": "j_ba31f3417741 a_ae056c1a908fd5a2"
+ }
 }
