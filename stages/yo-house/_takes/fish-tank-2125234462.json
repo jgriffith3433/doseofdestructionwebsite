@@ -1,0 +1,17 @@
+{
+ "stage": "yo-house",
+ "piece": "fish-tank",
+ "kind": "stage",
+ "layers": [
+  "fish-tank"
+ ],
+ "seed": 2125234462,
+ "x": 0,
+ "y": 195,
+ "width": 390,
+ "size": [
+  1024,
+  1024
+ ],
+ "note": "image.generate (Z-Image Turbo) + BiRefNet cutout, trimmed to the layer box"
+}
