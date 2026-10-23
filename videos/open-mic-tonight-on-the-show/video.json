@@ -37,6 +37,28 @@
   "C_fight_6s": "j_1ccb74f4f75c",
   "D_ratings_5.5s": "j_0b2bfede8b4d"
  },
- "spend_so_far_usd": 0.74,
- "note": "Portrait aspect fails in Gen's video.scene (enum bug; jobs j_bc257b76abd4 etc. failed validation); J said 'don't worry about it', so scenes are 1:1 and get framed into 1080x1920 with bands."
+ "spend_so_far_usd": 2.0,
+ "note": "Portrait aspect fails in Gen's video.scene (enum bug; jobs j_bc257b76abd4 etc. failed validation); J said 'don't worry about it', so scenes are 1:1 and get framed into 1080x1920 with bands.",
+ "cut": "a_38725e89b4d61425",
+ "compose_job": "j_e959e2c7e05b",
+ "review_job": "j_f8f5fa6a3800",
+ "scores": {
+  "story": 5.8,
+  "pacing": 5.2,
+  "voices": 5.3,
+  "lipsync": 4.6,
+  "movement": 4.5,
+  "consistency": 5.4,
+  "sound": 5.1
+ },
+ "music": {
+  "stab": "a_19359182fe9a32c8",
+  "drums": "a_0ed81eb4fd825df8"
+ },
+ "scene_assets": {
+  "A": "a_88706d7e217a0ed0",
+  "B": "a_b44b722a79a8c023",
+  "C": "a_b9e9c8c2c7dab37e",
+  "D": "a_c4543d6095cf595b"
+ }
 }

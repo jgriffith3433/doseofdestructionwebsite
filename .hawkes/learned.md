@@ -1,1 +1,3 @@
-- convention: Bot CRT gags — drawbox patches over the flat line on the Bot keyframe (crt() in build.py) give blink/typing-dots jokes with no GPU.
+- lesson: video.scene portrait — Gen's aspect "9:16 (Portrait)" is rejected by the H3 workflow (it wants "9:16 (Portrait Widescreen)"); use 1:1 and pad into 9:16 until the enum is fixed.
+- lesson: remote Gen calls take asset ids only — table-read stems are assets, so use them as video.scene audio; a locally mixed track can't be sent.
+- convention: Orchestrator and Kaelen have a Pixar-3D look for video in videos/cast/*/kit.json (canon art is photoreal / game-anime).
