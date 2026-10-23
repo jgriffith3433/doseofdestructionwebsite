@@ -1,0 +1,4 @@
+j_bc257b76abd4 scene A intro (Orchestrator, 11s lightning, TRACK stem): judge, frames per second, cut per CUT
+j_968abd66e8f8 scene B entrance + lines (12s): judge lips and Kaelen landing
+j_b24a7fb5222b scene C fight (6s): judge impact/VFX; reroll if static
+j_2d3c718abc6d scene D ratings (5.5s): judge
