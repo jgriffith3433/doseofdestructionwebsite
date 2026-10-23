@@ -1,6 +1,9 @@
-# Open Mic (tonight on the show): animatic v1 (35.6 s)
-Watch it in Screening: Gen asset a_38725e89b4d61425. Real voices (the table read: Orchestrator onwK4e9ZLuTAKqWW03F9, Exit Punk bIHbv24MWmeRgasZH58o), one Pixar-3D look for all three (Orchestrator and Kaelen redrawn from canon art), one stage, J's lines unchanged. Brass stab on the spotlights, quiet for Exit Punk's lines, drum loop on the fight, end card at the end.
-Honest state: the critic gave 5.2 (not a pass): story 5.8, pacing 5.2, voices 5.3, lipsync 4.6, movement 4.5, consistency 5.4, sound 5.1. Its notes: fight (23-27.5 s) has weak weight and unclear geography; lip sync loose on "No sponsor. No record." (6-8.5 s); Exit Punk stiff between his lines (14.5-18.5 s); "Eleven points" too dry for the arena (31-33.5 s). I know about these and left them for the final since this is the cheap Lightning draft; J's steer comes first.
-Compromises: square 1:1 frame padded into 9:16 with navy bands (Gen's portrait aspect fails validation), end card is a caption over the crowd shot, the fight scene's last shot (a black background) is cut out.
-Cost: about $2.0 of $6.03 GPU (music, scenes, redraws, stage; compose and critic are free/cents). ~$4 left for a final.
-Files: videos/open-mic-tonight-on-the-show/ (script, story, beats, edit, video.json), kits for orchestrator and kaelen.
+# Open Mic (tonight on the show): no new render this pass
+The final is not made yet. The video skill makes the final only after J approves the animatic, and the thread has no approval. J's last word was "don't worry about it" on the portrait-aspect question. I took that as "keep the 1:1 framing" and did not touch Gen.
+
+State: animatic v1 (a_38725e89b4d61425, 35.6 s) is the current cut, and `.hawkes/video.json` is unchanged. It has the real voices, one Pixar-3D look and J's lines unchanged. The critic scored it 5.2 (not a pass). Fight weight and geography are weak, lip sync is loose on "No sponsor. No record.", and Exit Punk is stiff between his lines.
+
+Spent this pass: $0 GPU. The earlier pass spent about $2.0 of $6.03, so about $4 is left for the final.
+
+Still to make (see `.hawkes/pending-gpu.txt`): the full-steps re-run of scenes A-D, and 2-3 fight takes picked by the critic. This runs once J approves v1 in Studio's Screening tab, with any guidance he gives.
+Deleted `.hawkes/waiting-jobs.txt`: its two music jobs were already folded into v1.
