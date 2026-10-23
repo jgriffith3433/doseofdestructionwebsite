@@ -1,9 +1,6 @@
-# Open Mic (tonight on the show): no new render this pass
-The final is not made yet. The video skill makes the final only after J approves the animatic, and the thread has no approval. J's last word was "don't worry about it" on the portrait-aspect question. I took that as "keep the 1:1 framing" and did not touch Gen.
-
-State: animatic v1 (a_38725e89b4d61425, 35.6 s) is the current cut, and `.hawkes/video.json` is unchanged. It has the real voices, one Pixar-3D look and J's lines unchanged. The critic scored it 5.2 (not a pass). Fight weight and geography are weak, lip sync is loose on "No sponsor. No record.", and Exit Punk is stiff between his lines.
-
-Spent this pass: $0 GPU. The earlier pass spent about $2.0 of $6.03, so about $4 is left for the final.
-
-Still to make (see `.hawkes/pending-gpu.txt`): the full-steps re-run of scenes A-D, and 2-3 fight takes picked by the critic. This runs once J approves v1 in Studio's Screening tab, with any guidance he gives.
-Deleted `.hawkes/waiting-jobs.txt`: its two music jobs were already folded into v1.
+# Open Mic (tonight on the show): v2 revision, jobs queued
+Queued (no stand-ins in the cut yet; v1 is still the current cut):
+- Fight (notes 1, 2, 5): scene C re-prompted at full steps, 0.5 MP, 3 takes (j_cf36c6d1e616). One Kaelen, fixed screen sides (Exit Punk left, Kaelen right), Kaelen alone is launched on the hit, and a crowd-wide last shot for the end card.
+- Lip sync (note 3): the Orchestrator's whole line as a lip-synced close-up, 2 takes (j_941ebe62f981).
+- Stray "Mick" whisper (note 4): in scene D it sits at about 5 s after the voices end at about 3.7 s. In the re-cut, clip 16 ends at 3.9 s.
+When the jobs finish I judge them, re-cut from edit.json, run the critic and write `.hawkes/video.json`.
