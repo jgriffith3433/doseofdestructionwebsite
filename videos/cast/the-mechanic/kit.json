@@ -1,0 +1,15 @@
+{
+ "character": "the-mechanic",
+ "reference": "a_8b18077371927f6d",
+ "look": "black messy hair, tired eyes, grey tee, blue overalls tied at waist with No. 17, red-blue gloves, tan boots; same 3D-cartoon render",
+ "voice": "iP95p4xoKVk53GoZ742B (Chris)",
+ "expressions": {
+  "mech_stern": "a_4d9fa59f4f4f3acb,a_0b3543fd6335aeb6",
+  "mech_soft": "a_c47144ecf1e347ee,a_91dfed956f5ba576",
+  "mech_grave": "a_e894dc45523f9641,a_2613da572ed586a4"
+ },
+ "plate": "a_c2fc1eadd24da955",
+ "motion_style": "economical: still, then one precise movement; works with his hands",
+ "form_3d": null,
+ "note": "Made for The Board v2; draw every shot from these, never a new look."
+}

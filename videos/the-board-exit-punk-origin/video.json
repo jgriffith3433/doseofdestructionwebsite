@@ -1,0 +1,206 @@
+{
+ "slug": "the-board-exit-punk-origin",
+ "format": {
+  "kind": "wide",
+  "width": 1920,
+  "height": 1080,
+  "fps": 24,
+  "seconds": 90.8
+ },
+ "version": 6,
+ "gpu": "about $2.3 of the $2.50 budget (voices, music and sfx included)",
+ "cast": [
+  {
+   "name": "Exit Punk",
+   "voice": "bIHbv24MWmeRgasZH58o",
+   "model": "eleven_v4",
+   "forms": [
+    {
+     "kind": "still art",
+     "source": "doseofdestruction/exit-punk reference a_5ba184e1455c5dad, side a_2f943d6731c0e9f2"
+    }
+   ]
+  },
+  {
+   "name": "The Mechanic",
+   "voice": "iP95p4xoKVk53GoZ742B",
+   "model": "eleven_v4",
+   "forms": [
+    {
+     "kind": "still art",
+     "source": "doseofdestruction/the-mechanic reference a_8b18077371927f6d"
+    }
+   ]
+  },
+  {
+   "name": "Announcer",
+   "voice": "nPczCjzI2devNBz1zQrb",
+   "model": "eleven_v4",
+   "forms": []
+  }
+ ],
+ "voices": {
+  "M1": "a_59451c0f6415f95a",
+  "E1": "a_d2f5c4d3b0b60712",
+  "M2": "a_5e4a77b233491db4",
+  "E2": "a_7498629fee763cb3",
+  "M3": "a_1854b0f44971ad02",
+  "E3": "a_3d71bda353b715bc",
+  "M4": "a_bcebd960d64817f6",
+  "M5": "a_a58a080db6ab28c2",
+  "E4": "a_aff55379344152f9",
+  "M6": "a_d7a6c75648d2f821",
+  "E5": "a_aa92fe9415fc21aa",
+  "M7": "a_4e00a5b2fbb79855",
+  "E6": "a_fe041051cbe6874b",
+  "M8": "a_a0028d5548e51983",
+  "E7": "a_72e6b35d63dbbcb5",
+  "M9": "a_262302c6c25a06e1",
+  "ANN": "a_a49f0d084cc8a9e9",
+  "E8": "a_2bc017f828d78e2b",
+  "M10": "a_4f12e3e31f3b79bd",
+  "E10": "a_a7050137a851ea25",
+  "M11": "a_25d1d945c4e7dd90",
+  "E11": "a_a1e93286d3a90af3",
+  "M12": "a_71614253a716f52b",
+  "E12": "a_23ce0f141a7f905e"
+ },
+ "music": {
+  "hum": "a_4654bbf55d8700bb",
+  "drums": "a_8d43f0a7fab8303f"
+ },
+ "sfx": {
+  "land": "a_b23d3700427ee79f",
+  "weld": "a_4ebd44a98b985814",
+  "file": "a_c62d527359a0bc36",
+  "wheel": "a_260977340b81f5d3",
+  "creeper": "a_bc689d19efc3c6e5",
+  "crowd": "a_36943fc92c42a7a8",
+  "crash": "a_b9fa511eb6f9f950"
+ },
+ "keyframes": {
+  "ep_cu": "a_4252afca02c933d6",
+  "mech_cu": "a_9e4f8e16c75b8448,a_a692852bd68b6ef8",
+  "ep_stage_light": "a_5ceeee2797920e8d",
+  "hook": "a_38b650987261930b",
+  "creeper": "a_e5a26ba800768aef",
+  "weld": "a_174416cb6233750b",
+  "file": "a_f480ad4f475f3456",
+  "wheel": "a_ebd36a501da2bf2b",
+  "ep_watch": "a_1d1d1dcd91ef2493",
+  "two_shot": "a_c2fc1eadd24da955",
+  "ride": "a_131af5da7a1938c8",
+  "drop": "a_4791db65b1286f9d"
+ },
+ "shots": {
+  "hook": "a_8a302f6f0000bc66",
+  "creeper": "a_e2b29afff5b2e573",
+  "weld": "a_cea7c95f7b15e603",
+  "file": "a_d0c85043130d5697",
+  "wheel": "a_4940a431f6e1610a",
+  "ep_watch": "a_2bc8d153febd9cce",
+  "two_shot": "a_a4d0e5aa1f2f5d87",
+  "ride": "a_0967feaafe102609",
+  "drop": "a_8e9c151acf8be87e",
+  "ep_react": "a_024377f219b32546",
+  "talk": {
+   "E1": "a_f80f4e386a779eb6",
+   "E2": "a_73265723e931080f",
+   "E3": "a_36c0c8a63f0dfd9a",
+   "E5": "a_315c46866fc3ff69",
+   "E8": "a_b6de2a9d06a83269",
+   "M2": "a_8737706358d165d4",
+   "M3": "a_7adf435770f7a0b4",
+   "M4": "a_ab3c31c9d1acc34c",
+   "M7": "a_7733a6cf201b2e72",
+   "M8": "a_aa6d777df16e067c"
+  }
+ },
+ "cut": {
+  "file": "videos/the-board-exit-punk-origin/out/cut.mp4",
+  "built_by": "videos/the-board-exit-punk-origin/build_final.py",
+  "seconds": 92.5,
+  "stage": "final"
+ },
+ "notes": "v4: new keyframes for the review notes; build_v4.py + keys.json; GPU for v4 about $0.2 (12 image.edit jobs x 2 takes)",
+ "stage": "final",
+ "look": "one 3D-cartoon render; every keyframe is an image.edit of the v1 two-shot plate a_c2fc1eadd24da955 with the DoD references a_5ba184e1455c5dad (Exit Punk) and a_8b18077371927f6d (Mechanic)",
+ "keyframes_v2": {
+  "ep_defensive": "a_5ff4eaa95c59a68d,a_6a347120ae94d24d",
+  "ep_sheepish": "a_8e11889b6b1facab,a_d9e5886068247751",
+  "ep_smirk": "a_097c162248ae0279,a_329277d273a7ce53",
+  "ep_hurt": "a_a8a318f44d2e5662,a_a4f83fdbb058e70d",
+  "ep_hopeful": "a_01cc90aa4866bb92,a_5182c54eb793e9b6",
+  "ep_resolve": "a_ba791db105c319d4,a_04ffdc42af453135",
+  "ep_watching": "a_fdd3fe7b1d5a935d,a_654b390939ba8afd",
+  "mech_stern": "a_4d9fa59f4f4f3acb,a_0b3543fd6335aeb6",
+  "mech_soft": "a_c47144ecf1e347ee,a_91dfed956f5ba576",
+  "mech_grave": "a_e894dc45523f9641,a_2613da572ed586a4",
+  "hook": "a_0ae3e602d46653ff,a_c5f5575904e32a2b",
+  "creeper": "a_659c8c17f236a40b,a_53666d8799b601a3",
+  "ots_mech": "a_a4109a182d9eeee2,a_1cfaaa6fd1c60a8a",
+  "weld": "a_e6ad46fa466292c7,a_2348ce98ba4aa52d",
+  "file": "a_0012c35f375e098c,a_38fcebd204e1b359",
+  "wheel": "a_787a6e7cc9ad3149,a_4b8dc58f3e1468be",
+  "board_snapped": "a_bc2761b78728e78c,a_7c553033b42602ab",
+  "handoff": "a_786763d621aa49cd,a_9dbeb1bbd3d0e39c",
+  "ride": "a_2401c918cae7f12a,a_78bac78480c9c995",
+  "grate": "a_b1e795994c7171af,a_2d0559e7b70c44d2 (unused: shows both characters)",
+  "drop": "a_ce593faea85b408d,a_7cde45569e15f195"
+ },
+ "keyframes_v3": {
+  "hook_land": "a_f70a7a4f121ac4d7 (take 0, cropped)",
+  "creeper2": "a_45d43ad7984cdd3e",
+  "watch": "a_d6eab88029345656",
+  "ots_mech2": "a_1ed26669d5ded80d",
+  "ots_mech3": "a_bfa4d910c8e300e4",
+  "file": "a_7bb0bdd468017d38",
+  "wrench": "a_8eeb530ce8c34a26 (cropped)",
+  "board_between": "a_1512ffd46c8fa8da",
+  "rejected": "hook (all 3 drew a dark-haired kid), grate_ep (all 3 show the Mechanic): ride_1/ride_0 used instead"
+ },
+ "keyframes_v4": {
+  "hook_face": "a_9133d0e1e234629a",
+  "hook_launch": "a_b7a58ec12cb917e1",
+  "two_high": "a_8ea9628bf89b205c",
+  "handoff2": "a_1458afb36a41b787",
+  "sit_up": "a_284b050debd99dad",
+  "tv_glow": "a_c0e3db8675c9419d",
+  "ep_eyes": "a_8b5e8cb8c6431143",
+  "mech_stops": "a_313885502a012c7d",
+  "ride_wide": "a_6fd879f518d85766",
+  "ride_wheels": "a_02b93d8ce624929b",
+  "ride_front": "a_15633c11a42e7937",
+  "grate_face": "a_472f133bf51c47df"
+ },
+ "seconds": 90.8,
+ "summary": "v5 animatic, answering J's v4 note \"make it funnier\". Same story and shots; six new deadpan lines in the characters' own voices and one sound gag, no new images: Mechanic 'I counted.' after 'eleven seconds late' (watch insert); kid 'I'm not watching.' / Mechanic 'Nobody asked.' over the montage watching shots; callback 'Which bolt?' / 'THE bolt.' after 'bring the bolt back'; after the drop, black, a crash, and the kid's 'Mostly.' before the end card (wheels-down rule, paid off as a joke). Length 90.8 s. Cost about $0.07.",
+ "final_clips": {
+  "i2v": {
+   "hook_launch": "j_cc5ea516ee49",
+   "hook_land": "j_47d8f9f127bd",
+   "creeper2": "j_af6059b97215",
+   "weld": "j_ddf313518cb2",
+   "file": "j_0c837487ca24",
+   "wheel_0": "j_a287de3448af",
+   "ride_wide": "j_5bd6b3f5d38e",
+   "ride_wheels": "j_571224c2220f",
+   "ride_front": "j_6e332fea1a5e",
+   "ride_0": "j_2e0a1ea46dfe",
+   "handoff2": "j_8e0159c5281a",
+   "drop_1": "j_5847afb4b594"
+  },
+  "talk": {
+   "E1": "j_cd9358f6ae38",
+   "E2": "j_6f7143107eab",
+   "E3": "j_9fe55ca5737c",
+   "E4": "j_60537fe3b08b",
+   "E5": "j_db029241421d",
+   "E6": "j_9417e43cc30d",
+   "E8": "j_8e0f67b73797",
+   "M2": "j_22a7a866fd16",
+   "M6": "j_89ea78da27c5",
+   "M12": "j_7a19758fcd92"
+  }
+ }
+}

@@ -1,0 +1,375 @@
+{
+ "width": 1920,
+ "height": 1080,
+ "fps": 24,
+ "burn": true,
+ "clips": [
+  {
+   "beat": "00_hook_launch",
+   "in": 0,
+   "out": 1.2,
+   "label": "hook_launch",
+   "asset": "a_0b8161798ce3efc3"
+  },
+  {
+   "beat": "01_hook_face",
+   "in": 0,
+   "out": 1.0,
+   "label": "hook_face",
+   "file": "videos/the-board-exit-punk-origin/stills/hook_face.jpg"
+  },
+  {
+   "beat": "02_hook_land",
+   "in": 0,
+   "out": 1.0,
+   "label": "hook_land",
+   "asset": "a_41fd0bd3000138e6"
+  },
+  {
+   "beat": "03_creeper2",
+   "in": 0,
+   "out": 1.6,
+   "label": "creeper2",
+   "asset": "a_b47c8a846b081b2f"
+  },
+  {
+   "beat": "04_watch",
+   "in": 0,
+   "out": 1.0,
+   "label": "watch",
+   "file": "videos/the-board-exit-punk-origin/stills/watch.jpg"
+  },
+  {
+   "beat": "05_sit_up",
+   "in": 0,
+   "out": 1.7,
+   "label": "MECHANIC: You're late.",
+   "file": "videos/the-board-exit-punk-origin/stills/sit_up.jpg"
+  },
+  {
+   "beat": "06_ep_defensive_1",
+   "in": 0,
+   "out": 2.3,
+   "label": "EXIT PUNK: I'm eleven seconds late.",
+   "asset": "a_1388e47c0308f4f0"
+  },
+  {
+   "beat": "07_watch",
+   "in": 0,
+   "out": 1.5,
+   "label": "MECHANIC: I counted.",
+   "file": "videos/the-board-exit-punk-origin/stills/watch.jpg"
+  },
+  {
+   "beat": "08_ots_mech2",
+   "in": 0,
+   "out": 3.15,
+   "label": "MECHANIC: Eleven seconds is how a furnace goes out.",
+   "asset": "a_ad6819c884481075"
+  },
+  {
+   "beat": "09_ep_sheepish_0",
+   "in": 0,
+   "out": 1.4,
+   "label": "EXIT PUNK: It's a bolt.",
+   "asset": "a_e01208c7db599fa5"
+  },
+  {
+   "beat": "10_mech_stern_1",
+   "in": 0,
+   "out": 1.5,
+   "label": "MECHANIC: It's THE bolt.",
+   "file": "videos/the-board-exit-punk-origin/stills/mech_stern_1.jpg"
+  },
+  {
+   "beat": "11_board_snapped_1",
+   "in": 0,
+   "out": 2.0,
+   "label": "That deck's snapped.",
+   "file": "videos/the-board-exit-punk-origin/stills/board_snapped_1.jpg"
+  },
+  {
+   "beat": "12_ep_smirk_0",
+   "in": 0,
+   "out": 3.25,
+   "label": "EXIT PUNK: It's fine. It's held together by optimism.",
+   "asset": "a_7f122625a8f1f7a0"
+  },
+  {
+   "beat": "13_mech_stern_0",
+   "in": 0,
+   "out": 0.5,
+   "label": "mech_stern_0",
+   "file": "videos/the-board-exit-punk-origin/stills/mech_stern_0.jpg"
+  },
+  {
+   "beat": "14_mech_soft_1",
+   "in": 0,
+   "out": 2.1,
+   "label": "MECHANIC: It's held together by me. Third time this month.",
+   "file": "videos/the-board-exit-punk-origin/stills/mech_soft_1.jpg"
+  },
+  {
+   "beat": "15_ep_defensive_0",
+   "in": 0,
+   "out": 1.2,
+   "label": "Sit.",
+   "file": "videos/the-board-exit-punk-origin/stills/ep_defensive_0.jpg"
+  },
+  {
+   "beat": "16_wrench",
+   "in": 0,
+   "out": 1.2,
+   "label": "wrench",
+   "file": "videos/the-board-exit-punk-origin/stills/wrench.jpg"
+  },
+  {
+   "beat": "17_weld",
+   "in": 0,
+   "out": 1.8,
+   "label": "weld",
+   "asset": "a_bb939dd37f3b0a41"
+  },
+  {
+   "beat": "18_ep_watching_0",
+   "in": 0,
+   "out": 1.6,
+   "label": "EXIT PUNK: I'm not watching.",
+   "file": "videos/the-board-exit-punk-origin/stills/ep_watching_0.jpg"
+  },
+  {
+   "beat": "19_file",
+   "in": 0,
+   "out": 1.6,
+   "label": "file",
+   "asset": "a_73b77589428a3794"
+  },
+  {
+   "beat": "20_wheel_0",
+   "in": 0,
+   "out": 1.5,
+   "label": "wheel_0",
+   "asset": "a_df3907ad3bcf65d2"
+  },
+  {
+   "beat": "21_ep_watching_1",
+   "in": 0,
+   "out": 1.7,
+   "label": "MECHANIC: Nobody asked.",
+   "file": "videos/the-board-exit-punk-origin/stills/ep_watching_1.jpg"
+  },
+  {
+   "beat": "22_two_high",
+   "in": 0,
+   "out": 2.4,
+   "label": "MECHANIC: You know why you keep breaking it?",
+   "file": "videos/the-board-exit-punk-origin/stills/two_high.jpg"
+  },
+  {
+   "beat": "23_ep_smirk_1",
+   "in": 0,
+   "out": 2.2,
+   "label": "EXIT PUNK: I'm bad at stopping.",
+   "asset": "a_5879c07518c5cd47"
+  },
+  {
+   "beat": "24_mech_soft_0",
+   "in": 0,
+   "out": 2.8,
+   "label": "MECHANIC: You never ride it anywhere you're allowed.",
+   "asset": "a_233278b54004cd18"
+  },
+  {
+   "beat": "25_ep_hurt_1",
+   "in": 0,
+   "out": 2.8,
+   "label": "EXIT PUNK: Nowhere I'm allowed to ride has an exit.",
+   "asset": "a_eb2550bfe996dbce"
+  },
+  {
+   "beat": "26_ep_eyes",
+   "in": 0,
+   "out": 1.3,
+   "label": "ep_eyes",
+   "file": "videos/the-board-exit-punk-origin/stills/ep_eyes.jpg"
+  },
+  {
+   "beat": "27_mech_stops",
+   "in": 0,
+   "out": 1.8,
+   "label": "mech_stops",
+   "file": "videos/the-board-exit-punk-origin/stills/mech_stops.jpg"
+  },
+  {
+   "beat": "28_ots_mech3",
+   "in": 0,
+   "out": 1.5,
+   "label": "MECHANIC: There's a window upstairs.",
+   "file": "videos/the-board-exit-punk-origin/stills/ots_mech3.jpg"
+  },
+  {
+   "beat": "29_tv_glow",
+   "in": 0,
+   "out": 1.5,
+   "label": "Gets the broadcast.",
+   "file": "videos/the-board-exit-punk-origin/stills/tv_glow.jpg"
+  },
+  {
+   "beat": "30_mech_grave_0",
+   "in": 0,
+   "out": 3.0,
+   "label": "Whole city watching the floor at midnight.",
+   "file": "videos/the-board-exit-punk-origin/stills/mech_grave_0.jpg"
+  },
+  {
+   "beat": "31_mech_grave_1",
+   "in": 0,
+   "out": 2.0,
+   "label": "People who walk onto that stage don't come back the same.",
+   "file": "videos/the-board-exit-punk-origin/stills/mech_grave_1.jpg"
+  },
+  {
+   "beat": "32_ep_hurt_0",
+   "in": 0,
+   "out": 2.1,
+   "label": "Or at all.",
+   "file": "videos/the-board-exit-punk-origin/stills/ep_hurt_0.jpg"
+  },
+  {
+   "beat": "33_ep_hopeful_1",
+   "in": 0,
+   "out": 1.9,
+   "label": "EXIT PUNK: Sounds like a way out.",
+   "asset": "a_16ceb1cc1762d827"
+  },
+  {
+   "beat": "34_mech_stern_0",
+   "in": 0,
+   "out": 1.6,
+   "label": "MECHANIC: It's a way in.",
+   "file": "videos/the-board-exit-punk-origin/stills/mech_stern_0.jpg"
+  },
+  {
+   "beat": "35_handoff2",
+   "in": 0,
+   "out": 2.4,
+   "label": "New rule. Wheels down.",
+   "asset": "a_128afc895b3a4014"
+  },
+  {
+   "beat": "36_handoff_0",
+   "in": 0,
+   "out": 1.8,
+   "label": "Whatever you land on, wheels down.",
+   "file": "videos/the-board-exit-punk-origin/stills/handoff_0.jpg"
+  },
+  {
+   "beat": "37_ep_hopeful_0",
+   "in": 0,
+   "out": 1.4,
+   "label": "EXIT PUNK: That's the rule?",
+   "file": "videos/the-board-exit-punk-origin/stills/ep_hopeful_0.jpg"
+  },
+  {
+   "beat": "38_mech_soft_0c",
+   "in": 0,
+   "out": 2.0,
+   "label": "MECHANIC: Only one I ever kept.",
+   "file": "videos/the-board-exit-punk-origin/stills/mech_soft_0.jpg"
+  },
+  {
+   "beat": "39_mech_stern_1c",
+   "in": 0,
+   "out": 2.2,
+   "label": "And bring the bolt back.",
+   "file": "videos/the-board-exit-punk-origin/stills/mech_stern_1.jpg"
+  },
+  {
+   "beat": "40_ep_defensive_0",
+   "in": 0,
+   "out": 1.3,
+   "label": "EXIT PUNK: Which bolt?",
+   "file": "videos/the-board-exit-punk-origin/stills/ep_defensive_0.jpg"
+  },
+  {
+   "beat": "41_mech_stern_1",
+   "in": 0,
+   "out": 1.6,
+   "label": "MECHANIC: THE bolt.",
+   "asset": "a_549cda3a312c8562"
+  },
+  {
+   "beat": "42_ride_wide",
+   "in": 0,
+   "out": 1.8,
+   "label": "ride_wide",
+   "asset": "a_c77886188e889197"
+  },
+  {
+   "beat": "43_ride_wheels",
+   "in": 0,
+   "out": 1.2,
+   "label": "ride_wheels",
+   "asset": "a_435943c3e7ef3c8a"
+  },
+  {
+   "beat": "44_ride_front",
+   "in": 0,
+   "out": 1.6,
+   "label": "ride_front",
+   "asset": "a_088a7d8f5bb47a1a"
+  },
+  {
+   "beat": "45_ride_0",
+   "in": 0,
+   "out": 1.4,
+   "label": "ride_0",
+   "asset": "a_941d400b678787c1"
+  },
+  {
+   "beat": "46_ride_1",
+   "in": 0,
+   "out": 1.4,
+   "label": "ride_1",
+   "file": "videos/the-board-exit-punk-origin/stills/ride_1.jpg"
+  },
+  {
+   "beat": "47_grate_face",
+   "in": 0,
+   "out": 2.2,
+   "label": "ANNOUNCER: Tonight, a walk-on.",
+   "file": "videos/the-board-exit-punk-origin/stills/grate_face.jpg"
+  },
+  {
+   "beat": "48_ep_resolve_1",
+   "in": 0,
+   "out": 1.8,
+   "label": "EXIT PUNK: Wheels down.",
+   "asset": "a_9d5c0aaa4bd58cb0"
+  },
+  {
+   "beat": "49_drop_1",
+   "in": 0,
+   "out": 1.2,
+   "label": "drop_1",
+   "asset": "a_fa17fee264c611f7"
+  },
+  {
+   "beat": "50_drop_0",
+   "in": 0,
+   "out": 0.6,
+   "label": "drop_0",
+   "file": "videos/the-board-exit-punk-origin/stills/drop_0.jpg"
+  },
+  {
+   "beat": "51_BLACK",
+   "in": 0,
+   "out": 2.4,
+   "label": "EXIT PUNK: ...Mostly.",
+   "file": "black"
+  }
+ ],
+ "audio": [],
+ "captions": [],
+ "note": "audio (voices, hum->drums, sfx) and burned captions are mixed by build_final.py with ffmpeg; clips with \"file\" are held stills"
+}

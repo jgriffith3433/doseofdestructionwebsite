@@ -1,0 +1,206 @@
+{
+ "hook": {
+  "file": "ride_1.jpg"
+ },
+ "hook_land": {
+  "file": "hook_land.jpg",
+  "crop": [
+   0.3,
+   0,
+   0.7,
+   0.9
+  ]
+ },
+ "ride_0": {
+  "file": "ride_0.jpg"
+ },
+ "ride_1": {
+  "file": "ride_1.jpg"
+ },
+ "creeper2": {
+  "file": "creeper2.jpg"
+ },
+ "watch": {
+  "file": "watch.jpg"
+ },
+ "ots_mech2": {
+  "file": "ots_mech2.jpg",
+  "crop": [
+   0.0,
+   0.05,
+   0.95,
+   0.85
+  ]
+ },
+ "file": {
+  "file": "file.jpg"
+ },
+ "wrench": {
+  "file": "wrench.jpg",
+  "crop": [
+   0.0,
+   0.45,
+   0.8,
+   0.55
+  ]
+ },
+ "board_between": {
+  "file": "board_between.jpg"
+ },
+ "grate_ep": {
+  "file": "ride_0.jpg",
+  "crop": [
+   0.25,
+   0.1,
+   0.5,
+   0.6
+  ]
+ },
+ "weld": {
+  "file": "weld_1.jpg"
+ },
+ "ep_defensive_0": {
+  "file": "ep_defensive_0.jpg"
+ },
+ "ep_defensive_1": {
+  "file": "ep_defensive_1.jpg"
+ },
+ "ep_sheepish_0": {
+  "file": "ep_sheepish_0.jpg"
+ },
+ "ep_sheepish_1": {
+  "file": "ep_sheepish_1.jpg"
+ },
+ "ep_smirk_0": {
+  "file": "ep_smirk_0.jpg"
+ },
+ "ep_smirk_1": {
+  "file": "ep_smirk_1.jpg"
+ },
+ "ep_hurt_0": {
+  "file": "ep_hurt_0.jpg"
+ },
+ "ep_hurt_1": {
+  "file": "ep_hurt_1.jpg"
+ },
+ "ep_hopeful_0": {
+  "file": "ep_hopeful_0.jpg"
+ },
+ "ep_hopeful_1": {
+  "file": "ep_hopeful_1.jpg"
+ },
+ "ep_resolve_1": {
+  "file": "ep_resolve_1.jpg"
+ },
+ "ep_watching_0": {
+  "file": "ep_watching_0.jpg"
+ },
+ "ep_watching_1": {
+  "file": "ep_watching_1.jpg"
+ },
+ "mech_stern_0": {
+  "file": "mech_stern_0.jpg"
+ },
+ "mech_stern_1": {
+  "file": "mech_stern_1.jpg"
+ },
+ "mech_soft_0": {
+  "file": "mech_soft_0.jpg"
+ },
+ "mech_soft_1": {
+  "file": "mech_soft_1.jpg"
+ },
+ "mech_grave_0": {
+  "file": "mech_grave_0.jpg"
+ },
+ "mech_grave_1": {
+  "file": "mech_grave_1.jpg"
+ },
+ "board_snapped_1": {
+  "file": "board_snapped_1.jpg"
+ },
+ "handoff_0": {
+  "file": "handoff_0.jpg"
+ },
+ "handoff_1": {
+  "file": "handoff_1.jpg"
+ },
+ "wheel_0": {
+  "file": "wheel_0.jpg"
+ },
+ "drop_0": {
+  "file": "drop_0.jpg"
+ },
+ "drop_1": {
+  "file": "drop_1.jpg"
+ },
+ "ots_mech3": {
+  "file": "ots_mech3.jpg",
+  "crop": [
+   0.0,
+   0.0,
+   0.95,
+   0.9
+  ]
+ },
+ "hook_face": {
+  "file": "hook_face.jpg"
+ },
+ "hook_launch": {
+  "file": "hook_launch.jpg"
+ },
+ "two_high": {
+  "file": "two_high.jpg"
+ },
+ "handoff2": {
+  "file": "handoff2.jpg"
+ },
+ "sit_up": {
+  "file": "sit_up.jpg"
+ },
+ "tv_glow": {
+  "file": "tv_glow.jpg"
+ },
+ "ep_eyes": {
+  "file": "ep_eyes.jpg"
+ },
+ "ride_wide": {
+  "file": "ride_wide.jpg"
+ },
+ "ride_wheels": {
+  "file": "ride_wheels.jpg"
+ },
+ "ride_front": {
+  "file": "ride_front.jpg"
+ },
+ "grate_face": {
+  "file": "grate_face.jpg"
+ },
+ "mech_stops": {
+  "file": "mech_stops.jpg",
+  "crop": [
+   0,
+   0,
+   0.62,
+   1
+  ]
+ },
+ "mech_soft_0c": {
+  "file": "mech_soft_0.jpg",
+  "crop": [
+   0.15,
+   0.05,
+   0.7,
+   0.8
+  ]
+ },
+ "mech_stern_1c": {
+  "file": "mech_stern_1.jpg",
+  "crop": [
+   0.15,
+   0.05,
+   0.7,
+   0.8
+  ]
+ }
+}

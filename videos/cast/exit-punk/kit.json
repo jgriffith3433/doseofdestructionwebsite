@@ -1,0 +1,19 @@
+{
+ "character": "exit-punk",
+ "reference": "a_5ba184e1455c5dad",
+ "look": "spiky blond hair, yellow tee with blue emblem, jeans, red sneakers; 3D-cartoon render",
+ "voice": "bIHbv24MWmeRgasZH58o (Will)",
+ "expressions": {
+  "ep_defensive": "a_5ff4eaa95c59a68d,a_6a347120ae94d24d",
+  "ep_sheepish": "a_8e11889b6b1facab,a_d9e5886068247751",
+  "ep_smirk": "a_097c162248ae0279,a_329277d273a7ce53",
+  "ep_hurt": "a_a8a318f44d2e5662,a_a4f83fdbb058e70d",
+  "ep_hopeful": "a_01cc90aa4866bb92,a_5182c54eb793e9b6",
+  "ep_resolve": "a_ba791db105c319d4,a_04ffdc42af453135",
+  "ep_watching": "a_fdd3fe7b1d5a935d,a_654b390939ba8afd"
+ },
+ "plate": "a_c2fc1eadd24da955",
+ "motion_style": "skater flow: loose, quick, bails and recovers",
+ "form_3d": null,
+ "note": "Made for The Board v2; draw every shot from these, never a new look."
+}
