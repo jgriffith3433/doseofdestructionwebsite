@@ -1,0 +1,311 @@
+[
+ {
+  "key": "hook_lights",
+  "t": 0,
+  "seconds": 3,
+  "shot": "MS",
+  "angle": "low",
+  "camera": "push-in",
+  "who": [
+   "The Orchestrator"
+  ],
+  "line": "Good evening, city! Tonight on Dose of Destruction...",
+  "action": "floor rises into a stage, spotlights slam on, he conducts with the baton",
+  "expression": "huge showman grin",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, TRACK",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "wide_screens",
+  "t": 3,
+  "seconds": 3,
+  "shot": "WS",
+  "angle": "high",
+  "camera": "crane-up",
+  "who": [
+   "The Orchestrator"
+  ],
+  "line": "a walk-on.",
+  "action": "baton flicks, spotlight row snaps across the stage, steam, screens of the city watching",
+  "expression": "grin",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, TRACK",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "orch_sponsor",
+  "t": 6,
+  "seconds": 2.5,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "push-in",
+  "who": [
+   "The Orchestrator"
+  ],
+  "line": "No sponsor. No record.",
+  "action": "relishes each word, baton by his cheek",
+  "expression": "wry smirk",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, TRACK",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "empty_entrance",
+  "t": 8.5,
+  "seconds": 2.5,
+  "shot": "MS",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "The Orchestrator (off)"
+  ],
+  "line": "One skateboard.",
+  "action": "spotlight swings to the empty entrance ramp; nothing; dust",
+  "expression": "none: the joke is the empty ramp",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, TRACK",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "ep_rolls_in",
+  "t": 11.0,
+  "seconds": 3.2,
+  "shot": "WS",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": null,
+  "action": "long beat, scrape of wheels, he rolls into the light one foot on the board, hands in pockets",
+  "expression": "blank",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, PERFORM",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "ep_show",
+  "t": 14.2,
+  "seconds": 2.2,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "I'm not here for the show.",
+  "action": "stops, flat, looks past the camera",
+  "expression": "deadpan",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, PERFORM",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "ep_kick",
+  "t": 16.4,
+  "seconds": 0.8,
+  "shot": "MS",
+  "angle": "low",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": null,
+  "action": "kicks the board up into his hand, clack",
+  "expression": "no smile",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, PERFORM",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "ep_exit",
+  "t": 17.2,
+  "seconds": 2.2,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "push-in",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "I'm here for the exit.",
+  "action": "quiet, steady eyes",
+  "expression": "dry resolve",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, PERFORM",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "kaelen_lands",
+  "t": 19.4,
+  "seconds": 1.0,
+  "shot": "MS",
+  "angle": "low",
+  "camera": "static",
+  "who": [
+   "Kaelen"
+  ],
+  "line": null,
+  "action": "lands hard on the platform, floor cracks, sparks",
+  "expression": "fierce",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, PERFORM",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "orch_main_event",
+  "t": 20.4,
+  "seconds": 2.6,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "The Orchestrator"
+  ],
+  "line": "Then you'll have to go through the main event.",
+  "action": "grins, raises the baton",
+  "expression": "delighted",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, PERFORM",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "fight_drop",
+  "t": 23.0,
+  "seconds": 1.2,
+  "shot": "WS",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk",
+   "Kaelen"
+  ],
+  "line": null,
+  "action": "board dropped wheels down, Kaelen charges",
+  "expression": "set",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, no dialogue",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "fight_dodge",
+  "t": 24.2,
+  "seconds": 1.2,
+  "shot": "MS",
+  "angle": "low",
+  "camera": "handheld",
+  "who": [
+   "Exit Punk",
+   "Kaelen"
+  ],
+  "line": null,
+  "action": "gauntlet punch, Exit Punk ducks, sparks on the pillar",
+  "expression": "focused",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, no dialogue",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "fight_swing",
+  "t": 25.4,
+  "seconds": 1.0,
+  "shot": "CU",
+  "angle": "eye",
+  "camera": "handheld",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": null,
+  "action": "spins and swings the board, speed lines",
+  "expression": "set jaw",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, no dialogue",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "fight_hit",
+  "t": 26.4,
+  "seconds": 1.4,
+  "shot": "WS",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk",
+   "Kaelen"
+  ],
+  "line": null,
+  "action": "board smashes Kaelen: flash, shockwave ring, he flies back",
+  "expression": "impact",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, no dialogue",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "crowd",
+  "t": 27.8,
+  "seconds": 0.8,
+  "shot": "WS",
+  "angle": "high",
+  "camera": "static",
+  "who": [
+   "crowd"
+  ],
+  "line": null,
+  "action": "screens and crowd erupt, spotlights",
+  "expression": "cheering",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, no dialogue",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "ep_ratings",
+  "t": 28.6,
+  "seconds": 2.6,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "Exit Punk"
+  ],
+  "line": "Ratings went up?",
+  "action": "breathing hard, glances up at the screens",
+  "expression": "dry, hopeful-deadpan",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, PERFORM",
+  "why": "timed to the table read"
+ },
+ {
+  "key": "orch_eleven",
+  "t": 31.2,
+  "seconds": 2.9,
+  "shot": "MCU",
+  "angle": "eye",
+  "camera": "static",
+  "who": [
+   "The Orchestrator"
+  ],
+  "line": "Eleven points.",
+  "action": "small satisfied nod, tiny smile",
+  "expression": "pleased",
+  "sfx": "native scene sound",
+  "vfx": null,
+  "method": "video.scene lightning 1:1, PERFORM",
+  "why": "timed to the table read"
+ }
+]
