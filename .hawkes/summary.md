@@ -1,9 +1,6 @@
-# Open Mic v5: blocked on a Gen bug (video.scene portrait)
-Answers Studio's v4 review (5-16 s as one rooftop scene instead of black-background portraits). Not done: the v4 cut is unchanged.
-Done: the 3 reference images are judged and pass (empty rooftop a_1c0fddb80dcbdf63; Exit Punk a_cc6edf127e15980e; Shutup Bot a_e019bfe381e8a943, on-model, same 3D style), and the 14 s voice track with all five of J's lines is built.
-Blocker: `video.scene` in portrait fails. j_4012fdf8139e was rejected by ComfyUI (no GPU spent): the H3 workflow only accepts '9:16 (Portrait Widescreen)', but Gen's param list only allows '9:16 (Portrait)' and refuses the right value up front. Fix is in Gen's video.scene aspect enum (not changed here, outside this task).
-I did not fall back to 16:9: a centre-crop to 9:16 at 0.5 MP would be about 300x540 and lose one of the two characters.
-Left: once Gen is fixed, one scene (~$0.65; GPU spent so far ~$1.90 of $2.67) then judge it and re-cut 5-16 s, walk-off with the dented bot, a "...Yes." caption, a bigger end card. Listed in .hawkes/pending-gpu.txt so Studio re-runs it.
-
-## Re-checked (later pass)
-Gen's video.scene `aspect` enum is still only `16:9 (Widescreen)` / `9:16 (Portrait)`, and `9:16 (Portrait Widescreen)` is refused up front, so the portrait scene still can't run. No GPU spent this pass; v4/v5 cut unchanged. Still listed in .hawkes/pending-gpu.txt for a re-run once Gen's enum is fixed (~$0.65 for the scene; ~$0.77 of the $2.67 budget left).
+# Open Mic (tonight on the show): animatic v1 (35.6 s)
+Watch it in Screening: Gen asset a_38725e89b4d61425. Real voices (the table read: Orchestrator onwK4e9ZLuTAKqWW03F9, Exit Punk bIHbv24MWmeRgasZH58o), one Pixar-3D look for all three (Orchestrator and Kaelen redrawn from canon art), one stage, J's lines unchanged. Brass stab on the spotlights, quiet for Exit Punk's lines, drum loop on the fight, end card at the end.
+Honest state: the critic gave 5.2 (not a pass): story 5.8, pacing 5.2, voices 5.3, lipsync 4.6, movement 4.5, consistency 5.4, sound 5.1. Its notes: fight (23-27.5 s) has weak weight and unclear geography; lip sync loose on "No sponsor. No record." (6-8.5 s); Exit Punk stiff between his lines (14.5-18.5 s); "Eleven points" too dry for the arena (31-33.5 s). I know about these and left them for the final since this is the cheap Lightning draft; J's steer comes first.
+Compromises: square 1:1 frame padded into 9:16 with navy bands (Gen's portrait aspect fails validation), end card is a caption over the crowd shot, the fight scene's last shot (a black background) is cut out.
+Cost: about $2.0 of $6.03 GPU (music, scenes, redraws, stage; compose and critic are free/cents). ~$4 left for a final.
+Files: videos/open-mic-tonight-on-the-show/ (script, story, beats, edit, video.json), kits for orchestrator and kaelen.

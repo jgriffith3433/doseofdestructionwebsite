@@ -1,0 +1,206 @@
+{
+ "width": 1080,
+ "height": 1920,
+ "fps": 24,
+ "burn": true,
+ "color": "0b1020",
+ "clips": [
+  {
+   "asset": "a_88706d7e217a0ed0",
+   "in": 0,
+   "out": 3,
+   "beat": "hook_lights",
+   "label": "MS The Orchestrator: Good evening, city! Tonight on Dose of Destruction..."
+  },
+  {
+   "asset": "a_88706d7e217a0ed0",
+   "in": 3,
+   "out": 6,
+   "beat": "wide_screens",
+   "label": "WS The Orchestrator: a walk-on."
+  },
+  {
+   "asset": "a_88706d7e217a0ed0",
+   "in": 6,
+   "out": 8.5,
+   "beat": "orch_sponsor",
+   "label": "CU The Orchestrator: No sponsor. No record."
+  },
+  {
+   "asset": "a_88706d7e217a0ed0",
+   "in": 8.5,
+   "out": 11,
+   "beat": "empty_entrance",
+   "label": "MS The Orchestrator (off): One skateboard."
+  },
+  {
+   "asset": "a_b44b722a79a8c023",
+   "in": 0,
+   "out": 3.2,
+   "beat": "ep_rolls_in",
+   "label": "WS Exit Punk"
+  },
+  {
+   "asset": "a_b44b722a79a8c023",
+   "in": 3.2,
+   "out": 5.4,
+   "beat": "ep_show",
+   "label": "MCU Exit Punk: I'm not here for the show."
+  },
+  {
+   "asset": "a_b44b722a79a8c023",
+   "in": 5.4,
+   "out": 6.2,
+   "beat": "ep_kick",
+   "label": "MS Exit Punk"
+  },
+  {
+   "asset": "a_b44b722a79a8c023",
+   "in": 6.2,
+   "out": 8.4,
+   "beat": "ep_exit",
+   "label": "CU Exit Punk: I'm here for the exit."
+  },
+  {
+   "asset": "a_b44b722a79a8c023",
+   "in": 8.4,
+   "out": 9.4,
+   "beat": "kaelen_lands",
+   "label": "MS Kaelen"
+  },
+  {
+   "asset": "a_b44b722a79a8c023",
+   "in": 9.4,
+   "out": 12,
+   "beat": "orch_main_event",
+   "label": "MCU The Orchestrator: Then you'll have to go through the main event."
+  },
+  {
+   "asset": "a_b9e9c8c2c7dab37e",
+   "in": 0,
+   "out": 1.2,
+   "beat": "fight_drop",
+   "label": "WS Exit Punk, Kaelen"
+  },
+  {
+   "asset": "a_b9e9c8c2c7dab37e",
+   "in": 1.2,
+   "out": 2.4,
+   "beat": "fight_dodge",
+   "label": "MS Exit Punk, Kaelen"
+  },
+  {
+   "asset": "a_b9e9c8c2c7dab37e",
+   "in": 2.4,
+   "out": 3.4,
+   "beat": "fight_swing",
+   "label": "CU Exit Punk"
+  },
+  {
+   "asset": "a_b9e9c8c2c7dab37e",
+   "in": 3.4,
+   "out": 4.8,
+   "beat": "fight_hit",
+   "label": "WS Exit Punk, Kaelen"
+  },
+  {
+   "asset": "a_b9e9c8c2c7dab37e",
+   "in": 4.8,
+   "out": 5.6,
+   "beat": "crowd",
+   "label": "WS crowd"
+  },
+  {
+   "asset": "a_c4543d6095cf595b",
+   "in": 0,
+   "out": 2.6,
+   "beat": "ep_ratings",
+   "label": "MCU Exit Punk: Ratings went up?"
+  },
+  {
+   "asset": "a_c4543d6095cf595b",
+   "in": 2.6,
+   "out": 5.5,
+   "beat": "orch_eleven",
+   "label": "MCU The Orchestrator: Eleven points."
+  },
+  {
+   "asset": "a_b9e9c8c2c7dab37e",
+   "in": 5.0,
+   "out": 6.5,
+   "beat": "end_card",
+   "label": "END CARD: crowd wide with title burned in"
+  }
+ ],
+ "audio": [
+  {
+   "asset": "a_19359182fe9a32c8",
+   "start": 0,
+   "seconds": 4,
+   "volume": 0.8,
+   "fadeOut": 1.5,
+   "label": "brass stab on the spotlights"
+  },
+  {
+   "asset": "a_0ed81eb4fd825df8",
+   "start": 22.9,
+   "seconds": 5.6,
+   "volume": 0.6,
+   "fadeOut": 0.4,
+   "label": "hard drum loop for the fight"
+  }
+ ],
+ "captions": [
+  {
+   "text": "Good evening, city!",
+   "start": 0.2,
+   "end": 2.9
+  },
+  {
+   "text": "No sponsor. No record.",
+   "start": 6.2,
+   "end": 8.4
+  },
+  {
+   "text": "One skateboard.",
+   "start": 9.4,
+   "end": 11
+  },
+  {
+   "text": "I'm not here for the show.",
+   "start": 14.3,
+   "end": 16.4
+  },
+  {
+   "text": "I'm here for the exit.",
+   "start": 17.3,
+   "end": 19.3
+  },
+  {
+   "text": "Then you'll have to go through the main event.",
+   "start": 20.5,
+   "end": 23
+  },
+  {
+   "text": "Ratings went up?",
+   "start": 28.8,
+   "end": 31.2
+  },
+  {
+   "text": "Eleven points.",
+   "start": 31.5,
+   "end": 34.1
+  },
+  {
+   "text": "Dose of Destruction",
+   "start": 34.1,
+   "end": 35.6
+  },
+  {
+   "text": "Made with Hawkes Gen \u00b7 hawkesgen.com",
+   "start": 34.1,
+   "end": 35.6
+  }
+ ],
+ "fit": "pad"
+}
