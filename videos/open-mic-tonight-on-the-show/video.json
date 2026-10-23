@@ -1,5 +1,42 @@
-{"slug":"open-mic-tonight-on-the-show","stage":"animatic","format":"9:16 1080x1920","cast":{"Exit Punk":{"kit":"videos/cast/exit-punk","voice":"bIHbv24MWmeRgasZH58o","ref":"a_5ba184e1455c5dad"},"The Orchestrator":{"kit":"videos/cast/orchestrator","voice":"onwK4e9ZLuTAKqWW03F9","ref":"a_3f74ba367710d84c"},"Kaelen":{"kit":"videos/cast/kaelen","ref":"a_142f1a7ba3f60e91"}},
-"set":"a_4a2b28401a2dcc47",
-"table_read":{"job":"j_1f44be8a5c28","take1_dialogue":"a_0eefe65ac083f7d0","stems_take1":{"orch1":"a_3de057829757647b","ep2":"a_38f6b0012927a7e0","ep3":"a_ae9c393a5c72775e","orch4":"a_eb1d8aea07541251","ep5":"a_108f9fd9f6dfa60d","orch6":"a_3f2a20e858ecf858"}},
-"scenes":{"A_intro_11s":"j_bc257b76abd4","B_entrance_12s":"j_968abd66e8f8","C_fight_6s":"j_b24a7fb5222b","D_ratings_5.5s":"j_2d3c718abc6d"},
-"spend_so_far_usd":0.74}
+{
+ "slug": "open-mic-tonight-on-the-show",
+ "stage": "animatic",
+ "format": "9:16 1080x1920",
+ "cast": {
+  "Exit Punk": {
+   "kit": "videos/cast/exit-punk",
+   "voice": "bIHbv24MWmeRgasZH58o",
+   "ref": "a_5ba184e1455c5dad"
+  },
+  "The Orchestrator": {
+   "kit": "videos/cast/orchestrator",
+   "voice": "onwK4e9ZLuTAKqWW03F9",
+   "ref": "a_3f74ba367710d84c"
+  },
+  "Kaelen": {
+   "kit": "videos/cast/kaelen",
+   "ref": "a_142f1a7ba3f60e91"
+  }
+ },
+ "set": "a_4a2b28401a2dcc47",
+ "table_read": {
+  "job": "j_1f44be8a5c28",
+  "take1_dialogue": "a_0eefe65ac083f7d0",
+  "stems_take1": {
+   "orch1": "a_3de057829757647b",
+   "ep2": "a_38f6b0012927a7e0",
+   "ep3": "a_ae9c393a5c72775e",
+   "orch4": "a_eb1d8aea07541251",
+   "ep5": "a_108f9fd9f6dfa60d",
+   "orch6": "a_3f2a20e858ecf858"
+  }
+ },
+ "scenes": {
+  "A_intro_11s": "j_b30b1bcef4e4",
+  "B_entrance_12s": "j_78e4a7255ab1",
+  "C_fight_6s": "j_1ccb74f4f75c",
+  "D_ratings_5.5s": "j_0b2bfede8b4d"
+ },
+ "spend_so_far_usd": 0.74,
+ "note": "Portrait aspect fails in Gen's video.scene (enum bug; jobs j_bc257b76abd4 etc. failed validation); J said 'don't worry about it', so scenes are 1:1 and get framed into 1080x1920 with bands."
+}
