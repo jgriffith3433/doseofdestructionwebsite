@@ -1,2 +1,0 @@
-j_4af0161e842d brass stab music: pick, fix its asset id into edit.json MUSIC_STAB, then compose via video.compose and run video.review
-j_cb5cdb667ef7 drum loop music: asset id into edit.json MUSIC_DRUMS (start 22.9s)
