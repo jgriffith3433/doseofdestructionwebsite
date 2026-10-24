@@ -1,1 +1,0 @@
-- Final pass: re-run scenes A-D at full steps/size (portrait if Gen's aspect enum is fixed), 2-3 takes of the fight, picked by the critic. Waiting on J's go-ahead on animatic v1 (a_38725e89b4d61425); no approval is in the thread yet. Scene jobs j_b30b1bcef4e4 j_78e4a7255ab1 j_1ccb74f4f75c j_0b2bfede8b4d (lightning animatic). ~$4 of the $6.03 budget left.

@@ -1,1 +1,0 @@
-- convention: VS announcer timing — playVersus cues each call from the real clip length (audio.lineMs); fixed timers overlap the clips.
