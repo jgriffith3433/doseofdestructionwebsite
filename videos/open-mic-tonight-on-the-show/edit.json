@@ -20,11 +20,11 @@
    "label": "WS The Orchestrator: a walk-on."
   },
   {
-   "asset": "a_88706d7e217a0ed0",
-   "in": 6,
+   "asset": "a_112a032d686349ab",
+   "in": 6.0,
    "out": 8.5,
    "beat": "orch_sponsor",
-   "label": "CU The Orchestrator: No sponsor. No record."
+   "label": "CU The Orchestrator: No sponsor. No record. (lip-synced take)"
   },
   {
    "asset": "a_88706d7e217a0ed0",
@@ -76,39 +76,32 @@
    "label": "MCU The Orchestrator: Then you'll have to go through the main event."
   },
   {
-   "asset": "a_b9e9c8c2c7dab37e",
+   "asset": "a_0743a4e04cd9120b",
    "in": 0,
-   "out": 1.2,
+   "out": 2,
    "beat": "fight_drop",
-   "label": "WS Exit Punk, Kaelen"
+   "label": "WS Exit Punk drops the board, Kaelen charges"
   },
   {
-   "asset": "a_b9e9c8c2c7dab37e",
-   "in": 1.2,
-   "out": 2.4,
+   "asset": "a_0743a4e04cd9120b",
+   "in": 2,
+   "out": 3,
    "beat": "fight_dodge",
-   "label": "MS Exit Punk, Kaelen"
+   "label": "MS Exit Punk ducks the gauntlet punch"
   },
   {
-   "asset": "a_b9e9c8c2c7dab37e",
-   "in": 2.4,
-   "out": 3.4,
+   "asset": "a_0743a4e04cd9120b",
+   "in": 3,
+   "out": 4,
    "beat": "fight_swing",
-   "label": "CU Exit Punk"
+   "label": "CU Exit Punk swings the board"
   },
   {
-   "asset": "a_b9e9c8c2c7dab37e",
-   "in": 3.4,
+   "asset": "a_0743a4e04cd9120b",
+   "in": 4,
    "out": 4.8,
    "beat": "fight_hit",
-   "label": "WS Exit Punk, Kaelen"
-  },
-  {
-   "asset": "a_b9e9c8c2c7dab37e",
-   "in": 4.8,
-   "out": 5.6,
-   "beat": "crowd",
-   "label": "WS crowd"
+   "label": "WS board hits Kaelen, shockwave, he flies right"
   },
   {
    "asset": "a_c4543d6095cf595b",
@@ -120,16 +113,17 @@
   {
    "asset": "a_c4543d6095cf595b",
    "in": 2.6,
-   "out": 5.5,
+   "out": 3.9,
    "beat": "orch_eleven",
    "label": "MCU The Orchestrator: Eleven points."
   },
   {
-   "asset": "a_b9e9c8c2c7dab37e",
-   "in": 5.0,
-   "out": 6.5,
+   "asset": "a_0743a4e04cd9120b",
+   "in": 4.8,
+   "out": 6.0,
    "beat": "end_card",
-   "label": "END CARD: crowd wide with title burned in"
+   "speed": 0.8,
+   "label": "END CARD: crowd wide held, title burned in"
   }
  ],
  "audio": [
@@ -144,7 +138,7 @@
   {
    "asset": "a_0ed81eb4fd825df8",
    "start": 22.9,
-   "seconds": 5.6,
+   "seconds": 4.9,
    "volume": 0.6,
    "fadeOut": 0.4,
    "label": "hard drum loop for the fight"
@@ -183,23 +177,23 @@
   },
   {
    "text": "Ratings went up?",
-   "start": 28.8,
-   "end": 31.2
+   "start": 27.9,
+   "end": 30.3
   },
   {
    "text": "Eleven points.",
-   "start": 31.5,
-   "end": 34.1
+   "start": 30.5,
+   "end": 31.6
   },
   {
    "text": "Dose of Destruction",
-   "start": 34.1,
-   "end": 35.6
+   "start": 31.7,
+   "end": 33.2
   },
   {
    "text": "Made with Hawkes Gen \u00b7 hawkesgen.com",
-   "start": 34.1,
-   "end": 35.6
+   "start": 31.7,
+   "end": 33.2
   }
  ],
  "fit": "pad"
