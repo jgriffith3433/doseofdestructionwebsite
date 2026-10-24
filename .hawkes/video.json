@@ -1,8 +1,8 @@
 {
- "asset": "a_38725e89b4d61425",
- "poster": "a_3193ba8555ff81ad",
- "seconds": 35.6,
- "summary": "Animatic v1: four lightning video.scene scenes (square 1:1, framed into 1080x1920 with navy bands because Gen's portrait aspect is broken), the table read's real voices, Pixar-3D Orchestrator/Exit Punk/Kaelen, brass stab on the spotlights, hard drum loop on the fight, burned captions, end card over the crowd wide. Critic: 5.2 (story 5.8, pacing 5.2, voices 5.3, lipsync 4.6, movement 4.5, consistency 5.4, sound 5.1), not a pass: fight choreography/spatial continuity weak, loose lipsync on 'No sponsor. No record', stiff skater between lines, 'Eleven points' too dry. Left for the final (full-steps re-run, takes picked by the critic, fight rebuilt with keyframes on the impact).",
+ "asset": "a_58eb6d5c39692130",
+ "poster": "a_7108d2038eb43440",
+ "seconds": 35.0,
+ "summary": "v3, answers Studio's v2 notes. (1) 0:06 'No sponsor. No record.': new lipsync CU (j_95e7523cc5a7, take 2) driven from a frame cropped out of the Foundry scene: clean-shaven, black bow tie, Foundry behind him. (2) 0:22 'main event': new scene (j_48bdb179d9be, take 1 of 2) ends on the host's wicked grin with the baton snapping up. (3) 0:14 host and kid never share a frame: the same scene opens on a two-shot, host frame-left at the baton rail, kid frame-right on the ramp, he hears 'I'm not here for the show'. (4) 0:24 fight: the hit is held 1.4 s (was 0.8), then the crowd-erupts wide beat (slowed) with 'RATINGS +11' on screen, before 'Ratings went up?'. (5) 0:28 ratings: the +11 caption lands on the crowd beat, then the line. (6) 0:00 hook: push-in (zoom 1 to 1.2) on the host. (7) 0:19 Kaelen: Exit Punk's eyeline to the crack, then Kaelen lands in the same frame as the kid, the host shares the scene. (8) 0:32 end card: the arena wide from scene A (no crowd that never appeared), title lockup. Cut 35.0 s. The critic could not run (Gemini 429), so this is checked by frames only; mouth sync is not verified. Spend about $3.65 of $6.03. Scenes A and D are still lightning quality, to be re-run at full steps once J approves the animatic.",
  "caption": "A walk-on, no sponsor, no record, one skateboard. He's not here for the show. #DoseOfDestruction #ExitPunk #Orchestrator #HawkesGen hawkesgen.com",
  "beats": [
   {
@@ -323,132 +323,133 @@
   "fps": 24,
   "burn": true,
   "color": "0b1020",
+  "fit": "pad",
   "clips": [
    {
     "asset": "a_88706d7e217a0ed0",
-    "in": 0,
     "out": 3,
     "beat": "hook_lights",
-    "label": "MS The Orchestrator: Good evening, city! Tonight on Dose of Destruction..."
+    "label": "MS Orchestrator: Good evening, city! (push-in)",
+    "in": 0,
+    "zoom": {
+     "from": 1,
+     "to": 1.2,
+     "x": 0.5,
+     "y": 0.4
+    }
    },
    {
     "asset": "a_88706d7e217a0ed0",
-    "in": 3,
     "out": 6,
     "beat": "wide_screens",
-    "label": "WS The Orchestrator: a walk-on."
+    "label": "WS Orchestrator: a walk-on.",
+    "in": 3
    },
    {
-    "asset": "a_88706d7e217a0ed0",
-    "in": 6,
-    "out": 8.5,
+    "asset": "a_d16fb61846f1d9e5",
+    "out": 2.4,
     "beat": "orch_sponsor",
-    "label": "CU The Orchestrator: No sponsor. No record."
+    "label": "CU Orchestrator: No sponsor. No record. (lipsync from Foundry frame)",
+    "in": 0
    },
    {
     "asset": "a_88706d7e217a0ed0",
-    "in": 8.5,
     "out": 11,
     "beat": "empty_entrance",
-    "label": "MS The Orchestrator (off): One skateboard."
+    "label": "MS empty entrance: One skateboard.",
+    "in": 8.5
    },
    {
-    "asset": "a_b44b722a79a8c023",
-    "in": 0,
-    "out": 3.2,
-    "beat": "ep_rolls_in",
-    "label": "WS Exit Punk"
+    "asset": "a_fc8543056d6befeb",
+    "out": 3,
+    "beat": "two_shot",
+    "label": "TWO-SHOT host frame-left, Exit Punk frame-right: I'm not here for the show.",
+    "in": 0
    },
    {
-    "asset": "a_b44b722a79a8c023",
-    "in": 3.2,
-    "out": 5.4,
-    "beat": "ep_show",
-    "label": "MCU Exit Punk: I'm not here for the show."
-   },
-   {
-    "asset": "a_b44b722a79a8c023",
-    "in": 5.4,
-    "out": 6.2,
+    "asset": "a_fc8543056d6befeb",
+    "out": 4,
     "beat": "ep_kick",
-    "label": "MS Exit Punk"
+    "label": "MS Exit Punk kicks the board up",
+    "in": 3
    },
    {
-    "asset": "a_b44b722a79a8c023",
-    "in": 6.2,
-    "out": 8.4,
+    "asset": "a_fc8543056d6befeb",
+    "out": 6.5,
     "beat": "ep_exit",
-    "label": "CU Exit Punk: I'm here for the exit."
+    "label": "MCU Exit Punk: I'm here for the exit. eyes flick to the crack",
+    "in": 4
    },
    {
-    "asset": "a_b44b722a79a8c023",
-    "in": 8.4,
-    "out": 9.4,
+    "asset": "a_fc8543056d6befeb",
+    "out": 8.5,
     "beat": "kaelen_lands",
-    "label": "MS Kaelen"
+    "label": "WS Kaelen lands, floor cracks, Exit Punk eyeline",
+    "in": 6.5
    },
    {
-    "asset": "a_b44b722a79a8c023",
-    "in": 9.4,
+    "asset": "a_fc8543056d6befeb",
     "out": 12,
     "beat": "orch_main_event",
-    "label": "MCU The Orchestrator: Then you'll have to go through the main event."
+    "label": "MCU Orchestrator grin, baton snaps up: Then you'll have to go through the main event.",
+    "in": 8.5
    },
    {
-    "asset": "a_b9e9c8c2c7dab37e",
-    "in": 0,
-    "out": 1.2,
+    "asset": "a_0743a4e04cd9120b",
+    "out": 2,
     "beat": "fight_drop",
-    "label": "WS Exit Punk, Kaelen"
+    "label": "WS Exit Punk drops the board, Kaelen charges",
+    "in": 0
    },
    {
-    "asset": "a_b9e9c8c2c7dab37e",
-    "in": 1.2,
-    "out": 2.4,
+    "asset": "a_0743a4e04cd9120b",
+    "out": 3,
     "beat": "fight_dodge",
-    "label": "MS Exit Punk, Kaelen"
+    "label": "MS dodge",
+    "in": 2
    },
    {
-    "asset": "a_b9e9c8c2c7dab37e",
-    "in": 2.4,
-    "out": 3.4,
+    "asset": "a_0743a4e04cd9120b",
+    "out": 4,
     "beat": "fight_swing",
-    "label": "CU Exit Punk"
+    "label": "CU swing",
+    "in": 3
    },
    {
-    "asset": "a_b9e9c8c2c7dab37e",
-    "in": 3.4,
-    "out": 4.8,
+    "asset": "a_0743a4e04cd9120b",
+    "out": 5.4,
     "beat": "fight_hit",
-    "label": "WS Exit Punk, Kaelen"
+    "label": "WS board hits Kaelen, shockwave ring (held 1.4 s)",
+    "in": 4
    },
    {
-    "asset": "a_b9e9c8c2c7dab37e",
-    "in": 4.8,
-    "out": 5.6,
+    "asset": "a_0743a4e04cd9120b",
+    "out": 6.0,
     "beat": "crowd",
-    "label": "WS crowd"
+    "label": "WS crowd erupts, +11 on the screens",
+    "in": 5.2,
+    "speed": 0.6
    },
    {
     "asset": "a_c4543d6095cf595b",
-    "in": 0,
     "out": 2.6,
     "beat": "ep_ratings",
-    "label": "MCU Exit Punk: Ratings went up?"
+    "label": "MCU Exit Punk: Ratings went up?",
+    "in": 0
    },
    {
     "asset": "a_c4543d6095cf595b",
-    "in": 2.6,
-    "out": 5.5,
+    "out": 3.9,
     "beat": "orch_eleven",
-    "label": "MCU The Orchestrator: Eleven points."
+    "label": "MCU Orchestrator: Eleven points.",
+    "in": 2.6
    },
    {
-    "asset": "a_b9e9c8c2c7dab37e",
-    "in": 5.0,
-    "out": 6.5,
+    "asset": "a_88706d7e217a0ed0",
+    "out": 5.5,
     "beat": "end_card",
-    "label": "END CARD: crowd wide with title burned in"
+    "label": "END CARD: arena wide held, title lockup",
+    "in": 4
    }
   ],
   "audio": [
@@ -458,15 +459,15 @@
     "seconds": 4,
     "volume": 0.8,
     "fadeOut": 1.5,
-    "label": "brass stab on the spotlights"
+    "label": "brass stab"
    },
    {
     "asset": "a_0ed81eb4fd825df8",
     "start": 22.9,
-    "seconds": 5.6,
+    "seconds": 6.5,
     "volume": 0.6,
     "fadeOut": 0.4,
-    "label": "hard drum loop for the fight"
+    "label": "drum loop"
    }
   ],
   "captions": [
@@ -487,49 +488,39 @@
    },
    {
     "text": "I'm not here for the show.",
-    "start": 14.3,
-    "end": 16.4
+    "start": 11.4,
+    "end": 13.6
    },
    {
     "text": "I'm here for the exit.",
-    "start": 17.3,
-    "end": 19.3
+    "start": 15.2,
+    "end": 17.2
    },
    {
     "text": "Then you'll have to go through the main event.",
-    "start": 20.5,
+    "start": 20.2,
     "end": 23
    },
    {
+    "text": "RATINGS +11",
+    "start": 28.5,
+    "end": 29.7
+   },
+   {
     "text": "Ratings went up?",
-    "start": 28.8,
-    "end": 31.2
+    "start": 29.9,
+    "end": 32
    },
    {
     "text": "Eleven points.",
-    "start": 31.5,
-    "end": 34.1
+    "start": 32.4,
+    "end": 33.6
    },
    {
     "text": "Dose of Destruction",
-    "start": 34.1,
-    "end": 35.6
-   },
-   {
-    "text": "Made with Hawkes Gen \u00b7 hawkesgen.com",
-    "start": 34.1,
-    "end": 35.6
+    "start": 33.7,
+    "end": 35.2
    }
-  ],
-  "fit": "pad"
- },
- "scores": {
-  "story": 5.8,
-  "pacing": 5.2,
-  "voices": 5.3,
-  "lipsync": 4.6,
-  "movement": 4.5,
-  "consistency": 5.4,
-  "sound": 5.1
+  ]
  }
 }

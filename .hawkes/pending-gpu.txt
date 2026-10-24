@@ -1,3 +1,1 @@
-Two-shot scene E (host + kid + Kaelen in one frame, replaces scene B stand-in): j_48bdb179d9be
-Foundry-set lipsync CU for "No sponsor. No record.": j_95e7523cc5a7
-Final-quality re-run of scenes A and D: waits on J's go-ahead on the animatic (still lightning quality)
+Final cut: scenes A and D re-run at full steps (still lightning in v3), jobs j_f87d93b56bad j_cffe0a7b457e; then re-compose and run the critic.
