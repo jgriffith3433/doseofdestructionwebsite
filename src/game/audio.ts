@@ -197,6 +197,13 @@ class AudioSystem {
     await Promise.race([all, new Promise((r) => setTimeout(r, timeoutMs))]);
   }
 
+  /** Fetches and decodes just these catalog lines (e.g. the VS announcer), so they can play on time. Resolves after a while at most. */
+  async preloadLines(ids: string[], timeoutMs = 4000): Promise<void> {
+    const urls = [...new Set(ids.map((id) => this.lineById.get(id)?.audio).filter((u): u is string => !!u))];
+    const all = Promise.all(urls.map((u) => (this.ctx ? this.buffer(u) : this.download(u))));
+    await Promise.race([all, new Promise((r) => setTimeout(r, timeoutMs))]);
+  }
+
   private async start(url: string, bus: GainNode, volume: number, rate = 1, loop = false): Promise<AudioBufferSourceNode | null> {
     if (!this.ctx) return null;
     const buf = await this.buffer(url);

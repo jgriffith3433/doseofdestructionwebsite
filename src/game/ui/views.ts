@@ -125,33 +125,42 @@ export function playVersus(setup: MatchSetup): Promise<void> {
     h('p', { class: 'vs-stage' }, stage.name, setup.subtitle ? h('span', {}, setup.subtitle) : null),
   ));
 
-  // The slam lands with the VS mark, then the announcer calls each side.
+  // The announcer's lines load first, so the slam and the calls play on time, in order (not
+  // all at once when the downloads land). The splash clock starts when they're ready.
   const calls = sides.map((side) => side[0]).filter(Boolean);
-  const timers = [
-    setTimeout(() => audio.sfx('vs-slam'), 300),
-    ...calls.map((s, i) => setTimeout(() => {
-      audio.line(`announcer.name.${CHARACTERS[s.char].id}`);
-      if (i < calls.length - 1) setTimeout(() => audio.line('announcer.versus'), 650);
-    }, 520 + i * 1300)),
-  ];
-
-  return new Promise((resolve) => {
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      timers.forEach(clearTimeout);
-      window.removeEventListener('keydown', finish);
-      body.removeEventListener('click', finish);
-      resolve();
-    };
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  let cancelled = false;
+  const schedule = () => {
+    if (cancelled) return;
+    timers.push(
+      setTimeout(() => audio.sfx('vs-slam'), 300),
+      ...calls.map((s, i) => setTimeout(() => {
+        audio.line(`announcer.name.${CHARACTERS[s.char].id}`);
+        if (i < calls.length - 1) timers.push(setTimeout(() => audio.line('announcer.versus'), 650));
+      }, 520 + i * 1300)),
+      setTimeout(finish, setup.subtitle ? 3600 : 2600),
+    );
     // Let the slam land before a key can skip it.
-    setTimeout(() => {
+    timers.push(setTimeout(() => {
       window.addEventListener('keydown', finish);
       body.addEventListener('click', finish);
-    }, 500);
-    setTimeout(finish, setup.subtitle ? 3600 : 2600);
-  });
+    }, 500));
+  };
+
+  let done = false;
+  let resolveSplash: () => void = () => {};
+  function finish(): void {
+    if (done) return;
+    done = true;
+    cancelled = true;
+    timers.forEach(clearTimeout);
+    window.removeEventListener('keydown', finish);
+    body.removeEventListener('click', finish);
+    resolveSplash();
+  }
+  const splash = new Promise<void>((resolve) => { resolveSplash = resolve; });
+  void audio.preloadLines([...calls.map((s) => `announcer.name.${CHARACTERS[s.char].id}`), 'announcer.versus']).then(schedule);
+  return splash;
 }
 
 // --------------------------------------------------------------- results
