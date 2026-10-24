@@ -7,7 +7,7 @@
  "fit": "pad",
  "clips": [
   {
-   "asset": "a_88706d7e217a0ed0",
+   "asset": "a_eac2a5f75a7f8389",
    "out": 3,
    "beat": "hook_lights",
    "label": "MS Orchestrator: Good evening, city! (push-in)",
@@ -20,7 +20,7 @@
    }
   },
   {
-   "asset": "a_88706d7e217a0ed0",
+   "asset": "a_eac2a5f75a7f8389",
    "out": 6,
    "beat": "wide_screens",
    "label": "WS Orchestrator: a walk-on.",
@@ -34,7 +34,7 @@
    "in": 0
   },
   {
-   "asset": "a_88706d7e217a0ed0",
+   "asset": "a_eac2a5f75a7f8389",
    "out": 11,
    "beat": "empty_entrance",
    "label": "MS empty entrance: One skateboard.",
@@ -112,21 +112,21 @@
    "speed": 0.6
   },
   {
-   "asset": "a_c4543d6095cf595b",
+   "asset": "a_e47a723ef12f28ad",
    "out": 2.6,
    "beat": "ep_ratings",
    "label": "MCU Exit Punk: Ratings went up?",
    "in": 0
   },
   {
-   "asset": "a_c4543d6095cf595b",
+   "asset": "a_e47a723ef12f28ad",
    "out": 3.9,
    "beat": "orch_eleven",
    "label": "MCU Orchestrator: Eleven points.",
    "in": 2.6
   },
   {
-   "asset": "a_88706d7e217a0ed0",
+   "asset": "a_eac2a5f75a7f8389",
    "out": 5.5,
    "beat": "end_card",
    "label": "END CARD: arena wide held, title lockup",

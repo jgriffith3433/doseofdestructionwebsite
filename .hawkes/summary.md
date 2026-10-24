@@ -1,1 +1,9 @@
-Final pass started for Open Mic. v3 is approved. The fight and the two-shot were already full-steps and the lipsync CU is its own job, so only scenes A (intro, 11 s) and D (ratings, 5.5 s) were still lightning quality. I re-queued both at full steps, 2 takes each, with the same prompts, references and voice stems (jobs j_f87d93b56bad and j_cffe0a7b457e, about $1 est. of the roughly $2.4 left). Next: pick the takes, swap them into the edit with the same timings, re-compose, run the critic, and mark the cut "final". The cut in .hawkes/video.json is still v3 until then.
+Open Mic final (stage "final"), cut a_243496fdc04c1ad9, 35.0 s, 1080x1920.
+
+Built from approved animatic v3 with the story, beats, staging and timing unchanged. The only parts still at lightning quality were scenes A (intro and end-card wide) and D (ratings exchange), and both are now full-steps renders, 2 takes each. The two-shot, the fight and the lip-synced CU were already full quality.
+- Scene A: take 1 (a_eac2a5f75a7f8389) picked by the critic. Take 2 had a floating hand and baton on the empty ramp.
+- Scene D: take 2 (a_e47a723ef12f28ad) picked by eye. It shows the Foundry behind Exit Punk, with the smudge and board. The critic hit Gemini quota (429) on D and on the full cut, so mouth sync was not verified by the critic.
+- The critic's notes on A (mouth lag on "No sponsor. No record.", weightless baton, static hold on the empty ramp) are not changed, since the brief says keep v3's beats.
+- Still 1:1 scenes padded into 1080x1920 because Gen's portrait aspect fails.
+
+Spend about $5.60 of $6.03 (this pass about $1.95). Nothing is left pending on the GPU. Ask for a Gen critic re-run on the cut when Gemini quota is back.

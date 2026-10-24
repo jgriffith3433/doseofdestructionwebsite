@@ -1,1 +1,0 @@
-Final cut: scenes A and D re-run at full steps (still lightning in v3), jobs j_f87d93b56bad j_cffe0a7b457e; then re-compose and run the critic.

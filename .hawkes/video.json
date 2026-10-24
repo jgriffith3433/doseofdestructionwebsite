@@ -1,8 +1,8 @@
 {
- "asset": "a_58eb6d5c39692130",
- "poster": "a_7108d2038eb43440",
+ "asset": "a_243496fdc04c1ad9",
+ "poster": "a_6942e9c13f015142",
  "seconds": 35.0,
- "summary": "v3, answers Studio's v2 notes. (1) 0:06 'No sponsor. No record.': new lipsync CU (j_95e7523cc5a7, take 2) driven from a frame cropped out of the Foundry scene: clean-shaven, black bow tie, Foundry behind him. (2) 0:22 'main event': new scene (j_48bdb179d9be, take 1 of 2) ends on the host's wicked grin with the baton snapping up. (3) 0:14 host and kid never share a frame: the same scene opens on a two-shot, host frame-left at the baton rail, kid frame-right on the ramp, he hears 'I'm not here for the show'. (4) 0:24 fight: the hit is held 1.4 s (was 0.8), then the crowd-erupts wide beat (slowed) with 'RATINGS +11' on screen, before 'Ratings went up?'. (5) 0:28 ratings: the +11 caption lands on the crowd beat, then the line. (6) 0:00 hook: push-in (zoom 1 to 1.2) on the host. (7) 0:19 Kaelen: Exit Punk's eyeline to the crack, then Kaelen lands in the same frame as the kid, the host shares the scene. (8) 0:32 end card: the arena wide from scene A (no crowd that never appeared), title lockup. Cut 35.0 s. The critic could not run (Gemini 429), so this is checked by frames only; mouth sync is not verified. Spend about $3.65 of $6.03. Scenes A and D are still lightning quality, to be re-run at full steps once J approves the animatic.",
+ "summary": "FINAL, from approved animatic v3: same story, beats, staging and timing. Scene A (intro, 0:00-0:11 and the end card) and scene D (ratings, 0:29-0:33.5) re-rendered at full steps (20) instead of lightning, 2 takes each. A: take 1 picked by the critic (take 2 had a stray floating hand and baton on the empty ramp). D: take 2 picked by eye (wider Foundry behind the kid, smudge and board visible; the critic hit Gemini 429). Two-shot, fight and lip-synced CU were already full quality. The full-cut critic review also hit 429, so the final is checked by frames only; the critic's note on A (mouth lag on 'No sponsor. No record.', weightless baton, static empty-ramp hold) is not addressed since J asked to keep v3's beats. Still 1:1 scenes padded into 1080x1920 (Gen's portrait enum fails). Spend about $5.60 of $6.03.",
  "caption": "A walk-on, no sponsor, no record, one skateboard. He's not here for the show. #DoseOfDestruction #ExitPunk #Orchestrator #HawkesGen hawkesgen.com",
  "beats": [
   {
@@ -316,7 +316,7 @@
   }
  ],
  "story": "# Open Mic (tonight on the show): story\n\n**Logline.** A TV host sells a nobody to the whole city as a joke; the nobody refuses to play along, says he's only here to leave, and then wins so convincingly the host can only report the ratings.\n\n**Orchestrator** wants a spectacle: he conducts the lights, loves the show, sees the walk-on as content. **Exit Punk** wants out: he won't perform, won't smile, answers a speech with five words. **Kaelen** is the main event: he lands, the floor cracks, he's the show's answer.\n\n**Turn:** \"I'm here for the exit\": the crowd doesn't know whether to cheer, and the host decides the refusal is the best act of the night.\n**Payoff:** the fight, then the dry \"Ratings went up?\" and the host's flat \"Eleven points\": the kid who refuses to perform is the best television the show has had.\n\n**Why it matters:** Season 1's opening (Foundry floor becomes a stage at midnight, \"a walk-on, no sponsor, no record, one skateboard\", \"I'm not here for the show, I'm here for the exit\", Ratings eleven points) in 35 seconds.\n**Who it's for:** anyone who knows what a talent show host and an unimpressed teenager are. No game knowledge needed.\n",
- "stage": "animatic",
+ "stage": "final",
  "edit": {
   "width": 1080,
   "height": 1920,
@@ -326,7 +326,7 @@
   "fit": "pad",
   "clips": [
    {
-    "asset": "a_88706d7e217a0ed0",
+    "asset": "a_eac2a5f75a7f8389",
     "out": 3,
     "beat": "hook_lights",
     "label": "MS Orchestrator: Good evening, city! (push-in)",
@@ -339,7 +339,7 @@
     }
    },
    {
-    "asset": "a_88706d7e217a0ed0",
+    "asset": "a_eac2a5f75a7f8389",
     "out": 6,
     "beat": "wide_screens",
     "label": "WS Orchestrator: a walk-on.",
@@ -353,7 +353,7 @@
     "in": 0
    },
    {
-    "asset": "a_88706d7e217a0ed0",
+    "asset": "a_eac2a5f75a7f8389",
     "out": 11,
     "beat": "empty_entrance",
     "label": "MS empty entrance: One skateboard.",
@@ -431,21 +431,21 @@
     "speed": 0.6
    },
    {
-    "asset": "a_c4543d6095cf595b",
+    "asset": "a_e47a723ef12f28ad",
     "out": 2.6,
     "beat": "ep_ratings",
     "label": "MCU Exit Punk: Ratings went up?",
     "in": 0
    },
    {
-    "asset": "a_c4543d6095cf595b",
+    "asset": "a_e47a723ef12f28ad",
     "out": 3.9,
     "beat": "orch_eleven",
     "label": "MCU Orchestrator: Eleven points.",
     "in": 2.6
    },
    {
-    "asset": "a_88706d7e217a0ed0",
+    "asset": "a_eac2a5f75a7f8389",
     "out": 5.5,
     "beat": "end_card",
     "label": "END CARD: arena wide held, title lockup",
