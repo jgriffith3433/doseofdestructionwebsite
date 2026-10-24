@@ -31,7 +31,7 @@
    "in": 0.2,
    "out": 2.475,
    "beat": "orch_sponsor",
-   "label": "CU Orchestrator: No sponsor. No record. (lipsync, voice re-placed 0.21 s later so the mouth lands on the consonants)",
+   "label": "CU Orchestrator: No sponsor. No record. (lipsync; voice track delayed 0.21 s + 4 frames so the mouth lands on the consonants)",
    "sound": false
   },
   {
@@ -86,6 +86,14 @@
   {
    "asset": "a_fc8543056d6befeb",
    "in": 8.5,
+   "out": 10.35,
+   "beat": "kaelen_lands",
+   "label": "MS Kaelen settles on the cracked floor; Orchestrator steps into frame (sound off: stray voice fragment removed)",
+   "sound": false
+  },
+  {
+   "asset": "a_fc8543056d6befeb",
+   "in": 10.35,
    "out": 12,
    "beat": "orch_main_event",
    "label": "MCU Orchestrator grin, baton snaps up: Then you'll have to go through the main event."
@@ -169,10 +177,10 @@
   },
   {
    "asset": "blob:db1ce309ba6faeac5f26755133b7eb061aaef2e8da95d1bf5ec9b45442127b76",
-   "start": 6.01,
+   "start": 6.177,
    "seconds": 2.45,
    "dialogue": true,
-   "label": "ORCHESTRATOR: No sponsor. No record. (delayed 0.21 s vs the clip's own track)"
+   "label": "ORCHESTRATOR: No sponsor. No record. (delayed 0.21 s + 4 frames vs the clip own track)"
   }
  ],
  "captions": [
@@ -183,8 +191,8 @@
   },
   {
    "text": "No sponsor. No record.",
-   "start": 6.3,
-   "end": 8.4
+   "start": 6.47,
+   "end": 8.57
   },
   {
    "text": "One skateboard.",
@@ -203,8 +211,8 @@
   },
   {
    "text": "Then you'll have to go through the main event.",
-   "start": 19.89,
-   "end": 22.69
+   "start": 21.15,
+   "end": 22.8
   },
   {
    "text": "RATINGS +11",

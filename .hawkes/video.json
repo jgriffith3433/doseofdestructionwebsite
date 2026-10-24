@@ -1,8 +1,8 @@
 {
- "asset": "a_3e083792e2b98b32",
- "poster": "a_688da9da115113e1",
+ "asset": "a_ee3002fedf9bfb2b",
+ "poster": "a_fa9f3b658434c44f",
  "seconds": 35.5,
- "summary": "v5 FINAL, answers Studio's five v4 notes (edit-only, no GPU spend; Gemini critic still 429, so checked by frames and audio levels).\n(1) 0:33-0:35 'Eleven points': the line is now held whole (scene D 2.6-5.0 s; the voice runs 32.75-33.5 s on the cut), the stray repeat of scene A's 'a walk-on' is gone (the end card is a silent clip), and the end card is real: a title lockup in the caption band ('DOSE OF DESTRUCTION' and small 'Made with Hawkes Gen \u00b7 hawkesgen.com') over the arena wide, 1.5 s. v4 had no 'Made with' line at all.\n(2) 0:18-0:20 stray voice: the 0.7 s of the two-shot scene's sound that held it (7.8-8.5 s) is muted; the landing picture stays. No replacement crack SFX added.\n(3) 0:27-0:29 empty ring: dropped the wide crowd shot (both fighters absent in it). The hit is now a 1.4 s slow-mo hold, then Exit Punk with the board, breathing, so the fighters stay in frame. The new full crowd shot with fighters would need a re-render (about $0.5-1 for a fight scene), over the budget left (~$0.43).\n(4) 0:11-0:13 first line: the two-shot is punched in on Exit Punk's face (zoom 1.5 to 1.75) so the mouth is visible when 'I'm not here for the show' starts (he speaks on the board before the kick, mouth opens at 0.9 s of the clip).\n(5) 0:05-0:08 'No sponsor. No record.': measured mouth-motion against the audio on the picked lipsync take: the mouth trails the voice by about 5-8 frames. The clip's own sound is off, and the voice (the same line) is placed 0.21 s later, with the clip starting 0.2 s in. Not frame-verified by the critic.\nLength 35.5 s (about 0.5 s over v4 because the last line is no longer cut). Still 1:1 scenes in a 1080x1920 frame because Gen's portrait enum fails.",
+ "summary": "v6 FINAL, answers Studio's three v5 notes (edit-only, no GPU spend). (1) 0:19.2-0:20.4 stray vocal fragment: it was Kaelen's landing take bleeding in (scene B 8.3-10.3 s); that stretch is now muted, so the Orchestrator starts cleanly on 'Then' at 0:21.0 (silence 0:18.5-0:21.0 while Kaelen settles on the cracked floor). (2) 0:05.8-0:08.2 lip sync 'No sponsor. No record.': voice and caption moved 4 frames later against the picture (mouth lands earlier relative to the voice); not machine-verified (critic 429, my mouth-motion correlation was inconclusive). (3) Full-bleed portrait / wider: NOT done. Gen's video.scene still rejects 9:16 (its enum says 'Portrait', the H3 workflow wants 'Portrait Widescreen') and about $0.4 of the $6.03 is left, so the scenes stay 1:1 with navy bands. Re-rendering A-D in portrait needs the enum fixed and about $2-3 more.",
  "caption": "A walk-on, no sponsor, no record, one skateboard. He's not here for the show. #DoseOfDestruction #ExitPunk #Orchestrator #HawkesGen hawkesgen.com",
  "beats": [
   {
@@ -350,7 +350,7 @@
     "in": 0.2,
     "out": 2.475,
     "beat": "orch_sponsor",
-    "label": "CU Orchestrator: No sponsor. No record. (lipsync, voice re-placed 0.21 s later so the mouth lands on the consonants)",
+    "label": "CU Orchestrator: No sponsor. No record. (lipsync; voice track delayed 0.21 s + 4 frames so the mouth lands on the consonants)",
     "sound": false
    },
    {
@@ -405,6 +405,14 @@
    {
     "asset": "a_fc8543056d6befeb",
     "in": 8.5,
+    "out": 10.35,
+    "beat": "kaelen_lands",
+    "label": "MS Kaelen settles on the cracked floor; Orchestrator steps into frame (sound off: stray voice fragment removed)",
+    "sound": false
+   },
+   {
+    "asset": "a_fc8543056d6befeb",
+    "in": 10.35,
     "out": 12,
     "beat": "orch_main_event",
     "label": "MCU Orchestrator grin, baton snaps up: Then you'll have to go through the main event."
@@ -488,10 +496,10 @@
    },
    {
     "asset": "blob:db1ce309ba6faeac5f26755133b7eb061aaef2e8da95d1bf5ec9b45442127b76",
-    "start": 6.01,
+    "start": 6.177,
     "seconds": 2.45,
     "dialogue": true,
-    "label": "ORCHESTRATOR: No sponsor. No record. (delayed 0.21 s vs the clip's own track)"
+    "label": "ORCHESTRATOR: No sponsor. No record. (delayed 0.21 s + 4 frames vs the clip own track)"
    }
   ],
   "captions": [
@@ -502,8 +510,8 @@
    },
    {
     "text": "No sponsor. No record.",
-    "start": 6.3,
-    "end": 8.4
+    "start": 6.47,
+    "end": 8.57
    },
    {
     "text": "One skateboard.",
@@ -522,8 +530,8 @@
    },
    {
     "text": "Then you'll have to go through the main event.",
-    "start": 19.89,
-    "end": 22.69
+    "start": 21.15,
+    "end": 22.8
    },
    {
     "text": "RATINGS +11",

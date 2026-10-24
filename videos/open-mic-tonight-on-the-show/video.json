@@ -39,7 +39,7 @@
  },
  "spend_so_far_usd": 5.6,
  "note": "Portrait aspect fails in Gen's video.scene (enum bug; jobs j_bc257b76abd4 etc. failed validation); J said 'don't worry about it', so scenes are 1:1 and get framed into 1080x1920 with bands.",
- "cut": "a_3e083792e2b98b32",
+ "cut": "a_ee3002fedf9bfb2b",
  "compose_job": "j_e959e2c7e05b",
  "review_job": "j_f8f5fa6a3800",
  "scores": {
@@ -119,5 +119,12 @@
   "compose_job": "j_6eca930ce651",
   "poster": "a_688da9da115113e1",
   "spend_this_pass_usd": 0
+ },
+ "v6": {
+  "cut": "a_ee3002fedf9bfb2b",
+  "compose_job": "j_87f8e8c2c340",
+  "poster": "a_fa9f3b658434c44f",
+  "spend_this_pass_usd": 0,
+  "builder": "build_v6.py"
  }
 }
