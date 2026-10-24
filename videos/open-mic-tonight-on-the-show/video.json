@@ -37,9 +37,9 @@
   "C_fight_6s": "j_1ccb74f4f75c",
   "D_ratings_5.5s": "j_0b2bfede8b4d"
  },
- "spend_so_far_usd": 3.7,
+ "spend_so_far_usd": 3.65,
  "note": "Portrait aspect fails in Gen's video.scene (enum bug; jobs j_bc257b76abd4 etc. failed validation); J said 'don't worry about it', so scenes are 1:1 and get framed into 1080x1920 with bands.",
- "cut": "a_a911f1170924b050",
+ "cut": "a_58eb6d5c39692130",
  "compose_job": "j_e959e2c7e05b",
  "review_job": "j_f8f5fa6a3800",
  "scores": {
@@ -76,5 +76,21 @@
   ],
   "picked_lipsync": "a_112a032d686349ab",
   "compose_job": "j_b5d5676cbde5"
+ },
+ "v3": {
+  "lipsync_job": "j_95e7523cc5a7",
+  "lipsync_takes": [
+   "a_9f71ec1a35d01e36",
+   "a_d16fb61846f1d9e5"
+  ],
+  "picked_lipsync": "a_d16fb61846f1d9e5",
+  "two_shot_job": "j_48bdb179d9be",
+  "two_shot_takes": [
+   "a_fc8543056d6befeb",
+   "a_098e3a78e204bcb3"
+  ],
+  "picked_two_shot": "a_fc8543056d6befeb",
+  "compose_job": "j_87cf7cbb0eb1",
+  "critic": "unavailable (Gemini 429)"
  }
 }
