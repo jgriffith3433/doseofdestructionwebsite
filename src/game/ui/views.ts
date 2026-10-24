@@ -130,15 +130,24 @@ export function playVersus(setup: MatchSetup): Promise<void> {
   const calls = sides.map((side) => side[0]).filter(Boolean);
   const timers: ReturnType<typeof setTimeout>[] = [];
   let cancelled = false;
-  const schedule = () => {
+  const schedule = async () => {
+    // Each call starts when the one before it has finished, by the clip's real length.
+    const ids = calls.map((s) => `announcer.name.${CHARACTERS[s.char].id}`);
+    let at = 520;
+    const cues: [number, string][] = [];
+    for (let i = 0; i < ids.length; i++) {
+      cues.push([at, ids[i]]);
+      at += (await audio.lineMs(ids[i])) + 150;
+      if (i < ids.length - 1) {
+        cues.push([at, 'announcer.versus']);
+        at += (await audio.lineMs('announcer.versus')) + 150;
+      }
+    }
     if (cancelled) return;
     timers.push(
       setTimeout(() => audio.sfx('vs-slam'), 300),
-      ...calls.map((s, i) => setTimeout(() => {
-        audio.line(`announcer.name.${CHARACTERS[s.char].id}`);
-        if (i < calls.length - 1) timers.push(setTimeout(() => audio.line('announcer.versus'), 650));
-      }, 520 + i * 1300)),
-      setTimeout(finish, setup.subtitle ? 3600 : 2600),
+      ...cues.map(([t, id]) => setTimeout(() => audio.line(id), t)),
+      setTimeout(finish, Math.max(setup.subtitle ? 3600 : 2600, at + 500)),
     );
     // Let the slam land before a key can skip it.
     timers.push(setTimeout(() => {

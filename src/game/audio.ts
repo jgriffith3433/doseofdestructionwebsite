@@ -204,6 +204,13 @@ class AudioSystem {
     await Promise.race([all, new Promise((r) => setTimeout(r, timeoutMs))]);
   }
 
+  /** How long a catalog line plays, in ms (a guess if it isn't decoded). Call after preloadLines. */
+  async lineMs(id: string): Promise<number> {
+    const url = this.lineById.get(id)?.audio;
+    const b = url && this.ctx ? await this.buffer(url) : null;
+    return b ? b.duration * 1000 : 900;
+  }
+
   private async start(url: string, bus: GainNode, volume: number, rate = 1, loop = false): Promise<AudioBufferSourceNode | null> {
     if (!this.ctx) return null;
     const buf = await this.buffer(url);

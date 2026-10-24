@@ -1,3 +1,3 @@
-1. Open the beta site in a fresh tab (or hard refresh) and click to unlock sound.
-2. Pick Versus, choose two fighters and a stage, and start.
-3. On the VS splash, listen: the slam, then fighter A, "versus", fighter B, in order and not rushed.
+1. Open the beta site and start a Versus match (any two fighters).
+2. On the VS splash, listen to the announcer.
+3. You should hear fighter A's name, then "versus", then fighter B's name, in order and each finished before the next.
