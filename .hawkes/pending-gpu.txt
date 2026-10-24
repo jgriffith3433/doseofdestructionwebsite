@@ -1,1 +1,3 @@
-- Final pass: re-run scenes A-D at full steps/size (portrait if Gen's aspect enum is fixed), 2-3 takes of the fight, picked by the critic. Waiting on J's go-ahead on animatic v1 (a_38725e89b4d61425); no approval is in the thread yet. Scene jobs j_b30b1bcef4e4 j_78e4a7255ab1 j_1ccb74f4f75c j_0b2bfede8b4d (lightning animatic). ~$4 of the $6.03 budget left.
+Two-shot scene E (host + kid + Kaelen in one frame, replaces scene B stand-in): j_48bdb179d9be
+Foundry-set lipsync CU for "No sponsor. No record.": j_95e7523cc5a7
+Final-quality re-run of scenes A and D: waits on J's go-ahead on the animatic (still lightning quality)
