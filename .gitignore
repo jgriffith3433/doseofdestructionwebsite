@@ -8,3 +8,27 @@ _anim_preview/
 _backup/
 .venv/
 .cache/
+
+# Agents' notes (Hawkes Studio reads them from the agent's worktree).
+.hawkes/
+# Video renders and intermediates live in Hawkes Gen's library, by asset id: only a video's sources go in git
+# (script.md, story.md, beats.json, video.json, edit.json, kits, helper scripts). Files already committed stay.
+videos/**/*.mp4
+videos/**/*.mov
+videos/**/*.webm
+videos/**/*.mkv
+videos/**/*.wav
+videos/**/*.mp3
+videos/**/*.ogg
+videos/**/*.flac
+videos/**/*.m4a
+videos/**/*.png
+videos/**/*.jpg
+videos/**/*.jpeg
+videos/**/*.webp
+videos/**/*.gif
+videos/**/*.vtt
+videos/**/*.srt
+videos/**/*.glb
+videos/**/*.blend
+videos/**/*.npy
