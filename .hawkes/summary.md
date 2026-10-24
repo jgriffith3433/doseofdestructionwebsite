@@ -1,9 +1,9 @@
-# Open Mic (tonight on the show): no new render this pass
-The final is not made yet. The video skill makes the final only after J approves the animatic, and the thread has no approval. J's last word was "don't worry about it" on the portrait-aspect question. I took that as "keep the 1:1 framing" and did not touch Gen.
+**Wrong:** On the A-versus-B splash the announcer lines ("A", "versus", "B") were played on fixed timers. The lines were fetched and decoded on first use, so they sat in the download queue while the match assets loaded. When they landed they played late, all at once, or out of order.
 
-State: animatic v1 (a_38725e89b4d61425, 35.6 s) is the current cut, and `.hawkes/video.json` is unchanged. It has the real voices, one Pixar-3D look and J's lines unchanged. The critic scored it 5.2 (not a pass). Fight weight and geography are weak, lip sync is loose on "No sponsor. No record.", and Exit Punk is stiff between his lines.
+**Changed:**
+- `src/game/audio.ts`: new `preloadLines(ids)` that fetches and decodes just those catalog lines (capped at 4 s).
+- `src/game/ui/views.ts` (`playVersus`): waits for the announcer lines (the two fighter names and "versus"), then starts the slam, the calls and the splash timer. Clicking or pressing a key to skip works from the same point, and the old early-skip timing is otherwise unchanged.
 
-Spent this pass: $0 GPU. The earlier pass spent about $2.0 of $6.03, so about $4 is left for the final.
+**Checked:** `npm run typecheck` and `npm test` both pass. I did not run it in a browser; a playtest of the splash on a cold cache would confirm it.
 
-Still to make (see `.hawkes/pending-gpu.txt`): the full-steps re-run of scenes A-D, and 2-3 fight takes picked by the critic. This runs once J approves v1 in Studio's Screening tab, with any guidance he gives.
-Deleted `.hawkes/waiting-jobs.txt`: its two music jobs were already folded into v1.
+**Look at:** if the lines take a while on a slow connection, the splash now waits for them (up to 4 s) before the announcer starts.

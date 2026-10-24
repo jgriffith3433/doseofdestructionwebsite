@@ -1,3 +1,3 @@
-1. Open Studio, Screening tab, Open Mic (tonight on the show), v1 animatic.
-2. Watch with sound: check the voices, the art and the fight.
-3. Approve it or send notes (timeline notes work per clip).
+1. Open the beta site in a fresh tab (or hard refresh) and click to unlock sound.
+2. Pick Versus, choose two fighters and a stage, and start.
+3. On the VS splash, listen: the slam, then fighter A, "versus", fighter B, in order and not rushed.
