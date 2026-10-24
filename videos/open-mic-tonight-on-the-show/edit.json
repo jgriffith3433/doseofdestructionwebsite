@@ -8,10 +8,10 @@
  "clips": [
   {
    "asset": "a_eac2a5f75a7f8389",
+   "in": 0,
    "out": 3,
    "beat": "hook_lights",
    "label": "MS Orchestrator: Good evening, city! (push-in)",
-   "in": 0,
    "zoom": {
     "from": 1,
     "to": 1.2,
@@ -21,116 +21,133 @@
   },
   {
    "asset": "a_eac2a5f75a7f8389",
+   "in": 3,
    "out": 6,
    "beat": "wide_screens",
-   "label": "WS Orchestrator: a walk-on.",
-   "in": 3
+   "label": "WS Orchestrator: a walk-on."
   },
   {
    "asset": "a_d16fb61846f1d9e5",
-   "out": 2.4,
+   "in": 0.2,
+   "out": 2.475,
    "beat": "orch_sponsor",
-   "label": "CU Orchestrator: No sponsor. No record. (lipsync from Foundry frame)",
-   "in": 0
+   "label": "CU Orchestrator: No sponsor. No record. (lipsync, voice re-placed 0.21 s later so the mouth lands on the consonants)",
+   "sound": false
   },
   {
    "asset": "a_eac2a5f75a7f8389",
+   "in": 8.5,
    "out": 11,
    "beat": "empty_entrance",
-   "label": "MS empty entrance: One skateboard.",
-   "in": 8.5
+   "label": "MS empty entrance: One skateboard."
   },
   {
    "asset": "a_fc8543056d6befeb",
+   "in": 0,
    "out": 3,
-   "beat": "two_shot",
-   "label": "TWO-SHOT host frame-left, Exit Punk frame-right: I'm not here for the show.",
-   "in": 0
+   "beat": "ep_rolls_in",
+   "label": "TWO-SHOT punch-in on Exit Punk's face: I'm not here for the show.",
+   "zoom": {
+    "from": 1.5,
+    "to": 1.75,
+    "x": 1,
+    "y": 0.3
+   }
   },
   {
    "asset": "a_fc8543056d6befeb",
+   "in": 3,
    "out": 4,
    "beat": "ep_kick",
-   "label": "MS Exit Punk kicks the board up",
-   "in": 3
+   "label": "MS Exit Punk kicks the board up"
   },
   {
    "asset": "a_fc8543056d6befeb",
+   "in": 4,
    "out": 6.5,
    "beat": "ep_exit",
-   "label": "MCU Exit Punk: I'm here for the exit. eyes flick to the crack",
-   "in": 4
+   "label": "MCU Exit Punk: I'm here for the exit. eyes flick to the crack"
   },
   {
    "asset": "a_fc8543056d6befeb",
+   "in": 6.5,
+   "out": 7.8,
+   "beat": "kaelen_lands",
+   "label": "WS Kaelen lands, floor cracks, Exit Punk eyeline"
+  },
+  {
+   "asset": "a_fc8543056d6befeb",
+   "in": 7.8,
    "out": 8.5,
    "beat": "kaelen_lands",
-   "label": "WS Kaelen lands, floor cracks, Exit Punk eyeline",
-   "in": 6.5
+   "label": "WS Kaelen on the cracked floor (sound off: stray voice removed)",
+   "sound": false
   },
   {
    "asset": "a_fc8543056d6befeb",
+   "in": 8.5,
    "out": 12,
    "beat": "orch_main_event",
-   "label": "MCU Orchestrator grin, baton snaps up: Then you'll have to go through the main event.",
-   "in": 8.5
+   "label": "MCU Orchestrator grin, baton snaps up: Then you'll have to go through the main event."
   },
   {
    "asset": "a_0743a4e04cd9120b",
+   "in": 0,
    "out": 2,
    "beat": "fight_drop",
-   "label": "WS Exit Punk drops the board, Kaelen charges",
-   "in": 0
+   "label": "WS Exit Punk drops the board, Kaelen charges"
   },
   {
    "asset": "a_0743a4e04cd9120b",
+   "in": 2,
    "out": 3,
    "beat": "fight_dodge",
-   "label": "MS dodge",
-   "in": 2
+   "label": "MS dodge"
   },
   {
    "asset": "a_0743a4e04cd9120b",
-   "out": 4,
+   "in": 3,
+   "out": 3.9,
    "beat": "fight_swing",
-   "label": "CU swing",
-   "in": 3
+   "label": "CU swing"
   },
   {
    "asset": "a_0743a4e04cd9120b",
-   "out": 5.4,
+   "in": 3.9,
+   "out": 4.6,
    "beat": "fight_hit",
-   "label": "WS board hits Kaelen, shockwave ring (held 1.4 s)",
-   "in": 4
+   "label": "WS board hits Kaelen, shockwave ring (slow-mo, held 1.4 s)",
+   "speed": 0.5
   },
   {
    "asset": "a_0743a4e04cd9120b",
-   "out": 6.0,
+   "in": 4.6,
+   "out": 5.2,
    "beat": "crowd",
-   "label": "WS crowd erupts, +11 on the screens",
-   "in": 5.2,
+   "label": "MS Exit Punk holds the board, breath after the hit; crowd roar (slow-mo)",
    "speed": 0.6
   },
   {
    "asset": "a_e47a723ef12f28ad",
+   "in": 0,
    "out": 2.6,
    "beat": "ep_ratings",
-   "label": "MCU Exit Punk: Ratings went up?",
-   "in": 0
+   "label": "MCU Exit Punk: Ratings went up?"
   },
   {
    "asset": "a_e47a723ef12f28ad",
-   "out": 3.9,
+   "in": 2.6,
+   "out": 5.0,
    "beat": "orch_eleven",
-   "label": "MCU Orchestrator: Eleven points.",
-   "in": 2.6
+   "label": "MCU Orchestrator: Eleven points. (full line, held)"
   },
   {
-   "asset": "a_eac2a5f75a7f8389",
-   "out": 5.5,
+   "asset": "blob:9dba143a58cb2e2ce72360b3ee94e1b24a02bc3c7cd2787295e831a62403e56b",
+   "in": 0,
+   "out": 1.5,
    "beat": "end_card",
-   "label": "END CARD: arena wide held, title lockup",
-   "in": 4
+   "label": "END CARD: arena wide, title lockup in the caption band",
+   "sound": false
   }
  ],
  "audio": [
@@ -144,11 +161,18 @@
   },
   {
    "asset": "a_0ed81eb4fd825df8",
-   "start": 22.9,
-   "seconds": 6.5,
+   "start": 22.792,
+   "seconds": 6.93,
    "volume": 0.6,
    "fadeOut": 0.4,
    "label": "drum loop"
+  },
+  {
+   "asset": "blob:db1ce309ba6faeac5f26755133b7eb061aaef2e8da95d1bf5ec9b45442127b76",
+   "start": 6.01,
+   "seconds": 2.45,
+   "dialogue": true,
+   "label": "ORCHESTRATOR: No sponsor. No record. (delayed 0.21 s vs the clip's own track)"
   }
  ],
  "captions": [
@@ -159,48 +183,43 @@
   },
   {
    "text": "No sponsor. No record.",
-   "start": 6.2,
+   "start": 6.3,
    "end": 8.4
   },
   {
    "text": "One skateboard.",
-   "start": 9.4,
-   "end": 11
+   "start": 9.19,
+   "end": 10.79
   },
   {
    "text": "I'm not here for the show.",
-   "start": 11.4,
-   "end": 13.6
+   "start": 11.64,
+   "end": 13.19
   },
   {
    "text": "I'm here for the exit.",
-   "start": 15.2,
-   "end": 17.2
+   "start": 15.94,
+   "end": 17.59
   },
   {
    "text": "Then you'll have to go through the main event.",
-   "start": 20.2,
-   "end": 23
+   "start": 19.89,
+   "end": 22.69
   },
   {
    "text": "RATINGS +11",
-   "start": 28.5,
-   "end": 29.7
+   "start": 28.12,
+   "end": 29.12
   },
   {
    "text": "Ratings went up?",
-   "start": 29.9,
-   "end": 32
+   "start": 30.52,
+   "end": 31.72
   },
   {
    "text": "Eleven points.",
-   "start": 32.4,
-   "end": 33.6
-  },
-  {
-   "text": "Dose of Destruction",
-   "start": 33.7,
-   "end": 35.2
+   "start": 32.86,
+   "end": 33.76
   }
  ]
 }
