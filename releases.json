@@ -1,8 +1,18 @@
 {
   "product": "doseofdestruction",
   "name": "Dose Of Destruction",
-  "current": "1.7.0",
+  "current": "1.8.0",
   "releases": [
+    {
+      "version": "1.8.0",
+      "date": "2026-10-26",
+      "build": "779e6d2",
+      "title": "Online matches keep running in the background",
+      "notes": [
+        "Online matches keep going when you switch to another tab or app.",
+        "If you stay away and press nothing for a short while, your online match ends as a give-up."
+      ]
+    },
     {
       "version": "1.7.0",
       "date": "2026-10-26",
