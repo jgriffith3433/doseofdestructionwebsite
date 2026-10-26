@@ -1,37 +1,7 @@
-// Small helpers shared by the network code (docs/online.md). Adapted from Yooba Land's hawkes-net
-// (YoobaLand/Tools/Web/net/src/util.js): the same relays, trackers and sealing, with DoD's own app id.
+// Small helpers shared by the network code (docs/online.md): ids, hex, hashing, error reports, a tiny emitter. The
+// network itself is Hawkes Net (hawkes.ts, lobby.ts, room.ts, records.ts).
 
 export const APP_ID = 'hawkes-dod';
-
-// Google's and Cloudflare's public STUN servers. No TURN: two players whose networks both refuse a direct link
-// (strict NATs, some phone carriers) can't play each other, and the game says so.
-export const ICE_SERVERS: RTCIceServer[] = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun.cloudflare.com:3478' },
-];
-
-// Public Nostr relays that accept both the ephemeral signalling events and the stored presence events (Yooba Land's
-// list, probed from AWS: relay.damus.io 503-rate-limits and bans this server's IP after test runs, so it is out, as is
-// offchain.pub for its web-of-trust policy). A page uses the first five that open and accept; a relay that fails to
-// open or refuses events is swapped for the next one on the list (nostr.ts).
-export const NOSTR_RELAYS = [
-  'wss://nos.lol',
-  'wss://relay.primal.net',
-  'wss://nostr.mom',
-  'wss://purplerelay.com',
-  'wss://relay.nostr.net',
-  'wss://nostr-pub.wellorder.net',
-  'wss://relay.snort.social',
-  'wss://nostr.oxtr.dev',
-];
-
-// Public WebTorrent trackers: the fallback signalling path for a match's link (tracker.files.fm no longer answers).
-export const TRACKERS = [
-  'wss://tracker.openwebtorrent.com',
-  'wss://tracker.novage.com.ua',
-  'wss://tracker.webtorrent.dev',
-];
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -65,27 +35,6 @@ export async function sha256Hex(text: string): Promise<string> {
 
 // Signalling payloads are sealed with a key everyone in the room can derive from its name. It is not secrecy (the
 // room names are public); it keeps addresses in the offers from being readable by anyone watching a relay.
-export async function roomKey(room: string): Promise<CryptoKey> {
-  const raw = await crypto.subtle.digest('SHA-256', encoder.encode(APP_ID + '|seal|' + room));
-  return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
-}
-
-export async function seal(key: CryptoKey, value: unknown): Promise<string> {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const data = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(JSON.stringify(value))));
-  return toHex(iv) + toHex(data);
-}
-
-export async function unseal<T = Record<string, unknown>>(key: CryptoKey, text: string): Promise<T | null> {
-  try {
-    const iv = fromHex(text.substr(0, 24));
-    const data = fromHex(text.substr(24));
-    return JSON.parse(decoder.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as BufferSource }, key, data as BufferSource)));
-  } catch {
-    return null;
-  }
-}
-
 /** Every network failure goes through here: console.error with context, so the beta 🐞 capture and Studio's error reports see it. */
 export function netError(context: string, err?: unknown): void {
   console.error(`[dod-online] ${context}`, err ?? '');

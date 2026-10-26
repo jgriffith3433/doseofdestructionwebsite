@@ -7,19 +7,22 @@ deploys the live site (GitHub Actions `pages.yml`): don't commit or push unless 
 
 ## Online
 
-Online is always on (docs/online.md): every page joins one global lobby on load (Nostr presence beats on public
-relays, no server of ours, no codes), the main menu shows "N online" and who, **Find match** queues (the player keeps
-playing anything meanwhile under a "Searching for opponent…" chip), a pair is made by a deterministic rule plus a
-handshake, and the fight runs the sim through rollback netcode over a WebRTC data channel, with a desync hash. The
-code is `src/game/net/` (adapted from Yooba Land's `Tools/Web/net/src`, copied, not depended on) and
-`src/game/ui/online.ts`. **Profile** is a name and a fighter picture (localStorage `dod.profile`); online you fight as
+Online is always on (docs/online.md) and runs entirely on **Hawkes Net** (project `doseofdestruction`, Hawkes Gen
+`docs/net.md`; the SDK is a copy in `src/game/net/hawkes/`, synced from Gen): every page joins one lobby room on load
+(no codes), the main menu shows "N online" and who, **Find match** queues (the player keeps playing anything meanwhile
+under a "Searching for opponent…" chip), a pair is made by a deterministic rule plus a handshake, and the two meet in a
+pair room that starts peer to peer and falls back to Hawkes Net's relay. The fight runs the sim through rollback
+netcode with binary input packets sent as Hawkes Net express frames (immediate, unreliable), with a desync hash. Only
+doseofdestruction.com uses the live rooms and leaderboard; beta and localhost are test (`net/hawkes.ts`). The code is
+`src/game/net/` and `src/game/ui/online.ts`. **Profile** is a name and a fighter picture (localStorage `dod.profile`); online you fight as
 your picture. Every finished online match fires the match-result event (`net/results.ts` `onMatchResult`,
 `window` `dod:match-result`). **Leaderboard** (menu): both players sign each online result with their profile key
-(localStorage `dod.profile.key`), it goes on the same relays, and every page builds the same Elo table from the signed
-results (`net/ratings.ts` rules, `net/board.ts` relays + cache, `ui/leaderboard.ts`). `?room=<id>` is a private test
+(localStorage `dod.profile.key`), it is kept as a Hawkes Net record, and every page builds the same Elo table from the
+signed results (`net/ratings.ts` rules, `net/board.ts` + `net/records.ts` store and cache, `ui/leaderboard.ts`). `?room=<id>` is a private test
 lobby (and its own leaderboard). Network errors go to
 `console.error("[dod-online] …")`. `npm test` covers pairing, the rollback and the rating rules; `node tools/online-live.test.ts`
-checks the real network from Node, signed results included.
+runs two players over a Hawkes Net started in the process from the Gen checkout (direct link; `NO_LINK=1` for the
+relay), signed results included. After a change to Gen's `clients/js/hawkes-net*.mjs`, recopy them here.
 
 ## Library (Hawkes Gen)
 

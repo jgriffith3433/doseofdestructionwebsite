@@ -1,5 +1,5 @@
-// The leaderboard's data (docs/online.md, "The leaderboard"): signed match results on the same public Nostr relays
-// the lobby uses, a cache in localStorage so the table shows at once (and offline), and a background refresh. The
+// The leaderboard's data (docs/online.md, "The leaderboard"): signed match results kept as Hawkes Net records
+// (records.ts), a cache in localStorage so the table shows at once (and offline), and a background refresh. The
 // rules (what counts, the Elo) are in ratings.ts; this file only moves and keeps results.
 //
 // A result is a NIP-78 app-data event (kind 30078, one per match and publisher: d = hawkes-dod/result/<match id>),
@@ -9,7 +9,8 @@
 
 import { schnorr } from '@noble/curves/secp256k1.js';
 import { sha256 } from '@noble/hashes/sha2.js';
-import { sharedPool, signEvent, type NostrEvent, type NostrPool } from './nostr.ts';
+import { signEvent, type NostrEvent } from './sign.ts';
+import { sharedRecords, type RecordsPool } from './records.ts';
 import { APP_ID, Emitter, fromHex, netError, seconds, toHex } from './util.ts';
 import { cleanAvatar, cleanName, profile, profileId, profileKey } from './profile.ts';
 import { checkRecord, computeBoard, parseRecord, settle, weekStart, type Board, type Checked, type ResultRecord } from './ratings.ts';
@@ -61,7 +62,7 @@ function eventOk(e: NostrEvent): boolean {
 export class Leaderboard extends Emitter {
   readonly tag: string;
   private readonly storeKey: string;
-  private readonly pool: NostrPool;
+  private readonly pool: RecordsPool;
   /** Every result whose signatures checked out, by match id + winner + signatures. */
   private readonly results = new Map<string, Checked>();
   private readonly names = new Map<string, Name>();
@@ -81,11 +82,11 @@ export class Leaderboard extends Emitter {
   /** Players whose own result events came back from the relays this visit: the playtest's proof of the round trip. */
   readonly heardFrom = new Set<string>();
 
-  constructor(lobby: string, pool?: NostrPool) {
+  constructor(lobby: string, pool?: RecordsPool) {
     super();
     this.tag = `${APP_ID}/results/${lobby}`;
     this.storeKey = `dod.board.${lobby}`;
-    this.pool = pool ?? sharedPool();
+    this.pool = pool ?? sharedRecords();
     this.load();
   }
 

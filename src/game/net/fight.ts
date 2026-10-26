@@ -10,12 +10,12 @@ import { STAGES } from '../sim/stage.ts';
 import { CHARACTERS } from '../sim/characters.ts';
 import type { SimEvent } from '../sim/step.ts';
 import type { Match, MatchSnapshot } from '../match.ts';
-import { Rollback, type HashReport, type InputPacket } from './rollback.ts';
+import { Rollback, decodePacket, encodePacket, type HashReport, type InputPacket } from './rollback.ts';
 import type { Found } from './matchmaker.ts';
 import { netError, now } from './util.ts';
 import { emitMatchResult, type EndReason, type MatchResult } from './results.ts';
 import { profileKey } from './profile.ts';
-import type { NostrKey } from './nostr.ts';
+import type { NostrKey } from './sign.ts';
 import { checkRecord, resultBody, signBody, startBody, verifyBody, type ResultRecord } from './ratings.ts';
 
 const START_TIMEOUT_MS = 45000;
@@ -99,6 +99,13 @@ export class OnlineFight {
     const room = found.room;
     this.unsubs.push(
       room.on('message', (msg: { kind: string; data: string }) => this.onMessage(msg.kind, msg.data)),
+      // Inputs come as express frames (bytes: encodePacket), the moment the other side sends them.
+      room.on('inputs', (b: Uint8Array) => {
+        const p = decodePacket(b);
+        if (!p || this.phase === 'done') return;
+        this.lastPacketAt = now();
+        this.rb.receive(p);
+      }),
       room.on('closed', (e: { reason: string }) => {
         if (this.phase === 'done') return;
         netError(`fight ${found.setup.matchId}: the link to ${found.opponent.name} closed (${e.reason})`);
@@ -202,7 +209,8 @@ export class OnlineFight {
 
   private flush(): void {
     const room = this.found.room;
-    room.send('in', JSON.stringify(this.rb.packet()), false);
+    // Every frame, every input they haven't acknowledged: a lost packet costs nothing (the next carries it too).
+    room.sendInputs(encodePacket(this.rb.packet()));
     const hashes = this.rb.takeHashes();
     if (hashes.length) room.send('h', JSON.stringify(hashes), true);
   }
@@ -214,10 +222,11 @@ export class OnlineFight {
     return `Waiting for ${this.opponent}… ${Math.round((now() - this.lastPacketAt) / 1000)} s`;
   }
 
-  /** The round trip and how often frames are rolled back, for the HUD's small network line. */
+  /** The round trip, the route and how often frames are rolled back, for the HUD's small network line. */
   netLine(): string {
-    const rtt = this.found.room.rttAvg;
-    return `${rtt >= 0 ? `${Math.round(rtt)} ms` : '…'} · rollback ${this.rb.maxRolled}f`;
+    const room = this.found.room;
+    const rtt = room.rttAvg;
+    return `${rtt >= 0 ? `${Math.round(rtt)} ms` : '…'}${room.route ? ` ${room.route}` : ''} · rollback ${this.rb.maxRolled}f`;
   }
 
   /** The game is over on a frame both sides' inputs are known for. */

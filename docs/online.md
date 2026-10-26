@@ -7,32 +7,43 @@ Once the match gets ready to start there should be an indicator … make it work
 join rooms make it work automatically."
 
 Part 1 is the lobby, the queue, profiles and the online fight. Part 2 (J: "Make a leaderboard system too.") is the
-leaderboard: signed results on the same relays, Elo, the Leaderboard screen (below, "The leaderboard").
+leaderboard: signed results, Elo, the Leaderboard screen (below, "The leaderboard").
+
+J, 2026-10-26: "completely switch Dose Of Destruction to Hawkes Net … fighting games need to have low latency and
+"feel fair"." Everything online now runs on **Hawkes Net** (Hawkes Gen `docs/net.md`, project `doseofdestruction`):
+the lobby, the match rooms and the leaderboard's store. The public Nostr relays and WebTorrent trackers are gone.
 
 ## Hard rules
 
-- **No server of ours.** The site is static on GitHub Pages. Presence and signalling go through free public relays
-  (Nostr relays; WebTorrent trackers as a fallback for a match's signalling); the fight is a direct WebRTC data
-  channel between the two browsers. Nothing we host, nothing that needs a key.
+- **Hawkes Net, nothing else.** The site is static on GitHub Pages; everything online goes through Hawkes Net
+  (`https://net.hawkesgen.com`, the project `doseofdestruction`; pages are let in by origin, no key in the page).
+  The lobby is one relay room; a match is a pair room that starts peer to peer (a direct WebRTC link between the
+  two browsers) and moves to Hawkes Net's relay when they can't link; the leaderboard's results are Hawkes Net
+  records. The SDK is a copy in `src/game/net/hawkes/` (Gen `clients/js/sdk.json`; `node bin/hawkesgen-sdk.mjs sync`
+  in Gen rewrites it).
+- **Beta apart from live.** Only doseofdestruction.com plays in the live rooms and writes the live leaderboard; the
+  beta site and localhost use test rooms (`t-…`) and test records (`net/hawkes.ts`). `?net=http://127.0.0.1:8786`
+  (off the live site) points a page at a local Hawkes Net (Gen `net/tools/net-dev.mjs`).
 - **No codes, nothing to join by hand.** Every page joins the one global lobby on load.
-- **Never block the game.** Everything online is asynchronous. If the relays or WebRTC can't be reached, the menu says
+- **Never block the game.** Everything online is asynchronous. If Hawkes Net can't be reached, the menu says
   so plainly and single player works as before.
 - **Every network error is reported:** `console.error("[dod-online] …")` with context (`net/util.ts` `netError`), so
-  the beta 🐞 capture and Studio's error reports pick it up. Relay refusals (rate limits, policies) are a
-  `console.warn`, once per relay and reason.
+  the beta 🐞 capture and Studio's error reports pick it up. A leaderboard request that fails (and is retried) is a
+  `console.warn`.
 
 ## Code
 
-`src/game/net/` (the network code is adapted from Yooba Land's `Tools/Web/net/src`, copied, not depended on):
+`src/game/net/`:
 
 | File | What |
 |---|---|
-| `util.ts` | relays, trackers, STUN servers, sealing, `netError`, a tiny emitter |
-| `nostr.ts` | one pool of Nostr relay sockets per page; Schnorr-signed events (`@noble/curves`) |
-| `tracker.ts` | WebTorrent trackers as a message bus (fallback signalling) |
-| `link.ts` | one WebRTC link: a reliable channel (events, hashes) and an unreliable one (inputs) |
-| `room.ts` | `PairRoom`: the two players of a match find each other and link (Yooba Land's room, cut down to a pair) |
-| `lobby.ts` | presence: the global lobby as Nostr beats |
+| `hawkes/` | the Hawkes Net SDK (a copy from Gen: `hawkes-net.mjs`, `hawkes-net-core.mjs`, types) |
+| `hawkes.ts` | the project, the endpoint, live or test (`IS_LIVE`, `TEST_ROOM`), room names (`roomName`) |
+| `util.ts` | ids, hashing, `netError`, a tiny emitter |
+| `sign.ts` | signing keys and Schnorr-signed events (`@noble/curves`; Nostr's event shape, kept for the results) |
+| `room.ts` | `PairRoom`: the match room on Hawkes Net (p2p first, relay fallback), messages and express frames |
+| `lobby.ts` | presence: the lobby as one Hawkes Net relay room |
+| `records.ts` | the leaderboard's store: Hawkes Net records (`/v1/net/records`) |
 | `pairing.ts` | the pairing rule (pure) |
 | `matchmaker.ts` | the queue: pairing, the handshake, the host's setup |
 | `rollback.ts` | rollback netcode (pure) |
@@ -40,7 +51,7 @@ leaderboard: signed results on the same relays, Elo, the Leaderboard screen (bel
 | `results.ts` | the match-result event |
 | `profile.ts` | name and picture in localStorage; the profile key (the leaderboard's player id) |
 | `ratings.ts` | the leaderboard's rules (pure): result bodies, signatures, what counts, dedupe, Elo, the table |
-| `board.ts` | the leaderboard's data: results to and from the relays, the localStorage cache, the outbox |
+| `board.ts` | the leaderboard's data: results to and from Hawkes Net's records, the localStorage cache, the outbox |
 | `online.ts` | wiring: which lobby, the online rules, `startOnline()` |
 | `entry.ts` | the online chunk: everything `main.ts` and the playtest use, re-exported |
 | `loader.ts` | loads `entry.ts` after boot (`bootOnline`, `onlineApi`, `onlineReady`) |
@@ -52,24 +63,24 @@ markup in `Game/index.html`; `main.ts` runs the online fight in the match loop.
 **Online never stops the game.** `main.ts` and `playtest/dod.ts` import no online code (types only): `main.ts`
 installs `window.hawkesPlaytest` and boots single player, then `bootOnline()` imports `net/entry.ts` on the next
 task and starts the lobby, the online menus and the leaderboard, each on its own guard. A failure (a package not
-installed, no WebRTC, a menu that throws) goes to `console.error("[dod-online] …")` and the game plays on without
+installed, Hawkes Net unreachable, a menu that throws) goes to `console.error("[dod-online] …")` and the game plays on without
 online; on the dev server, Vite's error overlay for the online chunk is taken down so it can't cover the menus.
 Keep it that way: a new static import of `net/` or `ui/online|leaderboard` from `main.ts` or `dod.ts` brings back
 beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
 
 ## The lobby
 
-- On load the page publishes a presence **beat** on the public Nostr relays: a NIP-78 app-data event (kind 30078,
-  replaceable per key, NIP-40 expiration), tagged `hawkes-dod/lobby/global`, content
-  `{ id, n: name, a: picture, s: idle | queued | in-match | left, q: when the search started }`.
-- Each tab has its own id and signing key (sessionStorage), so two tabs are two players and a reload keeps the id.
-- Beats go out every 20 s (8 s while searching) and at once on a change (at most one per 1.2 s). A player counts
-  while their last beat is under 60 s old; a searching player is pairable while it's under 25 s old, so a closed tab
-  stops being paired quickly. Leaving the page publishes a `left` beat.
+- On load the page joins the lobby: one Hawkes Net room (`lobby/global` live, `t-lobby/beta` on beta; relay only,
+  up to 1,000 players). Presence is a message `p` with `{ id, n: name, a: picture, s: idle | queued | in-match | left,
+  q: when the search started }`, sent to the room and to each newcomer when they join. Hawkes Net says who is in the
+  room, so a closed tab is gone as soon as its connection is (no expiry to wait out).
+- Each tab has its own id (sessionStorage), so two tabs are two players and a reload keeps the id.
+- Presence goes out at once on a change (at most one per 1.2 s) and every 20 s (8 s while searching) as a heartbeat.
+  Leaving the page sends `left` and leaves the room.
 - The main menu shows "N online" (a green dot when the lobby is reached) and up to 8 other players with their
-  picture, name and "searching" / "in a match". "Connecting…" while the relays open; "Offline: the lobby is
-  unreachable from this network" if none opens in 10 s (it keeps trying and recovers).
-- The lobby is only beats, no WebRTC, so it holds any number of players. Only the two players of a match link.
+  picture, name and "searching" / "in a match". "Connecting…" while it joins; "Offline: the lobby is unreachable from
+  this network" if it isn't in after 10 s (the SDK keeps reconnecting and it recovers).
+- The lobby is relay only, no WebRTC. Only the two players of a match link.
 - `?room=<id>` puts the page in a private test lobby `test-<id>` (the two-tab playtest). Test lobbies play 1 stock,
   90 s matches so a playtest sees an end.
 
@@ -112,6 +123,20 @@ beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
   "<name> backed out. Back in the queue." and keeps their place. At 0 the current game ends (a campaign scene, a CPU
   match, a menu) and the online match loads with the VS screen (names under the fighters).
 
+## The match room
+
+- `room.ts` joins the Hawkes Net room `m/<a hash of the pairing>` (pair topology, 2 players, transport `auto`): it
+  starts **peer to peer**, a direct WebRTC link between the two browsers (the shortest path, no hop through us), and if
+  the two can't link (strict or symmetric NATs, carriers, offices) Hawkes Net moves the room to its **relay** on the
+  same connections. Before, those two players could never play each other; now they can, at a relay hop's cost.
+- The two say who they are (`~hi`, the lobby id) and then send:
+  - **game messages** (`g`, reliable and in order): hello/ok/setup, go, the signed start and result, desync hashes, quit;
+  - **express frames** (Hawkes Net's: binary, unreliable, sent and forwarded at once, no 33 ms bundling): the fight's
+    inputs and a ping every second. On a direct link they ride their own unordered, no-retransmit data channel, so a
+    lost packet never holds up the next one; on the relay the node forwards each the moment it arrives.
+- The round trip shown in the HUD is measured over the express path, the inputs' own.
+- 6 s with nothing from the other side, or the room closing, ends it as a lost link.
+
 ## The fight
 
 - **Rollback netcode** (`rollback.ts`): the sim is integer-only and its whole state saves and restores
@@ -121,8 +146,9 @@ beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
   - Input delay 2 frames; rollback window 8 frames past the last frame both inputs are known for. Further ahead the
     side waits ("Waiting for <name>… 3 s" after 1.5 s): a lag spike stalls the match instead of drifting.
   - Time sync: each packet carries how far ahead its sender runs; the side further ahead skips a frame now and then.
-  - Packets: every frame, over the unreliable channel, every local input the other side hasn't acknowledged (so a lost
-    packet costs nothing), plus an ack and the frame number.
+  - Packets: every frame, as an express frame, every local input the other side hasn't acknowledged (so a lost packet
+    costs nothing), plus an ack and the frame number. Binary (`encodePacket`: varints, inputs run-length coded): about
+    13 bytes where the JSON was 85.
   - **Desync check**: every 30 frames both inputs are known for, each side hashes its state (`hashState`) and sends it
     on the reliable channel. A different hash ends the match as void ("Match void … a desync. It has been reported.")
     and `console.error`s both hashes and the frame.
@@ -133,7 +159,7 @@ beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
   confirm, then hangs up.
 - **Leaving and disconnects**: Esc (or the pause button) opens the menu over the match, which goes on (your fighter
   stands still); "Leave match (you lose)" forfeits. Closing the tab forfeits too. A link that drops (6 s silent, or
-  WebRTC says failed) ends it: "Connection lost … The win is yours."
+  the room closes) ends it: "Connection lost … The win is yours."
 - The HUD shows each player's name with their fighter ("Neon Rookie 42 · Break") and their picture on the card; a
   small line under the top shows the round trip and the longest rollback.
 - **Results**: the usual results screen with "You win" / "<name> wins" (or why it ended early), then **Queue again**
@@ -157,8 +183,9 @@ result the fight produces (`FightEnd.rated`, next section).
 
 ## The leaderboard
 
-J, 2026-10-18: "Make a leaderboard system too." No server of ours, so results live on the same public Nostr relays as
-the lobby, and every page builds the table itself from them, with the same code, so every device shows the same one.
+J, 2026-10-18: "Make a leaderboard system too." Results are signed by the players and kept as Hawkes Net **records**
+(Gen `docs/net.md`, "Records"; until 2026-10-26 on public Nostr relays). Hawkes Net only stores them; every page
+builds the table itself from them with the same code, so every device shows the same one.
 
 **Who is who.** The profile gets a signing key (secp256k1, localStorage `dod.profile.key`, made on first visit); its
 public key is the player's **profile id**. Lobby ids stay per tab; the profile id is per browser, so a rating
@@ -177,10 +204,12 @@ carries it and the host's setup lists both (`pids`) with the setup time (`at`); 
   alone plus the leaver's start signature (`kind: claim`): it counts as a loss for the leaver, marked `left`.
 - Void ends (desync, no start) aren't rated. The end waits up to 6 s for the other signature.
 
-**Publishing.** A page publishes its record as a NIP-78 event (kind 30078, `d` = `hawkes-dod/result/<match id>`, tag
-`hawkes-dod/results/<lobby>`; test lobbies have their own table) signed with its profile key, with the publisher's
-name and picture (`me`) and the opponent's as seen (`o`, used only until that player's own arrives). Both players
-publish, so one missing still leaves the other. With no relay open it waits in an outbox (cached) and goes out later.
+**Publishing.** A page publishes its record as a signed event (Nostr's shape: kind 30078, `d` =
+`hawkes-dod/result/<match id>`, tag `hawkes-dod/results/<lobby>`; test lobbies have their own table) signed with its
+profile key, with the publisher's name and picture (`me`) and the opponent's as seen (`o`, used only until that
+player's own arrives), to Hawkes Net's records (`POST /v1/net/records`, one kept per match and publisher; off the live
+site as test records). Both players publish, so one missing still leaves the other. If Hawkes Net can't be reached it
+waits in an outbox (cached) and goes out later. Pages read the tag's records every 30 s (`records.ts`).
 
 **What counts** (`ratings.ts`, the same on every client):
 - Signatures checked: a `game`/`time` result needs both; a `left` one needs the winner's and the leaver's (on the
@@ -213,22 +242,19 @@ game. The table is recomputed only when results change.
 
 **Limits**: with no server a cheat can't win a match they didn't (the loser's key never signs it), but they can void
 one they lost (refuse to sign and claim the other left: two claims void). Keys live in one browser: clearing site data
-starts a new profile at 1000, and many fresh profiles can farm one another (the pair limit slows it). Relays keep
-events at their discretion and pages don't republish old results, so history older than the relays' memory lives
-only in the players' caches.
+starts a new profile at 1000, and many fresh profiles can farm one another (the pair limit slows it). Results from
+the Nostr days (before 2026-10-26) live only in the players' caches.
 
 ## All platforms
 
 - Desktop, phone and tablet in Chrome, Safari and Firefox: WebSocket, WebCrypto and WebRTC data channels are all the
   game needs. Touch controls work online as offline; the chip, banner and Profile fit portrait and landscape.
-- **Limits**: no TURN server (none is free and keyless). Two players whose networks both refuse a direct link (strict
-  or symmetric NATs, some carriers and offices) can't play each other: the search says it couldn't connect and keeps
-  looking for someone else. A browser without WebRTC (some in-app webviews) can't link; it says so and stays single
-  player. Public relays can rate-limit or refuse events (seen: relay.damus.io 503-rate-limiting and banning this
-  server's IP after heavy testing, removed from the list; offchain.pub refusing keys outside its web of trust, removed
-  from the list); the pool uses five at once and swaps out any relay that fails to open or refuses events.
-- With no server everything a page sends can be faked (a name, a result). Names and setups are cleaned and checked;
-  results are claims from each page.
+- Two players whose networks refuse a direct link play over Hawkes Net's relay (a hop through net.hawkesgen.com: a
+  few ms to tens of ms more each way, depending on where they are). A browser without WebRTC plays on the relay too.
+- Hawkes Net's limits for the project are in Gen `net/projects.json` (`doseofdestruction`: 120 messages and 300 express
+  frames a second per player, 10,000 players).
+- Everything a page sends can still be faked (a name, a result). Names and setups are cleaned and checked; results
+  count only with the players' signatures.
 
 ## Checks
 
@@ -236,14 +262,17 @@ only in the players' caches.
   older hosts, skips), the rollback over a simulated network (delay, jitter, 8% loss, a 0.7 s spike, one clock 1%
   fast: no desync, hashes compared all along, the stall works, clocks stay together), a full match ending identically
   on both sides, and a drifting sim caught by the hash on both sides.
-- `node tools/online-live.test.ts` (with `npm i --no-save node-datachannel@0.33.4`) runs two players over the real
-  public relays and WebRTC: both see "2 online", a rename shows for the other, both queue and pair, the fight plays to
-  the same end on both, both go back to idle.
+- `npm test` also checks the binary input packet (`encodePacket` / `decodePacket`).
+- `node tools/online-live.test.ts` (with `npm i --no-save node-datachannel@0.33.4`) starts a Hawkes Net in the process
+  from the Gen checkout (`HAWKESGEN`, default `C:/Projects/hawkesgen`) and runs two players over it and WebRTC: both see
+  "2 online", a rename shows for the other, both queue and pair, the fight plays to the same end on both over a direct
+  link with the inputs as express frames, both go back to idle. `NO_LINK=1` runs it with no WebRTC: the match must go
+  on the relay.
 - `npm test` also runs `src/game/test/ratings.test.ts`: signatures (a changed field, a swapped key, one signature,
   a bad one), `left` claims (with and without the leaver's start; disagreeing claims void), dedupe (both copies count
   once, a full result beats a claim, the pair-per-day limit), Elo (the table, zero-sum, the same table from the same
   results in any order and with repeats, streaks, favourites, +16/−16) and the weekly table.
 - `node tools/online-live.test.ts` also checks both sides end with the same fully signed result, and a third page that
-  only listens builds the same table from the relays.
+  only reads builds the same table from Hawkes Net's records.
 - The playtest scenario `online` (Hawkes Gen `playtest.run` with `peers: 2`): see AGENTS.md. After the match each
   peer checks its rating change and the Leaderboard (both tabs: winner #1 at 1000 + d, loser #2 at 1000 − d).

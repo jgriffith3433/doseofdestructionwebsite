@@ -1,27 +1,44 @@
-// Online play over the real public network, from Node (docs/online.md, "Checks"): two players join a fresh test lobby
-// through the public Nostr relays, see each other, one renames, both queue, get paired, link over WebRTC, and play an
-// online fight (CPU bots on the pads) through the rollback to the same result on both sides; then both sign the
-// result, it goes out on the relays, and a third page that only listens builds the same leaderboard from it.
+// Online play over Hawkes Net, from Node (docs/online.md, "Checks"): two players join a fresh test lobby, see each
+// other, one renames, both queue, get paired, meet in a match room (a direct WebRTC link between the two, inputs as
+// express frames), and play an online fight (CPU bots on the pads) through the rollback to the same result on both
+// sides; then both sign the result, it is kept as a Hawkes Net record, and a third page that only reads builds the
+// same leaderboard from it.
 //
-// Not part of `npm test` (it needs the network and a WebRTC for Node):
+// Hawkes Net runs in this process from a Hawkes Gen checkout (its own test service: this machine is trusted), so it
+// tests the network code as it is in that checkout, deployed or not. Not part of `npm test` (it needs WebRTC for Node):
 //   npm i --no-save node-datachannel@0.33.4      (or set DATACHANNEL=/path/to/node_modules/node-datachannel)
-//   node tools/online-live.test.ts
+//   node tools/online-live.test.ts                (HAWKESGEN=<the Gen checkout>, default C:/Projects/hawkesgen)
+//   NO_LINK=1 node tools/online-live.test.ts      (no WebRTC: two networks that can't link; the match goes on the relay)
 
-import { Lobby } from '../src/game/net/lobby.ts';
-import { Matchmaker, type Found, type OnlineSetup } from '../src/game/net/matchmaker.ts';
-import { OnlineFight, type FightEnd } from '../src/game/net/fight.ts';
-import { Match, type MatchSetup } from '../src/game/match.ts';
-import { Bot } from '../src/game/ai/bot.ts';
-import { randomId } from '../src/game/net/util.ts';
-import { makeKey } from '../src/game/net/nostr.ts';
-import { Leaderboard } from '../src/game/net/board.ts';
-import { formatDelta } from '../src/game/net/ratings.ts';
+import { pathToFileURL } from 'node:url';
+import type { Found, OnlineSetup } from '../src/game/net/matchmaker.ts';
+import type { FightEnd } from '../src/game/net/fight.ts';
+import type { MatchSetup } from '../src/game/match.ts';
 
 declare const process: { env: Record<string, string | undefined>; exit(code: number): never };
 
-const dc = process.env.DATACHANNEL ? `${process.env.DATACHANNEL}/dist/esm/polyfill/index.mjs` : 'node-datachannel/polyfill';
-const { RTCPeerConnection } = await import(dc);
-(globalThis as unknown as { RTCPeerConnection: unknown }).RTCPeerConnection = RTCPeerConnection;
+// NO_LINK=1: no WebRTC at all, as two players whose networks refuse a direct link: the match must move to the relay.
+const noLink = Boolean(process.env.NO_LINK);
+if (!noLink) {
+  const dc = process.env.DATACHANNEL ? `${process.env.DATACHANNEL}/dist/esm/polyfill/index.mjs` : 'node-datachannel/polyfill';
+  const { RTCPeerConnection } = await import(dc);
+  (globalThis as unknown as { RTCPeerConnection: unknown }).RTCPeerConnection = RTCPeerConnection;
+}
+
+// Hawkes Net here, before the game's network code reads where it is.
+const gen = process.env.HAWKESGEN ?? 'C:/Projects/hawkesgen';
+const { startTestHub } = await import(pathToFileURL(`${gen}/net/test/helper.ts`).href);
+const hub = await startTestHub();
+(globalThis as { DOD_NET_ENDPOINT?: string }).DOD_NET_ENDPOINT = hub.endpoint;
+const { Lobby } = await import('../src/game/net/lobby.ts');
+const { Matchmaker } = await import('../src/game/net/matchmaker.ts');
+const { OnlineFight } = await import('../src/game/net/fight.ts');
+const { Match } = await import('../src/game/match.ts');
+const { Bot } = await import('../src/game/ai/bot.ts');
+const { randomId } = await import('../src/game/net/util.ts');
+const { makeKey } = await import('../src/game/net/sign.ts');
+const { Leaderboard } = await import('../src/game/net/board.ts');
+const { formatDelta } = await import('../src/game/net/ratings.ts');
 
 const t0 = Date.now();
 const log = (text: string) => console.log(`${((Date.now() - t0) / 1000).toFixed(1).padStart(6)}s ${text}`);
@@ -125,19 +142,24 @@ const eb = pb.end();
 if (ea && eb) {
   log(`ends: ${ea.reason} winner ${ea.result.winner} at frame ${ea.result.frames} / ${eb.reason} winner ${eb.result.winner} at frame ${eb.result.frames}`);
   log(`rollback: ${pa.fight.rb.rollbacks} + ${pb.fight.rb.rollbacks} rollbacks, max ${Math.max(pa.fight.rb.maxRolled, pb.fight.rb.maxRolled)} frames, ${pa.fight.rb.hashesMatched} hashes matched, rtt ${Math.round(fa.room.rttAvg)} ms, route ${fa.room.route}`);
+  const st = fa.room.net?.stats();
+  log(`match room: ${fa.room.net?.transport}, express ${st?.expressUp} up / ${st?.expressDown} down, ${fa.room.sent.u} input packets sent`);
+  const want = noLink ? 'relay' : 'direct';
+  check(fa.room.route === want && fb.room.route === want, noLink ? `with no link between them, the match is on Hawkes Net's relay (${fa.room.route} / ${fb.room.route})` : `the two are linked directly (${fa.room.route} / ${fb.room.route})`);
+  check((st?.expressDown ?? 0) > 100, 'the inputs came as express frames');
   check((ea.reason === 'game' || ea.reason === 'time') && ea.reason === eb.reason, 'it ends on the game (not a desync or a lost link)');
   check(ea.result.winner === eb.result.winner && ea.result.frames === eb.result.frames, 'both sides agree on the winner and the last frame');
   check(pa.fight.rb.hashesMatched > 5, 'desync hashes were compared along the way');
 }
 if (ea && eb) {
-  // The leaderboard: both sides sign the same result; it goes out on the relays and a listening page counts it.
+  // The leaderboard: both sides sign the same result; it is kept as a Hawkes Net record and a reading page counts it.
   const [ra, rb] = await Promise.all([ea.rated, eb.rated]);
   check(ra?.kind === 'full' && rb?.kind === 'full', `both sides end with a fully signed result (${ra?.kind} / ${rb?.kind})`);
   check(!!ra && !!rb && JSON.stringify(ra.record) === JSON.stringify(rb.record), 'the two signed results are the same');
   const watcher = new Leaderboard(lobbyId);
   watcher.start();
   if (ra) new Leaderboard(lobbyId).addOwn(ra.record, { n: 'Tester Two', a: 'break' });
-  check(await until(() => watcher.board('all').table.length === 2, 30000, 'the result on the relays'), 'a page that only listens gets the result from the relays');
+  check(await until(() => watcher.board('all').table.length === 2, 40000, 'the result in the records'), "a page that only reads gets the result from Hawkes Net's records");
   const table = watcher.board('all').table;
   log(`board: ${table.map((p) => `#${p.rank} ${p.id.slice(0, 8)} ${p.rating} ${p.wins}-${p.losses}`).join(' | ')}`);
   const d = watcher.board('all').deltas.get(ea.result.matchId);
@@ -149,4 +171,4 @@ check(await until(() => a.lobby.players().find((p) => p.id === b.lobby.id)?.stat
 a.lobby.leave();
 b.lobby.leave();
 log(failed ? `${failed} live check(s) failed` : 'all live checks passed');
-setTimeout(() => process.exit(failed ? 1 : 0), 500);
+setTimeout(() => void hub.stop().finally(() => process.exit(failed ? 1 : 0)), 500);

@@ -4,7 +4,7 @@
 // 3. Dedupe: one result per match id; the pair-per-day limit.
 // 4. Elo: integer, zero-sum, the same table whatever order the results arrive in.
 
-import { makeKey } from '../net/nostr.ts';
+import { makeKey } from '../net/sign.ts';
 import {
   K, PAIR_PER_DAY, START_RATING, checkRecord, computeBoard, eloDelta, expected, formatDelta, parseRecord, resultBody, settle,
   signBody, startBody, weekStart, type Checked, type ResultRecord,

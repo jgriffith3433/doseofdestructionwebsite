@@ -2,23 +2,26 @@
 // picks for a match. Nothing here blocks the game: every step is asynchronous and every failure is reported
 // (console.error via netError) and shown as a plain line, while single player carries on.
 //
-// URL options: ?room=<id> puts this page in a private test lobby ("test-<id>") instead of the global one (the
-// two-tab playtest: Hawkes Gen's playtest.run peers: 2 adds room and peer); ?peer=<n> marks a playtest player.
+// All of it runs on Hawkes Net (hawkes.ts: the project and its rooms). URL options: ?room=<id> puts this page in a
+// private test lobby (Hawkes Net's "t-<id>/lobby") instead of the shared one (the two-tab playtest: Hawkes Gen's
+// playtest.run peers: 2 adds room and peer); ?peer=<n> marks a playtest player.
 
 import { Lobby } from './lobby.ts';
 import { Matchmaker, type OnlineSetup } from './matchmaker.ts';
 import { avatarChar, onProfile, profile, profileId } from './profile.ts';
 import { netError, randomId } from './util.ts';
 import { leaderboard } from './board.ts';
+import { IS_LIVE, TEST_ROOM } from './hawkes.ts';
 import { stagesFor } from '../modes.ts';
 
 const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
-const testRoom = (params.get('room') ?? '').replace(/[^0-9A-Za-z_-]/g, '').slice(0, 40);
 
-export const LOBBY_ID = testRoom ? `test-${testRoom}` : 'global';
+/** Whose players and table: "global" on doseofdestruction.com, "beta" anywhere else (the beta site, localhost: Hawkes
+ *  Net's test rooms and test records), "test-<id>" in a playtest's private room. */
+export const LOBBY_ID = TEST_ROOM ? `test-${TEST_ROOM}` : IS_LIVE ? 'global' : 'beta';
 /** A private test lobby: shorter matches, so a playtest sees one end. */
-export const TEST_LOBBY = !!testRoom;
-/** Playtest players share one browser: links use 127.0.0.1 for host candidates (room.ts). */
+export const TEST_LOBBY = !!TEST_ROOM;
+/** A playtest player (?peer=<n>: Hawkes Gen's playtest.run with peers). */
 export const PLAYTEST_PEER = params.has('peer') ? Number(params.get('peer')) || 0 : -1;
 
 /** Online matches: 3 stocks and 5 minutes (test lobbies: 1 stock, 90 s). */
@@ -62,7 +65,7 @@ export function startOnline(): { lobby: Lobby; mm: Matchmaker } | null {
     mm = new Matchmaker(lobby, { me, makeSetup, sameMachine: PLAYTEST_PEER >= 0 });
     onProfile((next) => lobby?.update({ name: next.name, avatar: next.avatar }));
     lobby.start();
-    // The leaderboard refreshes in the background from the same relays; its cached table is there already.
+    // The leaderboard refreshes in the background from Hawkes Net's records; its cached table is there already.
     leaderboard(LOBBY_ID).start();
     console.info(`[dod-online] joined lobby "${LOBBY_ID}" as ${p.name} (${lobby.id})`);
     return { lobby, mm };

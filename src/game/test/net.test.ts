@@ -10,9 +10,7 @@ import { BTN, NO_INPUT, packInput } from '../sim/input.ts';
 import { hashState } from '../sim/state.ts';
 import { Match, type MatchSetup, type MatchSnapshot } from '../match.ts';
 import { pairFor, allPairs, type QueueEntry } from '../net/pairing.ts';
-import { Rollback, type InputPacket, type HashReport } from '../net/rollback.ts';
-import { NostrPool } from '../net/nostr.ts';
-import { NOSTR_RELAYS } from '../net/util.ts';
+import { Rollback, decodePacket, encodePacket, type InputPacket, type HashReport } from '../net/rollback.ts';
 
 declare const process: { exit(code: number): never };
 
@@ -191,67 +189,24 @@ function playOnline(opts: { ms: number; delay: [number, number]; loss: number; s
   check(run.desyncs.length >= 2 && run.desyncs.every((f) => f >= 599), `rollback: a sim that drifts at frame 600 is reported on both sides (at ${run.desyncs.join(', ')})`);
 }
 
-// ------------------------------------------------------------------ relays
+// ------------------------------------------------------------------ the input packet as bytes (express frames)
 
 {
-  check(!NOSTR_RELAYS.includes('wss://relay.damus.io') && NOSTR_RELAYS.length >= 7, `relays: ${NOSTR_RELAYS.length} public relays configured without relay.damus.io`);
-
-  const origWS = globalThis.WebSocket;
-  const attempts: string[] = [];
-  const sockets = new Map<string, FakeWS>();
-  class FakeWS {
-    url: string;
-    readyState = 0;
-    onopen: (() => void) | null = null;
-    onclose: (() => void) | null = null;
-    onerror: (() => void) | null = null;
-    onmessage: ((e: { data: string }) => void) | null = null;
-    constructor(url: string) {
-      this.url = url;
-      attempts.push(url);
-      sockets.set(url, this);
-    }
-    send() {}
-    close() {
-      this.readyState = 3;
-      this.onclose?.();
-    }
+  const packets: InputPacket[] = [
+    { f: 0, i: [], a: -1, n: 0, v: 0 },
+    { f: 1234, i: [NO_INPUT, NO_INPUT, NO_INPUT, packInput(100, -100, BTN.C_UP), packInput(-37, 12, 1 << 24), NO_INPUT], a: 1229, n: 1240, v: -3 },
+    { f: 9, i: Array.from({ length: 120 }, (_, k) => (k % 7 === 0 ? packInput(k - 60, 60 - k, 1 << (16 + (k % 9))) : NO_INPUT)), a: 7, n: 130, v: 2 },
+  ];
+  for (const p of packets) {
+    const b = encodePacket(p);
+    const back = decodePacket(b);
+    check(!!back && back.f === p.f && back.a === p.a && back.n === p.n && back.v === p.v && back.i.length === p.i.length && back.i.every((x, k) => x === (p.i[k] | 0)), `input packet: ${p.i.length} inputs survive the bytes (${b.length} bytes, JSON ${JSON.stringify(p).length})`);
   }
-  (globalThis as unknown as { WebSocket: unknown }).WebSocket = FakeWS;
-  try {
-    const urls = ['wss://bad1.example', 'wss://ok1.example', 'wss://refuse.example', 'wss://fallback1.example', 'wss://fallback2.example'];
-    const pool = new NostrPool(urls, 3);
-    check(attempts.length === 3, 'relay pool: opens initial relays in parallel');
-
-    // A relay that never opened fails once (e.g. 503): swapped immediately for a fallback, not retried.
-    sockets.get('wss://bad1.example')!.onclose?.();
-    check(
-      attempts.filter((u) => u === 'wss://bad1.example').length === 1 && pool.relays.some((r) => r.url === 'wss://fallback1.example'),
-      'relay pool: a relay that fails to open is swapped immediately without retrying',
-    );
-
-    // Open the active relays; refuse.example refuses twice and gets swapped out for fallback2.example.
-    for (const u of ['wss://ok1.example', 'wss://refuse.example', 'wss://fallback1.example']) {
-      const ws = sockets.get(u)!;
-      ws.readyState = 1;
-      ws.onopen?.();
-    }
-    sockets.get('wss://refuse.example')!.onmessage?.({ data: JSON.stringify(['OK', 'e1', false, 'blocked: rate-limit violations']) });
-    sockets.get('wss://refuse.example')!.onmessage?.({ data: JSON.stringify(['OK', 'e2', false, 'blocked: rate-limit violations']) });
-    check(
-      !pool.openUrls().includes('wss://refuse.example') && pool.relays.some((r) => r.url === 'wss://fallback2.example'),
-      'relay pool: a relay that refuses events is swapped out and excluded from openUrls()',
-    );
-
-    // Exhausted pool when every relay fails to open.
-    const deadPool = new NostrPool(['wss://dead1.example', 'wss://dead2.example'], 2);
-    sockets.get('wss://dead1.example')!.onclose?.();
-    sockets.get('wss://dead2.example')!.onclose?.();
-    check(deadPool.exhausted && deadPool.openUrls().length === 0, 'relay pool: marks exhausted and 0 open when all relays fail');
-    for (const r of pool.relays) r.close();
-  } finally {
-    (globalThis as unknown as { WebSocket: unknown }).WebSocket = origWS;
-  }
+  const typical = { f: 600, i: Array(8).fill(packInput(80, 0, 0)), a: 597, n: 605, v: 1 };
+  check(encodePacket(typical).length < 20 && encodePacket(typical).length * 4 < JSON.stringify(typical).length, `input packet: a typical packet is small (${encodePacket(typical).length} bytes vs ${JSON.stringify(typical).length} as JSON)`);
+  check(decodePacket(new Uint8Array([2, 0, 0])) === null, 'input packet: another version is refused');
+  check(decodePacket(new Uint8Array([1, 128])) === null, 'input packet: a short one is refused, never thrown');
+  check(decodePacket(Uint8Array.from([1, 0, 0, 0, 0, 1, 200, 1, 5])) === null, 'input packet: more than 120 inputs is refused');
 }
 
 if (failed) {

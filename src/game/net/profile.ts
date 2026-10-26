@@ -2,7 +2,7 @@
 // localStorage and shown to everyone in the lobby. Online, you fight as your picture's fighter.
 
 import { CHARACTERS } from '../sim/characters.ts';
-import { makeKey, type NostrKey } from './nostr.ts';
+import { makeKey, type NostrKey } from './sign.ts';
 
 export interface Profile {
   name: string;

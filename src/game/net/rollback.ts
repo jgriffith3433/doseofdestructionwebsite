@@ -257,3 +257,75 @@ export class Rollback<S> {
     return this.acked >= f;
   }
 }
+
+// ------------------------------------------------------------------ the packet as bytes (an express frame's payload)
+// [1][f: uv][n: uv][a + 1: uv][v: zigzag][runs: uv][per run: count uv, input uv]. Inputs repeat a lot (a held stick,
+// a standing fighter), so they go as runs: a packet is a few dozen bytes where its JSON was a few hundred.
+const PACKET_V = 1;
+
+function putUv(out: number[], v: number): void {
+  v = Math.max(0, Math.floor(v));
+  while (v >= 128) {
+    out.push((v % 128) | 128);
+    v = Math.floor(v / 128);
+  }
+  out.push(v);
+}
+
+export function encodePacket(p: InputPacket): Uint8Array {
+  const out: number[] = [PACKET_V];
+  putUv(out, p.f);
+  putUv(out, p.n);
+  putUv(out, p.a + 1);
+  putUv(out, p.v >= 0 ? p.v * 2 : -p.v * 2 - 1);
+  const runs: [number, number][] = [];
+  for (const x of p.i) {
+    const v = x >>> 0;
+    const last = runs[runs.length - 1];
+    if (last && last[1] === v) last[0]++;
+    else runs.push([1, v]);
+  }
+  putUv(out, runs.length);
+  for (const [count, v] of runs) {
+    putUv(out, count);
+    putUv(out, v);
+  }
+  return Uint8Array.from(out);
+}
+
+/** The packet from its bytes, or null for a malformed one (never throws: it's the network's). */
+export function decodePacket(b: Uint8Array): InputPacket | null {
+  let i = 0;
+  const uv = (): number => {
+    let v = 0;
+    let m = 1;
+    for (let k = 0; k < 8; k++) {
+      if (i >= b.length) throw new RangeError('short');
+      const c = b[i++];
+      v += (c & 127) * m;
+      if (c < 128) return v;
+      m *= 128;
+    }
+    throw new RangeError('long');
+  };
+  try {
+    if (b[i++] !== PACKET_V) return null;
+    const f = uv();
+    const n = uv();
+    const a = uv() - 1;
+    const z = uv();
+    const v = z % 2 ? -(z + 1) / 2 : z / 2;
+    const runs = uv();
+    if (runs > MAX_PACKET_INPUTS) return null;
+    const inputs: number[] = [];
+    for (let r = 0; r < runs; r++) {
+      const count = uv();
+      const x = uv() | 0;
+      if (inputs.length + count > MAX_PACKET_INPUTS) return null;
+      for (let k = 0; k < count; k++) inputs.push(x);
+    }
+    return { f, i: inputs, a, n, v };
+  } catch {
+    return null;
+  }
+}
