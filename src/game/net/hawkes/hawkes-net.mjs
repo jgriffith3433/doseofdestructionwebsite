@@ -48,6 +48,78 @@ function stableSub() {
 const r2 = (n) => Math.round(n * 100) / 100;
 const r3 = (n) => Math.round(n * 1000) / 1000;
 
+// ================================================================ the background clock (docs/net.md "In the background")
+// A hidden tab, a minimised window or a window covered by another gets no animation frames, and its timers slow to once
+// a second (once a minute after five minutes). So the SDK's own upkeep, sending and a p2p host's bundling run on a
+// worker's timer, which browsers don't slow: a page in the background keeps its room as it was. Where there is no
+// Worker (Node, a strict content policy) it falls back to ordinary timers.
+const CLOCK_MS = 8;
+const AWAY_AFTER_MS = 2000;
+const hasPage = !isNode && typeof document !== 'undefined';
+const clock = { jobs: new Set(), worker: null, timer: null };
+let frameAt = 0;
+let watchingFrames = false;
+function watchFrames() {
+  if (watchingFrames || !hasPage || typeof requestAnimationFrame !== 'function') return;
+  watchingFrames = true;
+  frameAt = wall();
+  const f = () => { frameAt = wall(); requestAnimationFrame(f); };
+  requestAnimationFrame(f);
+}
+function clockTick() {
+  const t = wall();
+  for (const j of [...clock.jobs]) {
+    if (t < j.due) continue;
+    // On the beat (a tick a little late is made up on the next ones); a page that was asleep starts over, no burst.
+    j.due += j.ms;
+    if (t - j.due > 250) j.due = t + j.ms;
+    try { j.fn(); } catch (e) { console.error('[hawkes-net] background clock:', e); }
+  }
+}
+function startClock() {
+  if (clock.worker || clock.timer) return;
+  if (hasPage && typeof Worker === 'function' && typeof Blob === 'function' && typeof URL !== 'undefined' && URL.createObjectURL) {
+    try {
+      const url = URL.createObjectURL(new Blob([`setInterval(() => postMessage(0), ${CLOCK_MS});`], { type: 'text/javascript' }));
+      clock.worker = new Worker(url);
+      URL.revokeObjectURL(url);
+      clock.worker.onmessage = clockTick;
+      return;
+    } catch { clock.worker = null; }
+  }
+  clock.timer = setInterval(clockTick, CLOCK_MS);
+}
+function stopClock() {
+  if (clock.jobs.size) return;
+  if (clock.worker) { clock.worker.terminate(); clock.worker = null; }
+  if (clock.timer) { clearInterval(clock.timer); clock.timer = null; }
+}
+/** fn every `ms` on the background clock. Returns stop(). */
+function every(ms, fn) {
+  const job = { ms, fn, due: wall() + ms };
+  clock.jobs.add(job);
+  startClock();
+  return () => { clock.jobs.delete(job); stopClock(); };
+}
+/** True while this page is in the background: hidden, or no animation frame for `ms` (a window covered by another). */
+export function inBackground(ms = 1000) {
+  if (!hasPage) return false;
+  watchFrames();
+  return Boolean(document.hidden) || wall() - frameAt > ms;
+}
+/**
+ * Keeps a game going while its page is in the background (docs/net.md "In the background"): fn() about `hz` times a
+ * second (default 60), only while the page gets no animation frames (a hidden tab, a minimised or covered window), so
+ * a rollback fight, a turn timer or a host's simulation doesn't stop for the other players. Run your game's step in it,
+ * not its drawing. o: { hz, afterMs (no frames for this long first, default 100) }. Returns stop().
+ */
+export function background(fn, o = {}) {
+  watchFrames();
+  const after = Number.isFinite(o.afterMs) ? o.afterMs : 100;
+  const ms = Math.max(CLOCK_MS, Math.round(1000 / (o.hz || 60)));
+  return every(ms, () => { if (!hasPage || wall() - frameAt > after) fn(); });
+}
+
 class Emitter {
   constructor() { this.h = new Map(); }
   on(k, f) { let s = this.h.get(k); if (!s) this.h.set(k, (s = new Set())); s.add(f); return () => s.delete(f); }
@@ -58,7 +130,8 @@ class Emitter {
  * Joins a room. Resolves when the room's state has arrived (`ready`), rejects when the join is refused.
  * o: { project, transport: 'relay' (default) | 'auto' | 'p2p', ticket (a string, or a function returning Gen's ticket answer),
  *      endpoint (the Hawkes Net service, default https://net.hawkesgen.com), key (a Gen API key: servers and bots only), name, sub, role,
- *      config (the room's shape if this join creates it), leaveOnHide (default true), rtc ({ RTCPeerConnection } in Node),
+ *      config (the room's shape if this join creates it), leaveOnHide (default true), away (default true: tell the room
+ *      when this page is in the background, docs/net.md "Away"), rtc ({ RTCPeerConnection } in Node),
  *      WebSocket (a WebSocket class, default the global one), log (false to silence),
  *      onRaw (an engine with its own multiplayer logic: every room message in the core's shapes, see `raw` below) }
  */
@@ -93,12 +166,18 @@ class Room {
     this.ws = null; this.wsCodec = null; this.resume = null; this.relayUrl = null; this.ice = DEFAULT_ICE;
     this.p2p = null;
     this.closed = false; this.lastBeat = wall(); this.sleptUntil = 0; this.retry = 0; this.pingAt = 0;
-    this.timers = [];
+    this.timers = []; // stop() functions of background clock jobs
+    this.away = false; this._hiddenSince = 0; this._autoAway = false;
     this.sub = o.sub || stableSub();
   }
 
   // ================================================================ the public API
   get isHost() { return this.host !== null && this.host === this.id; }
+  /** Players whose page is in the background right now (their `away` is true; event 'peer:away'). */
+  get awayPeers() { return [...this.peers.values()].filter((p) => p.away); }
+  /** Says this player is away (or back) now: for bots, tests, and engines that know better than the page (a game
+   *  paused in its own menu). In a browser the page's own state takes over again the next time it changes. */
+  setAway(on) { if (!this.closed && Boolean(on) !== this.away) this._setAway(Boolean(on)); }
   /** The shared clock (ms): the room node's. It never jumps: a correction is eased in. */
   now() { return now() + this.offset; }
   /** Sends a message to the room. `kind` is the game's name for it; `data` is JSON-able (or Uint8Array).
@@ -151,7 +230,8 @@ class Room {
     this.st.expressDown++;
     this.ev.emit('express', x.payload, x.from);
   }
-  /** Connection events: status, ready, peer:join, peer:leave, host, transport, problem. Returns off(). */
+  /** Connection events: status, ready, peer:join, peer:leave, peer:away ({ peer, away }), away ({ away }: this page),
+   *  host ({ host, previous, reason: 'first' | 'host left' | 'host away' }), transport, problem. Returns off(). */
   when(event, fn) { return this.ev.on(event, fn); }
   /** My avatar: a position, a heading and any small extra values (flags, what I hold). The newest goes each send. */
   pose(p, yaw = 0, extra = null) { this.q.me = { t: 'me', at: this.now(), s: { ...(extra || {}), p: [r3(p[0]), r3(p[1]), r3(p[2])], y: r2(yaw) } }; }
@@ -192,7 +272,8 @@ class Room {
     this.closed = true;
     try { this._control({ c: 'bye', why: reason }); } catch {}
     this._teardownP2p();
-    for (const t of this.timers) clearInterval(t);
+    for (const stop of this.timers) stop();
+    if (this._vis && typeof removeEventListener === 'function') removeEventListener('visibilitychange', this._vis);
     if (this.arriving) { for (const t of this.arriving.values()) clearTimeout(t); this.arriving.clear(); }
     if (this._hide && typeof removeEventListener === 'function') removeEventListener('pagehide', this._hide);
     const ws = this.ws;
@@ -208,12 +289,18 @@ class Room {
     const t = await this._ticket();
     this._useTicket(t);
     this._connect(`t=${encodeURIComponent(t.ticket)}&want=${this.o.transport}`);
-    this.timers.push(setInterval(() => this._tick(), 1000));
-    this.timers.push(setInterval(() => this._flush(), SEND_MS));
+    this.timers.push(every(1000, () => this._tick()));
+    this.timers.push(every(SEND_MS, () => this._flush()));
     if (!isNode && this.o.leaveOnHide && typeof addEventListener === 'function') {
       this._hide = (e) => { if (!e.persisted) void this.leave('left'); };
       addEventListener('pagehide', this._hide);
       for (const name of ['visibilitychange', 'pageshow', 'online']) addEventListener(name, () => this._wake());
+    }
+    if (hasPage && this.o.away !== false && typeof addEventListener === 'function') {
+      watchFrames();
+      // Back at once (the timer would be a second late); away is decided in the upkeep, after AWAY_AFTER_MS.
+      this._vis = () => this._checkAway();
+      addEventListener('visibilitychange', this._vis);
     }
     const timeout = setTimeout(() => this._refused(new Error('hawkes-net: the room did not answer in 20 s')), 20_000);
     try { await ready; } catch (e) { void this.leave('refused'); throw e; } finally { clearTimeout(timeout); }
@@ -382,7 +469,7 @@ class Room {
   _readyNow(resumed) {
     this._status('online');
     // An engine on raw messages starts over from this: who is here, who hosts, who owns what.
-    if (this.onRaw) this._raw({ t: 'hello', you: this.id, name: this.name, color: this.color, host: this.host, peers: [...this.peers.values()].map((p) => ({ c: p.id, name: p.name, color: p.color, ord: p.ord })), owners: Object.fromEntries(this.owners), locks: Object.fromEntries(this.locks), now: this.now(), transport: this.transport });
+    if (this.onRaw) this._raw({ t: 'hello', you: this.id, name: this.name, color: this.color, host: this.host, peers: [...this.peers.values()].map((p) => ({ c: p.id, name: p.name, color: p.color, ord: p.ord, away: p.away })), owners: Object.fromEntries(this.owners), locks: Object.fromEntries(this.locks), now: this.now(), transport: this.transport });
     const first = !this._wasReady;
     this._wasReady = true;
     if (first) this._ready?.();
@@ -420,11 +507,17 @@ class Room {
     // (Joins, leaves and host changes reach onRaw once, from _addPeer/_dropPeer/_hostChanged, whichever route told us.)
     if (this.onRaw && m.t !== 'hello' && m.t !== 'pong' && m.t !== 'join' && m.t !== 'leave' && m.t !== 'host') this._raw(m);
     switch (m.t) {
-      case 'hello': this._worldHello(m); this._readyNow(false); return;
+      case 'hello': this._worldHello(m); if (this.away) this.q.rel.push({ t: 'away', on: true }); this._readyNow(false); return;
       case 'pong': return this._pong(m.at, m.now);
       case 'join': this._addPeer(m); return;
       case 'leave': return this._dropPeer(m.c, m.why || 'left');
-      case 'host': { const was = this.host; this.host = m.c; return this._hostChanged(m.c, was, 'host left'); }
+      case 'host': { const was = this.host; this.host = m.c; return this._hostChanged(m.c, was, this.peers.get(was)?.away || (was === this.id && this.away) ? 'host away' : 'host left'); }
+      case 'away': {
+        const pr = this.peers.get(m.c);
+        if (!pr || pr.away === Boolean(m.on)) return;
+        pr.away = Boolean(m.on);
+        return this.ev.emit('peer:away', { peer: pr, away: pr.away });
+      }
       case 'me': {
         const pr = this.peers.get(m.c);
         if (!pr) return;
@@ -476,8 +569,12 @@ class Room {
     const wait = this.arriving?.get(id);
     if (wait) { clearTimeout(wait); this.arriving.delete(id); }
     const had = this.peers.get(id);
-    if (had) { had.name = pr.name ?? had.name; had.ord = pr.ord ?? had.ord; if (this.transport === 'relay') had.route = 'relay'; return; }
-    const info = { id, name: pr.name ?? null, color: pr.color ?? null, ord: pr.ord ?? 0, role: pr.role || 'player', route: this.transport === 'relay' ? 'relay' : 'host', rttMs: null, seenAt: this.now(), pose: null };
+    if (had) {
+      had.name = pr.name ?? had.name; had.ord = pr.ord ?? had.ord; if (this.transport === 'relay') had.route = 'relay';
+      if (pr.away !== undefined && Boolean(pr.away) !== had.away) { had.away = Boolean(pr.away); this.ev.emit('peer:away', { peer: had, away: had.away }); }
+      return;
+    }
+    const info = { id, name: pr.name ?? null, color: pr.color ?? null, ord: pr.ord ?? 0, role: pr.role || 'player', route: this.transport === 'relay' ? 'relay' : 'host', rttMs: null, seenAt: this.now(), pose: null, away: Boolean(pr.away) };
     this.peers.set(id, info);
     this.ev.emit('peer:join', info);
     if (this._wasReady) this._raw({ t: 'join', c: id, name: info.name, color: info.color, ord: info.ord });
@@ -578,11 +675,29 @@ class Room {
       if (Math.abs(d) <= 10) this.offsetTarget = null;
     }
     if (t - this.pingAt > PING_MS) { this.pingAt = t; this._ping(); }
+    this._checkAway();
     this._syncStates();
     while (this.sentRel.length && t - this.sentRel[0].at > 30_000) this.sentRel.shift();
     if (this.p2p) this._p2pTick(t);
   }
   _wake() { this.lastBeat = wall(); this.sleptUntil = wall() + SLEEP_GRACE_MS; }
+  /** Away after AWAY_AFTER_MS in the background, back the moment the page is seen again. */
+  _checkAway() {
+    if (!hasPage || this.o.away === false || this.closed) return;
+    const bg = inBackground(1000);
+    if (bg && !this._hiddenSince) this._hiddenSince = wall();
+    if (!bg) this._hiddenSince = 0;
+    const want = bg && wall() - this._hiddenSince >= AWAY_AFTER_MS;
+    // Acts when the page's state changes (a game's own setAway stands until then).
+    if (want === this._autoAway) return;
+    this._autoAway = want;
+    if (want !== this.away) this._setAway(want);
+  }
+  _setAway(on) {
+    this.away = on;
+    this.q.rel.push({ t: 'away', on });
+    this.ev.emit('away', { away: on });
+  }
   _status(s) { if (this.status === s) return; this.status = s; this.ev.emit('status', { status: s, peers: this.peers.size, transport: this.transport }); }
   _problem(code, detail) {
     if (code === 'relay-lost' && wall() < this.sleptUntil) return;
@@ -688,13 +803,14 @@ class Room {
     const p = this.p2p;
     if (p.hostRoom) {
       if (!p.timer) {
-        p.timer = setInterval(() => {
+        // On the background clock: a host whose page is hidden still sends everyone their bundles on time.
+        p.timer = every(core.FLUSH_MS, () => {
           if (this.p2p !== p) return;
           const n = this.now();
           core.flush(p.hostRoom, n);
           // Players on the slow route get a bundle 4 times a second.
           if (n - p.flushAt > 250) { p.flushAt = n; for (const l of p.links.values()) if (l.conn?.slow) core.flushConn(p.hostRoom, l.conn, n); }
-        }, core.FLUSH_MS);
+        });
       }
       return;
     }
@@ -705,7 +821,7 @@ class Room {
     const p = this.p2p;
     if (!p) return;
     this.p2p = null;
-    if (p.timer) clearInterval(p.timer);
+    if (p.timer) p.timer();
     try { p.chX?.close(); p.channel?.close(); p.pc?.close(); } catch {}
     if (p.links) for (const l of p.links.values()) { try { l.chX?.close(); l.channel?.close(); l.pc?.close(); } catch {} }
   }
@@ -1054,7 +1170,7 @@ class Lobby {
   on(kind, fn) { return this.msgs.on(kind, fn); }
   /** fn(peerId, state, at) for other players' avatars. Returns off(). */
   onPose(fn) { return this.ev.on('pose', fn); }
-  /** status ({ status }), joined (room), left (room), peer:join, peer:leave, host, transport, problem. Returns off(). */
+  /** status ({ status }), joined (room), left (room), peer:join, peer:leave, peer:away, away, host, transport, problem. Returns off(). */
   when(event, fn) { return this.ev.on(event, fn); }
 
   async _open() {
@@ -1077,7 +1193,7 @@ class Lobby {
     off.push(room.on('*', (data, from, meta) => { if (meta?.kind) this.msgs.emit(meta.kind, data, from, meta); this.msgs.emit('*', data, from, meta); }));
     off.push(room.onPose((...a) => this.ev.emit('pose', ...a)));
     off.push(room.onExpress((...a) => this.ev.emit('express', ...a)));
-    for (const name of ['peer:join', 'peer:leave', 'host', 'transport']) off.push(room.when(name, (x) => this.ev.emit(name, x)));
+    for (const name of ['peer:join', 'peer:leave', 'peer:away', 'away', 'host', 'transport']) off.push(room.when(name, (x) => this.ev.emit(name, x)));
     off.push(room.when('problem', (x) => { this.lastProblem = `${x.code}${x.detail ? `: ${x.detail}` : ''}`; this.ev.emit('problem', x); }));
     off.push(room.when('status', ({ status }) => {
       if (gen !== this._gen) return;
@@ -1130,4 +1246,4 @@ class Lobby {
   }
 }
 
-export default { join, lobby, VERSION, protocols, Track, Links };
+export default { join, lobby, background, inBackground, VERSION, protocols, Track, Links };

@@ -17,7 +17,7 @@
 // synced states (only the keys that changed since that connection last got them).
 
 export const PROTOCOL = 3;
-export const VERSION = '1.1.0';
+export const VERSION = '1.2.0';
 
 /** Room defaults; a room's config and its ticket's limits narrow them. */
 export const DEFAULT_LIMITS = {
@@ -183,7 +183,7 @@ export function getValue(r, d, depth = 0) {
 // signalling, migration; things that are rare and need no codec).
 export const FRAME = { bundle: 0, hello: 1, control: 2, express: 3 };
 // Bundle items: a one-byte tag, the payload's length, the payload (so an older page skips a tag it doesn't know).
-export const TAG = { me: 1, xf: 2, st: 3, ev: 4, own: 5, join: 6, leave: 7, host: 8, ops: 9, clear: 10, pong: 11, ping: 13 };
+export const TAG = { me: 1, xf: 2, st: 3, ev: 4, own: 5, join: 6, leave: 7, host: 8, ops: 9, clear: 10, pong: 11, ping: 13, away: 14 };
 
 const TURN = 65536;
 /** Quantizes value i of a moving thing (x y z, rx ry rz, vx vy vz, spin x y z) to an integer. */
@@ -334,6 +334,8 @@ export class Codec {
       case 'join': tag = TAG.join; putValue(s, d, { c: m.c, name: m.name ?? null, color: m.color ?? null, user: m.user ?? null, ord: m.ord ?? null, role: m.role ?? null }); break;
       case 'leave': tag = TAG.leave; putStr(s, d, m.c); s.u8(m.why === 'timeout' ? 1 : m.why === 'kicked' ? 2 : 0); break;
       case 'host': tag = TAG.host; putStr(s, d, m.c); break;
+      // A page in the background (docs/net.md "Away"): to the room { on }, from it { c, on }. Older pages skip it.
+      case 'away': tag = TAG.away; if (!toServer) putStr(s, d, m.c); s.u8(m.on ? 1 : 0); break;
       case 'ops': tag = TAG.ops; s.str(JSON.stringify({ ops: m.ops, by: m.by ?? null, c: m.c ?? null, fx: m.fx ?? null })); break;
       case 'clear': tag = TAG.clear; break;
       case 'pong': tag = TAG.pong; s.uv(m.at); s.uv(m.now); break;
@@ -449,6 +451,7 @@ export class Codec {
       case TAG.join: { const v = getValue(r, d) || {}; return { t: 'join', c: String(v.c), name: v.name ?? null, color: v.color ?? null, user: v.user ?? null, ord: v.ord ?? null, role: v.role ?? null }; }
       case TAG.leave: { const c = getStr(r, d); const why = r.u8(); return { t: 'leave', c, why: why === 1 ? 'timeout' : why === 2 ? 'kicked' : 'left' }; }
       case TAG.host: return { t: 'host', c: getStr(r, d) };
+      case TAG.away: { const c = fromServer ? getStr(r, d) : undefined; const on = Boolean(r.u8() & 1); return fromServer ? { t: 'away', c, on } : { t: 'away', on }; }
       case TAG.ops: { const o = JSON.parse(r.str()); return { t: 'ops', ops: Array.isArray(o.ops) ? o.ops : [], by: o.by ?? null, c: o.c ?? null, fx: o.fx ?? null }; }
       case TAG.clear: this.forget(); return { t: 'clear' };
       case TAG.pong: return { t: 'pong', at: r.uv(), now: r.uv() };
@@ -600,8 +603,17 @@ function sendFrame(room, c, frame) {
 function reliable(room, m, except) {
   for (const c of room.conns.values()) if (c.id !== except) c.out.rel.push(m);
 }
-export const peerList = (room) => [...room.conns.values()].sort((a, b) => a.ord - b.ord).map((c) => ({ c: c.id, name: c.name, color: c.color, user: c.user, ord: c.ord, role: c.role }));
-const lowest = (room) => { let best = null; for (const c of room.conns.values()) if (c.role !== 'spectator' && (!best || c.ord < best.ord)) best = c; return best; };
+export const peerList = (room) => [...room.conns.values()].sort((a, b) => a.ord - b.ord).map((c) => ({ c: c.id, name: c.name, color: c.color, user: c.user, ord: c.ord, role: c.role, ...(c.away ? { away: true } : {}) }));
+/** Who should host: the lowest join order among players whose page is present, else the lowest of all (everyone away). */
+const lowest = (room) => {
+  let best = null, any = null;
+  for (const c of room.conns.values()) {
+    if (c.role === 'spectator') continue;
+    if (!any || c.ord < any.ord) any = c;
+    if (!c.away && (!best || c.ord < best.ord)) best = c;
+  }
+  return best || any;
+};
 function pend(o, slot) {
   if (slot >= o.flag.length) { const f = new Uint8Array(Math.max(slot + 1, o.flag.length * 2)); f.set(o.flag); o.flag = f; }
   if (o.flag[slot]) return;
@@ -616,10 +628,12 @@ export function join(room, c, now, o = {}) {
   if (was && was !== c && was.idx >= 0) { room.cidx[was.idx] = null; room.cfree.push(was.idx); }
   room.conns.set(c.id, c);
   if (c.idx < 0) { c.idx = room.cfree.length ? room.cfree.pop() : room.cidx.length; room.cidx[c.idx] = c; }
-  if (was && was !== c) { c.pos = c.pos || was.pos; c.meVer = was.meVer; c.meS = was.meS; c.meAt = was.meAt; }
+  if (was && was !== c) { c.pos = c.pos || was.pos; c.meVer = was.meVer; c.meS = was.meS; c.meAt = was.meAt; if (c.away === undefined) c.away = was.away; }
   const prevHost = room.host;
   const low = lowest(room);
-  if (!room.host || !room.conns.has(room.host) || (low && low.ord < (room.conns.get(room.host)?.ord ?? Infinity) && !o.keepHost)) room.host = low ? low.id : c.id;
+  const hostConn = room.conns.get(room.host);
+  // The lowest order present hosts; a host that is away gives way to anyone present (docs/net.md "Away").
+  if (!room.host || !hostConn || (low && low.ord < hostConn.ord && !low.away && !o.keepHost) || (low && hostConn.away && !low.away)) room.host = low ? low.id : c.id;
   rawSend(room, c, {
     t: 'hello', you: c.id, name: c.name, color: c.color, host: room.host, peers: peerList(room),
     owners: Object.fromEntries(room.owners), locks: Object.fromEntries(room.locks), now, edit: room.edit, v: c.v, epoch: room.epoch,
@@ -629,6 +643,23 @@ export function join(room, c, now, o = {}) {
   if (room.host !== prevHost && prevHost) reliable(room, { t: 'host', c: room.host });
   for (const e of room.ents.values()) pend(c.out, e.slot);
   for (const n of room.states.keys()) c.out.st.set(n, true);
+}
+
+/**
+ * A player's page went into the background (a hidden tab, a minimised or covered window) or came back (docs/net.md
+ * "Away"). Everyone hears it. A host that goes away hands the room to the first present player, so what nobody owns
+ * keeps moving; it doesn't take it back when it returns. When everyone was away, the first back hosts.
+ */
+export function setAway(room, c, on) {
+  on = Boolean(on);
+  if (room.conns.get(c.id) !== c || Boolean(c.away) === on) return;
+  c.away = on;
+  reliable(room, { t: 'away', c: c.id, on }, c.id);
+  const host = room.conns.get(room.host);
+  let next = null;
+  if (on && room.host === c.id) { const low = lowest(room); if (low && !low.away) next = low; }
+  else if (!on && host && host.away && c.role !== 'spectator') next = c;
+  if (next && next.id !== room.host) { room.host = next.id; reliable(room, { t: 'host', c: next.id }); }
 }
 
 /** Someone left (or timed out): what they owned goes back to the host; the next lowest order takes over if they hosted. */
@@ -747,6 +778,7 @@ function one(room, c, m, now) {
       if (m.self) reliable(room, ev); else reliable(room, ev, c.id);
       return;
     }
+    case 'away': return setAway(room, c, m.on);
     case 'own': {
       const eid = String(m.id ?? '').slice(0, 64);
       if (!eid) return;

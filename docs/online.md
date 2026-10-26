@@ -150,7 +150,7 @@ beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
   - **A hidden page keeps playing.** Browsers stop animation frames for a hidden tab, a minimised window and a window
     covered by another, which stopped that side's inputs and froze the other player (J, 2026-10-26: two windows on
     one machine). During an online match a worker's timer (not throttled) runs the loop at 60 Hz, unrendered, whenever
-    frames stop for 100 ms (`main.ts`, the background ticker).
+    frames stop for 100 ms (Hawkes Net's `background()`, started from `main.ts` when the online chunk loads).
   - Time sync: each packet carries how far ahead its sender runs; the side further ahead skips a frame now and then.
   - Packets: every frame, as an express frame, every local input the other side hasn't acknowledged (so a lost packet
     costs nothing), plus an ack and the frame number. Binary (`encodePacket`: varints, inputs run-length coded): about

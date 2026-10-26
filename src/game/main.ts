@@ -796,12 +796,8 @@ function bumpHud(id: number): void {
 
 // ------------------------------------------------------------------ loop
 
-/** When the last animation frame ran (the background ticker below steps in when they stop). */
-let lastFrameAt = 0;
-
 function frame(draw = true): void {
   const now = performance.now();
-  if (draw) lastFrameAt = now;
   acc += Math.min(100, now - last) * (fight ? 1 : simSpeed);
   last = now;
 
@@ -845,24 +841,6 @@ function frame(draw = true): void {
 wireMenus();
 renderer.engine.runRenderLoop(() => frame());
 
-// An online match must keep running when its page gets no animation frames: a hidden tab, a minimised window, or a
-// window covered by another (Chrome stops animation frames for all three; J's two windows on one machine, 2026-10-26).
-// Otherwise that side stops sending inputs and the other player waits on it forever. A worker's timer isn't throttled
-// in the background, so while a fight is on and frames have stopped for 100 ms, it runs the loop at 60 Hz, unrendered.
-const backgroundTicker = (() => {
-  try {
-    const url = URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 16);'], { type: 'text/javascript' }));
-    const w = new Worker(url);
-    w.onmessage = () => {
-      if (fight && performance.now() - lastFrameAt > 100) frame(false);
-    };
-    return w;
-  } catch (e) {
-    console.error('[dod-online] no background ticker (an online match pauses while its page is hidden):', e);
-    return null;
-  }
-})();
-void backgroundTicker;
 
 // Devtools playtests open /Game/?play&stage=pit&fighter=slice&vs=break&level=5
 // (vs=dummy for a training dummy) and land straight in the match.
@@ -950,6 +928,13 @@ bootOnline((o) => {
     }),
   );
   step('the leaderboard', () => o.initLeaderboardUi());
+  // An online match keeps running when its page gets no animation frames: a hidden tab, a minimised window, or a window
+  // covered by another (Chrome stops frames for all three; J's two windows on one machine, 2026-10-26). Otherwise that
+  // side stops sending inputs and the other player waits on it. Hawkes Net's background() runs the loop at 60 Hz,
+  // unrendered, from a worker's clock while frames have stopped (docs/online.md, "A hidden page keeps playing").
+  step('the background ticker', () => o.background(() => {
+    if (fight) frame(false);
+  }));
 });
 // Closing the tab mid-match tells the other player at once (they win) instead of after the link times out.
 addEventListener('pagehide', () => {

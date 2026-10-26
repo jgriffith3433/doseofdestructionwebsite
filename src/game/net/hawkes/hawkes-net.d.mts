@@ -38,6 +38,9 @@ export interface JoinOptions {
   key?: string;
   /** Leave when the tab is closed (default true). */
   leaveOnHide?: boolean;
+  /** Tell the room when this page is in the background (default true): others see it `away`, and a host that is away
+   *  hands the room to a present player (docs/net.md "Away"). */
+  away?: boolean;
   /** false: no console lines. */
   log?: boolean;
   /** Node only: { RTCPeerConnection } for peer to peer. */
@@ -58,6 +61,8 @@ export interface Peer {
   rttMs: number | null;
   seenAt: number;
   pose: PoseState | null;
+  /** Their page is in the background (a hidden tab, a minimised or covered window). */
+  away: boolean;
 }
 
 /** An avatar: p the position, y the heading (degrees), plus your extra values. */
@@ -84,7 +89,10 @@ export interface RoomEvents {
   ready: { peers: Peer[]; host: string | null; resumed: boolean };
   'peer:join': Peer;
   'peer:leave': { peer: Peer; reason: string };
-  host: { host: string | null; previous: string | null; reason: string };
+  'peer:away': { peer: Peer; away: boolean };
+  /** This page went into the background (after 2 s) or came back. */
+  away: { away: boolean };
+  host: { host: string | null; previous: string | null; reason: 'first' | 'host left' | 'host away' | string };
   transport: { from: 'p2p'; to: 'relay'; why: string };
   problem: { code: 'ticket' | 'capped' | 'reload' | 'full' | 'refused' | 'relay-lost' | string; detail: string };
 }
@@ -127,6 +135,11 @@ export interface Room {
   readonly ord: number;
   readonly host: string | null;
   readonly isHost: boolean;
+  /** This page is in the background and the room knows it. */
+  readonly away: boolean;
+  readonly awayPeers: Peer[];
+  /** Away (or back) now: bots, tests, a game paused in its own menu. The page's own state wins on its next change. */
+  setAway(on: boolean): void;
   readonly status: RoomStatus;
   readonly transport: 'p2p' | 'relay';
   readonly peers: Map<string, Peer>;
@@ -151,6 +164,15 @@ export interface Room {
   migrate(why?: string): void;
   leave(reason?: string): Promise<void>;
 }
+
+/**
+ * Keeps a game going while its page is in the background (no animation frames: a hidden tab, a minimised or covered
+ * window): fn() about `hz` times a second (default 60), only while frames have stopped for `afterMs` (default 100). Run
+ * the game's step in it (inputs, simulation, sends), not its drawing. Returns stop(). docs/net.md "In the background".
+ */
+export declare function background(fn: () => void, o?: { hz?: number; afterMs?: number }): () => void;
+/** True while this page is in the background: hidden, or no animation frame for `ms` (default 1000). */
+export declare function inBackground(ms?: number): boolean;
 
 /** Joins a room. Resolves when it is ready; rejects when the join is refused. */
 export declare function join(room: string, o?: JoinOptions): Promise<Room>;
