@@ -1,5 +1,5 @@
 // The leaderboard's screens (docs/online.md, "The leaderboard"): the Leaderboard screen from the main menu (top 100,
-// this week and all time, with your own row pinned), the rating change on the online results, and your line in
+// this week and all time, with your own row pinned when you're outside the list), the rating change on the online results, and your line in
 // Profile and on the menu button. Everything reads the cached table first and redraws when the relays add to it.
 
 import { CHARACTERS } from '../sim/characters.ts';
@@ -62,8 +62,11 @@ export function renderBoard(): void {
       : [h('li', { class: 'board-empty' }, tab === 'week' ? 'Nobody has played a rated match this week. Be the first on the card.' : 'No rated matches yet. Find match to put your name up there.')]),
   );
   const mine = table.find((p) => p.id === me);
+  // Pinned only when your row isn't already in the list above (outside the top 100, or unranked).
   you.replaceChildren(
-    mine
+    ...(mine && top.includes(mine)
+      ? []
+      : [mine
       ? row(board, mine, true, true)
       : h(
           'div',
@@ -73,7 +76,7 @@ export function renderBoard(): void {
           h('span', { class: 'board-name' }, h('strong', {}, board.who(me).name), h('em', {}, tab === 'week' ? 'Unranked this week' : 'Unranked: one online match puts you on the board')),
           h('span', { class: 'board-rating' }, ''),
           h('span', { class: 'board-wl' }, ''),
-        ),
+        )]),
   );
 }
 

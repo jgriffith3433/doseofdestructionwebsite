@@ -944,7 +944,8 @@ class Run {
       if (mine.rank !== want.mine[0] || mine.rating !== want.mine[1] || theirs.rank !== want.theirs[0] || theirs.rating !== want.theirs[1]) {
         t.problem('bug', `the ${tab} leaderboard shows #${mine.rank} ${mine.rating} (me) and #${theirs.rank} ${theirs.rating} (${theirs.name}); expected #${want.mine.join(' ')} and #${want.theirs.join(' ')}`);
       }
-      if (!this.q('#board-you .board-row.you')) t.problem('bug', 'no pinned "You" row on the leaderboard');
+      if (!this.q('#board-list .board-row.you')) t.problem('bug', 'no "You" row on the leaderboard');
+      if (this.q('#board-you .board-row')) t.problem('bug', 'your row is on the leaderboard twice (listed and pinned)');
       if (tab === 'all') await this.avatarFace(document.querySelector<HTMLImageElement>(`#board-list .board-row[data-player="${other0()}"] img`), 'the leaderboard');
     }
     const other = rows().find((r) => r.id !== me)?.id ?? '';
