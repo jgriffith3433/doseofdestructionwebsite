@@ -1,8 +1,21 @@
 {
   "product": "doseofdestruction",
   "name": "Dose Of Destruction",
-  "current": "1.6.0",
+  "current": "1.7.0",
   "releases": [
+    {
+      "version": "1.7.0",
+      "date": "2026-10-26",
+      "build": "2974168",
+      "title": "Online play now runs on Hawkes Net",
+      "notes": [
+        "Online matches now run through Hawkes Net.",
+        "Leaderboard records now come from Hawkes Net.",
+        "The searching chip no longer hides the Back button or the title on Character Select.",
+        "Online menus leave room under the searching chip, so nothing sits behind it.",
+        "Your own row now appears only once on the leaderboard."
+      ]
+    },
     {
       "version": "1.6.0",
       "date": "2026-10-24",
