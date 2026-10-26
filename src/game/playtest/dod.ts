@@ -920,7 +920,7 @@ class Run {
     t.progress(0.97);
 
     // 8. The Leaderboard: both players, the same ranks on both tabs (each peer checks the table it must be: the
-    // winner first at 1000 + d, the loser second at 1000 - d), and the other player's own result from the relays.
+    // winner first at 1000 + d, the loser second at 1000 - d), and the other player's own result from Hawkes Net's records.
     await this.click(() => this.q('#btn-board'), 'Leaderboard');
     await this.screen('leaderboard');
     const me = profileId();
@@ -948,9 +948,9 @@ class Run {
       if (tab === 'all') await this.avatarFace(document.querySelector<HTMLImageElement>(`#board-list .board-row[data-player="${other0()}"] img`), 'the leaderboard');
     }
     const other = rows().find((r) => r.id !== me)?.id ?? '';
-    const heard = await t.until(() => !!sharedBoard()?.heardFrom.has(other), 60000, "the other player's own result over the relays").then(() => true, () => false);
-    if (heard) t.event('leaderboard-relay', `${opp}'s signed result arrived from the relays`);
-    else t.problem('warning', `${opp}'s own copy of the result never arrived from the relays (our local copy is what the table shows)`);
+    const heard = await t.until(() => !!sharedBoard()?.heardFrom.has(other), 60000, "the other player's own result from Hawkes Net's records").then(() => true, () => false);
+    if (heard) t.event('leaderboard-relay', `${opp}'s signed result arrived from Hawkes Net's records`);
+    else t.problem('warning', `${opp}'s own copy of the result never arrived from Hawkes Net's records (our local copy is what the table shows)`);
     await this.click(() => this.q('#leaderboard [data-back]'), 'Back');
     await this.screen('main');
     t.progress(1);
