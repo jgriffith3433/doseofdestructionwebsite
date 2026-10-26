@@ -20,6 +20,8 @@ import { checkRecord, resultBody, signBody, startBody, verifyBody, type ResultRe
 
 const START_TIMEOUT_MS = 45000;
 const STALL_NOTICE_MS = 1500;
+/** Their inputs stopped this long (their page still answers pings, so the room stays up): the match ends as a lost link. */
+const STALL_GIVE_UP_MS = 20000;
 const LINGER_MS = 5000;
 /** How long the end waits for the other player's signature on the result. */
 const SIGN_WAIT_MS = 6000;
@@ -202,6 +204,11 @@ export class OnlineFight {
     this.flush();
     if (result === 'stalled') {
       if (!this.stalledSince) this.stalledSince = now();
+      if (now() - this.lastPacketAt > STALL_GIVE_UP_MS) {
+        netError(`fight ${this.found.setup.matchId}: no inputs from ${this.opponent} for ${STALL_GIVE_UP_MS / 1000} s`);
+        this.end('disconnect', this.slot);
+        return [];
+      }
     } else this.stalledSince = 0;
     if (this.final()) this.finishGame();
     return this.fresh;

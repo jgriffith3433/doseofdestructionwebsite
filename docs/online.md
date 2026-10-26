@@ -145,7 +145,12 @@ beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
   guess of the other's (their last one). When the real input arrives and the guess was wrong, it goes back to that
   frame and runs forward again. Sounds and effects come only from frames run the first time.
   - Input delay 2 frames; rollback window 8 frames past the last frame both inputs are known for. Further ahead the
-    side waits ("Waiting for <name>… 3 s" after 1.5 s): a lag spike stalls the match instead of drifting.
+    side waits ("Waiting for <name>… 3 s" after 1.5 s): a lag spike stalls the match instead of drifting. After 20 s
+    with no inputs (their page still there) it ends as a lost link.
+  - **A hidden page keeps playing.** Browsers stop animation frames for a hidden tab, a minimised window and a window
+    covered by another, which stopped that side's inputs and froze the other player (J, 2026-10-26: two windows on
+    one machine). During an online match a worker's timer (not throttled) runs the loop at 60 Hz, unrendered, whenever
+    frames stop for 100 ms (`main.ts`, the background ticker).
   - Time sync: each packet carries how far ahead its sender runs; the side further ahead skips a frame now and then.
   - Packets: every frame, as an express frame, every local input the other side hasn't acknowledged (so a lost packet
     costs nothing), plus an ack and the frame number. Binary (`encodePacket`: varints, inputs run-length coded): about
