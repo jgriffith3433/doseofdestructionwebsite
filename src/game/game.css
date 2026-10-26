@@ -937,6 +937,8 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   font: 600 14px Barlow, sans-serif;
   z-index: 25;
 }
+/* While the chip is up, menu screens start below it (its Back button and title stay visible and reachable). */
+body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(safe-area-inset-top)) + 52px); }
 .mm-chip.searching::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--gold); animation: mm-pulse 1.2s ease-in-out infinite; }
 @keyframes mm-pulse { 50% { opacity: 0.25; transform: scale(0.7); } }
 .mm-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

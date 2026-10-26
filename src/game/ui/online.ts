@@ -100,6 +100,8 @@ function renderChip(): void {
   const showNotice = notice && performance.now() < noticeUntil;
   const tapPrompt = document.getElementById('tap-to-play');
   chip.hidden = (!searching && !showNotice) || hooks.inOnlineMatch() || !!countdown || !!(tapPrompt && !tapPrompt.hidden);
+  // Screens make room under the chip while it is up (game.css), so it never covers their Back button or title.
+  document.body.classList.toggle('mm-chip-on', !chip.hidden);
   if (chip.hidden) return;
   let text = '';
   if (searching && parts) {

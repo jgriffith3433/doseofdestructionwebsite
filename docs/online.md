@@ -101,7 +101,8 @@ beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
 ## Pairing
 
 - **Find match** (main menu) puts you in the queue. The chip at the top left says "Searching for opponent… 0:42 ·
-  Cancel" on every screen, in menus and in matches, while you play anything you like (CPU versus, training, the
+  Cancel" on every screen, in menus and in matches (menu screens start below it while it is up, so it never covers
+  their Back button), while you play anything you like (CPU versus, training, the
   campaign). Cancel leaves the queue.
 - **The rule** (`pairing.ts`): the queue sorted oldest first (time queued, ties by id) is paired off in twos down the
   list; the older of a pair hosts (slot 0). Everyone runs it on their own view of the lobby, so both sides of a pair
@@ -232,7 +233,7 @@ game. The table is recomputed only when results change.
 
 **Screens**:
 - Main menu → **Leaderboard** (its line shows "You: #3 · 1016 · 4–2"): This week / All time, the top 100 with rank,
-  picture, name, rating and W–L, your row highlighted and pinned at the bottom with your rank (or "Unranked"), and a
+  picture, name, rating and W–L, your row highlighted (and pinned at the bottom with your rank, or "Unranked", only when it isn't in the list), and a
   status line (Live / Saved results · updating… / Offline: showing the results this device has saved). Fits phones in
   portrait and landscape.
 - The online results: "Rating 1016 +16 · <name> 984 (−16)" once both signatures are in ("confirming the result with
