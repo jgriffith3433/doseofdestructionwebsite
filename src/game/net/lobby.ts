@@ -5,7 +5,7 @@
 // who joins. A player is in the lobby exactly while they're in the room: no beats, no timeouts. Only presence and the
 // queue live here; a match's two players get a room of their own (room.ts).
 
-import { lobby as hawkesLobby, type Lobby as HawkesLobby } from './hawkes/hawkes-net.mjs';
+import { lobby as hawkesLobby, type Lobby as HawkesLobby } from '@hawkesgen/net';
 import { Emitter, netError, now, randomId } from './util.ts';
 import { cleanAvatar, cleanName } from './profile.ts';
 import { IS_LIVE, LIVE_HOSTS, NET_ENDPOINT, NET_PROJECT } from './hawkes.ts';

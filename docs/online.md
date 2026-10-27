@@ -19,10 +19,11 @@ the lobby, the match rooms and the leaderboard's store. The public Nostr relays 
   (`https://net.hawkesgen.com`, the project `doseofdestruction`; pages are let in by origin, no key in the page).
   The lobby is one relay room; a match is a pair room that starts peer to peer (a direct WebRTC link between the
   two browsers) and moves to Hawkes Net's relay when they can't link; the leaderboard's results are Hawkes Net
-  records. The SDK is a copy in `src/game/net/hawkes/` of the hawkesnet repo's `sdk/js` (npm `@hawkesgen/net`;
-  copy it again after a change there).
+  records. The SDK is the package `@hawkesgen/net` (package.json: `github:jgriffith3433/hawkesnet-js#v<version>`,
+  npm once it is published; its source is the hawkesnet repo's `sdk/js`). A new SDK is a version bump here.
 - **Beta apart from live.** Only doseofdestruction.com plays in the live rooms and writes the live leaderboard; the
-  beta site and localhost use test rooms (`t-…`) and test records (`net/hawkes.ts`). `?net=http://127.0.0.1:8786`
+  beta site and localhost use test rooms (`t-…`) and test records (`net/hawkes.ts`). The beta site plays on beta
+  Hawkes Net (hawkesnet.hawkesgen.com): Studio's script on every beta page sets `HAWKES_NET_ENDPOINT`. `?net=http://127.0.0.1:8786`
   (off the live site) points a page at a local Hawkes Net (Gen `net/tools/net-dev.mjs`).
 - **No codes, nothing to join by hand.** Every page joins the one global lobby on load.
 - **Never block the game.** Everything online is asynchronous. If Hawkes Net can't be reached, the menu says

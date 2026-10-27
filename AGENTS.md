@@ -8,12 +8,12 @@ deploys the live site (GitHub Actions `pages.yml`): don't commit or push unless 
 ## Online
 
 Online is always on (docs/online.md) and runs entirely on **Hawkes Net** (project `doseofdestruction`, Hawkes Gen
-`docs/net.md`; the SDK is a copy in `src/game/net/hawkes/`, synced from Gen): every page joins one lobby room on load
+`docs/net.md`; the SDK is the package `@hawkesgen/net` in package.json, from the public hawkesnet-js repo by tag: update by bumping the tag): every page joins one lobby room on load
 (no codes), the main menu shows "N online" and who, **Find match** queues (the player keeps playing anything meanwhile
 under a "Searching for opponent…" chip), a pair is made by a deterministic rule plus a handshake, and the two meet in a
 pair room that starts peer to peer and falls back to Hawkes Net's relay. The fight runs the sim through rollback
 netcode with binary input packets sent as Hawkes Net express frames (immediate, unreliable), with a desync hash. Only
-doseofdestruction.com uses the live rooms and leaderboard; beta and localhost are test (`net/hawkes.ts`). The code is
+doseofdestruction.com uses the live rooms and leaderboard on net.hawkesgen.com; beta and localhost are test (`net/hawkes.ts`), and the beta site plays on beta Hawkes Net (hawkesnet.hawkesgen.com: Studio's page script sets `HAWKES_NET_ENDPOINT`). The code is
 `src/game/net/` and `src/game/ui/online.ts`. **Profile** is a name and a fighter picture (localStorage `dod.profile`); online you fight as
 your picture. Every finished online match fires the match-result event (`net/results.ts` `onMatchResult`,
 `window` `dod:match-result`). **Leaderboard** (menu): both players sign each online result with their profile key

@@ -7,9 +7,11 @@ export const LIVE_HOSTS = ['doseofdestruction.com', 'www.doseofdestruction.com']
 
 const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 const onLiveHost = typeof location !== 'undefined' && LIVE_HOSTS.includes(location.hostname.toLowerCase());
-/** Hawkes Net. Off the live site a test copy can be named (?net=http://127.0.0.1:8786, or globalThis.DOD_NET_ENDPOINT in
- *  a tool): a Hawkes Net on this machine, for trying the network end to end before it's deployed. */
-const askedNet = String((globalThis as { DOD_NET_ENDPOINT?: string }).DOD_NET_ENDPOINT ?? params.get('net') ?? '');
+/** Hawkes Net. Off the live site another one can be named: ?net=http://127.0.0.1:8786 or globalThis.DOD_NET_ENDPOINT
+ *  (a Hawkes Net on this machine, for trying the network end to end before it's deployed), else the page's
+ *  globalThis.HAWKES_NET_ENDPOINT (Studio sets it on the beta site: beta Hawkes Net, hawkesnet.hawkesgen.com). */
+const g = globalThis as { DOD_NET_ENDPOINT?: string; HAWKES_NET_ENDPOINT?: string };
+const askedNet = String(g.DOD_NET_ENDPOINT ?? params.get('net') ?? g.HAWKES_NET_ENDPOINT ?? '');
 export const NET_ENDPOINT = !onLiveHost && /^https?:\/\/[a-z0-9.-]+(:\d+)?$/i.test(askedNet) ? askedNet : 'https://net.hawkesgen.com';
 /** A playtest's private room (?room=<id>: Hawkes Gen's playtest.run with peers), "" otherwise. */
 export const TEST_ROOM = /^[A-Za-z0-9_.-]{1,24}$/.test(params.get('room') ?? '') ? (params.get('room') as string) : '';

@@ -6,7 +6,7 @@
 // Over it: the game's messages (reliable, once and in order: the handshake, the start, hashes, results), and express
 // frames (Hawkes Net's: sent at once, forwarded at once, never queued, between the browsers on an unordered channel)
 // for what can't wait: the fight's inputs (sendInputs) and a ping every second, so the round trip is the inputs' own.
-import { join, type Room } from './hawkes/hawkes-net.mjs';
+import { join, type Room } from '@hawkesgen/net';
 import { Emitter, netError, now, sha256Hex } from './util.ts';
 import { NET_ENDPOINT, NET_PROJECT, roomName } from './hawkes.ts';
 
