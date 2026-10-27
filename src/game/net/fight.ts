@@ -113,6 +113,8 @@ export class OnlineFight {
       room.on('closed', (e: { reason: string }) => {
         if (this.phase === 'done') return;
         netError(`fight ${found.setup.matchId}: the link to ${found.opponent.name} closed (${e.reason})`);
+        // Before Go nobody has played: the match is void, never a win (no rating from quitting on the VS screen).
+        if (!this.playStartedAt) return this.end('no-start', -1);
         this.end(e.reason === 'left' ? 'forfeit' : 'disconnect', this.slot);
       }),
     );
@@ -186,7 +188,7 @@ export class OnlineFight {
         this.theyLoaded = true;
         this.maybeStart();
       } else if (kind === 'quit') {
-        this.end('forfeit', this.slot);
+        this.end(this.playStartedAt ? 'forfeit' : 'no-start', this.playStartedAt ? this.slot : -1);
       }
     } catch (e) {
       netError(`fight: a bad "${kind}" message from ${this.opponent}`, e);
@@ -252,9 +254,14 @@ export class OnlineFight {
     this.end(s.timedOut ? 'time' : 'game', winner);
   }
 
-  /** Leave the match: the other player wins. */
+  /** Leave the match: the other player wins (before Go the match is void instead, and no loss is signed). */
   forfeit(): void {
     if (this.phase === 'done') return;
+    if (!this.playStartedAt) {
+      this.found.room.send('quit', '', true);
+      this.end('no-start', -1);
+      return;
+    }
     // We sign our own loss before we go, so the result counts in full.
     const sig = this.sign(this.body('left', 1 - this.slot, this.match.state.frame));
     if (sig) this.found.room.send('rs', JSON.stringify({ n: this.match.state.frame, sig, w: 1 - this.slot, r: 'left', st: this.startSigs[this.slot] }), true);

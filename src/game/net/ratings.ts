@@ -90,6 +90,9 @@ export function parseRecord(raw: unknown): ResultRecord | null {
   if (!Number.isInteger(r.t) || (r.t as number) < EPOCH || (r.t as number) > 0xffffffff) return null;
   if (!pair(r.sig, sigOk) || !pair(r.st, sigOk)) return null;
   if (r.r === 'left' && r.w === -1) return null;
+  // A "left" before a single frame was played is a match that never started: void, never a win (a page that quit on the
+  // VS screen signed its loss before 2026-10-26; those don't count either).
+  if (r.r === 'left' && (r.n as number) < 1) return null;
   return {
     m: r.m as string,
     p: [...(r.p as [string, string])],

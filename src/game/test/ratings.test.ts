@@ -65,6 +65,8 @@ const checked = (list: ResultRecord[]): Checked[] => list.flatMap((record) => {
   check(checkRecord(result(0, 1, 0, { r: 'left', sign: [true, false], start: [true, false] })) === null, 'a "left" claim without the leaver\'s start signature does not count');
   check(checkRecord(result(0, 1, 1, { r: 'left', sign: [true, false], start: [true, true] })) === null, 'a "left" claim signed only by the loser does not count');
   check(checkRecord(result(0, 1, 0, { r: 'left', sign: [true, true], start: [false, false] })) === 'full', 'a "left" result the leaver signed too is full');
+  check(parseRecord(JSON.parse(JSON.stringify({ ...claim, n: 0 }))) === null, 'a "left" before a frame was played (quitting on the VS screen) is refused: never a win');
+  check(parseRecord(JSON.parse(JSON.stringify({ ...claim, n: 1 }))) !== null, 'a "left" one frame in still counts');
   const m = 'mutual-drop-1';
   const a = result(0, 1, 0, { m, r: 'left', sign: [true, false] });
   const b = result(0, 1, 1, { m, r: 'left', sign: [false, true] });

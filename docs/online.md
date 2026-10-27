@@ -208,7 +208,9 @@ carries it and the host's setup lists both (`pids`) with the setup time (`at`); 
 - **Leaving**: Leave match (or closing the tab) signs the player's own loss (`left`) before it sends `quit`, so a
   forfeit is normally fully signed. A lost link, or a loser who never signs, is a `left` result signed by the winner
   alone plus the leaver's start signature (`kind: claim`): it counts as a loss for the leaver, marked `left`.
-- Void ends (desync, no start) aren't rated. The end waits up to 6 s for the other signature.
+- Void ends (desync, no start) aren't rated. **A match that ends before Go is void** (`no-start`): the link closing,
+  the other player's quit or Leave on the VS screen or the Ready count, never a win and no loss signed (2026-10-26: quitting
+  on the VS screen used to rate +16/−16). `ratings.ts` also refuses any `left` result at frame 0, so an old page's can't count. The end waits up to 6 s for the other signature.
 
 **Publishing.** A page publishes its record as a signed event (Nostr's shape: kind 30078, `d` =
 `hawkes-dod/result/<match id>`, tag `hawkes-dod/results/<lobby>`; test lobbies have their own table) signed with its
