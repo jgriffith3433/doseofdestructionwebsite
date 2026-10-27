@@ -1,8 +1,17 @@
 {
   "product": "doseofdestruction",
   "name": "Dose Of Destruction",
-  "current": "1.10.0",
+  "current": "1.11.0",
   "releases": [
+    {
+      "version": "1.11.0",
+      "date": "2026-10-27",
+      "build": "66e1491",
+      "title": "Home page now shows gameplay",
+      "notes": [
+        "The home page now plays a silent gameplay clip behind the title, so you can see the action before you press start."
+      ]
+    },
     {
       "version": "1.10.0",
       "date": "2026-10-27",
