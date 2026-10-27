@@ -19,8 +19,8 @@ the lobby, the match rooms and the leaderboard's store. The public Nostr relays 
   (`https://net.hawkesgen.com`, the project `doseofdestruction`; pages are let in by origin, no key in the page).
   The lobby is one relay room; a match is a pair room that starts peer to peer (a direct WebRTC link between the
   two browsers) and moves to Hawkes Net's relay when they can't link; the leaderboard's results are Hawkes Net
-  records. The SDK is a copy in `src/game/net/hawkes/` (Gen `clients/js/sdk.json`; `node bin/hawkesgen-sdk.mjs sync`
-  in Gen rewrites it).
+  records. The SDK is a copy in `src/game/net/hawkes/` of the hawkesnet repo's `sdk/js` (npm `@hawkesgen/net`;
+  copy it again after a change there).
 - **Beta apart from live.** Only doseofdestruction.com plays in the live rooms and writes the live leaderboard; the
   beta site and localhost use test rooms (`t-…`) and test records (`net/hawkes.ts`). `?net=http://127.0.0.1:8786`
   (off the live site) points a page at a local Hawkes Net (Gen `net/tools/net-dev.mjs`).
@@ -270,7 +270,7 @@ the Nostr days (before 2026-10-26) live only in the players' caches.
   on both sides, and a drifting sim caught by the hash on both sides.
 - `npm test` also checks the binary input packet (`encodePacket` / `decodePacket`).
 - `node tools/online-live.test.ts` (with `npm i --no-save node-datachannel@0.33.4`) starts a Hawkes Net in the process
-  from the Gen checkout (`HAWKESGEN`, default `C:/Projects/hawkesgen`) and runs two players over it and WebRTC: both see
+  from a hawkesnet checkout (`HAWKESNET`, default `C:/Projects/hawkesnet`) and runs two players over it and WebRTC: both see
   "2 online", a rename shows for the other, both queue and pair, the fight plays to the same end on both over a direct
   link with the inputs as express frames, both go back to idle. `NO_LINK=1` runs it with no WebRTC: the match must go
   on the relay.

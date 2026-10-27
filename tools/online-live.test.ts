@@ -4,10 +4,10 @@
 // sides; then both sign the result, it is kept as a Hawkes Net record, and a third page that only reads builds the
 // same leaderboard from it.
 //
-// Hawkes Net runs in this process from a Hawkes Gen checkout (its own test service: this machine is trusted), so it
+// Hawkes Net runs in this process from a hawkesnet checkout (its own test service: this machine is trusted), so it
 // tests the network code as it is in that checkout, deployed or not. Not part of `npm test` (it needs WebRTC for Node):
 //   npm i --no-save node-datachannel@0.33.4      (or set DATACHANNEL=/path/to/node_modules/node-datachannel)
-//   node tools/online-live.test.ts                (HAWKESGEN=<the Gen checkout>, default C:/Projects/hawkesgen)
+//   node tools/online-live.test.ts                (HAWKESNET=<a hawkesnet checkout>, default C:/Projects/hawkesnet)
 //   NO_LINK=1 node tools/online-live.test.ts      (no WebRTC: two networks that can't link; the match goes on the relay)
 
 import { pathToFileURL } from 'node:url';
@@ -26,8 +26,8 @@ if (!noLink) {
 }
 
 // Hawkes Net here, before the game's network code reads where it is.
-const gen = process.env.HAWKESGEN ?? 'C:/Projects/hawkesgen';
-const { startTestHub } = await import(pathToFileURL(`${gen}/net/test/helper.ts`).href);
+const net = process.env.HAWKESNET ?? 'C:/Projects/hawkesnet';
+const { startTestHub } = await import(pathToFileURL(`${net}/test/helper.ts`).href);
 const hub = await startTestHub();
 (globalThis as { DOD_NET_ENDPOINT?: string }).DOD_NET_ENDPOINT = hub.endpoint;
 const { Lobby } = await import('../src/game/net/lobby.ts');
