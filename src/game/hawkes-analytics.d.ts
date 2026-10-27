@@ -20,6 +20,10 @@ export interface HawkesAnalyticsInit {
   debug?: boolean;
   /** Context to start with (merged into every event). */
   context?: Record<string, Plain>;
+  /** The anonymous id to use when the page has no storage of its own (a sandboxed iframe); ignored otherwise. */
+  anon?: string;
+  /** The site's own account id (see identify). */
+  user?: string | null;
 }
 
 export interface HawkesAskTheme {
@@ -68,7 +72,7 @@ export interface HawkesAnalytics {
   /** Debug mode only: every event made, in order. */
   readonly debugLog: HawkesAnalyticsEvent[];
   init(options: HawkesAnalyticsInit): void;
-  config(): { product: string | null; endpoint: string; build?: HawkesBuild; debug: boolean; env: 'live' | 'beta' | 'preview' | 'local'; anon: string; session?: string; optedOut: boolean; flags: { webdriver: boolean; playtest: boolean; internal: boolean } };
+  config(): { product: string | null; endpoint: string; build?: HawkesBuild; debug: boolean; env: 'live' | 'beta' | 'preview' | 'local'; anon: string; session?: string; optedOut: boolean; flags: { webdriver: boolean; playtest: boolean; internal: boolean; automation?: string } };
   /** A custom event: name ^[a-z][a-z0-9_]{1,39}$. Prefer a standard one (feature) when it fits. */
   track(name: string, props?: Props): void;
   screen(name: string): void;
@@ -93,6 +97,14 @@ export interface HawkesAnalytics {
   /** Mark this browser as J's own (also ?hawkes-internal=1; ?hawkes-internal=0 clears it). */
   internal(on?: boolean): void;
   flush(): void;
+  /** Input the SDK can't see (a game in a sandboxed frame forwards its own): keeps active time and the session going. */
+  activity(): void;
+  /** Ties the sessions from now on to the site's own account id (4-64 of A-Z a-z 0-9 _ -; no email or name). null on sign-out. */
+  identify(id: string | null): void;
+  /** Something got in the player's way: `frustration` with { kind, ...props } (out_of_credits, assistant_failed, job_failed, slow…). */
+  frustration(kind: string, props?: Props): void;
+  /** Time spent on something: `engage` with { name, seconds, ...props } (seconds since the last engage of that name). */
+  engage(name: string, seconds: number, props?: Props): void;
 }
 
 declare global {
