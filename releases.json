@@ -1,8 +1,19 @@
 {
   "product": "doseofdestruction",
   "name": "Dose Of Destruction",
-  "current": "1.8.0",
+  "current": "1.9.0",
   "releases": [
+    {
+      "version": "1.9.0",
+      "date": "2026-10-27",
+      "build": "6fc5f79",
+      "title": "Online matches run smoother",
+      "notes": [
+        "Quitting on the VS screen before the fight starts no longer costs you rating.",
+        "Online matches no longer drop to the results screen with a \"Connection lost\" message before the fight begins.",
+        "The sky clouds in Rainbow Full Pipe now show up instead of going missing."
+      ]
+    },
     {
       "version": "1.8.0",
       "date": "2026-10-26",
