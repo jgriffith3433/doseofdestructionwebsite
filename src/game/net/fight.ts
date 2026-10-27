@@ -99,6 +99,8 @@ export class OnlineFight {
       this.end('desync', -1);
     };
     const room = found.room;
+    // Loading the stage can freeze a page for seconds; the room must not call it silent meanwhile.
+    room.silentMs = START_TIMEOUT_MS;
     this.unsubs.push(
       room.on('message', (msg: { kind: string; data: string }) => this.onMessage(msg.kind, msg.data)),
       // Inputs come as express frames (bytes: encodePacket), the moment the other side sends them.
@@ -143,6 +145,8 @@ export class OnlineFight {
   private maybeStart(): void {
     if (this.phase !== 'loading' || !this.loaded || !this.theyLoaded) return;
     this.phase = 'started';
+    this.found.room.silentMs = 6000;
+    this.found.room.lastHeard = now();
     this.onStart?.();
   }
 

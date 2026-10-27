@@ -12,6 +12,8 @@ import { NET_ENDPOINT, NET_PROJECT, roomName } from './hawkes.ts';
 
 const PING_MS = 1000;
 const SILENT_MS = 6000;
+/** A tick this much later than due means our own page was frozen (loading a stage): we heard nothing because we couldn't. */
+const FROZEN_MS = 2500;
 // Express payloads: the first byte says what it is.
 const X_PING = 1;
 const X_PONG = 2;
@@ -42,6 +44,10 @@ export class PairRoom extends Emitter {
   closed = false;
   everOpened = false;
   lastHeard = 0;
+  /** How long without a word from the other page ends the room. The fight lengthens it while both pages load (a page
+   *  compiling a stage blocks its main thread for seconds and answers nothing). */
+  silentMs = SILENT_MS;
+  private lastTickAt = 0;
   readonly sent = { r: 0, u: 0 };
   readonly recv = { r: 0, u: 0 };
   /** The other player's peer id in the room (known from their hello). */
@@ -209,7 +215,10 @@ export class PairRoom extends Emitter {
       return;
     }
     this.updateRoute();
-    if (now() - this.lastHeard > SILENT_MS) return this.close('silent', false);
+    const t = now();
+    if (this.lastTickAt && t - this.lastTickAt > FROZEN_MS) this.lastHeard = t;
+    this.lastTickAt = t;
+    if (t - this.lastHeard > this.silentMs) return this.close('silent', false);
     const b = new Uint8Array(9);
     b[0] = X_PING;
     new DataView(b.buffer).setFloat64(1, now(), true);
