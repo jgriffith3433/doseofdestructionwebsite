@@ -141,6 +141,26 @@ h1, h2, h3, .brand, .play, .kicker, .footer-brand {
   border-bottom: 1px solid #2a211c;
 }
 
+.hero-loop,
+.hero-loop-shade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.hero-loop {
+  object-fit: cover;
+  -webkit-mask-image: linear-gradient(180deg, #000 45%, transparent 90%);
+  mask-image: linear-gradient(180deg, #000 45%, transparent 90%);
+}
+
+.hero-loop-shade {
+  background: radial-gradient(ellipse at 50% 30%, rgba(20, 14, 11, 0.45), rgba(20, 14, 11, 0.85) 70%);
+}
+
 .landing-copy {
   position: relative;
   z-index: 2;
