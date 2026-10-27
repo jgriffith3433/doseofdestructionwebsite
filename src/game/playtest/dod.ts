@@ -765,7 +765,7 @@ class Run {
     const t = this.t;
     const a = window.hawkesAnalytics as typeof window.hawkesAnalytics | undefined;
     if (!a?.version) {
-      t.problem('bug', 'Hawkes Analytics did not load on the game page (/site/hawkes-analytics.js)');
+      t.problem('bug', 'Hawkes Analytics did not load on the game page (gen.hawkesgen.com/sdk/analytics@1.js)');
       return;
     }
     const cfg = a.config();

@@ -1,7 +1,7 @@
 // Hawkes Analytics in the game (hawkesgen/docs/analytics.md; how it is wired: AGENTS.md "Analytics").
 //
-// The SDK is /site/hawkes-analytics.js (a copy of hawkesgen/clients/js/hawkes-analytics.js), loaded by a plain
-// script tag in Game/index.html before this module. It counts page views, sessions, devices, load times, errors and
+// The SDK is Hawkes Gen's (https://gen.hawkesgen.com/sdk/analytics@1.js, so a Gen deploy updates it everywhere),
+// loaded by a plain script tag in Game/index.html before this module. It counts page views, sessions, devices, load times, errors and
 // fps by itself; this file adds what only the game knows: screens, picks, matches, KOs, the campaign, settings, the
 // controls in use and the feedback cards. Every call goes through here, and none of it can stop the game: with the
 // SDK missing (blocked, offline) each one does nothing.
