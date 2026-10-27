@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@babylonjs/core": "9.30.0",
-    "@hawkesgen/net": "github:jgriffith3433/hawkesnet-js#v1.2.1",
+    "@hawkesgen/net": "https://github.com/jgriffith3433/hawkesnet-js/archive/refs/tags/v1.2.1.tar.gz",
     "@noble/curves": "2.4.0",
     "@noble/hashes": "2.4.0"
   }

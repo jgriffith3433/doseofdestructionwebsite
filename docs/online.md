@@ -19,7 +19,7 @@ the lobby, the match rooms and the leaderboard's store. The public Nostr relays 
   (`https://net.hawkesgen.com`, the project `doseofdestruction`; pages are let in by origin, no key in the page).
   The lobby is one relay room; a match is a pair room that starts peer to peer (a direct WebRTC link between the
   two browsers) and moves to Hawkes Net's relay when they can't link; the leaderboard's results are Hawkes Net
-  records. The SDK is the package `@hawkesgen/net` (package.json: `github:jgriffith3433/hawkesnet-js#v<version>`,
+  records. The SDK is the package `@hawkesgen/net` (package.json: `https://github.com/jgriffith3433/hawkesnet-js/archive/refs/tags/v<version>.tar.gz`,
   npm once it is published; its source is the hawkesnet repo's `sdk/js`). A new SDK is a version bump here.
 - **Beta apart from live.** Only doseofdestruction.com plays in the live rooms and writes the live leaderboard; the
   beta site and localhost use test rooms (`t-…`) and test records (`net/hawkes.ts`). The beta site plays on beta
