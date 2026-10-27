@@ -158,7 +158,7 @@ h1, h2, h3, .brand, .play, .kicker, .footer-brand {
 }
 
 .hero-loop-shade {
-  background: radial-gradient(ellipse at 50% 30%, rgba(20, 14, 11, 0.45), rgba(20, 14, 11, 0.85) 70%);
+  background: radial-gradient(ellipse at 50% 30%, rgba(20, 14, 11, 0.3), rgba(20, 14, 11, 0.75) 75%);
 }
 
 .landing-copy {
@@ -243,8 +243,9 @@ h1, h2, h3, .brand, .play, .kicker, .footer-brand {
   display: block;
   position: relative;
   z-index: 1;
-  /* The top of the art is empty frame, so it slides up under the copy. */
-  margin-top: clamp(-9rem, -9vw, -2rem);
+  /* Below the copy with room to spare, so the gameplay loop behind the title shows (J, 2026-10-27: the fighters
+     covered the clip). The art's top is empty dark frame, which fades the loop into the roster. */
+  margin-top: clamp(2rem, 18vh, 14rem);
   pointer-events: none;
 }
 
@@ -719,7 +720,7 @@ button.play {
 
   .starter img { height: 150px; }
 
-  .lineup { margin-top: -1rem; }
+  .lineup { margin-top: clamp(1.5rem, 10vh, 6rem); }
 
   /* Crop into the front rows so the lineup stays large on a phone. */
   .lineup img {
