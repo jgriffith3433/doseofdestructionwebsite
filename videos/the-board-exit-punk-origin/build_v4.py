@@ -43,7 +43,7 @@ for i,(t,d,key,mv,cap,top) in enumerate(S):
 card = f'{O}/card.mp4'
 subprocess.run(['ffmpeg','-loglevel','error','-y','-f','lavfi','-i',f'color=c=black:s=1920x1080:r={FPS}:d=1.5','-vf',
  f"drawtext=text='DOSE OF DESTRUCTION':fontfile={FONT}:fontsize=96:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2-20,"
- "drawtext=text='Made with Hawkes Gen · hawkesgen.com':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:fontsize=28:fontcolor=0xaaaaaa:x=(w-text_w)/2:y=h/2+70",'-pix_fmt','yuv420p',card],check=True)
+ "drawtext=text='Made with Hawkes Gen · hawkesgen.ai':fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:fontsize=28:fontcolor=0xaaaaaa:x=(w-text_w)/2:y=h/2+70",'-pix_fmt','yuv420p',card],check=True)
 clips.append(card)
 open(f'{O}/list.txt','w').write(''.join(f"file '{os.path.abspath(c)}'\n" for c in clips))
 subprocess.run(['ffmpeg','-loglevel','error','-y','-f','concat','-safe','0','-i',f'{O}/list.txt','-c','copy',f'{O}/video.mp4'],check=True)

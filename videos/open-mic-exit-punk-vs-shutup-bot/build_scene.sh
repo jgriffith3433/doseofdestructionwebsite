@@ -28,6 +28,6 @@ ffmpeg -v error -y -loop 1 -t $D -i $BG -loop 1 -t $D -i $ART \
  fade=t=out:st=20.3:d=0.2[v];
  color=c=0x0b0b0e:s=1080x1920:r=24:d=1.9,format=yuv420p,
  drawtext=text='DOSE OF DESTRUCTION':fontcolor=0xe8c9a0:fontsize=84:x=(w-text_w)/2:y=(h-text_h)/2-30,
- drawtext=text='Made with Hawkes Gen · hawkesgen.com':fontcolor=0x9a9a9a:fontsize=34:x=(w-text_w)/2:y=(h/2)+80[card];
+ drawtext=text='Made with Hawkes Gen · hawkesgen.ai':fontcolor=0x9a9a9a:fontsize=34:x=(w-text_w)/2:y=(h/2)+80[card];
  [v]trim=0:20.5,setpts=PTS-STARTPTS[v1];[v1][card]concat=n=2:v=1:a=0[o]" \
  -map "[o]" -t 22 -r 24 -c:v libx264 -crf 18 -pix_fmt yuv420p $OUT

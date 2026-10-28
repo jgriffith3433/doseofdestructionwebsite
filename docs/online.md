@@ -16,14 +16,14 @@ the lobby, the match rooms and the leaderboard's store. The public Nostr relays 
 ## Hard rules
 
 - **Hawkes Net, nothing else.** The site is static on GitHub Pages; everything online goes through Hawkes Net
-  (`https://net.hawkesgen.com`, the project `doseofdestruction`; pages are let in by origin, no key in the page).
+  (`https://net.hawkesgen.ai`, the project `doseofdestruction`; pages are let in by origin, no key in the page).
   The lobby is one relay room; a match is a pair room that starts peer to peer (a direct WebRTC link between the
   two browsers) and moves to Hawkes Net's relay when they can't link; the leaderboard's results are Hawkes Net
   records. The SDK is the package `@hawkesgen/net` (package.json: `https://github.com/jgriffith3433/hawkesnet-js/archive/refs/tags/v<version>.tar.gz`,
   npm once it is published; its source is the hawkesnet repo's `sdk/js`). A new SDK is a version bump here.
 - **Beta apart from live.** Only doseofdestruction.com plays in the live rooms and writes the live leaderboard; the
   beta site and localhost use test rooms (`t-…`) and test records (`net/hawkes.ts`). The beta site plays on beta
-  Hawkes Net (hawkesnet.hawkesgen.com): Studio's script on every beta page sets `HAWKES_NET_ENDPOINT`. `?net=http://127.0.0.1:8786`
+  Hawkes Net (hawkesnet.hawkesgen.ai): Studio's script on every beta page sets `HAWKES_NET_ENDPOINT`. `?net=http://127.0.0.1:8786`
   (off the live site) points a page at a local Hawkes Net (Gen `net/tools/net-dev.mjs`).
 - **No codes, nothing to join by hand.** Every page joins the one global lobby on load.
 - **Never block the game.** Everything online is asynchronous. If Hawkes Net can't be reached, the menu says
@@ -258,7 +258,7 @@ the Nostr days (before 2026-10-26) live only in the players' caches.
 
 - Desktop, phone and tablet in Chrome, Safari and Firefox: WebSocket, WebCrypto and WebRTC data channels are all the
   game needs. Touch controls work online as offline; the chip, banner and Profile fit portrait and landscape.
-- Two players whose networks refuse a direct link play over Hawkes Net's relay (a hop through net.hawkesgen.com: a
+- Two players whose networks refuse a direct link play over Hawkes Net's relay (a hop through net.hawkesgen.ai: a
   few ms to tens of ms more each way, depending on where they are). A browser without WebRTC plays on the relay too.
 - Hawkes Net's limits for the project are in Gen `net/projects.json` (`doseofdestruction`: 120 messages and 300 express
   frames a second per player, 10,000 players).

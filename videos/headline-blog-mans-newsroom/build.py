@@ -84,7 +84,7 @@ def endcard(idx, dur=1.5):
     out = f'{P}/{idx}.mp4'
     sh(['-f', 'lavfi', '-i', f"color=c=0x0b0b0e:s={W}x{Hh}:r={FPS}:d={dur}", '-vf',
         f"drawtext=fontfile={FONT}:text='DOSE OF DESTRUCTION':fontcolor=0xe8c9a0:fontsize=110:x=(w-text_w)/2:y=(h-text_h)/2-30,"
-        f"drawtext=fontfile={FONT}:text='Made with Hawkes Gen · hawkesgen.com':fontcolor=0x9a9a9a:fontsize=34:x=(w-text_w)/2:y=(h/2)+90"] + VID + [out]); return out
+        f"drawtext=fontfile={FONT}:text='Made with Hawkes Gen · hawkesgen.ai':fontcolor=0x9a9a9a:fontsize=34:x=(w-text_w)/2:y=(h/2)+90"] + VID + [out]); return out
 
 def hook_page(idx, dur):
     out = f'{P}/{idx}.mp4'

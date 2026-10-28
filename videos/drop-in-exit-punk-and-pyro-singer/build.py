@@ -815,7 +815,7 @@ def s41(t, T):
     im = Image.new("RGB", (W, H), (11, 11, 14))
     d = ImageDraw.Draw(im)
     d.text((W / 2, H / 2 - 30 * SC), "DOSE OF DESTRUCTION", font=font(int(104 * SC)), fill=(232, 201, 160), anchor="mm")
-    d.text((W / 2, H / 2 + 90 * SC), "Made with Hawkes Gen · hawkesgen.com", font=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", int(38 * SC)), fill=(154, 154, 154), anchor="mm")
+    d.text((W / 2, H / 2 + 90 * SC), "Made with Hawkes Gen · hawkesgen.ai", font=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", int(38 * SC)), fill=(154, 154, 154), anchor="mm")
     return im
 
 # which shots show which overlays

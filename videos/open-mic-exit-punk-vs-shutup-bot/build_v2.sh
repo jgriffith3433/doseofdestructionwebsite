@@ -46,7 +46,7 @@ face s10a 1.8 1.3 1.25 0 0 "$(DASH 'lt(t,0.5)'),$(E 'gte(t,0.5)' 22),$(M 'lt(t,0
 ffmpeg -v error -y -f lavfi -i "color=black:s=1080x1920:r=24:d=1.8" -vf "geq=lum='if(gt(random(1),0.9985+0.0014*min(1,hypot(X-300,Y-640)/300)),255,0)*lt(T,0.9)':cb=128:cr=128,dilation,dilation,gblur=sigma=1.2,format=rgb24,lutrgb=g='val*0.62':b='val*0.15'" $ENC $O/sp10.mp4
 ffmpeg -v error -y -i $O/s10a.mp4 -i $O/sp10.mp4 -filter_complex "[0]format=gbrp[a];[1]format=gbrp[b];[a][b]blend=all_mode=screen,format=yuv420p" $ENC $O/s10.mp4
 # end card
-ffmpeg -v error -y -f lavfi -i "color=c=0x0b0b0e:s=1080x1920:r=24:d=1.5,format=yuv420p,drawtext=text='DOSE OF DESTRUCTION':fontcolor=0xe8c9a0:fontsize=84:x=(w-text_w)/2:y=(h-text_h)/2-30,drawtext=text='Made with Hawkes Gen · hawkesgen.com':fontcolor=0x9a9a9a:fontsize=34:x=(w-text_w)/2:y=(h/2)+80,fade=t=in:st=0:d=0.2" $ENC $O/s12.mp4
+ffmpeg -v error -y -f lavfi -i "color=c=0x0b0b0e:s=1080x1920:r=24:d=1.5,format=yuv420p,drawtext=text='DOSE OF DESTRUCTION':fontcolor=0xe8c9a0:fontsize=84:x=(w-text_w)/2:y=(h-text_h)/2-30,drawtext=text='Made with Hawkes Gen · hawkesgen.ai':fontcolor=0x9a9a9a:fontsize=34:x=(w-text_w)/2:y=(h/2)+80,fade=t=in:st=0:d=0.2" $ENC $O/s12.mp4
 
 # ---- wide shots on the stage plate ----
 # wide <out> <dur> <epclip filter> ... done inline below

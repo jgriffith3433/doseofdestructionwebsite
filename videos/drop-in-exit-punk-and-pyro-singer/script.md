@@ -33,4 +33,4 @@ I just don't stop till the thing's been said.
 PYRO SINGER: You were flat.
 EXIT PUNK: I'm a chorus.
 PYRO SINGER: (a small smile) Stay flat.
-8. END CARD: Dose Of Destruction. Made with Hawkes Gen · hawkesgen.com (small).
+8. END CARD: Dose Of Destruction. Made with Hawkes Gen · hawkesgen.ai (small).

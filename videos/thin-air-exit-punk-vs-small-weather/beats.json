@@ -20,5 +20,5 @@
 {"t":47.2,"seconds":2.6,"shot":"CU","angle":"low","camera":"pull-out","who":["Small Weather"],"line":"SW7: It was only ever me holding it up.","action":"","expression":"gentle","sfx":"","vfx":"","method":"video.talk","why":""},
 {"t":49.8,"seconds":5.0,"shot":"WS","angle":"high","camera":"crane-down","who":["Exit Punk"],"line":null,"action":"everything lands in slow motion; wheels hit the sand, long skid, dust, last raindrops","expression":null,"sfx":"thud, skid, rain patter","vfx":"dust","method":"image.edit -> video.i2v","why":"the fall"},
 {"t":54.8,"seconds":2.2,"shot":"MCU","angle":"low","camera":"static","who":["Exit Punk"],"line":null,"action":"looks up; a small cloud rains on him and follows him home","expression":"half smile","sfx":"soft rain","vfx":"little cloud","method":"image.edit -> video.i2v","why":"coda"},
-{"t":57.0,"seconds":1.5,"shot":"insert","angle":"eye","camera":"static","who":[],"line":null,"action":"END CARD: Dose Of Destruction / Made with Hawkes Gen · hawkesgen.com","sfx":"","vfx":null,"method":"video.compose end card","why":"short end card"}
+{"t":57.0,"seconds":1.5,"shot":"insert","angle":"eye","camera":"static","who":[],"line":null,"action":"END CARD: Dose Of Destruction / Made with Hawkes Gen · hawkesgen.ai","sfx":"","vfx":null,"method":"video.compose end card","why":"short end card"}
 ]

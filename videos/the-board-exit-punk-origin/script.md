@@ -25,4 +25,4 @@ EXIT PUNK: That's the rule?
 MECHANIC: Only one I ever kept. And bring the bolt back.
 5. THE RIDE: Exit Punk skates the whole length of the Foundry to the drum loop, one long unbroken Blender camera (crane-up at the end) up to the stage door. Through the grate: the midnight lights come up. The Announcer, muffled through a speaker: "Tonight, a walk-on."
 6. Close-up Exit Punk, reflected stage light in his eyes. EXIT PUNK: Wheels down. He drops in. Cut to black.
-7. END CARD: Dose Of Destruction. Made with Hawkes Gen · hawkesgen.com (small).
+7. END CARD: Dose Of Destruction. Made with Hawkes Gen · hawkesgen.ai (small).

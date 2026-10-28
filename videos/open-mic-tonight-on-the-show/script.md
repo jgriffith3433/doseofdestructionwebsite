@@ -11,4 +11,4 @@ THE ORCHESTRATOR: Then you'll have to go through the main event.
 (Exit Punk drops the board, wheels down. FIGHT! A rush of the fight: a dodge, the board swung, a hit that sends Kaelen flying, the crowd erupting.)
 EXIT PUNK (catching his breath, dry): Ratings went up?
 THE ORCHESTRATOR: Eleven points.
-END CARD: Dose of Destruction. Made with Hawkes Gen · hawkesgen.com
+END CARD: Dose of Destruction. Made with Hawkes Gen · hawkesgen.ai

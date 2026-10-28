@@ -21,4 +21,4 @@ SMALL WEATHER: It rains harder when no one's looking. Don't tell the forecast.
 EXIT PUNK: Turn the gravity back on on your way out.
 SMALL WEATHER: It was only ever me holding it up.
 7. THE FALL: crane-down as everything lands in slow motion. Exit Punk's wheels hit the sand, wheels down, a long skid, dust and last raindrops. He looks up; Small Weather is gone, but a single patch of sky is still raining on a little cloud that follows him home.
-8. END CARD: Dose Of Destruction. Made with Hawkes Gen · hawkesgen.com (small).
+8. END CARD: Dose Of Destruction. Made with Hawkes Gen · hawkesgen.ai (small).

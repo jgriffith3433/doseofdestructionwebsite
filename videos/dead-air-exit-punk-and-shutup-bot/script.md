@@ -21,5 +21,5 @@ EXIT PUNK: (a dazed laugh) Okay. Okay. Keep going.
 EXIT PUNK: I'm going to lose to you so hard.
 SHUTUP BOT: Fine.
 8. REACTION CU Exit Punk: grinning for the first time in the video. Hard cut to black.
-9. END CARD: Dose Of Destruction. Made with Hawkes Gen · hawkesgen.com (small).
+9. END CARD: Dose Of Destruction. Made with Hawkes Gen · hawkesgen.ai (small).
 

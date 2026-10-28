@@ -80,7 +80,7 @@ for s in segs:
 # end card (hard cut)
 card="out/seg/s25_card.mp4"
 subprocess.check_call(['ffmpeg','-y','-loglevel','error','-f','lavfi','-t','1.5','-i',f'color=c=black:s={W}x{H}:r={FPS}','-f','lavfi','-t','1.5','-i','anullsrc=r=48000:cl=stereo','-vf',
- f"drawtext=fontfile={FONT}:text='DOSE OF DESTRUCTION':fontcolor=0xe8c9a0:fontsize=96:x=(w-text_w)/2:y=(h-text_h)/2-30,drawtext=fontfile={FONT}:text='Made with Hawkes Gen · hawkesgen.com':fontcolor=0x9a9a9a:fontsize=34:x=(w-text_w)/2:y=(h/2)+80,format=yuv420p",
+ f"drawtext=fontfile={FONT}:text='DOSE OF DESTRUCTION':fontcolor=0xe8c9a0:fontsize=96:x=(w-text_w)/2:y=(h-text_h)/2-30,drawtext=fontfile={FONT}:text='Made with Hawkes Gen · hawkesgen.ai':fontcolor=0x9a9a9a:fontsize=34:x=(w-text_w)/2:y=(h/2)+80,format=yuv420p",
  '-c:v','libx264','-crf','17','-c:a','aac','-ar','48000','-ac','2','-shortest',card])
 starts['card']=t; total=t+1.5; lst.append(card)
 open('out/list.txt','w').write(''.join(f"file '{os.path.abspath(p)}'\n" for p in lst))

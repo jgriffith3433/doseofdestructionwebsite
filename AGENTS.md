@@ -13,7 +13,7 @@ Online is always on (docs/online.md) and runs entirely on **Hawkes Net** (projec
 under a "Searching for opponent…" chip), a pair is made by a deterministic rule plus a handshake, and the two meet in a
 pair room that starts peer to peer and falls back to Hawkes Net's relay. The fight runs the sim through rollback
 netcode with binary input packets sent as Hawkes Net express frames (immediate, unreliable), with a desync hash. Only
-doseofdestruction.com uses the live rooms and leaderboard on net.hawkesgen.com; beta and localhost are test (`net/hawkes.ts`), and the beta site plays on beta Hawkes Net (hawkesnet.hawkesgen.com: Studio's page script sets `HAWKES_NET_ENDPOINT`). The code is
+doseofdestruction.com uses the live rooms and leaderboard on net.hawkesgen.ai; beta and localhost are test (`net/hawkes.ts`), and the beta site plays on beta Hawkes Net (hawkesnet.hawkesgen.ai: Studio's page script sets `HAWKES_NET_ENDPOINT`). The code is
 `src/game/net/` and `src/game/ui/online.ts`. **Profile** is a name and a fighter picture (localStorage `dod.profile`); online you fight as
 your picture. Every finished online match fires the match-result event (`net/results.ts` `onMatchResult`,
 `window` `dod:match-result`). **Leaderboard** (menu): both players sign each online result with their profile key
@@ -57,7 +57,7 @@ the CPU bot (`src/game/ai/bot.ts`, level 9) drives your fighter through a virtua
 | `match` (~2.5 min) | A full 1v1 versus a CPU, 2 stocks, no time limit, to the results screen; then the "How was that fight?" card appears and is dismissed, and the analytics events (screen, fighter_pick, stage_pick, level_start, death, level_end) are logged going out with the build and env. Outcome won/lost. |
 | `campaign` (≤10 min) | The campaign from chapter 1: dialogue, fights, outros. Two tries per chapter; stops cleanly at 9.5 min. Option `chapter` (or the contract's `at`): a chapter id from `content/campaign.json` (`{"chapter":"encore"}`); setup shortcut: every chapter before it is marked cleared (localStorage `dod-campaign`), the bot opens it on the map by id (`data-chapter`) and plays on from there; the player's progress is put back at the end. An unknown id is a `bug` problem and the run ends `error`. On the map it first checks the season headings (each `Season N` over its chapters, as `season` in campaign.json places them) and that the map doesn't overflow the window sideways (on 720p and up, Season 1 fits on screen): events `season`, `map-fit`. Events `chapter`, `chapter-cleared`, `chapter-failed`; after a season's last chapter, `season-end` (the end line shown under it on the map). Season 2 starts at `{"chapter":"title-defense"}`; its end line, `{"chapter":"sponsored"}`. |
 | `sound-settings` (~2 min) | Studio standard: taps the Tap to play prompt (hit-tested pointer press), checks the AudioContext runs and the menu music starts, Settings from the main menu (Sound off, Music 40%), reloads the page (the run carries on via `sessionStorage`), checks the choice came back, then Settings from Pause in a match. Puts the player's `hawkes.sound` back. |
-| `site-links` (~1 min) | Checks the game screen has no site marks, then opens the website over the game in a full-screen frame and walks it by its own links (landing → footer Characters → a fighter card → Privacy → What's new), checking "Powered by HAWKES GEN" → https://hawkesgen.com on each page (and on every fighter page, read), and Hawkes Biomedical → https://hawkesbiomedical.com on the landing page. External links are checked, not followed. |
+| `site-links` (~1 min) | Checks the game screen has no site marks, then opens the website over the game in a full-screen frame and walks it by its own links (landing → footer Characters → a fighter card → Privacy → What's new), checking "Powered by HAWKES GEN" → https://hawkesgen.ai on each page (and on every fighter page, read), and Hawkes Biomedical → https://hawkesbiomedical.com on the landing page. External links are checked, not followed. |
 | `online` (~6 min, `peers: 2`) | Two tabs in a private test lobby (`?room=<id>&peer=0/1`, which Hawkes Gen's `playtest.run` adds): both see "2 online" with no clicks; peer 1 renames itself to "Tester Two" with a new picture in Profile and peer 0 sees it; peer 0 presses Find match and plays a CPU versus match under the searching chip; peer 1 queues 30 s later; both see "Match found vs <name> · Starting in N", fight each other (bot on each pad; test lobbies play 1 stock, 90 s), names on the HUD, and see the result with Queue again, then the rating change on it (confirmed by both) and the Leaderboard, both tabs, with both players at the ranks and ratings the result implies. Events `lobby`, `profile`/`profile-seen`, `queued`, `cpu-while-searching`, `match-found`, `online-start`, `online-result`, `rating-change`, `leaderboard`, `leaderboard-relay`; metric `ratingChange`. Without `?room` it stops (never pairs with real players). |
 | `ko-objective` (~2–4 min) | The `ko` chapter objective (Season 2's Ratings rule), with no chapter yet. Setup shortcut: straight into two campaign fights on Yo House. Round 1, Exit Punk vs Kaelen (CPU 1, every life at 120%), 3 KOs before 2 minutes: ends on the third KO. Round 2, vs a giant Break (CPU 9), 20 seconds: ends on time. Checks the "KOs 0/3" chip and the clock, each count up, and the results line. Events `round`, `ko-chip`, `ko-clock`, `ko-count`, `ko-result`. |
 | `roster` (~8 min; 13 min in headless software rendering) | Setup shortcut: each fighter goes straight into training (no menus) and does all 14 moves from their inputs. |
@@ -82,7 +82,7 @@ campaign gets through 2–3 chapters in its budget.
 ## Analytics
 
 Hawkes Analytics (`hawkesgen/docs/analytics.md`) is the only analytics here; never add another tracker. The SDK is
-Hawkes Gen's, loaded from `https://gen.hawkesgen.com/sdk/analytics@1.js` (never a copy here: a Gen deploy updates every
+Hawkes Gen's, loaded from `https://gen.hawkesgen.ai/sdk/analytics@1.js` (never a copy here: a Gen deploy updates every
 site at once, J 2026-10-27; types: `src/game/hawkes-analytics.d.ts`, a copy of Gen's `.d.ts`, only for the compiler).
 Every player-facing page loads it with `data-product="doseofdestruction"`:
 `Game/index.html` (before the game module) and every site page (`/site/build.js` first, then the SDK, above
@@ -130,7 +130,7 @@ logs each needed event (`analytics-event`) with how many went out and the build 
 
 The site pages (`index.html`, `characters.html`, `characters/*.html`, `whatsnew.html`, `privacypolicy.html`) are
 static HTML with the same footer copied into each: a new page copies it, including the
-`<p class="footer-credit">` "Powered by HAWKES GEN" mark (→ https://hawkesgen.com). The landing page's footer also
+`<p class="footer-credit">` "Powered by HAWKES GEN" mark (→ https://hawkesgen.ai). The landing page's footer also
 links the parent company, Hawkes Biomedical. The game (`Game/index.html`) has no site footer and carries neither.
 
 ## Versions and What's new

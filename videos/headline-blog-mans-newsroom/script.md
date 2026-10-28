@@ -25,4 +25,4 @@ EXIT PUNK: You asked for shorter.
 BLOG MAN: (a long pause, then, quietly) Run it.
 6. REACTION CU Blog Man, honestly moved, then he catches himself. BLOG MAN: Of course I'd have used a bigger font.
 7. Pneumatic tube thunks; the page flies through the building and prints a million times as the Announcer reads it over a speaker: "Still here."
-8. END CARD: Dose Of Destruction. Made with Hawkes Gen · hawkesgen.com (small).
+8. END CARD: Dose Of Destruction. Made with Hawkes Gen · hawkesgen.ai (small).

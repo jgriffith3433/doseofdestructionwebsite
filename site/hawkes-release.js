@@ -15,7 +15,7 @@
   var script = document.currentScript;
   var src = (script && script.getAttribute('data-releases')) || 'releases.json';
   var host = location.hostname;
-  var beta = /\.hawkesgen\.com$/.test(host) || host === 'localhost' || host === '127.0.0.1' || location.protocol === 'file:';
+  var beta = /\.hawkesgen\.ai$/.test(host) || host === 'localhost' || host === '127.0.0.1' || location.protocol === 'file:';
 
   function date(d) {
     var t = Date.parse(d + 'T12:00:00Z');
