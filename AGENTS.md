@@ -1,5 +1,7 @@
 # Dose Of Destruction
 
+**Lanes, local dev and deploys:** `LANES.md` (branches dev -> beta -> main; `dev.bat`, `deploy-beta.bat`, `deploy-prod.bat`, `status.bat`, `links.bat`, `sync.bat`; beta and live links).
+
 Platform fighter with every main IP character (doseofdestruction.com). The game is `Game/index.html` +
 `src/game/`; content is `content/*.json`; devtools are `/devtools.html` on the dev server (`auto-start.bat`,
 port 8089). Docs are in `docs/`. Check with `npm test` (sim) and `npm run typecheck`. Pushing `main`
