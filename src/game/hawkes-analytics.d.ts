@@ -12,7 +12,7 @@ export interface HawkesBuild {
 export interface HawkesAnalyticsInit {
   /** The product id in Gen's analytics/products.json ("sickofit", "phorigins"…). Nothing is sent without one. */
   product?: string;
-  /** Default https://gen.hawkesgen.ai/v1/analytics/collect. */
+  /** Default https://hawkesgen.ai/v1/analytics/collect. */
   endpoint?: string;
   /** A version string or { version, commit, date }. window.HAWKES_BUILD wins when the page sets it. */
   build?: string | HawkesBuild;

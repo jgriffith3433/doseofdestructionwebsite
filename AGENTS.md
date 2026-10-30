@@ -84,7 +84,7 @@ campaign gets through 2–3 chapters in its budget.
 ## Analytics
 
 Hawkes Analytics (`hawkesgen/docs/analytics.md`) is the only analytics here; never add another tracker. The SDK is
-Hawkes Gen's, loaded from `https://gen.hawkesgen.ai/sdk/analytics@1.js` (never a copy here: a Gen deploy updates every
+Hawkes Gen's, loaded from `https://hawkesgen.ai/sdk/analytics@1.js` (never a copy here: a Gen deploy updates every
 site at once, J 2026-10-27; types: `src/game/hawkes-analytics.d.ts`, a copy of Gen's `.d.ts`, only for the compiler).
 Every player-facing page loads it with `data-product="doseofdestruction"`:
 `Game/index.html` (before the game module) and every site page (`/site/build.js` first, then the SDK, above
