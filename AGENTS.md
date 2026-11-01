@@ -75,6 +75,12 @@ clips or with stand-in clips, unrecorded voice lines, unpainted stage layers, st
 positions, a fighter out of bounds without a KO, a stopped match clock, 30 s with no hits, and moves that
 don't come out.
 
+The landing page speaks the contract too (`site/playtest-bridge.js`), because Studio's playtests open the project's
+address, which is the landing page: on `start()` (or `/?playtest=<id>`) it opens `Game/` in a full-screen frame, passes
+on the query string (`room`, `peer`), starts the scenario in the game's own contract and passes `state()`, `report()`,
+`stop()` and `input()` through. Its scenario list is copied from `src/game/playtest/scenarios.ts` by
+`node tools/playtest-bridge.mjs`; `npm test` fails while the copy is stale (new scenarios or chapters).
+
 Run one: start the dev server and open `http://localhost:8089/Game/?playtest=smoke` (also `&seed=2`,
 `&speed=2` for up to 4x sim speed). In the console, `hawkesPlaytest.state()` while it runs and
 `hawkesPlaytest.report()` when it ends. Hawkes Gen's `playtest.run` does the same and records it.
