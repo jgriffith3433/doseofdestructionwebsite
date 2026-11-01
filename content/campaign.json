@@ -1187,5 +1187,92 @@
         }
       ]
     }
+  },
+  {
+    "id": "walk-on",
+    "season": 3,
+    "title": "Walk-On",
+    "tagline": "One name on the sign-up sheet. No sponsor. No record. One baton.",
+    "hint": "Top billing: you're the giant tonight. Longer reach and harder to launch, but easier to hit. He has four stocks to your three and punishes every whiff.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Midnight at the Foundry. The arena lights come up on a walk-on with no entrance music."
+      },
+      {
+        "who": "blog-man",
+        "text": "Breaking news, and I mean breaking. Tonight's walk-on used to run this show."
+      },
+      {
+        "who": "orchestrator",
+        "text": "No sponsor. No record. One baton. I signed the sheet like everybody else."
+      },
+      {
+        "who": "exit-punk",
+        "text": "You said there wasn't an exit."
+      },
+      {
+        "who": "orchestrator",
+        "text": "There isn't. There's only the next show. Tonight, I'm on the card."
+      },
+      {
+        "who": "blog-man",
+        "text": "Network rules: the walk-on gets an extra stock. The champion gets top billing. Top billing is big."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Fine. Bring the baton."
+      }
+    ],
+    "outro": [
+      {
+        "who": "narrator",
+        "text": "The baton spins across the floor. The arena holds its breath."
+      },
+      {
+        "who": "orchestrator",
+        "text": "Best ratings this show has ever had. And I wasn't even hosting."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Former Host Walks On, Walks Off, Champion Stays Champion. Working title."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Keep the baton. I'll keep the card."
+      },
+      {
+        "who": "orchestrator",
+        "text": "Same time tomorrow?"
+      },
+      {
+        "who": "exit-punk",
+        "text": "Same time tomorrow."
+      },
+      {
+        "who": "narrator",
+        "text": "One walk-on. One baton. The show goes on."
+      }
+    ],
+    "fight": {
+      "stage": "humans-in-the-loop",
+      "stocks": 4,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "scale": 130,
+          "stocks": 3
+        },
+        {
+          "char": "orchestrator",
+          "cpu": 9,
+          "team": 1,
+          "stocks": 4
+        }
+      ]
+    }
   }
 ]
