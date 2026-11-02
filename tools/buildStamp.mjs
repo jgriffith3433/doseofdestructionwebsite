@@ -37,7 +37,7 @@ export function buildInfo(root) {
 const script = (info) =>
   `// Written by the build (tools/buildStamp.mjs): which build this page is, for Hawkes Analytics.\nwindow.HAWKES_BUILD = ${JSON.stringify(info)};\n`;
 
-/** The Vite plugin: the define, dist/site/build.js, and /site/build.js on the dev server. */
+/** The Vite plugin: the define, dist/site/build.js, dist/releases.json, and /site/build.js on the dev server. */
 export function buildStamp(root) {
   const info = buildInfo(root);
   return {
@@ -53,6 +53,10 @@ export function buildStamp(root) {
     },
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: 'site/build.js', source: script(info) });
+      // The release notes the pages read (/site/hawkes-release.js fetches /releases.json): ship them with the build,
+      // so a site published from dist/ alone (Studio's beta) has them too, not a 404.
+      const releases = path.join(root, 'releases.json');
+      if (fs.existsSync(releases)) this.emitFile({ type: 'asset', fileName: 'releases.json', source: fs.readFileSync(releases, 'utf8') });
     },
   };
 }
