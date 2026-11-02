@@ -497,6 +497,13 @@ class Run {
     await this.click(() => this.q('#select-slots .slot-pick'), 'your slot');
     await this.click(() => document.querySelectorAll<HTMLElement>('#select-grid .tile')[meIdx], CHARACTERS[meIdx].name);
     await this.click(() => document.querySelectorAll<HTMLElement>('#select-grid .tile')[foeIdx], `CPU: ${CHARACTERS[foeIdx].name}`);
+    // The hovered fighter's preview must show a loaded portrait, not just the stats.
+    const shown = document.querySelector<HTMLImageElement>('#select-preview img');
+    if (shown && shown.complete && shown.naturalWidth > 0) {
+      this.t.event('select-preview', `${CHARACTERS[foeIdx].name}: portrait shown (${shown.naturalWidth}x${shown.naturalHeight})`);
+    } else {
+      this.t.problem('bug', `Character select preview has no portrait for ${CHARACTERS[foeIdx].name}`);
+    }
     await this.click(() => this.q('#select-slots .fight'), 'Fight');
     await this.screen('stages');
     const cards = () => document.querySelectorAll<HTMLElement>('#stage-grid .stage-card:not(.random)');
