@@ -497,6 +497,13 @@ class Run {
     await this.click(() => this.q('#select-slots .slot-pick'), 'your slot');
     await this.click(() => document.querySelectorAll<HTMLElement>('#select-grid .tile')[meIdx], CHARACTERS[meIdx].name);
     await this.click(() => document.querySelectorAll<HTMLElement>('#select-grid .tile')[foeIdx], `CPU: ${CHARACTERS[foeIdx].name}`);
+    // The hovered fighter's preview must show a loaded portrait, not just the stats.
+    const shown = document.querySelector<HTMLImageElement>('#select-preview img');
+    if (shown && shown.complete && shown.naturalWidth > 0) {
+      this.t.event('select-preview', `${CHARACTERS[foeIdx].name}: portrait shown (${shown.naturalWidth}x${shown.naturalHeight})`);
+    } else {
+      this.t.problem('bug', `Character select preview has no portrait for ${CHARACTERS[foeIdx].name}`);
+    }
     await this.click(() => this.q('#select-slots .fight'), 'Fight');
     await this.screen('stages');
     const cards = () => document.querySelectorAll<HTMLElement>('#stage-grid .stage-card:not(.random)');
@@ -561,6 +568,10 @@ class Run {
   async smoke(): Promise<void> {
     const t = this.t;
     await this.toMainMenu();
+    // The release notes (/releases.json via /site/hawkes-release.js) must load: the version on the menu reads them.
+    const release = await ((window as unknown as { hawkesRelease?: Promise<{ current?: string } | null> }).hawkesRelease ?? Promise.resolve(null));
+    if (release?.current) t.event('release', `releases.json loaded: v${release.current}`);
+    else t.problem('bug', 'releases.json did not load (404 or invalid): no version or release notes');
     t.progress(0.15);
     await this.startVersus(3);
     t.progress(0.4);
