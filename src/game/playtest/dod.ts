@@ -568,6 +568,10 @@ class Run {
   async smoke(): Promise<void> {
     const t = this.t;
     await this.toMainMenu();
+    // The release notes (/releases.json via /site/hawkes-release.js) must load: the version on the menu reads them.
+    const release = await ((window as unknown as { hawkesRelease?: Promise<{ current?: string } | null> }).hawkesRelease ?? Promise.resolve(null));
+    if (release?.current) t.event('release', `releases.json loaded: v${release.current}`);
+    else t.problem('bug', 'releases.json did not load (404 or invalid): no version or release notes');
     t.progress(0.15);
     await this.startVersus(3);
     t.progress(0.4);
