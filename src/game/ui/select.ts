@@ -64,9 +64,27 @@ export function openSelect({ mode, config, onDone }: Options): void {
   const rulesEl = $('select-rules');
   $('select-title').textContent = training ? 'Training' : 'Choose your fighters';
 
+  // One portrait element per fighter, kept and preloaded, so hovering shows it at once
+  // (a fresh <img> is blank until it loads). Falls back to the thumbnail if the large one fails.
+  const portraits = new Map<string, HTMLImageElement>();
+  const portrait = (c: CharacterDef): HTMLImageElement => {
+    let img = portraits.get(c.id);
+    if (!img) {
+      img = h('img', { src: largeUrl(c.id), alt: '' }) as HTMLImageElement;
+      img.decoding = 'async';
+      img.onerror = () => {
+        img!.onerror = null;
+        img!.src = thumbUrl(c.id);
+      };
+      portraits.set(c.id, img);
+    }
+    return img;
+  };
+  CHARACTERS.forEach(portrait);
+
   const showPreview = (c: CharacterDef) => {
     preview.replaceChildren(
-      h('img', { src: largeUrl(c.id), alt: '' }),
+      portrait(c),
       h('p', { class: 'kicker' }, c.role),
       h('h3', {}, c.name),
       h('p', { class: 'blurb' }, c.blurb),
