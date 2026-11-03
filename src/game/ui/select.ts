@@ -82,6 +82,35 @@ export function openSelect({ mode, config, onDone }: Options): void {
   };
   CHARACTERS.forEach(portrait);
 
+  // Roster and slot thumbnails: one kept, preloaded <img> per fighter (cloned into tiles and slots),
+  // so the grid never shows empty boxes. A tile stays a dark silhouette placeholder until its image
+  // has loaded (`.loaded`), and falls back to the large portrait if the thumbnail fails.
+  const thumbs = new Map<string, HTMLImageElement>();
+  const thumb = (c: CharacterDef): HTMLImageElement => {
+    let src = thumbs.get(c.id);
+    if (!src) {
+      src = new Image();
+      src.decoding = 'async';
+      src.onerror = () => {
+        src!.onerror = null;
+        src!.src = largeUrl(c.id);
+      };
+      src.src = thumbUrl(c.id);
+      thumbs.set(c.id, src);
+    }
+    const img = h('img', { alt: '', draggable: 'false' }) as HTMLImageElement;
+    const mark = () => img.classList.add('loaded');
+    img.onerror = () => {
+      img.onerror = null;
+      img.src = largeUrl(c.id);
+    };
+    img.onload = mark;
+    img.src = src.currentSrc || src.src;
+    if (img.complete && img.naturalWidth > 0) mark();
+    return img;
+  };
+  CHARACTERS.forEach(thumb);
+
   const showPreview = (c: CharacterDef) => {
     preview.replaceChildren(
       portrait(c),
@@ -111,7 +140,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
           onfocus: () => showPreview(c),
           onmouseenter: () => showPreview(c),
         },
-        h('img', { src: thumbUrl(c.id), alt: '' }),
+        thumb(c),
         h('span', {}, c.name),
       ),
     ),
@@ -141,7 +170,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
           h(
             'button',
             { type: 'button', class: 'slot-pick', onclick: () => { active = i; renderSlots(); }, 'aria-pressed': i === active },
-            h('img', { src: thumbUrl(c.id), alt: '' }),
+            thumb(c),
             h('span', { class: 'slot-label' }, label),
             h('strong', {}, c.name),
           ),
