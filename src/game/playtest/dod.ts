@@ -504,6 +504,13 @@ class Run {
     } else {
       this.t.problem('bug', `Character select preview has no portrait for ${CHARACTERS[foeIdx].name}`);
     }
+    // Every roster tile and slot must show a loaded portrait, not just a name.
+    const imgs = [...document.querySelectorAll<HTMLImageElement>('#select-grid .tile:not(.random) img, #select-slots .slot-pick img')];
+    const t0 = Date.now();
+    while (Date.now() - t0 < 5000 && imgs.some((i) => !(i.complete && i.naturalWidth > 0))) await new Promise((r) => setTimeout(r, 200));
+    const empty = imgs.filter((i) => !(i.complete && i.naturalWidth > 0));
+    if (imgs.length && !empty.length) this.t.event('roster-portraits', `${imgs.length} roster/slot portraits loaded`);
+    else this.t.problem('bug', `Character select: ${empty.length}/${imgs.length} roster tiles/slots have no portrait`);
     await this.click(() => this.q('#select-slots .fight'), 'Fight');
     await this.screen('stages');
     const cards = () => document.querySelectorAll<HTMLElement>('#stage-grid .stage-card:not(.random)');

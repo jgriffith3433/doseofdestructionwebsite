@@ -296,6 +296,10 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Placeholder silhouette until the thumbnail has loaded. */
+.tile img:not(.loaded), .slot-pick img:not(.loaded) {
+  background: radial-gradient(ellipse 30% 18% at 50% 24%, #3a2a22 98%, transparent 100%), radial-gradient(ellipse 48% 40% at 50% 80%, #3a2a22 98%, transparent 100%);
+}
 .tile:hover, .tile:focus-visible { border-color: var(--hot); outline: none; background: #2a1810; }
 .tile:hover img, .tile:focus-visible img { transform: scale(1.08); }
 .tile.random b { display: grid; place-items: center; font-family: Oswald, sans-serif; font-size: 40px; color: var(--gold); }
