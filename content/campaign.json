@@ -1568,5 +1568,280 @@
         }
       ]
     }
+  },
+  {
+    "id": "cold-open",
+    "unlock": "uh-me",
+    "season": 5,
+    "title": "Cold Open",
+    "tagline": "Sweeps Week starts with no warning, and a walk-on who won't be caught.",
+    "hint": "Gravity is light tonight: everything floats. Uh Me is calm and slippery in the air, so make her land and punish it.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "City Top, the roof where it started. The rival feed is dead, and every screen in the city is back on one channel."
+      },
+      {
+        "who": "blog-man",
+        "text": "Breaking news: it's Sweeps Week. Four nights, and the ratings decide everything. The network has also turned down the gravity. I don't know why. It's a broadcast."
+      },
+      {
+        "who": "uh-me",
+        "text": "Hi. I'm told you hit people. I'll be over here. Up here."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Not for long."
+      }
+    ],
+    "outro": [
+      {
+        "who": "uh-me",
+        "text": "Oh. The ground is real."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Champion Reminds Sky Who Owns It. Too long, again."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Next."
+      }
+    ],
+    "fight": {
+      "stage": "city-top",
+      "stocks": 3,
+      "rules": {
+        "gravity": 70
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "uh-me",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "product-placement",
+    "unlock": "yo-bot",
+    "season": 5,
+    "title": "Product Placement",
+    "tagline": "The sponsor's fighter has a laptop, and the laptop hits back.",
+    "hint": "Every hit lands 30% harder, yours and theirs. Yo Bot has four legs and a long reach: stay out of the keyboard and punish the swing.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Yo House. The speakers are on, and every banner in the room is for the same laptop."
+      },
+      {
+        "who": "blog-man",
+        "text": "A word from tonight's sponsor, who is also tonight's walk-on. The champion is not for sale. We've been through this."
+      },
+      {
+        "who": "yo-bot",
+        "text": "Four legs. Two arms. One laptop, battery full. Thirty percent more of everything."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Is it in the contract?"
+      },
+      {
+        "who": "blog-man",
+        "text": "It's in the ad break."
+      }
+    ],
+    "outro": [
+      {
+        "who": "yo-bot",
+        "text": "Low battery."
+      },
+      {
+        "who": "blog-man",
+        "text": "Ratings are up. Sponsors are asking if the champion takes questions."
+      },
+      {
+        "who": "exit-punk",
+        "text": "No."
+      }
+    ],
+    "fight": {
+      "stage": "yo-house",
+      "stocks": 3,
+      "rules": {
+        "damage": 130
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "yo-bot",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "dead-air",
+    "unlock": "spider-bot",
+    "season": 5,
+    "title": "Dead Air",
+    "tagline": "The signal drops for a minute. The walk-on is still there.",
+    "hint": "Survive 60 seconds. You don't need KOs. Spider Bot is wide and low and hard to knock over: don't trade, keep moving, and stay off the edges.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Solar Array. The panels tilt, the lights flicker, and for one full minute the broadcast has nothing to show."
+      },
+      {
+        "who": "blog-man",
+        "text": "We are experiencing technical difficulties. Please enjoy sixty seconds of the champion trying not to fall."
+      },
+      {
+        "who": "spider-bot",
+        "text": "Eight eyes. Low to the ground. I don't fall over, and I don't leave."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Sixty seconds. Fine."
+      }
+    ],
+    "outro": [
+      {
+        "who": "narrator",
+        "text": "The clock runs out. The feed comes back with the champion still standing."
+      },
+      {
+        "who": "spider-bot",
+        "text": "You didn't try to win."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Didn't need to."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Dead Air Draws Best Numbers of the Week. I have no idea why."
+      }
+    ],
+    "fight": {
+      "stage": "solar-array",
+      "stocks": 3,
+      "rules": {
+        "timeLimit": 3600
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 2
+        },
+        {
+          "char": "spider-bot",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 3
+        }
+      ],
+      "objective": "survive"
+    }
+  },
+  {
+    "id": "clip-show",
+    "unlock": "lapis-man",
+    "season": 5,
+    "title": "Clip Show",
+    "tagline": "The last night of Sweeps: every highlight, one tag team, one more fight.",
+    "hint": "Two on two. Blog Man fights beside you (he doesn't hit you). Lapis Man's staff outreaches everyone, and TT hits like a wall. They have two stocks each; you and Blog Man have three.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Humans In The Loop. The arena lights come up for the last night of Sweeps Week."
+      },
+      {
+        "who": "blog-man",
+        "text": "Tonight is a clip show: every highlight of the week, and one live fight. I'm in it. I did not read the fine print."
+      },
+      {
+        "who": "lapis-man",
+        "text": "The staff reaches farther than you expect. Everyone says so, after."
+      },
+      {
+        "who": "tt",
+        "text": "Short. Slow. Heavier than I look."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Stay behind me."
+      },
+      {
+        "who": "blog-man",
+        "text": "I'm not sure I can do that. I'm going to try."
+      }
+    ],
+    "outro": [
+      {
+        "who": "lapis-man",
+        "text": "That was a long reach. It wasn't long enough."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Host Survives Own Show, Takes Credit. For once the headline is short enough."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Good night."
+      },
+      {
+        "who": "narrator",
+        "text": "Four nights. Four sweeps. Nobody changed the channel."
+      }
+    ],
+    "fight": {
+      "stage": "humans-in-the-loop",
+      "stocks": 3,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "blog-man",
+          "cpu": 5,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "lapis-man",
+          "cpu": 7,
+          "team": 1,
+          "stocks": 2
+        },
+        {
+          "char": "tt",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
   }
 ]
