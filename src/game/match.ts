@@ -33,10 +33,14 @@ export interface MatchSetup {
   /**
    * 'survive' wins by still standing when time runs out. 'ko' wins by scoring `kos` KOs before
    * time runs out (the match ends on the last one), and loses on time or out of stocks.
+   * 'quota' wins by dealing `quota` percent of damage to the other side before time runs out
+   * (the match ends the moment the sponsor's number is met), and loses the same two ways.
    */
-  objective?: 'win' | 'survive' | 'ko';
+  objective?: 'win' | 'survive' | 'ko' | 'quota';
   /** The 'ko' objective's target: how many KOs the player must score. */
   kos?: number;
+  /** The 'quota' objective's target: how many percent of damage the player must deal (the HUD and results use whole percent). */
+  quota?: number;
   /** Online matches: who is in each slot (net/online.ts). */
   online?: OnlineSlots;
 }
@@ -206,16 +210,23 @@ export class Match {
     });
   }
 
-  /** The 'ko' objective: the match ends, won by the player, on the target KO. */
+  /** The 'ko' and 'quota' objectives: the match ends, won by the player, the moment the target is met. */
   private checkObjective(): void {
     const s = this.state;
     const me = s.fighters[this.player];
-    if (s.over || this.setup.objective !== 'ko' || !me || this.koCount() < this.koTarget) return;
+    if (s.over || !me || !this.objectiveMet()) return;
     s.over = 1;
     s.timedOut = 0;
     s.winner = me.id;
     s.winnerTeam = me.team;
     s.endTimer = 120;
+  }
+
+  /** Whether the match's counting objective ('ko' or 'quota') has reached its target. */
+  private objectiveMet(): boolean {
+    if (this.setup.objective === 'ko') return this.koCount() >= this.koTarget;
+    if (this.setup.objective === 'quota') return this.quotaDealt() >= this.quotaTarget;
+    return false;
   }
 
   /** The 'ko' objective's target (3 when the setup leaves it out). */
@@ -226,6 +237,16 @@ export class Match {
   /** KOs the local player has scored (self-destructs don't count). */
   koCount(): number {
     return this.stats[this.player]?.kos ?? 0;
+  }
+
+  /** The 'quota' objective's target in tenths of a percent, the sim's unit (250% when the setup leaves it out). */
+  get quotaTarget(): number {
+    return Math.max(1, Math.round((this.setup.quota ?? 250) * 10));
+  }
+
+  /** Damage the local player has dealt, in tenths of a percent. Shielded hits, hazards and falls don't count. */
+  quotaDealt(): number {
+    return this.stats[this.player]?.dealt ?? 0;
   }
 
   /** The local player's slot, or -1 if every fighter is a CPU. */
@@ -242,8 +263,9 @@ export class Match {
       if (s.timedOut) return me.stocks > 0;
     }
     // On time or out of stocks the target wasn't reached; every foe out of stocks first still wins.
-    if (this.setup.objective === 'ko' && this.koCount() >= this.koTarget) return true;
-    if (this.setup.objective === 'ko' && s.timedOut) return false;
+    const counting = this.setup.objective === 'ko' || this.setup.objective === 'quota';
+    if (counting && this.objectiveMet()) return true;
+    if (counting && s.timedOut) return false;
     if (s.winnerTeam >= 0) return me.team === s.winnerTeam;
     return s.winner === me.id;
   }
