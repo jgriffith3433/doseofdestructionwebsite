@@ -74,8 +74,9 @@ season the chapters unlock in order, as they always have. Once a season is clear
 - Season 4, *The Rival Broadcast*: "Two networks. One card. The show is still his."
 - Season 5, *Sweeps Week*: "Four nights. Four sweeps. Nobody changed the channel."
 - Season 6, *Syndication*: "Four markets. Four feeds. The card travels."
+- Season 7, *The Reboot*: "Four pilots. Four reboots. The champion was never recast."
 
-Seasons 7 to 10 are not written yet: Season 3 is the Orchestrator's return arc, not the end of the show, and a new
+Seasons 8 to 10 are not written yet: Season 3 is the Orchestrator's return arc, not the end of the show, and a new
 season just adds `"season": N` chapters (it shows locked until the season before is cleared).
 
 The names and end lines live in `src/game/campaign/story.ts` (`SEASON_TEXT`) next to the chapter reader.
@@ -354,3 +355,38 @@ markets. Four feeds. The card travels."*
 Later items: the lines are text only (no `audio`/`take`, so they play silent and show as "no take" in the Voice
 tab); recording them through Hawkes Gen costs cents. No new art is needed. Pacing (CPU levels, stocks, the 200%
 quota in 80 seconds) is not sim-tuned.
+
+## Season 7: The Reboot (as built)
+
+Syndication made the show so big that the network does what television does with a hit: it reboots it. Four nights,
+each a remake of an old kind of episode (a pilot, a sitcom, a crossover, a finale), with the same champion and a
+"bold new look" that is the old look with a bigger budget. No villain. The Orchestrator is off the air (not seen,
+not heard) and **The Mechanic is not used** (still a candidate, not confirmed canon). Blog Man hosts and the narrator
+stays; Exit Punk is the player, team 0. Every fighter and stage exists; the walk-ons are fighters no earlier season
+made a walk-on (Evil Blue Bird, Shutup Bot, Stratabots, Future Man), and TT fights as Stratabots' partner and is not
+unlocked (one fighter per chapter). Only the Mechanic is left unused. No new rule or mechanic is needed.
+
+| # | Episode (id) | Walk-on (CPU level) | Stage | Rule twist | Unlocks |
+|---|---|---|---|---|---|
+| 1 | Pilot Remake (`pilot-remake`) | Evil Blue Bird (6) | City Top | Both start every life at 100% (`startPercent: 1000`): one clean hit can end it. 2 stocks each. | Evil Blue Bird |
+| 2 | Laugh Track (`laugh-track`) | Shutup Bot (6), 4 stocks, every life at 100% | Yo House | **Ratings** (`objective: ko`): 2 KOs before the 90-second clock (`timeLimit: 5400`). | Shutup Bot |
+| 3 | Crossover Event (`crossover-event`) | Stratabots (7) and TT (6), 2 stocks each | Rainbow Full Pipe | Two on one: Exit Punk has 3 stocks. Gravity at 115% (`gravity: 115`). | Stratabots |
+| 4 | Series Finale (`series-finale`) | Future Man (8) | City Top | Damage at 120% (`damage: 120`). 3 stocks each. | Future Man |
+
+The beats:
+
+1. **Pilot Remake.** The reboot starts on the roof where it started, with a new logo. Evil Blue Bird: "I get to be the
+   first one this time." Exit Punk: "You were already first." After: "That was not in the script."
+2. **Laugh Track.** The network added a canned laugh to a comedy nobody asked for; Shutup Bot doesn't talk and doesn't
+   flinch. After: "Fine." (his only line, as in Bad Signal). Blog Man: the laugh track is off, the ratings are up anyway.
+3. **Crossover Event.** Two shows on one night. Stratabots: "Plates up." TT: "I am heavier than I look." Exit Punk:
+   "Believe it." The spin-off gets a pilot; Blog Man isn't sure how this works.
+4. **Series Finale.** Back on City Top for the last night, with a guest from the next season who isn't allowed to
+   say how it goes. After: "That is not how it went in the next season." Exit Punk: "Good night, future."
+
+**Season end** (the last line of Series Finale's outro, and the map's end line under Season 7). Narrator: *"Four pilots.
+Four reboots. The champion was never recast."*
+
+Later items: the lines are text only (no `audio`/`take`, so they play silent and show as "no take" in the Voice tab);
+recording them through Hawkes Gen costs cents. No new art is needed (GPU estimate: none). Pacing (CPU levels, stocks, the
+2-KO Laugh Track clock) is not sim-tuned.

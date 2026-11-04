@@ -76,6 +76,7 @@ const SEASON_TEXT: Record<number, { subtitle: string; end: string }> = {
   4: { subtitle: 'The Rival Broadcast', end: 'Two networks. One card. The show is still his.' },
   5: { subtitle: 'Sweeps Week', end: 'Four nights. Four sweeps. Nobody changed the channel.' },
   6: { subtitle: 'Syndication', end: 'Four markets. Four feeds. The card travels.' },
+  7: { subtitle: 'The Reboot', end: 'Four pilots. Four reboots. The champion was never recast.' },
 };
 
 /** The seasons that have chapters, in order. */
