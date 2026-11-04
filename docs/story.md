@@ -72,8 +72,9 @@ season the chapters unlock in order, as they always have. Once a season is clear
 - Season 2, *The card is yours*: "Four walk-ons. Four defenses. The card is still his."
 - Season 3, *The Orchestrator Returns*: "He signed the sheet. He took the baton. The show goes on."
 - Season 4, *The Rival Broadcast*: "Two networks. One card. The show is still his."
+- Season 5, *Sweeps Week*: "Four nights. Four sweeps. Nobody changed the channel."
 
-Seasons 5 to 10 are not written yet: Season 3 is the Orchestrator's return arc, not the end of the show, and a new
+Seasons 6 to 10 are not written yet: Season 3 is the Orchestrator's return arc, not the end of the show, and a new
 season just adds `"season": N` chapters (it shows locked until the season before is cleared).
 
 The names and end lines live in `src/game/campaign/story.ts` (`SEASON_TEXT`) next to the chapter reader.
@@ -85,7 +86,8 @@ the fighter id that joins the card when that episode is cleared, always the walk
 Mic: Kaelen, House Heavy: Break, Bad Signal: DJ Won't Read, Low Pressure: Small Weather, Turn the Page: Blog Man,
 Sudden Death: Slice, Dead Weight: SS Boulder, Encore: the Orchestrator, Title Defense: Shark Dude, Drop In: Pyro
 Singer, The Champion's Tax: Susan, Sponsored: Wallit, Simulcast: Cel, Rerun: Try Belt, Cut to Size: Crosser, Hostile
-Takeover: Crystalline Intelligences). Walk-On, with no `unlock`, gives nothing.
+Takeover: Crystalline Intelligences, Cold Open: Uh Me, Product Placement: Yo Bot, Dead Air: Spider Bot, Clip Show: Lapis
+Man). Walk-On, with no `unlock`, gives nothing.
 
 - A fighter named by some chapter is **locked** on a fresh save: a dark "Locked" tile in Versus select (the preview
   says which episode opens them), a grey picture in Profile. Everyone no chapter names (Exit Punk first) is open.
@@ -269,3 +271,36 @@ networks. One card. The show is still his."* The rival network's fold leaves Sea
 
 Later items: the lines are text only (no `audio`/`take` yet, so they play silent and show as "no take" in the
 Voice tab); recording them through Hawkes Gen costs cents. No new art is needed.
+
+## Season 5: Sweeps Week (as built)
+
+The rival broadcast is dead and every screen in the city is back on one channel. The network answers the way
+television does: it calls Sweeps Week, four nights where the ratings decide everything and the champion
+fights whatever the network can book. No villain this season. The Orchestrator is off the air (not seen,
+not heard) and **The Mechanic is not used** (still a candidate, not confirmed canon). Blog Man hosts and the
+narrator stays; Exit Punk is the player, team 0. Every fighter and stage exists; the four walk-ons are
+fighters no earlier season used (Uh Me, Yo Bot, Spider Bot, Lapis Man); TT also fights, as Lapis Man's
+partner, and is not unlocked (one fighter per chapter).
+
+| # | Episode (id) | Walk-on (CPU level) | Stage | Rule twist | Unlocks |
+|---|---|---|---|---|---|
+| 1 | Cold Open (`cold-open`) | Uh Me (5) | City Top | Light gravity (`gravity: 70`): everything floats, and Uh Me is the best at it. 3 stocks each. | Uh Me |
+| 2 | Product Placement (`product-placement`) | Yo Bot (6) | Yo House | The sponsor's night: damage at 130% (`damage: 130`) for both. 3 stocks each. | Yo Bot |
+| 3 | Dead Air (`dead-air`) | Spider Bot (6), 3 stocks | Solar Array | Survive 60 seconds (`objective: survive`), the signal drops. Exit Punk has 2 stocks. | Spider Bot |
+| 4 | Clip Show (`clip-show`) | Lapis Man (7) and TT (6), 2 stocks each | Humans In The Loop | Two on two: Blog Man (CPU 5) fights beside Exit Punk. 3 stocks on the champion's side. | Lapis Man |
+
+The beats:
+
+1. **Cold Open.** Sweeps Week starts with no warning, and with the gravity turned down "for reasons". Uh Me: "The
+   ground is real." Exit Punk: "Next."
+2. **Product Placement.** The sponsor is also the walk-on. Yo Bot's laptop hits back, 30% harder. After: "Low battery."
+3. **Dead Air.** The signal drops for a minute and the champion has to stay on it. Spider Bot doesn't leave. "You
+   didn't try to win." "Didn't need to."
+4. **Clip Show.** The last night: every highlight, and one live fight with the host in it ("I did not read the fine
+   print"). Lapis Man and TT. Exit Punk: "Good night."
+
+**Season end** (the last line of Clip Show's outro, and the map's end line under Season 5). Narrator: *"Four nights.
+Four sweeps. Nobody changed the channel."*
+
+Later items: the lines are text only (no `audio`/`take`, so they play silent and show as "no take" in the Voice tab);
+recording them through Hawkes Gen costs cents. No new art is needed. Pacing (CPU levels, stocks) is not sim-tuned.
