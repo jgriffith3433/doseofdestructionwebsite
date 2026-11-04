@@ -1,0 +1,3 @@
+- convention: new season — add it to docs/story.md, content/campaign.json and SEASON_TEXT in story.ts, then run `node tools/playtest-bridge.mjs`. The `campaign` scenario takes `{"season":N}`.
+- lesson: no fresh fighters left — Season 7 used all but the Mechanic, so Season 8 reuses fighters and leaves `unlock` out (unlocks.test.ts allows one chapter per fighter).
+- canon: Season 8 Awards Season — four ceremony episodes with returning walk-ons; end line "Four nominees. Four envelopes. The speech was four words."
