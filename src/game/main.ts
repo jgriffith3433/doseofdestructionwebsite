@@ -198,8 +198,15 @@ async function spotlight(animate = false): Promise<void> {
   spotBusy = false;
   if (spotIndex % CHARACTERS.length !== i) return;
   const img = $<HTMLImageElement>('main-spot-img');
+  // Swap the picture and wait for it to decode before the caption changes, so the name never
+  // sits under the previous fighter's art while the new file is still loading into the <img>.
+  spotBusy = true;
   img.src = largeUrl(c.id);
+  await img.decode().catch(() => undefined);
+  spotBusy = false;
+  if (spotIndex % CHARACTERS.length !== i) return;
   $('main-spot-name').textContent = c.name;
+  img.dataset.fighter = c.id;
   spotShown = i;
   if (animate) {
     img.classList.remove('swap');
