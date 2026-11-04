@@ -2642,5 +2642,269 @@
         }
       ]
     }
+  },
+  {
+    "id": "teaser",
+    "season": 9,
+    "title": "Teaser",
+    "tagline": "Season 9 opens with thirty seconds of footage and no explanation.",
+    "hint": "Gravity is a little heavy (115%): your jumps are short and you fall fast, so keep your feet near the roof and make Shark Dude come to you. 3 stocks each.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "City Top. The rooftop is dark except for a screen, and the screen is counting down."
+      },
+      {
+        "who": "blog-man",
+        "text": "Welcome to Season 9. The network has cut a teaser for the finale. It is thirty seconds long, it shows nothing, and it ends on a sign-up sheet."
+      },
+      {
+        "who": "shark-dude",
+        "text": "I defended this roof once. I am here to watch the champion defend it."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Watch closer."
+      }
+    ],
+    "outro": [
+      {
+        "who": "shark-dude",
+        "text": "Good teaser."
+      },
+      {
+        "who": "blog-man",
+        "text": "The footage is out. The sheet at the end of the clip has a name on it, and the network will not say whose. The ratings are up anyway."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Next clip."
+      }
+    ],
+    "fight": {
+      "stage": "city-top",
+      "stocks": 3,
+      "rules": {
+        "gravity": 115
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "shark-dude",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "trailer",
+    "season": 9,
+    "title": "Trailer",
+    "tagline": "Two walk-ons cut a trailer together and neither will share the voiceover.",
+    "hint": "Two on one: Wallit pushes with sponsor money, Cel keeps coming back for more. They have two stocks each, you have three. Take the quicker one out first.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Rainbow Full Pipe. Two lights on the pipe, one for each walk-on."
+      },
+      {
+        "who": "blog-man",
+        "text": "In a world where the champion has cleared eight seasons, two walk-ons share a trailer. The voiceover has not been recorded. Neither of them will let the other do it."
+      },
+      {
+        "who": "wallit",
+        "text": "This trailer is sponsored. I would like my name in the first ten seconds."
+      },
+      {
+        "who": "cel",
+        "text": "I would like my name in the first five."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Your names are fine. Fight."
+      }
+    ],
+    "outro": [
+      {
+        "who": "wallit",
+        "text": "The trailer ran a minute long."
+      },
+      {
+        "who": "cel",
+        "text": "The best part was cut."
+      },
+      {
+        "who": "blog-man",
+        "text": "The voiceover went to the champion, who recorded four words. The network says it tests well."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Coming this fall."
+      }
+    ],
+    "fight": {
+      "stage": "rainbow-full-pipe",
+      "stocks": 3,
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "wallit",
+          "cpu": 7,
+          "team": 1,
+          "stocks": 2
+        },
+        {
+          "char": "cel",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "table-read",
+    "season": 9,
+    "title": "Table Read",
+    "tagline": "The cast sits down with the finale script, and every page has a hole in it.",
+    "hint": "Ratings: 2 KOs before the 90-second clock. Try Belt hangs on to the edge, so go for the ones at the edge. 3 stocks each.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Desert. A long table, a stack of scripts, and a page missing from every copy."
+      },
+      {
+        "who": "blog-man",
+        "text": "Table read for the Season 10 finale. The script is sealed, so tonight the cast will read the fights instead. The network wants two KOs in ninety seconds, which is what the missing page asks for."
+      },
+      {
+        "who": "try-belt",
+        "text": "I have read every page of the show. I have not read this one."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Nobody has."
+      }
+    ],
+    "outro": [
+      {
+        "who": "try-belt",
+        "text": "Strong read."
+      },
+      {
+        "who": "blog-man",
+        "text": "The missing page has surfaced. It has one line on it, in the Orchestrator's handwriting: the finale needs two of him."
+      },
+      {
+        "who": "exit-punk",
+        "text": "He wrote that himself?"
+      },
+      {
+        "who": "blog-man",
+        "text": "The network is checking."
+      }
+    ],
+    "fight": {
+      "stage": "desert",
+      "stocks": 3,
+      "rules": {
+        "timeLimit": 5400
+      },
+      "objective": "ko",
+      "kos": 2,
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "try-belt",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "cliffhanger",
+    "season": 9,
+    "title": "Cliffhanger",
+    "tagline": "The last night of the season ends the way television ends a season: mid-sentence.",
+    "hint": "Quota: deal 280% before the 100-second clock runs out. Every hit lands a little harder (damage 110%). Pyro Singer sets the stage on fire, so keep moving and keep hitting.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Cursed Town. The sky over the Foundry is a single shot held too long."
+      },
+      {
+        "who": "blog-man",
+        "text": "Season 9 ends on a cliffhanger. The network asks for 280 percent in a hundred seconds, and will not say what happens after. We are told there is a baton involved."
+      },
+      {
+        "who": "pyro-singer",
+        "text": "I have a song for the cliffhanger. It does not resolve."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Then sing it fast."
+      }
+    ],
+    "outro": [
+      {
+        "who": "pyro-singer",
+        "text": "To be continued."
+      },
+      {
+        "who": "blog-man",
+        "text": "The network has released the finale card. Two sign-up sheets, one name on both. It is the same handwriting, and nobody will say whose."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Two sheets. Fine. Same time tomorrow."
+      },
+      {
+        "who": "narrator",
+        "text": "Four teasers. One cliffhanger. Two names on the sheet."
+      }
+    ],
+    "fight": {
+      "stage": "cursed-town",
+      "stocks": 3,
+      "rules": {
+        "damage": 110,
+        "timeLimit": 6000
+      },
+      "objective": "quota",
+      "quota": 280,
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "pyro-singer",
+          "cpu": 7,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
   }
 ]

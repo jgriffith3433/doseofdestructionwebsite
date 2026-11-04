@@ -76,8 +76,9 @@ season the chapters unlock in order, as they always have. Once a season is clear
 - Season 6, *Syndication*: "Four markets. Four feeds. The card travels."
 - Season 7, *The Reboot*: "Four pilots. Four reboots. The champion was never recast."
 - Season 8, *Awards Season*: "Four nominees. Four envelopes. The speech was four words."
+- Season 9, *The Cliffhanger*: "Four teasers. One cliffhanger. Two names on the sheet."
 
-Seasons 9 and 10 are not written yet: Season 3 is the Orchestrator's return arc, not the end of the show, and a new
+Season 10 is not written yet (the double Orchestrator finale, set up by Season 9): Season 3 is the Orchestrator's return arc, not the end of the show, and a new
 season just adds `"season": N` chapters (it shows locked until the season before is cleared).
 
 The names and end lines live in `src/game/campaign/story.ts` (`SEASON_TEXT`) next to the chapter reader.
@@ -442,3 +443,40 @@ nominees. Four envelopes. The speech was four words."*
 Later items: the lines are text only (no `audio`/`take`); recording them through Hawkes Gen costs cents. No new art
 is needed (GPU estimate: none). Pacing (CPU levels, stocks, the 250% quota, the 4-hit streak) is not sim-tuned; the 4-hit streak
 is one easier than Series Finale's 5.
+
+## Season 9: The Cliffhanger (as built)
+
+Awards season is over, and television does what it does before a finale: it teases it. Four nights of promotion (a
+teaser, a trailer, a table read, a cliffhanger), each a piece of the Season 10 finale that the network won't show
+whole. No villain, and the Orchestrator is still off the air: **he is never seen or heard in Season 9, only talked
+about**, so the first time he is on the card again is the finale. **The Mechanic is not used** (still a candidate,
+not confirmed canon). Blog Man hosts and the narrator stays; Exit Punk is the player, team 0. The promoters are
+**returning walk-ons** (Shark Dude, Wallit and Cel, Try Belt, Pyro Singer), in their own voices. Nobody is unlocked
+(`unlock` is left out, as in Season 8).
+
+| # | Episode (id) | Walk-on (CPU level) | Stage | Rule twist | Unlocks |
+|---|---|---|---|---|---|
+| 1 | Teaser (`teaser`) | Shark Dude (6) | City Top | Heavy gravity (`gravity: 115`). 3 stocks each. | none |
+| 2 | Trailer (`trailer`) | Wallit (7) and Cel (5), 2 stocks each | Rainbow Full Pipe | Two on one: Exit Punk has 3 stocks. | none |
+| 3 | Table Read (`table-read`) | Try Belt (6) | Desert | **Ratings** (`objective: ko`): 2 KOs before the 90-second clock (`timeLimit: 5400`). 3 stocks each. | none |
+| 4 | Cliffhanger (`cliffhanger`) | Pyro Singer (7) | Cursed Town | **Quota** (`objective: quota`): deal 280% before the 100-second clock (`timeLimit: 6000`). Damage at 110%. 3 stocks each. | none |
+
+The beats, and how they set up Season 10:
+
+1. **Teaser.** A 30-second teaser that shows nothing and ends on a sign-up sheet. Shark Dude: "I am here to watch the
+   champion defend it." After: the sheet has a name on it; the network won't say whose.
+2. **Trailer.** Wallit and Cel share a trailer and fight over the voiceover. After: the champion records it, four words.
+3. **Table Read.** The finale script has a page missing from every copy. After: the page turns up, in the
+   Orchestrator's handwriting: *the finale needs two of him.* Blog Man: the network is checking.
+4. **Cliffhanger.** Pyro Singer sings a song that doesn't resolve. After: the finale card is out, two sign-up sheets
+   with one name on both, in the same handwriting. Exit Punk: "Two sheets. Fine. Same time tomorrow."
+
+**Season end** (the last line of Cliffhanger's outro, and the map's end line under Season 9). Narrator: *"Four
+teasers. One cliffhanger. Two names on the sheet."*
+
+**For Season 10 (not built):** a single double-Orchestrator finale. Two Orchestrators on the card (the Encore's and the
+Walk-On's, or one on each team). Season 9 only promises it. It needs a decision on who the second one is (a twin, a
+rival network's cut, a rerun) before it is written, and Exit Punk's partner or rules are open.
+
+Later items: the lines are text only (no `audio`/`take`); recording them through Hawkes Gen costs cents. No new art is
+needed (GPU estimate: none). Pacing (CPU levels, stocks, the 280% quota, the 2-KO clock) is not sim-tuned.
