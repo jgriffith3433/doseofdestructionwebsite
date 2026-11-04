@@ -505,7 +505,11 @@ class Run {
     await this.click(() => document.querySelectorAll<HTMLElement>('#select-grid .tile')[meIdx], CHARACTERS[meIdx].name);
     await this.click(() => document.querySelectorAll<HTMLElement>('#select-grid .tile')[foeIdx], `CPU: ${CHARACTERS[foeIdx].name}`);
     // The hovered fighter's preview must show a loaded portrait, not just the stats.
-    const shown = document.querySelector<HTMLImageElement>('#select-preview img');
+    // Images load asynchronously after the click: wait for it (up to 5 s) before judging.
+    const previewImg = () => document.querySelector<HTMLImageElement>('#select-preview img');
+    const tp = Date.now();
+    while (Date.now() - tp < 5000 && !(previewImg()?.complete && (previewImg()?.naturalWidth ?? 0) > 0)) await new Promise((r) => setTimeout(r, 100));
+    const shown = previewImg();
     if (shown && shown.complete && shown.naturalWidth > 0) {
       this.t.event('select-preview', `${CHARACTERS[foeIdx].name}: portrait shown (${shown.naturalWidth}x${shown.naturalHeight})`);
     } else {
