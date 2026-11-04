@@ -2378,5 +2378,269 @@
       "objective": "streak",
       "streak": 5
     }
+  },
+  {
+    "id": "red-carpet",
+    "season": 8,
+    "title": "Red Carpet",
+    "tagline": "The awards show opens on the red carpet, and nobody is allowed to scuff it.",
+    "hint": "Quiet stage: no hazards, just the two of you on the carpet. Kaelen is quick and likes to rush in, so wait for him to commit and hit him on the way out. 3 stocks each.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Solar Array. A red carpet runs across the panels, and the cameras are already flashing."
+      },
+      {
+        "who": "blog-man",
+        "text": "Welcome to Awards Season. The network has nominated itself in every category. The champion is nominated in all of them. The carpet is brand new and the producers would like it to stay that way."
+      },
+      {
+        "who": "kaelen",
+        "text": "I came to say I'm glad to be here. The first night, the first fight, and now the first carpet."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Then stay glad."
+      }
+    ],
+    "outro": [
+      {
+        "who": "kaelen",
+        "text": "Still glad."
+      },
+      {
+        "who": "blog-man",
+        "text": "The carpet has one scuff, and it is the champion's. The network is calling it a signature."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Next category."
+      }
+    ],
+    "fight": {
+      "stage": "solar-array",
+      "stocks": 3,
+      "rules": {
+        "hazards": 0
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "kaelen",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "best-supporting",
+    "season": 8,
+    "title": "Best Supporting",
+    "tagline": "Two nominees, one category, and a disagreement about who is supporting whom.",
+    "hint": "Two on one: Break hits hard, Small Weather keeps pushing you around. They have two stocks each, you have three. Gravity is a little light: your jumps float, so watch where you land.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Yo House. Two spotlights, one small stage."
+      },
+      {
+        "who": "blog-man",
+        "text": "Best Supporting Fighter. Two nominees, and neither will agree which of them is supporting. The envelope is sealed. The fight will open it."
+      },
+      {
+        "who": "break",
+        "text": "I was the lead in House Heavy. I am here for the credit."
+      },
+      {
+        "who": "small-weather",
+        "text": "It is going to rain on your credit."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Both of you, then."
+      }
+    ],
+    "outro": [
+      {
+        "who": "break",
+        "text": "I was the lead."
+      },
+      {
+        "who": "small-weather",
+        "text": "You were the weather."
+      },
+      {
+        "who": "blog-man",
+        "text": "The category has no winner and two thank-you speeches. Both are running long."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Congratulations. Both."
+      }
+    ],
+    "fight": {
+      "stage": "yo-house",
+      "stocks": 3,
+      "rules": {
+        "gravity": 90
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "break",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 2
+        },
+        {
+          "char": "small-weather",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "lifetime-achievement",
+    "season": 8,
+    "title": "Lifetime Achievement",
+    "tagline": "The network gives the champion a lifetime award, and a quota to earn it.",
+    "hint": "Quota: deal 250% before the 90-second clock runs out. Every hit lands a little harder (damage 110%). Slice is quick and keeps cutting in: stay on him, and don't wait for the clock.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Space Chess. The board is set for a ceremony: a long table, a short speech."
+      },
+      {
+        "who": "blog-man",
+        "text": "Tonight the champion receives a Lifetime Achievement Award. The network asks for 250 percent of applause in ninety seconds, which in this show means damage. Slice is presenting the ribbon."
+      },
+      {
+        "who": "slice",
+        "text": "I have been cutting the ribbon all night. I have not had a chance to cut anything else."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Cut this."
+      }
+    ],
+    "outro": [
+      {
+        "who": "slice",
+        "text": "Lifetime. Already?"
+      },
+      {
+        "who": "blog-man",
+        "text": "The champion has a lifetime award and, according to the network, a lifetime to spend it. The award is heavier than it looks."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Seems so."
+      }
+    ],
+    "fight": {
+      "stage": "space-chess",
+      "stocks": 3,
+      "rules": {
+        "damage": 110,
+        "timeLimit": 5400
+      },
+      "objective": "quota",
+      "quota": 250,
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "slice",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "best-in-show",
+    "season": 8,
+    "title": "Best in Show",
+    "tagline": "The big envelope, and an editor who wants a clean acceptance.",
+    "hint": "Clean streak: land 4 hits in a row without being hit back, before the 90-second clock runs out. Getting hit starts the count over. Every hit lands harder (damage 120%). Susan hits like a tax bill: poke, then back off, and don't trade.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Humans In The Loop. The last category of the night, the biggest envelope, and a stage lit like a trophy."
+      },
+      {
+        "who": "blog-man",
+        "text": "Best in Show. The editor wants a clean acceptance clip: four hits in a row, no cuts, before the clock runs out. Get hit and the footage is ruined. Also, Susan has asked for a word with the champion."
+      },
+      {
+        "who": "susan",
+        "text": "I have waited since The Champion's Tax. I want the receipt."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Come and get it."
+      }
+    ],
+    "outro": [
+      {
+        "who": "susan",
+        "text": "Keep the trophy. I will keep the receipt."
+      },
+      {
+        "who": "blog-man",
+        "text": "The acceptance speech runs four words long, which is the first speech this season to come in under time. The network has asked for it to be longer."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Thanks. Good night. Goodbye. Nice."
+      },
+      {
+        "who": "narrator",
+        "text": "Four nominees. Four envelopes. The speech was four words."
+      }
+    ],
+    "fight": {
+      "stage": "humans-in-the-loop",
+      "stocks": 3,
+      "rules": {
+        "damage": 120,
+        "timeLimit": 5400
+      },
+      "objective": "streak",
+      "streak": 4,
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "susan",
+          "cpu": 7,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
   }
 ]

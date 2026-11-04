@@ -77,6 +77,7 @@ const SEASON_TEXT: Record<number, { subtitle: string; end: string }> = {
   5: { subtitle: 'Sweeps Week', end: 'Four nights. Four sweeps. Nobody changed the channel.' },
   6: { subtitle: 'Syndication', end: 'Four markets. Four feeds. The card travels.' },
   7: { subtitle: 'The Reboot', end: 'Four pilots. Four reboots. The champion was never recast.' },
+  8: { subtitle: 'Awards Season', end: 'Four nominees. Four envelopes. The speech was four words.' },
 };
 
 /** The seasons that have chapters, in order. */

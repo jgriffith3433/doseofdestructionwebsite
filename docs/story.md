@@ -75,8 +75,9 @@ season the chapters unlock in order, as they always have. Once a season is clear
 - Season 5, *Sweeps Week*: "Four nights. Four sweeps. Nobody changed the channel."
 - Season 6, *Syndication*: "Four markets. Four feeds. The card travels."
 - Season 7, *The Reboot*: "Four pilots. Four reboots. The champion was never recast."
+- Season 8, *Awards Season*: "Four nominees. Four envelopes. The speech was four words."
 
-Seasons 8 to 10 are not written yet: Season 3 is the Orchestrator's return arc, not the end of the show, and a new
+Seasons 9 and 10 are not written yet: Season 3 is the Orchestrator's return arc, not the end of the show, and a new
 season just adds `"season": N` chapters (it shows locked until the season before is cleared).
 
 The names and end lines live in `src/game/campaign/story.ts` (`SEASON_TEXT`) next to the chapter reader.
@@ -405,3 +406,39 @@ won in about 7 fights of 12 (3 in 60 s is won every time, 5 in 60 s about 5 of 1
 Later items: the lines are text only (no `audio`/`take`, so they play silent and show as "no take" in the Voice tab);
 recording them through Hawkes Gen costs cents. No new art is needed (GPU estimate: none). Pacing of the other episodes
 (CPU levels, stocks, the 2-KO Laugh Track clock) is not sim-tuned.
+
+## Season 8: Awards Season (as built)
+
+The reboot was a hit, so the network does what television does next: it gives itself prizes. Four nights of the
+awards show, each a stage of the ceremony (the red carpet, the supporting category, the lifetime award, the big
+one), and the champion is nominated for everything. No villain. The Orchestrator is off the air (not seen, not heard)
+and **The Mechanic is not used** (still a candidate, not confirmed canon). Blog Man hosts and the narrator stays; Exit
+Punk is the player, team 0. Season 7 used every fighter but the Mechanic, so the nominees are **returning walk-ons**
+from earlier seasons (Kaelen, Break and Small Weather, Slice, Susan) in their own voices, glad to be nominated. Nobody
+is unlocked this season: they already joined the card (`unlock` is left out, as in Walk-On).
+
+| # | Episode (id) | Nominee (CPU level) | Stage | Rule twist | Unlocks |
+|---|---|---|---|---|---|
+| 1 | Red Carpet (`red-carpet`) | Kaelen (6) | Solar Array | Quiet stage (`hazards: 0`): the carpet is not to be scuffed. 3 stocks each. | none |
+| 2 | Best Supporting (`best-supporting`) | Break (6) and Small Weather (5), 2 stocks each | Yo House | Two on one: Exit Punk has 3 stocks. Gravity at 90% (`gravity: 90`). | none |
+| 3 | Lifetime Achievement (`lifetime-achievement`) | Slice (6) | Space Chess | **Quota** (`objective: quota`): deal 250% before the 90-second clock (`timeLimit: 5400`). Damage at 110% (`damage: 110`). 3 stocks each. | none |
+| 4 | Best in Show (`best-in-show`) | Susan (7) | Humans In The Loop | **Clean Streak** (`objective: streak`): land 4 hits in a row without being hit before the 90-second clock (`timeLimit: 5400`). Damage at 120%. 3 stocks each. | none |
+
+The beats:
+
+1. **Red Carpet.** Kaelen, first opponent of the first night, is back to walk the carpet. Kaelen: "I came to say I'm
+   glad to be here." Exit Punk: "Then stay glad." After: "Still glad." Blog Man: nobody scuffed the carpet but the champion.
+2. **Best Supporting.** Two nominees for the supporting award; Break and Small Weather share a category and a grudge
+   about who is supporting whom. After: Break: "I was the lead." Small Weather: "You were the weather." Exit Punk: "Congratulations."
+3. **Lifetime Achievement.** The network gives the champion a lifetime award, which takes a quota: 250% of
+   applause, in 90 seconds. Slice has been cutting the ribbon all night. After: "Lifetime. Already?" Exit Punk: "Seems so."
+4. **Best in Show.** The big envelope. Susan has been waiting for the champion since The Champion's Tax and wants a
+   word. The editor wants a clean acceptance: four hits in a row, nobody touches the champion. After: Susan: "Keep
+   the trophy. I'll keep the receipt." Exit Punk's speech: "Thanks. Good night. Goodbye. Nice."
+
+**Season end** (the last line of Best in Show's outro, and the map's end line under Season 8). Narrator: *"Four
+nominees. Four envelopes. The speech was four words."*
+
+Later items: the lines are text only (no `audio`/`take`); recording them through Hawkes Gen costs cents. No new art
+is needed (GPU estimate: none). Pacing (CPU levels, stocks, the 250% quota, the 4-hit streak) is not sim-tuned; the 4-hit streak
+is one easier than Series Finale's 5.
