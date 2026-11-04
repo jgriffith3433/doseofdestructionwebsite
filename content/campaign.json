@@ -2906,5 +2906,151 @@
         }
       ]
     }
+  },
+  {
+    "id": "first-cut",
+    "season": 10,
+    "title": "First Cut",
+    "tagline": "The finale starts on time. The host is on the card, and so is the baton.",
+    "hint": "The host steps onto his own set at giant size. Stay moving, punish his landings, and carry your stocks: the second fight starts the moment this one ends.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Humans In The Loop. Season 10, the finale, live from the Foundry. Both sign-up sheets are on the card."
+      },
+      {
+        "who": "blog-man",
+        "text": "Handwriting analysis is in. Both sheets are signed by the same man. Tonight he is on the card twice."
+      },
+      {
+        "who": "orchestrator",
+        "text": "The host, then the walk-on. A finale needs two of me. One to run the show, one to fight for it."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Two of you. Same baton?"
+      },
+      {
+        "who": "orchestrator",
+        "text": "Same baton. Ladies and gentlemen: the host."
+      }
+    ],
+    "outro": [
+      {
+        "who": "narrator",
+        "text": "The host goes down on his own set. The lights do not cut to black. They cut to the next shot."
+      },
+      {
+        "who": "blog-man",
+        "text": "We are not going to commercial. The network has asked me to say that the finale is two parts, back to back."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Back to back. Fine."
+      },
+      {
+        "who": "orchestrator",
+        "text": "That was the host. Now meet the walk-on."
+      }
+    ],
+    "fight": {
+      "stage": "humans-in-the-loop",
+      "stocks": 3,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "orchestrator",
+          "cpu": 8,
+          "team": 1,
+          "scale": 150,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "final-cut",
+    "season": 10,
+    "title": "Final Cut",
+    "tagline": "The walk-on signs the second sheet. Last fight of the last season.",
+    "hint": "No break after the first fight: you start at 60%. The walk-on is at full speed and has no reason to hold back. This is the last fight of the series.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "City Top, where the first night began. The skyline is the same. Nobody on it is the same."
+      },
+      {
+        "who": "blog-man",
+        "text": "Part two. The walk-on, no sponsor, no record, one baton. Exit Punk starts at sixty percent. The network calls it continuity."
+      },
+      {
+        "who": "orchestrator",
+        "text": "I ran this show for years and I only ever wanted one ending. Tonight I get to fight it."
+      },
+      {
+        "who": "exit-punk",
+        "text": "You said there was no exit."
+      },
+      {
+        "who": "orchestrator",
+        "text": "There was only ever the next show. Make it a good one."
+      }
+    ],
+    "outro": [
+      {
+        "who": "narrator",
+        "text": "The baton lands on City Top. Both sheets lie on the floor, and the handwriting on them finally looks like two different men."
+      },
+      {
+        "who": "orchestrator",
+        "text": "The host and the walk-on, one finale, and the best ratings the show has ever had. I will take the credit."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: The Show Ends, The Champion Stays. I only needed one headline for once."
+      },
+      {
+        "who": "exit-punk",
+        "text": "I came for the exit."
+      },
+      {
+        "who": "orchestrator",
+        "text": "And?"
+      },
+      {
+        "who": "exit-punk",
+        "text": "It was a good show."
+      },
+      {
+        "who": "narrator",
+        "text": "Two Orchestrators. Two fights. One finale. The card is yours, and the show is over."
+      }
+    ],
+    "fight": {
+      "stage": "city-top",
+      "stocks": 3,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "startPercent": 600,
+          "stocks": 3
+        },
+        {
+          "char": "orchestrator",
+          "cpu": 9,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
   }
 ]

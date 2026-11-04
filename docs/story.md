@@ -78,8 +78,9 @@ season the chapters unlock in order, as they always have. Once a season is clear
 - Season 8, *Awards Season*: "Four nominees. Four envelopes. The speech was four words."
 - Season 9, *The Cliffhanger*: "Four teasers. One cliffhanger. Two names on the sheet."
 
-Season 10 is not written yet (the double Orchestrator finale, set up by Season 9): Season 3 is the Orchestrator's return arc, not the end of the show, and a new
-season just adds `"season": N` chapters (it shows locked until the season before is cleared).
+- Season 10, *The Finale*: "Two Orchestrators. Two fights. One finale. The card is yours, and the show is over."
+
+A new season just adds `"season": N` chapters (it shows locked until the season before is cleared). Season 10 is the last: its end line closes the series.
 
 The names and end lines live in `src/game/campaign/story.ts` (`SEASON_TEXT`) next to the chapter reader.
 
@@ -474,9 +475,35 @@ The beats, and how they set up Season 10:
 **Season end** (the last line of Cliffhanger's outro, and the map's end line under Season 9). Narrator: *"Four
 teasers. One cliffhanger. Two names on the sheet."*
 
-**For Season 10 (not built):** a single double-Orchestrator finale. Two Orchestrators on the card (the Encore's and the
-Walk-On's, or one on each team). Season 9 only promises it. It needs a decision on who the second one is (a twin, a
-rival network's cut, a rerun) before it is written, and Exit Punk's partner or rules are open.
+Season 10 is built, see below.
 
 Later items: the lines are text only (no `audio`/`take`); recording them through Hawkes Gen costs cents. No new art is
 needed (GPU estimate: none). Pacing (CPU levels, stocks, the 280% quota, the 2-KO clock) is not sim-tuned.
+
+## Season 10: The Finale (as built)
+
+The last season of the show. Season 9 promised two Orchestrators, two sign-up sheets and one handwriting, and it keeps the
+promise: the Orchestrator is on the card twice, as **the host** (the man who ran the Encore) and **the walk-on** (the man
+who signed the sheet in Season 3). One man, two halves of the show: the one who runs it and the one who fights for it.
+It is not a twin, a rival network or a rerun; it is the same man, and the show needs both. This is the only season where
+he is seen after Season 3. Blog Man hosts and the narrator stays; Exit Punk is the player, team 0. Two episodes, played
+back to back (no new engine code, no new fighter, nothing unlocked: `unlock` is left out). The Mechanic is not used.
+
+| # | Episode (id) | Opponent (CPU level) | Stage | Rule twist | Unlocks |
+|---|---|---|---|---|---|
+| 1 | First Cut (`first-cut`) | The Orchestrator, the host (8), at 150% size, 3 stocks | Humans In The Loop | The Encore's giant, back on his home set. 3 stocks each. | none |
+| 2 | Final Cut (`final-cut`) | The Orchestrator, the walk-on (9), 3 stocks | City Top | No break after fight one: Exit Punk starts at 60% (`startPercent: 600`). 3 stocks each. | none |
+
+The beats:
+
+1. **First Cut.** Both sheets are on the card, same handwriting. The host: "A finale needs two of me." After: the lights
+   cut to the next shot, not to black. Blog Man: the finale is two parts, back to back. Exit Punk: "Back to back. Fine."
+2. **Final Cut.** City Top, where the first night began. The walk-on has wanted one ending and tonight he fights it.
+   After: the baton lands and the handwriting on the two sheets looks like two men. Exit Punk: "I came for the exit."
+   The Orchestrator: "And?" Exit Punk: "It was a good show."
+
+**Season end, and the end of the series** (the last line of Final Cut's outro, and the map's end line under Season 10).
+Narrator: *"Two Orchestrators. Two fights. One finale. The card is yours, and the show is over."*
+
+Later items: the lines are text only (no `audio`/`take`); recording them through Hawkes Gen costs cents. No new art is
+needed (GPU estimate: none). Pacing (CPU 8 and 9, the 60% head start) is not sim-tuned.
