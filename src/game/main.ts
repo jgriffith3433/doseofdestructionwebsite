@@ -746,17 +746,20 @@ function buildHud(m: Match): void {
   const limit = m.state.rules.timeLimit;
   $('timer').hidden = limit <= 0;
   const objective = $('objective');
-  const shown = m.setup.objective === 'survive' || m.setup.objective === 'ko';
+  const shown = m.setup.objective === 'survive' || m.setup.objective === 'ko' || m.setup.objective === 'quota';
   objective.hidden = !shown;
   objective.textContent = 'Survive';
-  objective.classList.toggle('count', m.setup.objective === 'ko');
+  objective.classList.toggle('count', m.setup.objective === 'ko' || m.setup.objective === 'quota');
   hudKos = -1;
+  hudQuota = -1;
   $('match-top').hidden = limit <= 0 && !shown;
   updateHud(m);
 }
 
 /** The KO count last shown on the 'ko' objective's chip. */
 let hudKos = -1;
+/** The whole percent last shown on the 'quota' objective's chip. */
+let hudQuota = -1;
 
 function updateHud(m: Match): void {
   const s = m.state;
@@ -765,6 +768,13 @@ function updateHud(m: Match): void {
   if (m.setup.objective === 'ko' && hudKos !== m.koCount()) {
     hudKos = m.koCount();
     $('objective').textContent = `KOs ${Math.min(hudKos, m.koTarget)}/${m.koTarget}`;
+  }
+  if (m.setup.objective === 'quota') {
+    const got = Math.floor(Math.min(m.quotaDealt(), m.quotaTarget) / 10);
+    if (hudQuota !== got) {
+      hudQuota = got;
+      $('objective').textContent = `Quota ${got}/${m.quotaTarget / 10}%`;
+    }
   }
   for (const f of s.fighters) {
     const card = cards[f.id] as HTMLElement | undefined;

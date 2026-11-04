@@ -219,6 +219,89 @@ STAGES.forEach((stage, si) => {
   check('ko objective: 2 of 3 KOs at the bell is a loss', short.state.timedOut === 1 && !short.playerWon());
 }
 
+{
+  // The 'quota' objective: deal N% damage before the clock wins (the match ends the moment it is met); the clock or the stocks running out loses.
+  const char = (id: string) => CHARACTERS.findIndex((c) => c.id === id);
+  const quotaSetup = (foe: SlotSetup, timeLimit: number, quota: number) => ({
+    mode: 'campaign' as const, stage: STAGES.findIndex((st) => st.id === 'yo-house'), stocks: 9, rules: { timeLimit, damage: 130 }, objective: 'quota' as const, quota,
+    slots: [{ char: char('exit-punk'), cpu: null, team: 0 }, { team: 1, stocks: 9, ...foe }] as SlotSetup[],
+  });
+  const play = (m: Match, seed: number, frames = 60 * 60 * 5) => {
+    const me = new Bot(0, 9, seed + 1);
+    const inputs: number[] = [];
+    for (let i = 0; i < frames && !m.state.over; i++) {
+      const v = me.think(m.state);
+      inputs.push(v);
+      m.tick(v);
+    }
+    return inputs;
+  };
+  const foe: SlotSetup = { char: char('kaelen'), cpu: 1, startPercent: 1200 };
+
+  const win = new Match(quotaSetup(foe, 60 * 120, 150), 21);
+  play(win, 21);
+  check('quota objective: dealing 150% before the clock wins', win.state.over === 1 && !win.state.timedOut && win.playerWon() && win.quotaDealt() >= win.quotaTarget, `${Math.round(win.state.frame / 60)}s, ${win.quotaDealt() / 10}%`);
+  check('quota objective: it ends the moment the number is met, foe still in', win.state.winner === 0 && win.state.fighters[1].stocks > 0 && win.state.frame < 60 * 120);
+  check('quota objective: the dealt count is the player\'s own damage', win.quotaDealt() === win.stats[0].dealt && win.quotaDealt() < win.quotaTarget + 400);
+
+  const late = new Match(quotaSetup({ char: char('break'), cpu: 9, scale: 135 }, 60 * 10, 400), 22);
+  play(late, 22);
+  check('quota objective: the clock running out first loses', late.state.over === 1 && late.state.timedOut === 1 && !late.playerWon() && late.quotaDealt() < late.quotaTarget, `${late.quotaDealt() / 10}% in 10s`);
+
+  // Just short at the bell is still a loss, even when the player has more stocks left.
+  const short = new Match(quotaSetup({ char: char('kaelen'), cpu: 0, stocks: 9 }, 60, 300), 3);
+  short.stats[0].dealt = 2990;
+  while (!short.state.over) short.tick(0);
+  check('quota objective: 299 of 300% at the bell is a loss', short.state.timedOut === 1 && !short.playerWon() && short.quotaDealt() < short.quotaTarget);
+  const exact = new Match(quotaSetup({ char: char('kaelen'), cpu: 0, stocks: 9 }, 600, 300), 3);
+  exact.stats[0].dealt = 3000;
+  exact.tick(0);
+  check('quota objective: exactly the number ends the match won', exact.state.over === 1 && exact.playerWon() && !exact.state.timedOut);
+
+  // Out of stocks before the quota: the player was eliminated, so it is lost and not a timeout.
+  const out = new Match({ ...quotaSetup({ char: char('break'), cpu: 9, scale: 135, startPercent: 0 }, 0, 9999), stocks: 1, slots: [{ char: char('exit-punk'), cpu: null, team: 0, stocks: 1 }, { char: char('break'), cpu: 9, team: 1, stocks: 9, scale: 135 }] }, 5);
+  play(out, 5, 60 * 60 * 10);
+  check('quota objective: out of stocks first is a loss', out.state.over === 1 && !out.state.timedOut && !out.playerWon(), `${out.quotaDealt() / 10}%`);
+
+  // Determinism: the same seed and inputs give the same match; snapshot + restore + replay (rollback) lands on the same hash, damage and result.
+  const a = new Match(quotaSetup(foe, 60 * 120, 150), 21);
+  play(a, 21);
+  check('quota objective: the same seed and inputs repeat exactly', hashState(a.state) === hashState(win.state) && a.quotaDealt() === win.quotaDealt() && a.state.frame === win.state.frame);
+  // Rollback: record both players' inputs from a live run, then replay them through tickInputs, as the netcode does.
+  const botInputs: number[] = [];
+  {
+    const bot0 = new Bot(0, 9, 22);
+    const bot1 = new Bot(1, 1, 21 + 7919);
+    const rec = new Match(quotaSetup({ ...foe, cpu: null }, 60 * 120, 150), 21);
+    for (let i = 0; i < 60 * 60 * 5 && !rec.state.over; i++) {
+      const x = bot0.think(rec.state);
+      const y = bot1.think(rec.state);
+      botInputs.push(x, y);
+      rec.tickInputs([x, y]);
+    }
+    const run = (m: Match, from: number, to: number) => { for (let i = from; i < to && !m.state.over; i++) m.tickInputs([botInputs[i * 2], botInputs[i * 2 + 1]]); };
+    const frames = botInputs.length / 2;
+    const half = Math.floor(frames / 2);
+    const ref = new Match(quotaSetup({ ...foe, cpu: null }, 60 * 120, 150), 21);
+    run(ref, 0, frames);
+    const mid = new Match(quotaSetup({ ...foe, cpu: null }, 60 * 120, 150), 21);
+    run(mid, 0, half);
+    const snapshot = mid.snapshot();
+    run(mid, half, frames);
+    const hashEnd = hashState(mid.state);
+    // Roll back to the snapshot (what a late remote input does) and replay the same inputs.
+    mid.restore(snapshot);
+    check('quota objective: restoring a snapshot brings the damage count back', mid.quotaDealt() === snapshot.stats[0].dealt && !mid.state.over);
+    run(mid, half, frames);
+    check('quota objective: rollback and replay land on the same hash, damage and result', hashState(mid.state) === hashEnd && mid.quotaDealt() === ref.quotaDealt() && mid.state.over === ref.state.over && mid.playerWon() === ref.playerWon() && hashEnd === hashState(ref.state) && ref.state.over === 1, `${frames} frames, ${ref.quotaDealt() / 10}%`);
+  }
+
+  // The chapter: Season 5's Product Placement, a quota night with a clock.
+  const pp = CHAPTERS.find((ch) => ch.id === 'product-placement');
+  check('season 5: Product Placement is a quota fight with a clock', pp?.fight.objective === 'quota' && (pp.fight.quota ?? 0) >= 100 && (pp.fight.rules.timeLimit ?? 0) > 0);
+  check('season 5: the quota chapter keeps the sponsor\'s damage rule and its unlock', pp?.fight.rules.damage === 130 && pp.unlock === 'yo-bot');
+}
+
 if (failed) {
   console.log(`${failed} failed`);
   process.exit(1);

@@ -121,6 +121,15 @@
       ]
     },
     {
+      "id": "quota",
+      "title": "The quota objective in a campaign chapter: \"Quota 0/300%\" on the HUD with the clock, counting up as damage lands, and a results line saying how it ended",
+      "description": "Plays one chapter that uses the quota objective (Season 5's Product Placement by default, or option `chapter`) from the Campaign map with the bot on a virtual pad: setup shortcut marks the chapters before it cleared. Checks the chip as the match starts and as damage lands (an event every 100%), the clock, and the results line (quota met, time ran out or out of stocks), two tries. Events chapter, quota-chip, quota-count, quota-result, chapter-cleared / chapter-failed.",
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "roster",
       "title": "Every fighter spawns in training and does each move once (starts matches directly)",
       "seconds": 480,

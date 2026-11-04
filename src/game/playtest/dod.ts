@@ -83,6 +83,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'campaign') await r.campaign();
         else if (id === 'unlocks') await r.unlocksRun();
         else if (id === 'ko-objective') await r.koObjective();
+        else if (id === 'quota') await r.quotaObjective();
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'site-links') await r.siteLinks();
@@ -684,7 +685,8 @@ class Run {
       await this.playDialogue();
       await this.matchLive();
       for (let attempt = 1; ; attempt++) {
-        const ended = await this.fight(late, 8 * 60 * 1000);
+        const watch = this.watchQuota(c);
+        const ended = await this.fight(() => (watch(), late()), 8 * 60 * 1000);
         if (ended === 'stopped') {
           t.note(`out of time in ${label}`);
           t.log(`stopped at the 10-minute budget in ${label}`);
@@ -693,6 +695,7 @@ class Run {
           break chapters;
         }
         const won = await this.results();
+        await this.checkQuotaResult(c);
         if (won) {
           await this.click(() => this.button('#results-actions', 'Continue'), 'Continue');
           await this.playDialogue();
@@ -719,6 +722,72 @@ class Run {
     }
     t.progress(1);
     t.finish(outcome);
+  }
+
+  /** The 'quota' objective's chapter alone (`chapter` option, default the first one that uses it), played from the map. */
+  async quotaObjective(): Promise<void> {
+    const t = this.t;
+    const asked = this.options.chapter ?? CHAPTERS.find((c) => c.fight.objective === 'quota')?.id;
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    if (from < 0 || CHAPTERS[from].fight.objective !== 'quota') {
+      t.problem('bug', `chapter "${String(asked)}" is not a quota chapter (content/campaign.json: objective "quota")`);
+      t.finish('error');
+      return;
+    }
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((c) => c.id));
+    t.log(`setup shortcut: chapters 1-${from} marked cleared, starting at ${CHAPTERS[from].id}`);
+    const t0 = performance.now();
+    try {
+      await this.campaignFrom(from, () => performance.now() - t0 > CAMPAIGN_BUDGET_MS, from);
+    } finally {
+      this.game.setCampaignProgress(before);
+    }
+  }
+
+  /** A chapter with a quota: the HUD chip must show it from the start and follow the damage dealt. Call it every poll. */
+  private watchQuota(c: (typeof CHAPTERS)[number]): () => void {
+    if (c.fight.objective !== 'quota') return () => {};
+    const t = this.t;
+    const need = c.fight.quota ?? 250;
+    const chip = () => this.q('#objective');
+    const shown = (el: HTMLElement | null) => !!el && !el.hidden && el.getClientRects().length > 0;
+    let last = '';
+    let marks = 0;
+    return () => {
+      const m = this.game.match();
+      const now = chip()?.textContent ?? '';
+      if (!m || now === last) return;
+      const first = last === '';
+      last = now;
+      const got = Number(/(\d+)\//.exec(now)?.[1] ?? 0);
+      const dealt = Math.floor(Math.min(m.quotaDealt(), m.quotaTarget) / 10);
+      if (!shown(chip())) t.problem('bug', 'the quota chapter shows no objective chip on the HUD');
+      else if (first && now !== `Quota 0/${need}%`) t.problem('bug', `the quota chip starts at "${now}", not "Quota 0/${need}%"`);
+      else if (first) t.event('quota-chip', `${now} with ${this.q('#timer')?.textContent ?? '?'} on the clock`);
+      // The chip is read a moment after the frame it shows, so it may trail the damage by a hit or two but never lead it.
+      else if (got > dealt || dealt - got > 30) t.problem('bug', `the quota chip says "${now}" but ${dealt}% was dealt`);
+      // One event per 100% crossed, so the timeline shows it counting up without flooding it.
+      if (!first && Math.floor(got / 100) > marks) {
+        marks = Math.floor(got / 100);
+        t.event('quota-count', `${now} with ${this.q('#timer')?.textContent ?? '?'} on the clock`);
+      }
+    };
+  }
+
+  /** On the results of a quota chapter: the line says which way it went (the number dealt, or why it fell short). */
+  private async checkQuotaResult(c: (typeof CHAPTERS)[number]): Promise<void> {
+    if (c.fight.objective !== 'quota') return;
+    const m = this.game.match() ?? this.seen;
+    const line = () => this.q('#results-body .results-objective');
+    await this.t.until(() => !!line()?.textContent, 10000, 'the quota results line').catch((e) => {
+      if (String(e).includes('stopped')) throw e;
+    });
+    const says = line()?.textContent ?? '';
+    const need = c.fight.quota ?? 250;
+    const met = !!m && m.quotaDealt() >= m.quotaTarget;
+    const right = met ? says.startsWith(`${need}%`) : m?.state.timedOut ? says.startsWith('Time ran out') : !!says;
+    if (!right) this.t.problem('bug', `the results line "${says}" doesn't match how the quota fight ended (${met ? 'quota met' : m?.state.timedOut ? 'on time' : 'out of stocks'})`);
+    else this.t.event('quota-result', `${met ? 'quota met' : m?.state.timedOut ? 'ended on time' : 'out of stocks'} at ${m ? Math.round(m.state.frame / 60) : '?'} s: "${says}"`);
   }
 
   /** A chapter that names a fighter shows the unlock message on the map once it is cleared (campaign/story.ts `unlock`). */

@@ -1635,8 +1635,8 @@
     "unlock": "yo-bot",
     "season": 5,
     "title": "Product Placement",
-    "tagline": "The sponsor's fighter has a laptop, and the laptop hits back.",
-    "hint": "Every hit lands 30% harder, yours and theirs. Yo Bot has four legs and a long reach: stay out of the keyboard and punish the swing.",
+    "tagline": "The sponsor pays by the percent, and tonight's quota is steep.",
+    "hint": "Quota: deal 300% damage before the 100-second clock runs out. Every hit lands 30% harder, yours and theirs. Yo Bot has four legs and a long reach: stay out of the keyboard and punish the swing.",
     "intro": [
       {
         "who": "narrator",
@@ -1644,7 +1644,7 @@
       },
       {
         "who": "blog-man",
-        "text": "A word from tonight's sponsor, who is also tonight's walk-on. The champion is not for sale. We've been through this."
+        "text": "A word from tonight's sponsor, who is also tonight's walk-on. The network has booked a quota: three hundred percent, delivered before the clock runs out. The champion is not for sale. We've been through this."
       },
       {
         "who": "yo-bot",
@@ -1677,7 +1677,8 @@
       "stage": "yo-house",
       "stocks": 3,
       "rules": {
-        "damage": 130
+        "damage": 130,
+        "timeLimit": 6000
       },
       "slots": [
         {
@@ -1692,7 +1693,9 @@
           "team": 1,
           "stocks": 3
         }
-      ]
+      ],
+      "objective": "quota",
+      "quota": 300
     }
   },
   {

@@ -285,7 +285,7 @@ partner, and is not unlocked (one fighter per chapter).
 | # | Episode (id) | Walk-on (CPU level) | Stage | Rule twist | Unlocks |
 |---|---|---|---|---|---|
 | 1 | Cold Open (`cold-open`) | Uh Me (5) | City Top | Light gravity (`gravity: 70`): everything floats, and Uh Me is the best at it. 3 stocks each. | Uh Me |
-| 2 | Product Placement (`product-placement`) | Yo Bot (6) | Yo House | The sponsor's night: damage at 130% (`damage: 130`) for both. 3 stocks each. | Yo Bot |
+| 2 | Product Placement (`product-placement`) | Yo Bot (6) | Yo House | The sponsor's night: damage at 130% (`damage: 130`) for both. **Quota** (`objective: quota`): deal 300% before the 100-second clock. 3 stocks each. | Yo Bot |
 | 3 | Dead Air (`dead-air`) | Spider Bot (6), 3 stocks | Solar Array | Survive 60 seconds (`objective: survive`), the signal drops. Exit Punk has 2 stocks. | Spider Bot |
 | 4 | Clip Show (`clip-show`) | Lapis Man (7) and TT (6), 2 stocks each | Humans In The Loop | Two on two: Blog Man (CPU 5) fights beside Exit Punk. 3 stocks on the champion's side. | Lapis Man |
 
@@ -293,7 +293,7 @@ The beats:
 
 1. **Cold Open.** Sweeps Week starts with no warning, and with the gravity turned down "for reasons". Uh Me: "The
    ground is real." Exit Punk: "Next."
-2. **Product Placement.** The sponsor is also the walk-on. Yo Bot's laptop hits back, 30% harder. After: "Low battery."
+2. **Product Placement.** The sponsor is also the walk-on, and pays by the percent: the network has booked a quota of 300%, delivered before the clock runs out. Yo Bot's laptop hits back, 30% harder. After: "Low battery."
 3. **Dead Air.** The signal drops for a minute and the champion has to stay on it. Spider Bot doesn't leave. "You
    didn't try to win." "Didn't need to."
 4. **Clip Show.** The last night: every highlight, and one live fight with the host in it ("I did not read the fine
@@ -302,5 +302,20 @@ The beats:
 **Season end** (the last line of Clip Show's outro, and the map's end line under Season 5). Narrator: *"Four nights.
 Four sweeps. Nobody changed the channel."*
 
+**The Quota rule** is new (built, Product Placement). A Quota fight is won by dealing N percent of damage before the
+clock runs out, and lost when the clock wins (or when the champion runs out of stocks). It ends the moment the
+number is met, whatever stocks are left. In data it is `"objective": "quota"` with `"quota": 300` (percent) and a
+`timeLimit` in `rules`. The HUD shows "Quota 120/300%" with the clock where Dead Weight shows "Survive", and counts
+up. Only the player's own hits on the other side count: shielded hits, hazards and falls don't, and damage keeps
+counting when the foe is KO'd and starts over. It's the sponsor's rule, so the results talk about the sponsor:
+
+- met: "300% delivered before the clock. The sponsor is thrilled."
+- on time: "Time ran out at 180 of 300%. The sponsor wants a refund."
+- out of stocks: "Out of stocks at 180 of 300%. The sponsor pulled the ad."
+
+Pacing: tuned in the sim against the level-9 bot on Yo House with damage at 130%: 300% in 100 seconds against Yo Bot
+(CPU 6) is won in about 9 fights of 16 (the other seven end on the clock or out of stocks).
+
 Later items: the lines are text only (no `audio`/`take`, so they play silent and show as "no take" in the Voice tab);
-recording them through Hawkes Gen costs cents. No new art is needed. Pacing (CPU levels, stocks) is not sim-tuned.
+recording them through Hawkes Gen costs cents. No new art is needed. Pacing of the other episodes (CPU levels,
+stocks) is not sim-tuned.

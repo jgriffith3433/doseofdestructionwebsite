@@ -256,6 +256,16 @@ function koLine(m: Match, won: boolean): string {
   return `Out of stocks at ${got} of ${n} KOs. They cut to commercial.`;
 }
 
+/** The 'quota' objective's results line: which way it ended. */
+function quotaLine(m: Match, won: boolean): string {
+  const need = m.quotaTarget / 10;
+  const got = Math.floor(Math.min(m.quotaDealt(), m.quotaTarget) / 10);
+  if (won && got >= need) return `${need}% delivered before the clock. The sponsor is thrilled.`;
+  if (won) return 'Nobody left to hit. The sponsor will take it.';
+  if (m.state.timedOut) return `Time ran out at ${got} of ${need}%. The sponsor wants a refund.`;
+  return `Out of stocks at ${got} of ${need}%. The sponsor pulled the ad.`;
+}
+
 export interface ResultAction {
   label: string;
   primary?: boolean;
@@ -293,6 +303,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
         h('h2', {}, headline),
         campaign && m.setup.objective === 'survive' && h('p', {}, won ? 'You lasted the whole minute.' : 'They took you off the air.'),
         m.setup.objective === 'ko' && h('p', { class: 'results-objective' }, koLine(m, won)),
+        m.setup.objective === 'quota' && h('p', { class: 'results-objective' }, quotaLine(m, won)),
         online?.note && h('p', { class: 'results-note' }, online.note),
       ),
     ),
