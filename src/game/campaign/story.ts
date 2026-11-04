@@ -79,6 +79,7 @@ const SEASON_TEXT: Record<number, { subtitle: string; end: string }> = {
   7: { subtitle: 'The Reboot', end: 'Four pilots. Four reboots. The champion was never recast.' },
   8: { subtitle: 'Awards Season', end: 'Four nominees. Four envelopes. The speech was four words.' },
   9: { subtitle: 'The Cliffhanger', end: 'Four teasers. One cliffhanger. Two names on the sheet.' },
+  10: { subtitle: 'The Finale', end: 'Two Orchestrators. Two fights. One finale. The card is yours, and the show is over.' },
 };
 
 /** The seasons that have chapters, in order. */
