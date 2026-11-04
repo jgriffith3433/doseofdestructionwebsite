@@ -266,6 +266,16 @@ function quotaLine(m: Match, won: boolean): string {
   return `Out of stocks at ${got} of ${need}%. The sponsor pulled the ad.`;
 }
 
+/** The 'streak' objective's results line: which way it ended. */
+function streakLine(m: Match, won: boolean): string {
+  const need = m.streakTarget;
+  const got = Math.min(m.streakBest(), need);
+  if (won && got >= need) return `${need} clean hits in a row before the clock. That one goes in the supercut.`;
+  if (won) return 'Nobody left to hit. The editor will make do.';
+  if (m.state.timedOut) return `Time ran out at a best streak of ${got} of ${need}. Nothing for the supercut.`;
+  return `Out of stocks at a best streak of ${got} of ${need}. The editor cut around you.`;
+}
+
 export interface ResultAction {
   label: string;
   primary?: boolean;
@@ -304,6 +314,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
         campaign && m.setup.objective === 'survive' && h('p', {}, won ? 'You lasted the whole minute.' : 'They took you off the air.'),
         m.setup.objective === 'ko' && h('p', { class: 'results-objective' }, koLine(m, won)),
         m.setup.objective === 'quota' && h('p', { class: 'results-objective' }, quotaLine(m, won)),
+        m.setup.objective === 'streak' && h('p', { class: 'results-objective' }, streakLine(m, won)),
         online?.note && h('p', { class: 'results-note' }, online.note),
       ),
     ),

@@ -302,6 +302,85 @@ STAGES.forEach((stage, si) => {
   check('season 5: the quota chapter keeps the sponsor\'s damage rule and its unlock', pp?.fight.rules.damage === 130 && pp.unlock === 'yo-bot');
 }
 
+{
+  // The 'streak' objective: land N hits in a row without being hit back; the match ends on the hit that makes it. The clock or the stocks running out loses.
+  const char = (id: string) => CHARACTERS.findIndex((c) => c.id === id);
+  const streakSetup = (foe: SlotSetup, timeLimit: number, streak: number) => ({
+    mode: 'campaign' as const, stage: STAGES.findIndex((st) => st.id === 'city-top'), stocks: 9, rules: { timeLimit, damage: 120 }, objective: 'streak' as const, streak,
+    slots: [{ char: char('exit-punk'), cpu: null, team: 0 }, { team: 1, stocks: 9, ...foe }] as SlotSetup[],
+  });
+  const play = (m: Match, seed: number, frames = 60 * 60 * 5) => {
+    const me = new Bot(0, 9, seed + 1);
+    for (let i = 0; i < frames && !m.state.over; i++) m.tick(me.think(m.state));
+  };
+  const foe: SlotSetup = { char: char('kaelen'), cpu: 1, startPercent: 1200 };
+
+  const win = new Match(streakSetup(foe, 60 * 120, 3), 21);
+  play(win, 21);
+  check('streak objective: 3 clean hits in a row before the clock wins', win.state.over === 1 && !win.state.timedOut && win.playerWon() && win.streakBest() >= win.streakTarget, `${Math.round(win.state.frame / 60)}s`);
+  check('streak objective: it ends on the hit that makes it, foe still in', win.state.winner === 0 && win.state.fighters[1].stocks > 0 && win.state.frame < 60 * 120 && win.streakBest() === 3);
+
+  // Taking a hit starts the count over; a hit on a shield counts for neither side.
+  const m = new Match(streakSetup({ char: char('kaelen'), cpu: 0 }, 60 * 60, 5), 3);
+  m.stats[0].streak = 2; m.stats[0].bestStreak = 2;
+  const ev = (attacker: number, victim: number, shield = 0) => ({ type: 'hit', attacker, victim, dmg: 50, shield }) as never;
+  (m as unknown as { record(e: unknown[], b: number[]): void }).record([ev(1, 0)], [0, 0]);
+  check('streak objective: being hit starts the streak over, the best stays', m.streakNow() === 0 && m.streakBest() === 2);
+  (m as unknown as { record(e: unknown[], b: number[]): void }).record([ev(0, 1), ev(0, 1)], [0, 0]);
+  (m as unknown as { record(e: unknown[], b: number[]): void }).record([ev(1, 0, 1)], [0, 0]);
+  check('streak objective: hits landed count up, a shielded hit changes nothing', m.streakNow() === 2 && m.streakBest() === 2 && !m.state.over);
+
+  const late = new Match(streakSetup({ char: char('break'), cpu: 9, scale: 135 }, 60 * 10, 40), 22);
+  play(late, 22);
+  check('streak objective: the clock running out first loses', late.state.over === 1 && late.state.timedOut === 1 && !late.playerWon() && late.streakBest() < late.streakTarget, `best ${late.streakBest()}`);
+
+  const exact = new Match(streakSetup({ char: char('kaelen'), cpu: 0, stocks: 9 }, 600, 5), 3);
+  exact.stats[0].bestStreak = 4;
+  while (!exact.state.over) exact.tick(0);
+  check('streak objective: 4 of 5 at the bell is a loss', exact.state.timedOut === 1 && !exact.playerWon());
+  exact.stats[0].bestStreak = 5;
+  check('streak objective: 5 of 5 counts as met', exact.playerWon());
+
+  const out = new Match({ ...streakSetup({ char: char('break'), cpu: 9, scale: 135 }, 0, 40), stocks: 1, slots: [{ char: char('exit-punk'), cpu: null, team: 0, stocks: 1 }, { char: char('break'), cpu: 9, team: 1, stocks: 9, scale: 135 }] }, 5);
+  play(out, 5, 60 * 60 * 10);
+  check('streak objective: out of stocks first is a loss', out.state.over === 1 && !out.state.timedOut && !out.playerWon());
+
+  // Determinism: the same seed and inputs repeat exactly; snapshot + restore + replay (rollback) lands on the same hash, streaks and result.
+  const a = new Match(streakSetup(foe, 60 * 120, 3), 21);
+  play(a, 21);
+  check('streak objective: the same seed and inputs repeat exactly', hashState(a.state) === hashState(win.state) && a.streakBest() === win.streakBest() && a.state.frame === win.state.frame);
+  const botInputs: number[] = [];
+  const bot0 = new Bot(0, 9, 22);
+  const bot1 = new Bot(1, 1, 21 + 7919);
+  const mk = () => new Match(streakSetup({ ...foe, cpu: null }, 60 * 120, 3), 21);
+  const rec = mk();
+  for (let i = 0; i < 60 * 60 * 5 && !rec.state.over; i++) {
+    const x = bot0.think(rec.state);
+    const y = bot1.think(rec.state);
+    botInputs.push(x, y);
+    rec.tickInputs([x, y]);
+  }
+  const frames = botInputs.length / 2;
+  const half = Math.floor(frames / 2);
+  const run = (mm: Match, from: number, to: number) => { for (let i = from; i < to && !mm.state.over; i++) mm.tickInputs([botInputs[i * 2], botInputs[i * 2 + 1]]); };
+  const ref = mk();
+  run(ref, 0, frames);
+  const mid = mk();
+  run(mid, 0, half);
+  const snapshot = mid.snapshot();
+  run(mid, half, frames);
+  const hashEnd = hashState(mid.state);
+  mid.restore(snapshot);
+  check('streak objective: restoring a snapshot brings the streak back', mid.streakNow() === snapshot.stats[0].streak && mid.streakBest() === snapshot.stats[0].bestStreak && !mid.state.over);
+  run(mid, half, frames);
+  check('streak objective: rollback and replay land on the same hash, streak and result', hashState(mid.state) === hashEnd && hashEnd === hashState(ref.state) && mid.streakBest() === ref.streakBest() && mid.playerWon() === ref.playerWon() && ref.state.over === 1, `${frames} frames, best ${ref.streakBest()}`);
+
+  // The chapter: Season 7's Series Finale, a clean-streak night with a clock.
+  const sf = CHAPTERS.find((ch) => ch.id === 'series-finale');
+  check('season 7: Series Finale is a streak fight with a clock', sf?.fight.objective === 'streak' && (sf.fight.streak ?? 0) >= 2 && (sf.fight.rules.timeLimit ?? 0) > 0);
+  check('season 7: the streak chapter keeps the damage rule and its unlock', sf?.fight.rules.damage === 120 && sf.unlock === 'future-man');
+}
+
 if (failed) {
   console.log(`${failed} failed`);
   process.exit(1);

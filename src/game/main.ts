@@ -746,12 +746,13 @@ function buildHud(m: Match): void {
   const limit = m.state.rules.timeLimit;
   $('timer').hidden = limit <= 0;
   const objective = $('objective');
-  const shown = m.setup.objective === 'survive' || m.setup.objective === 'ko' || m.setup.objective === 'quota';
+  const shown = m.setup.objective === 'survive' || m.setup.objective === 'ko' || m.setup.objective === 'quota' || m.setup.objective === 'streak';
   objective.hidden = !shown;
   objective.textContent = 'Survive';
-  objective.classList.toggle('count', m.setup.objective === 'ko' || m.setup.objective === 'quota');
+  objective.classList.toggle('count', m.setup.objective === 'ko' || m.setup.objective === 'quota' || m.setup.objective === 'streak');
   hudKos = -1;
   hudQuota = -1;
+  hudStreak = -1;
   $('match-top').hidden = limit <= 0 && !shown;
   updateHud(m);
 }
@@ -760,6 +761,8 @@ function buildHud(m: Match): void {
 let hudKos = -1;
 /** The whole percent last shown on the 'quota' objective's chip. */
 let hudQuota = -1;
+/** The clean streak (hits) last shown on the 'streak' objective's chip. */
+let hudStreak = -1;
 
 function updateHud(m: Match): void {
   const s = m.state;
@@ -774,6 +777,13 @@ function updateHud(m: Match): void {
     if (hudQuota !== got) {
       hudQuota = got;
       $('objective').textContent = `Quota ${got}/${m.quotaTarget / 10}%`;
+    }
+  }
+  if (m.setup.objective === 'streak') {
+    const got = Math.min(m.streakNow(), m.streakTarget);
+    if (hudStreak !== got) {
+      hudStreak = got;
+      $('objective').textContent = `Clean streak ${got}/${m.streakTarget}`;
     }
   }
   for (const f of s.fighters) {
