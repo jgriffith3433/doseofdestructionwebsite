@@ -13,7 +13,7 @@ import { GAMEPAD_HELP, KEYBOARD_HELP, listenKeyboard, onKey, pausePressed, readL
 import { PLAYER_COLORS, Renderer } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
-import { CHAPTERS, loadProgress, saveProgress, type Chapter } from './campaign/story.ts';
+import { CHAPTERS, loadProgress, saveProgress, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
@@ -276,14 +276,14 @@ function pickStage(stage: number, entry: ModeStage, random = false): void {
 
 // ------------------------------------------------------------- campaign
 
-function openCampaignScreen(): Promise<void> {
+function openCampaignScreen(unlocked?: string): Promise<void> {
   chapter = null;
   return go('campaign', () =>
     openCampaign(progress, playChapter, () => {
       progress.clear();
       saveProgress(progress);
       openCampaignScreen();
-    }),
+    }, unlocked),
   );
 }
 
@@ -313,7 +313,8 @@ async function chapterCleared(c: Chapter): Promise<void> {
   progress.add(c.id);
   saveProgress(progress);
   analytics.chapterCleared(c, firstTime, progress);
-  await openCampaignScreen();
+  // The hero this episode unlocks (once): the map says so.
+  await openCampaignScreen(unlockFor(c) ?? undefined);
   // Back on the map, the episode over: the stars card.
   if (currentScreen() === 'campaign') analytics.askAfterEpisode(c);
 }

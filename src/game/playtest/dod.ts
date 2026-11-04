@@ -19,7 +19,7 @@ import { BTN, NO_INPUT, packInput } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
 import { ACT } from '../sim/state.ts';
-import { CHAPTERS, SEASONS } from '../campaign/story.ts';
+import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, saveUnlocks, unlocks } from '../campaign/story.ts';
 import { SCENARIOS } from './scenarios.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
@@ -81,6 +81,7 @@ export function installDodPlaytest(game: GameHooks): void {
         if (id === 'smoke') await r.smoke();
         else if (id === 'match') await r.match();
         else if (id === 'campaign') await r.campaign();
+        else if (id === 'unlocks') await r.unlocksRun();
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
@@ -489,11 +490,15 @@ class Run {
       await this.click(() => rule('Stocks')?.querySelector<HTMLElement>(`[aria-label="${label}"]`), label);
     }
     // Fighters from the seed, so a run is repeatable (options.fighter plays that one).
-    const n = CHARACTERS.length;
+    // Only fighters a fresh save may pick (the locked tiles don't take a click).
+    const pool = CHARACTERS.map((_, i) => i).filter((i) => isUnlocked(CHARACTERS[i].id));
+    const n = pool.length;
     const asked = typeof this.options.fighter === 'string' ? CHARACTERS.findIndex((c) => c.id === this.options.fighter) : -1;
     if (typeof this.options.fighter === 'string' && asked < 0) this.t.problem('bug', `fighter "${this.options.fighter}" is not in the roster`);
-    const meIdx = asked >= 0 ? asked : Math.abs(this.options.seed * 11) % n;
-    const foeIdx = (meIdx + 1 + (Math.abs(this.options.seed * 17) % (n - 1))) % n;
+    if (asked >= 0 && !pool.includes(asked)) this.t.problem('bug', `fighter "${this.options.fighter}" is locked in Versus (clear its chapter first)`);
+    const mePos = asked >= 0 ? pool.indexOf(asked) : Math.abs(this.options.seed * 11) % n;
+    const meIdx = pool[Math.max(0, mePos)];
+    const foeIdx = pool[(Math.max(0, mePos) + 1 + (Math.abs(this.options.seed * 17) % (n - 1))) % n];
     await this.click(() => this.q('#select-slots .slot-pick'), 'your slot');
     await this.click(() => document.querySelectorAll<HTMLElement>('#select-grid .tile')[meIdx], CHARACTERS[meIdx].name);
     await this.click(() => document.querySelectorAll<HTMLElement>('#select-grid .tile')[foeIdx], `CPU: ${CHARACTERS[foeIdx].name}`);
@@ -660,7 +665,7 @@ class Run {
     }
   }
 
-  private async campaignFrom(from: number, late: () => boolean): Promise<void> {
+  private async campaignFrom(from: number, late: () => boolean, last = CHAPTERS.length - 1): Promise<void> {
     const t = this.t;
     await this.toMainMenu();
     await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
@@ -669,7 +674,7 @@ class Run {
     let cleared = 0;
     let outcome: Outcome = 'won';
     t.metric('chaptersCleared', 0);
-    chapters: for (let i = from; i < CHAPTERS.length; i++) {
+    chapters: for (let i = from; i <= last; i++) {
       const c = CHAPTERS[i];
       const label = `Chapter ${i + 1} · ${c.title}`;
       this.progressNow = () => (i + 0.5) / CHAPTERS.length;
@@ -696,6 +701,7 @@ class Run {
           t.metric('chaptersCleared', cleared);
           t.event('chapter-cleared', label);
           this.checkSeasonEnd(c.season, c.id);
+          this.checkUnlockNote(c.unlock);
           break;
         }
         if (attempt >= 2 || late()) {
@@ -713,6 +719,128 @@ class Run {
     }
     t.progress(1);
     t.finish(outcome);
+  }
+
+  /** A chapter that names a fighter shows the unlock message on the map once it is cleared (campaign/story.ts `unlock`). */
+  private checkUnlockNote(fighter: string | undefined): void {
+    if (!fighter) return;
+    const note = this.q('#chapter-path .unlock-note');
+    const name = CHARACTERS.find((c) => c.id === fighter)?.name ?? fighter;
+    this.t.event('unlock-message', `${note?.textContent?.trim() || 'no unlock message'} (${fighter} ${isUnlocked(fighter) ? 'unlocked' : 'STILL LOCKED'})`);
+    if (note?.getAttribute('data-unlocked') !== fighter) this.t.problem('bug', `clearing the chapter that unlocks ${name} showed no unlock message on the Campaign map`);
+    if (!isUnlocked(fighter)) this.t.problem('bug', `${name} is still locked after clearing the chapter that unlocks them`);
+  }
+
+  /** Main menu → Versus → the Character Select grid (no fight); returns the tiles. */
+  private async openSelect(): Promise<void> {
+    await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+    await this.screen('select');
+  }
+
+  private async closeSelect(): Promise<void> {
+    await this.click(() => this.q('#select [data-back]'), 'Back');
+    await this.screen('main');
+  }
+
+  /**
+   * Heroes unlock as the campaign clears them. Setup shortcut: a fresh save (no cleared chapters, no unlocks).
+   * 1. Versus select shows the locked fighters as "Locked" tiles, and a click on one picks nothing.
+   * 2. Chapter 1 is played through the real campaign (bot); the map shows the unlock message.
+   * 3. Versus select again: that fighter's tile is open and a click picks them.
+   * The player's own saves are put back.
+   */
+  async unlocksRun(): Promise<void> {
+    const t = this.t;
+    const first = CHAPTERS.find((c) => c.unlock);
+    if (!first?.unlock) {
+      t.problem('bug', 'no chapter in content/campaign.json names a fighter to unlock');
+      t.finish('error');
+      return;
+    }
+    const target = first.unlock;
+    const tileOf = (id: string) => document.querySelector<HTMLElement>(`#select-grid .tile[data-fighter="${id}"]`);
+    const name = CHARACTERS.find((c) => c.id === target)?.name ?? target;
+    const savedUnlocks = [...unlocks()];
+    const before = this.game.setCampaignProgress([]);
+    unlocks().clear();
+    saveUnlocks(unlocks());
+    t.log('setup shortcut: a fresh save (no chapters cleared, nothing unlocked)');
+    try {
+      await this.toMainMenu();
+      t.progress(0.05);
+      // 1. A fresh save: locked tiles.
+      await this.openSelect();
+      await this.t.until(() => document.querySelectorAll('#select-grid .tile').length > 0, 5000, 'fighter tiles');
+      const locked = document.querySelectorAll('#select-grid .tile.locked').length;
+      t.event('locked-tiles', `fresh save: ${locked} of ${CHARACTERS.length} fighter tiles locked (expected ${LOCKABLE.size}); ${name}: ${tileOf(target)?.classList.contains('locked') ? 'locked' : 'open'}`);
+      t.metric('lockedTiles', locked);
+      if (locked !== LOCKABLE.size || !tileOf(target)?.classList.contains('locked')) t.problem('bug', `a fresh save should show ${LOCKABLE.size} locked tiles including ${name}, not ${locked}`);
+      const slotName = () => this.q('#select-slots .slot-pick strong')?.textContent ?? '';
+      const mine = slotName();
+      tileOf(target)?.scrollIntoView({ block: 'center' });
+      await this.click(() => tileOf(target), `locked tile ${name}`);
+      if (slotName() !== mine) t.problem('bug', `a locked tile (${name}) could be picked in Versus select`);
+      else t.event('locked-click', `clicking the locked ${name} tile picks nothing (still ${mine})`);
+      await this.closeSelect();
+      t.progress(0.1);
+      // 2. Clear the chapter that unlocks them, by playing it.
+      await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+      await this.screen('campaign');
+      this.progressNow = () => 0.1 + 0.8 * Math.min(1, (this.game.match()?.state.fighters.reduce((n, f) => n + (this.game.match()!.setup.stocks - Math.max(0, f.stocks)), 0) ?? 0) / 2);
+      const late = () => false;
+      // Chapter 1 only; campaignFrom ends the run itself when it is done, so mirror it here.
+      await this.playOneChapter(first, late);
+      if (!isUnlocked(target)) {
+        t.finish('lost');
+        return;
+      }
+      // 3. Versus select: pickable now.
+      await this.click(() => this.q('#campaign [data-back]'), 'Back');
+      await this.screen('main');
+      await this.openSelect();
+      await this.t.until(() => !!tileOf(target), 5000, 'fighter tiles');
+      const stillLocked = tileOf(target)?.classList.contains('locked');
+      tileOf(target)?.scrollIntoView({ block: 'center' });
+      await this.click(() => tileOf(target), `tile ${name}`);
+      const picked = slotName();
+      t.event('unlocked-pick', `${name} is ${stillLocked ? 'STILL LOCKED' : 'open'} in Versus select; your slot after the click: ${picked}`);
+      if (stillLocked || picked !== name) t.problem('bug', `${name} is not pickable in Versus select after clearing ${first.title}`);
+      await this.closeSelect();
+      t.progress(1);
+      t.finish(stillLocked || picked !== name ? 'lost' : 'won');
+    } finally {
+      this.game.setCampaignProgress(before);
+      unlocks().clear();
+      for (const id of savedUnlocks) unlocks().add(id);
+      saveUnlocks(unlocks());
+    }
+  }
+
+  /** One chapter from the open Campaign map to its cleared outro, two tries; the unlock message is checked. */
+  private async playOneChapter(c: (typeof CHAPTERS)[number], late: () => boolean): Promise<void> {
+    const t = this.t;
+    const label = `Chapter ${CHAPTERS.indexOf(c) + 1} · ${c.title}`;
+    t.event('chapter', label);
+    await this.click(() => this.q(`#chapter-path .chapter[data-chapter="${c.id}"]`), label);
+    await this.playDialogue();
+    await this.matchLive();
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const ended = await this.fight(late, 8 * 60 * 1000);
+      if (ended === 'stopped') return;
+      if (await this.results()) {
+        await this.click(() => this.button('#results-actions', 'Continue'), 'Continue');
+        await this.playDialogue();
+        await this.screen('campaign');
+        t.event('chapter-cleared', label);
+        this.checkUnlockNote(c.unlock);
+        return;
+      }
+      if (attempt === 2) break;
+      t.add('retries');
+      await this.click(() => this.button('#results-actions', 'Retry'), 'Retry');
+      await this.matchLive();
+    }
+    t.event('chapter-failed', label);
   }
 
   /** After a season's last chapter is cleared, the map shows that season's end line under it (story.ts SEASON_TEXT). */
@@ -858,7 +986,8 @@ class Run {
 
     // 2. Profile: peer 1 renames itself and picks a picture; peer 0 sees both on its menu.
     const NEW_NAME = 'Tester Two';
-    const avatar = CHARACTERS[Math.abs(this.options.seed * 13 + 5) % CHARACTERS.length].id;
+    const openIds = CHARACTERS.filter((c) => isUnlocked(c.id)).map((c) => c.id);
+    const avatar = openIds[Math.abs(this.options.seed * 13 + 5) % openIds.length];
     if (peer === 1) {
       await this.click(() => this.q('#btn-profile'), 'Profile');
       const input = this.q('#profile-name') as HTMLInputElement;

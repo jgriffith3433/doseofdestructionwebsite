@@ -353,7 +353,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
 
 // -------------------------------------------------------------- campaign
 
-export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => void, onReset: () => void): void {
+export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => void, onReset: () => void, unlocked?: string): void {
   const path = $('chapter-path');
   const nextIndex = CHAPTERS.findIndex((c) => !done.has(c.id));
   const focus = CHAPTERS[nextIndex < 0 ? CHAPTERS.length - 1 : nextIndex];
@@ -382,7 +382,16 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
       h('em', { class: 'chapter-status' }, status, open ? ` · ${STAGES[c.fight.stage].name}` : ''),
     );
   };
-  path.replaceChildren(
+  const fresh = unlocked ? CHARACTERS.find((c) => c.id === unlocked) : undefined;
+  path.replaceChildren(...kids(
+    fresh
+      ? h(
+          'p',
+          { class: 'unlock-note', role: 'status', 'data-unlocked': fresh.id },
+          h('img', { src: thumbUrl(fresh.id), alt: '' }),
+          h('span', {}, h('b', {}, `${fresh.name} joins the card.`), ' Unlocked for Versus and online.'),
+        )
+      : null,
     ...SEASONS.map((s) => {
       const open = seasonOpen(s.number, done);
       const cleared = seasonCleared(s.number, done);
@@ -400,7 +409,7 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
         cleared ? h('p', { class: 'season-end' }, s.end) : null,
       );
     }),
-  );
+  ));
   const reset = $<HTMLButtonElement>('btn-campaign-reset');
   reset.onclick = () => {
     if (confirm('Start the campaign over? Cleared chapters will be locked again.')) onReset();

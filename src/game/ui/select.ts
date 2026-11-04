@@ -4,6 +4,7 @@
 import { CHARACTERS, type CharacterDef } from '../sim/characters.ts';
 import type { SlotSetup } from '../match.ts';
 import { PLAYER_COLORS } from '../render/renderer.ts';
+import { CHAPTERS, isUnlocked } from '../campaign/story.ts';
 import { $, h, kids, largeUrl, thumbUrl } from './dom.ts';
 
 export interface VersusConfig {
@@ -53,10 +54,22 @@ interface Options {
   onDone: (config: VersusConfig) => void;
 }
 
+/** The chapter that unlocks a fighter, for the "Locked" note. */
+export function unlockedBy(id: string) {
+  return CHAPTERS.find((c) => c.unlock === id);
+}
+
+/** Versus and online picks: a locked fighter can't be picked (training is open to everyone). */
+const open = (i: number, training: boolean): boolean => training || isUnlocked(CHARACTERS[i].id);
+
 export function openSelect({ mode, config, onDone }: Options): void {
   const cfg: VersusConfig = { ...config, slots: config.slots.map((s) => ({ ...s })) };
   let active = 0;
   const training = mode === 'training';
+  // A saved setup can name a fighter that is still locked here: swap in one that is open.
+  for (const s of cfg.slots) {
+    if (!open(s.char, training)) s.char = Math.max(0, CHARACTERS.findIndex((_, i) => open(i, training) && !cfg.slots.some((o) => o.char === i)));
+  }
 
   const preview = $('select-preview');
   const grid = $('select-grid');
@@ -112,9 +125,10 @@ export function openSelect({ mode, config, onDone }: Options): void {
   CHARACTERS.forEach(thumb);
 
   const showPreview = (c: CharacterDef) => {
+    const by = !open(CHARACTERS.indexOf(c), training) ? unlockedBy(c.id) : undefined;
     preview.replaceChildren(
       portrait(c),
-      h('p', { class: 'kicker' }, c.role),
+      h('p', { class: 'kicker' }, by ? `Locked · clear ${by.title} in the campaign` : c.role),
       h('h3', {}, c.name),
       h('p', { class: 'blurb' }, c.blurb),
       statBars(c),
@@ -122,6 +136,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
   };
 
   const assign = (char: number) => {
+    if (!open(char, training)) return;
     cfg.slots[active].char = char;
     // After you pick, move on to the next CPU so a whole match can be set from the grid.
     if (active < cfg.slots.length - 1) active++;
@@ -134,14 +149,16 @@ export function openSelect({ mode, config, onDone }: Options): void {
         'button',
         {
           type: 'button',
-          class: 'tile',
-          title: c.name,
+          class: open(i, training) ? 'tile' : 'tile locked',
+          title: open(i, training) ? c.name : `${c.name} (locked)`,
+          'aria-disabled': open(i, training) ? undefined : 'true',
+          'data-fighter': c.id,
           onclick: () => assign(i),
           onfocus: () => showPreview(c),
           onmouseenter: () => showPreview(c),
         },
         thumb(c),
-        h('span', {}, c.name),
+        h('span', {}, open(i, training) ? c.name : 'Locked'),
       ),
     ),
     h(
@@ -150,7 +167,10 @@ export function openSelect({ mode, config, onDone }: Options): void {
         type: 'button',
         class: 'tile random',
         title: 'Random',
-        onclick: () => assign(Math.floor(Math.random() * CHARACTERS.length)),
+        onclick: () => {
+          const ok = CHARACTERS.map((_, i) => i).filter((i) => open(i, training));
+          assign(ok[Math.floor(Math.random() * ok.length)]);
+        },
       },
       h('b', {}, '?'),
       h('span', {}, 'Random'),
@@ -211,7 +231,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
 
   function addCpu(): void {
     const used = new Set(cfg.slots.map((s) => s.char));
-    const free = CHARACTERS.findIndex((_, i) => !used.has(i));
+    const free = CHARACTERS.findIndex((_, i) => !used.has(i) && open(i, training));
     cfg.slots.push({ char: free < 0 ? 0 : free, cpu: cfg.slots[cfg.slots.length - 1]?.cpu || 5, team: cfg.slots.length % 2 });
     active = cfg.slots.length - 1;
     renderSlots();

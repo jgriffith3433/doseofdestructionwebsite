@@ -3,6 +3,7 @@
 // "Match found vs <name> — starting in 5…" banner, and the Profile panel.
 
 import { CHARACTERS } from '../sim/characters.ts';
+import { isUnlocked } from '../campaign/story.ts';
 import { audio } from '../audio.ts';
 import { $, h, headUrl } from './dom.ts';
 import { focusFirst, onPanelBack, syncPad } from './screens.ts';
@@ -223,13 +224,15 @@ function renderGrid(): void {
         'button',
         {
           type: 'button',
-          class: `profile-tile${c.id === picked ? ' on' : ''}`,
+          class: `profile-tile${c.id === picked ? ' on' : ''}${isUnlocked(c.id) ? '' : ' locked'}`,
+          'aria-disabled': isUnlocked(c.id) ? undefined : 'true',
           role: 'option',
           'aria-selected': String(c.id === picked),
           'aria-label': c.name,
-          title: c.name,
+          title: isUnlocked(c.id) ? c.name : `${c.name} (locked)`,
           'data-avatar': c.id,
           onclick: () => {
+            if (!isUnlocked(c.id)) return;
             picked = c.id;
             for (const b of document.querySelectorAll<HTMLElement>('#profile-grid .profile-tile')) {
               const on = b.dataset.avatar === picked;

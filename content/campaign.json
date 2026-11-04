@@ -1,6 +1,7 @@
 [
   {
     "id": "open-mic",
+    "unlock": "kaelen",
     "title": "Open Mic",
     "tagline": "A walk-on with no record and one skateboard.",
     "hint": "Hits raise damage, and damage makes launches longer. Smash attacks (I + a direction) finish.",
@@ -102,6 +103,7 @@
   },
   {
     "id": "house-heavy",
+    "unlock": "break",
     "title": "House Heavy",
     "tagline": "The house fighter is the size of the house.",
     "hint": "Break is giant and heavy. Build damage before you go for the launch.",
@@ -186,6 +188,7 @@
   },
   {
     "id": "bad-signal",
+    "unlock": "dj-wont-read",
     "title": "Bad Signal",
     "tagline": "Two on one, on platforms that will not hold still.",
     "hint": "Two of them, one stock each. Keep both in front of you and ride the moving platforms.",
@@ -293,6 +296,7 @@
   },
   {
     "id": "low-pressure",
+    "unlock": "small-weather",
     "title": "Low Pressure",
     "tagline": "Someone brought the weather.",
     "hint": "Low gravity. Jumps hang and launches carry. Mind the gap in the middle.",
@@ -378,6 +382,7 @@
   },
   {
     "id": "turn-the-page",
+    "unlock": "blog-man",
     "title": "Turn the Page",
     "tagline": "A partner, finally. He writes too.",
     "hint": "Blog Man fights with you. Teammates cannot hit each other, so gang up.",
@@ -482,6 +487,7 @@
   },
   {
     "id": "sudden-death",
+    "unlock": "slice",
     "title": "Sudden Death",
     "tagline": "The show is running long. One stock, high damage.",
     "hint": "Both of you start at 150% with one stock. The first strong hit wins. Shield, then punish.",
@@ -558,6 +564,7 @@
   },
   {
     "id": "dead-weight",
+    "unlock": "ss-boulder",
     "title": "Dead Weight",
     "tagline": "They want the kid off the air.",
     "hint": "Survive for 60 seconds. You do not need KOs. Stay away from the edges.",
@@ -660,6 +667,7 @@
   },
   {
     "id": "encore",
+    "unlock": "orchestrator",
     "title": "Encore",
     "tagline": "The man who runs the show steps onto it.",
     "hint": "The final fight: a giant Orchestrator. Stay moving and punish his landings.",
@@ -762,6 +770,7 @@
   },
   {
     "id": "title-defense",
+    "unlock": "shark-dude",
     "season": 2,
     "title": "Title Defense",
     "tagline": "The champion's first night back on the roof where it started.",
@@ -875,6 +884,7 @@
   },
   {
     "id": "drop-in",
+    "unlock": "pyro-singer",
     "season": 2,
     "title": "Drop In",
     "tagline": "She wants the ratings. So does the network.",
@@ -973,6 +983,7 @@
   },
   {
     "id": "champions-tax",
+    "unlock": "susan",
     "season": 2,
     "title": "The Champion's Tax",
     "tagline": "The champion pays to fight. The challenger doesn't.",
@@ -1067,6 +1078,7 @@
   },
   {
     "id": "sponsored",
+    "unlock": "wallit",
     "season": 2,
     "title": "Sponsored",
     "tagline": "Someone bought a fighter. And then bought a bigger one.",
