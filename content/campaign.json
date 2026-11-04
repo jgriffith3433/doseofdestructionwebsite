@@ -1846,5 +1846,269 @@
         }
       ]
     }
+  },
+  {
+    "id": "local-affiliate",
+    "unlock": "ball-person",
+    "season": 6,
+    "title": "Local Affiliate",
+    "tagline": "The show goes to a new city, and the new city can't afford the effects.",
+    "hint": "The stage is quiet tonight: no events, no hazards. Ball Person is fast on the ground and her kicks carry. Don't chase her: wait, then punish the landing.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Rainbow Full Pipe. Ramps, decks, and for once nothing drops in. The local station turned the effects off to save money."
+      },
+      {
+        "who": "blog-man",
+        "text": "Breaking news: the show has been syndicated. Sweeps Week was so good, every city wants the champion. This is the first one. The budget is small. The headline is not."
+      },
+      {
+        "who": "ball-person",
+        "text": "Fast feet. Good kicks. I know every inch of this pipe."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Show me."
+      }
+    ],
+    "outro": [
+      {
+        "who": "ball-person",
+        "text": "Okay. You know it better."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Local Affiliate Books Champion, Cannot Afford a Second Night. Too long, but it is true."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Next city."
+      }
+    ],
+    "fight": {
+      "stage": "rainbow-full-pipe",
+      "stocks": 3,
+      "rules": {
+        "hazards": 0
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "ball-person",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "standards-and-practices",
+    "unlock": "chooser",
+    "season": 6,
+    "title": "Standards and Practices",
+    "tagline": "A new market has rules about what you can show on air.",
+    "hint": "Damage is at 70% for both of you, so fights run long and launches come late. Chooser is small and round and slips out of every grab: don't go for the big hit, take the steady ones.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Space Chess. The board is set, and a stern graphic in the corner of the screen reads: viewer discretion."
+      },
+      {
+        "who": "blog-man",
+        "text": "The second city has a censor. Hits will be shown at seventy percent. I am told this is \"family hour\". It is a broadcast."
+      },
+      {
+        "who": "chooser",
+        "text": "I choose to stand here. I also choose to stand there. You can't choose for me."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Watch me."
+      }
+    ],
+    "outro": [
+      {
+        "who": "chooser",
+        "text": "Oh. I did not choose that."
+      },
+      {
+        "who": "blog-man",
+        "text": "The censor reports no complaints. Ratings, however, are up. Nobody can explain it."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Seventy percent was plenty."
+      }
+    ],
+    "fight": {
+      "stage": "space-chess",
+      "stocks": 3,
+      "rules": {
+        "damage": 70
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "chooser",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "prime-time",
+    "unlock": "not-an-old-man-yet",
+    "season": 6,
+    "title": "Prime Time",
+    "tagline": "The third city wants the champion at the best hour, and the best hour wants a number.",
+    "hint": "Quota: deal 200% damage before the 80-second clock runs out. Not an Old Man Yet owns the middle of the stage and won't leave it: pull him off it, then hit him hard.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Dust Devil Mesa. The sun is setting over a stage that has seen a lot of prime time."
+      },
+      {
+        "who": "blog-man",
+        "text": "The third market buys the show at its best hour, and it has booked a quota: two hundred percent, delivered before the clock runs out. Tonight's walk-on has been on the air longer than anyone."
+      },
+      {
+        "who": "not-an-old-man-yet",
+        "text": "I am not an old man yet. I am a seasoned one. Stand where you like. I'll be in the middle."
+      },
+      {
+        "who": "exit-punk",
+        "text": "You won't be for long."
+      }
+    ],
+    "outro": [
+      {
+        "who": "not-an-old-man-yet",
+        "text": "Not an old man yet. A little bruised."
+      },
+      {
+        "who": "blog-man",
+        "text": "The numbers are in. Best hour of the week. I'd say the champion earned it, but the network says the hour did."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Tell the hour thanks."
+      }
+    ],
+    "fight": {
+      "stage": "desert",
+      "stocks": 3,
+      "rules": {
+        "timeLimit": 4800
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "not-an-old-man-yet",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 3
+        }
+      ],
+      "objective": "quota",
+      "quota": 200
+    }
+  },
+  {
+    "id": "global-feed",
+    "unlock": "yooba",
+    "season": 6,
+    "title": "Global Feed",
+    "tagline": "The last market goes live to every city at once, and the card sends two.",
+    "hint": "Two on one: Yooba's two extra jumps and long tongue, Slow Rider's slow walk and long flight. They have two stocks each, you have three. Gravity is a little low, so watch the air.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Watercolor Nebula. Every screen in every city shows this one sky, live."
+      },
+      {
+        "who": "blog-man",
+        "text": "The fourth night is the global feed: all the markets at once, one fight. The network is sending two. I asked for a headline and was given a deadline."
+      },
+      {
+        "who": "yooba",
+        "text": "Two extra jumps. Long mouth. Big audience. I like it."
+      },
+      {
+        "who": "slow-rider",
+        "text": "No rush. I never hurry a finish."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Then I will."
+      }
+    ],
+    "outro": [
+      {
+        "who": "yooba",
+        "text": "Okay. That was a lot of jumps."
+      },
+      {
+        "who": "slow-rider",
+        "text": "Slow. But it ended."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Champion Wins Every City, Show Wins the World. For once, short enough."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Good night, everyone."
+      },
+      {
+        "who": "narrator",
+        "text": "Four markets. Four feeds. The card travels."
+      }
+    ],
+    "fight": {
+      "stage": "watercolor-nebula",
+      "stocks": 3,
+      "rules": {
+        "gravity": 85
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "yooba",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 2
+        },
+        {
+          "char": "slow-rider",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
   }
 ]

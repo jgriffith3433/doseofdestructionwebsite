@@ -75,6 +75,7 @@ const SEASON_TEXT: Record<number, { subtitle: string; end: string }> = {
   3: { subtitle: 'The Orchestrator Returns', end: 'He signed the sheet. He took the baton. The show goes on.' },
   4: { subtitle: 'The Rival Broadcast', end: 'Two networks. One card. The show is still his.' },
   5: { subtitle: 'Sweeps Week', end: 'Four nights. Four sweeps. Nobody changed the channel.' },
+  6: { subtitle: 'Syndication', end: 'Four markets. Four feeds. The card travels.' },
 };
 
 /** The seasons that have chapters, in order. */

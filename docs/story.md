@@ -73,8 +73,9 @@ season the chapters unlock in order, as they always have. Once a season is clear
 - Season 3, *The Orchestrator Returns*: "He signed the sheet. He took the baton. The show goes on."
 - Season 4, *The Rival Broadcast*: "Two networks. One card. The show is still his."
 - Season 5, *Sweeps Week*: "Four nights. Four sweeps. Nobody changed the channel."
+- Season 6, *Syndication*: "Four markets. Four feeds. The card travels."
 
-Seasons 6 to 10 are not written yet: Season 3 is the Orchestrator's return arc, not the end of the show, and a new
+Seasons 7 to 10 are not written yet: Season 3 is the Orchestrator's return arc, not the end of the show, and a new
 season just adds `"season": N` chapters (it shows locked until the season before is cleared).
 
 The names and end lines live in `src/game/campaign/story.ts` (`SEASON_TEXT`) next to the chapter reader.
@@ -319,3 +320,37 @@ Pacing: tuned in the sim against the level-9 bot on Yo House with damage at 130%
 Later items: the lines are text only (no `audio`/`take`, so they play silent and show as "no take" in the Voice tab);
 recording them through Hawkes Gen costs cents. No new art is needed. Pacing of the other episodes (CPU levels,
 stocks) is not sim-tuned.
+
+## Season 6: Syndication (as built)
+
+Sweeps Week was so good that every city wants the champion. The network answers the way television does: it
+syndicates the show, one market per night, each with its own station and its own rules. No villain this season.
+The Orchestrator is off the air (not seen, not heard) and **The Mechanic is not used** (still a candidate, not
+confirmed canon). Blog Man hosts and the narrator stays; Exit Punk is the player, team 0. Every fighter and stage
+exists; the walk-ons are fighters no earlier season used (Ball Person, Chooser, Not an Old Man Yet, Yooba), and
+Slow Rider fights as Yooba's partner and is not unlocked (one fighter per chapter). Future Man is still unused.
+
+| # | Episode (id) | Walk-on (CPU level) | Stage | Rule twist | Unlocks |
+|---|---|---|---|---|---|
+| 1 | Local Affiliate (`local-affiliate`) | Ball Person (5) | Rainbow Full Pipe | Quiet stage (`hazards: 0`): the local station can't afford the effects, so no skater drops in. 3 stocks each. | Ball Person |
+| 2 | Standards and Practices (`standards-and-practices`) | Chooser (5) | Space Chess | A censor: damage at 70% (`damage: 70`) for both, so fights run long. 3 stocks each. | Chooser |
+| 3 | Prime Time (`prime-time`) | Not an Old Man Yet (5) | Dust Devil Mesa (`desert`) | **Quota** (`objective: quota`): deal 200% before the 80-second clock (`timeLimit: 4800`). 3 stocks each. | Not an Old Man Yet |
+| 4 | Global Feed (`global-feed`) | Yooba (6) and Slow Rider (6), 2 stocks each | Watercolor Nebula | Two on one: Exit Punk has 3 stocks. Gravity at 85% (`gravity: 85`). | Yooba |
+
+The beats:
+
+1. **Local Affiliate.** The first syndicated city has a small budget and a very good pipe. Ball Person: "I know every
+   inch of this pipe." Exit Punk: "Show me." After: "Okay. You know it better." Exit Punk: "Next city."
+2. **Standards and Practices.** The second city has a censor: hits shown at seventy percent, "family hour". Chooser
+   chooses where to stand. After: "I did not choose that." Exit Punk: "Seventy percent was plenty."
+3. **Prime Time.** The third market buys the show at its best hour and books a quota of 200%. Not an Old Man Yet
+   owns the middle of the stage. After: "Not an old man yet. A little bruised."
+4. **Global Feed.** Every city at once, one live fight, and the network sends two. Yooba and Slow Rider. Exit Punk:
+   "Good night, everyone."
+
+**Season end** (the last line of Global Feed's outro, and the map's end line under Season 6). Narrator: *"Four
+markets. Four feeds. The card travels."*
+
+Later items: the lines are text only (no `audio`/`take`, so they play silent and show as "no take" in the Voice
+tab); recording them through Hawkes Gen costs cents. No new art is needed. Pacing (CPU levels, stocks, the 200%
+quota in 80 seconds) is not sim-tuned.
