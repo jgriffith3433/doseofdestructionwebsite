@@ -364,14 +364,14 @@ each a remake of an old kind of episode (a pilot, a sitcom, a crossover, a final
 not heard) and **The Mechanic is not used** (still a candidate, not confirmed canon). Blog Man hosts and the narrator
 stays; Exit Punk is the player, team 0. Every fighter and stage exists; the walk-ons are fighters no earlier season
 made a walk-on (Evil Blue Bird, Shutup Bot, Stratabots, Future Man), and TT fights as Stratabots' partner and is not
-unlocked (one fighter per chapter). Only the Mechanic is left unused. No new rule or mechanic is needed.
+unlocked (one fighter per chapter). Only the Mechanic is left unused. One new rule: the Clean Streak (Series Finale).
 
 | # | Episode (id) | Walk-on (CPU level) | Stage | Rule twist | Unlocks |
 |---|---|---|---|---|---|
 | 1 | Pilot Remake (`pilot-remake`) | Evil Blue Bird (6) | City Top | Both start every life at 100% (`startPercent: 1000`): one clean hit can end it. 2 stocks each. | Evil Blue Bird |
 | 2 | Laugh Track (`laugh-track`) | Shutup Bot (6), 4 stocks, every life at 100% | Yo House | **Ratings** (`objective: ko`): 2 KOs before the 90-second clock (`timeLimit: 5400`). | Shutup Bot |
 | 3 | Crossover Event (`crossover-event`) | Stratabots (7) and TT (6), 2 stocks each | Rainbow Full Pipe | Two on one: Exit Punk has 3 stocks. Gravity at 115% (`gravity: 115`). | Stratabots |
-| 4 | Series Finale (`series-finale`) | Future Man (8) | City Top | Damage at 120% (`damage: 120`). 3 stocks each. | Future Man |
+| 4 | Series Finale (`series-finale`) | Future Man (8) | City Top | **Clean Streak** (`objective: streak`): land 5 hits in a row without being hit before the 90-second clock (`timeLimit: 5400`). Damage at 120% (`damage: 120`). 3 stocks each. | Future Man |
 
 The beats:
 
@@ -382,11 +382,26 @@ The beats:
 3. **Crossover Event.** Two shows on one night. Stratabots: "Plates up." TT: "I am heavier than I look." Exit Punk:
    "Believe it." The spin-off gets a pilot; Blog Man isn't sure how this works.
 4. **Series Finale.** Back on City Top for the last night, with a guest from the next season who isn't allowed to
-   say how it goes. After: "That is not how it went in the next season." Exit Punk: "Good night, future."
+   say how it goes, and an editor who wants a supercut: five clean hits in a row, no cuts. After: "That is not how it went in the next season." Exit Punk: "Good night, future."
 
 **Season end** (the last line of Series Finale's outro, and the map's end line under Season 7). Narrator: *"Four pilots.
 Four reboots. The champion was never recast."*
 
+**The Clean Streak rule** is new (built, Series Finale). A streak fight is won by landing N hits in a row without being
+hit back before the clock runs out, and lost when the clock wins (or when the champion runs out of stocks). It ends on
+the hit that makes the number. In data it is `"objective": "streak"` with `"streak": 5` (hits) and a `timeLimit` in
+`rules`. The HUD shows "Clean streak 2/5" with the clock, counting up with each hit landed and back to 0 the moment
+the champion is hit (falls and hazards don't reset it; shielded hits count for neither side). Hits on teammates
+don't exist in this show's fights, so there is no friendly-fire case. It's the editor's rule, so the results talk
+about the supercut (the line shows the best streak, not the current one):
+
+- met: "5 clean hits in a row before the clock. That one goes in the supercut."
+- on time: "Time ran out at a best streak of 3 of 5. Nothing for the supercut."
+- out of stocks: "Out of stocks at a best streak of 3 of 5. The editor cut around you."
+
+Pacing: tuned in the sim against the level-9 bot on City Top, Future Man (CPU 8), damage 120%: 5 in 90 seconds is
+won in about 7 fights of 12 (3 in 60 s is won every time, 5 in 60 s about 5 of 12).
+
 Later items: the lines are text only (no `audio`/`take`, so they play silent and show as "no take" in the Voice tab);
-recording them through Hawkes Gen costs cents. No new art is needed (GPU estimate: none). Pacing (CPU levels, stocks, the
-2-KO Laugh Track clock) is not sim-tuned.
+recording them through Hawkes Gen costs cents. No new art is needed (GPU estimate: none). Pacing of the other episodes
+(CPU levels, stocks, the 2-KO Laugh Track clock) is not sim-tuned.

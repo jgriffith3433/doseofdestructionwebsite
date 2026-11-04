@@ -140,6 +140,15 @@
       ]
     },
     {
+      "id": "streak",
+      "title": "The clean-streak objective in a campaign chapter: \"Clean streak 0/5\" on the HUD with the clock, counting up with each hit landed and back to 0 when hit, and a results line with the best streak",
+      "description": "Plays one chapter that uses the streak objective (Season 7's Series Finale by default, or option `chapter`) from the Campaign map with the bot on a virtual pad: setup shortcut marks the chapters before it cleared. Checks the chip as the match starts and as hits land (an event for each new high) or are taken (the count starts over), the clock, and the results line (streak met, time ran out or out of stocks), two tries. Events chapter, streak-chip, streak-count, streak-reset, streak-result, chapter-cleared / chapter-failed.",
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "roster",
       "title": "Every fighter spawns in training and does each move once (starts matches directly)",
       "seconds": 480,

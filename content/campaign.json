@@ -2316,8 +2316,8 @@
     "unlock": "future-man",
     "season": 7,
     "title": "Series Finale",
-    "tagline": "The reboot ends with a guest from the next season.",
-    "hint": "The last fight of the reboot: every hit lands harder (damage 120%). Future Man is fast for his weight and almost never falls off the stage: don’t chase the edge, wear him down and launch him up.",
+    "tagline": "The finale has a supercut, and a supercut needs clean footage.",
+    "hint": "Clean streak: land 5 hits in a row without being hit back, before the 90-second clock runs out. Getting hit starts the count over. Every hit lands harder (damage 120%). Future Man is fast for his weight: poke, then back off, and don’t trade.",
     "intro": [
       {
         "who": "narrator",
@@ -2325,7 +2325,7 @@
       },
       {
         "who": "blog-man",
-        "text": "The series finale of the reboot, and the network has booked a guest from the next season. He has not aired yet. I was told to say nothing, which is a first."
+        "text": "The series finale of the reboot, and the network has booked a guest from the next season. He has not aired yet. I was told to say nothing, which is a first. Also, the editor needs a supercut: five clean hits in a row, no cuts, before the clock runs out. Get hit and the footage is ruined."
       },
       {
         "who": "future-man",
@@ -2358,7 +2358,8 @@
       "stage": "city-top",
       "stocks": 3,
       "rules": {
-        "damage": 120
+        "damage": 120,
+        "timeLimit": 5400
       },
       "slots": [
         {
@@ -2373,7 +2374,9 @@
           "team": 1,
           "stocks": 3
         }
-      ]
+      ],
+      "objective": "streak",
+      "streak": 5
     }
   }
 ]

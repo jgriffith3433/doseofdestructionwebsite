@@ -84,6 +84,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'unlocks') await r.unlocksRun();
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'quota') await r.quotaObjective();
+        else if (id === 'streak') await r.streakObjective();
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'site-links') await r.siteLinks();
@@ -686,7 +687,8 @@ class Run {
       await this.matchLive();
       for (let attempt = 1; ; attempt++) {
         const watch = this.watchQuota(c);
-        const ended = await this.fight(() => (watch(), late()), 8 * 60 * 1000);
+        const watchS = this.watchStreak(c);
+        const ended = await this.fight(() => (watch(), watchS(), late()), 8 * 60 * 1000);
         if (ended === 'stopped') {
           t.note(`out of time in ${label}`);
           t.log(`stopped at the 10-minute budget in ${label}`);
@@ -696,6 +698,7 @@ class Run {
         }
         const won = await this.results();
         await this.checkQuotaResult(c);
+        await this.checkStreakResult(c);
         if (won) {
           await this.click(() => this.button('#results-actions', 'Continue'), 'Continue');
           await this.playDialogue();
@@ -788,6 +791,74 @@ class Run {
     const right = met ? says.startsWith(`${need}%`) : m?.state.timedOut ? says.startsWith('Time ran out') : !!says;
     if (!right) this.t.problem('bug', `the results line "${says}" doesn't match how the quota fight ended (${met ? 'quota met' : m?.state.timedOut ? 'on time' : 'out of stocks'})`);
     else this.t.event('quota-result', `${met ? 'quota met' : m?.state.timedOut ? 'ended on time' : 'out of stocks'} at ${m ? Math.round(m.state.frame / 60) : '?'} s: "${says}"`);
+  }
+
+  /** The 'streak' objective's chapter alone (`chapter` option, default the first one that uses it), played from the map. */
+  async streakObjective(): Promise<void> {
+    const t = this.t;
+    const asked = this.options.chapter ?? CHAPTERS.find((c) => c.fight.objective === 'streak')?.id;
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    if (from < 0 || CHAPTERS[from].fight.objective !== 'streak') {
+      t.problem('bug', `chapter "${String(asked)}" is not a streak chapter (content/campaign.json: objective "streak")`);
+      t.finish('error');
+      return;
+    }
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((c) => c.id));
+    t.log(`setup shortcut: chapters 1-${from} marked cleared, starting at ${CHAPTERS[from].id}`);
+    const t0 = performance.now();
+    try {
+      await this.campaignFrom(from, () => performance.now() - t0 > CAMPAIGN_BUDGET_MS, from);
+    } finally {
+      this.game.setCampaignProgress(before);
+    }
+  }
+
+  /** A chapter with a clean streak: the HUD chip must show it from the start and follow the sim's streak (up on a hit landed, back to 0 on a hit taken). Call it every poll. */
+  private watchStreak(c: (typeof CHAPTERS)[number]): () => void {
+    if (c.fight.objective !== 'streak') return () => {};
+    const t = this.t;
+    const need = c.fight.streak ?? 4;
+    const chip = () => this.q('#objective');
+    const shown = (el: HTMLElement | null) => !!el && !el.hidden && el.getClientRects().length > 0;
+    let last = '';
+    let top = 0;
+    let resets = 0;
+    return () => {
+      const m = this.game.match();
+      const now = chip()?.textContent ?? '';
+      if (!m || now === last) return;
+      const first = last === '';
+      const prev = Number(/(\d+)\//.exec(last)?.[1] ?? 0);
+      last = now;
+      const got = Number(/(\d+)\//.exec(now)?.[1] ?? -1);
+      if (!shown(chip())) t.problem('bug', 'the streak chapter shows no objective chip on the HUD');
+      else if (first && now !== `Clean streak 0/${need}`) t.problem('bug', `the streak chip starts at "${now}", not "Clean streak 0/${need}"`);
+      else if (first) t.event('streak-chip', `${now} with ${this.q('#timer')?.textContent ?? '?'} on the clock`);
+      else if (got < 0 || got > need) t.problem('bug', `the streak chip says "${now}"`);
+      else if (got > top) {
+        top = got;
+        t.event('streak-count', `${now} with ${this.q('#timer')?.textContent ?? '?'} on the clock`);
+      } else if (got < prev) {
+        resets++;
+        if (resets <= 3) t.event('streak-reset', `${now}: a hit taken started the count over (best ${m.streakBest()})`);
+      }
+    };
+  }
+
+  /** On the results of a streak chapter: the line says which way it went (the best streak, or why it fell short). */
+  private async checkStreakResult(c: (typeof CHAPTERS)[number]): Promise<void> {
+    if (c.fight.objective !== 'streak') return;
+    const m = this.game.match() ?? this.seen;
+    const line = () => this.q('#results-body .results-objective');
+    await this.t.until(() => !!line()?.textContent, 10000, 'the streak results line').catch((e) => {
+      if (String(e).includes('stopped')) throw e;
+    });
+    const says = line()?.textContent ?? '';
+    const need = c.fight.streak ?? 4;
+    const met = !!m && m.streakBest() >= m.streakTarget;
+    const right = met ? says.startsWith(`${need} clean hits`) : m?.state.timedOut ? says.startsWith('Time ran out') : !!says;
+    if (!right) this.t.problem('bug', `the results line "${says}" doesn't match how the streak fight ended (${met ? 'streak met' : m?.state.timedOut ? 'on time' : 'out of stocks'})`);
+    else this.t.event('streak-result', `${met ? 'streak met' : m?.state.timedOut ? 'ended on time' : 'out of stocks'} at ${m ? Math.round(m.state.frame / 60) : '?'} s, best streak ${m?.streakBest() ?? '?'}: "${says}"`);
   }
 
   /** A chapter that names a fighter shows the unlock message on the map once it is cleared (campaign/story.ts `unlock`). */
