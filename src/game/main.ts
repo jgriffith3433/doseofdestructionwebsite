@@ -347,13 +347,18 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   ])
     .then(() => renderer.warmUp(m.state))
     .catch((err) => console.error(err));
+  let loaded = false;
+  void loading.then(() => { loaded = true; });
 
   if (withVersus) {
     let splash: Promise<void> = Promise.resolve();
     await go('versus', () => {
       splash = playVersus(setup);
     });
-    await Promise.all([splash, loading]);
+    await splash;
+    // The card is done but the match isn't ready: say so, rather than leave a frozen-looking card.
+    if (!loaded && !stale()) $('loading').hidden = false;
+    await loading;
     if (stale()) return;
   } else {
     // The loading screen stays up until the match's first frame is drawn (under the wipe).
