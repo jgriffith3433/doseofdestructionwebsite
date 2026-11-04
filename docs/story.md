@@ -70,7 +70,10 @@ season the chapters unlock in order, as they always have. Once a season is clear
 
 - Season 1, *Open Mic to Encore*: "Season 1 cleared. The card is yours now."
 - Season 2, *The card is yours*: "Four walk-ons. Four defenses. The card is still his."
-- Season 3, *The Finale*: "One walk-on. One baton. The show goes on."
+- Season 3, *The Orchestrator Returns*: "He signed the sheet. He took the baton. The show goes on."
+
+Seasons 4 to 10 are not written yet: Season 3 is the Orchestrator's return arc, not the end of the show, and a new
+season just adds `"season": N` chapters (it shows locked until the season before is cleared).
 
 The names and end lines live in `src/game/campaign/story.ts` (`SEASON_TEXT`) next to the chapter reader.
 
@@ -154,7 +157,7 @@ Champion's Tax runs Susan at CPU 5 (not 6): at 60% a life, CPU 6 was harder than
 **Season end** (the last lines of Sponsored's outro; the map's end line under Season 2 is the narrator's). Narrator: *"Four walk-ons. Four defenses. The card is still his."* Then the sign-up sheet
 for next season, one name on it, read by Blog Man: *"Walk-on. No sponsor. No record. One baton."*
 
-That's the Orchestrator, coming back as a fighter (never as scenery). The finale isn't part of Season 2's
+That's the Orchestrator, coming back as a fighter (never as scenery). His return isn't part of Season 2's
 four episodes: it airs as Season 3, below.
 
 ### Building Season 2
@@ -171,11 +174,11 @@ What it took, in order (all built; the lines as said are in `content/campaign.js
 
 No new stages or art are needed: every Season 2 stage and fighter already exists.
 
-## Season 3: The Finale (as built)
+## Season 3: The Orchestrator Returns (as built)
 
-The sign-up sheet at the end of Sponsored had one name on it. The finale is that walk-on: the Orchestrator,
+The sign-up sheet at the end of Sponsored had one name on it. Season 3 is that walk-on: the Orchestrator,
 off the air since the Encore, signs up like everybody else and fights for the card. It's one episode, on its
-own heading on the map ("Season 3", *The Finale*), so Season 2 keeps its four. Blog Man still hosts; the
+own heading on the map ("Season 3", *The Orchestrator Returns*), so Season 2 keeps its four. Blog Man still hosts; the
 narrator stays. The Orchestrator is a fighter, never scenery.
 
 | # | Episode (id) | Walk-on (CPU level) | Stage | Rule twist |
@@ -203,12 +206,12 @@ Encore's level: about 3 in 8 over 32 sim fights (the Encore is 3 in 8, Sponsored
 - The Orchestrator: "Same time tomorrow?" Exit Punk: "Same time tomorrow." The man who came for the exit
   chooses the show.
 
-**Season end** (the last line of Walk-On's outro, and the map's end line under Season 3). Narrator: *"One
-walk-on. One baton. The show goes on."*
+**Season end** (the last line of Walk-On's outro, and the map's end line under Season 3). Narrator: *"He signed the
+sheet. He took the baton. The show goes on."*
 
 Later items (not built; both cost money, so they wait for a yes):
 
 - **Voice.** Walk-On's lines are text only: no `audio` or `take` yet, so they show as "no take" in the Voice
   tab and play silent. Record them through Hawkes Gen like Season 2's (cents, no GPU).
-- **A dedicated finale stage.** Walk-On uses Humans In The Loop, the arena where the Orchestrator ran the
-  Encore. A stage of its own for the finale is a later item (new art).
+- **A dedicated Season 3 stage.** Walk-On uses Humans In The Loop, the arena where the Orchestrator ran the
+  Encore. A stage of its own for his return is a later item (new art).

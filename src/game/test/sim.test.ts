@@ -186,14 +186,14 @@ STAGES.forEach((stage, si) => {
   check('season 2 has a Ratings fight and a Rainbow Full Pipe night', s2.some((c) => c.fight.objective === 'ko') && s2.some((c) => STAGES[c.fight.stage].id === 'rainbow-full-pipe'));
   const unrecorded = s2.flatMap((c) => [...c.intro, ...c.outro]).filter((l) => !l.audio || l.take?.text !== l.text);
   check('season 2 lines are all recorded', unrecorded.length === 0, unrecorded.map((l) => l.text).join(' / '));
-  // The finale (docs/story.md, Season 3): the Orchestrator comes back as a fighter, never scenery, and the champion has top billing.
+  // Season 3, the Orchestrator's return (docs/story.md): the Orchestrator comes back as a fighter, never scenery, and the champion has top billing.
   const finale = CHAPTERS.filter((c) => c.season === 3);
   const fin = finale[0]?.fight;
   const orch = fin?.slots.find((sl) => CHARACTERS[sl.char].id === 'orchestrator');
   const punk = fin?.slots.find((sl) => sl.cpu === null);
-  check('season 3 is the one-episode finale', finale.length === 1 && SEASONS.at(-1)?.number === 3, finale.map((c) => c.id).join(' '));
-  check('the finale: the Orchestrator fights, at normal size, with a stock more', !!orch && orch.cpu !== null && orch.cpu > 0 && (orch.scale ?? 100) === 100 && (orch.stocks ?? 0) > (punk?.stocks ?? 0));
-  check('the finale: Exit Punk has top billing (the giant)', !!punk && CHARACTERS[punk.char].id === 'exit-punk' && (punk.scale ?? 100) > 100);
+  check('season 3 is the one-episode Orchestrator arc', finale.length === 1 && SEASONS.some((s) => s.number === 3 && s.subtitle !== 'The Finale'), finale.map((c) => c.id).join(' '));
+  check('season 3: the Orchestrator fights, at normal size, with a stock more', !!orch && orch.cpu !== null && orch.cpu > 0 && (orch.scale ?? 100) === 100 && (orch.stocks ?? 0) > (punk?.stocks ?? 0));
+  check('season 3: Exit Punk has top billing (the giant)', !!punk && CHARACTERS[punk.char].id === 'exit-punk' && (punk.scale ?? 100) > 100);
 }
 
 {

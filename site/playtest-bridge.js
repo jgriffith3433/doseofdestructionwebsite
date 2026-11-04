@@ -38,7 +38,7 @@
     {
       "id": "campaign",
       "title": "The campaign from chapter 1 (or the chapter asked for), as far as the bot gets in 10 minutes",
-      "description": "options: chapter (a chapter id from content/campaign.json: open-mic, house-heavy, bad-signal, low-pressure, turn-the-page, sudden-death, dead-weight, encore, title-defense, drop-in, champions-tax, sponsored, walk-on), or the contract's at with the same ids. Setup shortcut: every chapter before it is marked cleared (localStorage dod-campaign), then the bot opens it from the Campaign map and plays on from there. The player's own progress is put back at the end. An unknown id is reported as a problem.",
+      "description": "options: season (a number: that season's first chapter, e.g. 3), chapter (a chapter id from content/campaign.json: open-mic, house-heavy, bad-signal, low-pressure, turn-the-page, sudden-death, dead-weight, encore, title-defense, drop-in, champions-tax, sponsored, walk-on), or the contract's at with the same ids. Setup shortcut: every chapter before it is marked cleared (localStorage dod-campaign), then the bot opens it from the Campaign map and plays on from there. The player's own progress is put back at the end. An unknown id is reported as a problem.",
       "starts": [
         "open-mic",
         "house-heavy",
@@ -52,7 +52,10 @@
         "drop-in",
         "champions-tax",
         "sponsored",
-        "walk-on"
+        "walk-on",
+        "season-1",
+        "season-2",
+        "season-3"
       ],
       "seconds": 600,
       "tags": [
