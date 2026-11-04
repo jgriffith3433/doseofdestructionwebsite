@@ -63,6 +63,15 @@
       ]
     },
     {
+      "id": "unlocks",
+      "title": "Hero unlocks: a fresh save shows locked fighter tiles in Versus; clearing Open Mic unlocks Kaelen (message on the map) and the tile becomes pickable",
+      "description": "Setup shortcut: a fresh save (no chapters cleared, dod-unlocks empty; the player's own are put back). Opens Versus select and counts the locked tiles (events locked-tiles, locked-click: a click on a locked tile picks nothing), plays chapter 1 through the real campaign (the bot), checks the \"joins the card\" message on the map (unlock-message), then opens Versus select again and picks the unlocked fighter (unlocked-pick). Metric lockedTiles.",
+      "seconds": 360,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "sound-settings",
       "title": "Tap to play, sound on, Settings from the menu and Pause, a setting kept across a reload",
       "description": "Taps the Tap to play prompt with a pointer press on the spot (hit-tested, so a covered prompt fails), checks the AudioContext runs and the menu music plays with no more taps, opens Settings from the main menu, turns Sound off and Music to 40%, reloads (the run carries on through ?playtest=sound-settings), checks the prompt and the choice are back, then opens Settings from Pause in a match. The player's own hawkes.sound is put back at the end.",

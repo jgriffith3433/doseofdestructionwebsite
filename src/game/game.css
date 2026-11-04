@@ -302,6 +302,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 }
 .tile:hover, .tile:focus-visible { border-color: var(--hot); outline: none; background: #2a1810; }
 .tile:hover img, .tile:focus-visible img { transform: scale(1.08); }
+.tile.locked { opacity: 0.55; cursor: not-allowed; }
+.tile.locked img { filter: brightness(0) contrast(0.6); }
+.tile.locked span { color: var(--gold); letter-spacing: 0.08em; text-transform: uppercase; }
 .tile.random b { display: grid; place-items: center; font-family: Oswald, sans-serif; font-size: 40px; color: var(--gold); }
 
 .slots {
@@ -1110,3 +1113,10 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
   object-fit: cover;
   object-position: 50% 50%;
 }
+
+/* The campaign map's note when an episode unlocks a fighter. */
+.unlock-note { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; padding: 8px 14px; border: 2px solid var(--gold); border-radius: 10px; background: #2a1810; color: #fff; }
+.unlock-note img { width: 44px; height: 44px; object-fit: contain; object-position: bottom; }
+.unlock-note b { color: var(--gold); font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.04em; }
+.profile-tile.locked { opacity: 0.4; cursor: not-allowed; }
+.profile-tile.locked img { filter: brightness(0); }

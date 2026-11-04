@@ -2,6 +2,7 @@
 // localStorage and shown to everyone in the lobby. Online, you fight as your picture's fighter.
 
 import { CHARACTERS } from '../sim/characters.ts';
+import { isUnlocked } from '../campaign/story.ts';
 import { makeKey, type NostrKey } from './sign.ts';
 
 export interface Profile {
@@ -48,8 +49,15 @@ export function cleanAvatar(raw: unknown): string {
   return typeof raw === 'string' && CHARACTERS.some((c) => c.id === raw) ? raw : '';
 }
 
+/** Online you fight as your own picture, so your own picture must be a fighter you may pick (campaign/story.ts `fighterOpen`). */
+function ownAvatar(raw: unknown): string {
+  const id = cleanAvatar(raw);
+  return id && isUnlocked(id) ? id : '';
+}
+
 function randomAvatar(): string {
-  return CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)].id;
+  const open = CHARACTERS.filter((c) => isUnlocked(c.id));
+  return open[Math.floor(Math.random() * open.length)].id;
 }
 
 let current: Profile | null = null;
@@ -63,7 +71,7 @@ export function profile(): Profile {
   } catch {
     // Unreadable storage: a fresh profile.
   }
-  current = { name: cleanName(saved.name) || generatedName(), avatar: cleanAvatar(saved.avatar) || randomAvatar() };
+  current = { name: cleanName(saved.name) || generatedName(), avatar: ownAvatar(saved.avatar) || randomAvatar() };
   store(current);
   return current;
 }
@@ -81,7 +89,7 @@ export function setProfile(change: Partial<Profile>): Profile {
   const old = profile();
   const next: Profile = {
     name: change.name === undefined ? old.name : cleanName(change.name) || old.name,
-    avatar: change.avatar === undefined ? old.avatar : cleanAvatar(change.avatar) || old.avatar,
+    avatar: change.avatar === undefined ? old.avatar : ownAvatar(change.avatar) || old.avatar,
   };
   current = next;
   store(next);

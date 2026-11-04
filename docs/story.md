@@ -77,6 +77,24 @@ season just adds `"season": N` chapters (it shows locked until the season before
 
 The names and end lines live in `src/game/campaign/story.ts` (`SEASON_TEXT`) next to the chapter reader.
 
+## Unlocks: who joins the card
+
+The show's roster grows as the champion clears it. A chapter's optional `unlock` in `content/campaign.json` names
+the fighter id that joins the card when that episode is cleared, always the walk-on it was fought against (Open
+Mic: Kaelen, House Heavy: Break, Bad Signal: DJ Won't Read, Low Pressure: Small Weather, Turn the Page: Blog Man,
+Sudden Death: Slice, Dead Weight: SS Boulder, Encore: the Orchestrator, Title Defense: Shark Dude, Drop In: Pyro
+Singer, The Champion's Tax: Susan, Sponsored: Wallit). Walk-On, with no `unlock`, gives nothing.
+
+- A fighter named by some chapter is **locked** on a fresh save: a dark "Locked" tile in Versus select (the preview
+  says which episode opens them), a grey picture in Profile. Everyone no chapter names (Exit Punk first) is open.
+- Clearing the episode unlocks them for good (`localStorage` `dod-unlocks`, next to `dod-campaign`; starting the
+  campaign over doesn't take it back). The map says so: "*Kaelen* joins the card. Unlocked for Versus and online."
+- The campaign itself is never gated: Exit Punk is the player and every walk-on fights as written. Training is open.
+- Online you fight as your profile picture, so the picture follows the same rule (`fighterOpen` in
+  `campaign/story.ts`, used by select, Profile and the online setup). A save that cleared chapters before unlocks
+  existed gets their fighters from `dod-campaign`. The leaderboard rates what was played; it can't see another
+  player's unlocks, so it trusts each client to pick only fighters it may.
+
 ## Season 2: The card is yours (as built)
 
 The show came back, the way the Orchestrator said it would. Exit Punk is the champion now, and the champion
