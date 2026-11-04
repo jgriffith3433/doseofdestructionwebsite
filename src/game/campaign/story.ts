@@ -70,7 +70,7 @@ export interface Season {
 const SEASON_TEXT: Record<number, { subtitle: string; end: string }> = {
   1: { subtitle: 'Open Mic to Encore', end: 'Season 1 cleared. The card is yours now.' },
   2: { subtitle: 'The card is yours', end: 'Four walk-ons. Four defenses. The card is still his.' },
-  3: { subtitle: 'The Finale', end: 'One walk-on. One baton. The show goes on.' },
+  3: { subtitle: 'The Orchestrator Returns', end: 'He signed the sheet. He took the baton. The show goes on.' },
 };
 
 /** The seasons that have chapters, in order. */

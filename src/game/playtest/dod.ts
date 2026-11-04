@@ -627,10 +627,22 @@ class Run {
     const t = this.t;
     const t0 = performance.now();
     const late = () => performance.now() - t0 > CAMPAIGN_BUDGET_MS;
-    // options.chapter (or the contract's options.at) starts at that chapter, picked by id.
-    const asked = this.options.chapter ?? this.options.at;
+    // options.chapter (or the contract's options.at) starts at that chapter, picked by id; options.season
+    // (or at: "season-N") starts at the first chapter of that season.
+    let asked = this.options.chapter ?? this.options.at;
+    const seasonAsk = this.options.season ?? (typeof asked === 'string' ? /^season-(\d+)$/.exec(asked)?.[1] : undefined);
     let from = 0;
     let before: string[] | null = null;
+    if (seasonAsk != null && seasonAsk !== '') {
+      const n = Number(seasonAsk);
+      const first = CHAPTERS.find((c) => c.season === n);
+      if (!first) {
+        t.problem('bug', `season ${String(seasonAsk)} has no chapters in the campaign yet (seasons with chapters: ${SEASONS.map((s) => s.number).join(', ')})`);
+        t.finish('error');
+        return;
+      }
+      asked = first.id;
+    }
     if (asked != null && asked !== '') {
       from = CHAPTERS.findIndex((c) => c.id === asked);
       if (from < 0) {
@@ -653,7 +665,7 @@ class Run {
     await this.toMainMenu();
     await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
     await this.screen('campaign');
-    this.checkCampaignMap();
+    this.checkCampaignMap(CHAPTERS[from]?.season ?? 1);
     let cleared = 0;
     let outcome: Outcome = 'won';
     t.metric('chaptersCleared', 0);
@@ -716,7 +728,7 @@ class Run {
    * The campaign map: a "Season N" heading over each season's chapters (as content/campaign.json
    * places them), nothing wider than the window, and on a 720p-or-taller window Season 1 fits on screen.
    */
-  private checkCampaignMap(): void {
+  private checkCampaignMap(startSeason = 1): void {
     const t = this.t;
     const screen = this.q('#campaign');
     const sections = [...document.querySelectorAll<HTMLElement>('#chapter-path .season')];
@@ -726,6 +738,11 @@ class Run {
       const shown = [...(sec?.querySelectorAll<HTMLElement>('.chapter') ?? [])].map((e) => e.dataset.chapter);
       const want = CHAPTERS.filter((c) => c.season === n).map((c) => c.id);
       t.event('season', `${heading || `no heading for season ${n}`}: ${shown.length} chapters (${shown.join(', ')})${sec?.classList.contains('locked') ? ', locked' : ''}`);
+      const sub = SEASONS.find((x) => x.number === n)?.subtitle ?? '';
+      const headShown = sec?.querySelector('.season-head .season-sub')?.textContent ?? '';
+      if (n <= startSeason && sub && headShown !== sub) t.problem('bug', `campaign map: Season ${n} is named "${headShown}", not "${sub}"`);
+      if (/finale/i.test(headShown)) t.problem('bug', `campaign map: Season ${n} still says "${headShown}"`);
+      if (n > startSeason && sec && !sec.classList.contains('locked')) t.problem('bug', `campaign map: Season ${n} is open though Season ${n - 1} is not cleared`);
       if (heading !== `Season ${n}`) t.problem('bug', `campaign map: season ${n} has the heading "${heading}", not "Season ${n}"`);
       if (shown.join() !== want.join()) t.problem('bug', `campaign map: Season ${n} shows ${shown.join(', ') || 'nothing'}, not ${want.join(', ')}`);
     }
