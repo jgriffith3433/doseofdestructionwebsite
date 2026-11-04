@@ -2110,5 +2110,270 @@
         }
       ]
     }
+  },
+  {
+    "id": "pilot-remake",
+    "unlock": "evil-blue-bird",
+    "season": 7,
+    "title": "Pilot Remake",
+    "tagline": "The network reboots the show, and starts with the first night again.",
+    "hint": "Both of you start every life at 100%, so one clean hit can end it. Evil Blue Bird never really lands: stay on the ground, wait for her dive, and punish it.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "City Top. The same roof, the same skyline, and a new logo in the corner of the screen."
+      },
+      {
+        "who": "blog-man",
+        "text": "Breaking news: the show has been rebooted. Same champion, fresh energy, a pilot for every night. The network calls it \"a bold new look\". It is the old look with a bigger budget."
+      },
+      {
+        "who": "evil-blue-bird",
+        "text": "Same roof. Same card. I get to be the first one this time."
+      },
+      {
+        "who": "exit-punk",
+        "text": "You were already first."
+      }
+    ],
+    "outro": [
+      {
+        "who": "evil-blue-bird",
+        "text": "Okay. That was not in the script."
+      },
+      {
+        "who": "blog-man",
+        "text": "The reboot tested well with everyone who remembered the original. Headline: Pilot Beats Pilot, Everyone Wins. The headline did not test well."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Next episode."
+      }
+    ],
+    "fight": {
+      "stage": "city-top",
+      "stocks": 2,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "startPercent": 1000,
+          "stocks": 2
+        },
+        {
+          "char": "evil-blue-bird",
+          "cpu": 6,
+          "team": 1,
+          "startPercent": 1000,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "laugh-track",
+    "unlock": "shutup-bot",
+    "season": 7,
+    "title": "Laugh Track",
+    "tagline": "The network added a laugh track. The walk-on doesn’t laugh, and doesn’t flinch.",
+    "hint": "Ratings: 2 KOs before the 90-second clock. Shutup Bot barely flinches and barely jumps, but he starts every life at 100%. Don’t trade: hit him, back off, hit him again.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Yo House. A canned laugh plays over an empty room."
+      },
+      {
+        "who": "blog-man",
+        "text": "Episode two of the reboot is a comedy. The network has added a laugh track. The laugh track is louder than the fight. Tonight is scored in KOs, as all good comedy is."
+      },
+      {
+        "who": "shutup-bot",
+        "text": "..."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Tough crowd."
+      }
+    ],
+    "outro": [
+      {
+        "who": "shutup-bot",
+        "text": "Fine."
+      },
+      {
+        "who": "blog-man",
+        "text": "That is the first line he has said all season. The laugh track has been turned off. The ratings are up anyway."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Good line."
+      }
+    ],
+    "fight": {
+      "stage": "yo-house",
+      "stocks": 3,
+      "rules": {
+        "timeLimit": 5400
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "shutup-bot",
+          "cpu": 6,
+          "team": 1,
+          "startPercent": 1000,
+          "stocks": 4
+        }
+      ],
+      "objective": "ko",
+      "kos": 2
+    }
+  },
+  {
+    "id": "crossover-event",
+    "unlock": "stratabots",
+    "season": 7,
+    "title": "Crossover Event",
+    "tagline": "Two shows on one night, and the network says they were always friends.",
+    "hint": "Two on one: Stratabots hit short and hard, TT is slow and heavier than he looks. They have two stocks each, you have three. Gravity is a little heavy: keep your jumps short.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Rainbow Full Pipe. Two sets of lights, one stage."
+      },
+      {
+        "who": "blog-man",
+        "text": "Every reboot has a crossover. Tonight two shows share a night, and the network says it was always the plan. I was told the plan was not in writing."
+      },
+      {
+        "who": "stratabots",
+        "text": "Plates up. Hits short. Hits hard."
+      },
+      {
+        "who": "tt",
+        "text": "I am heavier than I look. Nobody believes it until they try."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Believe it."
+      }
+    ],
+    "outro": [
+      {
+        "who": "tt",
+        "text": "Heavier. Yes. I told you."
+      },
+      {
+        "who": "stratabots",
+        "text": "Plates down."
+      },
+      {
+        "who": "blog-man",
+        "text": "The crossover gets a spin-off. The spin-off gets a pilot. The pilot gets a champion. I am not sure how this works."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Neither am I."
+      }
+    ],
+    "fight": {
+      "stage": "rainbow-full-pipe",
+      "stocks": 3,
+      "rules": {
+        "gravity": 115
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "stratabots",
+          "cpu": 7,
+          "team": 1,
+          "stocks": 2
+        },
+        {
+          "char": "tt",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "series-finale",
+    "unlock": "future-man",
+    "season": 7,
+    "title": "Series Finale",
+    "tagline": "The reboot ends with a guest from the next season.",
+    "hint": "The last fight of the reboot: every hit lands harder (damage 120%). Future Man is fast for his weight and almost never falls off the stage: don’t chase the edge, wear him down and launch him up.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "City Top, midnight. The roof where it started, the lights from every night of the reboot."
+      },
+      {
+        "who": "blog-man",
+        "text": "The series finale of the reboot, and the network has booked a guest from the next season. He has not aired yet. I was told to say nothing, which is a first."
+      },
+      {
+        "who": "future-man",
+        "text": "I am from the next season. It goes well. Mostly. I am not allowed to say how."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Then I will find out."
+      }
+    ],
+    "outro": [
+      {
+        "who": "future-man",
+        "text": "Huh. That is not how it went in the next season."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Champion Rewrites the Future, Network Rewrites the Headline. Still too long, but the first draft was longer."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Good night, future."
+      },
+      {
+        "who": "narrator",
+        "text": "Four pilots. Four reboots. The champion was never recast."
+      }
+    ],
+    "fight": {
+      "stage": "city-top",
+      "stocks": 3,
+      "rules": {
+        "damage": 120
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "future-man",
+          "cpu": 8,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
   }
 ]
