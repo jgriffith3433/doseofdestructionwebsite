@@ -1286,5 +1286,287 @@
         }
       ]
     }
+  },
+  {
+    "id": "simulcast",
+    "unlock": "cel",
+    "season": 4,
+    "title": "Simulcast",
+    "tagline": "The Orchestrator started his own broadcast. It airs at the same time as yours.",
+    "hint": "Heavy gravity: jumps drop fast. Cel has three extra jumps and the best air speed, so cut the air short and punish the landing.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Midnight at the Foundry. Across town, a second set of lights comes on. Same hour. Different show."
+      },
+      {
+        "who": "blog-man",
+        "text": "Breaking news: the Orchestrator has launched a rival broadcast, and it's airing opposite ours. I'm told the lighting is better."
+      },
+      {
+        "who": "orchestrator",
+        "text": "If the card is his, the audience is mine. Let's see how he does when the network turns up the gravity."
+      },
+      {
+        "who": "cel",
+        "text": "Three extra jumps. Best air speed on the roster. Try keeping up."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Short night. Let's go."
+      }
+    ],
+    "outro": [
+      {
+        "who": "cel",
+        "text": "Okay. That was a lot of ground."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Rival Network Loses First Round, Blames Floor. It's too long, I know."
+      },
+      {
+        "who": "orchestrator",
+        "text": "One night. I have a whole season."
+      }
+    ],
+    "fight": {
+      "stage": "watercolor-nebula",
+      "stocks": 3,
+      "rules": {
+        "gravity": 130
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "cel",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "rerun",
+    "unlock": "try-belt",
+    "season": 4,
+    "title": "Rerun",
+    "tagline": "The rival network is rerunning the champion's best nights. With a different ending.",
+    "hint": "Ratings: 3 KOs before the 2-minute clock. Try Belt starts every life at 100%, but he's quick off the ground and fights even.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Dust Devil Mesa. The sand is the same, and so is the tape: every fight of last season, cut and replayed."
+      },
+      {
+        "who": "blog-man",
+        "text": "The rival network is airing reruns of the champion. The scores are being rewritten. Tonight is scored in KOs."
+      },
+      {
+        "who": "try-belt",
+        "text": "Even speed. Even power. I've watched every one of your tapes."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Then you know how this ends."
+      },
+      {
+        "who": "orchestrator",
+        "text": "Don't spoil the rerun."
+      }
+    ],
+    "outro": [
+      {
+        "who": "try-belt",
+        "text": "The tape said you'd lose that one."
+      },
+      {
+        "who": "exit-punk",
+        "text": "The tape's wrong."
+      },
+      {
+        "who": "blog-man",
+        "text": "Ratings are up, and the rerun is cancelled. Mid-season, no less."
+      },
+      {
+        "who": "orchestrator",
+        "text": "Cancelled. Fine. Live television, then."
+      }
+    ],
+    "fight": {
+      "stage": "desert",
+      "stocks": 5,
+      "rules": {
+        "timeLimit": 7200
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 5
+        },
+        {
+          "char": "try-belt",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 5,
+          "startPercent": 1000
+        }
+      ],
+      "objective": "ko",
+      "kos": 3
+    }
+  },
+  {
+    "id": "cut-to-size",
+    "unlock": "crosser",
+    "season": 4,
+    "title": "Cut to Size",
+    "tagline": "The rival network cuts budgets. Starting with the champion.",
+    "hint": "You're smaller and lighter tonight. Crosser is slow to start, but every hit lands heavy. Stay out of range and punish the swing.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Space Chess. The pieces don't move unless somebody pays for the turn."
+      },
+      {
+        "who": "blog-man",
+        "text": "New rule from the rival network: the champion is cut to size. Budget cuts, I'm told."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Is that allowed?"
+      },
+      {
+        "who": "blog-man",
+        "text": "It's a broadcast."
+      },
+      {
+        "who": "crosser",
+        "text": "Slow to start. Heavy when it lands. I only need to land once."
+      }
+    ],
+    "outro": [
+      {
+        "who": "crosser",
+        "text": "I landed once. You landed more."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Tell the network I'm still the same size where it counts."
+      },
+      {
+        "who": "orchestrator",
+        "text": "One more night, and then I stop sending guests."
+      }
+    ],
+    "fight": {
+      "stage": "space-chess",
+      "stocks": 3,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3,
+          "scale": 85
+        },
+        {
+          "char": "crosser",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "hostile-takeover",
+    "unlock": "crystalline-intelligences",
+    "season": 4,
+    "title": "Hostile Takeover",
+    "tagline": "Two networks. One card. The Orchestrator brings a partner.",
+    "hint": "Two on one, and they have two stocks each to your three. The Orchestrator floats and waits; Crystalline Intelligences swings long. Don't let them box you in.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "The Foundry, after midnight. Both broadcasts are on the same channel tonight. Somebody has to lose."
+      },
+      {
+        "who": "blog-man",
+        "text": "Breaking news: the rival network wants to buy the show. The champion is not for sale. He came with one skateboard."
+      },
+      {
+        "who": "orchestrator",
+        "text": "I won't fight you alone. I've learned that. Meet my partner from the network, Crystalline Intelligences."
+      },
+      {
+        "who": "crystalline-intelligences",
+        "text": "Every swing is bright. Every swing is long. You will not like the glow."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Two on one. Fine. Same time tomorrow."
+      },
+      {
+        "who": "orchestrator",
+        "text": "There is no tomorrow. Only the takeover."
+      }
+    ],
+    "outro": [
+      {
+        "who": "narrator",
+        "text": "The baton hits the floor. The rival feed goes to static, then to nothing."
+      },
+      {
+        "who": "orchestrator",
+        "text": "The audience always comes back to the champion. I should have booked a worse champion."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Rival Network Folds After One Season. Working title. I'll cut it later."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Keep the baton. Stay off my channel."
+      },
+      {
+        "who": "narrator",
+        "text": "Two networks. One card. The show is still his."
+      }
+    ],
+    "fight": {
+      "stage": "solar-array",
+      "stocks": 3,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "orchestrator",
+          "cpu": 7,
+          "team": 1,
+          "stocks": 2
+        },
+        {
+          "char": "crystalline-intelligences",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
   }
 ]

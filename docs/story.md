@@ -71,8 +71,9 @@ season the chapters unlock in order, as they always have. Once a season is clear
 - Season 1, *Open Mic to Encore*: "Season 1 cleared. The card is yours now."
 - Season 2, *The card is yours*: "Four walk-ons. Four defenses. The card is still his."
 - Season 3, *The Orchestrator Returns*: "He signed the sheet. He took the baton. The show goes on."
+- Season 4, *The Rival Broadcast*: "Two networks. One card. The show is still his."
 
-Seasons 4 to 10 are not written yet: Season 3 is the Orchestrator's return arc, not the end of the show, and a new
+Seasons 5 to 10 are not written yet: Season 3 is the Orchestrator's return arc, not the end of the show, and a new
 season just adds `"season": N` chapters (it shows locked until the season before is cleared).
 
 The names and end lines live in `src/game/campaign/story.ts` (`SEASON_TEXT`) next to the chapter reader.
@@ -83,7 +84,8 @@ The show's roster grows as the champion clears it. A chapter's optional `unlock`
 the fighter id that joins the card when that episode is cleared, always the walk-on it was fought against (Open
 Mic: Kaelen, House Heavy: Break, Bad Signal: DJ Won't Read, Low Pressure: Small Weather, Turn the Page: Blog Man,
 Sudden Death: Slice, Dead Weight: SS Boulder, Encore: the Orchestrator, Title Defense: Shark Dude, Drop In: Pyro
-Singer, The Champion's Tax: Susan, Sponsored: Wallit). Walk-On, with no `unlock`, gives nothing.
+Singer, The Champion's Tax: Susan, Sponsored: Wallit, Simulcast: Cel, Rerun: Try Belt, Cut to Size: Crosser, Hostile
+Takeover: Crystalline Intelligences). Walk-On, with no `unlock`, gives nothing.
 
 - A fighter named by some chapter is **locked** on a fresh save: a dark "Locked" tile in Versus select (the preview
   says which episode opens them), a grey picture in Profile. Everyone no chapter names (Exit Punk first) is open.
@@ -233,3 +235,37 @@ Later items (not built; both cost money, so they wait for a yes):
   tab and play silent. Record them through Hawkes Gen like Season 2's (cents, no GPU).
 - **A dedicated Season 3 stage.** Walk-On uses Humans In The Loop, the arena where the Orchestrator ran the
   Encore. A stage of its own for his return is a later item (new art).
+
+## Season 4: The Rival Broadcast (as built)
+
+The Orchestrator lost the card twice, so he stops trying to win it and starts a second show: a rival
+broadcast that airs the same hour on the same city's screens. He is the season's villain. He fights on the
+card only in the finale (never as scenery); in the first three episodes he is the voice from the rival
+network's booth, heard in the lines, who sends a walk-on each night and closes the outro with a threat. Blog Man
+still hosts and the narrator stays; Exit Punk is the player, team 0, as always. **The Mechanic is not used**
+(he is still a candidate, not confirmed canon). Every fighter and stage already exists; all four walk-ons
+are fighters no earlier season used.
+
+| # | Episode (id) | Walk-on (CPU level) | Stage | Rule twist |
+|---|---|---|---|---|
+| 1 | Simulcast (`simulcast`) | Cel (5) | Watercolor Nebula | Heavy gravity (`gravity: 130`): the rival network turns it up, cutting Cel's air game short. 3 stocks each. |
+| 2 | Rerun (`rerun`) | Try Belt (5), 5 stocks, every life at 100% | Dust Devil Mesa (`desert`) | **Ratings**: 3 KOs before the 2-minute clock (`objective: ko`), as in Drop In, with the rerun gag. |
+| 3 | Cut to Size (`cut-to-size`) | Crosser (5) | Space Chess | Exit Punk is smaller (`scale: 85`): lighter, shorter reach. 3 stocks each. |
+| 4 | Hostile Takeover (`hostile-takeover`) | The Orchestrator (7) and Crystalline Intelligences (6), 2 stocks each | Solar Array | Two on one: Exit Punk has 3 stocks. The Orchestrator brings a partner "from the network". |
+
+The beats:
+
+1. **Simulcast.** A second set of lights comes on across town, same hour. Blog Man: the lighting is better. Cel:
+   "Three extra jumps." After: "Okay. That was a lot of ground." The Orchestrator: "One night. I have a whole season."
+2. **Rerun.** The rival network airs reruns of the champion, with the scores rewritten. Try Belt has watched every
+   tape. Exit Punk: "The tape's wrong." The rerun is cancelled; the rival goes live.
+3. **Cut to Size.** Budget cuts, the champion first. Exit Punk: "Is that allowed?" Blog Man: "It's a broadcast."
+   (the show's running joke, from Low Pressure). Crosser lands once; Exit Punk lands more.
+4. **Hostile Takeover.** Both broadcasts on one channel; the rival wants to buy the show. The Orchestrator fights
+   with a partner. After: the rival feed goes to static; Exit Punk: "Keep the baton. Stay off my channel."
+
+**Season end** (the last line of Hostile Takeover's outro, and the map's end line under Season 4). Narrator: *"Two
+networks. One card. The show is still his."* The rival network's fold leaves Season 5 open.
+
+Later items: the lines are text only (no `audio`/`take` yet, so they play silent and show as "no take" in the
+Voice tab); recording them through Hawkes Gen costs cents. No new art is needed.
