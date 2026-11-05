@@ -256,6 +256,26 @@ function koLine(m: Match, won: boolean): string {
   return `Out of stocks at ${got} of ${n} KOs. They cut to commercial.`;
 }
 
+/** The 'quota' objective's results line: which way it ended. */
+function quotaLine(m: Match, won: boolean): string {
+  const need = m.quotaTarget / 10;
+  const got = Math.floor(Math.min(m.quotaDealt(), m.quotaTarget) / 10);
+  if (won && got >= need) return `${need}% delivered before the clock. The sponsor is thrilled.`;
+  if (won) return 'Nobody left to hit. The sponsor will take it.';
+  if (m.state.timedOut) return `Time ran out at ${got} of ${need}%. The sponsor wants a refund.`;
+  return `Out of stocks at ${got} of ${need}%. The sponsor pulled the ad.`;
+}
+
+/** The 'streak' objective's results line: which way it ended. */
+function streakLine(m: Match, won: boolean): string {
+  const need = m.streakTarget;
+  const got = Math.min(m.streakBest(), need);
+  if (won && got >= need) return `${need} clean hits in a row before the clock. That one goes in the supercut.`;
+  if (won) return 'Nobody left to hit. The editor will make do.';
+  if (m.state.timedOut) return `Time ran out at a best streak of ${got} of ${need}. Nothing for the supercut.`;
+  return `Out of stocks at a best streak of ${got} of ${need}. The editor cut around you.`;
+}
+
 export interface ResultAction {
   label: string;
   primary?: boolean;
@@ -293,6 +313,8 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
         h('h2', {}, headline),
         campaign && m.setup.objective === 'survive' && h('p', {}, won ? 'You lasted the whole minute.' : 'They took you off the air.'),
         m.setup.objective === 'ko' && h('p', { class: 'results-objective' }, koLine(m, won)),
+        m.setup.objective === 'quota' && h('p', { class: 'results-objective' }, quotaLine(m, won)),
+        m.setup.objective === 'streak' && h('p', { class: 'results-objective' }, streakLine(m, won)),
         online?.note && h('p', { class: 'results-note' }, online.note),
       ),
     ),
@@ -353,7 +375,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
 
 // -------------------------------------------------------------- campaign
 
-export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => void, onReset: () => void): void {
+export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => void, onReset: () => void, unlocked?: string): void {
   const path = $('chapter-path');
   const nextIndex = CHAPTERS.findIndex((c) => !done.has(c.id));
   const focus = CHAPTERS[nextIndex < 0 ? CHAPTERS.length - 1 : nextIndex];
@@ -382,7 +404,16 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
       h('em', { class: 'chapter-status' }, status, open ? ` · ${STAGES[c.fight.stage].name}` : ''),
     );
   };
-  path.replaceChildren(
+  const fresh = unlocked ? CHARACTERS.find((c) => c.id === unlocked) : undefined;
+  path.replaceChildren(...kids(
+    fresh
+      ? h(
+          'p',
+          { class: 'unlock-note', role: 'status', 'data-unlocked': fresh.id },
+          h('img', { src: thumbUrl(fresh.id), alt: '' }),
+          h('span', {}, h('b', {}, `${fresh.name} joins the card.`), ' Unlocked for Versus and online.'),
+        )
+      : null,
     ...SEASONS.map((s) => {
       const open = seasonOpen(s.number, done);
       const cleared = seasonCleared(s.number, done);
@@ -400,7 +431,7 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
         cleared ? h('p', { class: 'season-end' }, s.end) : null,
       );
     }),
-  );
+  ));
   const reset = $<HTMLButtonElement>('btn-campaign-reset');
   reset.onclick = () => {
     if (confirm('Start the campaign over? Cleared chapters will be locked again.')) onReset();

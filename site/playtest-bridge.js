@@ -38,7 +38,7 @@
     {
       "id": "campaign",
       "title": "The campaign from chapter 1 (or the chapter asked for), as far as the bot gets in 10 minutes",
-      "description": "options: chapter (a chapter id from content/campaign.json: open-mic, house-heavy, bad-signal, low-pressure, turn-the-page, sudden-death, dead-weight, encore, title-defense, drop-in, champions-tax, sponsored, walk-on), or the contract's at with the same ids. Setup shortcut: every chapter before it is marked cleared (localStorage dod-campaign), then the bot opens it from the Campaign map and plays on from there. The player's own progress is put back at the end. An unknown id is reported as a problem.",
+      "description": "options: season (a number: that season's first chapter, e.g. 3), chapter (a chapter id from content/campaign.json: open-mic, house-heavy, bad-signal, low-pressure, turn-the-page, sudden-death, dead-weight, encore, title-defense, drop-in, champions-tax, sponsored, walk-on, simulcast, rerun, cut-to-size, hostile-takeover, cold-open, product-placement, dead-air, clip-show, local-affiliate, standards-and-practices, prime-time, global-feed, pilot-remake, laugh-track, crossover-event, series-finale, red-carpet, best-supporting, lifetime-achievement, best-in-show, teaser, trailer, table-read, cliffhanger, first-cut, final-cut), or the contract's at with the same ids. Setup shortcut: every chapter before it is marked cleared (localStorage dod-campaign), then the bot opens it from the Campaign map and plays on from there. The player's own progress is put back at the end. An unknown id is reported as a problem.",
       "starts": [
         "open-mic",
         "house-heavy",
@@ -52,9 +52,54 @@
         "drop-in",
         "champions-tax",
         "sponsored",
-        "walk-on"
+        "walk-on",
+        "simulcast",
+        "rerun",
+        "cut-to-size",
+        "hostile-takeover",
+        "cold-open",
+        "product-placement",
+        "dead-air",
+        "clip-show",
+        "local-affiliate",
+        "standards-and-practices",
+        "prime-time",
+        "global-feed",
+        "pilot-remake",
+        "laugh-track",
+        "crossover-event",
+        "series-finale",
+        "red-carpet",
+        "best-supporting",
+        "lifetime-achievement",
+        "best-in-show",
+        "teaser",
+        "trailer",
+        "table-read",
+        "cliffhanger",
+        "first-cut",
+        "final-cut",
+        "season-1",
+        "season-2",
+        "season-3",
+        "season-4",
+        "season-5",
+        "season-6",
+        "season-7",
+        "season-8",
+        "season-9",
+        "season-10"
       ],
       "seconds": 600,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "unlocks",
+      "title": "Hero unlocks: a fresh save shows locked fighter tiles in Versus; clearing Open Mic unlocks Kaelen (message on the map) and the tile becomes pickable",
+      "description": "Setup shortcut: a fresh save (no chapters cleared, dod-unlocks empty; the player's own are put back). Opens Versus select and counts the locked tiles (events locked-tiles, locked-click: a click on a locked tile picks nothing), plays chapter 1 through the real campaign (the bot), checks the \"joins the card\" message on the map (unlock-message), then opens Versus select again and picks the unlocked fighter (unlocked-pick). Metric lockedTiles.",
+      "seconds": 360,
       "tags": [
         "full"
       ]
@@ -93,6 +138,24 @@
       "id": "ko-objective",
       "title": "The ko objective: \"KOs 0/3\" with the clock, counting up, won on the third KO; then a round lost when time runs out",
       "description": "Setup shortcut: straight into each match as a campaign fight, no menus (the ko objective has no chapter yet). Round 1: Exit Punk (the bot) vs Kaelen (CPU 1, 9 stocks, every life at 120%) on Yo House, 3 KOs before a 2-minute clock; it ends on the third KO. Round 2: vs a giant Break (CPU 9, 9 stocks), 3 KOs before a 20-second clock; it ends on time. Each round checks the chip and the clock as the match starts, every change of the chip against the KOs scored, and the results line saying which way it ended. Events ko-chip, ko-clock, ko-count, ko-result.",
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "quota",
+      "title": "The quota objective in a campaign chapter: \"Quota 0/300%\" on the HUD with the clock, counting up as damage lands, and a results line saying how it ended",
+      "description": "Plays one chapter that uses the quota objective (Season 5's Product Placement by default, or option `chapter`) from the Campaign map with the bot on a virtual pad: setup shortcut marks the chapters before it cleared. Checks the chip as the match starts and as damage lands (an event every 100%), the clock, and the results line (quota met, time ran out or out of stocks), two tries. Events chapter, quota-chip, quota-count, quota-result, chapter-cleared / chapter-failed.",
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "streak",
+      "title": "The clean-streak objective in a campaign chapter: \"Clean streak 0/5\" on the HUD with the clock, counting up with each hit landed and back to 0 when hit, and a results line with the best streak",
+      "description": "Plays one chapter that uses the streak objective (Season 7's Series Finale by default, or option `chapter`) from the Campaign map with the bot on a virtual pad: setup shortcut marks the chapters before it cleared. Checks the chip as the match starts and as hits land (an event for each new high) or are taken (the count starts over), the clock, and the results line (streak met, time ran out or out of stocks), two tries. Events chapter, streak-chip, streak-count, streak-reset, streak-result, chapter-cleared / chapter-failed.",
       "seconds": 240,
       "tags": [
         "full"

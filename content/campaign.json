@@ -1,6 +1,7 @@
 [
   {
     "id": "open-mic",
+    "unlock": "kaelen",
     "title": "Open Mic",
     "tagline": "A walk-on with no record and one skateboard.",
     "hint": "Hits raise damage, and damage makes launches longer. Smash attacks (I + a direction) finish.",
@@ -102,6 +103,7 @@
   },
   {
     "id": "house-heavy",
+    "unlock": "break",
     "title": "House Heavy",
     "tagline": "The house fighter is the size of the house.",
     "hint": "Break is giant and heavy. Build damage before you go for the launch.",
@@ -186,6 +188,7 @@
   },
   {
     "id": "bad-signal",
+    "unlock": "dj-wont-read",
     "title": "Bad Signal",
     "tagline": "Two on one, on platforms that will not hold still.",
     "hint": "Two of them, one stock each. Keep both in front of you and ride the moving platforms.",
@@ -293,6 +296,7 @@
   },
   {
     "id": "low-pressure",
+    "unlock": "small-weather",
     "title": "Low Pressure",
     "tagline": "Someone brought the weather.",
     "hint": "Low gravity. Jumps hang and launches carry. Mind the gap in the middle.",
@@ -378,6 +382,7 @@
   },
   {
     "id": "turn-the-page",
+    "unlock": "blog-man",
     "title": "Turn the Page",
     "tagline": "A partner, finally. He writes too.",
     "hint": "Blog Man fights with you. Teammates cannot hit each other, so gang up.",
@@ -482,6 +487,7 @@
   },
   {
     "id": "sudden-death",
+    "unlock": "slice",
     "title": "Sudden Death",
     "tagline": "The show is running long. One stock, high damage.",
     "hint": "Both of you start at 150% with one stock. The first strong hit wins. Shield, then punish.",
@@ -558,6 +564,7 @@
   },
   {
     "id": "dead-weight",
+    "unlock": "ss-boulder",
     "title": "Dead Weight",
     "tagline": "They want the kid off the air.",
     "hint": "Survive for 60 seconds. You do not need KOs. Stay away from the edges.",
@@ -660,6 +667,7 @@
   },
   {
     "id": "encore",
+    "unlock": "orchestrator",
     "title": "Encore",
     "tagline": "The man who runs the show steps onto it.",
     "hint": "The final fight: a giant Orchestrator. Stay moving and punish his landings.",
@@ -762,6 +770,7 @@
   },
   {
     "id": "title-defense",
+    "unlock": "shark-dude",
     "season": 2,
     "title": "Title Defense",
     "tagline": "The champion's first night back on the roof where it started.",
@@ -875,6 +884,7 @@
   },
   {
     "id": "drop-in",
+    "unlock": "pyro-singer",
     "season": 2,
     "title": "Drop In",
     "tagline": "She wants the ratings. So does the network.",
@@ -973,6 +983,7 @@
   },
   {
     "id": "champions-tax",
+    "unlock": "susan",
     "season": 2,
     "title": "The Champion's Tax",
     "tagline": "The champion pays to fight. The challenger doesn't.",
@@ -1067,6 +1078,7 @@
   },
   {
     "id": "sponsored",
+    "unlock": "wallit",
     "season": 2,
     "title": "Sponsored",
     "tagline": "Someone bought a fighter. And then bought a bigger one.",
@@ -1251,7 +1263,7 @@
       },
       {
         "who": "narrator",
-        "text": "One walk-on. One baton. The show goes on."
+        "text": "He signed the sheet. He took the baton. The show goes on."
       }
     ],
     "fight": {
@@ -1271,6 +1283,1772 @@
           "cpu": 9,
           "team": 1,
           "stocks": 4
+        }
+      ]
+    }
+  },
+  {
+    "id": "simulcast",
+    "unlock": "cel",
+    "season": 4,
+    "title": "Simulcast",
+    "tagline": "The Orchestrator started his own broadcast. It airs at the same time as yours.",
+    "hint": "Heavy gravity: jumps drop fast. Cel has three extra jumps and the best air speed, so cut the air short and punish the landing.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Midnight at the Foundry. Across town, a second set of lights comes on. Same hour. Different show."
+      },
+      {
+        "who": "blog-man",
+        "text": "Breaking news: the Orchestrator has launched a rival broadcast, and it's airing opposite ours. I'm told the lighting is better."
+      },
+      {
+        "who": "orchestrator",
+        "text": "If the card is his, the audience is mine. Let's see how he does when the network turns up the gravity."
+      },
+      {
+        "who": "cel",
+        "text": "Three extra jumps. Best air speed on the roster. Try keeping up."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Short night. Let's go."
+      }
+    ],
+    "outro": [
+      {
+        "who": "cel",
+        "text": "Okay. That was a lot of ground."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Rival Network Loses First Round, Blames Floor. It's too long, I know."
+      },
+      {
+        "who": "orchestrator",
+        "text": "One night. I have a whole season."
+      }
+    ],
+    "fight": {
+      "stage": "watercolor-nebula",
+      "stocks": 3,
+      "rules": {
+        "gravity": 130
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "cel",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "rerun",
+    "unlock": "try-belt",
+    "season": 4,
+    "title": "Rerun",
+    "tagline": "The rival network is rerunning the champion's best nights. With a different ending.",
+    "hint": "Ratings: 3 KOs before the 2-minute clock. Try Belt starts every life at 100%, but he's quick off the ground and fights even.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Dust Devil Mesa. The sand is the same, and so is the tape: every fight of last season, cut and replayed."
+      },
+      {
+        "who": "blog-man",
+        "text": "The rival network is airing reruns of the champion. The scores are being rewritten. Tonight is scored in KOs."
+      },
+      {
+        "who": "try-belt",
+        "text": "Even speed. Even power. I've watched every one of your tapes."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Then you know how this ends."
+      },
+      {
+        "who": "orchestrator",
+        "text": "Don't spoil the rerun."
+      }
+    ],
+    "outro": [
+      {
+        "who": "try-belt",
+        "text": "The tape said you'd lose that one."
+      },
+      {
+        "who": "exit-punk",
+        "text": "The tape's wrong."
+      },
+      {
+        "who": "blog-man",
+        "text": "Ratings are up, and the rerun is cancelled. Mid-season, no less."
+      },
+      {
+        "who": "orchestrator",
+        "text": "Cancelled. Fine. Live television, then."
+      }
+    ],
+    "fight": {
+      "stage": "desert",
+      "stocks": 5,
+      "rules": {
+        "timeLimit": 7200
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 5
+        },
+        {
+          "char": "try-belt",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 5,
+          "startPercent": 1000
+        }
+      ],
+      "objective": "ko",
+      "kos": 3
+    }
+  },
+  {
+    "id": "cut-to-size",
+    "unlock": "crosser",
+    "season": 4,
+    "title": "Cut to Size",
+    "tagline": "The rival network cuts budgets. Starting with the champion.",
+    "hint": "You're smaller and lighter tonight. Crosser is slow to start, but every hit lands heavy. Stay out of range and punish the swing.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Space Chess. The pieces don't move unless somebody pays for the turn."
+      },
+      {
+        "who": "blog-man",
+        "text": "New rule from the rival network: the champion is cut to size. Budget cuts, I'm told."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Is that allowed?"
+      },
+      {
+        "who": "blog-man",
+        "text": "It's a broadcast."
+      },
+      {
+        "who": "crosser",
+        "text": "Slow to start. Heavy when it lands. I only need to land once."
+      }
+    ],
+    "outro": [
+      {
+        "who": "crosser",
+        "text": "I landed once. You landed more."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Tell the network I'm still the same size where it counts."
+      },
+      {
+        "who": "orchestrator",
+        "text": "One more night, and then I stop sending guests."
+      }
+    ],
+    "fight": {
+      "stage": "space-chess",
+      "stocks": 3,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3,
+          "scale": 85
+        },
+        {
+          "char": "crosser",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "hostile-takeover",
+    "unlock": "crystalline-intelligences",
+    "season": 4,
+    "title": "Hostile Takeover",
+    "tagline": "Two networks. One card. The Orchestrator brings a partner.",
+    "hint": "Two on one, and they have two stocks each to your three. The Orchestrator floats and waits; Crystalline Intelligences swings long. Don't let them box you in.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "The Foundry, after midnight. Both broadcasts are on the same channel tonight. Somebody has to lose."
+      },
+      {
+        "who": "blog-man",
+        "text": "Breaking news: the rival network wants to buy the show. The champion is not for sale. He came with one skateboard."
+      },
+      {
+        "who": "orchestrator",
+        "text": "I won't fight you alone. I've learned that. Meet my partner from the network, Crystalline Intelligences."
+      },
+      {
+        "who": "crystalline-intelligences",
+        "text": "Every swing is bright. Every swing is long. You will not like the glow."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Two on one. Fine. Same time tomorrow."
+      },
+      {
+        "who": "orchestrator",
+        "text": "There is no tomorrow. Only the takeover."
+      }
+    ],
+    "outro": [
+      {
+        "who": "narrator",
+        "text": "The baton hits the floor. The rival feed goes to static, then to nothing."
+      },
+      {
+        "who": "orchestrator",
+        "text": "The audience always comes back to the champion. I should have booked a worse champion."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Rival Network Folds After One Season. Working title. I'll cut it later."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Keep the baton. Stay off my channel."
+      },
+      {
+        "who": "narrator",
+        "text": "Two networks. One card. The show is still his."
+      }
+    ],
+    "fight": {
+      "stage": "solar-array",
+      "stocks": 3,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "orchestrator",
+          "cpu": 7,
+          "team": 1,
+          "stocks": 2
+        },
+        {
+          "char": "crystalline-intelligences",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "cold-open",
+    "unlock": "uh-me",
+    "season": 5,
+    "title": "Cold Open",
+    "tagline": "Sweeps Week starts with no warning, and a walk-on who won't be caught.",
+    "hint": "Gravity is light tonight: everything floats. Uh Me is calm and slippery in the air, so make her land and punish it.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "City Top, the roof where it started. The rival feed is dead, and every screen in the city is back on one channel."
+      },
+      {
+        "who": "blog-man",
+        "text": "Breaking news: it's Sweeps Week. Four nights, and the ratings decide everything. The network has also turned down the gravity. I don't know why. It's a broadcast."
+      },
+      {
+        "who": "uh-me",
+        "text": "Hi. I'm told you hit people. I'll be over here. Up here."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Not for long."
+      }
+    ],
+    "outro": [
+      {
+        "who": "uh-me",
+        "text": "Oh. The ground is real."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Champion Reminds Sky Who Owns It. Too long, again."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Next."
+      }
+    ],
+    "fight": {
+      "stage": "city-top",
+      "stocks": 3,
+      "rules": {
+        "gravity": 70
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "uh-me",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "product-placement",
+    "unlock": "yo-bot",
+    "season": 5,
+    "title": "Product Placement",
+    "tagline": "The sponsor pays by the percent, and tonight's quota is steep.",
+    "hint": "Quota: deal 300% damage before the 100-second clock runs out. Every hit lands 30% harder, yours and theirs. Yo Bot has four legs and a long reach: stay out of the keyboard and punish the swing.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Yo House. The speakers are on, and every banner in the room is for the same laptop."
+      },
+      {
+        "who": "blog-man",
+        "text": "A word from tonight's sponsor, who is also tonight's walk-on. The network has booked a quota: three hundred percent, delivered before the clock runs out. The champion is not for sale. We've been through this."
+      },
+      {
+        "who": "yo-bot",
+        "text": "Four legs. Two arms. One laptop, battery full. Thirty percent more of everything."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Is it in the contract?"
+      },
+      {
+        "who": "blog-man",
+        "text": "It's in the ad break."
+      }
+    ],
+    "outro": [
+      {
+        "who": "yo-bot",
+        "text": "Low battery."
+      },
+      {
+        "who": "blog-man",
+        "text": "Ratings are up. Sponsors are asking if the champion takes questions."
+      },
+      {
+        "who": "exit-punk",
+        "text": "No."
+      }
+    ],
+    "fight": {
+      "stage": "yo-house",
+      "stocks": 3,
+      "rules": {
+        "damage": 130,
+        "timeLimit": 6000
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "yo-bot",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 3
+        }
+      ],
+      "objective": "quota",
+      "quota": 300
+    }
+  },
+  {
+    "id": "dead-air",
+    "unlock": "spider-bot",
+    "season": 5,
+    "title": "Dead Air",
+    "tagline": "The signal drops for a minute. The walk-on is still there.",
+    "hint": "Survive 60 seconds. You don't need KOs. Spider Bot is wide and low and hard to knock over: don't trade, keep moving, and stay off the edges.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Solar Array. The panels tilt, the lights flicker, and for one full minute the broadcast has nothing to show."
+      },
+      {
+        "who": "blog-man",
+        "text": "We are experiencing technical difficulties. Please enjoy sixty seconds of the champion trying not to fall."
+      },
+      {
+        "who": "spider-bot",
+        "text": "Eight eyes. Low to the ground. I don't fall over, and I don't leave."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Sixty seconds. Fine."
+      }
+    ],
+    "outro": [
+      {
+        "who": "narrator",
+        "text": "The clock runs out. The feed comes back with the champion still standing."
+      },
+      {
+        "who": "spider-bot",
+        "text": "You didn't try to win."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Didn't need to."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Dead Air Draws Best Numbers of the Week. I have no idea why."
+      }
+    ],
+    "fight": {
+      "stage": "solar-array",
+      "stocks": 3,
+      "rules": {
+        "timeLimit": 3600
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 2
+        },
+        {
+          "char": "spider-bot",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 3
+        }
+      ],
+      "objective": "survive"
+    }
+  },
+  {
+    "id": "clip-show",
+    "unlock": "lapis-man",
+    "season": 5,
+    "title": "Clip Show",
+    "tagline": "The last night of Sweeps: every highlight, one tag team, one more fight.",
+    "hint": "Two on two. Blog Man fights beside you (he doesn't hit you). Lapis Man's staff outreaches everyone, and TT hits like a wall. They have two stocks each; you and Blog Man have three.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Humans In The Loop. The arena lights come up for the last night of Sweeps Week."
+      },
+      {
+        "who": "blog-man",
+        "text": "Tonight is a clip show: every highlight of the week, and one live fight. I'm in it. I did not read the fine print."
+      },
+      {
+        "who": "lapis-man",
+        "text": "The staff reaches farther than you expect. Everyone says so, after."
+      },
+      {
+        "who": "tt",
+        "text": "Short. Slow. Heavier than I look."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Stay behind me."
+      },
+      {
+        "who": "blog-man",
+        "text": "I'm not sure I can do that. I'm going to try."
+      }
+    ],
+    "outro": [
+      {
+        "who": "lapis-man",
+        "text": "That was a long reach. It wasn't long enough."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Host Survives Own Show, Takes Credit. For once the headline is short enough."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Good night."
+      },
+      {
+        "who": "narrator",
+        "text": "Four nights. Four sweeps. Nobody changed the channel."
+      }
+    ],
+    "fight": {
+      "stage": "humans-in-the-loop",
+      "stocks": 3,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "blog-man",
+          "cpu": 5,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "lapis-man",
+          "cpu": 7,
+          "team": 1,
+          "stocks": 2
+        },
+        {
+          "char": "tt",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "local-affiliate",
+    "unlock": "ball-person",
+    "season": 6,
+    "title": "Local Affiliate",
+    "tagline": "The show goes to a new city, and the new city can't afford the effects.",
+    "hint": "The stage is quiet tonight: no events, no hazards. Ball Person is fast on the ground and her kicks carry. Don't chase her: wait, then punish the landing.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Rainbow Full Pipe. Ramps, decks, and for once nothing drops in. The local station turned the effects off to save money."
+      },
+      {
+        "who": "blog-man",
+        "text": "Breaking news: the show has been syndicated. Sweeps Week was so good, every city wants the champion. This is the first one. The budget is small. The headline is not."
+      },
+      {
+        "who": "ball-person",
+        "text": "Fast feet. Good kicks. I know every inch of this pipe."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Show me."
+      }
+    ],
+    "outro": [
+      {
+        "who": "ball-person",
+        "text": "Okay. You know it better."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Local Affiliate Books Champion, Cannot Afford a Second Night. Too long, but it is true."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Next city."
+      }
+    ],
+    "fight": {
+      "stage": "rainbow-full-pipe",
+      "stocks": 3,
+      "rules": {
+        "hazards": 0
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "ball-person",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "standards-and-practices",
+    "unlock": "chooser",
+    "season": 6,
+    "title": "Standards and Practices",
+    "tagline": "A new market has rules about what you can show on air.",
+    "hint": "Damage is at 70% for both of you, so fights run long and launches come late. Chooser is small and round and slips out of every grab: don't go for the big hit, take the steady ones.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Space Chess. The board is set, and a stern graphic in the corner of the screen reads: viewer discretion."
+      },
+      {
+        "who": "blog-man",
+        "text": "The second city has a censor. Hits will be shown at seventy percent. I am told this is \"family hour\". It is a broadcast."
+      },
+      {
+        "who": "chooser",
+        "text": "I choose to stand here. I also choose to stand there. You can't choose for me."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Watch me."
+      }
+    ],
+    "outro": [
+      {
+        "who": "chooser",
+        "text": "Oh. I did not choose that."
+      },
+      {
+        "who": "blog-man",
+        "text": "The censor reports no complaints. Ratings, however, are up. Nobody can explain it."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Seventy percent was plenty."
+      }
+    ],
+    "fight": {
+      "stage": "space-chess",
+      "stocks": 3,
+      "rules": {
+        "damage": 70
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "chooser",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "prime-time",
+    "unlock": "not-an-old-man-yet",
+    "season": 6,
+    "title": "Prime Time",
+    "tagline": "The third city wants the champion at the best hour, and the best hour wants a number.",
+    "hint": "Quota: deal 200% damage before the 80-second clock runs out. Not an Old Man Yet owns the middle of the stage and won't leave it: pull him off it, then hit him hard.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Dust Devil Mesa. The sun is setting over a stage that has seen a lot of prime time."
+      },
+      {
+        "who": "blog-man",
+        "text": "The third market buys the show at its best hour, and it has booked a quota: two hundred percent, delivered before the clock runs out. Tonight's walk-on has been on the air longer than anyone."
+      },
+      {
+        "who": "not-an-old-man-yet",
+        "text": "I am not an old man yet. I am a seasoned one. Stand where you like. I'll be in the middle."
+      },
+      {
+        "who": "exit-punk",
+        "text": "You won't be for long."
+      }
+    ],
+    "outro": [
+      {
+        "who": "not-an-old-man-yet",
+        "text": "Not an old man yet. A little bruised."
+      },
+      {
+        "who": "blog-man",
+        "text": "The numbers are in. Best hour of the week. I'd say the champion earned it, but the network says the hour did."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Tell the hour thanks."
+      }
+    ],
+    "fight": {
+      "stage": "desert",
+      "stocks": 3,
+      "rules": {
+        "timeLimit": 4800
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "not-an-old-man-yet",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 3
+        }
+      ],
+      "objective": "quota",
+      "quota": 200
+    }
+  },
+  {
+    "id": "global-feed",
+    "unlock": "yooba",
+    "season": 6,
+    "title": "Global Feed",
+    "tagline": "The last market goes live to every city at once, and the card sends two.",
+    "hint": "Two on one: Yooba's two extra jumps and long tongue, Slow Rider's slow walk and long flight. They have two stocks each, you have three. Gravity is a little low, so watch the air.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Watercolor Nebula. Every screen in every city shows this one sky, live."
+      },
+      {
+        "who": "blog-man",
+        "text": "The fourth night is the global feed: all the markets at once, one fight. The network is sending two. I asked for a headline and was given a deadline."
+      },
+      {
+        "who": "yooba",
+        "text": "Two extra jumps. Long mouth. Big audience. I like it."
+      },
+      {
+        "who": "slow-rider",
+        "text": "No rush. I never hurry a finish."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Then I will."
+      }
+    ],
+    "outro": [
+      {
+        "who": "yooba",
+        "text": "Okay. That was a lot of jumps."
+      },
+      {
+        "who": "slow-rider",
+        "text": "Slow. But it ended."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Champion Wins Every City, Show Wins the World. For once, short enough."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Good night, everyone."
+      },
+      {
+        "who": "narrator",
+        "text": "Four markets. Four feeds. The card travels."
+      }
+    ],
+    "fight": {
+      "stage": "watercolor-nebula",
+      "stocks": 3,
+      "rules": {
+        "gravity": 85
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "yooba",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 2
+        },
+        {
+          "char": "slow-rider",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "pilot-remake",
+    "unlock": "evil-blue-bird",
+    "season": 7,
+    "title": "Pilot Remake",
+    "tagline": "The network reboots the show, and starts with the first night again.",
+    "hint": "Both of you start every life at 100%, so one clean hit can end it. Evil Blue Bird never really lands: stay on the ground, wait for her dive, and punish it.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "City Top. The same roof, the same skyline, and a new logo in the corner of the screen."
+      },
+      {
+        "who": "blog-man",
+        "text": "Breaking news: the show has been rebooted. Same champion, fresh energy, a pilot for every night. The network calls it \"a bold new look\". It is the old look with a bigger budget."
+      },
+      {
+        "who": "evil-blue-bird",
+        "text": "Same roof. Same card. I get to be the first one this time."
+      },
+      {
+        "who": "exit-punk",
+        "text": "You were already first."
+      }
+    ],
+    "outro": [
+      {
+        "who": "evil-blue-bird",
+        "text": "Okay. That was not in the script."
+      },
+      {
+        "who": "blog-man",
+        "text": "The reboot tested well with everyone who remembered the original. Headline: Pilot Beats Pilot, Everyone Wins. The headline did not test well."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Next episode."
+      }
+    ],
+    "fight": {
+      "stage": "city-top",
+      "stocks": 2,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "startPercent": 1000,
+          "stocks": 2
+        },
+        {
+          "char": "evil-blue-bird",
+          "cpu": 6,
+          "team": 1,
+          "startPercent": 1000,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "laugh-track",
+    "unlock": "shutup-bot",
+    "season": 7,
+    "title": "Laugh Track",
+    "tagline": "The network added a laugh track. The walk-on doesn’t laugh, and doesn’t flinch.",
+    "hint": "Ratings: 2 KOs before the 90-second clock. Shutup Bot barely flinches and barely jumps, but he starts every life at 100%. Don’t trade: hit him, back off, hit him again.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Yo House. A canned laugh plays over an empty room."
+      },
+      {
+        "who": "blog-man",
+        "text": "Episode two of the reboot is a comedy. The network has added a laugh track. The laugh track is louder than the fight. Tonight is scored in KOs, as all good comedy is."
+      },
+      {
+        "who": "shutup-bot",
+        "text": "..."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Tough crowd."
+      }
+    ],
+    "outro": [
+      {
+        "who": "shutup-bot",
+        "text": "Fine."
+      },
+      {
+        "who": "blog-man",
+        "text": "That is the first line he has said all season. The laugh track has been turned off. The ratings are up anyway."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Good line."
+      }
+    ],
+    "fight": {
+      "stage": "yo-house",
+      "stocks": 3,
+      "rules": {
+        "timeLimit": 5400
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "shutup-bot",
+          "cpu": 6,
+          "team": 1,
+          "startPercent": 1000,
+          "stocks": 4
+        }
+      ],
+      "objective": "ko",
+      "kos": 2
+    }
+  },
+  {
+    "id": "crossover-event",
+    "unlock": "stratabots",
+    "season": 7,
+    "title": "Crossover Event",
+    "tagline": "Two shows on one night, and the network says they were always friends.",
+    "hint": "Two on one: Stratabots hit short and hard, TT is slow and heavier than he looks. They have two stocks each, you have three. Gravity is a little heavy: keep your jumps short.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Rainbow Full Pipe. Two sets of lights, one stage."
+      },
+      {
+        "who": "blog-man",
+        "text": "Every reboot has a crossover. Tonight two shows share a night, and the network says it was always the plan. I was told the plan was not in writing."
+      },
+      {
+        "who": "stratabots",
+        "text": "Plates up. Hits short. Hits hard."
+      },
+      {
+        "who": "tt",
+        "text": "I am heavier than I look. Nobody believes it until they try."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Believe it."
+      }
+    ],
+    "outro": [
+      {
+        "who": "tt",
+        "text": "Heavier. Yes. I told you."
+      },
+      {
+        "who": "stratabots",
+        "text": "Plates down."
+      },
+      {
+        "who": "blog-man",
+        "text": "The crossover gets a spin-off. The spin-off gets a pilot. The pilot gets a champion. I am not sure how this works."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Neither am I."
+      }
+    ],
+    "fight": {
+      "stage": "rainbow-full-pipe",
+      "stocks": 3,
+      "rules": {
+        "gravity": 115
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "stratabots",
+          "cpu": 7,
+          "team": 1,
+          "stocks": 2
+        },
+        {
+          "char": "tt",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "series-finale",
+    "unlock": "future-man",
+    "season": 7,
+    "title": "Series Finale",
+    "tagline": "The finale has a supercut, and a supercut needs clean footage.",
+    "hint": "Clean streak: land 5 hits in a row without being hit back, before the 90-second clock runs out. Getting hit starts the count over. Every hit lands harder (damage 120%). Future Man is fast for his weight: poke, then back off, and don’t trade.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "City Top, midnight. The roof where it started, the lights from every night of the reboot."
+      },
+      {
+        "who": "blog-man",
+        "text": "The series finale of the reboot, and the network has booked a guest from the next season. He has not aired yet. I was told to say nothing, which is a first. Also, the editor needs a supercut: five clean hits in a row, no cuts, before the clock runs out. Get hit and the footage is ruined."
+      },
+      {
+        "who": "future-man",
+        "text": "I am from the next season. It goes well. Mostly. I am not allowed to say how."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Then I will find out."
+      }
+    ],
+    "outro": [
+      {
+        "who": "future-man",
+        "text": "Huh. That is not how it went in the next season."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: Champion Rewrites the Future, Network Rewrites the Headline. Still too long, but the first draft was longer."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Good night, future."
+      },
+      {
+        "who": "narrator",
+        "text": "Four pilots. Four reboots. The champion was never recast."
+      }
+    ],
+    "fight": {
+      "stage": "city-top",
+      "stocks": 3,
+      "rules": {
+        "damage": 120,
+        "timeLimit": 5400
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "future-man",
+          "cpu": 8,
+          "team": 1,
+          "stocks": 3
+        }
+      ],
+      "objective": "streak",
+      "streak": 5
+    }
+  },
+  {
+    "id": "red-carpet",
+    "season": 8,
+    "title": "Red Carpet",
+    "tagline": "The awards show opens on the red carpet, and nobody is allowed to scuff it.",
+    "hint": "Quiet stage: no hazards, just the two of you on the carpet. Kaelen is quick and likes to rush in, so wait for him to commit and hit him on the way out. 3 stocks each.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Solar Array. A red carpet runs across the panels, and the cameras are already flashing."
+      },
+      {
+        "who": "blog-man",
+        "text": "Welcome to Awards Season. The network has nominated itself in every category. The champion is nominated in all of them. The carpet is brand new and the producers would like it to stay that way."
+      },
+      {
+        "who": "kaelen",
+        "text": "I came to say I'm glad to be here. The first night, the first fight, and now the first carpet."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Then stay glad."
+      }
+    ],
+    "outro": [
+      {
+        "who": "kaelen",
+        "text": "Still glad."
+      },
+      {
+        "who": "blog-man",
+        "text": "The carpet has one scuff, and it is the champion's. The network is calling it a signature."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Next category."
+      }
+    ],
+    "fight": {
+      "stage": "solar-array",
+      "stocks": 3,
+      "rules": {
+        "hazards": 0
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "kaelen",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "best-supporting",
+    "season": 8,
+    "title": "Best Supporting",
+    "tagline": "Two nominees, one category, and a disagreement about who is supporting whom.",
+    "hint": "Two on one: Break hits hard, Small Weather keeps pushing you around. They have two stocks each, you have three. Gravity is a little light: your jumps float, so watch where you land.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Yo House. Two spotlights, one small stage."
+      },
+      {
+        "who": "blog-man",
+        "text": "Best Supporting Fighter. Two nominees, and neither will agree which of them is supporting. The envelope is sealed. The fight will open it."
+      },
+      {
+        "who": "break",
+        "text": "I was the lead in House Heavy. I am here for the credit."
+      },
+      {
+        "who": "small-weather",
+        "text": "It is going to rain on your credit."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Both of you, then."
+      }
+    ],
+    "outro": [
+      {
+        "who": "break",
+        "text": "I was the lead."
+      },
+      {
+        "who": "small-weather",
+        "text": "You were the weather."
+      },
+      {
+        "who": "blog-man",
+        "text": "The category has no winner and two thank-you speeches. Both are running long."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Congratulations. Both."
+      }
+    ],
+    "fight": {
+      "stage": "yo-house",
+      "stocks": 3,
+      "rules": {
+        "gravity": 90
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "break",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 2
+        },
+        {
+          "char": "small-weather",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "lifetime-achievement",
+    "season": 8,
+    "title": "Lifetime Achievement",
+    "tagline": "The network gives the champion a lifetime award, and a quota to earn it.",
+    "hint": "Quota: deal 250% before the 90-second clock runs out. Every hit lands a little harder (damage 110%). Slice is quick and keeps cutting in: stay on him, and don't wait for the clock.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Space Chess. The board is set for a ceremony: a long table, a short speech."
+      },
+      {
+        "who": "blog-man",
+        "text": "Tonight the champion receives a Lifetime Achievement Award. The network asks for 250 percent of applause in ninety seconds, which in this show means damage. Slice is presenting the ribbon."
+      },
+      {
+        "who": "slice",
+        "text": "I have been cutting the ribbon all night. I have not had a chance to cut anything else."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Cut this."
+      }
+    ],
+    "outro": [
+      {
+        "who": "slice",
+        "text": "Lifetime. Already?"
+      },
+      {
+        "who": "blog-man",
+        "text": "The champion has a lifetime award and, according to the network, a lifetime to spend it. The award is heavier than it looks."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Seems so."
+      }
+    ],
+    "fight": {
+      "stage": "space-chess",
+      "stocks": 3,
+      "rules": {
+        "damage": 110,
+        "timeLimit": 5400
+      },
+      "objective": "quota",
+      "quota": 250,
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "slice",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "best-in-show",
+    "season": 8,
+    "title": "Best in Show",
+    "tagline": "The big envelope, and an editor who wants a clean acceptance.",
+    "hint": "Clean streak: land 4 hits in a row without being hit back, before the 90-second clock runs out. Getting hit starts the count over. Every hit lands harder (damage 120%). Susan hits like a tax bill: poke, then back off, and don't trade.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Humans In The Loop. The last category of the night, the biggest envelope, and a stage lit like a trophy."
+      },
+      {
+        "who": "blog-man",
+        "text": "Best in Show. The editor wants a clean acceptance clip: four hits in a row, no cuts, before the clock runs out. Get hit and the footage is ruined. Also, Susan has asked for a word with the champion."
+      },
+      {
+        "who": "susan",
+        "text": "I have waited since The Champion's Tax. I want the receipt."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Come and get it."
+      }
+    ],
+    "outro": [
+      {
+        "who": "susan",
+        "text": "Keep the trophy. I will keep the receipt."
+      },
+      {
+        "who": "blog-man",
+        "text": "The acceptance speech runs four words long, which is the first speech this season to come in under time. The network has asked for it to be longer."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Thanks. Good night. Goodbye. Nice."
+      },
+      {
+        "who": "narrator",
+        "text": "Four nominees. Four envelopes. The speech was four words."
+      }
+    ],
+    "fight": {
+      "stage": "humans-in-the-loop",
+      "stocks": 3,
+      "rules": {
+        "damage": 120,
+        "timeLimit": 5400
+      },
+      "objective": "streak",
+      "streak": 4,
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "susan",
+          "cpu": 7,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "teaser",
+    "season": 9,
+    "title": "Teaser",
+    "tagline": "Season 9 opens with thirty seconds of footage and no explanation.",
+    "hint": "Gravity is a little heavy (115%): your jumps are short and you fall fast, so keep your feet near the roof and make Shark Dude come to you. 3 stocks each.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "City Top. The rooftop is dark except for a screen, and the screen is counting down."
+      },
+      {
+        "who": "blog-man",
+        "text": "Welcome to Season 9. The network has cut a teaser for the finale. It is thirty seconds long, it shows nothing, and it ends on a sign-up sheet."
+      },
+      {
+        "who": "shark-dude",
+        "text": "I defended this roof once. I am here to watch the champion defend it."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Watch closer."
+      }
+    ],
+    "outro": [
+      {
+        "who": "shark-dude",
+        "text": "Good teaser."
+      },
+      {
+        "who": "blog-man",
+        "text": "The footage is out. The sheet at the end of the clip has a name on it, and the network will not say whose. The ratings are up anyway."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Next clip."
+      }
+    ],
+    "fight": {
+      "stage": "city-top",
+      "stocks": 3,
+      "rules": {
+        "gravity": 115
+      },
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "shark-dude",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "trailer",
+    "season": 9,
+    "title": "Trailer",
+    "tagline": "Two walk-ons cut a trailer together and neither will share the voiceover.",
+    "hint": "Two on one: Wallit pushes with sponsor money, Cel keeps coming back for more. They have two stocks each, you have three. Take the quicker one out first.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Rainbow Full Pipe. Two lights on the pipe, one for each walk-on."
+      },
+      {
+        "who": "blog-man",
+        "text": "In a world where the champion has cleared eight seasons, two walk-ons share a trailer. The voiceover has not been recorded. Neither of them will let the other do it."
+      },
+      {
+        "who": "wallit",
+        "text": "This trailer is sponsored. I would like my name in the first ten seconds."
+      },
+      {
+        "who": "cel",
+        "text": "I would like my name in the first five."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Your names are fine. Fight."
+      }
+    ],
+    "outro": [
+      {
+        "who": "wallit",
+        "text": "The trailer ran a minute long."
+      },
+      {
+        "who": "cel",
+        "text": "The best part was cut."
+      },
+      {
+        "who": "blog-man",
+        "text": "The voiceover went to the champion, who recorded four words. The network says it tests well."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Coming this fall."
+      }
+    ],
+    "fight": {
+      "stage": "rainbow-full-pipe",
+      "stocks": 3,
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "wallit",
+          "cpu": 7,
+          "team": 1,
+          "stocks": 2
+        },
+        {
+          "char": "cel",
+          "cpu": 5,
+          "team": 1,
+          "stocks": 2
+        }
+      ]
+    }
+  },
+  {
+    "id": "table-read",
+    "season": 9,
+    "title": "Table Read",
+    "tagline": "The cast sits down with the finale script, and every page has a hole in it.",
+    "hint": "Ratings: 2 KOs before the 90-second clock. Try Belt hangs on to the edge, so go for the ones at the edge. 3 stocks each.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Desert. A long table, a stack of scripts, and a page missing from every copy."
+      },
+      {
+        "who": "blog-man",
+        "text": "Table read for the Season 10 finale. The script is sealed, so tonight the cast will read the fights instead. The network wants two KOs in ninety seconds, which is what the missing page asks for."
+      },
+      {
+        "who": "try-belt",
+        "text": "I have read every page of the show. I have not read this one."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Nobody has."
+      }
+    ],
+    "outro": [
+      {
+        "who": "try-belt",
+        "text": "Strong read."
+      },
+      {
+        "who": "blog-man",
+        "text": "The missing page has surfaced. It has one line on it, in the Orchestrator's handwriting: the finale needs two of him."
+      },
+      {
+        "who": "exit-punk",
+        "text": "He wrote that himself?"
+      },
+      {
+        "who": "blog-man",
+        "text": "The network is checking."
+      }
+    ],
+    "fight": {
+      "stage": "desert",
+      "stocks": 3,
+      "rules": {
+        "timeLimit": 5400
+      },
+      "objective": "ko",
+      "kos": 2,
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "try-belt",
+          "cpu": 6,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "cliffhanger",
+    "season": 9,
+    "title": "Cliffhanger",
+    "tagline": "The last night of the season ends the way television ends a season: mid-sentence.",
+    "hint": "Quota: deal 280% before the 100-second clock runs out. Every hit lands a little harder (damage 110%). Pyro Singer sets the stage on fire, so keep moving and keep hitting.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Cursed Town. The sky over the Foundry is a single shot held too long."
+      },
+      {
+        "who": "blog-man",
+        "text": "Season 9 ends on a cliffhanger. The network asks for 280 percent in a hundred seconds, and will not say what happens after. We are told there is a baton involved."
+      },
+      {
+        "who": "pyro-singer",
+        "text": "I have a song for the cliffhanger. It does not resolve."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Then sing it fast."
+      }
+    ],
+    "outro": [
+      {
+        "who": "pyro-singer",
+        "text": "To be continued."
+      },
+      {
+        "who": "blog-man",
+        "text": "The network has released the finale card. Two sign-up sheets, one name on both. It is the same handwriting, and nobody will say whose."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Two sheets. Fine. Same time tomorrow."
+      },
+      {
+        "who": "narrator",
+        "text": "Four teasers. One cliffhanger. Two names on the sheet."
+      }
+    ],
+    "fight": {
+      "stage": "cursed-town",
+      "stocks": 3,
+      "rules": {
+        "damage": 110,
+        "timeLimit": 6000
+      },
+      "objective": "quota",
+      "quota": 280,
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "pyro-singer",
+          "cpu": 7,
+          "team": 1,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "first-cut",
+    "season": 10,
+    "title": "First Cut",
+    "tagline": "The finale starts on time. The host is on the card, and so is the baton.",
+    "hint": "The host steps onto his own set at giant size. Stay moving, punish his landings, and carry your stocks: the second fight starts the moment this one ends.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "Humans In The Loop. Season 10, the finale, live from the Foundry. Both sign-up sheets are on the card."
+      },
+      {
+        "who": "blog-man",
+        "text": "Handwriting analysis is in. Both sheets are signed by the same man. Tonight he is on the card twice."
+      },
+      {
+        "who": "orchestrator",
+        "text": "The host, then the walk-on. A finale needs two of me. One to run the show, one to fight for it."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Two of you. Same baton?"
+      },
+      {
+        "who": "orchestrator",
+        "text": "Same baton. Ladies and gentlemen: the host."
+      }
+    ],
+    "outro": [
+      {
+        "who": "narrator",
+        "text": "The host goes down on his own set. The lights do not cut to black. They cut to the next shot."
+      },
+      {
+        "who": "blog-man",
+        "text": "We are not going to commercial. The network has asked me to say that the finale is two parts, back to back."
+      },
+      {
+        "who": "exit-punk",
+        "text": "Back to back. Fine."
+      },
+      {
+        "who": "orchestrator",
+        "text": "That was the host. Now meet the walk-on."
+      }
+    ],
+    "fight": {
+      "stage": "humans-in-the-loop",
+      "stocks": 3,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "stocks": 3
+        },
+        {
+          "char": "orchestrator",
+          "cpu": 8,
+          "team": 1,
+          "scale": 150,
+          "stocks": 3
+        }
+      ]
+    }
+  },
+  {
+    "id": "final-cut",
+    "season": 10,
+    "title": "Final Cut",
+    "tagline": "The walk-on signs the second sheet. Last fight of the last season.",
+    "hint": "No break after the first fight: you start at 60%. The walk-on is at full speed and has no reason to hold back. This is the last fight of the series.",
+    "intro": [
+      {
+        "who": "narrator",
+        "text": "City Top, where the first night began. The skyline is the same. Nobody on it is the same."
+      },
+      {
+        "who": "blog-man",
+        "text": "Part two. The walk-on, no sponsor, no record, one baton. Exit Punk starts at sixty percent. The network calls it continuity."
+      },
+      {
+        "who": "orchestrator",
+        "text": "I ran this show for years and I only ever wanted one ending. Tonight I get to fight it."
+      },
+      {
+        "who": "exit-punk",
+        "text": "You said there was no exit."
+      },
+      {
+        "who": "orchestrator",
+        "text": "There was only ever the next show. Make it a good one."
+      }
+    ],
+    "outro": [
+      {
+        "who": "narrator",
+        "text": "The baton lands on City Top. Both sheets lie on the floor, and the handwriting on them finally looks like two different men."
+      },
+      {
+        "who": "orchestrator",
+        "text": "The host and the walk-on, one finale, and the best ratings the show has ever had. I will take the credit."
+      },
+      {
+        "who": "blog-man",
+        "text": "Headline: The Show Ends, The Champion Stays. I only needed one headline for once."
+      },
+      {
+        "who": "exit-punk",
+        "text": "I came for the exit."
+      },
+      {
+        "who": "orchestrator",
+        "text": "And?"
+      },
+      {
+        "who": "exit-punk",
+        "text": "It was a good show."
+      },
+      {
+        "who": "narrator",
+        "text": "Two Orchestrators. Two fights. One finale. The card is yours, and the show is over."
+      }
+    ],
+    "fight": {
+      "stage": "city-top",
+      "stocks": 3,
+      "rules": {},
+      "slots": [
+        {
+          "char": "exit-punk",
+          "cpu": null,
+          "team": 0,
+          "startPercent": 600,
+          "stocks": 3
+        },
+        {
+          "char": "orchestrator",
+          "cpu": 9,
+          "team": 1,
+          "stocks": 3
         }
       ]
     }

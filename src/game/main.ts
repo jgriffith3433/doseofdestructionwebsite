@@ -13,7 +13,7 @@ import { GAMEPAD_HELP, KEYBOARD_HELP, listenKeyboard, onKey, pausePressed, readL
 import { PLAYER_COLORS, Renderer } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
-import { CHAPTERS, loadProgress, saveProgress, type Chapter } from './campaign/story.ts';
+import { CHAPTERS, loadProgress, saveProgress, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
@@ -198,8 +198,15 @@ async function spotlight(animate = false): Promise<void> {
   spotBusy = false;
   if (spotIndex % CHARACTERS.length !== i) return;
   const img = $<HTMLImageElement>('main-spot-img');
+  // Swap the picture and wait for it to decode before the caption changes, so the name never
+  // sits under the previous fighter's art while the new file is still loading into the <img>.
+  spotBusy = true;
   img.src = largeUrl(c.id);
+  await img.decode().catch(() => undefined);
+  spotBusy = false;
+  if (spotIndex % CHARACTERS.length !== i) return;
   $('main-spot-name').textContent = c.name;
+  img.dataset.fighter = c.id;
   spotShown = i;
   if (animate) {
     img.classList.remove('swap');
@@ -269,14 +276,14 @@ function pickStage(stage: number, entry: ModeStage, random = false): void {
 
 // ------------------------------------------------------------- campaign
 
-function openCampaignScreen(): Promise<void> {
+function openCampaignScreen(unlocked?: string): Promise<void> {
   chapter = null;
   return go('campaign', () =>
     openCampaign(progress, playChapter, () => {
       progress.clear();
       saveProgress(progress);
       openCampaignScreen();
-    }),
+    }, unlocked),
   );
 }
 
@@ -306,7 +313,8 @@ async function chapterCleared(c: Chapter): Promise<void> {
   progress.add(c.id);
   saveProgress(progress);
   analytics.chapterCleared(c, firstTime, progress);
-  await openCampaignScreen();
+  // The hero this episode unlocks (once): the map says so.
+  await openCampaignScreen(unlockFor(c) ?? undefined);
   // Back on the map, the episode over: the stars card.
   if (currentScreen() === 'campaign') analytics.askAfterEpisode(c);
 }
@@ -339,13 +347,18 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   ])
     .then(() => renderer.warmUp(m.state))
     .catch((err) => console.error(err));
+  let loaded = false;
+  void loading.then(() => { loaded = true; });
 
   if (withVersus) {
     let splash: Promise<void> = Promise.resolve();
     await go('versus', () => {
       splash = playVersus(setup);
     });
-    await Promise.all([splash, loading]);
+    await splash;
+    // The card is done but the match isn't ready: say so, rather than leave a frozen-looking card.
+    if (!loaded && !stale()) $('loading').hidden = false;
+    await loading;
     if (stale()) return;
   } else {
     // The loading screen stays up until the match's first frame is drawn (under the wipe).
@@ -738,17 +751,23 @@ function buildHud(m: Match): void {
   const limit = m.state.rules.timeLimit;
   $('timer').hidden = limit <= 0;
   const objective = $('objective');
-  const shown = m.setup.objective === 'survive' || m.setup.objective === 'ko';
+  const shown = m.setup.objective === 'survive' || m.setup.objective === 'ko' || m.setup.objective === 'quota' || m.setup.objective === 'streak';
   objective.hidden = !shown;
   objective.textContent = 'Survive';
-  objective.classList.toggle('count', m.setup.objective === 'ko');
+  objective.classList.toggle('count', m.setup.objective === 'ko' || m.setup.objective === 'quota' || m.setup.objective === 'streak');
   hudKos = -1;
+  hudQuota = -1;
+  hudStreak = -1;
   $('match-top').hidden = limit <= 0 && !shown;
   updateHud(m);
 }
 
 /** The KO count last shown on the 'ko' objective's chip. */
 let hudKos = -1;
+/** The whole percent last shown on the 'quota' objective's chip. */
+let hudQuota = -1;
+/** The clean streak (hits) last shown on the 'streak' objective's chip. */
+let hudStreak = -1;
 
 function updateHud(m: Match): void {
   const s = m.state;
@@ -757,6 +776,20 @@ function updateHud(m: Match): void {
   if (m.setup.objective === 'ko' && hudKos !== m.koCount()) {
     hudKos = m.koCount();
     $('objective').textContent = `KOs ${Math.min(hudKos, m.koTarget)}/${m.koTarget}`;
+  }
+  if (m.setup.objective === 'quota') {
+    const got = Math.floor(Math.min(m.quotaDealt(), m.quotaTarget) / 10);
+    if (hudQuota !== got) {
+      hudQuota = got;
+      $('objective').textContent = `Quota ${got}/${m.quotaTarget / 10}%`;
+    }
+  }
+  if (m.setup.objective === 'streak') {
+    const got = Math.min(m.streakNow(), m.streakTarget);
+    if (hudStreak !== got) {
+      hudStreak = got;
+      $('objective').textContent = `Clean streak ${got}/${m.streakTarget}`;
+    }
   }
   for (const f of s.fighters) {
     const card = cards[f.id] as HTMLElement | undefined;

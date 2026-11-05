@@ -26,6 +26,8 @@ export interface Chapter {
   tagline: string;
   /** What the fight asks of the player, shown before it starts. */
   hint: string;
+  /** The fighter id this chapter unlocks for Versus and online when it is cleared (docs/story.md, "Unlocks"). */
+  unlock?: string;
   intro: Line[];
   outro: Line[];
   fight: MatchSetup;
@@ -70,7 +72,14 @@ export interface Season {
 const SEASON_TEXT: Record<number, { subtitle: string; end: string }> = {
   1: { subtitle: 'Open Mic to Encore', end: 'Season 1 cleared. The card is yours now.' },
   2: { subtitle: 'The card is yours', end: 'Four walk-ons. Four defenses. The card is still his.' },
-  3: { subtitle: 'The Finale', end: 'One walk-on. One baton. The show goes on.' },
+  3: { subtitle: 'The Orchestrator Returns', end: 'He signed the sheet. He took the baton. The show goes on.' },
+  4: { subtitle: 'The Rival Broadcast', end: 'Two networks. One card. The show is still his.' },
+  5: { subtitle: 'Sweeps Week', end: 'Four nights. Four sweeps. Nobody changed the channel.' },
+  6: { subtitle: 'Syndication', end: 'Four markets. Four feeds. The card travels.' },
+  7: { subtitle: 'The Reboot', end: 'Four pilots. Four reboots. The champion was never recast.' },
+  8: { subtitle: 'Awards Season', end: 'Four nominees. Four envelopes. The speech was four words.' },
+  9: { subtitle: 'The Cliffhanger', end: 'Four teasers. One cliffhanger. Two names on the sheet.' },
+  10: { subtitle: 'The Finale', end: 'Two Orchestrators. Two fights. One finale. The card is yours, and the show is over.' },
 };
 
 /** The seasons that have chapters, in order. */
@@ -116,4 +125,57 @@ export function seasonOpen(season: number, done: Set<string>): boolean {
 /** Every chapter of the season is cleared. */
 export function seasonCleared(season: number, done: Set<string>): boolean {
   return CHAPTERS.every((c) => c.season !== season || done.has(c.id));
+}
+
+// ------------------------------------------------------------------ unlocks
+// Heroes join the card as the campaign clears them. A fighter named by some chapter's `unlock` is locked in Versus
+// and online until that chapter is cleared; every other fighter is open from the start. Campaign walk-ons, training
+// and the CPU's own picks are not gated, and Exit Punk is the campaign player whatever is unlocked.
+
+const UNLOCK_KEY = 'dod-unlocks';
+
+/** Fighter ids some chapter unlocks: locked on a fresh save. */
+export const LOCKABLE: ReadonlySet<string> = new Set(CHAPTERS.flatMap((c) => (c.unlock ? [c.unlock] : [])));
+
+/** The fighters unlocked: the saved store (dod-unlocks) plus those of every chapter already cleared (older saves). */
+export function loadUnlocks(done: Set<string> = loadProgress()): Set<string> {
+  const out = new Set<string>();
+  try {
+    const saved = JSON.parse(localStorage.getItem(UNLOCK_KEY) ?? '[]');
+    if (Array.isArray(saved)) for (const s of saved) if (typeof s === 'string') out.add(s);
+  } catch {
+    // Unreadable storage: only what the cleared chapters give.
+  }
+  for (const c of CHAPTERS) if (c.unlock && done.has(c.id)) out.add(c.unlock);
+  return out;
+}
+
+export function saveUnlocks(unlocked: Set<string>): void {
+  try {
+    localStorage.setItem(UNLOCK_KEY, JSON.stringify([...unlocked]));
+  } catch {
+    // Storage can be blocked; unlocks then last only for this visit (the cleared chapters give them back).
+  }
+}
+
+/** The one rule for who may be picked in Versus and online (select, the profile picture and the online setup). */
+export function fighterOpen(id: string, unlocked: ReadonlySet<string>): boolean {
+  return !LOCKABLE.has(id) || unlocked.has(id);
+}
+
+/** The live set, shared by the screens (loaded on first use). */
+let live: Set<string> | null = null;
+export function unlocks(): Set<string> {
+  return (live ??= loadUnlocks());
+}
+export function isUnlocked(id: string): boolean {
+  return fighterOpen(id, unlocks());
+}
+
+/** Clearing a chapter: unlocks its fighter (kept) and returns the fighter id when it is new, else null. */
+export function unlockFor(chapter: Chapter, unlocked: Set<string> = unlocks()): string | null {
+  if (!chapter.unlock || unlocked.has(chapter.unlock)) return null;
+  unlocked.add(chapter.unlock);
+  saveUnlocks(unlocked);
+  return chapter.unlock;
 }

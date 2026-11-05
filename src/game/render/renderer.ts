@@ -412,7 +412,9 @@ export class Renderer {
     // Warm up every clip texture on the fighter materials in lockstep so the first attack/jump/hurt doesn't upload a sheet mid-fight.
     const lists = this.views.map((v) => [...v.clipTex.values()]);
     const maxClips = Math.max(0, ...lists.map((l) => l.length));
-    for (let i = 0; i < maxClips; i++) {
+    // Budgeted: on slow (software) renderers the rest upload on first use instead of holding the VS card for ~20 s.
+    const clipDeadline = performance.now() + 4000;
+    for (let i = 0; i < maxClips && performance.now() < clipDeadline; i++) {
       for (let slot = 0; slot < this.views.length; slot++) {
         const v = this.views[slot];
         const tex = lists[slot][i];

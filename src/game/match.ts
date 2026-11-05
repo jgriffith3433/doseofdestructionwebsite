@@ -33,10 +33,18 @@ export interface MatchSetup {
   /**
    * 'survive' wins by still standing when time runs out. 'ko' wins by scoring `kos` KOs before
    * time runs out (the match ends on the last one), and loses on time or out of stocks.
+   * 'quota' wins by dealing `quota` percent of damage to the other side before time runs out
+   * (the match ends the moment the sponsor's number is met), and loses the same two ways.
+   * 'streak' wins by landing `streak` hits in a row without being hit back (a clean streak) before
+   * time runs out (the match ends on the hit that makes it), and loses the same two ways.
    */
-  objective?: 'win' | 'survive' | 'ko';
+  objective?: 'win' | 'survive' | 'ko' | 'quota' | 'streak';
   /** The 'ko' objective's target: how many KOs the player must score. */
   kos?: number;
+  /** The 'quota' objective's target: how many percent of damage the player must deal (the HUD and results use whole percent). */
+  quota?: number;
+  /** The 'streak' objective's target: how many hits in a row the player must land without being hit. */
+  streak?: number;
   /** Online matches: who is in each slot (net/online.ts). */
   online?: OnlineSlots;
 }
@@ -65,6 +73,10 @@ export interface FighterStats {
   hitsShielded: number;
   biggestHit: number;
   longestCombo: number;
+  /** Clean hits in a row right now: counts up with each hit landed, back to 0 when this fighter is hit. */
+  streak: number;
+  /** The most clean hits in a row so far. */
+  bestStreak: number;
   kos: number;
   falls: number;
   selfDestructs: number;
@@ -111,7 +123,7 @@ export class Match {
     );
     this.bots = setup.slots.map((s, i) => (s.cpu ? new Bot(i, s.cpu, seed + i * 7919) : null));
     this.stats = setup.slots.map(() => ({
-      dealt: 0, taken: 0, hitsLanded: 0, hitsShielded: 0, biggestHit: 0, longestCombo: 0,
+      dealt: 0, taken: 0, hitsLanded: 0, hitsShielded: 0, biggestHit: 0, longestCombo: 0, streak: 0, bestStreak: 0,
       kos: 0, falls: 0, selfDestructs: 0, ledgeGrabs: 0, airtime: 0,
     }));
     this.combo = setup.slots.map(() => ({ by: -1, count: 0 }));
@@ -182,6 +194,11 @@ export class Match {
         a.hitsLanded++;
         a.biggestHit = Math.max(a.biggestHit, e.dmg);
         this.stats[e.victim].taken += e.dmg;
+        // A clean streak: each hit landed adds one, and taking a hit ends the victim's.
+        const v = this.stats[e.victim];
+        v.streak = 0;
+        a.streak++;
+        a.bestStreak = Math.max(a.bestStreak, a.streak);
         const c = this.combo[e.victim];
         // A hit on someone still reeling from the same attacker extends the combo.
         const reeling = c.by === e.attacker && c.count > 0;
@@ -206,16 +223,24 @@ export class Match {
     });
   }
 
-  /** The 'ko' objective: the match ends, won by the player, on the target KO. */
+  /** The 'ko', 'quota' and 'streak' objectives: the match ends, won by the player, the moment the target is met. */
   private checkObjective(): void {
     const s = this.state;
     const me = s.fighters[this.player];
-    if (s.over || this.setup.objective !== 'ko' || !me || this.koCount() < this.koTarget) return;
+    if (s.over || !me || !this.objectiveMet()) return;
     s.over = 1;
     s.timedOut = 0;
     s.winner = me.id;
     s.winnerTeam = me.team;
     s.endTimer = 120;
+  }
+
+  /** Whether the match's counting objective ('ko', 'quota' or 'streak') has reached its target. */
+  private objectiveMet(): boolean {
+    if (this.setup.objective === 'ko') return this.koCount() >= this.koTarget;
+    if (this.setup.objective === 'quota') return this.quotaDealt() >= this.quotaTarget;
+    if (this.setup.objective === 'streak') return this.streakBest() >= this.streakTarget;
+    return false;
   }
 
   /** The 'ko' objective's target (3 when the setup leaves it out). */
@@ -226,6 +251,31 @@ export class Match {
   /** KOs the local player has scored (self-destructs don't count). */
   koCount(): number {
     return this.stats[this.player]?.kos ?? 0;
+  }
+
+  /** The 'quota' objective's target in tenths of a percent, the sim's unit (250% when the setup leaves it out). */
+  get quotaTarget(): number {
+    return Math.max(1, Math.round((this.setup.quota ?? 250) * 10));
+  }
+
+  /** Damage the local player has dealt, in tenths of a percent. Shielded hits, hazards and falls don't count. */
+  quotaDealt(): number {
+    return this.stats[this.player]?.dealt ?? 0;
+  }
+
+  /** The 'streak' objective's target (4 hits when the setup leaves it out). */
+  get streakTarget(): number {
+    return Math.max(2, Math.round(this.setup.streak ?? 4));
+  }
+
+  /** The local player's best clean streak so far, in hits. Shielded hits don't count and don't end a streak. */
+  streakBest(): number {
+    return this.stats[this.player]?.bestStreak ?? 0;
+  }
+
+  /** The local player's streak right now (back to 0 when they are hit). */
+  streakNow(): number {
+    return this.stats[this.player]?.streak ?? 0;
   }
 
   /** The local player's slot, or -1 if every fighter is a CPU. */
@@ -242,8 +292,9 @@ export class Match {
       if (s.timedOut) return me.stocks > 0;
     }
     // On time or out of stocks the target wasn't reached; every foe out of stocks first still wins.
-    if (this.setup.objective === 'ko' && this.koCount() >= this.koTarget) return true;
-    if (this.setup.objective === 'ko' && s.timedOut) return false;
+    const counting = this.setup.objective === 'ko' || this.setup.objective === 'quota' || this.setup.objective === 'streak';
+    if (counting && this.objectiveMet()) return true;
+    if (counting && s.timedOut) return false;
     if (s.winnerTeam >= 0) return me.team === s.winnerTeam;
     return s.winner === me.id;
   }
