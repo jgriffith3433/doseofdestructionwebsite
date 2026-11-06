@@ -29,6 +29,16 @@ import { StageLive } from './stageLive.ts';
 import { Constants } from '@babylonjs/core/Engines/constants.js';
 
 /** Sim units to scene units: 100 world units per scene unit. */
+/**
+ * Gives the page one chance to paint (the wipe, the VS card, the fps meter) between warm-up steps,
+ * instead of holding the main thread for the whole warm-up. The timer covers a hidden page.
+ */
+const breathe = (): Promise<void> =>
+  new Promise((r) => {
+    requestAnimationFrame(() => r());
+    setTimeout(r, 24);
+  });
+
 const S = 1 / (100 * FX);
 const W = 1 / 100;
 /** How far a hanging fighter's hands come up over the ledge's top edge, in scene units. */
@@ -392,11 +402,13 @@ export class Renderer {
   async warmUp(state: GameState, timeoutMs = 15000): Promise<void> {
     this.engine.resize();
     this.render(state);
+    await breathe();
     // Enable every stage layer, hazard, shield, hit-flash overlay, spark burst, KO burst material
     // and KO flash once, so their shaders (and the glow layer's variants) compile now instead of on
     // the first hit, event or KO, and the particle pools are filled.
     this.burst(this.camTarget.x, this.camTarget.y, 64, 0);
     this.fx?.warmUp();
+    await breathe();
     this.live?.warmUp();
     for (const v of this.views) {
       v.shield.setEnabled(true);
@@ -408,7 +420,9 @@ export class Renderer {
     this.flashMat.alpha = 0.5;
     this.flashPlane.setEnabled(true);
     await this.ready(timeoutMs);
+    await breathe();
     this.scene.render();
+    await breathe();
     // Warm up every clip texture on the fighter materials in lockstep so the first attack/jump/hurt doesn't upload a sheet mid-fight.
     const lists = this.views.map((v) => [...v.clipTex.values()]);
     const maxClips = Math.max(0, ...lists.map((l) => l.length));
@@ -423,6 +437,8 @@ export class Renderer {
         if (v.ghostMat) v.ghostMat.diffuseTexture = tex;
       }
       this.scene.render();
+      // Let the wipe, the VS card and the page's own frames run between uploads, not freeze behind them.
+      await breathe();
     }
     this.fx?.endWarmUp();
     for (const s of this.sparks) {
