@@ -5,6 +5,7 @@
 import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
 import { audio, tapState } from './audio.ts';
+import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
 import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
@@ -530,6 +531,9 @@ function renderSettings(): void {
   sw.setAttribute('aria-checked', String(s.on));
   sw.textContent = s.on ? 'On' : 'Off';
   $('settings-levels').dataset.off = String(!s.on);
+  const shake = $('shake-switch');
+  shake.setAttribute('aria-checked', String(screenShake()));
+  shake.textContent = screenShake() ? 'On' : 'Off';
   for (const k of ['music', 'sfx'] as const) {
     const input = $<HTMLInputElement>(`vol-${k}`);
     input.value = String(Math.round(s[k] * 100));
@@ -564,6 +568,11 @@ function wireSettings(): void {
   renderSettings();
   onSoundSettings(renderSettings);
   const from = () => (match ? 'pause' : 'menu');
+  onScreenShake(() => renderSettings());
+  $('shake-switch').addEventListener('click', () => {
+    setScreenShake(!screenShake());
+    analytics.setting('shake', screenShake(), from());
+  });
   $('sound-switch').addEventListener('click', () => {
     setSoundSettings({ on: !soundSettings().on });
     analytics.setting('sound', soundSettings().on, from());
@@ -941,6 +950,7 @@ installDodPlaytest({
     return before;
   },
   fxStats: () => renderer.fxStats(),
+  hitFxStats: () => renderer.hitFxStats(),
 });
 
 // Online is always on: the lobby is joined with no clicks (docs/online.md), but only now, after the game and the

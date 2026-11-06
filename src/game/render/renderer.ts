@@ -23,6 +23,7 @@ import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
 import { activeHitboxes, type SimEvent } from '../sim/step.ts';
+import { hitTier, impactFor, screenShake, type HitTier } from '../hitFeel.ts';
 import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
 import { StageLive } from './stageLive.ts';
@@ -68,6 +69,8 @@ interface FighterView {
 
 interface Spark {
   mesh: Mesh;
+  /** Impact sprites (stars, rings) grow as they fade; plain sparks don't. */
+  grow?: number;
   vx: number;
   vy: number;
   life: number;
@@ -107,6 +110,8 @@ export class Renderer {
   /** Plays a sound effect for stage effects (main wires it to the audio system). */
   onSound: ((id: string) => void) | null = null;
   private shake = 0;
+  /** The last hit's effect and the camera shake actually applied, for the playtest to read. */
+  private hitStats = { hits: 0, last: null as null | { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number }, tiers: { light: 0, medium: 0, heavy: 0 }, shakeApplied: 0, shakeMax: 0 };
   private camPos = new Vector3(0, 1.6, -14);
   private camTarget = new Vector3(0, 1.6, 0);
   debug = false;
@@ -498,12 +503,15 @@ export class Renderer {
     for (const e of events) {
       if (e.type === 'hit' || e.type === 'hurt') {
         const shield = e.type === 'hit' && e.shield;
-        const n = shield ? 6 : 8 + Math.min(16, e.kb >> 3);
-        this.burst(e.x * S, e.y * S, n, shield ? 0.06 : 0.09 + e.kb * 0.0006);
-        if (!shield && this.views[e.victim]) {
-          this.views[e.victim].flash = 10;
+        if (shield) {
+          this.burst(e.x * S, e.y * S, 6, 0.06);
+        } else if (e.type === 'hit') {
+          this.impact(e);
+        } else {
+          this.burst(e.x * S, e.y * S, 8 + Math.min(16, e.kb >> 3), 0.09 + e.kb * 0.0006);
           this.shake = Math.max(this.shake, Math.min(0.5, e.kb * 0.003));
         }
+        if (!shield && this.views[e.victim]) this.views[e.victim].flash = 10;
         if (!shield) {
           this.fx?.trigger('hit', { x: e.x * S, y: e.y * S });
           this.live?.trigger('hit');
@@ -529,6 +537,47 @@ export class Renderer {
         this.burst(e.x * S, e.y * S + 0.02, 3, 0.03);
       }
     }
+  }
+
+  /** A landed hit: sparks, impact sprites and shake that grow with the damage (hitFeel.ts). Heavy hits add a ring and a flash. */
+  private impact(e: Extract<SimEvent, { type: 'hit' }>): void {
+    const tier = hitTier(e.dmg);
+    const fx = impactFor(tier, e.kb);
+    const x = e.x * S;
+    const y = e.y * S;
+    this.burst(x, y, fx.sparks, (tier === 'light' ? 0.06 : 0.09) + e.kb * 0.0006);
+    for (let i = 0; i < fx.stars; i++) this.sprite(x, y, i * (Math.PI / 4) + Math.random(), tier === 'heavy' ? 0.5 : 0.3, 10 + i * 3, 1.4);
+    if (fx.ring) this.sprite(x, y, 0, 0.35, 16, 5);
+    this.shake = Math.max(this.shake, fx.shake);
+    if (fx.flash > 0 && this.flashMat.alpha < fx.flash) {
+      this.flashMat.emissiveColor = Color3.White();
+      this.flashMat.alpha = fx.flash;
+      this.flashPlane.setEnabled(true);
+    }
+    const st = this.hitStats;
+    st.hits++;
+    st.tiers[tier]++;
+    st.last = { tier, lag: e.lag, sparks: fx.sparks, stars: fx.stars, ring: fx.ring, shake: fx.shake, flash: fx.flash };
+  }
+
+  /** One impact sprite: a spinning square that blows up as it fades (two make a star, a big fast one reads as a ring). */
+  private sprite(x: number, y: number, rot: number, size: number, life: number, grow: number): void {
+    const mesh = this.sparkPool.pop() ?? CreatePlane('spark', { size: 1 }, this.scene);
+    mesh.material = this.sparkMat;
+    mesh.setEnabled(true);
+    mesh.position.set(x, y, -0.45);
+    mesh.rotation.z = rot;
+    this.sparks.push({ mesh, vx: 0, vy: 0, life, max: life, size, grow });
+  }
+
+  /** What the last hits did, for the playtest. */
+  hitFxStats(reset = false) {
+    const out = { ...this.hitStats, tiers: { ...this.hitStats.tiers }, shakeOn: screenShake() };
+    if (reset) {
+      this.hitStats.hits = 0;
+      this.hitStats.shakeMax = 0;
+    }
+    return out;
   }
 
   private burst(x: number, y: number, n: number, speed: number): void {
@@ -645,7 +694,8 @@ export class Renderer {
       s.vy *= 0.9;
       s.vy -= 0.002;
       const k = --s.life / s.max;
-      s.mesh.scaling.set(k * s.size, k * s.size, 1);
+      const sz = s.grow ? s.size * (1 + (1 - k) * s.grow) * Math.min(1, k * 2) : k * s.size;
+      s.mesh.scaling.set(sz, sz, 1);
       if (s.life <= 0) {
         s.mesh.setEnabled(false);
         this.sparkPool.push(s.mesh);
@@ -718,7 +768,11 @@ export class Renderer {
     this.camPos.y = this.camTarget.y + dist * 0.06;
     this.camPos.z += (-dist - this.camPos.z) * ease;
 
+    // Screen shake off (Settings): the camera stays put, whatever the stage or a hit asked for.
+    if (!screenShake()) this.shake = 0;
     this.shake *= 0.86;
+    this.hitStats.shakeApplied = this.shake;
+    this.hitStats.shakeMax = Math.max(this.hitStats.shakeMax, this.shake);
     const jx = (Math.random() - 0.5) * this.shake * 0.4;
     const jy = (Math.random() - 0.5) * this.shake * 0.4;
     this.camera.position.set(this.camPos.x + jx, this.camPos.y + jy, this.camPos.z);

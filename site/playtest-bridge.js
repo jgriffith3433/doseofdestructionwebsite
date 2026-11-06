@@ -115,6 +115,15 @@
       ]
     },
     {
+      "id": "hit-feel",
+      "title": "Hit feedback: heavy hits freeze 3+ frames, light and heavy hits look different, Settings turns screen shake off",
+      "description": "A versus match against the CPU (the bot on a virtual pad). Counts the hit-stop frames of the first light and heavy hit (events hit-stop-light/-medium/-heavy, heavy-hit-stop), logs each tier's impact effect (impact-light/-medium/-heavy: sparks, stars, ring, shake, flash) and that they differ (impact-differs), then from Pause opens Settings, turns Screen shake off (shake-off), and checks hits keep landing with the camera still (no-shake). Metrics hitStopLightFrames, hitStopHeavyFrames, shakeMaxOn, shakeMaxOff. The player's dod.shake is put back.",
+      "seconds": 200,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "site-links",
       "title": "The website around the game: Powered by HAWKES GEN on every page, Hawkes Biomedical on the landing page, the game screen without them",
       "description": "Checks the game screen has no site footer marks, then opens the landing page over the game in a full-screen frame and walks the site through its own links (footer Characters, a fighter card picked from the seed, Privacy, What's new), checking on each page that \"Powered by HAWKES GEN\" links to https://hawkesgen.ai (shown, not covered) and on the landing page that Hawkes Biomedical links to https://hawkesbiomedical.com. Every fighter page is also read and checked. The frame is removed at the end and the game checked again.",

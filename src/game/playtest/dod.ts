@@ -24,6 +24,7 @@ import { SCENARIOS } from './scenarios.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
+import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
 import { loadAnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import type { SimEvent } from '../sim/step.ts';
@@ -49,6 +50,8 @@ export interface GameHooks {
   /** Setup shortcut (campaign `chapter` only): the cleared chapter ids (localStorage dod-campaign); returns the ones before. */
   setCampaignProgress(ids: string[]): string[];
   /** Renderer particle and warm-up diagnostics. */
+  /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
+  hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
 }
 
@@ -87,6 +90,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
+        else if (id === 'hit-feel') await r.hitFeel();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
       } finally {
@@ -1394,6 +1398,126 @@ class Run {
   // ---------------------------------------------------------- sound-settings
 
   /** The studio standard: the Tap to play prompt, sound running, Settings from the menu and Pause, kept across a reload. */
+  // ---------------------------------------------------------- hit-feel
+
+  /**
+   * Hit feedback: a versus match against the CPU (the bot on a virtual pad). Shows that heavier hits freeze longer
+   * (hit-stop frames counted from the sim's own hitlag), that light and heavy hits get different impact effects, and
+   * that Settings → Screen shake turns the camera shake off (reached from Pause, like a player).
+   */
+  async hitFeel(): Promise<void> {
+    const t = this.t;
+    const original = localStorage.getItem(SHAKE_STORAGE_KEY);
+    try {
+      localStorage.removeItem(SHAKE_STORAGE_KEY);
+    } catch {
+      // Storage blocked.
+    }
+    const seen: Record<HitTier, { lag: number; frozen: number; dmg: number; fx: string } | null> = { light: null, medium: null, heavy: null };
+    const fxLine = (l: NonNullable<ReturnType<NonNullable<GameHooks['hitFxStats']>>['last']>) =>
+      `${l.sparks} sparks, ${l.stars} impact stars, ${l.ring ? 'shockwave ring' : 'no ring'}, shake ${l.shake.toFixed(2)}, flash ${l.flash}`;
+    const pending: { victim: number; tier: HitTier; lag: number; dmg: number; frozen: number; fx: string }[] = [];
+    const unwatch = this.game.watch((m, events) => {
+      for (const p of pending.slice()) {
+        if (m.state.fighters[p.victim].hitlag > 0) p.frozen++;
+        else {
+          pending.splice(pending.indexOf(p), 1);
+          if (!seen[p.tier]) {
+            seen[p.tier] = p;
+            t.event(`hit-stop-${p.tier}`, `${p.tier} hit (${p.dmg / 10}%): frozen ${p.frozen + 1} frames (sim hit-stop ${p.lag})`);
+          }
+        }
+      }
+      for (const e of events) {
+        if (e.type !== 'hit' || e.shield) continue;
+        const tier = hitTier(e.dmg);
+        const last = this.game.hitFxStats?.()?.last;
+        pending.push({ victim: e.victim, tier, lag: e.lag, dmg: e.dmg, frozen: 0, fx: last ? fxLine(last) : '' });
+        if (!this.checked.has(`impact-${tier}`) && last) {
+          this.checked.add(`impact-${tier}`);
+          t.event(`impact-${tier}`, `${tier} hit (${e.dmg / 10}%): ${fxLine(last)}`);
+        }
+      }
+    });
+    try {
+      await this.toMainMenu();
+      t.progress(0.05);
+      // Screen shake is on by default, and Settings shows it.
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, 'Settings to open');
+      const sw = this.q('#shake-switch');
+      if (!sw) t.problem('bug', 'Settings has no Screen shake switch');
+      else if (sw.getAttribute('aria-checked') !== 'true' || !screenShake()) t.problem('bug', 'Screen shake is not on by default');
+      else t.event('shake-default', 'Settings shows Screen shake: On');
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(300);
+
+      await this.startVersus(3);
+      t.progress(0.15);
+      this.game.hitFxStats?.(true);
+      const m0 = () => this.game.match();
+      this.progressNow = () => 0.15 + 0.5 * Math.min(1, ((m0()?.state.frame ?? 0) / (75 * 60)));
+      // Fight until a light and a heavy hit were both seen (and counted), or 75 s of game time.
+      const ended = await this.fight(() => (!!seen.light && !!seen.heavy) || (m0()?.state.frame ?? 0) > 75 * 60, 4 * 60 * 1000);
+      if (ended === 'over') t.problem('warning', 'the match ended before a light and a heavy hit were both seen');
+      const stats = this.game.hitFxStats?.();
+      t.metric('shakeMaxOn', Number((stats?.shakeMax ?? 0).toFixed(3)));
+      for (const k of ['light', 'medium', 'heavy'] as const) if (seen[k]) t.metric(`hitStop${k[0].toUpperCase()}${k.slice(1)}Frames`, seen[k]!.frozen + 1);
+      const heavy = seen.heavy;
+      const light = seen.light;
+      if (!heavy) t.problem('bug', 'no heavy hit landed, so heavy hit-stop could not be checked');
+      else if (heavy.frozen + 1 < 3) t.problem('bug', `a heavy hit froze only ${heavy.frozen + 1} frames (want at least 3)`);
+      else t.event('heavy-hit-stop', `a heavy hit froze both fighters ${heavy.frozen + 1} frames (at least 3)`);
+      if (heavy && light) {
+        if (heavy.frozen <= light.frozen) t.problem('bug', `a heavy hit froze ${heavy.frozen + 1} frames, no more than a light one (${light.frozen + 1})`);
+        if (heavy.fx === light.fx) t.problem('bug', `light and heavy hits show the same impact effect (${heavy.fx})`);
+        else t.event('impact-differs', `light: ${light.fx} | heavy: ${heavy.fx}`);
+      } else if (!light) t.problem('warning', 'no light hit landed, so the light and heavy impact effects were not compared');
+      if (stats && stats.shakeMax <= 0) t.problem('bug', 'hits landed with Screen shake on but the camera never shook');
+      t.progress(0.7);
+
+      // Pause → Settings → Screen shake off; the same fight goes on and the camera stays still.
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+      await t.until(settingsShowing, 3000, 'Settings to open from Pause');
+      await t.wait(400);
+      await this.tap(() => this.q('#shake-switch'), 'Screen shake off');
+      if (screenShake() || this.q('#shake-switch')?.getAttribute('aria-checked') !== 'false' || localStorage.getItem(SHAKE_STORAGE_KEY) !== 'off') {
+        t.problem('bug', 'Screen shake off did not apply and save');
+      } else t.event('shake-off', 'Screen shake switched Off in Settings (saved as dod.shake=off)');
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+      await this.click(() => this.q('#btn-resume'), 'Resume');
+      await t.until(() => this.game.phase() === 'play', 3000, 'the match to resume');
+      this.game.hitFxStats?.(true);
+      const f0 = m0()?.state.frame ?? 0;
+      await this.fight(() => (this.game.hitFxStats?.()?.hits ?? 0) >= 4 || (m0()?.state.frame ?? 0) - f0 > 40 * 60, 2 * 60 * 1000);
+      const off = this.game.hitFxStats?.();
+      t.metric('shakeMaxOff', Number((off?.shakeMax ?? 0).toFixed(3)));
+      if (!off || off.hits === 0) t.problem('warning', 'no hit landed with Screen shake off, so the camera could not be checked');
+      else if (off.shakeMax > 0) t.problem('bug', `the camera still shook (${off.shakeMax.toFixed(2)}) with Screen shake off`);
+      else t.event('no-shake', `${off.hits} hits landed with Screen shake off and the camera stayed still (hit-stop and impact effects still play)`);
+      t.progress(0.9);
+
+      // Back on for the next visit, then out.
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.click(() => this.q('#btn-quit'), 'Quit');
+      await this.screen('main');
+    } finally {
+      unwatch();
+      try {
+        if (original === null) localStorage.removeItem(SHAKE_STORAGE_KEY);
+        else localStorage.setItem(SHAKE_STORAGE_KEY, original);
+      } catch {
+        // Storage blocked.
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   async soundSettings(): Promise<void> {
     const t = this.t;
     const carried = (() => {
