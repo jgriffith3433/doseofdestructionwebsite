@@ -490,6 +490,28 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
   .chapter-tag { font-size: 13px; line-height: 1.25; }
 }
 
+/* ------------------------------------------------------------- story card */
+
+.card-screen { display: grid; grid-template-rows: 1fr auto 1fr; overflow: hidden; background: radial-gradient(ellipse at center, #3a1a10 0%, #120806 70%); }
+.card-bar { background: #000; display: flex; align-items: center; justify-content: flex-end; padding: 16px 24px; }
+.card-bar.top { transform-origin: top; }
+.card-bar.bottom { align-items: flex-end; transform-origin: bottom; }
+.card-body { text-align: center; padding: 24px; display: grid; gap: 10px; justify-items: center; max-width: 52rem; margin: 0 auto; }
+.card-tag { font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.3em; color: #1a0d08; background: var(--gold); padding: 2px 14px; border-radius: 999px; font-size: 14px; }
+.card-kicker { font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.18em; color: var(--gold); }
+.card-title { font-family: Oswald, sans-serif; text-transform: uppercase; font-size: clamp(36px, 8vw, 88px); line-height: 1; letter-spacing: 0.04em; text-shadow: 0 4px 0 #000; }
+.card-line { font-size: clamp(16px, 2.4vw, 24px); color: var(--muted); max-width: 40rem; }
+.card-in .card-bar.top { animation: card-bar-top 500ms ease-out both; }
+.card-in .card-bar.bottom { animation: card-bar-bottom 500ms ease-out both; }
+.card-in .card-tag { animation: fade-down 400ms 150ms ease-out both; }
+.card-in .card-kicker { animation: fade-up 400ms 300ms ease-out both; }
+.card-in .card-title { animation: card-title-in 700ms 450ms cubic-bezier(0.2, 0.9, 0.2, 1.1) both; }
+.card-in .card-line { animation: fade-up 600ms 1100ms ease-out both; }
+@keyframes card-bar-top { from { transform: translateY(-100%); } }
+@keyframes card-bar-bottom { from { transform: translateY(100%); } }
+@keyframes card-title-in { from { opacity: 0; transform: scale(1.6); letter-spacing: 0.3em; } }
+@media (prefers-reduced-motion: reduce) { .card-in * { animation: none !important; } }
+
 /* -------------------------------------------------------------- dialogue */
 
 .dialogue-screen { display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; }

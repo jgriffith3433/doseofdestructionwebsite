@@ -180,6 +180,15 @@
       ]
     },
     {
+      "id": "story-cards",
+      "title": "Story cards: every campaign match has an animated card with the episode title and a line from content/campaign.json, before and after, and each can be skipped",
+      "description": "Option chapter (a chapter id, default open-mic). Setup shortcut: the chapters before it are marked cleared (the player's progress is put back). Checks every episode in content/campaign.json has a before and after card line (cards-data), opens the chapter from the Campaign map, reads the before card (card-before: season, episode, title, line, checked against campaign.json), lets it move on by itself (card-auto, about 5 s), plays the intro and the fight, and after Continue reads the after card (card-after) and skips it with its button (card-skipped). Events cards-data, card-before, card-auto, card-after, card-skipped; metrics cardAutoMs, cardsSeen.",
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "roster",
       "title": "Every fighter spawns in training and does each move once (starts matches directly)",
       "seconds": 480,

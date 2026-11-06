@@ -523,3 +523,11 @@ the front row there (in Turn the Page he is in the fight itself). The Mechanic i
 - Blog Man's intros are `blog-man.intro.<chapter id>`, one per episode (39), keeping each season's tone.
 - Every call also shows as a caption (`.booth`) and fires `dod:commentary`. The lines are text only for now: no `audio` or
   `take`, so they are captioned and silent until recorded through Hawkes Gen (cents, no GPU).
+
+## Story cards
+
+Every episode opens and closes on a title card, like the show's own bumpers: "Tonight" before the intro scene (season,
+episode number, title, one line) and "Signing off" after a win, before the outro scene. The lines live on the chapter in
+`content/campaign.json` as `card: { "before": "...", "after": "..." }` (the before card falls back to the `tagline`).
+Write them as the show would: one sentence, present or past tense, no jokes about jobs or "the game". The card holds for
+about 5 seconds and can be skipped (Skip, Enter or Space).
