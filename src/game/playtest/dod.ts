@@ -583,7 +583,57 @@ class Run {
 
   // ---------------------------------------------------------- scenarios
 
+  /**
+   * Watches the page's frames while a wipe is switching screens (VS, match start, menu return): the longest
+   * gap between two frames and the frame rate under the wipe. A gap over 500 ms is a stalled wipe.
+   */
+  private watchWipe(): () => void {
+    const t = this.t;
+    let stop = false;
+    let prev = performance.now();
+    let wipeMs = 0;
+    let wipeFrames = 0;
+    let worst = 0;
+    let wasSwitching = false;
+    const tick = (now: number) => {
+      if (stop) return;
+      const gap = now - prev;
+      prev = now;
+      const covered = switching();
+      if (covered && wasSwitching) {
+        wipeMs += gap;
+        wipeFrames++;
+        if (gap > worst) {
+          worst = gap;
+          t.metric('wipeWorstGapMs', Math.round(worst));
+        }
+        if (gap > 500) t.problem('bug', `The wipe stalled: ${Math.round(gap)} ms between two frames while switching screens (${currentScreen() ?? '?'})`);
+      }
+      if (wasSwitching && !covered && wipeFrames > 0) {
+        t.event('wipe', `${wipeFrames} frames in ${Math.round(wipeMs)} ms (${Math.round((wipeFrames * 1000) / Math.max(1, wipeMs))} fps), worst gap ${Math.round(worst)} ms`);
+        t.metric('wipeFps', Math.round((wipeFrames * 1000) / Math.max(1, wipeMs)));
+        wipeMs = 0;
+        wipeFrames = 0;
+      }
+      wasSwitching = covered;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    return () => { stop = true; };
+  }
+
   async smoke(): Promise<void> {
+    const t = this.t;
+    const stopWatch = this.watchWipe();
+    try {
+      await this.smokeRun();
+    } finally {
+      stopWatch();
+    }
+    void t;
+  }
+
+  private async smokeRun(): Promise<void> {
     const t = this.t;
     await this.toMainMenu();
     // The release notes (/releases.json via /site/hawkes-release.js) must load: the version on the menu reads them.
