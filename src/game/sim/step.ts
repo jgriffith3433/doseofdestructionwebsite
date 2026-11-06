@@ -23,7 +23,7 @@ import {
 import { ACT, SHIELD_MAX, allies, bodySize, type Fighter, type GameState } from './state.ts';
 
 export type SimEvent =
-  | { type: 'hit'; attacker: number; victim: number; x: number; y: number; dmg: number; kb: number; shield: boolean }
+  | { type: 'hit'; attacker: number; victim: number; x: number; y: number; dmg: number; kb: number; shield: boolean; lag: number }
   | { type: 'ko'; victim: number; by: number; x: number; y: number }
   | { type: 'jump' | 'land' | 'ledge' | 'shieldbreak' | 'respawn'; id: number; x: number; y: number }
   /** The stage hurt someone: a damage zone or a hazard (index into stage.zones or stage.hazards). */
@@ -516,13 +516,14 @@ export function knockback(percent: number, dmg: number, weight: number, bkb: num
 function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, y: number, ev: SimEvent[]): void {
   a.hitMask |= 1 << v.id;
   const dmg = idiv(box.dmg * s.rules.damage, 100);
-  const lag = 4 + idiv(dmg, 30);
+  // Hit-stop scales with damage: a jab freezes 3 frames, a smash 8 or more (at most 14).
+  const lag = Math.min(14, 3 + idiv(dmg, 25));
   a.hitlag = lag;
   v.hitlag = lag;
 
   if (v.action === ACT.SHIELD || v.action === ACT.SHIELD_STUN) {
     v.shield -= dmg;
-    ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: 0, shield: true });
+    ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: 0, shield: true, lag });
     if (v.shield <= 0) {
       breakShield(v, ev);
     } else {
@@ -552,7 +553,7 @@ function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, 
   v.buffer = 0;
   v.facing = a.x < v.x ? -1 : 1;
   v.lastHitBy = a.id;
-  ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: idiv(kb, 1000), shield: false });
+  ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: idiv(kb, 1000), shield: false, lag });
 }
 
 /** Applies a stored launch once hitlag ends, bent by the victim's stick (DI). */
