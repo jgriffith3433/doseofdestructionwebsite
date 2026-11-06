@@ -15,12 +15,12 @@ import { GAMEPAD_HELP, KEYBOARD_HELP, listenKeyboard, onKey, pausePressed, readL
 import { PLAYER_COLORS, Renderer } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
-import { CHAPTERS, loadProgress, saveProgress, unlockFor, type Chapter } from './campaign/story.ts';
+import { CHAPTERS, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
-import { openCampaign, openStages, playDialogue, playVersus, showResults, type ResultAction, type SceneEnd } from './ui/views.ts';
+import { openCampaign, openStages, playCard, playDialogue, playVersus, showResults, type ResultAction, type SceneEnd } from './ui/views.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
 // Online code is never imported here: it loads after boot through the loader (a failure there can't stop the game).
@@ -296,11 +296,27 @@ async function playChapter(c: Chapter): Promise<void> {
   chapter = c;
   analytics.chapterPlayed(c);
   const n = CHAPTERS.indexOf(c) + 1;
+  await playCardScreen(c, 'before');
+  // A match found during the card has taken over.
+  if (fight || chapter !== c) return;
   const scene = playDialogueScreen(c.intro, `Chapter ${n} · ${c.title}`, `${c.id}.intro`);
   await scene;
   // A match found during the scene has taken over.
   if (fight || chapter !== c) return;
   startMatch({ ...c.fight, title: `Chapter ${n} · ${c.title}`, subtitle: c.hint }, true);
+}
+
+/** A story card (the chapter's `card` line in content/campaign.json), before the episode or after it is won. */
+async function playCardScreen(c: Chapter, which: 'before' | 'after'): Promise<void> {
+  const card = storyCard(c, which);
+  let shown: Promise<{ skipped: boolean }> | null = null;
+  await go('card', () => {
+    shown = playCard(card, which);
+  });
+  if (shown) {
+    const end = await (shown as Promise<{ skipped: boolean }>);
+    analytics.scene(`${c.id}.card-${which}`, { skipped: end.skipped, line: 0 }, 1);
+  }
 }
 
 async function playDialogueScreen(lines: Chapter['intro'], title: string, id: string): Promise<void> {
@@ -313,6 +329,7 @@ async function playDialogueScreen(lines: Chapter['intro'], title: string, id: st
 
 async function chapterCleared(c: Chapter): Promise<void> {
   const n = CHAPTERS.indexOf(c) + 1;
+  await playCardScreen(c, 'after');
   await playDialogueScreen(c.outro, `Chapter ${n} · ${c.title}`, `${c.id}.outro`);
   const firstTime = !progress.has(c.id);
   progress.add(c.id);
@@ -609,7 +626,7 @@ const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', '
 setInterval(() => {
   const s = currentScreen();
   if (s && MENU_SCREENS.has(s)) audio.playMusic('music-menu');
-  else if (s === 'dialogue' || s === 'versus') audio.playMusic(null);
+  else if (s === 'dialogue' || s === 'card' || s === 'versus') audio.playMusic(null);
 }, 300);
 
 function finish(m: Match): void {

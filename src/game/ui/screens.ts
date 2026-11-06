@@ -8,7 +8,7 @@ import { audio } from '../audio.ts';
 import { screen as trackScreen } from '../analytics.ts';
 
 export type ScreenId =
-  | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'dialogue' | 'howto' | 'results' | 'match' | 'leaderboard';
+  | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'dialogue' | 'card' | 'howto' | 'results' | 'match' | 'leaderboard';
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const backHandlers = new Map<ScreenId, () => void>();

@@ -19,6 +19,7 @@ import { BTN, NO_INPUT, packInput } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
 import { ACT } from '../sim/state.ts';
+import { CARD_MS } from '../ui/views.ts';
 import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, saveUnlocks, unlocks } from '../campaign/story.ts';
 import { SCENARIOS } from './scenarios.ts';
 import { stagesFor } from '../modes.ts';
@@ -65,7 +66,7 @@ const CORE_CLIPS = ['idle', 'walk', 'jump', 'fall', 'land', 'hurt', 'shield'];
 
 const SCREEN_NAMES: Record<ScreenId, string> = {
   title: 'Title', main: 'Main Menu', select: 'Character Select', stages: 'Stage Select', versus: 'VS',
-  campaign: 'Campaign Map', dialogue: 'Dialogue', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
+  campaign: 'Campaign Map', card: 'Story Card', dialogue: 'Dialogue', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
 };
 
 const MOVE_NAMES = Object.fromEntries(Object.entries(MOVE).map(([k, v]) => [v, k.toLowerCase()])) as Record<number, string>;
@@ -88,6 +89,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
+        else if (id === 'story-cards') await r.storyCards();
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
@@ -575,7 +577,51 @@ class Run {
     return won;
   }
 
+  /** The first story card of a run is left to time out by itself (the story-cards scenario); the others are skipped. */
+  private cardAuto = false;
+  private cardsSeen = 0;
+
+  /**
+   * A story card (the page's `#card`): checks it names the episode and says the line content/campaign.json gives
+   * the chapter for it, then skips it with its button (or, once, waits for it to move on by itself).
+   */
+  private async playCard(): Promise<void> {
+    const t = this.t;
+    const text = (id: string) => this.q(id)?.textContent?.trim() ?? '';
+    const title = text('#card-title');
+    const which = text('#card-tag') === 'Tonight' ? 'before' : 'after';
+    const line = text('#card-line');
+    const c = CHAPTERS.find((x) => x.title === title);
+    const want = c?.card?.[which];
+    const shownAt = performance.now();
+    this.cardsSeen++;
+    t.event(`card-${which}`, `${text('#card-kicker')} · ${title}: "${line}"`);
+    if (!c) t.problem('bug', `the story card names "${title}", which is no episode in content/campaign.json`);
+    else if (!line || line !== want) t.problem('bug', `the ${which} card of ${c.id} says "${line}", content/campaign.json has "${want ?? ''}"`);
+    if (!/^Season \d+ · Episode \d+$/.test(text('#card-kicker'))) t.problem('bug', `the story card has no season and episode line ("${text('#card-kicker')}")`);
+    if (this.cardAuto) {
+      this.cardAuto = false;
+      await this.t.until(() => currentScreen() !== 'card', CARD_MS + 8000, 'the story card to move on by itself');
+      const ms = Math.round(performance.now() - shownAt);
+      t.metric('cardAutoMs', ms);
+      t.event('card-auto', `moved on by itself after ${(ms / 1000).toFixed(1)} s`);
+      return;
+    }
+    await this.wait(900);
+    await this.click(() => this.q('#card-skip'), 'Skip (story card)');
+    const t0 = performance.now();
+    await this.t.until(() => currentScreen() !== 'card', 5000, 'the story card to be skipped');
+    t.event('card-skipped', `${which} card of ${title} skipped, gone in ${Math.round(performance.now() - t0)} ms`);
+  }
+
+  private async wait(ms: number): Promise<void> {
+    await this.t.wait(ms);
+  }
+
   private async playDialogue(): Promise<void> {
+    // A story card comes first (before the episode, and after the fight is won).
+    await this.t.until(() => (currentScreen() === 'card' || currentScreen() === 'dialogue') && !switching(), 20000, 'the story card or the dialogue');
+    if (currentScreen() === 'card') await this.playCard();
     await this.screen('dialogue');
     const t0 = performance.now();
     // Next finishes the typing, the next Next moves on: read each line for a moment like a player.
@@ -784,6 +830,32 @@ class Run {
     }
     t.progress(1);
     t.finish(outcome);
+  }
+
+  /** Story cards: every campaign match has a card with the episode title and a line from content/campaign.json, and it can be skipped. */
+  async storyCards(): Promise<void> {
+    const t = this.t;
+    const asked = this.options.chapter ?? 'open-mic';
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    if (from < 0) {
+      t.problem('bug', `chapter "${String(asked)}" is not in the campaign (content/campaign.json ids: ${CHAPTERS.map((c) => c.id).join(', ')})`);
+      t.finish('error');
+      return;
+    }
+    const missing = CHAPTERS.filter((c) => !c.card?.before || !c.card?.after);
+    for (const c of missing) t.problem('bug', `${c.id} has no card.before / card.after in content/campaign.json`);
+    t.event('cards-data', `${CHAPTERS.length - missing.length} of ${CHAPTERS.length} episodes have a before and after card line`);
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((c) => c.id));
+    t.log(`setup shortcut: chapters 1-${from} marked cleared, starting at ${CHAPTERS[from].id}`);
+    this.cardAuto = true;
+    this.cardsSeen = 0;
+    try {
+      await this.campaignFrom(from, () => false, from);
+    } finally {
+      this.game.setCampaignProgress(before);
+    }
+    t.metric('cardsSeen', this.cardsSeen);
+    if (this.cardsSeen < 2) t.problem('bug', `only ${this.cardsSeen} story card(s) shown for the episode (a before and an after card are expected)`);
   }
 
   /** The 'quota' objective's chapter alone (`chapter` option, default the first one that uses it), played from the map. */

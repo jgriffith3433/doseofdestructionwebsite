@@ -538,3 +538,41 @@ export function playDialogue(lines: Line[], chapterTitle: string): Promise<Scene
     advance();
   });
 }
+
+// --------------------------------------------------------------- story card
+
+/** How long a story card holds before it moves on by itself (a press of Skip, Enter or Space ends it sooner). */
+export const CARD_MS = 5000;
+
+/** Plays a story card: the episode's place, its title and a line, animated in. Resolves when it times out or is skipped. */
+export function playCard(card: { kicker: string; title: string; line: string }, which: 'before' | 'after'): Promise<{ skipped: boolean }> {
+  const root = $('card');
+  $('card-tag').textContent = which === 'before' ? 'Tonight' : 'Signing off';
+  $('card-kicker').textContent = card.kicker;
+  $('card-title').textContent = card.title;
+  $('card-line').textContent = card.line;
+  // Restart the entrance animation each time the card is used.
+  root.classList.remove('card-in');
+  void root.offsetWidth;
+  root.classList.add('card-in');
+  const skip = $<HTMLButtonElement>('card-skip');
+  return new Promise((resolve) => {
+    let timer = 0;
+    const end = (skipped: boolean) => {
+      clearTimeout(timer);
+      skip.onclick = null;
+      window.removeEventListener('keydown', onKey);
+      resolve({ skipped });
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (document.activeElement instanceof HTMLButtonElement) return;
+      if (e.code === 'Enter' || e.code === 'Space') {
+        e.preventDefault();
+        end(true);
+      }
+    };
+    skip.onclick = () => end(true);
+    window.addEventListener('keydown', onKey);
+    timer = window.setTimeout(() => end(false), CARD_MS);
+  });
+}

@@ -28,6 +28,8 @@ export interface Chapter {
   hint: string;
   /** The fighter id this chapter unlocks for Versus and online when it is cleared (docs/story.md, "Unlocks"). */
   unlock?: string;
+  /** The story cards: one line before the episode's fight and one after it is won (content/campaign.json `card`). */
+  card?: { before?: string; after?: string };
   intro: Line[];
   outro: Line[];
   fight: MatchSetup;
@@ -58,6 +60,23 @@ export const CHAPTERS: Chapter[] = CHAPTER_ENTRIES.map((c): Chapter => ({
     slots: c.fight.slots.map((s) => ({ ...s, char: characterIndex(s.char) })),
   },
 })).sort((a, b) => a.season - b.season);
+
+/** What a story card says: the episode's place in its season, its title and its line (the chapter's `card`, else its tagline). */
+export interface StoryCard {
+  kicker: string;
+  title: string;
+  line: string;
+}
+
+export function storyCard(c: Chapter, which: 'before' | 'after'): StoryCard {
+  const inSeason = CHAPTERS.filter((x) => x.season === c.season);
+  const n = String(inSeason.indexOf(c) + 1).padStart(2, '0');
+  return {
+    kicker: `Season ${c.season} \u00b7 Episode ${n}`,
+    title: c.title,
+    line: c.card?.[which] ?? (which === 'before' ? c.tagline : 'Cleared.'),
+  };
+}
 
 export interface Season {
   number: number;
