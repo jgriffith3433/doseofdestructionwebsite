@@ -5,6 +5,7 @@
 import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
 import { audio, tapState } from './audio.ts';
+import { Commentator, introCall, type Call } from './commentary.ts';
 import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
 import { ACT } from './sim/state.ts';
@@ -48,6 +49,9 @@ let readyFrames = 0;
 let acc = 0;
 let last = performance.now();
 let shownOver = false;
+/** The announcer and Blog Man for the running match (versus and campaign; not training or online). */
+let commentator: Commentator | null = null;
+let introPending: Call | null = null;
 let chapter: Chapter | null = null;
 let stageChoice = 0;
 let versus: VersusConfig = loadVersus();
@@ -345,6 +349,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   const loading = Promise.all([
     renderer.setFighters(m.state).then(() => renderer.ready()),
     audio.preloadMatch(STAGES[setup.stage].id, m.state.fighters.map((f) => CHARACTERS[f.char].id)),
+    audio.preloadLines(chapter ? [`blog-man.intro.${chapter.id}`] : []),
   ])
     .then(() => renderer.warmUp(m.state))
     .catch((err) => console.error(err));
@@ -401,6 +406,8 @@ function beginReady(m: Match): void {
   banner('Ready');
   renderer.stageEvent('start');
   audio.line('announcer.ready');
+  commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state) : null;
+  introPending = (chapter && commentator && introCall(chapter.id)) || null;
   audio.playMusic(`music-${STAGES[setup.stage].id}`);
   lastActions = m.state.fighters.map((f) => f.action);
   canvas.focus();
@@ -468,6 +475,15 @@ function afterTick(m: Match, events: SimEvent[]): void {
   playEventSounds(m, events);
   updateHud(m);
   const s = m.state;
+  if (commentator && !s.over) {
+    // Blog Man opens the episode just after Go! (his line has the booth to itself), then the announcer calls the fight.
+    if (introPending && s.frame >= 75) {
+      commentator.note(introPending, s.frame);
+      broadcast(introPending);
+      introPending = null;
+    }
+    if (!introPending) for (const c of commentator.onEvents(s, events)) broadcast(c);
+  }
   if (s.over && !shownOver) {
     shownOver = true;
     renderer.stageEvent('end');
@@ -719,6 +735,17 @@ function askOnResults(m: Match): void {
   setTimeout(() => {
     if (currentScreen() === 'results' && !match) analytics.askAfterMatch(m);
   }, 900);
+}
+
+/** A commentary call: spoken if it has a take, and always captioned (and announced to the playtest). */
+function broadcast(c: Call): void {
+  audio.line(c.id);
+  document.querySelector('.booth')?.remove();
+  const who = c.who === 'blog-man' ? 'Blog Man' : 'Announcer';
+  const el = h('div', { class: `booth booth-${c.who}`, 'data-call': c.kind, 'data-line': c.id }, h('span', { class: 'booth-who' }, who), c.text);
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), c.who === 'blog-man' ? 6500 : 3200);
+  window.dispatchEvent(new CustomEvent('dod:commentary', { detail: c }));
 }
 
 function banner(text: string): void {
