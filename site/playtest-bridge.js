@@ -189,6 +189,15 @@
       ]
     },
     {
+      "id": "presentation",
+      "title": "Menu, VS screen and results presentation: the broadcast menu, a name card animating in for each VS fighter, results with winner, time, damage dealt and highlights, no text clipped",
+      "description": "Main menu: the ON AIR bug and Tonight ticker are shown (menu-broadcast). Versus 1v1 (1 stock): on the VS screen each fighter lands and its name card animates in (vs-start, vs-name-card per fighter). The match is played by the bot to its end; the results must show the winner, the time and the damage dealt in the summary strip (results-summary, checked against the match) and list the knockouts as highlights (results-highlights). Each screen is checked for text cut off or pushed off the sides at the window's shape (no-clipping, with the size and 16:9 / 20:9). Options: stage, fighter. Metric highlights.",
+      "seconds": 200,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "roster",
       "title": "Every fighter spawns in training and does each move once (starts matches directly)",
       "seconds": 480,

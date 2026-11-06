@@ -90,6 +90,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'story-cards') await r.storyCards();
+        else if (id === 'presentation') await r.presentation();
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
@@ -539,6 +540,7 @@ class Run {
     if (want && byId < 0) this.t.problem('bug', `stage "${want}" is not offered in Versus (content/modes.json)`);
     const pick = byId >= 0 ? byId : Math.abs(this.options.seed - 1) % cards().length;
     await this.click(() => cards()[pick], `stage ${want && byId >= 0 ? want : pick + 1}`);
+    if (this.onVersus) await this.onVersus();
     await this.matchLive();
   }
 
@@ -733,6 +735,104 @@ class Run {
     await this.screen('main');
     t.progress(1);
     t.finish(won ? 'won' : 'lost');
+  }
+
+  /** Set by the presentation scenario: runs on the VS screen, before the match loads. */
+  private onVersus: (() => Promise<void>) | null = null;
+
+  /** Text that is cut off or pushed off the screen inside `root` (the viewport's own aspect is whatever the run has). */
+  private clippedText(root: HTMLElement): string[] {
+    const bad: string[] = [];
+    const vw = innerWidth;
+    for (const el of root.querySelectorAll<HTMLElement>('*')) {
+      if (!el.getClientRects().length) continue;
+      const own = [...el.childNodes].some((n) => n.nodeType === 3 && (n.textContent ?? '').trim());
+      if (!own) continue;
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      if (cs.visibility === 'hidden' || r.width === 0) continue;
+      const what = `"${(el.textContent ?? '').trim().slice(0, 30)}" (${el.tagName.toLowerCase()}.${el.className})`;
+      if (r.right > vw + 1 || r.left < -1) bad.push(`${what} runs off the side (${Math.round(r.left)}..${Math.round(r.right)} of ${vw})`);
+      else if (cs.overflow !== 'visible' && el.scrollWidth > el.clientWidth + 1) bad.push(`${what} is cut off (${el.scrollWidth} in ${el.clientWidth})`);
+    }
+    return bad;
+  }
+
+  private checkClipping(where: string, root: HTMLElement | null): void {
+    const t = this.t;
+    const ratio = innerWidth / innerHeight;
+    const shape = ratio >= 2.1 ? '20:9' : ratio >= 1.7 ? '16:9' : ratio >= 1.5 ? '16:10' : 'other';
+    if (!root) return;
+    const bad = this.clippedText(root);
+    if (bad.length) for (const b of bad.slice(0, 5)) t.problem('bug', `${where}: text clipped at ${innerWidth}x${innerHeight} (${shape}): ${b}`);
+    else t.event('no-clipping', `${where}: no text clipped at ${innerWidth}x${innerHeight} (${shape})`);
+  }
+
+  /** Menu, VS screen and results presentation: the broadcast menu, a name card animating in for each fighter, results with winner, time and damage. */
+  async presentation(): Promise<void> {
+    const t = this.t;
+    await this.toMainMenu();
+    // 1. The broadcast menu: ON AIR bug and the Tonight ticker, shown.
+    await this.wait(500);
+    const bug = this.q('#on-air-bug');
+    const tick = this.q('#ticker');
+    const showing = (el: HTMLElement | null) => !!el && el.getClientRects().length > 0;
+    if (showing(bug) && showing(tick)) t.event('menu-broadcast', `ON AIR bug "${bug!.textContent}" and ticker "${tick!.querySelector('.ticker-tag')?.textContent}" shown`);
+    else if (innerWidth > 900) t.problem('bug', 'the main menu shows no ON AIR bug or Tonight ticker');
+    this.checkClipping('main menu', this.q('#main'));
+    t.progress(0.1);
+
+    // 2. The VS screen: every fighter in, each with a name card that animates in after it.
+    this.onVersus = async () => {
+      await this.screen('versus', 15000);
+      await this.t.until(() => document.querySelectorAll('#versus-body .vs-fighter').length > 0, 3000, 'the VS fighters');
+      const figs = [...document.querySelectorAll<HTMLElement>('#versus-body .vs-fighter')];
+      const cards = figs.map((f) => f.querySelector<HTMLElement>('.vs-card'));
+      const early = cards.map((c) => (c ? Number(getComputedStyle(c).opacity) : 1));
+      t.event('vs-start', `${figs.length} fighters, name cards at opacity ${early.map((o) => o.toFixed(2)).join(', ')} (animating in)`);
+      await this.wait(1800);
+      figs.forEach((f, i) => {
+        const card = cards[i];
+        const name = card?.querySelector('strong')?.textContent?.trim() ?? '';
+        const who = card?.querySelector('span')?.textContent?.trim() ?? '';
+        const img = f.querySelector('img');
+        const op = card ? Number(getComputedStyle(card).opacity) : 0;
+        if (!card || !name) t.problem('bug', `VS fighter ${f.dataset.fighter} has no name card`);
+        else if (op < 0.99 || !showing(card)) t.problem('bug', `the VS name card for ${name} is not fully shown after the intro (opacity ${op})`);
+        else if (!img || !(img.complete && img.naturalWidth > 0)) t.problem('bug', `the VS fighter picture for ${name} did not load`);
+        else t.event('vs-name-card', `${name} (${who}) animated in with a name card`);
+      });
+      if (new Set(figs.map((f) => f.dataset.fighter)).size < 1) t.problem('bug', 'no fighters on the VS screen');
+      this.checkClipping('VS screen', this.q('#versus'));
+    };
+    await this.startVersus(1);
+    this.onVersus = null;
+    t.progress(0.3);
+    await this.fight(() => false, 6 * 60 * 1000);
+
+    // 3. The results: winner, time, damage dealt, highlights.
+    const m = this.game.match() ?? this.seen;
+    await this.screen('results', 30000);
+    await this.wait(900);
+    const stat = (k: string) => this.q(`#results-body .stat[data-stat="${k}"] strong`)?.textContent?.trim() ?? '';
+    const [winner, time, damage] = [stat('winner'), stat('time'), stat('damage')];
+    if (!winner) t.problem('bug', 'the results show no winner');
+    if (!/^\d+:\d\d$/.test(time)) t.problem('bug', `the results show no match time ("${time}")`);
+    if (!/\d/.test(damage)) t.problem('bug', `the results show no damage dealt ("${damage}")`);
+    t.event('results-summary', `winner ${winner}, time ${time}, damage dealt ${damage}`);
+    if (m) {
+      const expected = m.state.winner >= 0 ? CHARACTERS[m.state.fighters[m.state.winner].char].name : '';
+      if (expected && winner.toLowerCase() !== expected.toLowerCase()) t.problem('bug', `the results name "${winner}" the winner, the match was won by ${expected}`);
+    }
+    const reel = document.querySelectorAll('#results-body .reel-item').length;
+    t.event('results-highlights', `${reel} knockout highlight(s) listed`);
+    if (m && m.kos.length > 0 && reel === 0) t.problem('bug', 'the match had knockouts but the results list no highlights');
+    this.checkClipping('results', this.q('#results'));
+    t.metric('highlights', reel);
+    await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+    await this.screen('main');
+    t.progress(1);
+    t.finish('done');
   }
 
   async campaign(): Promise<void> {
