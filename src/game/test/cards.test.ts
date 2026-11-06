@@ -1,3 +1,4 @@
+declare const process: { exit(code: number): never };
 // Story cards: every campaign episode has a before and after card line in content/campaign.json, and storyCard reads them.
 import { CHAPTERS, storyCard } from '../campaign/story.ts';
 
