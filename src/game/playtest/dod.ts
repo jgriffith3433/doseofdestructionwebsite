@@ -19,11 +19,13 @@ import { BTN, NO_INPUT, packInput } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
 import { ACT } from '../sim/state.ts';
+import { CARD_MS } from '../ui/views.ts';
 import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, saveUnlocks, unlocks } from '../campaign/story.ts';
 import { SCENARIOS } from './scenarios.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
+import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
 import { loadAnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import type { SimEvent } from '../sim/step.ts';
@@ -49,6 +51,8 @@ export interface GameHooks {
   /** Setup shortcut (campaign `chapter` only): the cleared chapter ids (localStorage dod-campaign); returns the ones before. */
   setCampaignProgress(ids: string[]): string[];
   /** Renderer particle and warm-up diagnostics. */
+  /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
+  hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
 }
 
@@ -62,7 +66,7 @@ const CORE_CLIPS = ['idle', 'walk', 'jump', 'fall', 'land', 'hurt', 'shield'];
 
 const SCREEN_NAMES: Record<ScreenId, string> = {
   title: 'Title', main: 'Main Menu', select: 'Character Select', stages: 'Stage Select', versus: 'VS',
-  campaign: 'Campaign Map', dialogue: 'Dialogue', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
+  campaign: 'Campaign Map', card: 'Story Card', dialogue: 'Dialogue', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
 };
 
 const MOVE_NAMES = Object.fromEntries(Object.entries(MOVE).map(([k, v]) => [v, k.toLowerCase()])) as Record<number, string>;
@@ -85,8 +89,12 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
+        else if (id === 'story-cards') await r.storyCards();
+        else if (id === 'presentation') await r.presentation();
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
+        else if (id === 'hit-feel') await r.hitFeel();
+        else if (id === 'commentary') await r.commentary();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
       } finally {
@@ -532,6 +540,7 @@ class Run {
     if (want && byId < 0) this.t.problem('bug', `stage "${want}" is not offered in Versus (content/modes.json)`);
     const pick = byId >= 0 ? byId : Math.abs(this.options.seed - 1) % cards().length;
     await this.click(() => cards()[pick], `stage ${want && byId >= 0 ? want : pick + 1}`);
+    if (this.onVersus) await this.onVersus();
     await this.matchLive();
   }
 
@@ -570,7 +579,51 @@ class Run {
     return won;
   }
 
+  /** The first story card of a run is left to time out by itself (the story-cards scenario); the others are skipped. */
+  private cardAuto = false;
+  private cardsSeen = 0;
+
+  /**
+   * A story card (the page's `#card`): checks it names the episode and says the line content/campaign.json gives
+   * the chapter for it, then skips it with its button (or, once, waits for it to move on by itself).
+   */
+  private async playCard(): Promise<void> {
+    const t = this.t;
+    const text = (id: string) => this.q(id)?.textContent?.trim() ?? '';
+    const title = text('#card-title');
+    const which = text('#card-tag') === 'Tonight' ? 'before' : 'after';
+    const line = text('#card-line');
+    const c = CHAPTERS.find((x) => x.title === title);
+    const want = c?.card?.[which];
+    const shownAt = performance.now();
+    this.cardsSeen++;
+    t.event(`card-${which}`, `${text('#card-kicker')} · ${title}: "${line}"`);
+    if (!c) t.problem('bug', `the story card names "${title}", which is no episode in content/campaign.json`);
+    else if (!line || line !== want) t.problem('bug', `the ${which} card of ${c.id} says "${line}", content/campaign.json has "${want ?? ''}"`);
+    if (!/^Season \d+ · Episode \d+$/.test(text('#card-kicker'))) t.problem('bug', `the story card has no season and episode line ("${text('#card-kicker')}")`);
+    if (this.cardAuto) {
+      this.cardAuto = false;
+      await this.t.until(() => currentScreen() !== 'card', CARD_MS + 8000, 'the story card to move on by itself');
+      const ms = Math.round(performance.now() - shownAt);
+      t.metric('cardAutoMs', ms);
+      t.event('card-auto', `moved on by itself after ${(ms / 1000).toFixed(1)} s`);
+      return;
+    }
+    await this.wait(900);
+    await this.click(() => this.q('#card-skip'), 'Skip (story card)');
+    const t0 = performance.now();
+    await this.t.until(() => currentScreen() !== 'card', 5000, 'the story card to be skipped');
+    t.event('card-skipped', `${which} card of ${title} skipped, gone in ${Math.round(performance.now() - t0)} ms`);
+  }
+
+  private async wait(ms: number): Promise<void> {
+    await this.t.wait(ms);
+  }
+
   private async playDialogue(): Promise<void> {
+    // A story card comes first (before the episode, and after the fight is won).
+    await this.t.until(() => (currentScreen() === 'card' || currentScreen() === 'dialogue') && !switching(), 20000, 'the story card or the dialogue');
+    if (currentScreen() === 'card') await this.playCard();
     await this.screen('dialogue');
     const t0 = performance.now();
     // Next finishes the typing, the next Next moves on: read each line for a moment like a player.
@@ -583,7 +636,57 @@ class Run {
 
   // ---------------------------------------------------------- scenarios
 
+  /**
+   * Watches the page's frames while a wipe is switching screens (VS, match start, menu return): the longest
+   * gap between two frames and the frame rate under the wipe. A gap over 500 ms is a stalled wipe.
+   */
+  private watchWipe(): () => void {
+    const t = this.t;
+    let stop = false;
+    let prev = performance.now();
+    let wipeMs = 0;
+    let wipeFrames = 0;
+    let worst = 0;
+    let wasSwitching = false;
+    const tick = (now: number) => {
+      if (stop) return;
+      const gap = now - prev;
+      prev = now;
+      const covered = switching();
+      if (covered && wasSwitching) {
+        wipeMs += gap;
+        wipeFrames++;
+        if (gap > worst) {
+          worst = gap;
+          t.metric('wipeWorstGapMs', Math.round(worst));
+        }
+        if (gap > 500) t.problem('bug', `The wipe stalled: ${Math.round(gap)} ms between two frames while switching screens (${currentScreen() ?? '?'})`);
+      }
+      if (wasSwitching && !covered && wipeFrames > 0) {
+        t.event('wipe', `${wipeFrames} frames in ${Math.round(wipeMs)} ms (${Math.round((wipeFrames * 1000) / Math.max(1, wipeMs))} fps), worst gap ${Math.round(worst)} ms`);
+        t.metric('wipeFps', Math.round((wipeFrames * 1000) / Math.max(1, wipeMs)));
+        wipeMs = 0;
+        wipeFrames = 0;
+      }
+      wasSwitching = covered;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    return () => { stop = true; };
+  }
+
   async smoke(): Promise<void> {
+    const t = this.t;
+    const stopWatch = this.watchWipe();
+    try {
+      await this.smokeRun();
+    } finally {
+      stopWatch();
+    }
+    void t;
+  }
+
+  private async smokeRun(): Promise<void> {
     const t = this.t;
     await this.toMainMenu();
     // The release notes (/releases.json via /site/hawkes-release.js) must load: the version on the menu reads them.
@@ -632,6 +735,104 @@ class Run {
     await this.screen('main');
     t.progress(1);
     t.finish(won ? 'won' : 'lost');
+  }
+
+  /** Set by the presentation scenario: runs on the VS screen, before the match loads. */
+  private onVersus: (() => Promise<void>) | null = null;
+
+  /** Text that is cut off or pushed off the screen inside `root` (the viewport's own aspect is whatever the run has). */
+  private clippedText(root: HTMLElement): string[] {
+    const bad: string[] = [];
+    const vw = innerWidth;
+    for (const el of root.querySelectorAll<HTMLElement>('*')) {
+      if (!el.getClientRects().length) continue;
+      const own = [...el.childNodes].some((n) => n.nodeType === 3 && (n.textContent ?? '').trim());
+      if (!own) continue;
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      if (cs.visibility === 'hidden' || r.width === 0) continue;
+      const what = `"${(el.textContent ?? '').trim().slice(0, 30)}" (${el.tagName.toLowerCase()}.${el.className})`;
+      if (r.right > vw + 1 || r.left < -1) bad.push(`${what} runs off the side (${Math.round(r.left)}..${Math.round(r.right)} of ${vw})`);
+      else if (cs.overflow !== 'visible' && el.scrollWidth > el.clientWidth + 1) bad.push(`${what} is cut off (${el.scrollWidth} in ${el.clientWidth})`);
+    }
+    return bad;
+  }
+
+  private checkClipping(where: string, root: HTMLElement | null): void {
+    const t = this.t;
+    const ratio = innerWidth / innerHeight;
+    const shape = ratio >= 2.1 ? '20:9' : ratio >= 1.7 ? '16:9' : ratio >= 1.5 ? '16:10' : 'other';
+    if (!root) return;
+    const bad = this.clippedText(root);
+    if (bad.length) for (const b of bad.slice(0, 5)) t.problem('bug', `${where}: text clipped at ${innerWidth}x${innerHeight} (${shape}): ${b}`);
+    else t.event('no-clipping', `${where}: no text clipped at ${innerWidth}x${innerHeight} (${shape})`);
+  }
+
+  /** Menu, VS screen and results presentation: the broadcast menu, a name card animating in for each fighter, results with winner, time and damage. */
+  async presentation(): Promise<void> {
+    const t = this.t;
+    await this.toMainMenu();
+    // 1. The broadcast menu: ON AIR bug and the Tonight ticker, shown.
+    await this.wait(500);
+    const bug = this.q('#on-air-bug');
+    const tick = this.q('#ticker');
+    const showing = (el: HTMLElement | null) => !!el && el.getClientRects().length > 0;
+    if (showing(bug) && showing(tick)) t.event('menu-broadcast', `ON AIR bug "${bug!.textContent}" and ticker "${tick!.querySelector('.ticker-tag')?.textContent}" shown`);
+    else if (innerWidth > 900) t.problem('bug', 'the main menu shows no ON AIR bug or Tonight ticker');
+    this.checkClipping('main menu', this.q('#main'));
+    t.progress(0.1);
+
+    // 2. The VS screen: every fighter in, each with a name card that animates in after it.
+    this.onVersus = async () => {
+      await this.screen('versus', 15000);
+      await this.t.until(() => document.querySelectorAll('#versus-body .vs-fighter').length > 0, 3000, 'the VS fighters');
+      const figs = [...document.querySelectorAll<HTMLElement>('#versus-body .vs-fighter')];
+      const cards = figs.map((f) => f.querySelector<HTMLElement>('.vs-card'));
+      const early = cards.map((c) => (c ? Number(getComputedStyle(c).opacity) : 1));
+      t.event('vs-start', `${figs.length} fighters, name cards at opacity ${early.map((o) => o.toFixed(2)).join(', ')} (animating in)`);
+      await this.wait(1800);
+      figs.forEach((f, i) => {
+        const card = cards[i];
+        const name = card?.querySelector('strong')?.textContent?.trim() ?? '';
+        const who = card?.querySelector('span')?.textContent?.trim() ?? '';
+        const img = f.querySelector('img');
+        const op = card ? Number(getComputedStyle(card).opacity) : 0;
+        if (!card || !name) t.problem('bug', `VS fighter ${f.dataset.fighter} has no name card`);
+        else if (op < 0.99 || !showing(card)) t.problem('bug', `the VS name card for ${name} is not fully shown after the intro (opacity ${op})`);
+        else if (!img || !(img.complete && img.naturalWidth > 0)) t.problem('bug', `the VS fighter picture for ${name} did not load`);
+        else t.event('vs-name-card', `${name} (${who}) animated in with a name card`);
+      });
+      if (new Set(figs.map((f) => f.dataset.fighter)).size < 1) t.problem('bug', 'no fighters on the VS screen');
+      this.checkClipping('VS screen', this.q('#versus'));
+    };
+    await this.startVersus(1);
+    this.onVersus = null;
+    t.progress(0.3);
+    await this.fight(() => false, 6 * 60 * 1000);
+
+    // 3. The results: winner, time, damage dealt, highlights.
+    const m = this.game.match() ?? this.seen;
+    await this.screen('results', 30000);
+    await this.wait(900);
+    const stat = (k: string) => this.q(`#results-body .stat[data-stat="${k}"] strong`)?.textContent?.trim() ?? '';
+    const [winner, time, damage] = [stat('winner'), stat('time'), stat('damage')];
+    if (!winner) t.problem('bug', 'the results show no winner');
+    if (!/^\d+:\d\d$/.test(time)) t.problem('bug', `the results show no match time ("${time}")`);
+    if (!/\d/.test(damage)) t.problem('bug', `the results show no damage dealt ("${damage}")`);
+    t.event('results-summary', `winner ${winner}, time ${time}, damage dealt ${damage}`);
+    if (m) {
+      const expected = m.state.winner >= 0 ? CHARACTERS[m.state.fighters[m.state.winner].char].name : '';
+      if (expected && winner.toLowerCase() !== expected.toLowerCase()) t.problem('bug', `the results name "${winner}" the winner, the match was won by ${expected}`);
+    }
+    const reel = document.querySelectorAll('#results-body .reel-item').length;
+    t.event('results-highlights', `${reel} knockout highlight(s) listed`);
+    if (m && m.kos.length > 0 && reel === 0) t.problem('bug', 'the match had knockouts but the results list no highlights');
+    this.checkClipping('results', this.q('#results'));
+    t.metric('highlights', reel);
+    await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+    await this.screen('main');
+    t.progress(1);
+    t.finish('done');
   }
 
   async campaign(): Promise<void> {
@@ -729,6 +930,32 @@ class Run {
     }
     t.progress(1);
     t.finish(outcome);
+  }
+
+  /** Story cards: every campaign match has a card with the episode title and a line from content/campaign.json, and it can be skipped. */
+  async storyCards(): Promise<void> {
+    const t = this.t;
+    const asked = this.options.chapter ?? 'open-mic';
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    if (from < 0) {
+      t.problem('bug', `chapter "${String(asked)}" is not in the campaign (content/campaign.json ids: ${CHAPTERS.map((c) => c.id).join(', ')})`);
+      t.finish('error');
+      return;
+    }
+    const missing = CHAPTERS.filter((c) => !c.card?.before || !c.card?.after);
+    for (const c of missing) t.problem('bug', `${c.id} has no card.before / card.after in content/campaign.json`);
+    t.event('cards-data', `${CHAPTERS.length - missing.length} of ${CHAPTERS.length} episodes have a before and after card line`);
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((c) => c.id));
+    t.log(`setup shortcut: chapters 1-${from} marked cleared, starting at ${CHAPTERS[from].id}`);
+    this.cardAuto = true;
+    this.cardsSeen = 0;
+    try {
+      await this.campaignFrom(from, () => false, from);
+    } finally {
+      this.game.setCampaignProgress(before);
+    }
+    t.metric('cardsSeen', this.cardsSeen);
+    if (this.cardsSeen < 2) t.problem('bug', `only ${this.cardsSeen} story card(s) shown for the episode (a before and an after card are expected)`);
   }
 
   /** The 'quota' objective's chapter alone (`chapter` option, default the first one that uses it), played from the map. */
@@ -1344,6 +1571,208 @@ class Run {
   // ---------------------------------------------------------- sound-settings
 
   /** The studio standard: the Tap to play prompt, sound running, Settings from the menu and Pause, kept across a reload. */
+  // ---------------------------------------------------------- hit-feel
+
+  /**
+   * Hit feedback: a versus match against the CPU (the bot on a virtual pad). Shows that heavier hits freeze longer
+   * (hit-stop frames counted from the sim's own hitlag), that light and heavy hits get different impact effects, and
+   * that Settings → Screen shake turns the camera shake off (reached from Pause, like a player).
+   */
+  async hitFeel(): Promise<void> {
+    const t = this.t;
+    const original = localStorage.getItem(SHAKE_STORAGE_KEY);
+    try {
+      localStorage.removeItem(SHAKE_STORAGE_KEY);
+    } catch {
+      // Storage blocked.
+    }
+    const seen: Record<HitTier, { lag: number; frozen: number; dmg: number; fx: string } | null> = { light: null, medium: null, heavy: null };
+    const fxLine = (l: NonNullable<ReturnType<NonNullable<GameHooks['hitFxStats']>>['last']>) =>
+      `${l.sparks} sparks, ${l.stars} impact stars, ${l.ring ? 'shockwave ring' : 'no ring'}, shake ${l.shake.toFixed(2)}, flash ${l.flash}`;
+    const pending: { victim: number; tier: HitTier; lag: number; dmg: number; frozen: number; fx: string }[] = [];
+    const unwatch = this.game.watch((m, events) => {
+      for (const p of pending.slice()) {
+        if (m.state.fighters[p.victim].hitlag > 0) p.frozen++;
+        else {
+          pending.splice(pending.indexOf(p), 1);
+          if (!seen[p.tier]) {
+            seen[p.tier] = p;
+            t.event(`hit-stop-${p.tier}`, `${p.tier} hit (${p.dmg / 10}%): frozen ${p.frozen + 1} frames (sim hit-stop ${p.lag})`);
+          }
+        }
+      }
+      for (const e of events) {
+        if (e.type !== 'hit' || e.shield) continue;
+        const tier = hitTier(e.dmg);
+        const last = this.game.hitFxStats?.()?.last;
+        pending.push({ victim: e.victim, tier, lag: e.lag, dmg: e.dmg, frozen: 0, fx: last ? fxLine(last) : '' });
+        if (!this.checked.has(`impact-${tier}`) && last) {
+          this.checked.add(`impact-${tier}`);
+          t.event(`impact-${tier}`, `${tier} hit (${e.dmg / 10}%): ${fxLine(last)}`);
+        }
+      }
+    });
+    try {
+      await this.toMainMenu();
+      t.progress(0.05);
+      // Screen shake is on by default, and Settings shows it.
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, 'Settings to open');
+      const sw = this.q('#shake-switch');
+      if (!sw) t.problem('bug', 'Settings has no Screen shake switch');
+      else if (sw.getAttribute('aria-checked') !== 'true' || !screenShake()) t.problem('bug', 'Screen shake is not on by default');
+      else t.event('shake-default', 'Settings shows Screen shake: On');
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(300);
+
+      await this.startVersus(3);
+      t.progress(0.15);
+      this.game.hitFxStats?.(true);
+      const m0 = () => this.game.match();
+      this.progressNow = () => 0.15 + 0.5 * Math.min(1, ((m0()?.state.frame ?? 0) / (75 * 60)));
+      // Fight until a light and a heavy hit were both seen (and counted), or 75 s of game time.
+      const ended = await this.fight(() => (!!seen.light && !!seen.heavy) || (m0()?.state.frame ?? 0) > 75 * 60, 4 * 60 * 1000);
+      if (ended === 'over') t.problem('warning', 'the match ended before a light and a heavy hit were both seen');
+      const stats = this.game.hitFxStats?.();
+      t.metric('shakeMaxOn', Number((stats?.shakeMax ?? 0).toFixed(3)));
+      for (const k of ['light', 'medium', 'heavy'] as const) if (seen[k]) t.metric(`hitStop${k[0].toUpperCase()}${k.slice(1)}Frames`, seen[k]!.frozen + 1);
+      const heavy = seen.heavy;
+      const light = seen.light;
+      if (!heavy) t.problem('bug', 'no heavy hit landed, so heavy hit-stop could not be checked');
+      else if (heavy.frozen + 1 < 3) t.problem('bug', `a heavy hit froze only ${heavy.frozen + 1} frames (want at least 3)`);
+      else t.event('heavy-hit-stop', `a heavy hit froze both fighters ${heavy.frozen + 1} frames (at least 3)`);
+      if (heavy && light) {
+        if (heavy.frozen <= light.frozen) t.problem('bug', `a heavy hit froze ${heavy.frozen + 1} frames, no more than a light one (${light.frozen + 1})`);
+        if (heavy.fx === light.fx) t.problem('bug', `light and heavy hits show the same impact effect (${heavy.fx})`);
+        else t.event('impact-differs', `light: ${light.fx} | heavy: ${heavy.fx}`);
+      } else if (!light) t.problem('warning', 'no light hit landed, so the light and heavy impact effects were not compared');
+      if (stats && stats.shakeMax <= 0) t.problem('bug', 'hits landed with Screen shake on but the camera never shook');
+      t.progress(0.7);
+
+      // Pause → Settings → Screen shake off; the same fight goes on and the camera stays still.
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+      await t.until(settingsShowing, 3000, 'Settings to open from Pause');
+      await t.wait(400);
+      await this.tap(() => this.q('#shake-switch'), 'Screen shake off');
+      if (screenShake() || this.q('#shake-switch')?.getAttribute('aria-checked') !== 'false' || localStorage.getItem(SHAKE_STORAGE_KEY) !== 'off') {
+        t.problem('bug', 'Screen shake off did not apply and save');
+      } else t.event('shake-off', 'Screen shake switched Off in Settings (saved as dod.shake=off)');
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+      await this.click(() => this.q('#btn-resume'), 'Resume');
+      await t.until(() => this.game.phase() === 'play', 3000, 'the match to resume');
+      this.game.hitFxStats?.(true);
+      const f0 = m0()?.state.frame ?? 0;
+      await this.fight(() => (this.game.hitFxStats?.()?.hits ?? 0) >= 4 || (m0()?.state.frame ?? 0) - f0 > 40 * 60, 2 * 60 * 1000);
+      const off = this.game.hitFxStats?.();
+      t.metric('shakeMaxOff', Number((off?.shakeMax ?? 0).toFixed(3)));
+      if (!off || off.hits === 0) t.problem('warning', 'no hit landed with Screen shake off, so the camera could not be checked');
+      else if (off.shakeMax > 0) t.problem('bug', `the camera still shook (${off.shakeMax.toFixed(2)}) with Screen shake off`);
+      else t.event('no-shake', `${off.hits} hits landed with Screen shake off and the camera stayed still (hit-stop and impact effects still play)`);
+      t.progress(0.9);
+
+      // Back on for the next visit, then out.
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.click(() => this.q('#btn-quit'), 'Quit');
+      await this.screen('main');
+    } finally {
+      unwatch();
+      try {
+        if (original === null) localStorage.removeItem(SHAKE_STORAGE_KEY);
+        else localStorage.setItem(SHAKE_STORAGE_KEY, original);
+      } catch {
+        // Storage blocked.
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- commentary
+
+  /**
+   * The announcer and Blog Man (commentary.ts). Part 1: a versus match against the CPU (the bot on a virtual pad),
+   * to its end, logging every call the announcer makes from the match's events (`call-<kind>`), checking no line
+   * is said twice in a row and that the captions show. Part 2: Blog Man's intro per episode: setup shortcut marks
+   * the campaign cleared so every season's map is open, then each season's first chapter (option `all`: every
+   * chapter) is played from the map for its dialogue and the match's first seconds, and left from Pause once
+   * Blog Man has spoken. Events `call-<kind>`, `call-kinds`, `call-repeat`, `blog-intro`, `blog-intros`.
+   */
+  async commentary(): Promise<void> {
+    const t = this.t;
+    const calls: { kind: string; id: string; text: string; who: string }[] = [];
+    const onCall = (e: Event) => {
+      const c = (e as CustomEvent).detail as { kind: string; id: string; text: string; who: string };
+      const caption = document.querySelector('.booth');
+      const prev = calls[calls.length - 1];
+      calls.push(c);
+      if (c.who === 'announcer') {
+        t.event(`call-${c.kind}`, `Announcer: "${c.text}" (${c.id})`);
+        if (prev && prev.id === c.id) t.problem('bug', `the same line was said twice in a row: ${c.id}`);
+      }
+      if (!caption || caption.getAttribute('data-line') !== c.id) t.problem('bug', `no caption showed for ${c.id}`);
+    };
+    window.addEventListener('dod:commentary', onCall);
+    try {
+      await this.toMainMenu();
+      t.progress(0.03);
+      await this.startVersus(3);
+      const m0 = () => this.game.match();
+      this.progressNow = () => 0.05 + 0.4 * Math.min(1, (m0()?.state.frame ?? 0) / (150 * 60));
+      const ended = await this.fight(() => (m0()?.state.frame ?? 0) > 150 * 60, 5 * 60 * 1000);
+      const kinds = new Set(calls.filter((c) => c.who === 'announcer').map((c) => c.kind));
+      t.metric('callKinds', kinds.size);
+      t.metric('calls', calls.length);
+      t.event('call-kinds', `${kinds.size} kinds of line from match events: ${[...kinds].join(', ')}`);
+      if (kinds.size < 8) t.problem('warning', `only ${kinds.size} kinds of announcer call came up in this fight (${[...kinds].join(', ')}); the unit test covers all 14`);
+      if (ended === 'over') await this.results();
+      else await this.quitFromPause('main');
+      if (currentScreen() === 'results') await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.progress(0.5);
+
+      // Part 2: Blog Man's intros.
+      const before = this.game.setCampaignProgress(CHAPTERS.map((c) => c.id));
+      try {
+        const picks = this.options.all
+          ? CHAPTERS
+          : [...new Set(CHAPTERS.map((c) => c.season))].map((n) => CHAPTERS.find((c) => c.season === n)!);
+        let heard = 0;
+        for (const [i, c] of picks.entries()) {
+          this.progressNow = () => 0.5 + 0.5 * (i / picks.length);
+          const from = calls.length;
+          if (currentScreen() !== 'campaign') await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+          await this.screen('campaign');
+          await this.click(() => this.q(`#chapter-path .chapter[data-chapter="${c.id}"]`), `${c.title} (Season ${c.season})`);
+          await this.playDialogue();
+          await this.matchLive();
+          const spoke = await t.until(() => calls.slice(from).some((x) => x.who === 'blog-man'), 20000, 'Blog Man to introduce the episode').then(() => true, () => false);
+          const intro = calls.slice(from).find((x) => x.who === 'blog-man');
+          if (spoke && intro) {
+            heard++;
+            t.event('blog-intro', `Season ${c.season}, ${c.title}: Blog Man: "${intro.text}"`);
+            if (intro.id !== `blog-man.intro.${c.id}`) t.problem('bug', `${c.title}: Blog Man said ${intro.id}, not his line for this episode`);
+          } else t.problem('bug', `${c.title} (Season ${c.season}): Blog Man did not introduce the episode`);
+          await this.t.wait(1500);
+          await this.quitFromPause('campaign');
+        }
+        t.metric('blogIntros', heard);
+        t.event('blog-intros', `Blog Man introduced ${heard} of ${picks.length} episodes (${[...new Set(picks.map((c) => c.season))].length} seasons)`);
+        const ids = calls.filter((x) => x.who === 'blog-man').map((x) => x.id);
+        if (new Set(ids).size !== ids.length) t.problem('warning', 'a Blog Man intro was said twice in this run');
+      } finally {
+        this.game.setCampaignProgress(before);
+      }
+    } finally {
+      window.removeEventListener('dod:commentary', onCall);
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   async soundSettings(): Promise<void> {
     const t = this.t;
     const carried = (() => {

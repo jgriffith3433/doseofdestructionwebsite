@@ -5,6 +5,8 @@
 import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
 import { audio, tapState } from './audio.ts';
+import { Commentator, introCall, type Call } from './commentary.ts';
+import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
 import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
@@ -13,12 +15,12 @@ import { GAMEPAD_HELP, KEYBOARD_HELP, listenKeyboard, onKey, pausePressed, readL
 import { PLAYER_COLORS, Renderer } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
-import { CHAPTERS, loadProgress, saveProgress, unlockFor, type Chapter } from './campaign/story.ts';
+import { CHAPTERS, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
-import { openCampaign, openStages, playDialogue, playVersus, showResults, type ResultAction, type SceneEnd } from './ui/views.ts';
+import { openCampaign, openStages, playCard, playDialogue, playVersus, showResults, type ResultAction, type SceneEnd } from './ui/views.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
 // Online code is never imported here: it loads after boot through the loader (a failure there can't stop the game).
@@ -47,6 +49,9 @@ let readyFrames = 0;
 let acc = 0;
 let last = performance.now();
 let shownOver = false;
+/** The announcer and Blog Man for the running match (versus and campaign; not training or online). */
+let commentator: Commentator | null = null;
+let introPending: Call | null = null;
 let chapter: Chapter | null = null;
 let stageChoice = 0;
 let versus: VersusConfig = loadVersus();
@@ -291,11 +296,27 @@ async function playChapter(c: Chapter): Promise<void> {
   chapter = c;
   analytics.chapterPlayed(c);
   const n = CHAPTERS.indexOf(c) + 1;
+  await playCardScreen(c, 'before');
+  // A match found during the card has taken over.
+  if (fight || chapter !== c) return;
   const scene = playDialogueScreen(c.intro, `Chapter ${n} · ${c.title}`, `${c.id}.intro`);
   await scene;
   // A match found during the scene has taken over.
   if (fight || chapter !== c) return;
   startMatch({ ...c.fight, title: `Chapter ${n} · ${c.title}`, subtitle: c.hint }, true);
+}
+
+/** A story card (the chapter's `card` line in content/campaign.json), before the episode or after it is won. */
+async function playCardScreen(c: Chapter, which: 'before' | 'after'): Promise<void> {
+  const card = storyCard(c, which);
+  let shown: Promise<{ skipped: boolean }> | null = null;
+  await go('card', () => {
+    shown = playCard(card, which);
+  });
+  if (shown) {
+    const end = await (shown as Promise<{ skipped: boolean }>);
+    analytics.scene(`${c.id}.card-${which}`, { skipped: end.skipped, line: 0 }, 1);
+  }
 }
 
 async function playDialogueScreen(lines: Chapter['intro'], title: string, id: string): Promise<void> {
@@ -308,6 +329,7 @@ async function playDialogueScreen(lines: Chapter['intro'], title: string, id: st
 
 async function chapterCleared(c: Chapter): Promise<void> {
   const n = CHAPTERS.indexOf(c) + 1;
+  await playCardScreen(c, 'after');
   await playDialogueScreen(c.outro, `Chapter ${n} · ${c.title}`, `${c.id}.outro`);
   const firstTime = !progress.has(c.id);
   progress.add(c.id);
@@ -344,6 +366,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   const loading = Promise.all([
     renderer.setFighters(m.state).then(() => renderer.ready()),
     audio.preloadMatch(STAGES[setup.stage].id, m.state.fighters.map((f) => CHARACTERS[f.char].id)),
+    audio.preloadLines(chapter ? [`blog-man.intro.${chapter.id}`] : []),
   ])
     .then(() => renderer.warmUp(m.state))
     .catch((err) => console.error(err));
@@ -400,6 +423,8 @@ function beginReady(m: Match): void {
   banner('Ready');
   renderer.stageEvent('start');
   audio.line('announcer.ready');
+  commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state) : null;
+  introPending = (chapter && commentator && introCall(chapter.id)) || null;
   audio.playMusic(`music-${STAGES[setup.stage].id}`);
   lastActions = m.state.fighters.map((f) => f.action);
   canvas.focus();
@@ -467,6 +492,15 @@ function afterTick(m: Match, events: SimEvent[]): void {
   playEventSounds(m, events);
   updateHud(m);
   const s = m.state;
+  if (commentator && !s.over) {
+    // Blog Man opens the episode just after Go! (his line has the booth to itself), then the announcer calls the fight.
+    if (introPending && s.frame >= 75) {
+      commentator.note(introPending, s.frame);
+      broadcast(introPending);
+      introPending = null;
+    }
+    if (!introPending) for (const c of commentator.onEvents(s, events)) broadcast(c);
+  }
   if (s.over && !shownOver) {
     shownOver = true;
     renderer.stageEvent('end');
@@ -530,6 +564,9 @@ function renderSettings(): void {
   sw.setAttribute('aria-checked', String(s.on));
   sw.textContent = s.on ? 'On' : 'Off';
   $('settings-levels').dataset.off = String(!s.on);
+  const shake = $('shake-switch');
+  shake.setAttribute('aria-checked', String(screenShake()));
+  shake.textContent = screenShake() ? 'On' : 'Off';
   for (const k of ['music', 'sfx'] as const) {
     const input = $<HTMLInputElement>(`vol-${k}`);
     input.value = String(Math.round(s[k] * 100));
@@ -564,6 +601,11 @@ function wireSettings(): void {
   renderSettings();
   onSoundSettings(renderSettings);
   const from = () => (match ? 'pause' : 'menu');
+  onScreenShake(() => renderSettings());
+  $('shake-switch').addEventListener('click', () => {
+    setScreenShake(!screenShake());
+    analytics.setting('shake', screenShake(), from());
+  });
   $('sound-switch').addEventListener('click', () => {
     setSoundSettings({ on: !soundSettings().on });
     analytics.setting('sound', soundSettings().on, from());
@@ -584,7 +626,7 @@ const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', '
 setInterval(() => {
   const s = currentScreen();
   if (s && MENU_SCREENS.has(s)) audio.playMusic('music-menu');
-  else if (s === 'dialogue' || s === 'versus') audio.playMusic(null);
+  else if (s === 'dialogue' || s === 'card' || s === 'versus') audio.playMusic(null);
 }, 300);
 
 function finish(m: Match): void {
@@ -710,6 +752,17 @@ function askOnResults(m: Match): void {
   setTimeout(() => {
     if (currentScreen() === 'results' && !match) analytics.askAfterMatch(m);
   }, 900);
+}
+
+/** A commentary call: spoken if it has a take, and always captioned (and announced to the playtest). */
+function broadcast(c: Call): void {
+  audio.line(c.id);
+  document.querySelector('.booth')?.remove();
+  const who = c.who === 'blog-man' ? 'Blog Man' : 'Announcer';
+  const el = h('div', { class: `booth booth-${c.who}`, 'data-call': c.kind, 'data-line': c.id }, h('span', { class: 'booth-who' }, who), c.text);
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), c.who === 'blog-man' ? 6500 : 3200);
+  window.dispatchEvent(new CustomEvent('dod:commentary', { detail: c }));
 }
 
 function banner(text: string): void {
@@ -941,6 +994,7 @@ installDodPlaytest({
     return before;
   },
   fxStats: () => renderer.fxStats(),
+  hitFxStats: () => renderer.hitFxStats(),
 });
 
 // Online is always on: the lobby is joined with no clicks (docs/online.md), but only now, after the game and the

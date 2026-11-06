@@ -5,6 +5,10 @@
     "title": "Open Mic",
     "tagline": "A walk-on with no record and one skateboard.",
     "hint": "Hits raise damage, and damage makes launches longer. Smash attacks (I + a direction) finish.",
+    "card": {
+      "before": "Midnight at the Foundry. Tonight's walk-on has one skateboard.",
+      "after": "The crowd likes the kid. Keep him on the card."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -107,6 +111,10 @@
     "title": "House Heavy",
     "tagline": "The house fighter is the size of the house.",
     "hint": "Break is giant and heavy. Build damage before you go for the launch.",
+    "card": {
+      "before": "The house fighter is the size of the house.",
+      "after": "Rule one: Break doesn't fall off. He fell off. Ratings up eleven points."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -192,6 +200,10 @@
     "title": "Bad Signal",
     "tagline": "Two on one, on platforms that will not hold still.",
     "hint": "Two of them, one stock each. Keep both in front of you and ride the moving platforms.",
+    "card": {
+      "before": "The network remixed a hit. One of them talks. One doesn't.",
+      "after": "Shutup Bot said one word, and it was \"Fine.\""
+    },
     "intro": [
       {
         "who": "dj-wont-read",
@@ -300,6 +312,10 @@
     "title": "Low Pressure",
     "tagline": "Someone brought the weather.",
     "hint": "Low gravity. Jumps hang and launches carry. Mind the gap in the middle.",
+    "card": {
+      "before": "The Orchestrator asked for drama. Small Weather brought the weather.",
+      "after": "Clear skies. For about a minute."
+    },
     "intro": [
       {
         "who": "small-weather",
@@ -386,6 +402,10 @@
     "title": "Turn the Page",
     "tagline": "A partner, finally. He writes too.",
     "hint": "Blog Man fights with you. Teammates cannot hit each other, so gang up.",
+    "card": {
+      "before": "Blog Man has covered the run, front page, three nights straight. Tonight he's on the card.",
+      "after": "The headline ran long. So did the fight."
+    },
     "intro": [
       {
         "who": "blog-man",
@@ -491,6 +511,10 @@
     "title": "Sudden Death",
     "tagline": "The show is running long. One stock, high damage.",
     "hint": "Both of you start at 150% with one stock. The first strong hit wins. Shield, then punish.",
+    "card": {
+      "before": "The show is running long. One stock each. One clean hit.",
+      "after": "He didn't flinch. He ducked."
+    },
     "intro": [
       {
         "who": "orchestrator",
@@ -568,6 +592,10 @@
     "title": "Dead Weight",
     "tagline": "They want the kid off the air.",
     "hint": "Survive for 60 seconds. You do not need KOs. Stay away from the edges.",
+    "card": {
+      "before": "The kid is too popular. The network sends the heavy hitters.",
+      "after": "Still standing when the clock ran out. \"Fine. I'll do it myself.\""
+    },
     "intro": [
       {
         "who": "orchestrator",
@@ -671,6 +699,10 @@
     "title": "Encore",
     "tagline": "The man who runs the show steps onto it.",
     "hint": "The final fight: a giant Orchestrator. Stay moving and punish his landings.",
+    "card": {
+      "before": "The man who runs the show steps onto it.",
+      "after": "The broadcast went quiet for the first time in years."
+    },
     "intro": [
       {
         "who": "orchestrator",
@@ -775,6 +807,10 @@
     "title": "Title Defense",
     "tagline": "The champion's first night back on the roof where it started.",
     "hint": "Two minutes on the clock. Keep more stocks than he does. He comes straight at you: shield, then punish.",
+    "card": {
+      "before": "The champion's first night back, on the roof where it started.",
+      "after": "Defense one of four. The belt stays."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -889,6 +925,10 @@
     "title": "Drop In",
     "tagline": "She wants the ratings. So does the network.",
     "hint": "Ratings: 3 KOs before the clock runs out. She starts every life hurt, but her aerials burn hard. Watch for the skater dropping in.",
+    "card": {
+      "before": "She wants the ratings. So does the network.",
+      "after": "Dropped in. Dropped out. The numbers held."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -988,6 +1028,10 @@
     "title": "The Champion's Tax",
     "tagline": "The champion pays to fight. The challenger doesn't.",
     "hint": "You start every life at 60%. Susan drifts and reaches far. Stay on the rooftops, out of the fog.",
+    "card": {
+      "before": "The champion pays to fight. The challenger doesn't.",
+      "after": "Tax paid in full, in the fog."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -1083,6 +1127,10 @@
     "title": "Sponsored",
     "tagline": "Someone bought a fighter. And then bought a bigger one.",
     "hint": "The final defense: a giant Wallit, and every hit lands harder. Stay out of the bat's reach and punish the swing.",
+    "card": {
+      "before": "Someone bought a fighter. Then bought a bigger one.",
+      "after": "The sponsor wants a refund. The champion kept the receipt."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -1206,6 +1254,10 @@
     "title": "Walk-On",
     "tagline": "One name on the sign-up sheet. No sponsor. No record. One baton.",
     "hint": "Top billing: you're the giant tonight. Longer reach and harder to launch, but easier to hit. He has four stocks to your three and punishes every whiff.",
+    "card": {
+      "before": "One name on the sign-up sheet. No sponsor. No record. One baton.",
+      "after": "He signed the sheet. He took the baton. The show goes on."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -1294,6 +1346,10 @@
     "title": "Simulcast",
     "tagline": "The Orchestrator started his own broadcast. It airs at the same time as yours.",
     "hint": "Heavy gravity: jumps drop fast. Cel has three extra jumps and the best air speed, so cut the air short and punish the landing.",
+    "card": {
+      "before": "The Orchestrator started his own broadcast. It airs at the same time as yours.",
+      "after": "Two feeds, one winner. Switch back to the main channel."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -1359,6 +1415,10 @@
     "title": "Rerun",
     "tagline": "The rival network is rerunning the champion's best nights. With a different ending.",
     "hint": "Ratings: 3 KOs before the 2-minute clock. Try Belt starts every life at 100%, but he's quick off the ground and fights even.",
+    "card": {
+      "before": "The rival network reruns the champion's best nights, with a different ending.",
+      "after": "Same night, same ending. Nobody changed that."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -1431,6 +1491,10 @@
     "title": "Cut to Size",
     "tagline": "The rival network cuts budgets. Starting with the champion.",
     "hint": "You're smaller and lighter tonight. Crosser is slow to start, but every hit lands heavy. Stay out of range and punish the swing.",
+    "card": {
+      "before": "The rival network cuts budgets, starting with the champion.",
+      "after": "Cut to size. Back to full length by the credits."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -1495,6 +1559,10 @@
     "title": "Hostile Takeover",
     "tagline": "Two networks. One card. The Orchestrator brings a partner.",
     "hint": "Two on one, and they have two stocks each to your three. The Orchestrator floats and waits; Crystalline Intelligences swings long. Don't let them box you in.",
+    "card": {
+      "before": "Two networks. One card. The Orchestrator brings a partner.",
+      "after": "No merger tonight. The card stays independent."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -1576,6 +1644,10 @@
     "title": "Cold Open",
     "tagline": "Sweeps Week starts with no warning, and a walk-on who won't be caught.",
     "hint": "Gravity is light tonight: everything floats. Uh Me is calm and slippery in the air, so make her land and punish it.",
+    "card": {
+      "before": "Sweeps Week starts with no warning.",
+      "after": "The cold open is over. Roll the titles."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -1637,6 +1709,10 @@
     "title": "Product Placement",
     "tagline": "The sponsor pays by the percent, and tonight's quota is steep.",
     "hint": "Quota: deal 300% damage before the 100-second clock runs out. Every hit lands 30% harder, yours and theirs. Yo Bot has four legs and a long reach: stay out of the keyboard and punish the swing.",
+    "card": {
+      "before": "The sponsor pays by the percent, and tonight's quota is steep.",
+      "after": "Quota filled. The sponsor sends a thank-you hat."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -1705,6 +1781,10 @@
     "title": "Dead Air",
     "tagline": "The signal drops for a minute. The walk-on is still there.",
     "hint": "Survive 60 seconds. You don't need KOs. Spider Bot is wide and low and hard to knock over: don't trade, keep moving, and stay off the edges.",
+    "card": {
+      "before": "The signal drops for a minute. The walk-on is still there.",
+      "after": "Signal's back. So is the champion."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -1771,6 +1851,10 @@
     "title": "Clip Show",
     "tagline": "The last night of Sweeps: every highlight, one tag team, one more fight.",
     "hint": "Two on two. Blog Man fights beside you (he doesn't hit you). Lapis Man's staff outreaches everyone, and TT hits like a wall. They have two stocks each; you and Blog Man have three.",
+    "card": {
+      "before": "The last night of Sweeps: every highlight, one tag team.",
+      "after": "A clip show with a new clip. Roll it again."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -1854,6 +1938,10 @@
     "title": "Local Affiliate",
     "tagline": "The show goes to a new city, and the new city can't afford the effects.",
     "hint": "The stage is quiet tonight: no events, no hazards. Ball Person is fast on the ground and her kicks carry. Don't chase her: wait, then punish the landing.",
+    "card": {
+      "before": "The show goes to a new city. The new city can't afford the effects.",
+      "after": "The new city liked it anyway. No effects needed."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -1915,6 +2003,10 @@
     "title": "Standards and Practices",
     "tagline": "A new market has rules about what you can show on air.",
     "hint": "Damage is at 70% for both of you, so fights run long and launches come late. Chooser is small and round and slips out of every grab: don't go for the big hit, take the steady ones.",
+    "card": {
+      "before": "A new market has rules about what you can show on air.",
+      "after": "Nothing cleared the censors. Everything aired."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -1976,6 +2068,10 @@
     "title": "Prime Time",
     "tagline": "The third city wants the champion at the best hour, and the best hour wants a number.",
     "hint": "Quota: deal 200% damage before the 80-second clock runs out. Not an Old Man Yet owns the middle of the stage and won't leave it: pull him off it, then hit him hard.",
+    "card": {
+      "before": "The best hour wants a number.",
+      "after": "The number came in. The best hour approves."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2039,6 +2135,10 @@
     "title": "Global Feed",
     "tagline": "The last market goes live to every city at once, and the card sends two.",
     "hint": "Two on one: Yooba's two extra jumps and long tongue, Slow Rider's slow walk and long flight. They have two stocks each, you have three. Gravity is a little low, so watch the air.",
+    "card": {
+      "before": "Every city, live, at once.",
+      "after": "Seen in every city. Remembered in most."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2118,6 +2218,10 @@
     "title": "Pilot Remake",
     "tagline": "The network reboots the show, and starts with the first night again.",
     "hint": "Both of you start every life at 100%, so one clean hit can end it. Evil Blue Bird never really lands: stay on the ground, wait for her dive, and punish it.",
+    "card": {
+      "before": "The network reboots the show, starting with the first night.",
+      "after": "The remake lost to the original, again."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2179,6 +2283,10 @@
     "title": "Laugh Track",
     "tagline": "The network added a laugh track. The walk-on doesn’t laugh, and doesn’t flinch.",
     "hint": "Ratings: 2 KOs before the 90-second clock. Shutup Bot barely flinches and barely jumps, but he starts every life at 100%. Don’t trade: hit him, back off, hit him again.",
+    "card": {
+      "before": "The network added a laugh track.",
+      "after": "The track laughed. The walk-on didn't."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2243,6 +2351,10 @@
     "title": "Crossover Event",
     "tagline": "Two shows on one night, and the network says they were always friends.",
     "hint": "Two on one: Stratabots hit short and hard, TT is slow and heavier than he looks. They have two stocks each, you have three. Gravity is a little heavy: keep your jumps short.",
+    "card": {
+      "before": "Two shows, one night, and the network says they were always friends.",
+      "after": "They weren't. The ratings were."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2318,6 +2430,10 @@
     "title": "Series Finale",
     "tagline": "The finale has a supercut, and a supercut needs clean footage.",
     "hint": "Clean streak: land 5 hits in a row without being hit back, before the 90-second clock runs out. Getting hit starts the count over. Every hit lands harder (damage 120%). Future Man is fast for his weight: poke, then back off, and don’t trade.",
+    "card": {
+      "before": "The finale needs a supercut, and a supercut needs clean footage.",
+      "after": "Clean footage. Ship it to editing."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2385,6 +2501,10 @@
     "title": "Red Carpet",
     "tagline": "The awards show opens on the red carpet, and nobody is allowed to scuff it.",
     "hint": "Quiet stage: no hazards, just the two of you on the carpet. Kaelen is quick and likes to rush in, so wait for him to commit and hit him on the way out. 3 stocks each.",
+    "card": {
+      "before": "The awards show opens on the red carpet. Nobody scuffs it.",
+      "after": "One scuff. The carpet survived. So did the champion."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2445,6 +2565,10 @@
     "title": "Best Supporting",
     "tagline": "Two nominees, one category, and a disagreement about who is supporting whom.",
     "hint": "Two on one: Break hits hard, Small Weather keeps pushing you around. They have two stocks each, you have three. Gravity is a little light: your jumps float, so watch where you land.",
+    "card": {
+      "before": "Two nominees, one category, and a disagreement over who is supporting whom.",
+      "after": "The category goes to the champion. Both nominees object."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2519,6 +2643,10 @@
     "title": "Lifetime Achievement",
     "tagline": "The network gives the champion a lifetime award, and a quota to earn it.",
     "hint": "Quota: deal 250% before the 90-second clock runs out. Every hit lands a little harder (damage 110%). Slice is quick and keeps cutting in: stay on him, and don't wait for the clock.",
+    "card": {
+      "before": "The network gives the champion a lifetime award, and a quota to earn it.",
+      "after": "Earned. The statuette is heavier than expected."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2582,6 +2710,10 @@
     "title": "Best in Show",
     "tagline": "The big envelope, and an editor who wants a clean acceptance.",
     "hint": "Clean streak: land 4 hits in a row without being hit back, before the 90-second clock runs out. Getting hit starts the count over. Every hit lands harder (damage 120%). Susan hits like a tax bill: poke, then back off, and don't trade.",
+    "card": {
+      "before": "The big envelope, and an editor who wants a clean acceptance.",
+      "after": "The envelope opened. The speech was four words."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2649,6 +2781,10 @@
     "title": "Teaser",
     "tagline": "Season 9 opens with thirty seconds of footage and no explanation.",
     "hint": "Gravity is a little heavy (115%): your jumps are short and you fall fast, so keep your feet near the roof and make Shark Dude come to you. 3 stocks each.",
+    "card": {
+      "before": "Thirty seconds of footage and no explanation.",
+      "after": "Teaser over. Nobody explained a thing."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2709,6 +2845,10 @@
     "title": "Trailer",
     "tagline": "Two walk-ons cut a trailer together and neither will share the voiceover.",
     "hint": "Two on one: Wallit pushes with sponsor money, Cel keeps coming back for more. They have two stocks each, you have three. Take the quicker one out first.",
+    "card": {
+      "before": "Two walk-ons cut a trailer. Neither will share the voiceover.",
+      "after": "The trailer ran. The voiceover is still disputed."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2780,6 +2920,10 @@
     "title": "Table Read",
     "tagline": "The cast sits down with the finale script, and every page has a hole in it.",
     "hint": "Ratings: 2 KOs before the 90-second clock. Try Belt hangs on to the edge, so go for the ones at the edge. 3 stocks each.",
+    "card": {
+      "before": "The cast reads the finale script. Every page has a hole in it.",
+      "after": "The holes got filled in. By fists."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2846,6 +2990,10 @@
     "title": "Cliffhanger",
     "tagline": "The last night of the season ends the way television ends a season: mid-sentence.",
     "hint": "Quota: deal 280% before the 100-second clock runs out. Every hit lands a little harder (damage 110%). Pyro Singer sets the stage on fire, so keep moving and keep hitting.",
+    "card": {
+      "before": "The last night of the season ends the way television ends a season: mid-sentence.",
+      "after": "To be continued. It always is."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2913,6 +3061,10 @@
     "title": "First Cut",
     "tagline": "The finale starts on time. The host is on the card, and so is the baton.",
     "hint": "The host steps onto his own set at giant size. Stay moving, punish his landings, and carry your stocks: the second fight starts the moment this one ends.",
+    "card": {
+      "before": "The finale starts on time. The host is on the card, and so is the baton.",
+      "after": "One fight down. The second sheet is next. No break."
+    },
     "intro": [
       {
         "who": "narrator",
@@ -2980,6 +3132,10 @@
     "title": "Final Cut",
     "tagline": "The walk-on signs the second sheet. Last fight of the last season.",
     "hint": "No break after the first fight: you start at 60%. The walk-on is at full speed and has no reason to hold back. This is the last fight of the series.",
+    "card": {
+      "before": "The walk-on signs the second sheet. The last fight of the last season.",
+      "after": "That's a wrap. The card is yours, and the show is over."
+    },
     "intro": [
       {
         "who": "narrator",

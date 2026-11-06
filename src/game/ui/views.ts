@@ -98,7 +98,7 @@ export function playVersus(setup: MatchSetup): Promise<void> {
   const stage = STAGES[setup.stage];
 
   body.replaceChildren(...kids(
-    setup.title ? h('p', { class: 'vs-title' }, setup.title) : null,
+    h('p', { class: 'vs-title' }, setup.title ?? 'Tonight’s main event'),
     h(
       'div',
       { class: `vs-row n${sides.length}` },
@@ -112,9 +112,14 @@ export function playVersus(setup: MatchSetup): Promise<void> {
             const c = CHARACTERS[s.char];
             return h(
               'figure',
-              { class: 'vs-fighter', style: `--slot:${color}` },
+              { class: 'vs-fighter', 'data-fighter': c.id, style: `--slot:${color}` },
               h('img', { src: largeUrl(c.id), alt: '' }),
-              h('figcaption', {}, h('span', {}, setup.online ? setup.online.names[slot] : s.cpu === null ? 'You' : s.cpu === 0 ? 'Dummy' : `CPU ${s.cpu}`), h('strong', {}, c.name)),
+              h(
+                'figcaption',
+                { class: 'vs-card' },
+                h('span', {}, setup.online ? setup.online.names[slot] : s.cpu === null ? 'You' : s.cpu === 0 ? 'Dummy' : `CPU ${s.cpu}`),
+                h('strong', {}, c.name),
+              ),
               s.scale && s.scale > 100 ? h('em', { class: 'vs-tag' }, 'Giant') : null,
             );
           }),
@@ -301,6 +306,13 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
   if (online) headline = online.headline;
 
   const hero = (online?.winner !== undefined ? s.fighters[online.winner] : undefined) ?? winner ?? s.fighters[0];
+  // The summary strip: who won, how long it ran, how much damage the winner (or winning team) dealt.
+  const side = s.winnerTeam >= 0 && !campaign ? s.fighters.filter((f) => f.team === s.winnerTeam) : [hero];
+  const dealt = side.reduce((n, f) => n + m.stats[f.id].dealt, 0);
+  const heroKos = side.reduce((n, f) => n + m.stats[f.id].kos, 0);
+  const winnerName = !winner && !online ? 'No contest' : s.winnerTeam >= 0 && !campaign ? `${s.winnerTeam === 0 ? 'Red' : 'Blue'} team` : m.label(hero.id).split(' · ')[1] ?? CHARACTERS[hero.char].name;
+  const stat = (key: string, label: string, value: string, slot?: string) =>
+    h('div', { class: 'stat', 'data-stat': key, style: slot ? `--slot:${slot}` : undefined }, h('span', {}, label), h('strong', {}, value));
   $('results-body').replaceChildren(
     h(
       'header',
@@ -317,6 +329,34 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
         m.setup.objective === 'streak' && h('p', { class: 'results-objective' }, streakLine(m, won)),
         online?.note && h('p', { class: 'results-note' }, online.note),
       ),
+    ),
+    h(
+      'div',
+      { class: 'results-strip', 'aria-label': 'Match summary' },
+      stat('winner', 'Winner', winnerName, colors[hero.id]),
+      stat('time', s.timedOut ? 'Time (clock ran out)' : 'Time', formatTime(s.frame)),
+      stat('damage', 'Damage dealt', pct(dealt)),
+      stat('kos', 'KOs', String(heroKos)),
+    ),
+    h(
+      'section',
+      { class: 'highlights', 'aria-label': 'Highlights' },
+      h('h3', {}, 'Highlights'),
+      m.kos.length
+        ? h(
+            'ol',
+            { class: 'reel' },
+            ...m.kos.slice(0, 6).map((k, i) =>
+              h(
+                'li',
+                { style: `--slot:${colors[k.by >= 0 ? k.by : k.victim]}`, class: 'reel-item', 'data-ko': String(i + 1) },
+                h('b', {}, formatTime(k.frame)),
+                h('span', {}, k.by >= 0 ? `${CHARACTERS[s.fighters[k.by].char].name} KOs ${CHARACTERS[s.fighters[k.victim].char].name}` : `${CHARACTERS[s.fighters[k.victim].char].name} falls`),
+                h('em', {}, `at ${pct(k.percent)}`),
+              ),
+            ),
+          )
+        : h('p', { class: 'results-note' }, 'No knockouts tonight. The cameras found nothing to replay.'),
     ),
     h(
       'div',
@@ -536,5 +576,43 @@ export function playDialogue(lines: Line[], chapterTitle: string): Promise<Scene
     skip.onclick = () => end(true);
     window.addEventListener('keydown', onKey);
     advance();
+  });
+}
+
+// --------------------------------------------------------------- story card
+
+/** How long a story card holds before it moves on by itself (a press of Skip, Enter or Space ends it sooner). */
+export const CARD_MS = 5000;
+
+/** Plays a story card: the episode's place, its title and a line, animated in. Resolves when it times out or is skipped. */
+export function playCard(card: { kicker: string; title: string; line: string }, which: 'before' | 'after'): Promise<{ skipped: boolean }> {
+  const root = $('card');
+  $('card-tag').textContent = which === 'before' ? 'Tonight' : 'Signing off';
+  $('card-kicker').textContent = card.kicker;
+  $('card-title').textContent = card.title;
+  $('card-line').textContent = card.line;
+  // Restart the entrance animation each time the card is used.
+  root.classList.remove('card-in');
+  void root.offsetWidth;
+  root.classList.add('card-in');
+  const skip = $<HTMLButtonElement>('card-skip');
+  return new Promise((resolve) => {
+    let timer = 0;
+    const end = (skipped: boolean) => {
+      clearTimeout(timer);
+      skip.onclick = null;
+      window.removeEventListener('keydown', onKey);
+      resolve({ skipped });
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (document.activeElement instanceof HTMLButtonElement) return;
+      if (e.code === 'Enter' || e.code === 'Space') {
+        e.preventDefault();
+        end(true);
+      }
+    };
+    skip.onclick = () => end(true);
+    window.addEventListener('keydown', onKey);
+    timer = window.setTimeout(() => end(false), CARD_MS);
   });
 }

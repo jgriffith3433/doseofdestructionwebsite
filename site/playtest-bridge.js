@@ -115,6 +115,24 @@
       ]
     },
     {
+      "id": "hit-feel",
+      "title": "Hit feedback: heavy hits freeze 3+ frames, light and heavy hits look different, Settings turns screen shake off",
+      "description": "A versus match against the CPU (the bot on a virtual pad). Counts the hit-stop frames of the first light and heavy hit (events hit-stop-light/-medium/-heavy, heavy-hit-stop), logs each tier's impact effect (impact-light/-medium/-heavy: sparks, stars, ring, shake, flash) and that they differ (impact-differs), then from Pause opens Settings, turns Screen shake off (shake-off), and checks hits keep landing with the camera still (no-shake). Metrics hitStopLightFrames, hitStopHeavyFrames, shakeMaxOn, shakeMaxOff. The player's dod.shake is put back.",
+      "seconds": 200,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "commentary",
+      "title": "Commentary: the announcer calls the fight from its events (at least 8 kinds of line, never the same line twice in a row), and Blog Man introduces every season's episodes",
+      "description": "Part 1: a versus match against the CPU (3 stocks, the bot on a virtual pad), to its end; each announcer call is an event call-<kind> (first-blood, ko, comeback, last-stock, showdown, self-destruct, big-hit, combo, danger, shield-break, hazard, stage-event, time-low, lull) with its caption shown, plus call-kinds (how many kinds came up) and call-repeat problems. Part 2: setup shortcut marks the campaign cleared (the player's own progress is put back), then plays the first chapter of each season (option `all`: every chapter) from the map through its dialogue, and leaves from Pause once Blog Man has spoken: events blog-intro per episode and blog-intros. Metrics callKinds, calls, blogIntros.",
+      "seconds": 420,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "site-links",
       "title": "The website around the game: Powered by HAWKES GEN on every page, Hawkes Biomedical on the landing page, the game screen without them",
       "description": "Checks the game screen has no site footer marks, then opens the landing page over the game in a full-screen frame and walks the site through its own links (footer Characters, a fighter card picked from the seed, Privacy, What's new), checking on each page that \"Powered by HAWKES GEN\" links to https://hawkesgen.ai (shown, not covered) and on the landing page that Hawkes Biomedical links to https://hawkesbiomedical.com. Every fighter page is also read and checked. The frame is removed at the end and the game checked again.",
@@ -157,6 +175,24 @@
       "title": "The clean-streak objective in a campaign chapter: \"Clean streak 0/5\" on the HUD with the clock, counting up with each hit landed and back to 0 when hit, and a results line with the best streak",
       "description": "Plays one chapter that uses the streak objective (Season 7's Series Finale by default, or option `chapter`) from the Campaign map with the bot on a virtual pad: setup shortcut marks the chapters before it cleared. Checks the chip as the match starts and as hits land (an event for each new high) or are taken (the count starts over), the clock, and the results line (streak met, time ran out or out of stocks), two tries. Events chapter, streak-chip, streak-count, streak-reset, streak-result, chapter-cleared / chapter-failed.",
       "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "story-cards",
+      "title": "Story cards: every campaign match has an animated card with the episode title and a line from content/campaign.json, before and after, and each can be skipped",
+      "description": "Option chapter (a chapter id, default open-mic). Setup shortcut: the chapters before it are marked cleared (the player's progress is put back). Checks every episode in content/campaign.json has a before and after card line (cards-data), opens the chapter from the Campaign map, reads the before card (card-before: season, episode, title, line, checked against campaign.json), lets it move on by itself (card-auto, about 5 s), plays the intro and the fight, and after Continue reads the after card (card-after) and skips it with its button (card-skipped). Events cards-data, card-before, card-auto, card-after, card-skipped; metrics cardAutoMs, cardsSeen.",
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "presentation",
+      "title": "Menu, VS screen and results presentation: the broadcast menu, a name card animating in for each VS fighter, results with winner, time, damage dealt and highlights, no text clipped",
+      "description": "Main menu: the ON AIR bug and Tonight ticker are shown (menu-broadcast). Versus 1v1 (1 stock): on the VS screen each fighter lands and its name card animates in (vs-start, vs-name-card per fighter). The match is played by the bot to its end; the results must show the winner, the time and the damage dealt in the summary strip (results-summary, checked against the match) and list the knockouts as highlights (results-highlights). Each screen is checked for text cut off or pushed off the sides at the window's shape (no-clipping, with the size and 16:9 / 20:9). Options: stage, fighter. Metric highlights.",
+      "seconds": 200,
       "tags": [
         "full"
       ]

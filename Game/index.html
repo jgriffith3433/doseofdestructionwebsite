@@ -56,6 +56,15 @@
       <img id="main-spot-img" alt="">
       <figcaption id="main-spot-name"></figcaption>
     </figure>
+    <p class="on-air-bug" id="on-air-bug"><i class="dot"></i>On air</p>
+    <div class="ticker" id="ticker" aria-hidden="true">
+      <b class="ticker-tag">Tonight</b>
+      <div class="ticker-lines">
+        <span>Midnight, the Foundry floor. The whole city tunes in.</span>
+        <span>The card is set. Nobody leaves the way they came.</span>
+        <span>Ratings are up. The Orchestrator is pleased.</span>
+      </div>
+    </div>
   </section>
 
   <section id="select" class="screen select-screen" hidden>
@@ -91,6 +100,19 @@
     </header>
     <p class="lede">A walk-on fighter, a nightly broadcast, and the man who runs it. Clear each chapter to open the next.</p>
     <div id="chapter-path" class="chapter-path"></div>
+  </section>
+
+  <section id="card" class="screen card-screen" hidden>
+    <div class="card-bar top"></div>
+    <div class="card-body">
+      <p id="card-tag" class="card-tag"></p>
+      <p id="card-kicker" class="card-kicker"></p>
+      <h2 id="card-title" class="card-title"></h2>
+      <p id="card-line" class="card-line" aria-live="polite"></p>
+    </div>
+    <div class="card-bar bottom">
+      <button id="card-skip" class="secondary" type="button" data-autofocus>Skip</button>
+    </div>
   </section>
 
   <section id="dialogue" class="screen dialogue-screen" hidden>
@@ -173,11 +195,15 @@
         <span>Sound</span>
         <button id="sound-switch" class="switch" type="button" role="switch" aria-checked="true" data-autofocus>On</button>
       </div>
+      <div class="setting-row">
+        <span>Screen shake</span>
+        <button id="shake-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
+      </div>
       <div id="settings-levels" class="settings-levels">
         <label class="slider"><span>Music</span><input id="vol-music" type="range" min="0" max="100" step="1"><output id="vol-music-value"></output></label>
         <label class="slider"><span>Effects</span><input id="vol-sfx" type="range" min="0" max="100" step="1"><output id="vol-sfx-value"></output></label>
       </div>
-      <p class="hint">Effects covers hits, menus and voices. Press <kbd>M</kbd> any time to turn sound on or off.</p>
+      <p class="hint">Effects covers hits, menus and voices. Screen shake is the camera kick on hits and KOs. Press <kbd>M</kbd> any time to turn sound on or off.</p>
       <button id="settings-done" class="primary" type="button">Done</button>
     </div>
   </div>

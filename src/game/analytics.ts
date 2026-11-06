@@ -270,7 +270,7 @@ export function scene(id: string, end: { skipped: boolean; line: number }, lines
 
 // ------------------------------------------------------------------ settings, pause, quit
 
-export function setting(name: 'sound' | 'music' | 'sfx', value: boolean | number, from: string): void {
+export function setting(name: 'sound' | 'music' | 'sfx' | 'shake', value: boolean | number, from: string): void {
   feature(`settings.${name}`, { value, from });
 }
 

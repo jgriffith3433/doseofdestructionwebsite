@@ -507,3 +507,27 @@ Narrator: *"Two Orchestrators. Two fights. One finale. The card is yours, and th
 
 Later items: the lines are text only (no `audio`/`take`); recording them through Hawkes Gen costs cents. No new art is
 needed (GPU estimate: none). Pacing (CPU 8 and 9, the 60% head start) is not sim-tuned.
+
+## The booth: announcer and Blog Man commentary (as built)
+
+The show has a voice in the booth. In Versus and in the campaign (not Training, not online) the **announcer** calls the
+fight as it happens, and in the campaign **Blog Man** opens every episode from the booth, just after "Go!", with one line
+in his own style: a headline that is far too long. Season 1's host is still the Orchestrator; Blog Man is the reporter in
+the front row there (in Turn the Page he is in the fight itself). The Mechanic is not used.
+
+- Announcer lines are `announcer.<kind>.<n>` in `content/voice.json`, 14 kinds: `first-blood`, `ko`, `comeback` (a
+  fighter who was behind on stocks KOs to draw level or lead), `last-stock`, `showdown` (everyone left on a last stock),
+  `self-destruct` (a fall nobody caused, or a hazard), `big-hit`, `combo` (3 hits in 2 s without a reply), `danger` (150%+),
+  `shield-break`, `hazard`, `stage-event` (the stage's warning), `time-low` (10 s left) and `lull` (12 s with no hit).
+  One call per KO (the most newsworthy); other calls keep 3 s apart. A line is never said twice in a row.
+- Blog Man's intros are `blog-man.intro.<chapter id>`, one per episode (39), keeping each season's tone.
+- Every call also shows as a caption (`.booth`) and fires `dod:commentary`. The lines are text only for now: no `audio` or
+  `take`, so they are captioned and silent until recorded through Hawkes Gen (cents, no GPU).
+
+## Story cards
+
+Every episode opens and closes on a title card, like the show's own bumpers: "Tonight" before the intro scene (season,
+episode number, title, one line) and "Signing off" after a win, before the outro scene. The lines live on the chapter in
+`content/campaign.json` as `card: { "before": "...", "after": "..." }` (the before card falls back to the `tagline`).
+Write them as the show would: one sentence, present or past tense, no jokes about jobs or "the game". The card holds for
+about 5 seconds and can be skipped (Skip, Enter or Space).
