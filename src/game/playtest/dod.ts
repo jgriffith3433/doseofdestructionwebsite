@@ -91,6 +91,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
+        else if (id === 'commentary') await r.commentary();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
       } finally {
@@ -1513,6 +1514,88 @@ class Run {
       } catch {
         // Storage blocked.
       }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- commentary
+
+  /**
+   * The announcer and Blog Man (commentary.ts). Part 1: a versus match against the CPU (the bot on a virtual pad),
+   * to its end, logging every call the announcer makes from the match's events (`call-<kind>`), checking no line
+   * is said twice in a row and that the captions show. Part 2: Blog Man's intro per episode: setup shortcut marks
+   * the campaign cleared so every season's map is open, then each season's first chapter (option `all`: every
+   * chapter) is played from the map for its dialogue and the match's first seconds, and left from Pause once
+   * Blog Man has spoken. Events `call-<kind>`, `call-kinds`, `call-repeat`, `blog-intro`, `blog-intros`.
+   */
+  async commentary(): Promise<void> {
+    const t = this.t;
+    const calls: { kind: string; id: string; text: string; who: string }[] = [];
+    const onCall = (e: Event) => {
+      const c = (e as CustomEvent).detail as { kind: string; id: string; text: string; who: string };
+      const caption = document.querySelector('.booth');
+      const prev = calls[calls.length - 1];
+      calls.push(c);
+      if (c.who === 'announcer') {
+        t.event(`call-${c.kind}`, `Announcer: "${c.text}" (${c.id})`);
+        if (prev && prev.id === c.id) t.problem('bug', `the same line was said twice in a row: ${c.id}`);
+      }
+      if (!caption || caption.getAttribute('data-line') !== c.id) t.problem('bug', `no caption showed for ${c.id}`);
+    };
+    window.addEventListener('dod:commentary', onCall);
+    try {
+      await this.toMainMenu();
+      t.progress(0.03);
+      await this.startVersus(3);
+      const m0 = () => this.game.match();
+      this.progressNow = () => 0.05 + 0.4 * Math.min(1, (m0()?.state.frame ?? 0) / (150 * 60));
+      const ended = await this.fight(() => (m0()?.state.frame ?? 0) > 150 * 60, 5 * 60 * 1000);
+      const kinds = new Set(calls.filter((c) => c.who === 'announcer').map((c) => c.kind));
+      t.metric('callKinds', kinds.size);
+      t.metric('calls', calls.length);
+      t.event('call-kinds', `${kinds.size} kinds of line from match events: ${[...kinds].join(', ')}`);
+      if (kinds.size < 8) t.problem('warning', `only ${kinds.size} kinds of announcer call came up in this fight (${[...kinds].join(', ')}); the unit test covers all 14`);
+      if (ended === 'over') await this.results();
+      else await this.quitFromPause('main');
+      if (currentScreen() === 'results') await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.progress(0.5);
+
+      // Part 2: Blog Man's intros.
+      const before = this.game.setCampaignProgress(CHAPTERS.map((c) => c.id));
+      try {
+        const picks = this.options.all
+          ? CHAPTERS
+          : [...new Set(CHAPTERS.map((c) => c.season))].map((n) => CHAPTERS.find((c) => c.season === n)!);
+        let heard = 0;
+        for (const [i, c] of picks.entries()) {
+          this.progressNow = () => 0.5 + 0.5 * (i / picks.length);
+          const from = calls.length;
+          if (currentScreen() !== 'campaign') await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+          await this.screen('campaign');
+          await this.click(() => this.q(`#chapter-path .chapter[data-chapter="${c.id}"]`), `${c.title} (Season ${c.season})`);
+          await this.playDialogue();
+          await this.matchLive();
+          const spoke = await t.until(() => calls.slice(from).some((x) => x.who === 'blog-man'), 20000, 'Blog Man to introduce the episode').then(() => true, () => false);
+          const intro = calls.slice(from).find((x) => x.who === 'blog-man');
+          if (spoke && intro) {
+            heard++;
+            t.event('blog-intro', `Season ${c.season}, ${c.title}: Blog Man: "${intro.text}"`);
+            if (intro.id !== `blog-man.intro.${c.id}`) t.problem('bug', `${c.title}: Blog Man said ${intro.id}, not his line for this episode`);
+          } else t.problem('bug', `${c.title} (Season ${c.season}): Blog Man did not introduce the episode`);
+          await this.t.wait(1500);
+          await this.quitFromPause('campaign');
+        }
+        t.metric('blogIntros', heard);
+        t.event('blog-intros', `Blog Man introduced ${heard} of ${picks.length} episodes (${[...new Set(picks.map((c) => c.season))].length} seasons)`);
+        const ids = calls.filter((x) => x.who === 'blog-man').map((x) => x.id);
+        if (new Set(ids).size !== ids.length) t.problem('warning', 'a Blog Man intro was said twice in this run');
+      } finally {
+        this.game.setCampaignProgress(before);
+      }
+    } finally {
+      window.removeEventListener('dod:commentary', onCall);
     }
     t.progress(1);
     t.finish('done');
