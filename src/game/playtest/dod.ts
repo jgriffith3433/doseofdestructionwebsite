@@ -12,12 +12,12 @@
 import { installPlaytest, type Outcome, type RunOptions, type Tracker } from './hawkes-playtest.js';
 import { Bot } from '../ai/bot.ts';
 import { setVirtualPad } from '../input/devices.ts';
-import { touchDevice, touchOverlay } from '../input/touch.ts';
+import { readTouch, touchDevice, touchOverlay } from '../input/touch.ts';
 import { TOUCH_KEY, forceTouchUi, touchSettings } from '../touchSettings.ts';
 import { forceTouchPrompt, lockLandscape, rotateShowing } from '../ui/rotate.ts';
 import { currentScreen, switching, type ScreenId } from '../ui/screens.ts';
 import { CHARACTERS, MOVE, MOVE_KEYS } from '../sim/characters.ts';
-import { BTN, NO_INPUT, packInput } from '../sim/input.ts';
+import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
 import { ACT } from '../sim/state.ts';
@@ -100,6 +100,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
+        else if (id === 'touch-match') await r.touchMatch();
         else if (id === 'touch-settings') await r.touchSettingsRun();
         else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'commentary') await r.commentary();
@@ -431,6 +432,7 @@ class Run {
 
   /** Clicks a control the way a mouse player would, once it is on screen and enabled. */
   private async click(find: () => HTMLElement | null | undefined, what: string, timeoutMs = 15000): Promise<void> {
+    if (this.useTap) return this.tap(find, what, timeoutMs);
     let el: HTMLElement | null | undefined = null;
     await this.t.until(() => {
       el = find();
@@ -475,6 +477,9 @@ class Run {
     this.t.add('interactions');
     await this.t.wait(150);
   }
+
+  /** Set by touch-match: every menu click is a pointer tap (hit-tested), like a finger. */
+  private useTap = false;
 
   /** The studio's Tap to play prompt, tapped like a player. */
   private async tapToPlay(): Promise<void> {
@@ -1806,6 +1811,277 @@ class Run {
     }
     t.progress(1);
     t.finish('done');
+  }
+
+  // ---------------------------------------------------------- touch-match
+
+  /** The safe-area insets in px (notch, home bar), read through a probe element that CSS env() fills in. */
+  private safeInsets(): { top: number; right: number; bottom: number; left: number } {
+    const p = document.createElement('div');
+    p.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+    document.body.append(p);
+    const cs = getComputedStyle(p);
+    const v = { top: parseFloat(cs.paddingTop) || 0, right: parseFloat(cs.paddingRight) || 0, bottom: parseFloat(cs.paddingBottom) || 0, left: parseFloat(cs.paddingLeft) || 0 };
+    p.remove();
+    return v;
+  }
+
+  /**
+   * Touch match: at phone size, menus to the results screen with only pointer events on the on-screen controls
+   * (input/touch.ts: the Move stick and Jump, Attack, Special, Shield, Smash, plus Pause). The bot's decisions are
+   * turned into touches (stick position, buttons held), nothing goes to the keyboard, the virtual pad or the sim.
+   * First every control is checked (present, sized, inside the window and the safe area, not covered), then a short
+   * drill presses each one and checks the game read it, then the bot plays on through touch to the results.
+   */
+  async touchMatch(): Promise<void> {
+    const t = this.t;
+    const phone = this.isPhone();
+    if (!phone) t.problem('warning', `touch-match is meant for phone size (run it with device phone: 844x390 or 390x844), this window is ${innerWidth}x${innerHeight}`);
+    this.useTap = true;
+    try {
+      await this.toMainMenu();
+      t.progress(0.05);
+      await this.startVersus(2);
+      t.progress(0.15);
+      // Upright on a phone the Rotate prompt holds the match: give a runner time to turn the window.
+      if (rotateShowing()) {
+        t.event('touch-rotate-wait', `the Rotate prompt is up at ${innerWidth}x${innerHeight}; waiting for landscape`);
+        try {
+          await t.until(() => !rotateShowing(), 30000, 'the window to turn to landscape');
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.problem('bug', `touch-match could not play: the Rotate prompt stayed up at ${innerWidth}x${innerHeight} (run it landscape, 844x390)`);
+        }
+      }
+
+      const root = touchOverlay() ?? this.q('.touch');
+      if (!root) {
+        t.problem('bug', 'touch controls overlay (.touch) was not built');
+        t.finish('error');
+        return;
+      }
+      if (root.hidden) {
+        // A desktop browser keeps the overlay hidden (no coarse pointer): show it as a phone does.
+        t.event('touch-forced', 'not a touch device: the overlay was shown for the run');
+        root.hidden = false;
+      }
+      const CONTROLS: { key: string; sel: string; name: string }[] = [
+        { key: 'stick', sel: '.touch-stick', name: 'Move stick' },
+        { key: 'jump', sel: '.touch-btn.jump', name: 'Jump' },
+        { key: 'attack', sel: '.touch-btn.attack', name: 'Attack' },
+        { key: 'special', sel: '.touch-btn.special', name: 'Special' },
+        { key: 'shield', sel: '.touch-btn.shield', name: 'Shield' },
+        { key: 'smash', sel: '.touch-btn.smash', name: 'Smash' },
+        { key: 'pause', sel: '.touch-pause', name: 'Pause' },
+      ];
+      // Option drop: hides a control first, to see the missing-control problem.
+      const dropped = typeof this.options.drop === 'string' ? this.options.drop : '';
+      const dropEl = dropped ? root.querySelector<HTMLElement>(CONTROLS.find((c) => c.key === dropped)?.sel ?? '.none') : null;
+      if (dropEl) dropEl.style.display = 'none';
+      const find = (key: string) => {
+        const el = root.querySelector<HTMLElement>(CONTROLS.find((c) => c.key === key)!.sel);
+        return el && el.getClientRects().length > 0 ? el : null;
+      };
+
+      // 1. Every control is there, sized, on screen, clear of the safe area and not covered.
+      const inset = this.safeInsets();
+      let bad = 0;
+      for (const c of CONTROLS) {
+        const el = find(c.key);
+        if (!el) {
+          bad++;
+          t.problem('bug', `touch control missing: ${c.name} (${c.sel}) is not on the screen`);
+          continue;
+        }
+        const r = el.getBoundingClientRect();
+        const where = `${c.name} at ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)} in ${innerWidth}x${innerHeight}`;
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        if (r.width < 2 || r.height < 2) {
+          bad++;
+          t.problem('bug', `touch control has no size: ${where}`);
+        } else if (r.left < -0.5 || r.top < -0.5 || r.right > innerWidth + 0.5 || r.bottom > innerHeight + 0.5) {
+          bad++;
+          t.problem('bug', `touch control outside the viewport: ${where}`);
+        } else if (r.left < inset.left - 0.5 || r.top < inset.top - 0.5 || r.right > innerWidth - inset.right + 0.5 || r.bottom > innerHeight - inset.bottom + 0.5) {
+          bad++;
+          t.problem('bug', `touch control under the safe-area inset (top ${inset.top}, right ${inset.right}, bottom ${inset.bottom}, left ${inset.left}): ${where}`);
+        } else if (!hit || !el.contains(hit)) {
+          bad++;
+          t.problem('bug', `touch control covered: a press on ${where} lands on ${hit?.id ? '#' + hit.id : hit?.tagName.toLowerCase()}`);
+        }
+      }
+      if (!bad) t.event('touch-controls-ok', `all ${CONTROLS.length} controls on screen, clear of the safe area (top ${inset.top}, right ${inset.right}, bottom ${inset.bottom}, left ${inset.left}) and not covered, at ${innerWidth}x${innerHeight}`);
+
+      // 2. Touches: a finger on the stick and on each button, as pointer events on the control itself.
+      let pid = 100;
+      const down = new Map<string, { id: number; el: HTMLElement }>();
+      const send = (el: HTMLElement, type: string, x: number, y: number, id: number) =>
+        el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: id, isPrimary: id === 100, button: 0, buttons: type === 'pointerup' ? 0 : 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y }));
+      const stickAt = (sx: number, sy: number) => {
+        const el = find('stick');
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        // The knob's reach is 50/128 of the stick's width.
+        const reach = r.width * (50 / 128);
+        const x = r.left + r.width / 2 + (sx / 100) * reach;
+        const y = r.top + r.height / 2 - (sy / 100) * reach;
+        const cur = down.get('stick');
+        if (sx === 0 && sy === 0) {
+          if (cur) {
+            send(el, 'pointerup', x, y, cur.id);
+            down.delete('stick');
+          }
+          return;
+        }
+        if (!cur) {
+          const id = ++pid;
+          down.set('stick', { id, el });
+          send(el, 'pointerdown', x, y, id);
+        } else send(el, 'pointermove', x, y, cur.id);
+      };
+      const press = (key: string, on: boolean) => {
+        const el = find(key);
+        const cur = down.get(key);
+        if (!el || on === !!cur) return;
+        const r = el.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const y = r.top + r.height / 2;
+        if (on) {
+          const id = ++pid;
+          down.set(key, { id, el });
+          send(el, 'pointerdown', x, y, id);
+        } else {
+          send(el, 'pointerup', x, y, cur!.id);
+          down.delete(key);
+        }
+      };
+      const releaseAll = () => {
+        stickAt(0, 0);
+        for (const k of [...down.keys()]) press(k, false);
+      };
+      const KEYS: { bit: number; key: string }[] = [
+        { bit: BTN.JUMP, key: 'jump' },
+        { bit: BTN.ATTACK, key: 'attack' },
+        { bit: BTN.SPECIAL, key: 'special' },
+        { bit: BTN.SHIELD, key: 'shield' },
+        { bit: BTN.C_NEUTRAL | BTN.C_UP | BTN.C_DOWN | BTN.C_LEFT | BTN.C_RIGHT, key: 'smash' },
+      ];
+      const counts: Record<string, number> = { move: 0, jump: 0, attack: 0, special: 0, shield: 0, smash: 0 };
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const me = () => {
+        const m = this.game.match();
+        return m && m.player >= 0 ? m.state.fighters[m.player] : null;
+      };
+      const logged = new Set<string>();
+      /** Counts a touch and logs its event the first time, with what the game's input layer read from it. */
+      const note = (what: string, detail: string) => {
+        counts[what]++;
+        t.add(`touch${what[0].toUpperCase()}${what.slice(1)}s`);
+        if (!logged.has(what)) {
+          logged.add(what);
+          t.event(`touch-${what}`, detail);
+        }
+      };
+      const held = (bit: number) => (readTouch()[2] & bit) !== 0;
+
+      // The drill: each control pressed once, and the input layer must show it was read.
+      const drill = async (key: string, bit: number, what: string, label: string) => {
+        if (!find(key)) return;
+        press(key, true);
+        await t.wait(120);
+        if (!held(bit)) t.problem('bug', `${label} was touched but the game's input did not read it`);
+        else note(what, `${label} touched: read by the game's input (touch buttons ${(readTouch()[2] >> 16).toString(2)})`);
+        press(key, false);
+        await t.wait(150);
+      };
+      const x0 = me()?.x ?? 0;
+      const fx0 = frame();
+      stickAt(100, 0);
+      await t.wait(500);
+      const [rx, ry] = readTouch();
+      if (rx < 50) t.problem('bug', `Move stick was dragged right but the game read x=${rx} y=${ry}`);
+      else note('move', `Move stick dragged right: read by the game's input (x ${rx})`);
+      await t.until(() => frame() > fx0 + 20, 8000, 'the fighter to move');
+      if (me() && Math.abs(me()!.x - x0) < 1) t.event('touch-move-still', 'the stick was read but the fighter has not moved yet (blocked?)');
+      stickAt(0, 0);
+      await t.wait(100);
+      await drill('jump', BTN.JUMP, 'jump', 'Jump');
+      await drill('attack', BTN.ATTACK, 'attack', 'Attack');
+      await drill('special', BTN.SPECIAL, 'special', 'Special');
+      await drill('shield', BTN.SHIELD, 'shield', 'Shield');
+      await drill('smash', BTN.C_NEUTRAL, 'smash', 'Smash');
+      t.progress(0.25);
+
+      // 3. The bot plays on, through touch only, until the results.
+      const bot = () => {
+        const m = this.game.match();
+        if (!m || m.player < 0) return null;
+        if (m !== this.botMatch) {
+          this.botMatch = m;
+          this.bot = new Bot(m.player, BOT_LEVEL, (this.options.seed * 7919 + this.matches) | 0);
+        }
+        return { m, b: this.bot! };
+      };
+      let lastFrame = -1;
+      let lastIn = NO_INPUT;
+      const prev = new Set<string>();
+      this.progressNow = () => {
+        const m = this.game.match();
+        if (!m) return 0.95;
+        const stocks = m.setup.stocks;
+        const lost = m.state.fighters.reduce((n, f) => n + (stocks - Math.max(0, f.stocks)), 0);
+        return 0.25 + 0.7 * Math.min(1, lost / Math.max(1, (m.state.fighters.length * stocks) / 2));
+      };
+      const drive = window.setInterval(() => {
+        if (this.disposed) return;
+        const x = bot();
+        if (!x || x.m.state.over || this.game.phase() !== 'play') {
+          releaseAll();
+          return;
+        }
+        if (x.m.state.frame !== lastFrame) {
+          lastFrame = x.m.state.frame;
+          lastIn = x.b.think(x.m.state);
+        }
+        const sx = stickX(lastIn);
+        const sy = stickY(lastIn);
+        stickAt(sx, sy);
+        if (sx !== 0 || sy !== 0) {
+          counts.move++;
+          if (!prev.has('stick')) t.add('touchMoves');
+          prev.add('stick');
+        } else prev.delete('stick');
+        for (const k of KEYS) {
+          const on = (lastIn & k.bit) !== 0;
+          press(k.key, on);
+          if (on && !prev.has(k.key)) {
+            prev.add(k.key);
+            if (k.key !== 'smash' && k.key !== 'shield') {
+              counts[k.key]++;
+              t.add(`touch${k.key[0].toUpperCase()}${k.key.slice(1)}s`);
+            }
+          } else if (!on) prev.delete(k.key);
+        }
+      }, 33);
+      try {
+        await this.fight(() => false, 6 * 60 * 1000);
+      } finally {
+        clearInterval(drive);
+        releaseAll();
+      }
+      t.event('touch-summary', `moves ${counts.move}, jumps ${counts.jump}, attacks ${counts.attack}, specials ${counts.special}, shield drills ${counts.shield}, smash drills ${counts.smash} (all pointer events on the on-screen controls)`);
+      for (const k of ['move', 'jump', 'attack', 'special'])
+        if (!counts[k] && !(dropped && (dropped === k || (k === 'move' && dropped === 'stick')))) t.problem('bug', `no touch ${k} happened in the match`);
+      const won = await this.results();
+      if (dropEl) dropEl.style.display = '';
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.progress(1);
+      t.finish(won ? 'won' : 'lost');
+    } finally {
+      this.useTap = false;
+      setVirtualPad(null);
+    }
   }
 
   // ---------------------------------------------------------- touch-settings

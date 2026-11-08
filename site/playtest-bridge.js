@@ -133,6 +133,16 @@
       ]
     },
     {
+      "id": "touch-match",
+      "title": "Touch match: at phone size, menus to results with only the on-screen stick and buttons (move, jump, attack, special), every control checked on screen and clear of the safe area",
+      "description": "Run it with device phone (landscape 844x390; upright the Rotate prompt waits). The menus are tapped (pointer events: Versus, fighter, CPU, Fight, stage), then the match is played to the results screen only through pointer events on the overlay from input/touch.ts: the Move stick and the Jump, Attack, Special, Shield and Smash buttons (no keyboard, no virtual pad, nothing set in the sim). The bot's decisions are turned into touches; a short drill first presses each control and checks the game read it. Checks every control exists, has size, sits inside the window and the safe-area inset, and is not covered (a problem each: touch-controls-ok otherwise). Events touch-move, touch-jump, touch-attack, touch-special (also touch-shield, touch-smash), touch-controls-ok, touch-summary; metrics touchMoves, touchJumps, touchAttacks, touchSpecials. Option drop: a control (jump, attack, special, shield, smash, stick, pause) to hide first, to show the missing-control problem.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "graphics",
       "title": "Graphics settings: device defaults (phones Low, glow off), then Glow, Show FPS and Quality each take effect live from Pause, saved, and the fight's frame rate",
       "description": "A versus match against the CPU. Logs gfx-settings, gfx-device, gfx-default (touch: Low with glow off; desktop: High with glow on), gfx-glow, gfx-fps (the corner readout), gfx-quality (render scale before and after), gfx-no-reload; metrics fpsMatchHigh/Low, renderScale. The player's dod.gfx is put back. Run it at phone size for the 45 fps check.",
