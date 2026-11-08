@@ -80,13 +80,36 @@ const MOVE_NAMES = Object.fromEntries(Object.entries(MOVE).map(([k, v]) => [v, k
 
 export function installDodPlaytest(game: GameHooks): void {
   let run: Run | null = null;
+  /** The playtest feel sensor's view of the local fighter (hawkes-feel.js, docs/playtest.md#feel). */
+  const mine = () => {
+    const m = game.match();
+    return m && m.player >= 0 ? m.state.fighters[m.player] ?? null : null;
+  };
   installPlaytest({
     product: 'doseofdestruction',
     scenarios: SCENARIOS,
+    feel: {
+      // The local fighter as a point in stage pixels (x right, y up, z 0): what a feel flag's `spot` replays.
+      player: () => {
+        const f = mine();
+        return f ? { x: f.x / FX, y: f.y / FX, z: 0 } : null;
+      },
+      // Only while the fighter is the player's to move: in the fight, not in a story scene, Ready, Pause, the results,
+      // after Game!, or out of the stage between a KO and the respawn.
+      active: () => {
+        const m = game.match();
+        const f = mine();
+        return !!m && !!f && game.phase() === 'play' && !m.state.over && f.action !== ACT.DEAD && f.action !== ACT.RESPAWN;
+      },
+      grounded: () => {
+        const f = mine();
+        return !!f && f.grounded > 0 && f.platform >= 0;
+      },
+    },
     isReady: () => currentScreen() !== null && !switching(),
     async start(id, options, t) {
       run?.dispose();
-      const r = new Run(game, t, options);
+      const r = new Run(game, t, options, t.spot);
       run = r;
       try {
         if (id === 'smoke') await r.smoke();
@@ -144,7 +167,12 @@ class Run {
   private readonly t: Tracker;
   private readonly options: RunOptions;
 
-  constructor(game: GameHooks, t: Tracker, options: RunOptions) {
+  /** A place to replay (a feel flag's spot, in stage pixels): the fighter starts there. Setup shortcut. */
+  private readonly spot: { x: number; y: number; yaw?: number } | null;
+  private lastPhase = '';
+
+  constructor(game: GameHooks, t: Tracker, options: RunOptions, spot: { x: number; y: number; z: number; yaw?: number } | null = null) {
+    this.spot = spot;
     this.game = game;
     this.t = t;
     this.options = options;
@@ -197,6 +225,8 @@ class Run {
       this.t.problem('bug', `animation over time on ${STAGES[s.stage].name}: ${p.text}`);
     }
     for (const e of events) {
+      // A respawn or a KO moves the fighter and the camera on purpose: the feel sensor rests a moment.
+      if ((e.type === 'respawn' && e.id === me) || (e.type === 'ko' && e.victim === me)) this.t.cut();
       if (e.type === 'hit') {
         this.lastHitFrame = s.frame;
         if (e.shield) continue;
@@ -277,6 +307,8 @@ class Run {
     this.movesSeen.clear();
     this.matches++;
     this.t.add('matches');
+    this.t.cut(); // a new stage: an intended cut for the feel sensor
+    this.placeAtSpot(m);
     const st = STAGES[m.state.stage];
     const who = m.state.fighters.map((f) => name(m, f.id)).join(' vs ');
     this.t.event('match-start', `${who} on ${st.name}`);
@@ -290,9 +322,26 @@ class Run {
     void this.checkStage(m.state.stage);
   }
 
+  /** Spot replay: puts the playing fighter at the flagged place of the first local match, still. */
+  private placeAtSpot(m: Match): void {
+    const spot = this.spot;
+    const f = m.state.fighters[m.player];
+    if (!spot || !f || m.setup.mode === 'online' || this.checked.has('spot')) return;
+    this.checked.add('spot');
+    const b = STAGES[m.state.stage].blast;
+    f.x = Math.max(b.left, Math.min(b.right, spot.x)) * FX;
+    f.y = Math.max(b.bottom, Math.min(b.top, spot.y)) * FX;
+    f.vx = f.vy = f.kbx = f.kby = 0;
+    if (spot.yaw !== undefined && Number.isFinite(spot.yaw)) f.facing = spot.yaw >= 0 ? 1 : -1;
+    this.t.event('spot', `replaying at ${Math.round(spot.x)}, ${Math.round(spot.y)}`);
+  }
+
   private onPoll(): void {
     const id = currentScreen();
     const m = this.game.match();
+    // Ready, Go, Pause and story scenes cut the camera: the feel sensor rests on each change.
+    const ph = this.game.phase();
+    if (ph !== this.lastPhase) { if (this.lastPhase) this.t.cut(); this.lastPhase = ph; }
     if (promptShowing()) this.t.scene('Tap to play');
     else if (settingsShowing()) this.t.scene(m ? 'Settings (paused)' : 'Settings');
     else if (sceneShowing()) this.t.scene(`Story scene (${this.q('#scene')?.getAttribute('data-scene') ?? ''})`);
