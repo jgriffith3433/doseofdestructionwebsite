@@ -8,10 +8,11 @@ import { audio, tapState } from './audio.ts';
 import { Commentator, introCall, type Call } from './commentary.ts';
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
 import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
+import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings } from './touchSettings.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
 import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
-import { initTouchControls, showTouchControls } from './input/touch.ts';
+import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
 import { GAMEPAD_HELP, KEYBOARD_HELP, listenKeyboard, onKey, pausePressed, readLocal } from './input/devices.ts';
 import { installPerfMonitor } from './playtest/hawkes-perf.js';
 import { PLAYER_COLORS, Renderer, prefetchFighters } from './render/renderer.ts';
@@ -601,6 +602,13 @@ function renderSettings(): void {
     input.value = String(Math.round(s[k] * 100));
     $(`vol-${k}-value`).textContent = `${input.value}%`;
   }
+  // Touch size and opacity: only where there are touch controls.
+  $('settings-touch').hidden = !(touchDevice() || touchUiForced());
+  const t = touchSettings();
+  for (const [k, v] of [['size', t.size], ['opacity', t.opacity]] as const) {
+    $<HTMLInputElement>(`touch-${k}`).value = String(v);
+    $(`touch-${k}-value`).textContent = `${v}%`;
+  }
 }
 
 function openSettings(): void {
@@ -664,6 +672,12 @@ function wireSettings(): void {
   }
   // A hit at the new level, so the slider is heard as it lets go.
   $('vol-sfx').addEventListener('change', () => audio.sfx('hit-medium'));
+  onTouchSettings(renderSettings);
+  for (const k of ['size', 'opacity'] as const) {
+    const input = $<HTMLInputElement>(`touch-${k}`);
+    input.addEventListener('input', () => setTouchSettings({ [k]: Number(input.value) }));
+    input.addEventListener('change', () => analytics.setting(`touch_${k}`, Number(input.value), from()));
+  }
   $('settings-done').addEventListener('click', () => closeSettings());
 }
 

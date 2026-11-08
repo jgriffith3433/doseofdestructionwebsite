@@ -13,6 +13,7 @@ import { installPlaytest, type Outcome, type RunOptions, type Tracker } from './
 import { Bot } from '../ai/bot.ts';
 import { setVirtualPad } from '../input/devices.ts';
 import { touchDevice, touchOverlay } from '../input/touch.ts';
+import { TOUCH_KEY, forceTouchUi, touchSettings } from '../touchSettings.ts';
 import { forceTouchPrompt, lockLandscape, rotateShowing } from '../ui/rotate.ts';
 import { currentScreen, switching, type ScreenId } from '../ui/screens.ts';
 import { CHARACTERS, MOVE, MOVE_KEYS } from '../sim/characters.ts';
@@ -99,6 +100,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
+        else if (id === 'touch-settings') await r.touchSettingsRun();
         else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'commentary') await r.commentary();
         else if (id === 'site-links') await r.siteLinks();
@@ -1806,6 +1808,166 @@ class Run {
     t.finish('done');
   }
 
+  // ---------------------------------------------------------- touch-settings
+
+  /**
+   * Touch size and Touch opacity (Settings, touch devices): the sliders show, move the stick, buttons and Pause button
+   * live in a match (size and fade measured on the real elements, all kept inside the window), are saved in
+   * localStorage "dod.touch", and are still set after a reload. The run treats the desktop browser as a touch device.
+   */
+  async touchSettingsRun(): Promise<void> {
+    const t = this.t;
+    const carried = (() => {
+      try {
+        return JSON.parse(sessionStorage.getItem(TOUCH_RUN_KEY) ?? 'null') as { original: string | null } | null;
+      } catch {
+        return null;
+      }
+    })();
+    const slide = (id: string, value: number, label: string) => {
+      const input = this.q(id) as HTMLInputElement;
+      input.value = String(value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      t.add('interactions');
+      t.log(`slide ${label} to ${value}%`);
+    };
+    const saved = () => {
+      try {
+        return JSON.parse(localStorage.getItem(TOUCH_KEY) ?? 'null') as { size: number; opacity: number } | null;
+      } catch {
+        return null;
+      }
+    };
+    const root = () => touchOverlay() ?? this.q('.touch');
+    // The overlay is shown in the match by the game on a phone; on this desktop it is shown here, as checkTouchControls does.
+    const measure = () => {
+      const r = root();
+      if (!r) return null;
+      if (r.hidden) r.hidden = false;
+      const rect = (sel: string) => (r.querySelector(sel) as HTMLElement | null)?.getBoundingClientRect();
+      const stick = rect('.touch-stick');
+      const btn = rect('.touch-btn.attack');
+      const pause = rect('.touch-pause');
+      const opacity = Number(getComputedStyle(r.querySelector('.touch-stick')!).opacity);
+      const inside = [...r.querySelectorAll<HTMLElement>('.touch-stick, .touch-btn, .touch-pause')].filter((el) => {
+        const b = el.getBoundingClientRect();
+        return b.left < -0.5 || b.top < -0.5 || b.right > innerWidth + 0.5 || b.bottom > innerHeight + 0.5;
+      });
+      return { stick: stick?.width ?? 0, btn: btn?.width ?? 0, pause: pause?.width ?? 0, opacity, outside: inside.length };
+    };
+    const report = (where: string, want: { size: number; opacity: number }) => {
+      const m = measure();
+      if (!m) {
+        t.problem('bug', `no touch overlay ${where}`);
+        return null;
+      }
+      const sizeOk = Math.abs(m.stick - Math.min(128 * (want.size / 100), innerHeight * 0.36)) < 2;
+      if (!sizeOk) t.problem('bug', `${where}: the stick is ${m.stick.toFixed(0)}px wide at Touch size ${want.size}%`);
+      if (Math.abs(m.opacity - want.opacity / 100) > 0.02) t.problem('bug', `${where}: the controls' opacity is ${m.opacity} at Touch opacity ${want.opacity}%`);
+      if (m.outside) t.problem('bug', `${where}: ${m.outside} touch control(s) leave the ${innerWidth}x${innerHeight} window at Touch size ${want.size}%`);
+      t.event('touch-look', `${where}: size ${want.size}% → stick ${m.stick.toFixed(0)}px, Attack ${m.btn.toFixed(0)}px, Pause ${m.pause.toFixed(0)}px; opacity ${want.opacity}% → ${m.opacity}; ${m.outside ? m.outside + ' outside the window' : 'all inside the window'}`);
+      return m;
+    };
+    const openSettings = async (from: 'menu' | 'pause') => {
+      if (from === 'menu') await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      else {
+        await tapKey('Escape');
+        await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+        await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+      }
+      await t.until(settingsShowing, 3000, `Settings to open from ${from}`);
+    };
+
+    forceTouchUi(true);
+    try {
+      if (!carried) {
+        const original = localStorage.getItem(TOUCH_KEY);
+        try {
+          localStorage.removeItem(TOUCH_KEY);
+        } catch {
+          // Storage blocked.
+        }
+        sessionStorage.setItem(TOUCH_RUN_KEY, JSON.stringify({ original }));
+        await this.toMainMenu();
+        await openSettings('menu');
+        const sliders = ['#touch-size', '#touch-opacity'].map((id) => this.q(id) as HTMLInputElement | null);
+        const shown = !!sliders[0] && !!sliders[1] && !!this.q('#settings-touch') && !this.q('#settings-touch')!.hidden && sliders[0]!.getBoundingClientRect().width > 0;
+        if (!shown) t.problem('bug', 'Settings does not show the Touch size and Touch opacity sliders');
+        else t.event('touch-sliders', `Settings shows Touch size ${sliders[0]!.min}-${sliders[0]!.max}% (${sliders[0]!.value}%) and Touch opacity ${sliders[1]!.min}-${sliders[1]!.max}% (${sliders[1]!.value}%)`);
+        slide('#touch-size', 150, 'Touch size');
+        slide('#touch-opacity', 50, 'Touch opacity');
+        const s1 = saved();
+        if (!s1 || s1.size !== 150 || s1.opacity !== 50) t.problem('bug', `dod.touch did not save 150% / 50%: ${JSON.stringify(s1)}`);
+        else t.event('touch-saved', JSON.stringify(s1));
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.wait(300);
+        t.progress(0.2);
+
+        await this.startVersus(3);
+        await t.wait(1500);
+        const big = report('in a match at the largest size', { size: 150, opacity: 50 });
+        t.progress(0.4);
+        // Live, from Pause: smallest and nearly opaque, then back to the middle.
+        await openSettings('pause');
+        slide('#touch-size', 75, 'Touch size');
+        slide('#touch-opacity', 100, 'Touch opacity');
+        const small = report('after Touch size 75% from Pause', { size: 75, opacity: 100 });
+        if (big && small && !(big.stick > small.stick && big.btn > small.btn)) t.problem('bug', `the controls did not shrink (stick ${big.stick}px → ${small.stick}px, Attack ${big.btn}px → ${small.btn}px)`);
+        else if (big && small) t.event('touch-resized', `stick ${big.stick.toFixed(0)}px → ${small.stick.toFixed(0)}px, Attack ${big.btn.toFixed(0)}px → ${small.btn.toFixed(0)}px, opacity 0.5 → 1`);
+        slide('#touch-size', 120, 'Touch size');
+        slide('#touch-opacity', 60, 'Touch opacity');
+        report('after Touch size 120% / opacity 60%', { size: 120, opacity: 60 });
+        await t.wait(300);
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+        t.progress(0.7);
+        await this.click(() => this.q('#btn-quit'), 'Quit');
+        await this.screen('main');
+
+        t.event('reload', 'the page reloads; the run carries on after it');
+        const url = new URL(location.href);
+        url.searchParams.set('playtest', 'touch-settings');
+        url.searchParams.set('seed', String(this.options.seed ?? 1));
+        url.searchParams.set('speed', String(this.options.speed ?? 1));
+        await t.wait(300);
+        location.replace(url.toString());
+        await new Promise(() => {}); // the page is going away
+        return;
+      }
+
+      sessionStorage.removeItem(TOUCH_RUN_KEY);
+      await this.toMainMenu();
+      await openSettings('menu');
+      const size = (this.q('#touch-size') as HTMLInputElement).value;
+      const op = (this.q('#touch-opacity') as HTMLInputElement).value;
+      const s2 = touchSettings();
+      if (size !== '120' || op !== '60' || s2.size !== 120 || s2.opacity !== 60) t.problem('bug', `after the reload Settings shows Touch size ${size}% / opacity ${op}% (want 120% / 60%)`);
+      else t.event('touch-kept', `after the reload: Touch size ${size}%, Touch opacity ${op}% (${localStorage.getItem(TOUCH_KEY)})`);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(300);
+      t.progress(0.6);
+      await this.startVersus(3);
+      await t.wait(1500);
+      report('in a match after the reload', { size: 120, opacity: 60 });
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.click(() => this.q('#btn-quit'), 'Quit');
+      await this.screen('main');
+      // The player's own setting back as it was.
+      try {
+        if (carried.original === null) localStorage.removeItem(TOUCH_KEY);
+        else localStorage.setItem(TOUCH_KEY, carried.original);
+      } catch {
+        // Storage blocked.
+      }
+    } finally {
+      forceTouchUi(false);
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   // ---------------------------------------------------------- graphics
 
   /**
@@ -2394,6 +2556,8 @@ const HAWKES_GEN = 'https://hawkesgen.ai';
 const HAWKES_BIOMEDICAL = 'https://hawkesbiomedical.com';
 
 /** Carries the sound-settings run across its reload. */
+/** Carries the touch-settings run across its reload. */
+const TOUCH_RUN_KEY = 'hawkes.playtest.touch-settings';
 const SOUND_RUN_KEY = 'hawkes.playtest.sound-settings';
 /** The feedback card after a versus match (analytics.ts askAfterMatch). */
 const MATCH_ASK = 'after-match';
