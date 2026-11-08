@@ -534,10 +534,12 @@ class Run {
     const empty = imgs.filter((i) => !(i.complete && i.naturalWidth > 0));
     if (imgs.length && !empty.length) this.t.event('roster-portraits', `${imgs.length} roster/slot portraits loaded`);
     else this.t.problem('bug', `Character select: ${empty.length}/${imgs.length} roster tiles/slots have no portrait`);
+    if (this.onVersus) this.checkClipping('character select', this.q('#select'));
     await this.click(() => this.q('#select-slots .fight'), 'Fight');
     await this.screen('stages');
     const cards = () => document.querySelectorAll<HTMLElement>('#stage-grid .stage-card:not(.random)');
     await this.t.until(() => cards().length > 0, 5000, 'stage cards');
+    if (this.onVersus) this.checkClipping('stage select', this.q('#stages'));
     // options.stage plays that stage (a content playtest of a new one); else one from the seed.
     const want = typeof this.options.stage === 'string' ? this.options.stage : null;
     const byId = want ? [...cards()].findIndex((c) => c.dataset.stage === want) : -1;
@@ -762,14 +764,50 @@ class Run {
     return bad;
   }
 
+  /** A phone-sized window: upright (<=560 wide) or on its side (<=520 tall) — the sizes the phone layout in game.css serves. */
+  private isPhone(): boolean {
+    return innerWidth <= 560 || innerHeight <= 520;
+  }
+
+  /** On a phone: every visible button is at least 44 px tall, and no two buttons overlap (room between them). */
+  private phoneTargets(root: HTMLElement): string[] {
+    const bad: string[] = [];
+    const items = [...root.querySelectorAll<HTMLElement>('button, a.menu-item, [role="button"]')].filter((el) => {
+      if (!el.getClientRects().length) return false;
+      const cs = getComputedStyle(el);
+      return cs.visibility !== 'hidden' && cs.display !== 'none' && el.getBoundingClientRect().width > 0;
+    });
+    const rects = items.map((el) => el.getBoundingClientRect());
+    const name = (el: HTMLElement) => `"${(el.textContent ?? '').trim().slice(0, 24) || el.getAttribute('aria-label') || el.id}" (${el.tagName.toLowerCase()}.${el.className})`;
+    items.forEach((el, i) => {
+      if (rects[i].height < 43.5) bad.push(`${name(el)} is ${Math.round(rects[i].height)} px tall (needs 44)`);
+    });
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        if (items[i].contains(items[j]) || items[j].contains(items[i])) continue;
+        const a = rects[i];
+        const b = rects[j];
+        const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (w > 2 && h > 2) bad.push(`${name(items[i])} overlaps ${name(items[j])}`);
+      }
+    }
+    return bad;
+  }
+
   private checkClipping(where: string, root: HTMLElement | null): void {
     const t = this.t;
     const ratio = innerWidth / innerHeight;
-    const shape = ratio >= 2.1 ? '20:9' : ratio >= 1.7 ? '16:9' : ratio >= 1.5 ? '16:10' : 'other';
+    const phone = this.isPhone();
+    const shape = phone ? (ratio < 1 ? 'phone portrait' : 'phone landscape') : ratio >= 2.1 ? '20:9' : ratio >= 1.7 ? '16:9' : ratio >= 1.5 ? '16:10' : 'other';
     if (!root) return;
     const bad = this.clippedText(root);
     if (bad.length) for (const b of bad.slice(0, 5)) t.problem('bug', `${where}: text clipped at ${innerWidth}x${innerHeight} (${shape}): ${b}`);
     else t.event('no-clipping', `${where}: no text clipped at ${innerWidth}x${innerHeight} (${shape})`);
+    if (!phone) return;
+    const small = this.phoneTargets(root);
+    if (small.length) for (const b of small.slice(0, 5)) t.problem('bug', `${where}: touch target at ${innerWidth}x${innerHeight} (${shape}): ${b}`);
+    else t.event('phone-targets', `${where}: every button at least 44 px tall, none overlapping, at ${innerWidth}x${innerHeight} (${shape})`);
   }
 
   /** Menu, VS screen and results presentation: the broadcast menu, a name card animating in for each fighter, results with winner, time and damage. */
