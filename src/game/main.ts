@@ -13,6 +13,7 @@ import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
 import { initTouchControls, showTouchControls } from './input/touch.ts';
 import { GAMEPAD_HELP, KEYBOARD_HELP, listenKeyboard, onKey, pausePressed, readLocal } from './input/devices.ts';
+import { installPerfMonitor } from './playtest/hawkes-perf.js';
 import { PLAYER_COLORS, Renderer, prefetchFighters } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
@@ -1012,6 +1013,13 @@ if (playtestChapter) {
     ),
   );
 }
+
+// The perf readout (hawkes-perf.js) for playtest reports: the helper reads window.hawkesPerf.snapshot(). The scene
+// isn't a page global here, so hand it over; the monitor itself is only built at the first read (a playtest),
+// so players never run it.
+(window as unknown as { hawkesPerf: { snapshot(): unknown } }).hawkesPerf = {
+  snapshot: () => installPerfMonitor(renderer.scene).snapshot(),
+};
 
 // The Hawkes playtest contract (window.hawkesPlaytest). Idle until the runner
 // starts a scenario or the URL has ?playtest=<id>.
