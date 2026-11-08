@@ -5,9 +5,11 @@
 //   import { installPlaytest } from './hawkes-playtest.js';
 //   installPlaytest({
 //     product: 'doseofdestruction',
-//     scenarios: [{ id: 'smoke', title: 'Boot, menu, one fight', seconds: 45, tags: ['smoke'] }],
+//     scenarios: [{ id: 'smoke', title: 'Boot, menu, one fight', seconds: 45, tags: ['smoke'] },
+//                 { id: 'story', title: 'The story', seconds: 300, starts: ['chapter-2', 'chapter-3'] }],
 //     isReady: () => game.loaded,
 //     async start(id, options, t) {
+//       if (t.at) await game.loadChapter(t.at);  // a named start point (options.at); none: from the start
 //       t.scene('Main Menu');
 //       await bot.pressStart();            // real input, like a player
 //       t.event('match-start');
@@ -18,7 +20,9 @@
 //     stop() { bot.stop(); },
 //   });
 //
-// Nothing runs until the runner calls start() or the URL has ?playtest=<id>.
+// Nothing runs until the runner calls start() or the URL has ?playtest=<id> (&seed=, &speed=, &at=).
+
+import { installPerfMonitor, discoverBabylonScene } from './hawkes-perf.js';
 
 export const CONTRACT_VERSION = 1;
 
@@ -61,6 +65,8 @@ export function installPlaytest(opts) {
     },
     get seed() { return run?.options.seed ?? 0; },
     get speed() { return run?.options.speed ?? 1; },
+    /** The named start point (options.at: a place, chapter or level), or null: play from the start. */
+    get at() { const a = run?.options.at; return a == null || a === '' ? null : String(a); },
     /** Resolves after ms of real time (games that honor speed can divide by t.speed themselves); rejects if the run was stopped. */
     wait(ms) {
       return new Promise((resolve, reject) => {
@@ -104,6 +110,8 @@ export function installPlaytest(opts) {
       };
       const mine = run;
       tracker.event('start', id);
+      // A start point (options.at): where the scenario starts; the game loads it in start() (t.at).
+      if (mine.options.at != null && mine.options.at !== '') tracker.event('start-at', mine.options.at);
       try {
         await start(id, mine.options, tracker);
         if (mine === run && !mine.done) tracker.finish('done');
@@ -122,15 +130,17 @@ export function installPlaytest(opts) {
     state() {
       let ready = false;
       try { ready = !!isReady(); } catch {}
-      if (!run) return { ready, status: 'idle', fps: fps.value() };
+      const perf = readPerf();
+      if (!run) return { ready, status: 'idle', fps: fps.value(), ...(perf ? { perf } : {}) };
       if (!run.done && performance.now() - run.moved > stallSeconds * 1000) {
         tracker.problem('bug', `no progress for ${stallSeconds} s (softlock?)`);
         tracker.finish('stuck');
       }
-      return { ...run.state, ready, fps: fps.value(), metrics: { ...run.metrics } };
+      return { ...run.state, ready, fps: fps.value(), metrics: { ...run.metrics }, ...(perf ? { perf } : {}) };
     },
     report() {
       if (!run) return null;
+      const perf = readPerf();
       return {
         scenario: run.id,
         outcome: run.done ? run.state.status : 'stuck',
@@ -139,6 +149,7 @@ export function installPlaytest(opts) {
         events: run.events.slice(),
         problems: run.problems.slice(),
         log: run.log.slice(),
+        ...(perf ? { perf } : {}),
       };
     },
     ...(input ? { input } : {}),
@@ -149,7 +160,8 @@ export function installPlaytest(opts) {
   const q = new URLSearchParams(location.search);
   const auto = q.get('playtest');
   if (auto) {
-    const go = () => (isReadySafe(isReady) ? api.start(auto, { seed: num(q.get('seed'), 1), speed: num(q.get('speed'), 1) }) : setTimeout(go, 250));
+    const at = q.get('at');
+    const go = () => (isReadySafe(isReady) ? api.start(auto, { seed: num(q.get('seed'), 1), speed: num(q.get('speed'), 1), ...(at ? { at } : {}) }) : setTimeout(go, 250));
     go();
   }
   return api;
@@ -182,3 +194,12 @@ function makeFpsMeter() {
 const round = (n) => Math.round(n * 10) / 10;
 const num = (v, d) => (v == null || v === '' || Number.isNaN(Number(v)) ? d : Number(v));
 const isReadySafe = (f) => { try { return !!f(); } catch { return false; } };
+function readPerf() {
+  try {
+    if (typeof window === 'undefined') return null;
+    if (window.hawkesPerf && typeof window.hawkesPerf.snapshot === 'function') return window.hawkesPerf.snapshot();
+    const scene = discoverBabylonScene(window);
+    if (scene) return installPerfMonitor(scene).snapshot();
+  } catch {}
+  return null;
+}
