@@ -365,7 +365,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   // screen): clip sheets, stage art, sounds, music and voice lines. Nothing loads mid-fight.
   // Then the first frames are drawn behind the menus, so the switch to the match doesn't stall.
   const loading = Promise.all([
-    renderer.setFighters(m.state).then(() => renderer.ready()),
+    renderer.setFighters(m.state),
     audio.preloadMatch(STAGES[setup.stage].id, m.state.fighters.map((f) => CHARACTERS[f.char].id)),
     audio.preloadLines(chapter ? [`blog-man.intro.${chapter.id}`] : []),
   ])
