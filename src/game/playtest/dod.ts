@@ -13,6 +13,7 @@ import { installPlaytest, type Outcome, type RunOptions, type Tracker } from './
 import { Bot } from '../ai/bot.ts';
 import { setVirtualPad } from '../input/devices.ts';
 import { touchDevice, touchOverlay } from '../input/touch.ts';
+import { forceTouchPrompt, lockLandscape, rotateShowing } from '../ui/rotate.ts';
 import { currentScreen, switching, type ScreenId } from '../ui/screens.ts';
 import { CHARACTERS, MOVE, MOVE_KEYS } from '../sim/characters.ts';
 import { BTN, NO_INPUT, packInput } from '../sim/input.ts';
@@ -93,6 +94,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'story-cards') await r.storyCards();
+        else if (id === 'rotate') await r.rotate();
         else if (id === 'presentation') await r.presentation();
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
@@ -811,6 +813,77 @@ class Run {
   }
 
   /** Menu, VS screen and results presentation: the broadcast menu, a name card animating in for each fighter, results with winner, time and damage. */
+  /**
+   * Rotate your phone: upright on a touch device a full-screen prompt covers the game and the match waits; turning to
+   * landscape hides it and play goes on. The run judges the window as it is (390x844 upright, 844x390 on its side) and,
+   * started upright, waits for the runner to turn the window to landscape. It asks to be treated as a touch device.
+   */
+  async rotate(): Promise<void> {
+    const t = this.t;
+    await this.toMainMenu();
+    await this.startVersus(2);
+    forceTouchPrompt(true);
+    try {
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const prompt = () => document.getElementById('rotate-prompt');
+      const upright = () => innerHeight > innerWidth;
+      const size = () => `${innerWidth}x${innerHeight}`;
+      await this.fight(() => frame() >= 90, 30000);
+      if (upright()) {
+        const p = prompt();
+        const r = p?.getBoundingClientRect();
+        const covered = !!p && !p.hidden && document.elementFromPoint(innerWidth / 2, innerHeight / 2)?.closest('#rotate-prompt') === p;
+        if (!p || !rotateShowing() || !r || r.width < innerWidth - 1 || r.height < innerHeight - 1 || !covered || !/Rotate your phone/i.test(p.textContent ?? '')) {
+          t.problem('bug', `no full-screen "Rotate your phone" prompt over the game at ${size()}`);
+        } else t.event('rotate-prompt', `"Rotate your phone" covers the game at ${size()}`);
+        const before = frame();
+        await t.wait(2000);
+        if (frame() !== before) t.problem('bug', `the match kept running under the Rotate prompt at ${size()} (frame ${before} -> ${frame()})`);
+        else t.event('rotate-paused', `the match is paused under the prompt at ${size()} (frame ${before})`);
+        try {
+          await t.until(() => !upright(), 30000, 'the window to turn to landscape');
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.event('rotate-not-turned', `the window stayed upright at ${size()}: run it at 844x390 (or turn it) to see the prompt go`);
+        }
+      }
+      if (!upright()) {
+        await t.wait(300);
+        if (prompt() && !prompt()!.hidden) t.problem('bug', `the Rotate prompt is still up at ${size()}`);
+        else t.event('rotate-hidden', `no Rotate prompt at ${size()}`);
+        const before = frame();
+        await this.fight(() => frame() >= before + 60, 40000);
+        if (frame() > before) t.event('rotate-resumed', `play goes on at ${size()} (frame ${before} -> ${frame()})`);
+        else t.problem('bug', `the match did not resume at ${size()}`);
+      }
+      // Fullscreen's landscape lock: asked for where the browser has it, harmless where it has not.
+      const o = screen.orientation as unknown as { lock?: (o: string) => Promise<void> };
+      const had = Object.getOwnPropertyDescriptor(o, 'lock');
+      const asked: string[] = [];
+      try {
+        o.lock = async (v: string) => void asked.push(v);
+        const ok = await lockLandscape();
+        if (ok && asked[0] === 'landscape') t.event('landscape-lock', 'a landscape lock is requested');
+        else t.problem('bug', `no landscape lock requested (${asked.join(',') || 'none'})`);
+        o.lock = async () => {
+          throw new Error('NotSupportedError');
+        };
+        const failed = await lockLandscape();
+        o.lock = undefined;
+        const none = await lockLandscape();
+        if (!failed && !none) t.event('landscape-lock-safe', 'a rejected or missing orientation lock breaks nothing');
+        else t.problem('bug', 'a failed or missing orientation lock was reported as success');
+      } finally {
+        if (had) Object.defineProperty(o, 'lock', had);
+        else delete o.lock;
+      }
+      await this.quitFromPause('main');
+    } finally {
+      forceTouchPrompt(false);
+    }
+    t.finish('done');
+  }
+
   async presentation(): Promise<void> {
     const t = this.t;
     await this.toMainMenu();

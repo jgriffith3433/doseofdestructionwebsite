@@ -207,6 +207,15 @@
       ]
     },
     {
+      "id": "rotate",
+      "title": "Rotate your phone: upright on a touch device a full-screen prompt covers the game and the match pauses; turned to landscape it hides and play resumes; fullscreen asks for a landscape lock",
+      "description": "Versus match against the CPU, the run treated as a touch device. At 390x844 (upright): the \"Rotate your phone\" prompt fills the screen over the match (rotate-prompt) and the match frame stops (rotate-paused); it then waits for the window to turn to 844x390. At 844x390: the prompt is gone (rotate-hidden) and the match goes on (rotate-resumed). Also checks the landscape lock is requested through screen.orientation.lock (landscape-lock) and that a rejected or missing lock breaks nothing (landscape-lock-safe).",
+      "seconds": 90,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "roster",
       "title": "Every fighter spawns in training and does each move once (starts matches directly)",
       "seconds": 480,

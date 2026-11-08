@@ -30,6 +30,7 @@ import type { OnlineFight, FightEnd } from './net/fight.ts';
 import type { Found } from './net/matchmaker.ts';
 import { bootOnline, onlineApi } from './net/loader.ts';
 import { switching } from './ui/screens.ts';
+import { initRotatePrompt, rotateShowing } from './ui/rotate.ts';
 
 const TICK_MS = 1000 / 60;
 
@@ -41,6 +42,7 @@ const renderer = new Renderer(canvas);
 renderer.onSound = (id) => audio.sfx(id);
 listenKeyboard();
 initTouchControls(() => pauseKey(), true);
+initRotatePrompt();
 listenMenuKeys(() => phase === 'play' || phase === 'ready' || phase === 'wait');
 
 let match: Match | null = null;
@@ -500,7 +502,7 @@ function tick(m: Match): void {
 
 /** One online tick: the rollback runs zero, one or (after a late input) several frames. */
 function onlineTick(m: Match, f: OnlineFight): void {
-  afterTick(m, f.tick(phase === 'pause' ? NO_INPUT : readLocal()));
+  afterTick(m, f.tick(phase === 'pause' || rotateShowing() ? NO_INPUT : readLocal()));
 }
 
 function afterTick(m: Match, events: SimEvent[]): void {
@@ -930,6 +932,8 @@ function frame(draw = true): void {
   const now = performance.now();
   acc += Math.min(100, now - last) * (fight ? 1 : simSpeed);
   last = now;
+  // Upright phone: the match waits under the Rotate prompt (online it can't stop, so the fighter just stands still).
+  if (rotateShowing() && !fight) acc = 0;
 
   if (match && phase !== 'idle' && pausePressed()) pauseKey();
   if (phase !== 'play' && phase !== 'ready') pollMenuPad(now);
