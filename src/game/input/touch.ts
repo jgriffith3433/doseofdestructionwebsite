@@ -3,6 +3,15 @@
 import { BTN } from '../sim/input.ts';
 import { onTouchSettings, touchSettings, type TouchSettings } from '../touchSettings.ts';
 
+/** Pointer capture keeps a drag on its control, but a pointer that is already gone (or a synthetic one) throws: play on. */
+const capture = (el: Element, id: number) => {
+  try {
+    el.setPointerCapture(id);
+  } catch {
+    // Not an active pointer: the control still works from its own events.
+  }
+};
+
 const BUTTONS: { label: string; bit: number; cls: string }[] = [
   { label: 'Jump', bit: BTN.JUMP, cls: 'jump' },
   { label: 'Attack', bit: BTN.ATTACK, cls: 'attack' },
@@ -67,7 +76,7 @@ export function initTouchControls(onPause: () => void, forceBuild = false): void
   stick.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     stickId = e.pointerId;
-    stick.setPointerCapture(e.pointerId);
+    capture(stick, e.pointerId);
     moveStick(e);
   });
   stick.addEventListener('pointermove', (e) => {
@@ -90,7 +99,7 @@ export function initTouchControls(onPause: () => void, forceBuild = false): void
     };
     el.addEventListener('pointerdown', (e) => {
       e.preventDefault();
-      el.setPointerCapture(e.pointerId);
+      capture(el, e.pointerId);
       ids.add(e.pointerId);
       sync();
     });
