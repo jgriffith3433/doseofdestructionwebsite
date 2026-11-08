@@ -445,7 +445,7 @@ export class Renderer {
       }
     }
     // A sheet that fails to load shouldn't hold the match up forever.
-    await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, 15000))]);
+    await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, 8000))]);
   }
 
   /** Resolves once every texture in the scene (stage art, clips) is loaded, or after a while. */
@@ -458,7 +458,7 @@ export class Renderer {
    * while a loading screen is up. Without it the first frame on the match screen can stall for
    * seconds (a frozen, blank wipe on slower machines).
    */
-  async warmUp(state: GameState, timeoutMs = 5000): Promise<void> {
+  async warmUp(state: GameState, timeoutMs = 4000): Promise<void> {
     this.engine.resize();
     this.render(state);
     await breathe();
@@ -486,7 +486,7 @@ export class Renderer {
     const lists = this.views.map((v) => [...v.clipTex.values()]);
     const maxClips = Math.max(0, ...lists.map((l) => l.length));
     // Budgeted: on slow (software) renderers the rest upload on first use instead of holding the VS card for ~20 s.
-    const clipDeadline = performance.now() + 2000;
+    const clipDeadline = performance.now() + 1000;
     for (let i = 0; i < maxClips && performance.now() < clipDeadline; i++) {
       for (let slot = 0; slot < this.views.length; slot++) {
         const v = this.views[slot];
