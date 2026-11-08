@@ -6,6 +6,7 @@ import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
 import { audio, tapState } from './audio.ts';
 import { Commentator, introCall, type Call } from './commentary.ts';
+import { graphics, onGraphics, setGraphics } from './graphics.ts';
 import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
 import { ACT } from './sim/state.ts';
@@ -567,6 +568,14 @@ function renderSettings(): void {
   const shake = $('shake-switch');
   shake.setAttribute('aria-checked', String(screenShake()));
   shake.textContent = screenShake() ? 'On' : 'Off';
+  const g = graphics();
+  const flip = (id: string, on: boolean, text: string) => {
+    $(id).setAttribute('aria-checked', String(on));
+    $(id).textContent = text;
+  };
+  flip('quality-switch', g.quality === 'high', g.quality === 'high' ? 'High' : 'Low');
+  flip('glow-switch', g.glow, g.glow ? 'On' : 'Off');
+  flip('fps-switch', g.fps, g.fps ? 'On' : 'Off');
   for (const k of ['music', 'sfx'] as const) {
     const input = $<HTMLInputElement>(`vol-${k}`);
     input.value = String(Math.round(s[k] * 100));
@@ -605,6 +614,23 @@ function wireSettings(): void {
   $('shake-switch').addEventListener('click', () => {
     setScreenShake(!screenShake());
     analytics.setting('shake', screenShake(), from());
+  });
+  analytics.graphics(graphics());
+  onGraphics((g) => {
+    renderSettings();
+    analytics.graphics(g);
+  });
+  $('quality-switch').addEventListener('click', () => {
+    setGraphics({ quality: graphics().quality === 'high' ? 'low' : 'high' });
+    analytics.setting('quality', graphics().quality, from());
+  });
+  $('glow-switch').addEventListener('click', () => {
+    setGraphics({ glow: !graphics().glow });
+    analytics.setting('glow', graphics().glow, from());
+  });
+  $('fps-switch').addEventListener('click', () => {
+    setGraphics({ fps: !graphics().fps });
+    analytics.setting('fps', graphics().fps, from());
   });
   $('sound-switch').addEventListener('click', () => {
     setSoundSettings({ on: !soundSettings().on });
@@ -995,6 +1021,7 @@ installDodPlaytest({
   },
   fxStats: () => renderer.fxStats(),
   hitFxStats: () => renderer.hitFxStats(),
+  gfxStats: () => renderer.gfxStats(),
 });
 
 // Online is always on: the lobby is joined with no clicks (docs/online.md), but only now, after the game and the

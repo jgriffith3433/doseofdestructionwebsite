@@ -199,11 +199,23 @@
         <span>Screen shake</span>
         <button id="shake-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
       </div>
+      <div class="setting-row">
+        <span>Quality</span>
+        <button id="quality-switch" class="switch" type="button" role="switch" aria-checked="true">High</button>
+      </div>
+      <div class="setting-row">
+        <span>Glow</span>
+        <button id="glow-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
+      </div>
+      <div class="setting-row">
+        <span>Show FPS</span>
+        <button id="fps-switch" class="switch" type="button" role="switch" aria-checked="false">Off</button>
+      </div>
       <div id="settings-levels" class="settings-levels">
         <label class="slider"><span>Music</span><input id="vol-music" type="range" min="0" max="100" step="1"><output id="vol-music-value"></output></label>
         <label class="slider"><span>Effects</span><input id="vol-sfx" type="range" min="0" max="100" step="1"><output id="vol-sfx-value"></output></label>
       </div>
-      <p class="hint">Effects covers hits, menus and voices. Screen shake is the camera kick on hits and KOs. Press <kbd>M</kbd> any time to turn sound on or off.</p>
+      <p class="hint">Effects covers hits, menus and voices. Screen shake is the camera kick on hits and KOs. Quality Low draws fewer pixels and sparks, for phones; Glow is the bloom on bright art. Press <kbd>M</kbd> any time to turn sound on or off.</p>
       <button id="settings-done" class="primary" type="button">Done</button>
     </div>
   </div>

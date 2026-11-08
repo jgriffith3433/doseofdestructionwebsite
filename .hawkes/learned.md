@@ -1,2 +1,2 @@
-- lesson: Out-of-credits is not a code failure — a beta build "failed" with Studio's "out of credits: playtest.run needs 6" message; check the failure text before changing code, and say so in the summary.
-- lesson: npm ci before typecheck/test — a fresh worktree has no node_modules (tsc and @noble/curves missing); npm test then fails only on the sparse-checkout head images.
+- convention: graphics settings — `src/game/graphics.ts` holds Quality/Glow/Show FPS (localStorage `dod.gfx`, touch defaults to Low and glow off) and the renderer applies them live; the engine is built with adaptToDeviceRatio false and sets its own hardware scaling.
+- lesson: npm test baseline — 33 `characters/head/*.webp` checks fail on the untouched branch (run tools/heads.mjs); they are not caused by your change.
