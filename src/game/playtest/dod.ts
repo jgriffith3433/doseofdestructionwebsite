@@ -25,6 +25,7 @@ import { SCENARIOS } from './scenarios.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
+import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
 import { loadAnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
@@ -53,6 +54,8 @@ export interface GameHooks {
   /** Renderer particle and warm-up diagnostics. */
   /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
+  /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
+  gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
 }
 
@@ -94,6 +97,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
+        else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'commentary') await r.commentary();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
@@ -1721,6 +1725,155 @@ class Run {
       try {
         if (original === null) localStorage.removeItem(SHAKE_STORAGE_KEY);
         else localStorage.setItem(SHAKE_STORAGE_KEY, original);
+      } catch {
+        // Storage blocked.
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- graphics
+
+  /**
+   * Graphics settings: with nothing saved, Settings shows the device's defaults (touch: Low, glow off; desktop:
+   * High, glow on, the old look). In a match, from Pause, Glow, Quality and Show FPS each take effect at once with
+   * no reload (the page's load marker survives) and are saved. Logs the settings and render scale (`gfx-*`) and
+   * the average frame rate of the fight (metric `fpsMatch`, split by quality). The player's dod.gfx is put back.
+   */
+  async graphicsRun(): Promise<void> {
+    const t = this.t;
+    const original = localStorage.getItem(GFX_KEY);
+    const initial = graphics();
+    const touch = isTouchDevice();
+    const w = window as unknown as { __gfxLoad?: number };
+    w.__gfxLoad = performance.timeOrigin;
+    const stats = () => this.game.gfxStats?.();
+    const label = () => {
+      const g = stats();
+      return g ? `Quality ${g.quality}, glow ${g.glowOn ? 'on' : 'off'}, FPS readout ${g.fpsShown ? 'shown' : 'hidden'}, render ${g.scale}x (device ${g.dpr}x), ${Math.round(g.fpsNow)} fps` : 'no renderer stats';
+    };
+    const state = (id: string) => this.q(id)?.getAttribute('aria-checked');
+    const samples: { quality: string; fps: number }[] = [];
+    const unwatch = this.game.watch((m) => {
+      if (m.state.frame % 60 !== 0 || m.state.frame < 120) return;
+      const g = stats();
+      if (g && g.fpsNow > 0) samples.push({ quality: g.quality, fps: g.fpsNow });
+    });
+    const average = (q: string) => {
+      const xs = samples.filter((x) => x.quality === q).map((x) => x.fps);
+      return xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null;
+    };
+    try {
+      localStorage.removeItem(GFX_KEY);
+    } catch {
+      // Storage blocked.
+    }
+    try {
+      // A load with nothing saved. (The setting was read at load; read the default through Settings after a reset.)
+      await this.toMainMenu();
+      t.progress(0.05);
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, 'Settings to open');
+      for (const [id, name] of [['#quality-switch', 'Quality'], ['#glow-switch', 'Glow'], ['#fps-switch', 'Show FPS']] as const) {
+        if (!this.q(id)) t.problem('bug', `Settings has no ${name} control`);
+      }
+      t.event('gfx-settings', `Settings shows Quality ${this.q('#quality-switch')?.textContent}, Glow ${this.q('#glow-switch')?.textContent}, Show FPS ${this.q('#fps-switch')?.textContent}`);
+      t.event('gfx-device', `${touch ? 'Touch device' : 'Desktop'}: ${label()}; render cap ${renderScaleCap('high', touch)}x High, ${renderScaleCap('low', touch)}x Low`);
+      // Defaults come from the device; with nothing saved at load they apply as they are, so check what is in force
+      // when this run started with no saved choice (the usual playtest profile), else flip to the default first.
+      const wantQuality = touch ? 'false' : 'true';
+      const wantGlow = touch ? 'false' : 'true';
+      if (original === null) {
+        if (state('#quality-switch') !== wantQuality) t.problem('bug', `${touch ? 'Phones' : 'Desktop'} default to Quality ${this.q('#quality-switch')?.textContent}, want ${touch ? 'Low' : 'High'}`);
+        else if (state('#glow-switch') !== wantGlow) t.problem('bug', `${touch ? 'Phones' : 'Desktop'} default to Glow ${this.q('#glow-switch')?.textContent}, want ${touch ? 'Off' : 'On'}`);
+        else t.event('gfx-default', `${touch ? 'Touch device defaults to Low with glow off' : 'Desktop defaults to High with glow on'} (render ${stats()?.scale}x)`);
+      } else t.event('gfx-default-skipped', 'a saved graphics choice was present at load, so the device default was not checked');
+      if (state('#fps-switch') !== 'false' && original === null) t.problem('bug', 'Show FPS is not off by default');
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(300);
+
+      await this.startVersus(3);
+      t.progress(0.15);
+      const m0 = () => this.game.match();
+      this.progressNow = () => 0.15 + 0.4 * Math.min(1, ((m0()?.state.frame ?? 0) / (45 * 60)));
+      await this.fight(() => (m0()?.state.frame ?? 0) > 20 * 60, 3 * 60 * 1000);
+      t.event('gfx-before', label());
+
+      const openFromPause = async () => {
+        await tapKey('Escape');
+        await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+        await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+        await t.until(settingsShowing, 3000, 'Settings to open from Pause');
+        await t.wait(300);
+      };
+      const closeToMatch = async () => {
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+        await this.click(() => this.q('#btn-resume'), 'Resume');
+        await t.until(() => this.game.phase() === 'play', 3000, 'the match to resume');
+      };
+      const saved = () => {
+        try {
+          return JSON.parse(localStorage.getItem(GFX_KEY) ?? 'null') as { quality: string; glow: boolean; fps: boolean } | null;
+        } catch {
+          return null;
+        }
+      };
+      const noReload = () => w.__gfxLoad === performance.timeOrigin && !!this.game.match();
+
+      // Glow: flip it, the glow layer follows at once and the choice is saved.
+      await openFromPause();
+      const glowBefore = stats()?.glowOn;
+      await this.tap(() => this.q('#glow-switch'), 'Glow');
+      if (stats()?.glowOn === glowBefore || saved()?.glow !== stats()?.glowOn || state('#glow-switch') !== String(stats()?.glowOn)) t.problem('bug', 'Glow did not apply and save');
+      else t.event('gfx-glow', `Glow switched ${glowBefore ? 'off' : 'on'} in Settings: layer ${stats()?.glowOn ? 'on' : 'off'}, saved, match kept running`);
+      // Show FPS: the corner readout appears with a number in it.
+      await this.tap(() => this.q('#fps-switch'), 'Show FPS');
+      await closeToMatch();
+      await t.wait(1200);
+      const meter = this.q('#fps-meter');
+      const r = meter?.getBoundingClientRect();
+      if (!meter || meter.hidden || !r || r.width === 0 || !/\d+ FPS/.test(meter.textContent ?? '')) t.problem('bug', `Show FPS did not show a readout (${meter?.textContent ?? 'no element'})`);
+      else if (r.right > innerWidth || r.bottom > innerHeight || r.width > innerWidth * 0.3) t.problem('bug', 'the FPS readout is off screen or not small');
+      else t.event('gfx-fps', `FPS readout in the corner: "${meter.textContent}" (${Math.round(r.width)}x${Math.round(r.height)} px)`);
+
+      // Quality: flip it; the render scale changes at once, no reload.
+      const f1 = m0()?.state.frame ?? 0;
+      await this.fight(() => (m0()?.state.frame ?? 0) - f1 > 12 * 60, 2 * 60 * 1000);
+      await openFromPause();
+      const q0 = stats();
+      await this.tap(() => this.q('#quality-switch'), 'Quality');
+      const q1 = stats();
+      const wantScale = q1 ? Math.min(q1.dpr, renderScaleCap(q1.quality, touch)) : 0;
+      if (!q0 || !q1 || q1.quality === q0.quality || Math.abs(q1.scale - wantScale) > 0.01 || saved()?.quality !== q1.quality) t.problem('bug', `Quality did not apply (${label()})`);
+      else t.event('gfx-quality', `Quality ${q0.quality} → ${q1.quality}: render scale ${q0.scale}x → ${q1.scale}x (cap ${renderScaleCap(q1.quality, touch)}x), saved`);
+      await closeToMatch();
+      if (!noReload()) t.problem('bug', 'the page reloaded when a graphics setting changed');
+      else t.event('gfx-no-reload', 'the page and match carried on through all three changes');
+      const f2 = m0()?.state.frame ?? 0;
+      await this.fight(() => (m0()?.state.frame ?? 0) - f2 > 15 * 60, 2 * 60 * 1000);
+      t.event('gfx-after', label());
+      t.progress(0.85);
+
+      for (const q of ['high', 'low']) {
+        const a = average(q);
+        if (a !== null) t.metric(`fpsMatch${q === 'high' ? 'High' : 'Low'}`, a);
+      }
+      const lowAvg = average('low');
+      if (touch && lowAvg !== null && lowAvg < 45) t.problem('warning', `average ${lowAvg} fps in Low on a touch device (want at least 45)`);
+      t.metric('renderScale', stats()?.scale ?? 0);
+
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.click(() => this.q('#btn-quit'), 'Quit');
+      await this.screen('main');
+    } finally {
+      unwatch();
+      setGraphics(initial);
+      try {
+        if (original === null) localStorage.removeItem(GFX_KEY);
+        else localStorage.setItem(GFX_KEY, original);
       } catch {
         // Storage blocked.
       }

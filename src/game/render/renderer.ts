@@ -24,6 +24,7 @@ import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
 import { activeHitboxes, type SimEvent } from '../sim/step.ts';
 import { hitTier, impactFor, screenShake, type HitTier } from '../hitFeel.ts';
+import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
 import { StageLive } from './stageLive.ts';
@@ -117,7 +118,7 @@ export class Renderer {
   debug = false;
 
   constructor(canvas: HTMLCanvasElement) {
-    this.engine = new Engine(canvas, true, { stencil: true, preserveDrawingBuffer: false }, true);
+    this.engine = new Engine(canvas, true, { stencil: true, preserveDrawingBuffer: false }, false);
     this.scene = new Scene(this.engine);
     this.scene.clearColor = new Color4(0.063, 0.055, 0.047, 1);
 
@@ -151,7 +152,60 @@ export class Renderer {
     this.glow.addExcludedMesh(this.flashPlane);
 
     this.setStage(0);
-    window.addEventListener('resize', () => this.engine.resize());
+    this.applyGraphics(graphics());
+    onGraphics((g) => this.applyGraphics(g));
+    this.buildFpsMeter();
+    // A new pixel ratio (zoom, another screen) arrives with a resize.
+    window.addEventListener('resize', () => {
+      this.applyGraphics(graphics());
+      this.engine.resize();
+    });
+  }
+
+  private gfx: Graphics = graphics();
+  private fpsEl: HTMLElement | null = null;
+
+  /** Quality, Glow and Show FPS, applied live: render scale, the glow layer, particle counts, the readout. */
+  private applyGraphics(g: Graphics): void {
+    const qualityChanged = g.quality !== this.gfx.quality;
+    this.gfx = g;
+    this.engine.setHardwareScalingLevel(scalingLevel(g.quality, window.devicePixelRatio));
+    if (qualityChanged) this.engine.resize();
+    this.glow.isEnabled = g.glow;
+    if (this.fpsEl) this.fpsEl.hidden = !g.fps;
+  }
+
+  /** The render scale and glow actually in use, for the playtest. */
+  gfxStats() {
+    return {
+      quality: this.gfx.quality,
+      glow: this.gfx.glow,
+      showFps: this.gfx.fps,
+      dpr: window.devicePixelRatio || 1,
+      scale: Number((1 / this.engine.getHardwareScalingLevel()).toFixed(3)),
+      glowOn: this.glow.isEnabled,
+      fpsShown: !!this.fpsEl && !this.fpsEl.hidden,
+      fpsNow: this.engine.getFps(),
+    };
+  }
+
+  /** A small corner readout, redrawn twice a second from the render loop's own frame end (no timers). */
+  private buildFpsMeter(): void {
+    const el = document.createElement('div');
+    el.id = 'fps-meter';
+    el.setAttribute('aria-hidden', 'true');
+    el.hidden = !this.gfx.fps;
+    el.style.cssText = 'position:fixed;right:6px;bottom:6px;z-index:60;padding:2px 6px;font:700 11px/1.3 monospace;color:#ffd15a;background:rgba(16,14,12,.7);border-radius:3px;pointer-events:none';
+    document.body.appendChild(el);
+    this.fpsEl = el;
+    let last = 0;
+    this.engine.onEndFrameObservable.add(() => {
+      if (el.hidden) return;
+      const now = performance.now();
+      if (now - last < 500) return;
+      last = now;
+      el.textContent = `${Math.round(this.engine.getFps())} FPS`;
+    });
   }
 
   private flatMaterial(name: string, hex: string, alpha = 1): StandardMaterial {
@@ -580,7 +634,8 @@ export class Renderer {
     return out;
   }
 
-  private burst(x: number, y: number, n: number, speed: number): void {
+  private burst(x: number, y: number, count: number, speed: number): void {
+    const n = Math.ceil(count * particleShare(this.gfx.quality));
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = speed * (0.4 + Math.random() * 0.8);

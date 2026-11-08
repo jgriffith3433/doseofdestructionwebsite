@@ -1,1 +1,3 @@
 - lesson: phone layout lives at the end of game.css — one block under (max-width:560px),(max-height:520px) overrides desktop rules; keep new phone tweaks there. The presentation scenario's checkClipping only judges the window it runs in, so run it at 390x844 / 844x390.
+- convention: graphics settings — `src/game/graphics.ts` holds Quality/Glow/Show FPS (localStorage `dod.gfx`, touch defaults to Low and glow off) and the renderer applies them live; the engine is built with adaptToDeviceRatio false and sets its own hardware scaling.
+- lesson: npm test baseline — 33 `characters/head/*.webp` checks fail on the untouched branch (run tools/heads.mjs); they are not caused by your change.
