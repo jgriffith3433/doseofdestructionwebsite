@@ -5,7 +5,7 @@ import { CHARACTERS } from '../sim/characters.ts';
 import { STAGES, type StageDef } from '../sim/stage.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import { CHAPTERS, SEASONS, isOpen, seasonCleared, seasonOpen, type Chapter, type Line } from '../campaign/story.ts';
-import { PLAYER_COLORS } from '../render/renderer.ts';
+import { PLAYER_COLORS, prefetchStage } from '../render/renderer.ts';
 import { TEAM_COLORS } from './select.ts';
 import { $, formatTime, h, kids, largeUrl, pct, thumbUrl } from './dom.ts';
 import type { ModeStage } from '../modes.ts';
@@ -67,12 +67,13 @@ export function stageThumb(stage: StageDef): SVGElement {
 export function openStages(list: { index: number; entry: ModeStage }[], onPick: (stage: number, entry: ModeStage, random?: boolean) => void, chosen: number): void {
   const grid = $('stage-grid');
   const focus = list.some((x) => x.index === chosen) ? chosen : list[0]?.index;
+  if (focus !== undefined) prefetchStage(focus);
   grid.replaceChildren(
     ...list.map(({ index, entry }) => {
       const st = STAGES[index];
       return h(
         'button',
-        { type: 'button', class: 'stage-card', 'data-stage': st.id, 'data-autofocus': index === focus || undefined, onclick: () => onPick(index, entry) },
+        { type: 'button', class: 'stage-card', 'data-stage': st.id, 'data-autofocus': index === focus || undefined, onclick: () => onPick(index, entry), onfocus: () => prefetchStage(index), onpointerenter: () => prefetchStage(index) },
         stageThumb(st),
         h('strong', {}, entry.name || st.name),
         h('span', {}, entry.blurb || st.blurb),
