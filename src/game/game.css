@@ -1217,3 +1217,91 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
 .unlock-note b { color: var(--gold); font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.04em; }
 .profile-tile.locked { opacity: 0.4; cursor: not-allowed; }
 .profile-tile.locked img { filter: brightness(0); }
+
+/* ------------------------------------------------------------------ phone */
+
+/* A phone, upright (390x844) or on its side (844x390): menu, select, stages, VS and results. Touch targets are 44px
+   and spaced, the broadcast dressing and name cards scale down, safe areas stay in. Desktop 16:9 / 20:9 never match. */
+@media (max-width: 560px), (max-height: 520px) {
+  .screen {
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-left: max(12px, env(safe-area-inset-left));
+  }
+  button.primary, button.secondary, button.big, button.small, .back-btn { min-height: 44px; }
+  button.big { font-size: 20px; padding: 10px 28px; }
+  .actions { gap: 12px; }
+  .back-btn { padding: 8px 18px; }
+  .rule { gap: 8px; }
+  .rule button, .slot-tools button { min-width: 44px; height: 44px; }
+  .slot-tools { gap: 8px; }
+  .slot-pick { min-height: 44px; align-content: center; }
+  .slot-pick img { width: 40px; height: 40px; }
+  .slots .fight { min-height: 48px; }
+  .menu-item, .stage-card { min-height: 44px; }
+  .menu-item span { overflow-wrap: anywhere; }
+
+  /* Main menu: the ticker is slimmer and its text smaller; the menu clears it. */
+  .main-screen { padding-bottom: calc(40px + env(safe-area-inset-bottom)); padding-inline: max(14px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-right)); }
+  .ticker { height: 30px; gap: 8px; padding-bottom: env(safe-area-inset-bottom); box-sizing: content-box; }
+  .ticker-tag { padding: 0 10px; font-size: 12px; letter-spacing: 0.1em; }
+  .ticker-lines span { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; }
+  .main-menu { gap: 8px; }
+  .menu-item { padding: 8px 16px; }
+  .menu-item.profile-item { min-height: 52px; }
+
+  /* Select: the preview shrinks, tiles stay tappable. */
+  .select-screen { gap: 10px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
+  .tile span { font-size: 10px; }
+  .preview { padding: 10px; }
+  .preview h3 { font-size: 22px; }
+  .preview .blurb { font-size: 14px; }
+  .stage-grid { grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 12px; }
+
+  /* VS: smaller fighters, name cards and mark so both fighters and their cards stay on screen. */
+  .vs-fighter img { height: clamp(120px, 26vh, 240px); max-width: 38vw; }
+  .vs-row.n3 .vs-fighter img, .vs-row.n4 .vs-fighter img { height: clamp(90px, 20vh, 160px); max-width: 24vw; }
+  .vs-fighter figcaption { padding: 4px 10px 4px 8px; border-left-width: 4px; border-bottom-width: 3px; max-width: 42vw; }
+  .vs-fighter figcaption span { font-size: 11px; letter-spacing: 0.08em; }
+  .vs-fighter figcaption strong { font-size: clamp(16px, 4.6vw, 24px); }
+  .vs-mark { font-size: clamp(40px, 9vw, 72px); }
+  .vs-title { font-size: 18px; }
+  .vs-stage { font-size: 17px; }
+  .vs-stage span { font-size: 13px; max-width: 90vw; }
+
+  /* Results: a tighter hero and strip. */
+  .results-hero { gap: 12px; padding: 8px 12px 0; }
+  .results-hero img { height: clamp(90px, 16vh, 150px); }
+  .results-hero h2 { font-size: clamp(26px, 8vw, 44px); overflow-wrap: anywhere; }
+  .results-strip { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+  .results-strip .stat { padding: 8px 12px; }
+  .results-strip .stat strong { font-size: clamp(18px, 5vw, 26px); }
+  .reel { grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); }
+  .results-grid { grid-template-columns: minmax(0, 1fr); }
+  .standing dl { grid-template-columns: repeat(3, auto); }
+  .results-actions { gap: 12px; padding-bottom: 4px; }
+  .results-actions button { flex: 1 1 140px; }
+}
+
+/* Upright phone: the VS fighters sit side by side, with the mark between them on its own line when it won't fit. */
+@media (max-width: 560px) {
+  .vs-row { flex-wrap: nowrap; gap: 4px; }
+  .vs-side { gap: 4px; }
+  .vs-fighter img { height: clamp(140px, 30vh, 260px); max-width: 40vw; }
+  .vs-mark { font-size: 44px; }
+}
+
+/* On its side: the menu goes to two columns so nine entries fit without a long scroll, and the VS screen
+   drops the stage blurb so the cards clear the bottom edge. */
+@media (max-height: 520px) and (min-width: 561px) {
+  .main-screen { grid-template-columns: 1fr; align-items: start; }
+  .main-menu { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+  .main-menu > :not(.menu-item) { grid-column: 1 / -1; }
+  .main-menu .menu-item span { display: none; }
+  .main-menu .menu-item { align-content: center; }
+  .vs-fighter img { height: clamp(100px, 34vh, 180px); }
+  .vs-stage span { display: none; }
+  .versus-body { gap: 6px; }
+}

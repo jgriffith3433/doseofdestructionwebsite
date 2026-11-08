@@ -1,2 +1,1 @@
-- lesson: Out-of-credits is not a code failure — a beta build "failed" with Studio's "out of credits: playtest.run needs 6" message; check the failure text before changing code, and say so in the summary.
-- lesson: npm ci before typecheck/test — a fresh worktree has no node_modules (tsc and @noble/curves missing); npm test then fails only on the sparse-checkout head images.
+- lesson: phone layout lives at the end of game.css — one block under (max-width:560px),(max-height:520px) overrides desktop rules; keep new phone tweaks there. The presentation scenario's checkClipping only judges the window it runs in, so run it at 390x844 / 844x390.

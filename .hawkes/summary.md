@@ -1,15 +1,12 @@
-# Announcer and Blog Man commentary — attempt 2
+# Phone layout for menu, select, stages, VS and results
 
-**What was wrong:** nothing in the code. The earlier beta build failure was Studio's own "out of credits" error (playtest.run needs 6, 1 left), not a compile or test error. This branch starts from beta, which already has the work.
+**What was wrong:** the screens only had 900px/560px breakpoints and 800px/520px height rules built for desktop: buttons were 32–40 px, the ticker and VS name cards kept desktop sizes, and the landscape VS screen (overflow hidden) pushed cards off the bottom.
 
-**What is already on this branch, unchanged:**
-- `src/game/commentary.ts` turns sim events into announcer lines (`announcer.<kind>.<n>`), with 12 kinds: first-blood, ko, comeback, last-stock, showdown, self-destruct, big-hit, combo, danger, shield-break, hazard, stage-event, time-low, lull. It also holds Blog Man's per-season intros (`blog-man.intro.<chapter>`).
-- `main.ts` `broadcast()` shows the caption, plays the voice if recorded, and fires `dod:commentary`. No line repeats back to back.
-- The `commentary` playtest scenario in `src/game/playtest/` covers the three criteria. Part 1 plays a versus match and logs `call-<kind>`, `call-kinds` and `call-repeat` problems. Part 2 plays the first chapter of each season and logs `blog-intro` and `blog-intros`.
-- `src/game/test/commentary.test.ts` (part of `npm test`).
+**Changed:**
+- `src/game/game.css`: a "phone" block at the end, under `(max-width: 560px), (max-height: 520px)` (never matches 16:9 / 20:9 desktop windows). It sets 44 px minimums on all buttons (Back, rule +/- , slot tools, Fight, menu items, stage cards, results actions) with 8–12 px gaps; a slimmer ticker (30 px, smaller text, ellipsis) with the bottom safe area; smaller VS fighters, name cards, VS mark and stage line; a tighter results hero and strip. On its side (≤520 tall) the main menu goes to two columns and the VS stage blurb is dropped. Safe-area insets are kept on every screen. The ON AIR bug stays hidden ≤900 as before.
+- `src/game/playtest/dod.ts`: `presentation` now also checks the character select and stage select screens. At phone size (≤560 wide or ≤520 tall) `checkClipping` also checks every button is ≥44 px tall and none overlap (`phone-targets` event, or a `bug` problem), and labels the shape "phone portrait/landscape".
+- `src/game/playtest/scenarios.ts` description + regenerated `site/playtest-bridge.js`.
 
-**Checks run:** `npm ci`, `npm run typecheck` (pass), `node src/game/test/commentary.test.ts` (pass: 12 call kinds, 11 calls, 39 Blog Man intros across 10 seasons). `npm test` has 33 failures, all missing `characters/head/*.webp` (sparse checkout). No other failure. The site build was not run here.
+**Checked:** `npm run typecheck` passes. `npm test`: only the 33 known `characters/head/*.webp` failures (sparse checkout), none new. I did not run the scenario or view the layout in a browser here (none available), so the phone CSS is untested visually. The site build wasn't run.
 
-**Change in this attempt:** `.hawkes/scenario.txt` = `commentary`, plus these notes. No game code changed.
-
-**For J:** beta's playtest of `commentary` needs Studio credits (it needs 6). Top up in Settings → Plan and credits, then re-run. The voice lines are captions only for now (audio null; the Voice tab can record them). No GPU work was done, so there is no estimate.
+**For J:** run `presentation` at 390x844 and 844x390 (the scenario reads the window size; it can't resize it). Any `phone-targets` or `no-clipping` problem names the element. Scope left: Campaign map, Profile, Leaderboard, How to play and Settings were not tuned. No GPU work, so no estimate.
