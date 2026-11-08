@@ -334,6 +334,9 @@ export class Renderer {
 
   // --------------------------------------------------------------- fighters
 
+  /** Told (sheets ready, sheets total) while a match's clip sheets load; the VS card shows it. */
+  onLoadProgress: ((done: number, total: number) => void) | null = null;
+
   /** Builds a sprite for each fighter. Still art is cropped to its visible pixels first. */
   async setFighters(state: GameState, keepStage = false): Promise<void> {
     for (const v of this.views) {
@@ -421,6 +424,8 @@ export class Renderer {
   private async preloadClips(): Promise<void> {
     const keep = new Set<string>();
     const waits: Promise<void>[] = [];
+    let total = 0;
+    let loaded = 0;
     this.views.forEach((v, slot) => {
       if (!v.anims) return;
       for (const key of Object.keys(v.anims.clips)) {
@@ -429,13 +434,16 @@ export class Renderer {
         keep.add(id);
         let tex = this.clipCache.get(id);
         if (!tex) {
-          const made = new Texture(url, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE);
+          // A sheet that fails (404) counts as settled, so it can't hold the match up; the fighter falls back to its still.
+          const made: Texture = new Texture(url, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE, null, () => made.onLoadObservable.notifyObservers(made));
           made.hasAlpha = true;
           this.clipCache.set(id, made);
           tex = made;
         }
         v.clipTex.set(key, tex);
-        if (!tex.isReady()) waits.push(new Promise((done) => tex!.onLoadObservable.addOnce(() => done())));
+        total++;
+        if (tex.isReady()) loaded++;
+        else waits.push(new Promise((done) => tex!.onLoadObservable.addOnce(() => { loaded++; this.onLoadProgress?.(loaded, total); done(); })));
       }
     });
     for (const [id, tex] of this.clipCache) {
@@ -444,8 +452,9 @@ export class Renderer {
         this.clipCache.delete(id);
       }
     }
-    // A sheet that fails to load shouldn't hold the match up forever.
-    await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, 8000))]);
+    this.onLoadProgress?.(loaded, total);
+    // Every sheet is waited for, so no fighter starts half-loaded. Only a hard cap (a sheet that never answers) lets go.
+    await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, 30000))]);
   }
 
   /** Resolves once every texture in the scene (stage art, clips) is loaded, or after a while. */
@@ -984,6 +993,34 @@ function paintProps(ctx: CanvasRenderingContext2D, props: StageDef['theme']['pro
       break;
   }
   ctx.restore();
+}
+
+const prefetched = new Map<string, Promise<void>>();
+
+/**
+ * Starts fetching fighters' art and every clip sheet into the browser cache, with no match or scene
+ * needed: called the moment fighters are picked, so setFighters and the VS card find them ready.
+ * Never throws; a failed fetch is simply retried by the real load.
+ */
+export function prefetchFighters(chars: number[]): Promise<void> {
+  const all = [...new Set(chars)].map((c) => {
+    const id = CHARACTERS[c].id;
+    let p = prefetched.get(id);
+    if (!p) {
+      p = (async () => {
+        const [, anims] = await Promise.all([loadArt(`/characters/large/${id}.webp`).catch(() => null), loadAnimSet(id)]);
+        if (!anims) return;
+        await Promise.all(Object.values(anims.clips).map((clip) => new Promise<void>((done) => {
+          const img = new Image();
+          img.onload = img.onerror = () => done();
+          img.src = `${anims.base}${clip.file}?v=${anims.version}`;
+        })));
+      })();
+      prefetched.set(id, p);
+    }
+    return p;
+  });
+  return Promise.all(all).then(() => undefined, () => undefined);
 }
 
 const artCache = new Map<string, Promise<HTMLCanvasElement>>();

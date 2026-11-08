@@ -47,7 +47,7 @@ export async function go(id: ScreenId, whileCovered?: () => void | Promise<void>
   if (!first) {
     audio.sfx('wipe');
     wipe.className = 'wipe in';
-    await wait(reduceMotion ? 120 : 340);
+    await wait(reduceMotion ? 120 : 260);
   }
   // The label only appears when the cover has to stay up for a while; a normal switch is just the wipe.
   const slow = first ? 0 : window.setTimeout(() => { if (wipe.className === 'wipe in') wipe.className = 'wipe in slow'; }, 500);
@@ -59,7 +59,7 @@ export async function go(id: ScreenId, whileCovered?: () => void | Promise<void>
   show(id);
   if (!first) {
     wipe.className = 'wipe out';
-    await wait(reduceMotion ? 120 : 360);
+    await wait(reduceMotion ? 120 : 280);
     wipe.className = 'wipe';
   }
   busy = false;

@@ -13,7 +13,7 @@ import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
 import { initTouchControls, showTouchControls } from './input/touch.ts';
 import { GAMEPAD_HELP, KEYBOARD_HELP, listenKeyboard, onKey, pausePressed, readLocal } from './input/devices.ts';
-import { PLAYER_COLORS, Renderer } from './render/renderer.ts';
+import { PLAYER_COLORS, Renderer, prefetchFighters } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
 import { CHAPTERS, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
@@ -242,6 +242,8 @@ function openVersus(): void {
         versus = cfg;
         saveVersus();
         analytics.fighterPicks('versus', cfg.slots);
+        // Both fighters are picked: start fetching them now, while the stage is chosen.
+        void prefetchFighters(cfg.slots.map((s) => s.char));
         go('stages', () => openStages(stagesFor('versus'), pickStage, stageChoice));
       },
     }),
@@ -259,6 +261,7 @@ function openTraining(): void {
       onDone: (cfg) => {
         training = cfg;
         analytics.fighterPicks('training', cfg.slots);
+        void prefetchFighters(cfg.slots.map((s) => s.char));
         go('stages', () => openStages(stagesFor('training'), pickStage, stageChoice));
       },
     }),
@@ -297,6 +300,8 @@ async function playChapter(c: Chapter): Promise<void> {
   chapter = c;
   analytics.chapterPlayed(c);
   const n = CHAPTERS.indexOf(c) + 1;
+  // The story card and scene take a while to read: the fight's fighters load meanwhile.
+  void prefetchFighters(c.fight.slots.map((s) => s.char));
   await playCardScreen(c, 'before');
   // A match found during the card has taken over.
   if (fight || chapter !== c) return;
@@ -365,7 +370,8 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   // screen): clip sheets, stage art, sounds, music and voice lines. Nothing loads mid-fight.
   // Then the first frames are drawn behind the menus, so the switch to the match doesn't stall.
   const loading = Promise.all([
-    renderer.setFighters(m.state),
+    // One retry: a fighter whose art failed once mustn't start the match half-built.
+    renderer.setFighters(m.state).catch(() => renderer.setFighters(m.state)),
     audio.preloadMatch(STAGES[setup.stage].id, m.state.fighters.map((f) => CHARACTERS[f.char].id)),
     audio.preloadLines(chapter ? [`blog-man.intro.${chapter.id}`] : []),
   ])
@@ -379,10 +385,21 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     await go('versus', () => {
       splash = playVersus(setup);
     });
+    // Still loading after a beat: the card shows how far it got (clip sheets, then the arena).
+    const bar = document.createElement('p');
+    bar.className = 'vs-progress';
+    bar.hidden = true;
+    $('versus-body').append(bar);
+    const say = (text: string) => { if (!loaded) { bar.hidden = false; bar.textContent = text; } };
+    renderer.onLoadProgress = (done, total) => say(done < total ? `Loading fighters ${done}/${total}` : 'Getting the arena ready…');
+    const late = window.setTimeout(() => say('Loading fighters…'), 500);
     await splash;
-    // The card is done but the match isn't ready: say so, rather than leave a frozen-looking card.
-    if (!loaded && !stale()) $('loading').hidden = false;
+    // The card is done but the match isn't ready: keep saying so, rather than leave a frozen-looking card.
+    if (!loaded && !stale()) say(bar.textContent || 'Loading fighters…');
     await loading;
+    clearTimeout(late);
+    renderer.onLoadProgress = null;
+    bar.remove();
     if (stale()) return;
   } else {
     // The loading screen stays up until the match's first frame is drawn (under the wipe).
