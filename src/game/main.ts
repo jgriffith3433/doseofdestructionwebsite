@@ -15,7 +15,7 @@ import { STAGES } from './sim/stage.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
 import { GAMEPAD_HELP, KEYBOARD_HELP, listenKeyboard, onKey, pausePressed, readLocal } from './input/devices.ts';
 import { installPerfMonitor } from './playtest/hawkes-perf.js';
-import { PLAYER_COLORS, Renderer, prefetchFighters } from './render/renderer.ts';
+import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
 import { CHAPTERS, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
@@ -306,6 +306,7 @@ async function playChapter(c: Chapter): Promise<void> {
   const n = CHAPTERS.indexOf(c) + 1;
   // The story card and scene take a while to read: the fight's fighters load meanwhile.
   void prefetchFighters(c.fight.slots.map((s) => s.char));
+  prefetchStage(c.fight.stage);
   await playCardScreen(c, 'before');
   // A match found during the card has taken over.
   if (fight || chapter !== c) return;
