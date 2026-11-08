@@ -1247,6 +1247,16 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
 .profile-tile.locked { opacity: 0.4; cursor: not-allowed; }
 .profile-tile.locked img { filter: brightness(0); }
 
+/* Results on a 720p-tall desktop window: fit without scrolling, so the winner banner is never pushed off the top. */
+@media (min-height: 521px) and (max-height: 800px) and (min-width: 561px) {
+  .results-screen, .results-body { gap: 8px; }
+  .results-hero img { height: clamp(80px, 13vh, 130px); }
+  .results-hero div { padding-bottom: 8px; }
+  .results-hero h2 { font-size: clamp(30px, 5vw, 52px); }
+  .results-strip .stat { padding: 6px 14px; }
+  .highlights { padding: 8px 14px; gap: 6px; }
+}
+
 /* ------------------------------------------------------------------ phone */
 
 /* A phone, upright (390x844) or on its side (844x390): menu, select, stages, VS and results. Touch targets are 44px

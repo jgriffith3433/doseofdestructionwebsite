@@ -104,7 +104,7 @@ export function focusFirst(): void {
   }
   const list = candidates();
   const preferred = list.find((el) => el.dataset.autofocus !== undefined) ?? list[0];
-  preferred?.focus({ preventScroll: false });
+  preferred?.focus({ preventScroll: true });
 }
 
 /** Moves focus to the nearest control in a direction, by on-screen position. */
