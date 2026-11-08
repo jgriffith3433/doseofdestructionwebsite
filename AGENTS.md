@@ -74,6 +74,14 @@ Every page load starts behind the studio's full-screen Tap to play prompt (`#tap
 inline script unlocks sound even before the module loads); scenarios tap it first. Sound settings are the studio
 standard: `localStorage["hawkes.sound"]` = `{ on, music, sfx }` (`src/game/soundSettings.ts`); Effects also drives voices.
 
+Every match the hook watches is also an animation-over-time trace (`src/game/sim/trace.ts`, studio quality rule 5):
+per frame, each fighter's action, grounded flag and speed. A bug problem when an air state (jump/fall, air dodge,
+helpless) is held on the ground for over 0.3 s (the landing never fired), a ground state is held in the air for over
+0.3 s, a fighter walks in place or idles while sliding at walking speed for over 0.3 s, or a timed state lasts over 5 s
+(no exit); event `anim-trace` at each match end. `npm test` runs the same trace on every bot match. Walk clips play by
+ground covered, not by the clock (`render/anims.ts` `walkFrame`: playback = speed / the clip's natural speed, which is
+the fighter's full walking speed at the clip's fps), so slow walks don't slide.
+
 Reported: metrics `kos`, `falls`, `damageDealt`, `damageTaken` (percent), `matchSeconds`, `stocksLeft`,
 `wins`/`losses`, `chaptersCleared`, plus fps; events `match-start`, `ko`, `match-end`, `chapter`,
 `chapter-cleared`; problems for missing images, clip sheets, sounds and voice files (404s), fighters without

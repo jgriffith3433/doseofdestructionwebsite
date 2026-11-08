@@ -21,6 +21,7 @@ import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
 import { ACT } from '../sim/state.ts';
+import { AnimTrace } from '../sim/trace.ts';
 import { CARD_MS } from '../ui/views.ts';
 import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, saveUnlocks, unlocks } from '../campaign/story.ts';
 import { SCENARIOS } from './scenarios.ts';
@@ -182,10 +183,18 @@ class Run {
 
   // ---------------------------------------------------------- watching
 
+  /** Animation over time (studio rule 5): each match's per-frame state is checked against the motion. */
+  private trace = new AnimTrace();
+  private traceFrames = 0;
+
   private onTick(m: Match, events: SimEvent[]): void {
     const s = m.state;
     const me = m.player;
     if (m !== this.seen) this.onMatchStart(m);
+    this.traceFrames++;
+    for (const p of this.trace.check(s)) {
+      this.t.problem('bug', `animation over time on ${STAGES[s.stage].name}: ${p.text}`);
+    }
     for (const e of events) {
       if (e.type === 'hit') {
         this.lastHitFrame = s.frame;
@@ -245,6 +254,7 @@ class Run {
       this.t.metric('stocksLeft', Math.max(0, s.fighters[me]?.stocks ?? 0));
       this.t.add(won ? 'wins' : 'losses');
       this.t.event('match-end', `${won ? 'won' : 'lost'} in ${Math.round(secs)} s${s.timedOut ? ' (time)' : ''}`);
+      this.t.event('anim-trace', `${this.traceFrames} frames traced, ${this.trace.problems.length} state/motion mismatches`);
     }
     this.t.progress(this.progressNow());
   }
@@ -258,6 +268,8 @@ class Run {
 
   private onMatchStart(m: Match): void {
     this.seen = m;
+    this.trace = new AnimTrace();
+    this.traceFrames = 0;
     this.lastHitFrame = m.state.frame;
     this.quietWarned = false;
     this.overSeen = false;
