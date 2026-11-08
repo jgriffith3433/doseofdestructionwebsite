@@ -813,6 +813,11 @@ class Run {
     const bad = this.clippedText(root);
     if (bad.length) for (const b of bad.slice(0, 5)) t.problem('bug', `${where}: text clipped at ${innerWidth}x${innerHeight} (${shape}): ${b}`);
     else t.event('no-clipping', `${where}: no text clipped at ${innerWidth}x${innerHeight} (${shape})`);
+    // A heading pushed above the top of the window (a scrolled screen) is clipped too, whatever its text width.
+    const head = root.querySelector<HTMLElement>('h1, h2');
+    if (head && head.getClientRects().length && head.getBoundingClientRect().top < -1) {
+      t.problem('bug', `${where}: heading "${(head.textContent ?? '').trim().slice(0, 30)}" is above the top of the window (top ${Math.round(head.getBoundingClientRect().top)}) at ${innerWidth}x${innerHeight} (${shape})`);
+    }
     if (!phone) return;
     const small = this.phoneTargets(root);
     if (small.length) for (const b of small.slice(0, 5)) t.problem('bug', `${where}: touch target at ${innerWidth}x${innerHeight} (${shape}): ${b}`);
