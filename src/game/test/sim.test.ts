@@ -12,6 +12,9 @@ import { step } from '../sim/step.ts';
 import { Bot } from '../ai/bot.ts';
 import { Match, type SlotSetup } from '../match.ts';
 import { CHAPTERS, SEASONS, isOpen, seasonOpen } from '../campaign/story.ts';
+import { AnimTrace, TRACE_GRACE, type TraceProblem } from '../sim/trace.ts';
+import { ACT } from '../sim/state.ts';
+import { walkFrame, type Clip } from '../render/anims.ts';
 
 declare const process: { exit(code: number): never };
 
@@ -94,13 +97,17 @@ STAGES.forEach((stage, si) => {
   check(`${stage.name}: deterministic and rollback-safe`, a === b && hashState(restored) === a, a.toString(16));
 });
 
+/** Every bot match is also an animation-over-time trace (studio rule 5): state must match motion every frame. */
+const traced: string[] = [];
 function botMatch(setup: FighterSetup[], opts: GameOptions, level = 6): { state: GameState; secs: number; hits: number } {
   const state = newGame(setup, opts);
   const bots = setup.map((_, i) => new Bot(i, level, 1000 + i));
+  const trace = new AnimTrace();
   let frames = 0;
   let hits = 0;
   while (!state.over && frames < 60 * 60 * 8) {
     hits += step(state, bots.map((b) => b.think(state))).filter((e) => e.type === 'hit').length;
+    for (const p of trace.check(state)) traced.push(`${STAGES[opts.stage ?? 0].name} frame ${p.frame}: ${p.text}`);
     frames++;
   }
   return { state, secs: Math.round(frames / 60), hits };
@@ -379,6 +386,59 @@ STAGES.forEach((stage, si) => {
   const sf = CHAPTERS.find((ch) => ch.id === 'series-finale');
   check('season 7: Series Finale is a streak fight with a clock', sf?.fight.objective === 'streak' && (sf.fight.streak ?? 0) >= 2 && (sf.fight.rules.timeLimit ?? 0) > 0);
   check('season 7: the streak chapter keeps the damage rule and its unlock', sf?.fight.rules.damage === 120 && sf.unlock === 'future-man');
+}
+
+{
+  // Animation over time: no bot match above showed a state that didn't match the motion.
+  check('trace: every bot match keeps state and motion in step (landing fires, no walking in place, every state exits)', traced.length === 0, traced.slice(0, 3).join('; '));
+
+  // The checker itself catches a landing that never fires, and lets a short one pass.
+  const state = newGame([{ char: 0 }, { char: 1 }], { stocks: 1, seed: 1, stage: 0 });
+  const f = state.fighters[0];
+  const trace = new AnimTrace();
+  const found: TraceProblem[] = [];
+  f.action = ACT.AIR;
+  f.grounded = 1;
+  for (let i = 0; i < TRACE_GRACE; i++) { state.frame++; found.push(...trace.check(state)); }
+  check('trace: an air state on the ground for 0.3 s or less passes', found.length === 0);
+  for (let i = 0; i < 4; i++) { state.frame++; found.push(...trace.check(state)); }
+  check('trace: an air state on the ground past 0.3 s fails', found.some((p) => p.kind === 'air-while-grounded' && p.fighter === 0));
+  f.action = ACT.WALK;
+  f.vx = 0;
+  for (let i = 0; i < TRACE_GRACE + 2; i++) { state.frame++; found.push(...trace.check(state)); }
+  check('trace: walking in place fails', found.some((p) => p.kind === 'walk-in-place'));
+
+  // No foot sliding: walk frames follow the ground covered, so half speed takes twice the frames per cycle.
+  const clip: Clip = { file: '', frames: 8, cols: 8, rows: 1, fw: 1, fh: 1, ax: 0, ay: 0, fps: 12, loop: true };
+  const walker = { ...f, action: ACT.WALK, facing: 1, x: 0 };
+  const ch = CHARACTERS[f.char];
+  const cycle = (speed: number) => {
+    let frames = 0;
+    let wraps = 0;
+    let prev = walkFrame(walker, clip);
+    walker.x = 0;
+    while (wraps < 2 && frames < 10000) {
+      walker.x += speed;
+      const i = walkFrame(walker, clip);
+      if (i < prev) wraps++;
+      prev = i;
+      frames++;
+    }
+    return frames / 2;
+  };
+  const full = cycle(ch.walkSpeed);
+  const half = cycle(ch.walkSpeed / 2);
+  check('walk: at full speed one cycle plays at the clip\'s own rate', Math.abs(full - (60 * clip.frames) / clip.fps) <= 1, `${full} frames`);
+  check('walk: at half speed a cycle takes twice as long (feet stay planted)', Math.abs(half - 2 * full) <= 2, `${half} vs ${full}`);
+  walker.x = 1234;
+  const stopped = walkFrame(walker, clip);
+  check('walk: standing still holds the stride', walkFrame(walker, clip) === stopped);
+  walker.facing = -1;
+  walker.x = 0;
+  const a = walkFrame(walker, clip);
+  // A quarter cycle to the left (full speed, 10 frames) is two frames further on, not two back.
+  walker.x = -ch.walkSpeed * 10;
+  check('walk: walking left plays the cycle forward too', a === 0 && walkFrame(walker, clip) === 2, `${a} -> ${walkFrame(walker, clip)}`);
 }
 
 if (failed) {

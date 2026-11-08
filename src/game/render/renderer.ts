@@ -876,7 +876,8 @@ function proceduralPose(f: Fighter, stage: StageDef): [number, number, number, n
   const t = f.frame;
   switch (f.action) {
     case ACT.WALK:
-      return [1, 1, -f.facing * 0.06, Math.abs(Math.sin(t * 0.35)) * 0.04];
+      // The bob follows the ground covered (as fast as the old clock at full walking speed), so a slow walk doesn't skate.
+      return [1, 1, -f.facing * 0.06, Math.abs(Math.sin((f.x * f.facing * 0.35) / ch.walkSpeed)) * 0.04];
     case ACT.CROUCH:
       return [1.08, 0.78, 0, 0];
     case ACT.JUMPSQUAT:
