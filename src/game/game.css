@@ -964,6 +964,13 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
 .booth-blog-man { border-left-color: #4fc3f7; font-style: italic; }
 .booth-who { display: block; font-size: 0.6em; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); font-style: normal; }
 @keyframes booth-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+/* Touch layouts: the bottom is the thumbs' (stick, buttons, damage HUD), so the caption goes to a
+   narrow strip under the timer, clear of the PAUSE button. */
+@media (pointer: coarse) {
+  .booth { top: calc(max(12px, env(safe-area-inset-top)) + 84px); bottom: auto; max-width: min(520px, 62vw); padding: 6px 12px; font-size: clamp(14px, 2.2vw, 20px); }
+  @keyframes booth-in-top { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  .booth { animation-name: booth-in-top; }
+}
 
 /* ---------------------------------------------------------------- narrow */
 
