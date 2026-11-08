@@ -22,7 +22,8 @@ import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
 import { ACT } from '../sim/state.ts';
 import { AnimTrace } from '../sim/trace.ts';
-import { CARD_MS } from '../ui/views.ts';
+import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
+import { MAX_WORDS } from '../campaign/sceneText.ts';
 import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, saveUnlocks, unlocks } from '../campaign/story.ts';
 import { SCENARIOS } from './scenarios.ts';
 import { stagesFor } from '../modes.ts';
@@ -72,7 +73,7 @@ const CORE_CLIPS = ['idle', 'walk', 'jump', 'fall', 'land', 'hurt', 'shield'];
 
 const SCREEN_NAMES: Record<ScreenId, string> = {
   title: 'Title', main: 'Main Menu', select: 'Character Select', stages: 'Stage Select', versus: 'VS',
-  campaign: 'Campaign Map', card: 'Story Card', dialogue: 'Dialogue', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
+  campaign: 'Campaign Map', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
 };
 
 const MOVE_NAMES = Object.fromEntries(Object.entries(MOVE).map(([k, v]) => [v, k.toLowerCase()])) as Record<number, string>;
@@ -294,6 +295,7 @@ class Run {
     const m = this.game.match();
     if (promptShowing()) this.t.scene('Tap to play');
     else if (settingsShowing()) this.t.scene(m ? 'Settings (paused)' : 'Settings');
+    else if (sceneShowing()) this.t.scene(`Story scene (${this.q('#scene')?.getAttribute('data-scene') ?? ''})`);
     else if (id) this.t.scene(id === 'match' && m ? `Match · ${STAGES[m.state.stage].name}` : SCREEN_NAMES[id]);
     // A match that is meant to be running but whose clock has stopped.
     const now = performance.now();
@@ -602,63 +604,101 @@ class Run {
   private async results(): Promise<boolean> {
     const m = this.game.match() ?? this.seen;
     const won = m?.playerWon() ?? false;
+    // A won campaign episode signs off in the arena first (the outro scene), then the results come.
+    await this.t.until(() => sceneShowing() || currentScreen() === 'results', 30000, 'the outro or the results');
+    if (sceneShowing()) await this.passScene();
     await this.screen('results', 30000);
     return won;
   }
 
-  /** The first story card of a run is left to time out by itself (the story-cards scenario); the others are skipped. */
+  /** The first story card of a run is left to time out by itself (the story-cards scenario); the others are cut short. */
   private cardAuto = false;
   private cardsSeen = 0;
 
   /**
-   * A story card (the page's `#card`): checks it names the episode and says the line content/campaign.json gives
-   * the chapter for it, then skips it with its button (or, once, waits for it to move on by itself).
+   * A story card: the live scene's lower third (`#scene-card`, "Tonight" before the episode, "Signing off" after
+   * it). Checks it names the episode and says the line content/campaign.json gives the chapter for it, then cuts
+   * it short with Next (or, once, waits for it to move on by itself).
    */
   private async playCard(): Promise<void> {
     const t = this.t;
     const text = (id: string) => this.q(id)?.textContent?.trim() ?? '';
-    const title = text('#card-title');
-    const which = text('#card-tag') === 'Tonight' ? 'before' : 'after';
-    const line = text('#card-line');
+    const onCard = () => this.q('#scene')?.getAttribute('data-beat') === 'card';
+    const title = text('#scene-card-title');
+    const which = text('#scene-card-tag') === 'Tonight' ? 'before' : 'after';
+    const line = text('#scene-card-line');
     const c = CHAPTERS.find((x) => x.title === title);
     const want = c?.card?.[which];
     const shownAt = performance.now();
     this.cardsSeen++;
-    t.event(`card-${which}`, `${text('#card-kicker')} · ${title}: "${line}"`);
+    t.event(`card-${which}`, `${text('#scene-card-kicker')} · ${title}: "${line}"`);
     if (!c) t.problem('bug', `the story card names "${title}", which is no episode in content/campaign.json`);
     else if (!line || line !== want) t.problem('bug', `the ${which} card of ${c.id} says "${line}", content/campaign.json has "${want ?? ''}"`);
-    if (!/^Season \d+ · Episode \d+$/.test(text('#card-kicker'))) t.problem('bug', `the story card has no season and episode line ("${text('#card-kicker')}")`);
+    if (!/^Season \d+ · Episode \d+$/.test(text('#scene-card-kicker'))) t.problem('bug', `the story card has no season and episode line ("${text('#scene-card-kicker')}")`);
     if (this.cardAuto) {
       this.cardAuto = false;
-      await this.t.until(() => currentScreen() !== 'card', CARD_MS + 8000, 'the story card to move on by itself');
+      await this.t.until(() => !onCard(), SCENE_CARD_MS + 8000, 'the story card to move on by itself');
       const ms = Math.round(performance.now() - shownAt);
       t.metric('cardAutoMs', ms);
       t.event('card-auto', `moved on by itself after ${(ms / 1000).toFixed(1)} s`);
       return;
     }
     await this.wait(900);
-    await this.click(() => this.q('#card-skip'), 'Skip (story card)');
+    if (!onCard()) return;
+    await this.click(() => this.q('#scene-next'), 'Next (story card)');
     const t0 = performance.now();
-    await this.t.until(() => currentScreen() !== 'card', 5000, 'the story card to be skipped');
-    t.event('card-skipped', `${which} card of ${title} skipped, gone in ${Math.round(performance.now() - t0)} ms`);
+    await this.t.until(() => !onCard(), 5000, 'the story card to be cut short');
+    t.event('card-skipped', `${which} card of ${title} cut short, gone in ${Math.round(performance.now() - t0)} ms`);
   }
 
   private async wait(ms: number): Promise<void> {
     await this.t.wait(ms);
   }
 
+  /**
+   * A chapter's story: the intro plays live in the arena (ui/scene.ts) after the VS card, before Ready. After
+   * Continue on the results nothing more comes (the outro played after Game!, see results()), so this returns
+   * once the map is back.
+   */
   private async playDialogue(): Promise<void> {
-    // A story card comes first (before the episode, and after the fight is won).
-    await this.t.until(() => (currentScreen() === 'card' || currentScreen() === 'dialogue') && !switching(), 20000, 'the story card or the dialogue');
-    if (currentScreen() === 'card') await this.playCard();
-    await this.screen('dialogue');
+    await this.t.until(
+      () => sceneShowing() || currentScreen() === 'campaign' || currentScreen() === 'results' || this.game.phase() === 'play',
+      60000,
+      'the story scene',
+    );
+    if (sceneShowing()) await this.passScene();
+  }
+
+  /**
+   * Plays through a live story scene like a player: reads the card, then each line for a moment and Next.
+   * Every piece of on-screen story text must be one short line (studio rule 6e); the beats are logged.
+   */
+  private async passScene(): Promise<void> {
+    const t = this.t;
+    const root = this.q('#scene');
+    const which = root?.getAttribute('data-scene') ?? '?';
     const t0 = performance.now();
-    // Next finishes the typing, the next Next moves on: read each line for a moment like a player.
-    while (currentScreen() === 'dialogue' && performance.now() - t0 < 120000) {
-      if (!switching()) this.q('#dlg-next')?.click();
+    const seen = new Set<string>();
+    let longest = 0;
+    while (sceneShowing() && performance.now() - t0 < 120000) {
+      const beat = root?.getAttribute('data-beat') ?? '';
+      if (beat === 'card' && !seen.has('card')) {
+        seen.add('card');
+        await this.playCard();
+        continue;
+      }
+      if (beat.startsWith('line-') && !seen.has(beat)) {
+        seen.add(beat);
+        const words = (this.q('#scene-text')?.textContent ?? '').trim().split(/\s+/).filter(Boolean).length;
+        longest = Math.max(longest, words);
+        if (words > MAX_WORDS) t.problem('bug', `story scene (${which}) shows ${words} words at once ("${this.q('#scene-text')?.textContent}"), more than one short line`);
+      }
+      if (!switching() && beat !== 'card') this.q('#scene-next')?.click();
       await this.t.wait(700);
     }
-    if (currentScreen() === 'dialogue') throw new Error('timed out waiting for the dialogue to end');
+    if (sceneShowing()) throw new Error('timed out waiting for the story scene to end');
+    const lines = [...seen].filter((b) => b.startsWith('line-')).length;
+    t.event('scene', `${which}: ${lines} line pieces in the arena, longest ${longest} words, ${Math.round((performance.now() - t0) / 1000)} s`);
   }
 
   // ---------------------------------------------------------- scenarios
@@ -2484,7 +2524,7 @@ class Run {
    * to its end, logging every call the announcer makes from the match's events (`call-<kind>`), checking no line
    * is said twice in a row and that the captions show. Part 2: Blog Man's intro per episode: setup shortcut marks
    * the campaign cleared so every season's map is open, then each season's first chapter (option `all`: every
-   * chapter) is played from the map for its dialogue and the match's first seconds, and left from Pause once
+   * chapter) is played from the map through its live intro scene and the match's first seconds, and left from Pause once
    * Blog Man has spoken. Events `call-<kind>`, `call-kinds`, `call-repeat`, `blog-intro`, `blog-intros`.
    */
   async commentary(): Promise<void> {

@@ -1,10 +1,10 @@
-// Stage select, the VS splash, the end-of-match screen, the campaign map and
-// dialogue scenes.
+// Stage select, the VS splash, the end-of-match screen and the campaign map. Story scenes play in the
+// arena (scene.ts).
 
 import { CHARACTERS } from '../sim/characters.ts';
 import { STAGES, type StageDef } from '../sim/stage.ts';
 import type { Match, MatchSetup } from '../match.ts';
-import { CHAPTERS, SEASONS, isOpen, seasonCleared, seasonOpen, type Chapter, type Line } from '../campaign/story.ts';
+import { CHAPTERS, SEASONS, isOpen, seasonCleared, seasonOpen, type Chapter } from '../campaign/story.ts';
 import { PLAYER_COLORS, prefetchStage } from '../render/renderer.ts';
 import { TEAM_COLORS } from './select.ts';
 import { $, formatTime, h, kids, largeUrl, pct, thumbUrl } from './dom.ts';
@@ -478,142 +478,4 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
     if (confirm('Start the campaign over? Cleared chapters will be locked again.')) onReset();
   };
   reset.disabled = done.size === 0;
-}
-
-// --------------------------------------------------------------- dialogue
-
-/** The characters on your side of the story stand on the left. */
-const LEFT = new Set(['exit-punk', 'blog-man']);
-
-/** How a scene ended: skipped (and at which line), or read to the end. */
-export interface SceneEnd {
-  skipped: boolean;
-  /** The line it was on (0-based). */
-  line: number;
-}
-
-/** Plays a scene line by line. Resolves when it ends or is skipped. */
-export function playDialogue(lines: Line[], chapterTitle: string): Promise<SceneEnd> {
-  const left = $<HTMLImageElement>('dlg-left');
-  const right = $<HTMLImageElement>('dlg-right');
-  const name = $('dlg-name');
-  const text = $('dlg-text');
-  const next = $<HTMLButtonElement>('dlg-next');
-  const skip = $<HTMLButtonElement>('dlg-skip');
-  $('dlg-chapter').textContent = chapterTitle;
-  let leftWho = '';
-  let rightWho = '';
-  // Seed each side with the first speaker who will stand there.
-  for (const l of lines) {
-    if (l.who === 'narrator') continue;
-    if (LEFT.has(l.who) && !leftWho) leftWho = l.who;
-    if (!LEFT.has(l.who) && !rightWho) rightWho = l.who;
-  }
-
-  const setPortrait = (img: HTMLImageElement, who: string) => {
-    const c = CHARACTERS.find((x) => x.id === who);
-    img.hidden = !c;
-    if (c) img.src = largeUrl(c.id);
-  };
-
-  return new Promise((resolve) => {
-    let i = -1;
-    let timer = 0;
-    let typing = false;
-    const end = (skipped = false) => {
-      clearInterval(timer);
-      audio.stopVoice();
-      next.onclick = null;
-      skip.onclick = null;
-      window.removeEventListener('keydown', onKey);
-      resolve({ skipped, line: Math.max(0, Math.min(i, lines.length - 1)) });
-    };
-    const finishTyping = () => {
-      clearInterval(timer);
-      typing = false;
-      text.textContent = lines[i].text;
-    };
-    const advance = () => {
-      if (typing) return finishTyping();
-      i++;
-      if (i >= lines.length) return end();
-      const l = lines[i];
-      const narrator = l.who === 'narrator';
-      if (!narrator) {
-        if (LEFT.has(l.who)) leftWho = l.who;
-        else rightWho = l.who;
-      }
-      setPortrait(left, leftWho);
-      setPortrait(right, rightWho);
-      left.classList.toggle('speaking', !narrator && LEFT.has(l.who));
-      right.classList.toggle('speaking', !narrator && !LEFT.has(l.who));
-      audio.voice(l.audio);
-      const c = CHARACTERS.find((x) => x.id === l.who);
-      name.textContent = narrator ? '' : (c?.name ?? l.who);
-      name.hidden = narrator;
-      text.classList.toggle('narration', narrator);
-      next.textContent = i === lines.length - 1 ? 'Continue' : 'Next';
-      // Type the line out; a press finishes it, a second press moves on.
-      let n = 0;
-      typing = true;
-      text.textContent = '';
-      clearInterval(timer);
-      timer = window.setInterval(() => {
-        n += 2;
-        text.textContent = l.text.slice(0, n);
-        if (n >= l.text.length) finishTyping();
-      }, 28);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      // A focused button already turns Enter and Space into a click, and the
-      // menu keys turn J into one.
-      if (document.activeElement instanceof HTMLButtonElement) return;
-      if (e.code === 'Enter' || e.code === 'Space') {
-        e.preventDefault();
-        advance();
-      }
-    };
-    next.onclick = advance;
-    skip.onclick = () => end(true);
-    window.addEventListener('keydown', onKey);
-    advance();
-  });
-}
-
-// --------------------------------------------------------------- story card
-
-/** How long a story card holds before it moves on by itself (a press of Skip, Enter or Space ends it sooner). */
-export const CARD_MS = 5000;
-
-/** Plays a story card: the episode's place, its title and a line, animated in. Resolves when it times out or is skipped. */
-export function playCard(card: { kicker: string; title: string; line: string }, which: 'before' | 'after'): Promise<{ skipped: boolean }> {
-  const root = $('card');
-  $('card-tag').textContent = which === 'before' ? 'Tonight' : 'Signing off';
-  $('card-kicker').textContent = card.kicker;
-  $('card-title').textContent = card.title;
-  $('card-line').textContent = card.line;
-  // Restart the entrance animation each time the card is used.
-  root.classList.remove('card-in');
-  void root.offsetWidth;
-  root.classList.add('card-in');
-  const skip = $<HTMLButtonElement>('card-skip');
-  return new Promise((resolve) => {
-    let timer = 0;
-    const end = (skipped: boolean) => {
-      clearTimeout(timer);
-      skip.onclick = null;
-      window.removeEventListener('keydown', onKey);
-      resolve({ skipped });
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (document.activeElement instanceof HTMLButtonElement) return;
-      if (e.code === 'Enter' || e.code === 'Space') {
-        e.preventDefault();
-        end(true);
-      }
-    };
-    skip.onclick = () => end(true);
-    window.addEventListener('keydown', onKey);
-    timer = window.setTimeout(() => end(false), CARD_MS);
-  });
 }

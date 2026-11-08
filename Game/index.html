@@ -102,35 +102,6 @@
     <div id="chapter-path" class="chapter-path"></div>
   </section>
 
-  <section id="card" class="screen card-screen" hidden>
-    <div class="card-bar top"></div>
-    <div class="card-body">
-      <p id="card-tag" class="card-tag"></p>
-      <p id="card-kicker" class="card-kicker"></p>
-      <h2 id="card-title" class="card-title"></h2>
-      <p id="card-line" class="card-line" aria-live="polite"></p>
-    </div>
-    <div class="card-bar bottom">
-      <button id="card-skip" class="secondary" type="button" data-autofocus>Skip</button>
-    </div>
-  </section>
-
-  <section id="dialogue" class="screen dialogue-screen" hidden>
-    <p id="dlg-chapter" class="dlg-chapter"></p>
-    <div class="dlg-stage">
-      <img id="dlg-left" class="dlg-portrait left" alt="">
-      <img id="dlg-right" class="dlg-portrait right" alt="">
-    </div>
-    <div class="dlg-box">
-      <p id="dlg-name" class="dlg-name"></p>
-      <p id="dlg-text" class="dlg-text" aria-live="polite"></p>
-      <div class="dlg-actions">
-        <button id="dlg-skip" class="secondary" type="button">Skip</button>
-        <button id="dlg-next" class="primary" type="button" data-autofocus>Next</button>
-      </div>
-    </div>
-  </section>
-
   <section id="howto" class="screen howto-screen" hidden>
     <header class="screen-head">
       <button class="back-btn" type="button" data-back data-autofocus>&larr; Back</button>
@@ -175,6 +146,26 @@
   </section>
 
   <section id="match" class="screen match-screen" hidden></section>
+
+  <!-- Live story scenes (src/game/ui/scene.ts): letterbox, the show's lower third and one short line at a time. -->
+  <div id="scene" class="scene" hidden>
+    <div class="scene-bar top"></div>
+    <div id="scene-card" class="scene-card" hidden>
+      <p id="scene-card-tag" class="scene-card-tag"></p>
+      <p id="scene-card-kicker" class="scene-card-kicker"></p>
+      <h2 id="scene-card-title" class="scene-card-title"></h2>
+      <p id="scene-card-line" class="scene-card-line" aria-live="polite"></p>
+    </div>
+    <div id="scene-sub" class="scene-sub" hidden>
+      <img id="scene-head" class="scene-head" alt="" hidden>
+      <span id="scene-who" class="scene-who"></span>
+      <span id="scene-text" class="scene-text" aria-live="polite"></span>
+    </div>
+    <div class="scene-bar bottom">
+      <button id="scene-skip" class="secondary" type="button">Skip</button>
+      <button id="scene-next" class="primary" type="button">Next</button>
+    </div>
+  </div>
 
   <div id="pause" class="overlay" hidden>
     <div class="panel small">
