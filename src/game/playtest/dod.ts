@@ -831,6 +831,73 @@ class Run {
    * started upright, waits for the runner to turn the window to landscape. It asks to be treated as a touch device.
    */
   async rotate(): Promise<void> {
+    // On a window that is not phone-shaped (the runner's 1280x720) the run makes its own phone: a framed copy of the game
+    // at 390x844 that the run then turns to 844x390 (a real resize and orientation media-query change inside the frame).
+    // `at: "phone"` is that copy: it judges the window it has.
+    if (this.options.at !== 'phone' && Math.min(innerWidth, innerHeight) > 500) return this.rotateFramed();
+    return this.rotateWindow();
+  }
+
+  /** Plays "rotate" in a frame sized like a phone, upright and then on its side, and reports what the frame saw. */
+  private async rotateFramed(): Promise<void> {
+    const t = this.t;
+    const back = document.createElement('div');
+    back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
+    const frame = document.createElement('iframe');
+    frame.title = 'Phone window (playtest)';
+    frame.allow = 'autoplay';
+    back.appendChild(frame);
+    // The frame keeps its CSS size (so the game inside sees a phone) and is scaled to sit inside the screen.
+    const turn = (w: number, h: number) => {
+      const k = Math.min(innerWidth / w, innerHeight / h, 1);
+      frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:2px solid #444;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:#000`;
+    };
+    turn(390, 844);
+    frame.src = `${location.pathname}?playtest=rotate&at=phone&seed=${this.options.seed ?? 1}`;
+    document.body.appendChild(back);
+    const inner = () => (frame.contentWindow as (Window & { hawkesPlaytest?: { report(): { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; outcome: string } | null } }) | null)?.hawkesPlaytest?.report() ?? null;
+    let seenEvents = 0;
+    const seenProblems = new Set<string>();
+    const forward = () => {
+      const r = inner();
+      if (!r) return null;
+      for (const e of r.events.slice(seenEvents)) {
+        if (e.type !== 'problem' && e.type !== 'start' && e.type !== 'start-at' && e.type !== 'rotate-not-turned') t.event(e.type, `${e.detail ?? ''} [phone frame]`);
+      }
+      seenEvents = r.events.length;
+      for (const p of r.problems) {
+        if (!seenProblems.has(p.message)) {
+          seenProblems.add(p.message);
+          t.problem('bug', `${p.message} [phone frame]`);
+        }
+      }
+      return r;
+    };
+    const has = (type: string) => !!inner()?.events.some((e) => e.type === type);
+    try {
+      t.event('phone-upright', 'a phone-sized window, 390x844 (portrait), opened over the game');
+      await t.until(() => {
+        forward();
+        return has('rotate-paused') || (inner()?.problems.length ?? 0) > 0 || inner()?.outcome === 'error';
+      }, 120000, 'the upright phone to show the Rotate prompt');
+      forward();
+      await t.wait(1500);
+      turn(844, 390);
+      t.event('phone-turned', 'the phone window turned to 844x390 (landscape)');
+      await t.until(() => {
+        const r = forward();
+        return !!r && r.outcome !== 'stuck' && has('landscape-lock-safe');
+      }, 120000, 'the turned phone to hide the prompt and resume');
+      forward();
+      if (!has('rotate-prompt')) t.problem('bug', 'the Rotate prompt was never seen at 390x844');
+      if (!has('rotate-hidden') || !has('rotate-resumed')) t.problem('bug', 'the prompt did not hide and play resume at 844x390');
+    } finally {
+      back.remove();
+    }
+    t.finish('done');
+  }
+
+  private async rotateWindow(): Promise<void> {
     const t = this.t;
     await this.toMainMenu();
     await this.startVersus(2);

@@ -228,7 +228,10 @@
     {
       "id": "rotate",
       "title": "Rotate your phone: upright on a touch device a full-screen prompt covers the game and the match pauses; turned to landscape it hides and play resumes; fullscreen asks for a landscape lock",
-      "description": "Versus match against the CPU, the run treated as a touch device. At 390x844 (upright): the \"Rotate your phone\" prompt fills the screen over the match (rotate-prompt) and the match frame stops (rotate-paused); it then waits for the window to turn to 844x390. At 844x390: the prompt is gone (rotate-hidden) and the match goes on (rotate-resumed). Also checks the landscape lock is requested through screen.orientation.lock (landscape-lock) and that a rejected or missing lock breaks nothing (landscape-lock-safe).",
+      "description": "Versus match against the CPU, the run treated as a touch device. On a desktop-sized window the run opens its own phone-sized frame (phone-upright, 390x844) and turns it to 844x390 (phone-turned): the events below are the frame's. Start point at: phone plays the window as it is. At 390x844 (upright): the \"Rotate your phone\" prompt fills the screen over the match (rotate-prompt) and the match frame stops (rotate-paused); it then waits for the window to turn to 844x390. At 844x390: the prompt is gone (rotate-hidden) and the match goes on (rotate-resumed). Also checks the landscape lock is requested through screen.orientation.lock (landscape-lock) and that a rejected or missing lock breaks nothing (landscape-lock-safe).",
+      "starts": [
+        "phone"
+      ],
       "seconds": 90,
       "tags": [
         "full"
