@@ -866,25 +866,27 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
 .hud-pct small { font-size: 0.55em; }
 .hud-pct.bump { animation: bump 160ms ease-out; }
 @keyframes bump { 0% { transform: scale(1.25) translateY(-3px); } 100% { transform: none; } }
-/* Touch controls (coarse pointers, in a match). Bottom corners, above the damage HUD. */
-.touch { position: fixed; inset: 0; pointer-events: none; z-index: 6; user-select: none; -webkit-user-select: none; touch-action: none; }
-.touch > * { pointer-events: auto; touch-action: none; }
+/* Touch controls (coarse pointers, in a match). Bottom corners, above the damage HUD. Settings → Touch size and
+   Touch opacity set --touch-scale (0.75 to 1.5) and --touch-opacity (0.3 to 1) on .touch. The groups stay anchored
+   to the safe-area corners and are capped to the window's height, so they never leave the screen at any size. */
+.touch { --touch-scale: 1; --touch-opacity: 1; --btn: min(calc(60px * var(--touch-scale)), 15vh); position: fixed; inset: 0; pointer-events: none; z-index: 6; user-select: none; -webkit-user-select: none; touch-action: none; }
+.touch > * { pointer-events: auto; touch-action: none; opacity: var(--touch-opacity); }
 .touch-stick {
   position: absolute;
   left: max(16px, env(safe-area-inset-left));
   bottom: calc(max(12px, env(safe-area-inset-bottom)) + 70px);
-  width: 128px;
-  height: 128px;
+  width: min(calc(128px * var(--touch-scale)), 36vh);
+  aspect-ratio: 1;
   border-radius: 50%;
   background: rgba(10, 10, 10, 0.55);
   border: 2px solid rgba(255, 255, 255, 0.5);
 }
 .touch-knob {
   position: absolute;
-  left: 38px;
-  top: 38px;
-  width: 52px;
-  height: 52px;
+  left: 29.7%;
+  top: 29.7%;
+  width: 40.6%;
+  height: 40.6%;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.55);
   pointer-events: none;
@@ -894,17 +896,18 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   right: max(16px, env(safe-area-inset-right));
   bottom: calc(max(12px, env(safe-area-inset-bottom)) + 70px);
   display: grid;
-  grid-template-columns: repeat(3, 60px);
-  gap: 8px;
+  grid-template-columns: repeat(3, var(--btn));
+  grid-auto-rows: var(--btn);
+  gap: calc(8px * var(--touch-scale));
 }
 .touch-btn {
-  min-width: 60px;
-  min-height: 60px;
+  min-width: 0;
+  min-height: 0;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.55);
   background: rgba(10, 10, 10, 0.55);
   color: #fff;
-  font: 600 13px Oswald, sans-serif;
+  font: 600 calc(13px * var(--touch-scale)) Oswald, sans-serif;
   letter-spacing: 0.04em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.85);
   text-transform: uppercase;
@@ -920,13 +923,13 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   position: absolute;
   top: max(12px, env(safe-area-inset-top));
   right: max(12px, env(safe-area-inset-right));
-  min-width: 64px;
-  min-height: 56px;
+  min-width: min(calc(64px * var(--touch-scale)), 20vw);
+  min-height: min(calc(56px * var(--touch-scale)), 15vh);
   border-radius: 12px;
   border: 2px solid rgba(255, 255, 255, 0.55);
   background: rgba(10, 10, 10, 0.55);
   color: #fff;
-  font: 600 14px Oswald, sans-serif;
+  font: 600 calc(14px * var(--touch-scale)) Oswald, sans-serif;
   letter-spacing: 0.04em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.85);
   text-transform: uppercase;

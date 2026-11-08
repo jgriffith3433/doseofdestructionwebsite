@@ -124,6 +124,15 @@
       ]
     },
     {
+      "id": "touch-settings",
+      "title": "Touch size and opacity: Settings shows the two sliders on touch devices, they resize and fade the stick and buttons live in a match, and are kept after a reload",
+      "description": "The run is treated as a touch device. Main menu → Settings shows Touch size (75-150%) and Touch opacity (30-100%) (touch-sliders); sets 150% / 50% (touch-saved: localStorage dod.touch); in a match measures the stick, Attack and Pause button and their opacity, all inside the window (touch-look); from Pause sets 75% / 100% (touch-resized: the controls shrink) and 120% / 60%; reloads (the run carries on through ?playtest=touch-settings) and checks Settings and a new match still have 120% / 60% (touch-kept). The player's own dod.touch is put back.",
+      "seconds": 120,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "graphics",
       "title": "Graphics settings: device defaults (phones Low, glow off), then Glow, Show FPS and Quality each take effect live from Pause, saved, and the fight's frame rate",
       "description": "A versus match against the CPU. Logs gfx-settings, gfx-device, gfx-default (touch: Low with glow off; desktop: High with glow on), gfx-glow, gfx-fps (the corner readout), gfx-quality (render scale before and after), gfx-no-reload; metrics fpsMatchHigh/Low, renderScale. The player's dod.gfx is put back. Run it at phone size for the 45 fps check.",
