@@ -2,6 +2,7 @@
 // content/sounds.json and content/voice.json (the Sounds and Voice tabs in
 // devtools.html); an entry with no file yet is simply silent.
 
+import { playSynth, type SynthKind } from './synth.ts';
 import soundsJson from '../../content/sounds.json' with { type: 'json' };
 import voiceJson from '../../content/voice.json' with { type: 'json' };
 import { busLevel, onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
@@ -232,6 +233,32 @@ class AudioSystem {
     if (!s?.file || !this.buses) return;
     const rate = opts.vary ? 0.94 + Math.random() * 0.12 : 1;
     void this.start(s.file, this.buses.sfx, s.volume, rate);
+  }
+
+  /** Plays a procedural effect (synth.ts): the crowd, a whoosh, a sting, an alarm, a thud. */
+  synth(kind: SynthKind, level = 1): void {
+    if (!this.ctx || !this.buses) return;
+    playSynth(this.ctx, this.buses.sfx, kind, level);
+  }
+
+  /** Fetches and decodes voice files by URL (a story scene's lines). Resolves after a while at most. */
+  async preloadUrls(urls: (string | null | undefined)[], timeoutMs = 6000): Promise<void> {
+    const list = [...new Set(urls.filter((u): u is string => !!u))];
+    const all = Promise.all(list.map((u) => (this.ctx ? this.buffer(u) : this.download(u))));
+    await Promise.race([all, new Promise((r) => setTimeout(r, timeoutMs))]);
+  }
+
+  /** How long a voice file plays, in ms, or null if it can't be decoded (no sound yet, or no file). */
+  async voiceMs(url: string | null | undefined): Promise<number | null> {
+    if (!url || !this.ctx) return null;
+    const b = await this.buffer(url);
+    return b ? b.duration * 1000 : null;
+  }
+
+  /** Lowers the music under dialogue (story scenes), and brings it back. */
+  duck(on: boolean): void {
+    if (!this.buses || !this.ctx) return;
+    this.buses.music.gain.setTargetAtTime(busLevel('music') * (on ? 0.35 : 1), this.ctx.currentTime, 0.25);
   }
 
   /** Plays a catalog voice line by id, like 'announcer.go' or 'fighter.slice.win'. */

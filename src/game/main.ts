@@ -23,7 +23,9 @@ import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
-import { openCampaign, openStages, playCard, playDialogue, playVersus, showResults, type ResultAction, type SceneEnd } from './ui/views.ts';
+import { openCampaign, openStages, playVersus, showResults, type ResultAction } from './ui/views.ts';
+import { playScene, skipScene, type SceneLine, type SceneStage } from './ui/scene.ts';
+import { chunkLine, chunkTimes } from './campaign/sceneText.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
 // Online code is never imported here: it loads after boot through the loader (a failure there can't stop the game).
@@ -36,11 +38,13 @@ import { initRotatePrompt, rotateShowing } from './ui/rotate.ts';
 const TICK_MS = 1000 / 60;
 
 // 'wait': an online match is loaded here and waits for the other player's page.
-type Phase = 'idle' | 'wait' | 'ready' | 'play' | 'pause';
+/** 'scene': a live story scene (ui/scene.ts) is playing in the arena; the sim waits. */
+type Phase = 'idle' | 'wait' | 'ready' | 'play' | 'pause' | 'scene';
 
 const canvas = $<HTMLCanvasElement>('stage');
 const renderer = new Renderer(canvas);
 renderer.onSound = (id) => audio.sfx(id);
+renderer.onSynth = (kind) => audio.synth(kind);
 listenKeyboard();
 initTouchControls(() => pauseKey(), true);
 initRotatePrompt();
@@ -307,41 +311,49 @@ async function playChapter(c: Chapter): Promise<void> {
   // The story card and scene take a while to read: the fight's fighters load meanwhile.
   void prefetchFighters(c.fight.slots.map((s) => s.char));
   prefetchStage(c.fight.stage);
-  await playCardScreen(c, 'before');
-  // A match found during the card has taken over.
-  if (fight || chapter !== c) return;
-  const scene = playDialogueScreen(c.intro, `Chapter ${n} · ${c.title}`, `${c.id}.intro`);
-  await scene;
-  // A match found during the scene has taken over.
-  if (fight || chapter !== c) return;
-  startMatch({ ...c.fight, title: `Chapter ${n} · ${c.title}`, subtitle: c.hint }, true);
+  // The episode opens in the arena: the VS card, then the intro plays live with the fighters (ui/scene.ts).
+  startMatch({ ...c.fight, title: `Chapter ${n} · ${c.title}`, subtitle: c.hint }, true, undefined, { chapter: c, which: 'intro' });
 }
 
-/** A story card (the chapter's `card` line in content/campaign.json), before the episode or after it is won. */
-async function playCardScreen(c: Chapter, which: 'before' | 'after'): Promise<void> {
-  const card = storyCard(c, which);
-  let shown: Promise<{ skipped: boolean }> | null = null;
-  await go('card', () => {
-    shown = playCard(card, which);
-  });
-  if (shown) {
-    const end = await (shown as Promise<{ skipped: boolean }>);
-    analytics.scene(`${c.id}.card-${which}`, { skipped: end.skipped, line: 0 }, 1);
-  }
+/** What a story scene plays: the chapter's intro (before Ready) or outro (after the episode is won). */
+interface SceneCue {
+  chapter: Chapter;
+  which: 'intro' | 'outro';
 }
 
-async function playDialogueScreen(lines: Chapter['intro'], title: string, id: string): Promise<void> {
-  let scene: Promise<SceneEnd> | null = null;
-  await go('dialogue', () => {
-    scene = playDialogue(lines, title);
-  });
-  if (scene) analytics.scene(id, await scene, lines.length);
+/** The arena, camera and sound a scene drives, for this match. The player stands first in the cast. */
+function sceneStage(m: Match): SceneStage {
+  const ids = m.state.fighters.map((f) => f.id);
+  const order = m.player >= 0 ? [m.player, ...ids.filter((id) => id !== m.player)] : ids;
+  return {
+    cast: order.map((id) => ({ id, who: CHARACTERS[m.state.fighters[id].char].id })),
+    direct: (shot) => renderer.direct(shot),
+    holdOffstage: (id, held) => renderer.holdOffstage(id, held),
+    arrive: (id) => renderer.arrive(id),
+    cue: (id) => renderer.cue(id),
+    voice: (url) => audio.voice(url),
+    stopVoice: () => audio.stopVoice(),
+    voiceMs: (url) => audio.voiceMs(url),
+    synth: (kind, level) => audio.synth(kind, level),
+    duck: (on) => audio.duck(on),
+  };
+}
+
+/** Plays a chapter's intro or outro live in the arena (phase 'scene'), with its story card as the lower third. */
+async function runScene(m: Match, cue: SceneCue): Promise<void> {
+  const c = cue.chapter;
+  const lines: SceneLine[] = cue.which === 'intro' ? c.intro : c.outro;
+  const card = storyCard(c, cue.which === 'intro' ? 'before' : 'after');
+  phase = 'scene';
+  audio.playMusic(`music-${STAGES[m.setup.stage].id}`);
+  $('scene-next').focus();
+  const end = await playScene(sceneStage(m), cue.which, lines, card);
+  analytics.scene(`${c.id}.card-${cue.which === 'intro' ? 'before' : 'after'}`, { skipped: end.cardSkipped, line: 0 }, 1);
+  analytics.scene(`${c.id}.${cue.which}`, end, lines.length);
 }
 
 async function chapterCleared(c: Chapter): Promise<void> {
-  const n = CHAPTERS.indexOf(c) + 1;
-  await playCardScreen(c, 'after');
-  await playDialogueScreen(c.outro, `Chapter ${n} · ${c.title}`, `${c.id}.outro`);
+  // The outro already played in the arena after Game! (finish).
   const firstTime = !progress.has(c.id);
   progress.add(c.id);
   saveProgress(progress);
@@ -354,7 +366,7 @@ async function chapterCleared(c: Chapter): Promise<void> {
 
 // ------------------------------------------------------------------ match
 
-async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { seed: number; found: Found }): Promise<void> {
+async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { seed: number; found: Found }, scene?: SceneCue): Promise<void> {
   endMatch();
   // A newer start (an online match found meanwhile) wins over this one.
   const token = ++startToken;
@@ -379,6 +391,8 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     renderer.setFighters(m.state).catch(() => renderer.setFighters(m.state)),
     audio.preloadMatch(STAGES[setup.stage].id, m.state.fighters.map((f) => CHARACTERS[f.char].id)),
     audio.preloadLines(chapter ? [`blog-man.intro.${chapter.id}`] : []),
+    // The story scenes' voice takes, so lines start on cue.
+    audio.preloadUrls(chapter ? [...chapter.intro, ...chapter.outro].map((l) => l.audio) : []),
   ])
     .then(() => renderer.warmUp(m.state))
     .catch((err) => console.error(err));
@@ -414,6 +428,9 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   }
 
   if (stale()) return;
+  // An intro scene brings the fighters on itself: they wait in the wings from the first frame.
+  const intro = !!scene && scene.which === 'intro' && scene.chapter.intro.length > 0;
+  for (const f of m.state.fighters) renderer.holdOffstage(f.id, intro);
   await go('match', () => {
     // The canvas may have changed size while menus were up.
     renderer.engine.resize();
@@ -435,6 +452,11 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     if (phase === 'wait' && f.phase === 'started') beginReady(m);
     return;
   }
+  if (intro && scene) {
+    await runScene(m, scene);
+    // Something else (an online match found, Quit) took over during the scene.
+    if (match !== m) return;
+  }
   beginReady(m);
 }
 
@@ -454,6 +476,7 @@ function beginReady(m: Match): void {
 }
 
 function endMatch(): void {
+  skipScene();
   // A match left any other way than its end, a restart or Quit (another match starting over it) ends its level here.
   if (match) analytics.matchEnd(match, 'quit', { reason: 'left' });
   // Leaving an online match any other way (another match starting) is a forfeit.
@@ -472,6 +495,8 @@ function endMatch(): void {
 /** Esc, Start or the on-screen pause button in a match: closes Settings if it is open, else pauses or resumes. */
 function pauseKey(): void {
   if (!match || phase === 'idle') return;
+  // Esc or Start in a story scene skips it.
+  if (phase === 'scene') return skipScene();
   if (settingsOpen()) closeSettings();
   else setPaused(phase !== 'pause');
 }
@@ -529,6 +554,7 @@ function afterTick(m: Match, events: SimEvent[]): void {
     renderer.stageEvent('end');
     banner(s.timedOut ? 'Time!' : 'Game!');
     audio.line(s.timedOut ? 'announcer.time' : 'announcer.game');
+    audio.synth('cheer');
   }
   // Online, the fight decides when it's over (on a frame both sides agree on): onlineEnded.
   if (s.over && s.endTimer === 0 && !fight) finish(m);
@@ -543,8 +569,21 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         if (e.shield) audio.sfx('hit-shield', { vary: true });
         else audio.sfx(e.dmg < 70 ? 'hit-light' : e.dmg < 130 ? 'hit-medium' : 'hit-heavy', { vary: true });
         break;
+      case 'hurt':
+        // Stage damage (hazards, damage zones) lands with a hit sound like any other hit.
+        audio.sfx(e.dmg < 70 ? 'hit-light' : 'hit-medium', { vary: true });
+        break;
+      case 'stage':
+        // The stage's events are heard: an alarm on the warning, a rush when it starts, a crowd reaction.
+        if (e.phase === 'warn') audio.synth('alarm', 0.8);
+        else if (e.phase === 'start') {
+          audio.synth('whoosh');
+          audio.synth('crowd', 0.6);
+        } else audio.synth('whoosh', 0.4);
+        break;
       case 'ko':
         audio.sfx('ko');
+        audio.synth('cheer', 0.7);
         audio.line(`fighter.${CHARACTERS[m.state.fighters[e.victim].char].id}.ko`);
         break;
       case 'jump':
@@ -687,13 +726,25 @@ const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', '
 setInterval(() => {
   const s = currentScreen();
   if (s && MENU_SCREENS.has(s)) audio.playMusic('music-menu');
-  else if (s === 'dialogue' || s === 'card' || s === 'versus') audio.playMusic(null);
+  else if (s === 'versus') audio.playMusic(null);
 }, 300);
 
 function finish(m: Match): void {
   phase = 'idle';
   const won = m.playerWon();
   const c = chapter;
+  // A won episode signs off in the arena first: the outro plays live, then the results.
+  if (m.setup.mode === 'campaign' && c && won && c.outro.length && match === m) {
+    void runScene(m, { chapter: c, which: 'outro' }).then(() => {
+      if (match === m) showFinish(m, won, c);
+    });
+    return;
+  }
+  showFinish(m, won, c);
+}
+
+function showFinish(m: Match, won: boolean, c: Chapter | null): void {
+  phase = 'idle';
   analytics.matchEnd(m, won ? 'complete' : 'death');
   const actions: ResultAction[] = [];
   if (m.setup.mode === 'campaign' && c) {
@@ -815,16 +866,28 @@ function askOnResults(m: Match): void {
   }, 900);
 }
 
-/** A commentary call: spoken if it has a take, and always captioned (and announced to the playtest). */
+/** A commentary call: spoken if it has a take, and captioned one short line at a time (and announced to the playtest). */
 function broadcast(c: Call): void {
   audio.line(c.id);
   document.querySelector('.booth')?.remove();
+  clearTimeout(boothTimer);
   const who = c.who === 'blog-man' ? 'Blog Man' : 'Announcer';
-  const el = h('div', { class: `booth booth-${c.who}`, 'data-call': c.kind, 'data-line': c.id }, h('span', { class: 'booth-who' }, who), c.text);
+  const text = h('span', { class: 'booth-text' });
+  const el = h('div', { class: `booth booth-${c.who}`, 'data-call': c.kind, 'data-line': c.id }, h('span', { class: 'booth-who' }, who), text);
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), c.who === 'blog-man' ? 6500 : 3200);
+  const pieces = chunkLine(c.text);
+  const times = chunkTimes(pieces, null);
+  let i = 0;
+  const show = () => {
+    if (!el.isConnected) return;
+    if (i >= pieces.length) return el.remove();
+    text.textContent = pieces[i];
+    boothTimer = window.setTimeout(show, times[i++]);
+  };
+  show();
   window.dispatchEvent(new CustomEvent('dod:commentary', { detail: c }));
 }
+let boothTimer = 0;
 
 function banner(text: string): void {
   const el = h('div', { class: 'banner' }, text);
