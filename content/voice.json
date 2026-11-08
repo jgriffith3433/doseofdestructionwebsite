@@ -1448,104 +1448,143 @@
       "group": "announcer",
       "who": "announcer",
       "text": "Gone! Off the screen!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.ko.3.mp3",
+      "take": {
+        "text": "Gone! Off the screen!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.ko.4",
       "group": "announcer",
       "who": "announcer",
       "text": "Lights out!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.ko.4.mp3",
+      "take": {
+        "text": "Lights out!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.comeback.1",
       "group": "announcer",
       "who": "announcer",
       "text": "What a comeback!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.comeback.1.mp3",
+      "take": {
+        "text": "What a comeback!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.comeback.2",
       "group": "announcer",
       "who": "announcer",
       "text": "From behind! Back in it!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.comeback.2.mp3",
+      "take": {
+        "text": "From behind! Back in it!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.comeback.3",
       "group": "announcer",
       "who": "announcer",
       "text": "Don't count them out!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.comeback.3.mp3",
+      "take": {
+        "text": "Don't count them out!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.last-stock.1",
       "group": "announcer",
       "who": "announcer",
       "text": "Last stock!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.last-stock.1.mp3",
+      "take": {
+        "text": "Last stock!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.last-stock.2",
       "group": "announcer",
       "who": "announcer",
       "text": "One life left!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.last-stock.2.mp3",
+      "take": {
+        "text": "One life left!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.last-stock.3",
       "group": "announcer",
       "who": "announcer",
       "text": "Running out of lives!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.last-stock.3.mp3",
+      "take": {
+        "text": "Running out of lives!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.showdown.1",
       "group": "announcer",
       "who": "announcer",
       "text": "Last stock each! This is it!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.showdown.1.mp3",
+      "take": {
+        "text": "Last stock each! This is it!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.showdown.2",
       "group": "announcer",
       "who": "announcer",
       "text": "One life apiece!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.showdown.2.mp3",
+      "take": {
+        "text": "One life apiece!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.showdown.3",
       "group": "announcer",
       "who": "announcer",
       "text": "Everything on the line!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.showdown.3.mp3",
+      "take": {
+        "text": "Everything on the line!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.self-destruct.1",
       "group": "announcer",
       "who": "announcer",
       "text": "Nobody touched them. Off they go.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.self-destruct.1.mp3",
+      "take": {
+        "text": "Nobody touched them. Off they go.",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.self-destruct.2",
       "group": "announcer",
       "who": "announcer",
       "text": "Gravity wins that one.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.self-destruct.2.mp3",
+      "take": {
+        "text": "Gravity wins that one.",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.self-destruct.3",
