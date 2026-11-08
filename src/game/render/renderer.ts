@@ -1023,6 +1023,19 @@ export function prefetchFighters(chars: number[]): Promise<void> {
   return Promise.all(all).then(() => undefined, () => undefined);
 }
 
+const prefetchedStages = new Set<number>();
+
+/** Starts fetching a stage's painted layers into the browser cache (on hover/focus in Stage Select, or when a chapter starts), so warmUp doesn't wait on them. */
+export function prefetchStage(stage: number): void {
+  if (prefetchedStages.has(stage)) return;
+  prefetchedStages.add(stage);
+  for (const l of STAGES[stage]?.layers ?? []) {
+    if (l.hidden || !l.image) continue;
+    const img = new Image();
+    img.src = `/${l.image}`;
+  }
+}
+
 const artCache = new Map<string, Promise<HTMLCanvasElement>>();
 
 /** Loads a character image and crops it to the pixels that are actually visible. */
