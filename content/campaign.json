@@ -1261,61 +1261,131 @@
     "intro": [
       {
         "who": "narrator",
-        "text": "Midnight at the Foundry. The arena lights come up on a walk-on with no entrance music."
+        "text": "Midnight at the Foundry. The arena lights come up on a walk-on with no entrance music.",
+        "audio": "/audio/voice/campaign.walk-on.intro-0.mp3",
+        "take": {
+          "text": "Midnight at the Foundry. The arena lights come up on a walk-on with no entrance music.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
       },
       {
         "who": "blog-man",
-        "text": "Breaking news, and I mean breaking. Tonight's walk-on used to run this show."
+        "text": "Breaking news, and I mean breaking. Tonight's walk-on used to run this show.",
+        "audio": "/audio/voice/campaign.walk-on.intro-1.mp3",
+        "take": {
+          "text": "Breaking news, and I mean breaking. Tonight's walk-on used to run this show.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "orchestrator",
-        "text": "No sponsor. No record. One baton. I signed the sheet like everybody else."
+        "text": "No sponsor. No record. One baton. I signed the sheet like everybody else.",
+        "audio": "/audio/voice/campaign.walk-on.intro-2.mp3",
+        "take": {
+          "text": "No sponsor. No record. One baton. I signed the sheet like everybody else.",
+          "voice": "onwK4e9ZLuTAKqWW03F9"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "You said there wasn't an exit."
+        "text": "You said there wasn't an exit.",
+        "audio": "/audio/voice/campaign.walk-on.intro-3.mp3",
+        "take": {
+          "text": "You said there wasn't an exit.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       },
       {
         "who": "orchestrator",
-        "text": "There isn't. There's only the next show. Tonight, I'm on the card."
+        "text": "There isn't. There's only the next show. Tonight, I'm on the card.",
+        "audio": "/audio/voice/campaign.walk-on.intro-4.mp3",
+        "take": {
+          "text": "There isn't. There's only the next show. Tonight, I'm on the card.",
+          "voice": "onwK4e9ZLuTAKqWW03F9"
+        }
       },
       {
         "who": "blog-man",
-        "text": "Network rules: the walk-on gets an extra stock. The champion gets top billing. Top billing is big."
+        "text": "Network rules: the walk-on gets an extra stock. The champion gets top billing. Top billing is big.",
+        "audio": "/audio/voice/campaign.walk-on.intro-5.mp3",
+        "take": {
+          "text": "Network rules: the walk-on gets an extra stock. The champion gets top billing. Top billing is big.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Fine. Bring the baton."
+        "text": "Fine. Bring the baton.",
+        "audio": "/audio/voice/campaign.walk-on.intro-6.mp3",
+        "take": {
+          "text": "Fine. Bring the baton.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       }
     ],
     "outro": [
       {
         "who": "narrator",
-        "text": "The baton spins across the floor. The arena holds its breath."
+        "text": "The baton spins across the floor. The arena holds its breath.",
+        "audio": "/audio/voice/campaign.walk-on.outro-0.mp3",
+        "take": {
+          "text": "The baton spins across the floor. The arena holds its breath.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
       },
       {
         "who": "orchestrator",
-        "text": "Best ratings this show has ever had. And I wasn't even hosting."
+        "text": "Best ratings this show has ever had. And I wasn't even hosting.",
+        "audio": "/audio/voice/campaign.walk-on.outro-1.mp3",
+        "take": {
+          "text": "Best ratings this show has ever had. And I wasn't even hosting.",
+          "voice": "onwK4e9ZLuTAKqWW03F9"
+        }
       },
       {
         "who": "blog-man",
-        "text": "Headline: Former Host Walks On, Walks Off, Champion Stays Champion. Working title."
+        "text": "Headline: Former Host Walks On, Walks Off, Champion Stays Champion. Working title.",
+        "audio": "/audio/voice/campaign.walk-on.outro-2.mp3",
+        "take": {
+          "text": "Headline: Former Host Walks On, Walks Off, Champion Stays Champion. Working title.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Keep the baton. I'll keep the card."
+        "text": "Keep the baton. I'll keep the card.",
+        "audio": "/audio/voice/campaign.walk-on.outro-3.mp3",
+        "take": {
+          "text": "Keep the baton. I'll keep the card.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       },
       {
         "who": "orchestrator",
-        "text": "Same time tomorrow?"
+        "text": "Same time tomorrow?",
+        "audio": "/audio/voice/campaign.walk-on.outro-4.mp3",
+        "take": {
+          "text": "Same time tomorrow?",
+          "voice": "onwK4e9ZLuTAKqWW03F9"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Same time tomorrow."
+        "text": "Same time tomorrow.",
+        "audio": "/audio/voice/campaign.walk-on.outro-5.mp3",
+        "take": {
+          "text": "Same time tomorrow.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       },
       {
         "who": "narrator",
-        "text": "He signed the sheet. He took the baton. The show goes on."
+        "text": "He signed the sheet. He took the baton. The show goes on.",
+        "audio": "/audio/voice/campaign.walk-on.outro-6.mp3",
+        "take": {
+          "text": "He signed the sheet. He took the baton. The show goes on.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
       }
     ],
     "fight": {
@@ -1878,25 +1948,50 @@
       },
       {
         "who": "blog-man",
-        "text": "I'm not sure I can do that. I'm going to try."
+        "text": "I'm not sure I can do that. I'm going to try.",
+        "audio": "/audio/voice/campaign.clip-show.intro-5.mp3",
+        "take": {
+          "text": "I'm not sure I can do that. I'm going to try.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       }
     ],
     "outro": [
       {
         "who": "lapis-man",
-        "text": "That was a long reach. It wasn't long enough."
+        "text": "That was a long reach. It wasn't long enough.",
+        "audio": "/audio/voice/campaign.clip-show.outro-0.mp3",
+        "take": {
+          "text": "That was a long reach. It wasn't long enough.",
+          "voice": "pqHfZKP75CvOlQylNhV4"
+        }
       },
       {
         "who": "blog-man",
-        "text": "Headline: Host Survives Own Show, Takes Credit. For once the headline is short enough."
+        "text": "Headline: Host Survives Own Show, Takes Credit. For once the headline is short enough.",
+        "audio": "/audio/voice/campaign.clip-show.outro-1.mp3",
+        "take": {
+          "text": "Headline: Host Survives Own Show, Takes Credit. For once the headline is short enough.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Good night."
+        "text": "Good night.",
+        "audio": "/audio/voice/campaign.clip-show.outro-2.mp3",
+        "take": {
+          "text": "Good night.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       },
       {
         "who": "narrator",
-        "text": "Four nights. Four sweeps. Nobody changed the channel."
+        "text": "Four nights. Four sweeps. Nobody changed the channel.",
+        "audio": "/audio/voice/campaign.clip-show.outro-3.mp3",
+        "take": {
+          "text": "Four nights. Four sweeps. Nobody changed the channel.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
       }
     ],
     "fight": {
@@ -1945,33 +2040,68 @@
     "intro": [
       {
         "who": "narrator",
-        "text": "Rainbow Full Pipe. Ramps, decks, and for once nothing drops in. The local station turned the effects off to save money."
+        "text": "Rainbow Full Pipe. Ramps, decks, and for once nothing drops in. The local station turned the effects off to save money.",
+        "audio": "/audio/voice/campaign.local-affiliate.intro-0.mp3",
+        "take": {
+          "text": "Rainbow Full Pipe. Ramps, decks, and for once nothing drops in. The local station turned the effects off to save money.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
       },
       {
         "who": "blog-man",
-        "text": "Breaking news: the show has been syndicated. Sweeps Week was so good, every city wants the champion. This is the first one. The budget is small. The headline is not."
+        "text": "Breaking news: the show has been syndicated. Sweeps Week was so good, every city wants the champion. This is the first one. The budget is small. The headline is not.",
+        "audio": "/audio/voice/campaign.local-affiliate.intro-1.mp3",
+        "take": {
+          "text": "Breaking news: the show has been syndicated. Sweeps Week was so good, every city wants the champion. This is the first one. The budget is small. The headline is not.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "ball-person",
-        "text": "Fast feet. Good kicks. I know every inch of this pipe."
+        "text": "Fast feet. Good kicks. I know every inch of this pipe.",
+        "audio": "/audio/voice/campaign.local-affiliate.intro-2.mp3",
+        "take": {
+          "text": "Fast feet. Good kicks. I know every inch of this pipe.",
+          "voice": "TX3LPaxmHKxFdv7VOQHJ"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Show me."
+        "text": "Show me.",
+        "audio": "/audio/voice/campaign.local-affiliate.intro-3.mp3",
+        "take": {
+          "text": "Show me.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       }
     ],
     "outro": [
       {
         "who": "ball-person",
-        "text": "Okay. You know it better."
+        "text": "Okay. You know it better.",
+        "audio": "/audio/voice/campaign.local-affiliate.outro-0.mp3",
+        "take": {
+          "text": "Okay. You know it better.",
+          "voice": "TX3LPaxmHKxFdv7VOQHJ"
+        }
       },
       {
         "who": "blog-man",
-        "text": "Headline: Local Affiliate Books Champion, Cannot Afford a Second Night. Too long, but it is true."
+        "text": "Headline: Local Affiliate Books Champion, Cannot Afford a Second Night. Too long, but it is true.",
+        "audio": "/audio/voice/campaign.local-affiliate.outro-1.mp3",
+        "take": {
+          "text": "Headline: Local Affiliate Books Champion, Cannot Afford a Second Night. Too long, but it is true.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Next city."
+        "text": "Next city.",
+        "audio": "/audio/voice/campaign.local-affiliate.outro-2.mp3",
+        "take": {
+          "text": "Next city.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       }
     ],
     "fight": {
@@ -2010,29 +2140,59 @@
     "intro": [
       {
         "who": "narrator",
-        "text": "Space Chess. The board is set, and a stern graphic in the corner of the screen reads: viewer discretion."
+        "text": "Space Chess. The board is set, and a stern graphic in the corner of the screen reads: viewer discretion.",
+        "audio": "/audio/voice/campaign.standards-and-practices.intro-0.mp3",
+        "take": {
+          "text": "Space Chess. The board is set, and a stern graphic in the corner of the screen reads: viewer discretion.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
       },
       {
         "who": "blog-man",
-        "text": "The second city has a censor. Hits will be shown at seventy percent. I am told this is \"family hour\". It is a broadcast."
+        "text": "The second city has a censor. Hits will be shown at seventy percent. I am told this is \"family hour\". It is a broadcast.",
+        "audio": "/audio/voice/campaign.standards-and-practices.intro-1.mp3",
+        "take": {
+          "text": "The second city has a censor. Hits will be shown at seventy percent. I am told this is \"family hour\". It is a broadcast.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "chooser",
-        "text": "I choose to stand here. I also choose to stand there. You can't choose for me."
+        "text": "I choose to stand here. I also choose to stand there. You can't choose for me.",
+        "audio": "/audio/voice/campaign.standards-and-practices.intro-2.mp3",
+        "take": {
+          "text": "I choose to stand here. I also choose to stand there. You can't choose for me.",
+          "voice": "FGY2WhTYpPnrIDTdsKH5"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Watch me."
+        "text": "Watch me.",
+        "audio": "/audio/voice/campaign.standards-and-practices.intro-3.mp3",
+        "take": {
+          "text": "Watch me.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       }
     ],
     "outro": [
       {
         "who": "chooser",
-        "text": "Oh. I did not choose that."
+        "text": "Oh. I did not choose that.",
+        "audio": "/audio/voice/campaign.standards-and-practices.outro-0.mp3",
+        "take": {
+          "text": "Oh. I did not choose that.",
+          "voice": "FGY2WhTYpPnrIDTdsKH5"
+        }
       },
       {
         "who": "blog-man",
-        "text": "The censor reports no complaints. Ratings, however, are up. Nobody can explain it."
+        "text": "The censor reports no complaints. Ratings, however, are up. Nobody can explain it.",
+        "audio": "/audio/voice/campaign.standards-and-practices.outro-1.mp3",
+        "take": {
+          "text": "The censor reports no complaints. Ratings, however, are up. Nobody can explain it.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "exit-punk",
@@ -2588,25 +2748,50 @@
       },
       {
         "who": "exit-punk",
-        "text": "Both of you, then."
+        "text": "Both of you, then.",
+        "audio": "/audio/voice/campaign.best-supporting.intro-4.mp3",
+        "take": {
+          "text": "Both of you, then.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       }
     ],
     "outro": [
       {
         "who": "break",
-        "text": "I was the lead."
+        "text": "I was the lead.",
+        "audio": "/audio/voice/campaign.best-supporting.outro-0.mp3",
+        "take": {
+          "text": "I was the lead.",
+          "voice": "N2lVS1w4EtoT3dr4eOWO"
+        }
       },
       {
         "who": "small-weather",
-        "text": "You were the weather."
+        "text": "You were the weather.",
+        "audio": "/audio/voice/campaign.best-supporting.outro-1.mp3",
+        "take": {
+          "text": "You were the weather.",
+          "voice": "cjVigY5qzO86Huf0OWal"
+        }
       },
       {
         "who": "blog-man",
-        "text": "The category has no winner and two thank-you speeches. Both are running long."
+        "text": "The category has no winner and two thank-you speeches. Both are running long.",
+        "audio": "/audio/voice/campaign.best-supporting.outro-2.mp3",
+        "take": {
+          "text": "The category has no winner and two thank-you speeches. Both are running long.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Congratulations. Both."
+        "text": "Congratulations. Both.",
+        "audio": "/audio/voice/campaign.best-supporting.outro-3.mp3",
+        "take": {
+          "text": "Congratulations. Both.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       }
     ],
     "fight": {
@@ -2650,33 +2835,68 @@
     "intro": [
       {
         "who": "narrator",
-        "text": "Space Chess. The board is set for a ceremony: a long table, a short speech."
+        "text": "Space Chess. The board is set for a ceremony: a long table, a short speech.",
+        "audio": "/audio/voice/campaign.lifetime-achievement.intro-0.mp3",
+        "take": {
+          "text": "Space Chess. The board is set for a ceremony: a long table, a short speech.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
       },
       {
         "who": "blog-man",
-        "text": "Tonight the champion receives a Lifetime Achievement Award. The network asks for 250 percent of applause in ninety seconds, which in this show means damage. Slice is presenting the ribbon."
+        "text": "Tonight the champion receives a Lifetime Achievement Award. The network asks for 250 percent of applause in ninety seconds, which in this show means damage. Slice is presenting the ribbon.",
+        "audio": "/audio/voice/campaign.lifetime-achievement.intro-1.mp3",
+        "take": {
+          "text": "Tonight the champion receives a Lifetime Achievement Award. The network asks for 250 percent of applause in ninety seconds, which in this show means damage. Slice is presenting the ribbon.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "slice",
-        "text": "I have been cutting the ribbon all night. I have not had a chance to cut anything else."
+        "text": "I have been cutting the ribbon all night. I have not had a chance to cut anything else.",
+        "audio": "/audio/voice/campaign.lifetime-achievement.intro-2.mp3",
+        "take": {
+          "text": "I have been cutting the ribbon all night. I have not had a chance to cut anything else.",
+          "voice": "XB0fDUnXU5powFXDhCwa"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Cut this."
+        "text": "Cut this.",
+        "audio": "/audio/voice/campaign.lifetime-achievement.intro-3.mp3",
+        "take": {
+          "text": "Cut this.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       }
     ],
     "outro": [
       {
         "who": "slice",
-        "text": "Lifetime. Already?"
+        "text": "Lifetime. Already?",
+        "audio": "/audio/voice/campaign.lifetime-achievement.outro-0.mp3",
+        "take": {
+          "text": "Lifetime. Already?",
+          "voice": "XB0fDUnXU5powFXDhCwa"
+        }
       },
       {
         "who": "blog-man",
-        "text": "The champion has a lifetime award and, according to the network, a lifetime to spend it. The award is heavier than it looks."
+        "text": "The champion has a lifetime award and, according to the network, a lifetime to spend it. The award is heavier than it looks.",
+        "audio": "/audio/voice/campaign.lifetime-achievement.outro-1.mp3",
+        "take": {
+          "text": "The champion has a lifetime award and, according to the network, a lifetime to spend it. The award is heavier than it looks.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Seems so."
+        "text": "Seems so.",
+        "audio": "/audio/voice/campaign.lifetime-achievement.outro-2.mp3",
+        "take": {
+          "text": "Seems so.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       }
     ],
     "fight": {
@@ -2717,19 +2937,39 @@
     "intro": [
       {
         "who": "narrator",
-        "text": "Humans In The Loop. The last category of the night, the biggest envelope, and a stage lit like a trophy."
+        "text": "Humans In The Loop. The last category of the night, the biggest envelope, and a stage lit like a trophy.",
+        "audio": "/audio/voice/campaign.best-in-show.intro-0.mp3",
+        "take": {
+          "text": "Humans In The Loop. The last category of the night, the biggest envelope, and a stage lit like a trophy.",
+          "voice": "JBFqnCBsd6RMkjVDRZzb"
+        }
       },
       {
         "who": "blog-man",
-        "text": "Best in Show. The editor wants a clean acceptance clip: four hits in a row, no cuts, before the clock runs out. Get hit and the footage is ruined. Also, Susan has asked for a word with the champion."
+        "text": "Best in Show. The editor wants a clean acceptance clip: four hits in a row, no cuts, before the clock runs out. Get hit and the footage is ruined. Also, Susan has asked for a word with the champion.",
+        "audio": "/audio/voice/campaign.best-in-show.intro-1.mp3",
+        "take": {
+          "text": "Best in Show. The editor wants a clean acceptance clip: four hits in a row, no cuts, before the clock runs out. Get hit and the footage is ruined. Also, Susan has asked for a word with the champion.",
+          "voice": "CwhRBWXzGAHq8TQ4Fs17"
+        }
       },
       {
         "who": "susan",
-        "text": "I have waited since The Champion's Tax. I want the receipt."
+        "text": "I have waited since The Champion's Tax. I want the receipt.",
+        "audio": "/audio/voice/campaign.best-in-show.intro-2.mp3",
+        "take": {
+          "text": "I have waited since The Champion's Tax. I want the receipt.",
+          "voice": "EXAVITQu4vr4xnSDxMaL"
+        }
       },
       {
         "who": "exit-punk",
-        "text": "Come and get it."
+        "text": "Come and get it.",
+        "audio": "/audio/voice/campaign.best-in-show.intro-3.mp3",
+        "take": {
+          "text": "Come and get it.",
+          "voice": "bIHbv24MWmeRgasZH58o"
+        }
       }
     ],
     "outro": [
