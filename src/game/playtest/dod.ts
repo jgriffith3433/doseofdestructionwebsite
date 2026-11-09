@@ -12,19 +12,24 @@
 import { installPlaytest, type Outcome, type RunOptions, type Tracker } from './hawkes-playtest.js';
 import { Bot } from '../ai/bot.ts';
 import { setVirtualPad } from '../input/devices.ts';
-import { touchDevice, touchOverlay } from '../input/touch.ts';
+import { readTouch, touchDevice, touchOverlay } from '../input/touch.ts';
+import { TOUCH_KEY, forceTouchUi, touchSettings } from '../touchSettings.ts';
+import { forceTouchPrompt, lockLandscape, rotateShowing } from '../ui/rotate.ts';
 import { currentScreen, switching, type ScreenId } from '../ui/screens.ts';
 import { CHARACTERS, MOVE, MOVE_KEYS } from '../sim/characters.ts';
-import { BTN, NO_INPUT, packInput } from '../sim/input.ts';
+import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
 import { ACT } from '../sim/state.ts';
-import { CARD_MS } from '../ui/views.ts';
+import { AnimTrace } from '../sim/trace.ts';
+import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
+import { MAX_WORDS } from '../campaign/sceneText.ts';
 import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, saveUnlocks, unlocks } from '../campaign/story.ts';
 import { SCENARIOS } from './scenarios.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
+import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
 import { loadAnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
@@ -53,6 +58,8 @@ export interface GameHooks {
   /** Renderer particle and warm-up diagnostics. */
   /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
+  /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
+  gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
 }
 
@@ -66,20 +73,43 @@ const CORE_CLIPS = ['idle', 'walk', 'jump', 'fall', 'land', 'hurt', 'shield'];
 
 const SCREEN_NAMES: Record<ScreenId, string> = {
   title: 'Title', main: 'Main Menu', select: 'Character Select', stages: 'Stage Select', versus: 'VS',
-  campaign: 'Campaign Map', card: 'Story Card', dialogue: 'Dialogue', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
+  campaign: 'Campaign Map', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
 };
 
 const MOVE_NAMES = Object.fromEntries(Object.entries(MOVE).map(([k, v]) => [v, k.toLowerCase()])) as Record<number, string>;
 
 export function installDodPlaytest(game: GameHooks): void {
   let run: Run | null = null;
+  /** The playtest feel sensor's view of the local fighter (hawkes-feel.js, docs/playtest.md#feel). */
+  const mine = () => {
+    const m = game.match();
+    return m && m.player >= 0 ? m.state.fighters[m.player] ?? null : null;
+  };
   installPlaytest({
     product: 'doseofdestruction',
     scenarios: SCENARIOS,
+    feel: {
+      // The local fighter as a point in stage pixels (x right, y up, z 0): what a feel flag's `spot` replays.
+      player: () => {
+        const f = mine();
+        return f ? { x: f.x / FX, y: f.y / FX, z: 0 } : null;
+      },
+      // Only while the fighter is the player's to move: in the fight, not in a story scene, Ready, Pause, the results,
+      // after Game!, or out of the stage between a KO and the respawn.
+      active: () => {
+        const m = game.match();
+        const f = mine();
+        return !!m && !!f && game.phase() === 'play' && !m.state.over && f.action !== ACT.DEAD && f.action !== ACT.RESPAWN;
+      },
+      grounded: () => {
+        const f = mine();
+        return !!f && f.grounded > 0 && f.platform >= 0;
+      },
+    },
     isReady: () => currentScreen() !== null && !switching(),
     async start(id, options, t) {
       run?.dispose();
-      const r = new Run(game, t, options);
+      const r = new Run(game, t, options, t.spot);
       run = r;
       try {
         if (id === 'smoke') await r.smoke();
@@ -90,10 +120,14 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'story-cards') await r.storyCards();
+        else if (id === 'rotate') await r.rotate();
         else if (id === 'presentation') await r.presentation();
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
+        else if (id === 'touch-match') await r.touchMatch();
+        else if (id === 'touch-settings') await r.touchSettingsRun();
+        else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'commentary') await r.commentary();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
@@ -133,7 +167,12 @@ class Run {
   private readonly t: Tracker;
   private readonly options: RunOptions;
 
-  constructor(game: GameHooks, t: Tracker, options: RunOptions) {
+  /** A place to replay (a feel flag's spot, in stage pixels): the fighter starts there. Setup shortcut. */
+  private readonly spot: { x: number; y: number; yaw?: number } | null;
+  private lastPhase = '';
+
+  constructor(game: GameHooks, t: Tracker, options: RunOptions, spot: { x: number; y: number; z: number; yaw?: number } | null = null) {
+    this.spot = spot;
     this.game = game;
     this.t = t;
     this.options = options;
@@ -173,11 +212,21 @@ class Run {
 
   // ---------------------------------------------------------- watching
 
+  /** Animation over time (studio rule 5): each match's per-frame state is checked against the motion. */
+  private trace = new AnimTrace();
+  private traceFrames = 0;
+
   private onTick(m: Match, events: SimEvent[]): void {
     const s = m.state;
     const me = m.player;
     if (m !== this.seen) this.onMatchStart(m);
+    this.traceFrames++;
+    for (const p of this.trace.check(s)) {
+      this.t.problem('bug', `animation over time on ${STAGES[s.stage].name}: ${p.text}`);
+    }
     for (const e of events) {
+      // A respawn or a KO moves the fighter and the camera on purpose: the feel sensor rests a moment.
+      if ((e.type === 'respawn' && e.id === me) || (e.type === 'ko' && e.victim === me)) this.t.cut();
       if (e.type === 'hit') {
         this.lastHitFrame = s.frame;
         if (e.shield) continue;
@@ -236,6 +285,7 @@ class Run {
       this.t.metric('stocksLeft', Math.max(0, s.fighters[me]?.stocks ?? 0));
       this.t.add(won ? 'wins' : 'losses');
       this.t.event('match-end', `${won ? 'won' : 'lost'} in ${Math.round(secs)} s${s.timedOut ? ' (time)' : ''}`);
+      this.t.event('anim-trace', `${this.traceFrames} frames traced, ${this.trace.problems.length} state/motion mismatches`);
     }
     this.t.progress(this.progressNow());
   }
@@ -249,12 +299,16 @@ class Run {
 
   private onMatchStart(m: Match): void {
     this.seen = m;
+    this.trace = new AnimTrace();
+    this.traceFrames = 0;
     this.lastHitFrame = m.state.frame;
     this.quietWarned = false;
     this.overSeen = false;
     this.movesSeen.clear();
     this.matches++;
     this.t.add('matches');
+    this.t.cut(); // a new stage: an intended cut for the feel sensor
+    this.placeAtSpot(m);
     const st = STAGES[m.state.stage];
     const who = m.state.fighters.map((f) => name(m, f.id)).join(' vs ');
     this.t.event('match-start', `${who} on ${st.name}`);
@@ -268,11 +322,29 @@ class Run {
     void this.checkStage(m.state.stage);
   }
 
+  /** Spot replay: puts the playing fighter at the flagged place of the first local match, still. */
+  private placeAtSpot(m: Match): void {
+    const spot = this.spot;
+    const f = m.state.fighters[m.player];
+    if (!spot || !f || m.setup.mode === 'online' || this.checked.has('spot')) return;
+    this.checked.add('spot');
+    const b = STAGES[m.state.stage].blast;
+    f.x = Math.max(b.left, Math.min(b.right, spot.x)) * FX;
+    f.y = Math.max(b.bottom, Math.min(b.top, spot.y)) * FX;
+    f.vx = f.vy = f.kbx = f.kby = 0;
+    if (spot.yaw !== undefined && Number.isFinite(spot.yaw)) f.facing = spot.yaw >= 0 ? 1 : -1;
+    this.t.event('spot', `replaying at ${Math.round(spot.x)}, ${Math.round(spot.y)}`);
+  }
+
   private onPoll(): void {
     const id = currentScreen();
     const m = this.game.match();
+    // Ready, Go, Pause and story scenes cut the camera: the feel sensor rests on each change.
+    const ph = this.game.phase();
+    if (ph !== this.lastPhase) { if (this.lastPhase) this.t.cut(); this.lastPhase = ph; }
     if (promptShowing()) this.t.scene('Tap to play');
     else if (settingsShowing()) this.t.scene(m ? 'Settings (paused)' : 'Settings');
+    else if (sceneShowing()) this.t.scene(`Story scene (${this.q('#scene')?.getAttribute('data-scene') ?? ''})`);
     else if (id) this.t.scene(id === 'match' && m ? `Match · ${STAGES[m.state.stage].name}` : SCREEN_NAMES[id]);
     // A match that is meant to be running but whose clock has stopped.
     const now = performance.now();
@@ -423,6 +495,7 @@ class Run {
 
   /** Clicks a control the way a mouse player would, once it is on screen and enabled. */
   private async click(find: () => HTMLElement | null | undefined, what: string, timeoutMs = 15000): Promise<void> {
+    if (this.useTap) return this.tap(find, what, timeoutMs);
     let el: HTMLElement | null | undefined = null;
     await this.t.until(() => {
       el = find();
@@ -467,6 +540,9 @@ class Run {
     this.t.add('interactions');
     await this.t.wait(150);
   }
+
+  /** Set by touch-match: every menu click is a pointer tap (hit-tested), like a finger. */
+  private useTap = false;
 
   /** The studio's Tap to play prompt, tapped like a player. */
   private async tapToPlay(): Promise<void> {
@@ -530,10 +606,12 @@ class Run {
     const empty = imgs.filter((i) => !(i.complete && i.naturalWidth > 0));
     if (imgs.length && !empty.length) this.t.event('roster-portraits', `${imgs.length} roster/slot portraits loaded`);
     else this.t.problem('bug', `Character select: ${empty.length}/${imgs.length} roster tiles/slots have no portrait`);
+    if (this.onVersus) this.checkClipping('character select', this.q('#select'));
     await this.click(() => this.q('#select-slots .fight'), 'Fight');
     await this.screen('stages');
     const cards = () => document.querySelectorAll<HTMLElement>('#stage-grid .stage-card:not(.random)');
     await this.t.until(() => cards().length > 0, 5000, 'stage cards');
+    if (this.onVersus) this.checkClipping('stage select', this.q('#stages'));
     // options.stage plays that stage (a content playtest of a new one); else one from the seed.
     const want = typeof this.options.stage === 'string' ? this.options.stage : null;
     const byId = want ? [...cards()].findIndex((c) => c.dataset.stage === want) : -1;
@@ -575,63 +653,101 @@ class Run {
   private async results(): Promise<boolean> {
     const m = this.game.match() ?? this.seen;
     const won = m?.playerWon() ?? false;
+    // A won campaign episode signs off in the arena first (the outro scene), then the results come.
+    await this.t.until(() => sceneShowing() || currentScreen() === 'results', 30000, 'the outro or the results');
+    if (sceneShowing()) await this.passScene();
     await this.screen('results', 30000);
     return won;
   }
 
-  /** The first story card of a run is left to time out by itself (the story-cards scenario); the others are skipped. */
+  /** The first story card of a run is left to time out by itself (the story-cards scenario); the others are cut short. */
   private cardAuto = false;
   private cardsSeen = 0;
 
   /**
-   * A story card (the page's `#card`): checks it names the episode and says the line content/campaign.json gives
-   * the chapter for it, then skips it with its button (or, once, waits for it to move on by itself).
+   * A story card: the live scene's lower third (`#scene-card`, "Tonight" before the episode, "Signing off" after
+   * it). Checks it names the episode and says the line content/campaign.json gives the chapter for it, then cuts
+   * it short with Next (or, once, waits for it to move on by itself).
    */
   private async playCard(): Promise<void> {
     const t = this.t;
     const text = (id: string) => this.q(id)?.textContent?.trim() ?? '';
-    const title = text('#card-title');
-    const which = text('#card-tag') === 'Tonight' ? 'before' : 'after';
-    const line = text('#card-line');
+    const onCard = () => this.q('#scene')?.getAttribute('data-beat') === 'card';
+    const title = text('#scene-card-title');
+    const which = text('#scene-card-tag') === 'Tonight' ? 'before' : 'after';
+    const line = text('#scene-card-line');
     const c = CHAPTERS.find((x) => x.title === title);
     const want = c?.card?.[which];
     const shownAt = performance.now();
     this.cardsSeen++;
-    t.event(`card-${which}`, `${text('#card-kicker')} · ${title}: "${line}"`);
+    t.event(`card-${which}`, `${text('#scene-card-kicker')} · ${title}: "${line}"`);
     if (!c) t.problem('bug', `the story card names "${title}", which is no episode in content/campaign.json`);
     else if (!line || line !== want) t.problem('bug', `the ${which} card of ${c.id} says "${line}", content/campaign.json has "${want ?? ''}"`);
-    if (!/^Season \d+ · Episode \d+$/.test(text('#card-kicker'))) t.problem('bug', `the story card has no season and episode line ("${text('#card-kicker')}")`);
+    if (!/^Season \d+ · Episode \d+$/.test(text('#scene-card-kicker'))) t.problem('bug', `the story card has no season and episode line ("${text('#scene-card-kicker')}")`);
     if (this.cardAuto) {
       this.cardAuto = false;
-      await this.t.until(() => currentScreen() !== 'card', CARD_MS + 8000, 'the story card to move on by itself');
+      await this.t.until(() => !onCard(), SCENE_CARD_MS + 8000, 'the story card to move on by itself');
       const ms = Math.round(performance.now() - shownAt);
       t.metric('cardAutoMs', ms);
       t.event('card-auto', `moved on by itself after ${(ms / 1000).toFixed(1)} s`);
       return;
     }
     await this.wait(900);
-    await this.click(() => this.q('#card-skip'), 'Skip (story card)');
+    if (!onCard()) return;
+    await this.click(() => this.q('#scene-next'), 'Next (story card)');
     const t0 = performance.now();
-    await this.t.until(() => currentScreen() !== 'card', 5000, 'the story card to be skipped');
-    t.event('card-skipped', `${which} card of ${title} skipped, gone in ${Math.round(performance.now() - t0)} ms`);
+    await this.t.until(() => !onCard(), 5000, 'the story card to be cut short');
+    t.event('card-skipped', `${which} card of ${title} cut short, gone in ${Math.round(performance.now() - t0)} ms`);
   }
 
   private async wait(ms: number): Promise<void> {
     await this.t.wait(ms);
   }
 
+  /**
+   * A chapter's story: the intro plays live in the arena (ui/scene.ts) after the VS card, before Ready. After
+   * Continue on the results nothing more comes (the outro played after Game!, see results()), so this returns
+   * once the map is back.
+   */
   private async playDialogue(): Promise<void> {
-    // A story card comes first (before the episode, and after the fight is won).
-    await this.t.until(() => (currentScreen() === 'card' || currentScreen() === 'dialogue') && !switching(), 20000, 'the story card or the dialogue');
-    if (currentScreen() === 'card') await this.playCard();
-    await this.screen('dialogue');
+    await this.t.until(
+      () => sceneShowing() || currentScreen() === 'campaign' || currentScreen() === 'results' || this.game.phase() === 'play',
+      60000,
+      'the story scene',
+    );
+    if (sceneShowing()) await this.passScene();
+  }
+
+  /**
+   * Plays through a live story scene like a player: reads the card, then each line for a moment and Next.
+   * Every piece of on-screen story text must be one short line (studio rule 6e); the beats are logged.
+   */
+  private async passScene(): Promise<void> {
+    const t = this.t;
+    const root = this.q('#scene');
+    const which = root?.getAttribute('data-scene') ?? '?';
     const t0 = performance.now();
-    // Next finishes the typing, the next Next moves on: read each line for a moment like a player.
-    while (currentScreen() === 'dialogue' && performance.now() - t0 < 120000) {
-      if (!switching()) this.q('#dlg-next')?.click();
+    const seen = new Set<string>();
+    let longest = 0;
+    while (sceneShowing() && performance.now() - t0 < 120000) {
+      const beat = root?.getAttribute('data-beat') ?? '';
+      if (beat === 'card' && !seen.has('card')) {
+        seen.add('card');
+        await this.playCard();
+        continue;
+      }
+      if (beat.startsWith('line-') && !seen.has(beat)) {
+        seen.add(beat);
+        const words = (this.q('#scene-text')?.textContent ?? '').trim().split(/\s+/).filter(Boolean).length;
+        longest = Math.max(longest, words);
+        if (words > MAX_WORDS) t.problem('bug', `story scene (${which}) shows ${words} words at once ("${this.q('#scene-text')?.textContent}"), more than one short line`);
+      }
+      if (!switching() && beat !== 'card') this.q('#scene-next')?.click();
       await this.t.wait(700);
     }
-    if (currentScreen() === 'dialogue') throw new Error('timed out waiting for the dialogue to end');
+    if (sceneShowing()) throw new Error('timed out waiting for the story scene to end');
+    const lines = [...seen].filter((b) => b.startsWith('line-')).length;
+    t.event('scene', `${which}: ${lines} line pieces in the arena, longest ${longest} words, ${Math.round((performance.now() - t0) / 1000)} s`);
   }
 
   // ---------------------------------------------------------- scenarios
@@ -686,8 +802,72 @@ class Run {
     void t;
   }
 
+  /**
+   * On a portrait phone window (the runner's 390x844) the Rotate prompt holds every match, and a page cannot turn its
+   * own window. So the run does what a player does: it turns the phone. It opens a copy of the game in a frame sized
+   * 844x390 (a real landscape viewport for the game inside: media queries, touch controls, no Rotate prompt) and
+   * plays the whole smoke there, forwarding what the frame sees. The prompt itself is untouched (the rotate scenario
+   * still checks it).
+   */
+  private async smokeTurned(): Promise<void> {
+    const t = this.t;
+    type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; outcome: string; state?: { progress?: number } };
+    const back = document.createElement('div');
+    back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
+    const frame = document.createElement('iframe');
+    frame.title = 'Phone window turned to landscape (playtest)';
+    frame.allow = 'autoplay';
+    const w = 844;
+    const h = 390;
+    const k = Math.min(innerWidth / w, innerHeight / h, 1);
+    frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:#000`;
+    back.appendChild(frame);
+    const q = new URLSearchParams(location.search);
+    q.set('playtest', 'smoke');
+    q.set('at', 'phone-turned');
+    if (!q.has('seed')) q.set('seed', String(this.options.seed ?? 1));
+    frame.src = `${location.pathname}?${q.toString()}`;
+    document.body.appendChild(back);
+    const api = () => (frame.contentWindow as (Window & { hawkesPlaytest?: { report(): Inner | null; state(): { progress?: number } | null } }) | null)?.hawkesPlaytest;
+    let seen = 0;
+    const seenProblems = new Set<string>();
+    const forward = (): Inner | null => {
+      const r = api()?.report() ?? null;
+      if (!r) return null;
+      for (const e of r.events.slice(seen)) if (e.type !== 'problem' && e.type !== 'start' && e.type !== 'start-at') t.event(e.type, `${e.detail ?? ''} [landscape frame]`);
+      seen = r.events.length;
+      for (const p of r.problems) {
+        if (!seenProblems.has(p.message)) {
+          seenProblems.add(p.message);
+          t.problem('bug', `${p.message} [landscape frame]`);
+        }
+      }
+      const prog = api()?.state()?.progress;
+      if (typeof prog === 'number') t.progress(prog);
+      return r;
+    };
+    try {
+      t.event('phone-turned', `the portrait phone window (${innerWidth}x${innerHeight}) turned to ${w}x${h} (landscape) for the match`);
+      await t.until(() => {
+        const r = forward();
+        return !!r && (r.outcome === 'done' || r.outcome === 'error' || r.outcome === 'stuck' || r.outcome === 'won' || r.outcome === 'lost');
+      }, 240000, 'the turned phone to play the smoke match');
+      const r = forward();
+      if (r?.outcome !== 'done') t.problem('bug', `the smoke match in the turned phone ended ${r?.outcome ?? 'without a report'}`);
+    } finally {
+      back.remove();
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   private async smokeRun(): Promise<void> {
     const t = this.t;
+    // A portrait phone shows the Rotate prompt: play in a turned copy instead of waiting under the prompt.
+    if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      await this.toMainMenu();
+      if (rotateShowing()) return this.smokeTurned();
+    }
     await this.toMainMenu();
     // The release notes (/releases.json via /site/hawkes-release.js) must load: the version on the menu reads them.
     const release = await ((window as unknown as { hawkesRelease?: Promise<{ current?: string } | null> }).hawkesRelease ?? Promise.resolve(null));
@@ -696,6 +876,15 @@ class Run {
     t.progress(0.15);
     await this.startVersus(3);
     t.progress(0.4);
+    // Upright on a phone the Rotate prompt holds the match (frame 0 forever): that is the game working, not stuck.
+    // Check the prompt covers the game, then leave from Pause instead of waiting for a fight that cannot start.
+    if (rotateShowing()) {
+      t.event('smoke-rotate', `the Rotate prompt holds the match at ${innerWidth}x${innerHeight}; leaving from Pause`);
+      await this.quitFromPause('main');
+      t.progress(1);
+      t.finish('done');
+      return;
+    }
     const start = () => this.game.match()?.state.frame ?? 0;
     this.progressNow = () => 0.4 + 0.5 * Math.min(1, start() / 1200);
     const ended = await this.fight(() => start() >= 20 * 60, 60000);
@@ -758,17 +947,196 @@ class Run {
     return bad;
   }
 
+  /** A phone-sized window: upright (<=560 wide) or on its side (<=520 tall) — the sizes the phone layout in game.css serves. */
+  private isPhone(): boolean {
+    return innerWidth <= 560 || innerHeight <= 520;
+  }
+
+  /** On a phone: every visible button is at least 44 px tall, and no two buttons overlap (room between them). */
+  private phoneTargets(root: HTMLElement): string[] {
+    const bad: string[] = [];
+    const items = [...root.querySelectorAll<HTMLElement>('button, a.menu-item, [role="button"]')].filter((el) => {
+      if (!el.getClientRects().length) return false;
+      const cs = getComputedStyle(el);
+      return cs.visibility !== 'hidden' && cs.display !== 'none' && el.getBoundingClientRect().width > 0;
+    });
+    const rects = items.map((el) => el.getBoundingClientRect());
+    const name = (el: HTMLElement) => `"${(el.textContent ?? '').trim().slice(0, 24) || el.getAttribute('aria-label') || el.id}" (${el.tagName.toLowerCase()}.${el.className})`;
+    items.forEach((el, i) => {
+      if (rects[i].height < 43.5) bad.push(`${name(el)} is ${Math.round(rects[i].height)} px tall (needs 44)`);
+    });
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        if (items[i].contains(items[j]) || items[j].contains(items[i])) continue;
+        const a = rects[i];
+        const b = rects[j];
+        const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (w > 2 && h > 2) bad.push(`${name(items[i])} overlaps ${name(items[j])}`);
+      }
+    }
+    return bad;
+  }
+
   private checkClipping(where: string, root: HTMLElement | null): void {
     const t = this.t;
     const ratio = innerWidth / innerHeight;
-    const shape = ratio >= 2.1 ? '20:9' : ratio >= 1.7 ? '16:9' : ratio >= 1.5 ? '16:10' : 'other';
+    const phone = this.isPhone();
+    const shape = phone ? (ratio < 1 ? 'phone portrait' : 'phone landscape') : ratio >= 2.1 ? '20:9' : ratio >= 1.7 ? '16:9' : ratio >= 1.5 ? '16:10' : 'other';
     if (!root) return;
     const bad = this.clippedText(root);
     if (bad.length) for (const b of bad.slice(0, 5)) t.problem('bug', `${where}: text clipped at ${innerWidth}x${innerHeight} (${shape}): ${b}`);
     else t.event('no-clipping', `${where}: no text clipped at ${innerWidth}x${innerHeight} (${shape})`);
+    // A heading pushed above the top of the window (a scrolled screen) is clipped too, whatever its text width.
+    const head = root.querySelector<HTMLElement>('h1, h2');
+    if (head && head.getClientRects().length && head.getBoundingClientRect().top < -1) {
+      t.problem('bug', `${where}: heading "${(head.textContent ?? '').trim().slice(0, 30)}" is above the top of the window (top ${Math.round(head.getBoundingClientRect().top)}) at ${innerWidth}x${innerHeight} (${shape})`);
+    }
+    if (!phone) return;
+    const small = this.phoneTargets(root);
+    if (small.length) for (const b of small.slice(0, 5)) t.problem('bug', `${where}: touch target at ${innerWidth}x${innerHeight} (${shape}): ${b}`);
+    else t.event('phone-targets', `${where}: every button at least 44 px tall, none overlapping, at ${innerWidth}x${innerHeight} (${shape})`);
   }
 
   /** Menu, VS screen and results presentation: the broadcast menu, a name card animating in for each fighter, results with winner, time and damage. */
+  /**
+   * Rotate your phone: upright on a touch device a full-screen prompt covers the game and the match waits; turning to
+   * landscape hides it and play goes on. The run judges the window as it is (390x844 upright, 844x390 on its side) and,
+   * started upright, waits for the runner to turn the window to landscape. It asks to be treated as a touch device.
+   */
+  async rotate(): Promise<void> {
+    // On a window that is not phone-shaped (the runner's 1280x720) the run makes its own phone: a framed copy of the game
+    // at 390x844 that the run then turns to 844x390 (a real resize and orientation media-query change inside the frame).
+    // `at: "phone"` is that copy: it judges the window it has.
+    if (this.options.at !== 'phone' && Math.min(innerWidth, innerHeight) > 500) return this.rotateFramed();
+    return this.rotateWindow();
+  }
+
+  /** Plays "rotate" in a frame sized like a phone, upright and then on its side, and reports what the frame saw. */
+  private async rotateFramed(): Promise<void> {
+    const t = this.t;
+    const back = document.createElement('div');
+    back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
+    const frame = document.createElement('iframe');
+    frame.title = 'Phone window (playtest)';
+    frame.allow = 'autoplay';
+    back.appendChild(frame);
+    // The frame keeps its CSS size (so the game inside sees a phone) and is scaled to sit inside the screen.
+    const turn = (w: number, h: number) => {
+      const k = Math.min(innerWidth / w, innerHeight / h, 1);
+      frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:2px solid #444;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:#000`;
+    };
+    turn(390, 844);
+    frame.src = `${location.pathname}?playtest=rotate&at=phone&seed=${this.options.seed ?? 1}`;
+    document.body.appendChild(back);
+    const inner = () => (frame.contentWindow as (Window & { hawkesPlaytest?: { report(): { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; outcome: string } | null } }) | null)?.hawkesPlaytest?.report() ?? null;
+    let seenEvents = 0;
+    const seenProblems = new Set<string>();
+    const forward = () => {
+      const r = inner();
+      if (!r) return null;
+      for (const e of r.events.slice(seenEvents)) {
+        if (e.type !== 'problem' && e.type !== 'start' && e.type !== 'start-at' && e.type !== 'rotate-not-turned') t.event(e.type, `${e.detail ?? ''} [phone frame]`);
+      }
+      seenEvents = r.events.length;
+      for (const p of r.problems) {
+        if (!seenProblems.has(p.message)) {
+          seenProblems.add(p.message);
+          t.problem('bug', `${p.message} [phone frame]`);
+        }
+      }
+      return r;
+    };
+    const has = (type: string) => !!inner()?.events.some((e) => e.type === type);
+    try {
+      t.event('phone-upright', 'a phone-sized window, 390x844 (portrait), opened over the game');
+      await t.until(() => {
+        forward();
+        return has('rotate-paused') || (inner()?.problems.length ?? 0) > 0 || inner()?.outcome === 'error';
+      }, 120000, 'the upright phone to show the Rotate prompt');
+      forward();
+      await t.wait(1500);
+      turn(844, 390);
+      t.event('phone-turned', 'the phone window turned to 844x390 (landscape)');
+      await t.until(() => {
+        const r = forward();
+        return !!r && r.outcome !== 'stuck' && has('landscape-lock-safe');
+      }, 120000, 'the turned phone to hide the prompt and resume');
+      forward();
+      if (!has('rotate-prompt')) t.problem('bug', 'the Rotate prompt was never seen at 390x844');
+      if (!has('rotate-hidden') || !has('rotate-resumed')) t.problem('bug', 'the prompt did not hide and play resume at 844x390');
+    } finally {
+      back.remove();
+    }
+    t.finish('done');
+  }
+
+  private async rotateWindow(): Promise<void> {
+    const t = this.t;
+    await this.toMainMenu();
+    await this.startVersus(2);
+    forceTouchPrompt(true);
+    try {
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const prompt = () => document.getElementById('rotate-prompt');
+      const upright = () => innerHeight > innerWidth;
+      const size = () => `${innerWidth}x${innerHeight}`;
+      await this.fight(() => frame() >= 90, 30000);
+      if (upright()) {
+        const p = prompt();
+        const r = p?.getBoundingClientRect();
+        const covered = !!p && !p.hidden && document.elementFromPoint(innerWidth / 2, innerHeight / 2)?.closest('#rotate-prompt') === p;
+        if (!p || !rotateShowing() || !r || r.width < innerWidth - 1 || r.height < innerHeight - 1 || !covered || !/Rotate your phone/i.test(p.textContent ?? '')) {
+          t.problem('bug', `no full-screen "Rotate your phone" prompt over the game at ${size()}`);
+        } else t.event('rotate-prompt', `"Rotate your phone" covers the game at ${size()}`);
+        const before = frame();
+        await t.wait(2000);
+        if (frame() !== before) t.problem('bug', `the match kept running under the Rotate prompt at ${size()} (frame ${before} -> ${frame()})`);
+        else t.event('rotate-paused', `the match is paused under the prompt at ${size()} (frame ${before})`);
+        try {
+          await t.until(() => !upright(), 30000, 'the window to turn to landscape');
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.event('rotate-not-turned', `the window stayed upright at ${size()}: run it at 844x390 (or turn it) to see the prompt go`);
+        }
+      }
+      if (!upright()) {
+        await t.wait(300);
+        if (prompt() && !prompt()!.hidden) t.problem('bug', `the Rotate prompt is still up at ${size()}`);
+        else t.event('rotate-hidden', `no Rotate prompt at ${size()}`);
+        const before = frame();
+        await this.fight(() => frame() >= before + 60, 40000);
+        if (frame() > before) t.event('rotate-resumed', `play goes on at ${size()} (frame ${before} -> ${frame()})`);
+        else t.problem('bug', `the match did not resume at ${size()}`);
+      }
+      // Fullscreen's landscape lock: asked for where the browser has it, harmless where it has not.
+      const o = screen.orientation as unknown as { lock?: (o: string) => Promise<void> };
+      const had = Object.getOwnPropertyDescriptor(o, 'lock');
+      const asked: string[] = [];
+      try {
+        o.lock = async (v: string) => void asked.push(v);
+        const ok = await lockLandscape();
+        if (ok && asked[0] === 'landscape') t.event('landscape-lock', 'a landscape lock is requested');
+        else t.problem('bug', `no landscape lock requested (${asked.join(',') || 'none'})`);
+        o.lock = async () => {
+          throw new Error('NotSupportedError');
+        };
+        const failed = await lockLandscape();
+        o.lock = undefined;
+        const none = await lockLandscape();
+        if (!failed && !none) t.event('landscape-lock-safe', 'a rejected or missing orientation lock breaks nothing');
+        else t.problem('bug', 'a failed or missing orientation lock was reported as success');
+      } finally {
+        if (had) Object.defineProperty(o, 'lock', had);
+        else delete o.lock;
+      }
+      await this.quitFromPause('main');
+    } finally {
+      forceTouchPrompt(false);
+    }
+    t.finish('done');
+  }
+
   async presentation(): Promise<void> {
     const t = this.t;
     await this.toMainMenu();
@@ -1691,6 +2059,586 @@ class Run {
     t.finish('done');
   }
 
+  // ---------------------------------------------------------- touch-match
+
+  /** The safe-area insets in px (notch, home bar), read through a probe element that CSS env() fills in. */
+  private safeInsets(): { top: number; right: number; bottom: number; left: number } {
+    const p = document.createElement('div');
+    p.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+    document.body.append(p);
+    const cs = getComputedStyle(p);
+    const v = { top: parseFloat(cs.paddingTop) || 0, right: parseFloat(cs.paddingRight) || 0, bottom: parseFloat(cs.paddingBottom) || 0, left: parseFloat(cs.paddingLeft) || 0 };
+    p.remove();
+    return v;
+  }
+
+  /**
+   * Touch match: at phone size, menus to the results screen with only pointer events on the on-screen controls
+   * (input/touch.ts: the Move stick and Jump, Attack, Special, Shield, Smash, plus Pause). The bot's decisions are
+   * turned into touches (stick position, buttons held), nothing goes to the keyboard, the virtual pad or the sim.
+   * First every control is checked (present, sized, inside the window and the safe area, not covered), then a short
+   * drill presses each one and checks the game read it, then the bot plays on through touch to the results.
+   */
+  async touchMatch(): Promise<void> {
+    const t = this.t;
+    const phone = this.isPhone();
+    if (!phone) t.problem('warning', `touch-match is meant for phone size (run it with device phone: 844x390 or 390x844), this window is ${innerWidth}x${innerHeight}`);
+    this.useTap = true;
+    try {
+      await this.toMainMenu();
+      t.progress(0.05);
+      await this.startVersus(2);
+      t.progress(0.15);
+      // Upright on a phone the Rotate prompt holds the match: give a runner time to turn the window.
+      if (rotateShowing()) {
+        t.event('touch-rotate-wait', `the Rotate prompt is up at ${innerWidth}x${innerHeight}; waiting for landscape`);
+        try {
+          await t.until(() => !rotateShowing(), 30000, 'the window to turn to landscape');
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.problem('bug', `touch-match could not play: the Rotate prompt stayed up at ${innerWidth}x${innerHeight} (run it landscape, 844x390)`);
+        }
+      }
+
+      const root = touchOverlay() ?? this.q('.touch');
+      if (!root) {
+        t.problem('bug', 'touch controls overlay (.touch) was not built');
+        t.finish('error');
+        return;
+      }
+      if (root.hidden) {
+        // A desktop browser keeps the overlay hidden (no coarse pointer): show it as a phone does.
+        t.event('touch-forced', 'not a touch device: the overlay was shown for the run');
+        root.hidden = false;
+      }
+      const CONTROLS: { key: string; sel: string; name: string }[] = [
+        { key: 'stick', sel: '.touch-stick', name: 'Move stick' },
+        { key: 'jump', sel: '.touch-btn.jump', name: 'Jump' },
+        { key: 'attack', sel: '.touch-btn.attack', name: 'Attack' },
+        { key: 'special', sel: '.touch-btn.special', name: 'Special' },
+        { key: 'shield', sel: '.touch-btn.shield', name: 'Shield' },
+        { key: 'smash', sel: '.touch-btn.smash', name: 'Smash' },
+        { key: 'pause', sel: '.touch-pause', name: 'Pause' },
+      ];
+      // Option drop: hides a control first, to see the missing-control problem.
+      const dropped = typeof this.options.drop === 'string' ? this.options.drop : '';
+      const dropEl = dropped ? root.querySelector<HTMLElement>(CONTROLS.find((c) => c.key === dropped)?.sel ?? '.none') : null;
+      if (dropEl) dropEl.style.display = 'none';
+      const find = (key: string) => {
+        const el = root.querySelector<HTMLElement>(CONTROLS.find((c) => c.key === key)!.sel);
+        return el && el.getClientRects().length > 0 ? el : null;
+      };
+
+      // 1. Every control is there, sized, on screen, clear of the safe area and not covered.
+      const inset = this.safeInsets();
+      let bad = 0;
+      for (const c of CONTROLS) {
+        const el = find(c.key);
+        if (!el) {
+          bad++;
+          t.problem('bug', `touch control missing: ${c.name} (${c.sel}) is not on the screen`);
+          continue;
+        }
+        const r = el.getBoundingClientRect();
+        const where = `${c.name} at ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)} in ${innerWidth}x${innerHeight}`;
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        if (r.width < 2 || r.height < 2) {
+          bad++;
+          t.problem('bug', `touch control has no size: ${where}`);
+        } else if (r.left < -0.5 || r.top < -0.5 || r.right > innerWidth + 0.5 || r.bottom > innerHeight + 0.5) {
+          bad++;
+          t.problem('bug', `touch control outside the viewport: ${where}`);
+        } else if (r.left < inset.left - 0.5 || r.top < inset.top - 0.5 || r.right > innerWidth - inset.right + 0.5 || r.bottom > innerHeight - inset.bottom + 0.5) {
+          bad++;
+          t.problem('bug', `touch control under the safe-area inset (top ${inset.top}, right ${inset.right}, bottom ${inset.bottom}, left ${inset.left}): ${where}`);
+        } else if (!hit || !el.contains(hit)) {
+          bad++;
+          t.problem('bug', `touch control covered: a press on ${where} lands on ${hit?.id ? '#' + hit.id : hit?.tagName.toLowerCase()}`);
+        }
+      }
+      if (!bad) t.event('touch-controls-ok', `all ${CONTROLS.length} controls on screen, clear of the safe area (top ${inset.top}, right ${inset.right}, bottom ${inset.bottom}, left ${inset.left}) and not covered, at ${innerWidth}x${innerHeight}`);
+
+      // 2. Touches: a finger on the stick and on each button, as pointer events on the control itself.
+      let pid = 100;
+      const down = new Map<string, { id: number; el: HTMLElement }>();
+      const send = (el: HTMLElement, type: string, x: number, y: number, id: number) =>
+        el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: id, isPrimary: id === 100, button: 0, buttons: type === 'pointerup' ? 0 : 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y }));
+      const stickAt = (sx: number, sy: number) => {
+        const el = find('stick');
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        // The knob's reach is 50/128 of the stick's width.
+        const reach = r.width * (50 / 128);
+        const x = r.left + r.width / 2 + (sx / 100) * reach;
+        const y = r.top + r.height / 2 - (sy / 100) * reach;
+        const cur = down.get('stick');
+        if (sx === 0 && sy === 0) {
+          if (cur) {
+            send(el, 'pointerup', x, y, cur.id);
+            down.delete('stick');
+          }
+          return;
+        }
+        if (!cur) {
+          const id = ++pid;
+          down.set('stick', { id, el });
+          send(el, 'pointerdown', x, y, id);
+        } else send(el, 'pointermove', x, y, cur.id);
+      };
+      const press = (key: string, on: boolean) => {
+        const el = find(key);
+        const cur = down.get(key);
+        if (!el || on === !!cur) return;
+        const r = el.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const y = r.top + r.height / 2;
+        if (on) {
+          const id = ++pid;
+          down.set(key, { id, el });
+          send(el, 'pointerdown', x, y, id);
+        } else {
+          send(el, 'pointerup', x, y, cur!.id);
+          down.delete(key);
+        }
+      };
+      const releaseAll = () => {
+        stickAt(0, 0);
+        for (const k of [...down.keys()]) press(k, false);
+      };
+      const KEYS: { bit: number; key: string }[] = [
+        { bit: BTN.JUMP, key: 'jump' },
+        { bit: BTN.ATTACK, key: 'attack' },
+        { bit: BTN.SPECIAL, key: 'special' },
+        { bit: BTN.SHIELD, key: 'shield' },
+        { bit: BTN.C_NEUTRAL | BTN.C_UP | BTN.C_DOWN | BTN.C_LEFT | BTN.C_RIGHT, key: 'smash' },
+      ];
+      const counts: Record<string, number> = { move: 0, jump: 0, attack: 0, special: 0, shield: 0, smash: 0 };
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const me = () => {
+        const m = this.game.match();
+        return m && m.player >= 0 ? m.state.fighters[m.player] : null;
+      };
+      const logged = new Set<string>();
+      /** Counts a touch and logs its event the first time, with what the game's input layer read from it. */
+      const note = (what: string, detail: string) => {
+        counts[what]++;
+        t.add(`touch${what[0].toUpperCase()}${what.slice(1)}s`);
+        if (!logged.has(what)) {
+          logged.add(what);
+          t.event(`touch-${what}`, detail);
+        }
+      };
+      const held = (bit: number) => (readTouch()[2] & bit) !== 0;
+
+      // The drill: each control pressed once, and the input layer must show it was read.
+      const drill = async (key: string, bit: number, what: string, label: string) => {
+        if (!find(key)) return;
+        press(key, true);
+        await t.wait(120);
+        if (!held(bit)) t.problem('bug', `${label} was touched but the game's input did not read it`);
+        else note(what, `${label} touched: read by the game's input (touch buttons ${(readTouch()[2] >> 16).toString(2)})`);
+        press(key, false);
+        await t.wait(150);
+      };
+      const x0 = me()?.x ?? 0;
+      const fx0 = frame();
+      stickAt(100, 0);
+      await t.wait(500);
+      const [rx, ry] = readTouch();
+      if (rx < 50) t.problem('bug', `Move stick was dragged right but the game read x=${rx} y=${ry}`);
+      else note('move', `Move stick dragged right: read by the game's input (x ${rx})`);
+      await t.until(() => frame() > fx0 + 20, 8000, 'the fighter to move');
+      if (me() && Math.abs(me()!.x - x0) < 1) t.event('touch-move-still', 'the stick was read but the fighter has not moved yet (blocked?)');
+      stickAt(0, 0);
+      await t.wait(100);
+      await drill('jump', BTN.JUMP, 'jump', 'Jump');
+      await drill('attack', BTN.ATTACK, 'attack', 'Attack');
+      await drill('special', BTN.SPECIAL, 'special', 'Special');
+      await drill('shield', BTN.SHIELD, 'shield', 'Shield');
+      await drill('smash', BTN.C_NEUTRAL, 'smash', 'Smash');
+      t.progress(0.25);
+
+      // 3. The bot plays on, through touch only, until the results.
+      const bot = () => {
+        const m = this.game.match();
+        if (!m || m.player < 0) return null;
+        if (m !== this.botMatch) {
+          this.botMatch = m;
+          this.bot = new Bot(m.player, BOT_LEVEL, (this.options.seed * 7919 + this.matches) | 0);
+        }
+        return { m, b: this.bot! };
+      };
+      let lastFrame = -1;
+      let lastIn = NO_INPUT;
+      const prev = new Set<string>();
+      this.progressNow = () => {
+        const m = this.game.match();
+        if (!m) return 0.95;
+        const stocks = m.setup.stocks;
+        const lost = m.state.fighters.reduce((n, f) => n + (stocks - Math.max(0, f.stocks)), 0);
+        return 0.25 + 0.7 * Math.min(1, lost / Math.max(1, (m.state.fighters.length * stocks) / 2));
+      };
+      const drive = window.setInterval(() => {
+        if (this.disposed) return;
+        const x = bot();
+        if (!x || x.m.state.over || this.game.phase() !== 'play') {
+          releaseAll();
+          return;
+        }
+        if (x.m.state.frame !== lastFrame) {
+          lastFrame = x.m.state.frame;
+          lastIn = x.b.think(x.m.state);
+        }
+        const sx = stickX(lastIn);
+        const sy = stickY(lastIn);
+        stickAt(sx, sy);
+        if (sx !== 0 || sy !== 0) {
+          counts.move++;
+          if (!prev.has('stick')) t.add('touchMoves');
+          prev.add('stick');
+        } else prev.delete('stick');
+        for (const k of KEYS) {
+          const on = (lastIn & k.bit) !== 0;
+          press(k.key, on);
+          if (on && !prev.has(k.key)) {
+            prev.add(k.key);
+            if (k.key !== 'smash' && k.key !== 'shield') {
+              counts[k.key]++;
+              t.add(`touch${k.key[0].toUpperCase()}${k.key.slice(1)}s`);
+            }
+          } else if (!on) prev.delete(k.key);
+        }
+      }, 33);
+      try {
+        await this.fight(() => false, 6 * 60 * 1000);
+      } finally {
+        clearInterval(drive);
+        releaseAll();
+      }
+      t.event('touch-summary', `moves ${counts.move}, jumps ${counts.jump}, attacks ${counts.attack}, specials ${counts.special}, shield drills ${counts.shield}, smash drills ${counts.smash} (all pointer events on the on-screen controls)`);
+      for (const k of ['move', 'jump', 'attack', 'special'])
+        if (!counts[k] && !(dropped && (dropped === k || (k === 'move' && dropped === 'stick')))) t.problem('bug', `no touch ${k} happened in the match`);
+      const won = await this.results();
+      if (dropEl) dropEl.style.display = '';
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.progress(1);
+      t.finish(won ? 'won' : 'lost');
+    } finally {
+      this.useTap = false;
+      setVirtualPad(null);
+    }
+  }
+
+  // ---------------------------------------------------------- touch-settings
+
+  /**
+   * Touch size and Touch opacity (Settings, touch devices): the sliders show, move the stick, buttons and Pause button
+   * live in a match (size and fade measured on the real elements, all kept inside the window), are saved in
+   * localStorage "dod.touch", and are still set after a reload. The run treats the desktop browser as a touch device.
+   */
+  async touchSettingsRun(): Promise<void> {
+    const t = this.t;
+    const carried = (() => {
+      try {
+        return JSON.parse(sessionStorage.getItem(TOUCH_RUN_KEY) ?? 'null') as { original: string | null } | null;
+      } catch {
+        return null;
+      }
+    })();
+    const slide = (id: string, value: number, label: string) => {
+      const input = this.q(id) as HTMLInputElement;
+      input.value = String(value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      t.add('interactions');
+      t.log(`slide ${label} to ${value}%`);
+    };
+    const saved = () => {
+      try {
+        return JSON.parse(localStorage.getItem(TOUCH_KEY) ?? 'null') as { size: number; opacity: number } | null;
+      } catch {
+        return null;
+      }
+    };
+    const root = () => touchOverlay() ?? this.q('.touch');
+    // The overlay is shown in the match by the game on a phone; on this desktop it is shown here, as checkTouchControls does.
+    const measure = () => {
+      const r = root();
+      if (!r) return null;
+      if (r.hidden) r.hidden = false;
+      const rect = (sel: string) => (r.querySelector(sel) as HTMLElement | null)?.getBoundingClientRect();
+      const stick = rect('.touch-stick');
+      const btn = rect('.touch-btn.attack');
+      const pause = rect('.touch-pause');
+      const opacity = Number(getComputedStyle(r.querySelector('.touch-stick')!).opacity);
+      const inside = [...r.querySelectorAll<HTMLElement>('.touch-stick, .touch-btn, .touch-pause')].filter((el) => {
+        const b = el.getBoundingClientRect();
+        return b.left < -0.5 || b.top < -0.5 || b.right > innerWidth + 0.5 || b.bottom > innerHeight + 0.5;
+      });
+      return { stick: stick?.width ?? 0, btn: btn?.width ?? 0, pause: pause?.width ?? 0, opacity, outside: inside.length };
+    };
+    const report = (where: string, want: { size: number; opacity: number }) => {
+      const m = measure();
+      if (!m) {
+        t.problem('bug', `no touch overlay ${where}`);
+        return null;
+      }
+      const sizeOk = Math.abs(m.stick - Math.min(128 * (want.size / 100), innerHeight * 0.36)) < 2;
+      if (!sizeOk) t.problem('bug', `${where}: the stick is ${m.stick.toFixed(0)}px wide at Touch size ${want.size}%`);
+      if (Math.abs(m.opacity - want.opacity / 100) > 0.02) t.problem('bug', `${where}: the controls' opacity is ${m.opacity} at Touch opacity ${want.opacity}%`);
+      if (m.outside) t.problem('bug', `${where}: ${m.outside} touch control(s) leave the ${innerWidth}x${innerHeight} window at Touch size ${want.size}%`);
+      t.event('touch-look', `${where}: size ${want.size}% → stick ${m.stick.toFixed(0)}px, Attack ${m.btn.toFixed(0)}px, Pause ${m.pause.toFixed(0)}px; opacity ${want.opacity}% → ${m.opacity}; ${m.outside ? m.outside + ' outside the window' : 'all inside the window'}`);
+      return m;
+    };
+    const openSettings = async (from: 'menu' | 'pause') => {
+      if (from === 'menu') await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      else {
+        await tapKey('Escape');
+        await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+        await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+      }
+      await t.until(settingsShowing, 3000, `Settings to open from ${from}`);
+    };
+
+    forceTouchUi(true);
+    try {
+      if (!carried) {
+        const original = localStorage.getItem(TOUCH_KEY);
+        try {
+          localStorage.removeItem(TOUCH_KEY);
+        } catch {
+          // Storage blocked.
+        }
+        sessionStorage.setItem(TOUCH_RUN_KEY, JSON.stringify({ original }));
+        await this.toMainMenu();
+        await openSettings('menu');
+        const sliders = ['#touch-size', '#touch-opacity'].map((id) => this.q(id) as HTMLInputElement | null);
+        const shown = !!sliders[0] && !!sliders[1] && !!this.q('#settings-touch') && !this.q('#settings-touch')!.hidden && sliders[0]!.getBoundingClientRect().width > 0;
+        if (!shown) t.problem('bug', 'Settings does not show the Touch size and Touch opacity sliders');
+        else t.event('touch-sliders', `Settings shows Touch size ${sliders[0]!.min}-${sliders[0]!.max}% (${sliders[0]!.value}%) and Touch opacity ${sliders[1]!.min}-${sliders[1]!.max}% (${sliders[1]!.value}%)`);
+        slide('#touch-size', 150, 'Touch size');
+        slide('#touch-opacity', 50, 'Touch opacity');
+        const s1 = saved();
+        if (!s1 || s1.size !== 150 || s1.opacity !== 50) t.problem('bug', `dod.touch did not save 150% / 50%: ${JSON.stringify(s1)}`);
+        else t.event('touch-saved', JSON.stringify(s1));
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.wait(300);
+        t.progress(0.2);
+
+        await this.startVersus(3);
+        await t.wait(1500);
+        const big = report('in a match at the largest size', { size: 150, opacity: 50 });
+        t.progress(0.4);
+        // Live, from Pause: smallest and nearly opaque, then back to the middle.
+        await openSettings('pause');
+        slide('#touch-size', 75, 'Touch size');
+        slide('#touch-opacity', 100, 'Touch opacity');
+        const small = report('after Touch size 75% from Pause', { size: 75, opacity: 100 });
+        if (big && small && !(big.stick > small.stick && big.btn > small.btn)) t.problem('bug', `the controls did not shrink (stick ${big.stick}px → ${small.stick}px, Attack ${big.btn}px → ${small.btn}px)`);
+        else if (big && small) t.event('touch-resized', `stick ${big.stick.toFixed(0)}px → ${small.stick.toFixed(0)}px, Attack ${big.btn.toFixed(0)}px → ${small.btn.toFixed(0)}px, opacity 0.5 → 1`);
+        slide('#touch-size', 120, 'Touch size');
+        slide('#touch-opacity', 60, 'Touch opacity');
+        report('after Touch size 120% / opacity 60%', { size: 120, opacity: 60 });
+        await t.wait(300);
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+        t.progress(0.7);
+        await this.click(() => this.q('#btn-quit'), 'Quit');
+        await this.screen('main');
+
+        t.event('reload', 'the page reloads; the run carries on after it');
+        const url = new URL(location.href);
+        url.searchParams.set('playtest', 'touch-settings');
+        url.searchParams.set('seed', String(this.options.seed ?? 1));
+        url.searchParams.set('speed', String(this.options.speed ?? 1));
+        await t.wait(300);
+        location.replace(url.toString());
+        await new Promise(() => {}); // the page is going away
+        return;
+      }
+
+      sessionStorage.removeItem(TOUCH_RUN_KEY);
+      await this.toMainMenu();
+      await openSettings('menu');
+      const size = (this.q('#touch-size') as HTMLInputElement).value;
+      const op = (this.q('#touch-opacity') as HTMLInputElement).value;
+      const s2 = touchSettings();
+      if (size !== '120' || op !== '60' || s2.size !== 120 || s2.opacity !== 60) t.problem('bug', `after the reload Settings shows Touch size ${size}% / opacity ${op}% (want 120% / 60%)`);
+      else t.event('touch-kept', `after the reload: Touch size ${size}%, Touch opacity ${op}% (${localStorage.getItem(TOUCH_KEY)})`);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(300);
+      t.progress(0.6);
+      await this.startVersus(3);
+      await t.wait(1500);
+      report('in a match after the reload', { size: 120, opacity: 60 });
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.click(() => this.q('#btn-quit'), 'Quit');
+      await this.screen('main');
+      // The player's own setting back as it was.
+      try {
+        if (carried.original === null) localStorage.removeItem(TOUCH_KEY);
+        else localStorage.setItem(TOUCH_KEY, carried.original);
+      } catch {
+        // Storage blocked.
+      }
+    } finally {
+      forceTouchUi(false);
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- graphics
+
+  /**
+   * Graphics settings: with nothing saved, Settings shows the device's defaults (touch: Low, glow off; desktop:
+   * High, glow on, the old look). In a match, from Pause, Glow, Quality and Show FPS each take effect at once with
+   * no reload (the page's load marker survives) and are saved. Logs the settings and render scale (`gfx-*`) and
+   * the average frame rate of the fight (metric `fpsMatch`, split by quality). The player's dod.gfx is put back.
+   */
+  async graphicsRun(): Promise<void> {
+    const t = this.t;
+    const original = localStorage.getItem(GFX_KEY);
+    const initial = graphics();
+    const touch = isTouchDevice();
+    const w = window as unknown as { __gfxLoad?: number };
+    w.__gfxLoad = performance.timeOrigin;
+    const stats = () => this.game.gfxStats?.();
+    const label = () => {
+      const g = stats();
+      return g ? `Quality ${g.quality}, glow ${g.glowOn ? 'on' : 'off'}, FPS readout ${g.fpsShown ? 'shown' : 'hidden'}, render ${g.scale}x (device ${g.dpr}x), ${Math.round(g.fpsNow)} fps` : 'no renderer stats';
+    };
+    const state = (id: string) => this.q(id)?.getAttribute('aria-checked');
+    const samples: { quality: string; fps: number }[] = [];
+    const unwatch = this.game.watch((m) => {
+      if (m.state.frame % 60 !== 0 || m.state.frame < 120) return;
+      const g = stats();
+      if (g && g.fpsNow > 0) samples.push({ quality: g.quality, fps: g.fpsNow });
+    });
+    const average = (q: string) => {
+      const xs = samples.filter((x) => x.quality === q).map((x) => x.fps);
+      return xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null;
+    };
+    try {
+      localStorage.removeItem(GFX_KEY);
+    } catch {
+      // Storage blocked.
+    }
+    try {
+      // A load with nothing saved. (The setting was read at load; read the default through Settings after a reset.)
+      await this.toMainMenu();
+      t.progress(0.05);
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, 'Settings to open');
+      for (const [id, name] of [['#quality-switch', 'Quality'], ['#glow-switch', 'Glow'], ['#fps-switch', 'Show FPS']] as const) {
+        if (!this.q(id)) t.problem('bug', `Settings has no ${name} control`);
+      }
+      t.event('gfx-settings', `Settings shows Quality ${this.q('#quality-switch')?.textContent}, Glow ${this.q('#glow-switch')?.textContent}, Show FPS ${this.q('#fps-switch')?.textContent}`);
+      t.event('gfx-device', `${touch ? 'Touch device' : 'Desktop'}: ${label()}; render cap ${renderScaleCap('high', touch)}x High, ${renderScaleCap('low', touch)}x Low`);
+      // Defaults come from the device; with nothing saved at load they apply as they are, so check what is in force
+      // when this run started with no saved choice (the usual playtest profile), else flip to the default first.
+      const wantQuality = touch ? 'false' : 'true';
+      const wantGlow = touch ? 'false' : 'true';
+      if (original === null) {
+        if (state('#quality-switch') !== wantQuality) t.problem('bug', `${touch ? 'Phones' : 'Desktop'} default to Quality ${this.q('#quality-switch')?.textContent}, want ${touch ? 'Low' : 'High'}`);
+        else if (state('#glow-switch') !== wantGlow) t.problem('bug', `${touch ? 'Phones' : 'Desktop'} default to Glow ${this.q('#glow-switch')?.textContent}, want ${touch ? 'Off' : 'On'}`);
+        else t.event('gfx-default', `${touch ? 'Touch device defaults to Low with glow off' : 'Desktop defaults to High with glow on'} (render ${stats()?.scale}x)`);
+      } else t.event('gfx-default-skipped', 'a saved graphics choice was present at load, so the device default was not checked');
+      if (state('#fps-switch') !== 'false' && original === null) t.problem('bug', 'Show FPS is not off by default');
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(300);
+
+      await this.startVersus(3);
+      t.progress(0.15);
+      const m0 = () => this.game.match();
+      this.progressNow = () => 0.15 + 0.4 * Math.min(1, ((m0()?.state.frame ?? 0) / (45 * 60)));
+      await this.fight(() => (m0()?.state.frame ?? 0) > 20 * 60, 3 * 60 * 1000);
+      t.event('gfx-before', label());
+
+      const openFromPause = async () => {
+        await tapKey('Escape');
+        await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+        await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+        await t.until(settingsShowing, 3000, 'Settings to open from Pause');
+        await t.wait(300);
+      };
+      const closeToMatch = async () => {
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+        await this.click(() => this.q('#btn-resume'), 'Resume');
+        await t.until(() => this.game.phase() === 'play', 3000, 'the match to resume');
+      };
+      const saved = () => {
+        try {
+          return JSON.parse(localStorage.getItem(GFX_KEY) ?? 'null') as { quality: string; glow: boolean; fps: boolean } | null;
+        } catch {
+          return null;
+        }
+      };
+      const noReload = () => w.__gfxLoad === performance.timeOrigin && !!this.game.match();
+
+      // Glow: flip it, the glow layer follows at once and the choice is saved.
+      await openFromPause();
+      const glowBefore = stats()?.glowOn;
+      await this.tap(() => this.q('#glow-switch'), 'Glow');
+      if (stats()?.glowOn === glowBefore || saved()?.glow !== stats()?.glowOn || state('#glow-switch') !== String(stats()?.glowOn)) t.problem('bug', 'Glow did not apply and save');
+      else t.event('gfx-glow', `Glow switched ${glowBefore ? 'off' : 'on'} in Settings: layer ${stats()?.glowOn ? 'on' : 'off'}, saved, match kept running`);
+      // Show FPS: the corner readout appears with a number in it.
+      await this.tap(() => this.q('#fps-switch'), 'Show FPS');
+      await closeToMatch();
+      await t.wait(1200);
+      const meter = this.q('#fps-meter');
+      const r = meter?.getBoundingClientRect();
+      if (!meter || meter.hidden || !r || r.width === 0 || !/\d+ FPS/.test(meter.textContent ?? '')) t.problem('bug', `Show FPS did not show a readout (${meter?.textContent ?? 'no element'})`);
+      else if (r.right > innerWidth || r.bottom > innerHeight || r.width > innerWidth * 0.3) t.problem('bug', 'the FPS readout is off screen or not small');
+      else t.event('gfx-fps', `FPS readout in the corner: "${meter.textContent}" (${Math.round(r.width)}x${Math.round(r.height)} px)`);
+
+      // Quality: flip it; the render scale changes at once, no reload.
+      const f1 = m0()?.state.frame ?? 0;
+      await this.fight(() => (m0()?.state.frame ?? 0) - f1 > 12 * 60, 2 * 60 * 1000);
+      await openFromPause();
+      const q0 = stats();
+      await this.tap(() => this.q('#quality-switch'), 'Quality');
+      const q1 = stats();
+      const wantScale = q1 ? Math.min(q1.dpr, renderScaleCap(q1.quality, touch)) : 0;
+      if (!q0 || !q1 || q1.quality === q0.quality || Math.abs(q1.scale - wantScale) > 0.01 || saved()?.quality !== q1.quality) t.problem('bug', `Quality did not apply (${label()})`);
+      else t.event('gfx-quality', `Quality ${q0.quality} → ${q1.quality}: render scale ${q0.scale}x → ${q1.scale}x (cap ${renderScaleCap(q1.quality, touch)}x), saved`);
+      await closeToMatch();
+      if (!noReload()) t.problem('bug', 'the page reloaded when a graphics setting changed');
+      else t.event('gfx-no-reload', 'the page and match carried on through all three changes');
+      const f2 = m0()?.state.frame ?? 0;
+      await this.fight(() => (m0()?.state.frame ?? 0) - f2 > 15 * 60, 2 * 60 * 1000);
+      t.event('gfx-after', label());
+      t.progress(0.85);
+
+      for (const q of ['high', 'low']) {
+        const a = average(q);
+        if (a !== null) t.metric(`fpsMatch${q === 'high' ? 'High' : 'Low'}`, a);
+      }
+      const lowAvg = average('low');
+      if (touch && lowAvg !== null && lowAvg < 45) t.problem('warning', `average ${lowAvg} fps in Low on a touch device (want at least 45)`);
+      t.metric('renderScale', stats()?.scale ?? 0);
+
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.click(() => this.q('#btn-quit'), 'Quit');
+      await this.screen('main');
+    } finally {
+      unwatch();
+      setGraphics(initial);
+      try {
+        if (original === null) localStorage.removeItem(GFX_KEY);
+        else localStorage.setItem(GFX_KEY, original);
+      } catch {
+        // Storage blocked.
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   // ---------------------------------------------------------- commentary
 
   /**
@@ -1698,7 +2646,7 @@ class Run {
    * to its end, logging every call the announcer makes from the match's events (`call-<kind>`), checking no line
    * is said twice in a row and that the captions show. Part 2: Blog Man's intro per episode: setup shortcut marks
    * the campaign cleared so every season's map is open, then each season's first chapter (option `all`: every
-   * chapter) is played from the map for its dialogue and the match's first seconds, and left from Pause once
+   * chapter) is played from the map through its live intro scene and the match's first seconds, and left from Pause once
    * Blog Man has spoken. Events `call-<kind>`, `call-kinds`, `call-repeat`, `blog-intro`, `blog-intros`.
    */
   async commentary(): Promise<void> {
@@ -2130,6 +3078,8 @@ const HAWKES_GEN = 'https://hawkesgen.ai';
 const HAWKES_BIOMEDICAL = 'https://hawkesbiomedical.com';
 
 /** Carries the sound-settings run across its reload. */
+/** Carries the touch-settings run across its reload. */
+const TOUCH_RUN_KEY = 'hawkes.playtest.touch-settings';
 const SOUND_RUN_KEY = 'hawkes.playtest.sound-settings';
 /** The feedback card after a versus match (analytics.ts askAfterMatch). */
 const MATCH_ASK = 'after-match';

@@ -1408,664 +1408,913 @@
       "group": "announcer",
       "who": "announcer",
       "text": "First blood!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.first-blood.1.mp3",
+      "take": {
+        "text": "First blood!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.first-blood.2",
       "group": "announcer",
       "who": "announcer",
       "text": "And that's the first one down!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.first-blood.2.mp3",
+      "take": {
+        "text": "And that's the first one down!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.first-blood.3",
       "group": "announcer",
       "who": "announcer",
       "text": "First stock gone. The crowd noticed.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.first-blood.3.mp3",
+      "take": {
+        "text": "First stock gone. The crowd noticed.",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.ko.1",
       "group": "announcer",
       "who": "announcer",
       "text": "Down and out!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.ko.1.mp3",
+      "take": {
+        "text": "Down and out!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.ko.2",
       "group": "announcer",
       "who": "announcer",
       "text": "That's a KO!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.ko.2.mp3",
+      "take": {
+        "text": "That's a KO!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.ko.3",
       "group": "announcer",
       "who": "announcer",
       "text": "Gone! Off the screen!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.ko.3.mp3",
+      "take": {
+        "text": "Gone! Off the screen!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.ko.4",
       "group": "announcer",
       "who": "announcer",
       "text": "Lights out!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.ko.4.mp3",
+      "take": {
+        "text": "Lights out!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.comeback.1",
       "group": "announcer",
       "who": "announcer",
       "text": "What a comeback!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.comeback.1.mp3",
+      "take": {
+        "text": "What a comeback!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.comeback.2",
       "group": "announcer",
       "who": "announcer",
       "text": "From behind! Back in it!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.comeback.2.mp3",
+      "take": {
+        "text": "From behind! Back in it!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.comeback.3",
       "group": "announcer",
       "who": "announcer",
       "text": "Don't count them out!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.comeback.3.mp3",
+      "take": {
+        "text": "Don't count them out!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.last-stock.1",
       "group": "announcer",
       "who": "announcer",
       "text": "Last stock!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.last-stock.1.mp3",
+      "take": {
+        "text": "Last stock!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.last-stock.2",
       "group": "announcer",
       "who": "announcer",
       "text": "One life left!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.last-stock.2.mp3",
+      "take": {
+        "text": "One life left!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.last-stock.3",
       "group": "announcer",
       "who": "announcer",
       "text": "Running out of lives!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.last-stock.3.mp3",
+      "take": {
+        "text": "Running out of lives!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.showdown.1",
       "group": "announcer",
       "who": "announcer",
       "text": "Last stock each! This is it!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.showdown.1.mp3",
+      "take": {
+        "text": "Last stock each! This is it!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.showdown.2",
       "group": "announcer",
       "who": "announcer",
       "text": "One life apiece!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.showdown.2.mp3",
+      "take": {
+        "text": "One life apiece!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.showdown.3",
       "group": "announcer",
       "who": "announcer",
       "text": "Everything on the line!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.showdown.3.mp3",
+      "take": {
+        "text": "Everything on the line!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.self-destruct.1",
       "group": "announcer",
       "who": "announcer",
       "text": "Nobody touched them. Off they go.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.self-destruct.1.mp3",
+      "take": {
+        "text": "Nobody touched them. Off they go.",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.self-destruct.2",
       "group": "announcer",
       "who": "announcer",
       "text": "Gravity wins that one.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.self-destruct.2.mp3",
+      "take": {
+        "text": "Gravity wins that one.",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.self-destruct.3",
       "group": "announcer",
       "who": "announcer",
       "text": "Walked right off the stage!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.self-destruct.3.mp3",
+      "take": {
+        "text": "Walked right off the stage!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.big-hit.1",
       "group": "announcer",
       "who": "announcer",
       "text": "Ooh, that one landed!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.big-hit.1.mp3",
+      "take": {
+        "text": "Ooh, that one landed!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.big-hit.2",
       "group": "announcer",
       "who": "announcer",
       "text": "Heavy hit!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.big-hit.2.mp3",
+      "take": {
+        "text": "Heavy hit!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.big-hit.3",
       "group": "announcer",
       "who": "announcer",
       "text": "That'll leave a mark!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.big-hit.3.mp3",
+      "take": {
+        "text": "That'll leave a mark!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.big-hit.4",
       "group": "announcer",
       "who": "announcer",
       "text": "Felt that in the cheap seats!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.big-hit.4.mp3",
+      "take": {
+        "text": "Felt that in the cheap seats!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.combo.1",
       "group": "announcer",
       "who": "announcer",
       "text": "Combo!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.combo.1.mp3",
+      "take": {
+        "text": "Combo!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.combo.2",
       "group": "announcer",
       "who": "announcer",
       "text": "Hit after hit!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.combo.2.mp3",
+      "take": {
+        "text": "Hit after hit!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.combo.3",
       "group": "announcer",
       "who": "announcer",
       "text": "No way out of that!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.combo.3.mp3",
+      "take": {
+        "text": "No way out of that!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.danger.1",
       "group": "announcer",
       "who": "announcer",
       "text": "Danger zone! One hit from gone.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.danger.1.mp3",
+      "take": {
+        "text": "Danger zone! One hit from gone.",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.danger.2",
       "group": "announcer",
       "who": "announcer",
       "text": "That's a lot of damage!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.danger.2.mp3",
+      "take": {
+        "text": "That's a lot of damage!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.danger.3",
       "group": "announcer",
       "who": "announcer",
       "text": "Overloaded! Nowhere to hide.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.danger.3.mp3",
+      "take": {
+        "text": "Overloaded! Nowhere to hide.",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.shield-break.1",
       "group": "announcer",
       "who": "announcer",
       "text": "Shield broken!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.shield-break.1.mp3",
+      "take": {
+        "text": "Shield broken!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.shield-break.2",
       "group": "announcer",
       "who": "announcer",
       "text": "The guard is gone!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.shield-break.2.mp3",
+      "take": {
+        "text": "The guard is gone!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.shield-break.3",
       "group": "announcer",
       "who": "announcer",
       "text": "The shield shatters!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.shield-break.3.mp3",
+      "take": {
+        "text": "The shield shatters!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.hazard.1",
       "group": "announcer",
       "who": "announcer",
       "text": "The stage fights back!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.hazard.1.mp3",
+      "take": {
+        "text": "The stage fights back!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.hazard.2",
       "group": "announcer",
       "who": "announcer",
       "text": "Watch the stage!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.hazard.2.mp3",
+      "take": {
+        "text": "Watch the stage!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.hazard.3",
       "group": "announcer",
       "who": "announcer",
       "text": "The stage is part of the show!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.hazard.3.mp3",
+      "take": {
+        "text": "The stage is part of the show!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.stage-event.1",
       "group": "announcer",
       "who": "announcer",
       "text": "Here it comes!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.stage-event.1.mp3",
+      "take": {
+        "text": "Here it comes!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.stage-event.2",
       "group": "announcer",
       "who": "announcer",
       "text": "Heads up, the stage is moving!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.stage-event.2.mp3",
+      "take": {
+        "text": "Heads up, the stage is moving!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.stage-event.3",
       "group": "announcer",
       "who": "announcer",
       "text": "Stage warning!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.stage-event.3.mp3",
+      "take": {
+        "text": "Stage warning!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.time-low.1",
       "group": "announcer",
       "who": "announcer",
       "text": "Ten seconds!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.time-low.1.mp3",
+      "take": {
+        "text": "Ten seconds!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.time-low.2",
       "group": "announcer",
       "who": "announcer",
       "text": "Ten seconds on the clock!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.time-low.2.mp3",
+      "take": {
+        "text": "Ten seconds on the clock!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.time-low.3",
       "group": "announcer",
       "who": "announcer",
       "text": "The clock is running out!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.time-low.3.mp3",
+      "take": {
+        "text": "The clock is running out!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.lull.1",
       "group": "announcer",
       "who": "announcer",
       "text": "Somebody throw something!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.lull.1.mp3",
+      "take": {
+        "text": "Somebody throw something!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.lull.2",
       "group": "announcer",
       "who": "announcer",
       "text": "Is this a staring contest?",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.lull.2.mp3",
+      "take": {
+        "text": "Is this a staring contest?",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "announcer.lull.3",
       "group": "announcer",
       "who": "announcer",
       "text": "The crowd wants a fight!",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/announcer.lull.3.mp3",
+      "take": {
+        "text": "The crowd wants a fight!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
     },
     {
       "id": "blog-man.intro.open-mic",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Blog Man, front row. Tonight's headline: Unknown Kid With One Skateboard Takes The Floor, Crowd Politely Waits.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.open-mic.mp3",
+      "take": {
+        "text": "Blog Man, front row. Tonight's headline: Unknown Kid With One Skateboard Takes The Floor, Crowd Politely Waits.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.house-heavy",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Big night at Yo House. Headline: Heavy Walks In, Floor Reportedly Hopes For The Best.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.house-heavy.mp3",
+      "take": {
+        "text": "Big night at Yo House. Headline: Heavy Walks In, Floor Reportedly Hopes For The Best.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.bad-signal",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Breaking: Two On One, Panels Tilt, Signal Drops, Nobody Surprised. I'm filing this from the nosebleeds.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.bad-signal.mp3",
+      "take": {
+        "text": "Breaking: Two On One, Panels Tilt, Signal Drops, Nobody Surprised. I'm filing this from the nosebleeds.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.low-pressure",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Weather alert on Dust Devil Mesa. Headline: Gravity Down Forty-Five Percent, Hair Everywhere, Drama Delivered.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.low-pressure.mp3",
+      "take": {
+        "text": "Weather alert on Dust Devil Mesa. Headline: Gravity Down Forty-Five Percent, Hair Everywhere, Drama Delivered.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.turn-the-page",
       "group": "blog-man",
       "who": "blog-man",
       "text": "I covered this kid three nights straight. Tonight I'm not in the booth. I'm in the fight. Headline pending.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.turn-the-page.mp3",
+      "take": {
+        "text": "I covered this kid three nights straight. Tonight I'm not in the booth. I'm in the fight. Headline pending.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.sudden-death",
       "group": "blog-man",
       "who": "blog-man",
       "text": "The show is running long. One stock each, both at one-fifty. Headline: Nobody Gets A Second Chance, Writers Say It Was Always Like This.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.sudden-death.mp3",
+      "take": {
+        "text": "The show is running long. One stock each, both at one-fifty. Headline: Nobody Gets A Second Chance, Writers Say It Was Always Like This.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.dead-weight",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Two heavies, and one kid who only has to stay standing for sixty seconds. Front page: Survive, Please.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.dead-weight.mp3",
+      "take": {
+        "text": "Two heavies, and one kid who only has to stay standing for sixty seconds. Front page: Survive, Please.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.encore",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Encore night. The man who runs the show is on the card, and for once the headline fits on one line: Maestro Steps Out.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.encore.mp3",
+      "take": {
+        "text": "Encore night. The man who runs the show is on the card, and for once the headline fits on one line: Maestro Steps Out.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.title-defense",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Your host, Blog Man. Headline: Champion Returns To The Roof, Fin Spotted In The Crowd, Two Minutes On The Clock.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.title-defense.mp3",
+      "take": {
+        "text": "Your host, Blog Man. Headline: Champion Returns To The Roof, Fin Spotted In The Crowd, Two Minutes On The Clock.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.drop-in",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Ratings night. Three KOs before the clock, and the network wants highlights, not survivors. Headline: Skater Drops In Again, Nobody Asked.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.drop-in.mp3",
+      "take": {
+        "text": "Ratings night. Three KOs before the clock, and the network wants highlights, not survivors. Headline: Skater Drops In Again, Nobody Asked.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.champions-tax",
       "group": "blog-man",
       "who": "blog-man",
       "text": "New rule from the network: the champion starts every life already hurt. Headline: Tax Collected In Fog, Receipt Pending.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.champions-tax.mp3",
+      "take": {
+        "text": "New rule from the network: the champion starts every life already hurt. Headline: Tax Collected In Fog, Receipt Pending.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.sponsored",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Tonight's walk-on comes with a sponsor. Headline: Giant Wallet Buys Giant Seats, Champion Still Brought One Skateboard.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.sponsored.mp3",
+      "take": {
+        "text": "Tonight's walk-on comes with a sponsor. Headline: Giant Wallet Buys Giant Seats, Champion Still Brought One Skateboard.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.walk-on",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Breaking news, and I mean it: tonight's walk-on used to run this show. Headline: Name On The Sheet, Baton In Hand, Champion Gets Top Billing.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.walk-on.mp3",
+      "take": {
+        "text": "Breaking news, and I mean it: tonight's walk-on used to run this show. Headline: Name On The Sheet, Baton In Hand, Champion Gets Top Billing.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.simulcast",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Two broadcasts, one hour. Ours has better lighting. Headline: Gravity Turned Up, Rival Network Takes The Credit.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.simulcast.mp3",
+      "take": {
+        "text": "Two broadcasts, one hour. Ours has better lighting. Headline: Gravity Turned Up, Rival Network Takes The Credit.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.rerun",
       "group": "blog-man",
       "who": "blog-man",
       "text": "The rival network is airing reruns of the champion with the scores rewritten. Headline: Three KOs In Two Minutes, Or The Tape Wins.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.rerun.mp3",
+      "take": {
+        "text": "The rival network is airing reruns of the champion with the scores rewritten. Headline: Three KOs In Two Minutes, Or The Tape Wins.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.cut-to-size",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Budget cuts, and the champion goes first. Headline: Smaller Champion, Same Headline, Still Too Long.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.cut-to-size.mp3",
+      "take": {
+        "text": "Budget cuts, and the champion goes first. Headline: Smaller Champion, Same Headline, Still Too Long.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.hostile-takeover",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Both broadcasts, one channel, and the rival wants to buy the show. Headline: Two On One, Champion Declines The Offer.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.hostile-takeover.mp3",
+      "take": {
+        "text": "Both broadcasts, one channel, and the rival wants to buy the show. Headline: Two On One, Champion Declines The Offer.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.cold-open",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Sweeps Week starts with no warning, and the gravity turned down for reasons. Headline: Everything Floats, Ratings Climb.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.cold-open.mp3",
+      "take": {
+        "text": "Sweeps Week starts with no warning, and the gravity turned down for reasons. Headline: Everything Floats, Ratings Climb.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.product-placement",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Tonight's sponsor is also tonight's walk-on, and he pays by the percent. Headline: Three Hundred Percent Or A Refund.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.product-placement.mp3",
+      "take": {
+        "text": "Tonight's sponsor is also tonight's walk-on, and he pays by the percent. Headline: Three Hundred Percent Or A Refund.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.dead-air",
       "group": "blog-man",
       "who": "blog-man",
       "text": "The signal drops for a full minute, and the champion just has to stay on it. Headline: Dead Air, Nobody Touch The Dial.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.dead-air.mp3",
+      "take": {
+        "text": "The signal drops for a full minute, and the champion just has to stay on it. Headline: Dead Air, Nobody Touch The Dial.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.clip-show",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Last night of sweeps: every highlight, and one live fight with the host in it. That's me. Headline: Host Fights On Air, Sources Say He's Nervous.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.clip-show.mp3",
+      "take": {
+        "text": "Last night of sweeps: every highlight, and one live fight with the host in it. That's me. Headline: Host Fights On Air, Sources Say He's Nervous.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.local-affiliate",
       "group": "blog-man",
       "who": "blog-man",
       "text": "First city on the syndication tour: small budget, very good pipe. Headline: Local Affiliate Cannot Afford A Skater.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.local-affiliate.mp3",
+      "take": {
+        "text": "First city on the syndication tour: small budget, very good pipe. Headline: Local Affiliate Cannot Afford A Skater.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.standards-and-practices",
       "group": "blog-man",
       "who": "blog-man",
       "text": "City two has a censor, so every hit airs at seventy percent. Headline: Family Hour Runs Long.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.standards-and-practices.mp3",
+      "take": {
+        "text": "City two has a censor, so every hit airs at seventy percent. Headline: Family Hour Runs Long.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.prime-time",
       "group": "blog-man",
       "who": "blog-man",
       "text": "City three bought the show at its best hour and booked a quota of two hundred percent in eighty seconds. Headline: Prime Time, Prime Pressure.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.prime-time.mp3",
+      "take": {
+        "text": "City three bought the show at its best hour and booked a quota of two hundred percent in eighty seconds. Headline: Prime Time, Prime Pressure.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.global-feed",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Every city at once, one live fight, and the network sent two. Headline: The World Is Watching, Mostly On Mute.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.global-feed.mp3",
+      "take": {
+        "text": "Every city at once, one live fight, and the network sent two. Headline: The World Is Watching, Mostly On Mute.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.pilot-remake",
       "group": "blog-man",
       "who": "blog-man",
       "text": "The reboot opens on the roof where it started, with a new logo. Headline: Same Show, Bolder Font, One Clean Hit Could End It.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.pilot-remake.mp3",
+      "take": {
+        "text": "The reboot opens on the roof where it started, with a new logo. Headline: Same Show, Bolder Font, One Clean Hit Could End It.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.laugh-track",
       "group": "blog-man",
       "who": "blog-man",
       "text": "The network added a canned laugh to a fight. Two KOs in ninety seconds. Headline: Nobody Laughs, Ratings Do.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.laugh-track.mp3",
+      "take": {
+        "text": "The network added a canned laugh to a fight. Two KOs in ninety seconds. Headline: Nobody Laughs, Ratings Do.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.crossover-event",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Two shows, one night. Headline: Crossover Event, Nobody Is Sure How This Works, Including Me.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.crossover-event.mp3",
+      "take": {
+        "text": "Two shows, one night. Headline: Crossover Event, Nobody Is Sure How This Works, Including Me.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.series-finale",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Five clean hits in a row, no cuts, ninety seconds. The editor wants a supercut. Headline: Guest From Next Season Not Allowed To Say How It Goes.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.series-finale.mp3",
+      "take": {
+        "text": "Five clean hits in a row, no cuts, ninety seconds. The editor wants a supercut. Headline: Guest From Next Season Not Allowed To Say How It Goes.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.red-carpet",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Awards season. Red carpet, and nobody scuffs it. Headline: Champion Nominated, Carpet Nervous.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.red-carpet.mp3",
+      "take": {
+        "text": "Awards season. Red carpet, and nobody scuffs it. Headline: Champion Nominated, Carpet Nervous.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.best-supporting",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Two nominees, one category, and a grudge. Headline: Who Is Supporting Whom.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.best-supporting.mp3",
+      "take": {
+        "text": "Two nominees, one category, and a grudge. Headline: Who Is Supporting Whom.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.lifetime-achievement",
       "group": "blog-man",
       "who": "blog-man",
       "text": "A lifetime award tonight, which takes a quota: two hundred fifty percent of applause in ninety seconds. Headline: Lifetime Not Yet Over.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.lifetime-achievement.mp3",
+      "take": {
+        "text": "A lifetime award tonight, which takes a quota: two hundred fifty percent of applause in ninety seconds. Headline: Lifetime Not Yet Over.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.best-in-show",
       "group": "blog-man",
       "who": "blog-man",
       "text": "The big envelope. Four clean hits, and nobody touches the champion. Headline: Acceptance Speech Expected To Be Short.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.best-in-show.mp3",
+      "take": {
+        "text": "The big envelope. Four clean hits, and nobody touches the champion. Headline: Acceptance Speech Expected To Be Short.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.teaser",
       "group": "blog-man",
       "who": "blog-man",
       "text": "A thirty-second teaser that shows nothing and ends on a sign-up sheet. Headline: Network Won't Say Whose Name.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.teaser.mp3",
+      "take": {
+        "text": "A thirty-second teaser that shows nothing and ends on a sign-up sheet. Headline: Network Won't Say Whose Name.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.trailer",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Two names, one trailer, one voiceover. Headline: Narrator Dispute, Champion Declines To Comment.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.trailer.mp3",
+      "take": {
+        "text": "Two names, one trailer, one voiceover. Headline: Narrator Dispute, Champion Declines To Comment.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.table-read",
       "group": "blog-man",
       "who": "blog-man",
       "text": "The finale script has a page missing from every copy. Two KOs in ninety seconds will find it. Headline: Missing Page, Network Checking.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.table-read.mp3",
+      "take": {
+        "text": "The finale script has a page missing from every copy. Two KOs in ninety seconds will find it. Headline: Missing Page, Network Checking.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.cliffhanger",
       "group": "blog-man",
       "who": "blog-man",
       "text": "A song that doesn't resolve, and a quota of two hundred eighty percent. Headline: Song Ends Mid-Note, Network Calls It Art.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.cliffhanger.mp3",
+      "take": {
+        "text": "A song that doesn't resolve, and a quota of two hundred eighty percent. Headline: Song Ends Mid-Note, Network Calls It Art.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.first-cut",
       "group": "blog-man",
       "who": "blog-man",
       "text": "The finale, part one: two sheets on the card, one handwriting. Headline: The Host Steps Out Again, This Time On Purpose.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.first-cut.mp3",
+      "take": {
+        "text": "The finale, part one: two sheets on the card, one handwriting. Headline: The Host Steps Out Again, This Time On Purpose.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     },
     {
       "id": "blog-man.intro.final-cut",
       "group": "blog-man",
       "who": "blog-man",
       "text": "Part two, back to back, on the roof where it all started. Headline: Series Finale, No Headline Long Enough.",
-      "audio": null,
-      "take": null
+      "audio": "/audio/voice/blog-man.intro.final-cut.mp3",
+      "take": {
+        "text": "Part two, back to back, on the roof where it all started. Headline: Series Finale, No Headline Long Enough.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     }
   ]
 }

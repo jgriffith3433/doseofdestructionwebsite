@@ -102,35 +102,6 @@
     <div id="chapter-path" class="chapter-path"></div>
   </section>
 
-  <section id="card" class="screen card-screen" hidden>
-    <div class="card-bar top"></div>
-    <div class="card-body">
-      <p id="card-tag" class="card-tag"></p>
-      <p id="card-kicker" class="card-kicker"></p>
-      <h2 id="card-title" class="card-title"></h2>
-      <p id="card-line" class="card-line" aria-live="polite"></p>
-    </div>
-    <div class="card-bar bottom">
-      <button id="card-skip" class="secondary" type="button" data-autofocus>Skip</button>
-    </div>
-  </section>
-
-  <section id="dialogue" class="screen dialogue-screen" hidden>
-    <p id="dlg-chapter" class="dlg-chapter"></p>
-    <div class="dlg-stage">
-      <img id="dlg-left" class="dlg-portrait left" alt="">
-      <img id="dlg-right" class="dlg-portrait right" alt="">
-    </div>
-    <div class="dlg-box">
-      <p id="dlg-name" class="dlg-name"></p>
-      <p id="dlg-text" class="dlg-text" aria-live="polite"></p>
-      <div class="dlg-actions">
-        <button id="dlg-skip" class="secondary" type="button">Skip</button>
-        <button id="dlg-next" class="primary" type="button" data-autofocus>Next</button>
-      </div>
-    </div>
-  </section>
-
   <section id="howto" class="screen howto-screen" hidden>
     <header class="screen-head">
       <button class="back-btn" type="button" data-back data-autofocus>&larr; Back</button>
@@ -176,6 +147,26 @@
 
   <section id="match" class="screen match-screen" hidden></section>
 
+  <!-- Live story scenes (src/game/ui/scene.ts): letterbox, the show's lower third and one short line at a time. -->
+  <div id="scene" class="scene" hidden>
+    <div class="scene-bar top"></div>
+    <div id="scene-card" class="scene-card" hidden>
+      <p id="scene-card-tag" class="scene-card-tag"></p>
+      <p id="scene-card-kicker" class="scene-card-kicker"></p>
+      <h2 id="scene-card-title" class="scene-card-title"></h2>
+      <p id="scene-card-line" class="scene-card-line" aria-live="polite"></p>
+    </div>
+    <div id="scene-sub" class="scene-sub" hidden>
+      <img id="scene-head" class="scene-head" alt="" hidden>
+      <span id="scene-who" class="scene-who"></span>
+      <span id="scene-text" class="scene-text" aria-live="polite"></span>
+    </div>
+    <div class="scene-bar bottom">
+      <button id="scene-skip" class="secondary" type="button">Skip</button>
+      <button id="scene-next" class="primary" type="button">Next</button>
+    </div>
+  </div>
+
   <div id="pause" class="overlay" hidden>
     <div class="panel small">
       <h2>Paused</h2>
@@ -199,11 +190,27 @@
         <span>Screen shake</span>
         <button id="shake-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
       </div>
+      <div class="setting-row">
+        <span>Quality</span>
+        <button id="quality-switch" class="switch" type="button" role="switch" aria-checked="true">High</button>
+      </div>
+      <div class="setting-row">
+        <span>Glow</span>
+        <button id="glow-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
+      </div>
+      <div class="setting-row">
+        <span>Show FPS</span>
+        <button id="fps-switch" class="switch" type="button" role="switch" aria-checked="false">Off</button>
+      </div>
       <div id="settings-levels" class="settings-levels">
         <label class="slider"><span>Music</span><input id="vol-music" type="range" min="0" max="100" step="1"><output id="vol-music-value"></output></label>
         <label class="slider"><span>Effects</span><input id="vol-sfx" type="range" min="0" max="100" step="1"><output id="vol-sfx-value"></output></label>
       </div>
-      <p class="hint">Effects covers hits, menus and voices. Screen shake is the camera kick on hits and KOs. Press <kbd>M</kbd> any time to turn sound on or off.</p>
+      <div id="settings-touch" class="settings-levels" hidden>
+        <label class="slider"><span>Touch size</span><input id="touch-size" type="range" min="75" max="150" step="5"><output id="touch-size-value"></output></label>
+        <label class="slider"><span>Touch opacity</span><input id="touch-opacity" type="range" min="30" max="100" step="5"><output id="touch-opacity-value"></output></label>
+      </div>
+      <p class="hint">Effects covers hits, menus and voices. Screen shake is the camera kick on hits and KOs. Touch size and opacity (touch devices) scale and fade the on-screen controls. Quality Low draws fewer pixels and sparks, for phones; Glow is the bloom on bright art. Press <kbd>M</kbd> any time to turn sound on or off.</p>
       <button id="settings-done" class="primary" type="button">Done</button>
     </div>
   </div>
@@ -240,7 +247,7 @@
   <p id="net-status" class="net-status" hidden></p>
 
   <div id="loading" class="loading" hidden>Loading fighters&hellip;</div>
-  <div id="wipe" class="wipe" aria-hidden="true"><i></i><i></i></div>
+  <div id="wipe" class="wipe" aria-hidden="true"><i></i><i><b>Dose of <span>Destruction</span></b></i></div>
 
   <!-- Studio standard: one tap before the game starts turns sound on (iOS needs a gesture). -->
   <div id="tap-to-play" class="tap-to-play" role="button" tabindex="0" aria-label="Tap to play">

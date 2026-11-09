@@ -1,6 +1,16 @@
 // On-screen touch controls for coarse-pointer devices: a left-thumb stick, right-thumb buttons and a pause button.
 
 import { BTN } from '../sim/input.ts';
+import { onTouchSettings, touchSettings, type TouchSettings } from '../touchSettings.ts';
+
+/** Pointer capture keeps a drag on its control, but a pointer that is already gone (or a synthetic one) throws: play on. */
+const capture = (el: Element, id: number) => {
+  try {
+    el.setPointerCapture(id);
+  } catch {
+    // Not an active pointer: the control still works from its own events.
+  }
+};
 
 const BUTTONS: { label: string; bit: number; cls: string }[] = [
   { label: 'Jump', bit: BTN.JUMP, cls: 'jump' },
@@ -10,7 +20,8 @@ const BUTTONS: { label: string; bit: number; cls: string }[] = [
   { label: 'Smash', bit: BTN.C_NEUTRAL, cls: 'smash' },
 ];
 
-const STICK_RADIUS = 50;
+/** How far the knob travels, as a share of the stick's width (50px of the original 128px). */
+const STICK_REACH = 50 / 128;
 let root: HTMLElement | null = null;
 let stickX = 0;
 let stickY = 0;
@@ -26,6 +37,14 @@ export function initTouchControls(onPause: () => void, forceBuild = false): void
   root = document.createElement('div');
   root.className = 'touch';
   root.hidden = true;
+  // Touch size and opacity (Settings): CSS variables on the overlay, applied now and on every change.
+  const target = root;
+  const applyLook = (t: TouchSettings) => {
+    target.style.setProperty('--touch-scale', String(t.size / 100));
+    target.style.setProperty('--touch-opacity', String(t.opacity / 100));
+  };
+  applyLook(touchSettings());
+  onTouchSettings(applyLook);
 
   const stick = document.createElement('div');
   stick.className = 'touch-stick';
@@ -36,6 +55,7 @@ export function initTouchControls(onPause: () => void, forceBuild = false): void
   let stickId = -1;
   const moveStick = (e: PointerEvent) => {
     const r = stick.getBoundingClientRect();
+    const STICK_RADIUS = r.width * STICK_REACH;
     let dx = e.clientX - (r.left + r.width / 2);
     let dy = e.clientY - (r.top + r.height / 2);
     const len = Math.hypot(dx, dy);
@@ -56,7 +76,7 @@ export function initTouchControls(onPause: () => void, forceBuild = false): void
   stick.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     stickId = e.pointerId;
-    stick.setPointerCapture(e.pointerId);
+    capture(stick, e.pointerId);
     moveStick(e);
   });
   stick.addEventListener('pointermove', (e) => {
@@ -79,7 +99,7 @@ export function initTouchControls(onPause: () => void, forceBuild = false): void
     };
     el.addEventListener('pointerdown', (e) => {
       e.preventDefault();
-      el.setPointerCapture(e.pointerId);
+      capture(el, e.pointerId);
       ids.add(e.pointerId);
       sync();
     });

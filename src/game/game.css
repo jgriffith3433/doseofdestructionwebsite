@@ -528,65 +528,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
   .chapter-tag { font-size: 13px; line-height: 1.25; }
 }
 
-/* ------------------------------------------------------------- story card */
-
-.card-screen { display: grid; grid-template-rows: 1fr auto 1fr; overflow: hidden; background: radial-gradient(ellipse at center, #3a1a10 0%, #120806 70%); }
-.card-bar { background: #000; display: flex; align-items: center; justify-content: flex-end; padding: 16px 24px; }
-.card-bar.top { transform-origin: top; }
-.card-bar.bottom { align-items: flex-end; transform-origin: bottom; }
-.card-body { text-align: center; padding: 24px; display: grid; gap: 10px; justify-items: center; max-width: 52rem; margin: 0 auto; }
-.card-tag { font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.3em; color: #1a0d08; background: var(--gold); padding: 2px 14px; border-radius: 999px; font-size: 14px; }
-.card-kicker { font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.18em; color: var(--gold); }
-.card-title { font-family: Oswald, sans-serif; text-transform: uppercase; font-size: clamp(36px, 8vw, 88px); line-height: 1; letter-spacing: 0.04em; text-shadow: 0 4px 0 #000; }
-.card-line { font-size: clamp(16px, 2.4vw, 24px); color: var(--muted); max-width: 40rem; }
-.card-in .card-bar.top { animation: card-bar-top 500ms ease-out both; }
-.card-in .card-bar.bottom { animation: card-bar-bottom 500ms ease-out both; }
-.card-in .card-tag { animation: fade-down 400ms 150ms ease-out both; }
-.card-in .card-kicker { animation: fade-up 400ms 300ms ease-out both; }
-.card-in .card-title { animation: card-title-in 700ms 450ms cubic-bezier(0.2, 0.9, 0.2, 1.1) both; }
-.card-in .card-line { animation: fade-up 600ms 1100ms ease-out both; }
-@keyframes card-bar-top { from { transform: translateY(-100%); } }
-@keyframes card-bar-bottom { from { transform: translateY(100%); } }
-@keyframes card-title-in { from { opacity: 0; transform: scale(1.6); letter-spacing: 0.3em; } }
-@media (prefers-reduced-motion: reduce) { .card-in * { animation: none !important; } }
-
-/* -------------------------------------------------------------- dialogue */
-
-.dialogue-screen { display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; }
-.dlg-chapter { text-align: center; font-family: Oswald, sans-serif; color: var(--gold); text-transform: uppercase; letter-spacing: 0.14em; }
-.dlg-stage { position: relative; min-height: 0; }
-.dlg-portrait {
-  position: absolute;
-  bottom: 0;
-  height: 100%;
-  max-height: 640px;
-  max-width: 46vw;
-  object-fit: contain;
-  object-position: bottom;
-  filter: brightness(0.45) saturate(0.6);
-  transition: filter 200ms ease, transform 200ms ease;
-}
-.dlg-portrait.left { left: 6%; }
-.dlg-portrait.right { right: 6%; transform: scaleX(-1); }
-.dlg-portrait.speaking { filter: none; transform: translateY(-8px); }
-.dlg-portrait.right.speaking { transform: scaleX(-1) translateY(-8px); }
-.dlg-box {
-  position: relative;
-  width: min(900px, 100%);
-  margin: 0 auto;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-top: 4px solid var(--hot);
-  border-radius: 10px;
-  padding: 16px 20px;
-  display: grid;
-  gap: 8px;
-}
-.dlg-name { font-family: Oswald, sans-serif; font-size: 20px; color: var(--hot); text-transform: uppercase; }
-.dlg-text { font-size: clamp(17px, 2.2vw, 21px); line-height: 1.45; min-height: 3.2em; }
-.dlg-text.narration { font-style: italic; color: var(--muted); }
-.dlg-actions { display: flex; justify-content: flex-end; gap: 10px; }
-
 /* ----------------------------------------------------------------- howto */
 
 .howto-body {
@@ -762,6 +703,8 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
 .overlay { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(16, 14, 12, 0.7); padding: 16px; z-index: 20; }
 .panel { width: min(340px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 24px; text-align: center; display: grid; gap: 16px; }
 
+.vs-progress { text-align: center; font-family: Oswald, sans-serif; font-size: 18px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); margin: 10px 0 0; }
+.vs-progress[hidden] { display: none; }
 .loading {
   position: fixed;
   inset: 0;
@@ -783,11 +726,28 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   left: -40%;
   width: 180%;
   transform: translateX(-110%) skewX(-18deg);
+  will-change: transform;
 }
+/* The branded cover: the show's logo on the hot panel. Transform-only animation, so no layout or paint work while it shows. */
+.wipe i b {
+  position: absolute;
+  left: 55%;
+  top: 50%;
+  transform: translate(-50%, -50%) skewX(18deg);
+  font-family: Oswald, sans-serif;
+  font-weight: 700;
+  font-size: clamp(26px, 6vw, 72px);
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  color: #0c0a09;
+}
+.wipe i b span { color: var(--gold); text-shadow: 0 3px 0 #5a2410; }
 .wipe i:first-child { background: #0c0a09; }
 .wipe i:last-child { background: var(--hot); border-left: 6px solid var(--gold); }
-/* While the screen is covered it reads as orange with a label, never as an empty black frame. */
-.wipe.in::after {
+/* If the cover has to stay up for a while it says why, rather than read as an empty orange frame. */
+.wipe.in.slow::after {
   content: 'Loading\2026';
   position: absolute;
   right: 6%;
@@ -798,14 +758,14 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   letter-spacing: 0.12em;
   color: #0c0a09;
   opacity: 0;
-  animation: wipe-label 340ms 200ms linear forwards;
+  animation: wipe-label 240ms linear forwards;
 }
 @keyframes wipe-label { to { opacity: 1; } }
 .wipe.in, .wipe.out { pointer-events: all; }
-.wipe.in i { animation: wipe-in 340ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
-.wipe.in i:last-child { animation-delay: 60ms; }
-.wipe.out i { transform: translateX(-5%) skewX(-18deg); animation: wipe-out 360ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
-.wipe.out i:first-child { animation-delay: 60ms; }
+.wipe.in i { animation: wipe-in 220ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
+.wipe.in i:last-child { animation-delay: 40ms; }
+.wipe.out i { transform: translateX(-5%) skewX(-18deg); animation: wipe-out 240ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
+.wipe.out i:first-child { animation-delay: 40ms; }
 @keyframes wipe-in { to { transform: translateX(-5%) skewX(-18deg); } }
 @keyframes wipe-out { to { transform: translateX(110%) skewX(-18deg); } }
 @media (prefers-reduced-motion: reduce) {
@@ -847,25 +807,27 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
 .hud-pct small { font-size: 0.55em; }
 .hud-pct.bump { animation: bump 160ms ease-out; }
 @keyframes bump { 0% { transform: scale(1.25) translateY(-3px); } 100% { transform: none; } }
-/* Touch controls (coarse pointers, in a match). Bottom corners, above the damage HUD. */
-.touch { position: fixed; inset: 0; pointer-events: none; z-index: 6; user-select: none; -webkit-user-select: none; touch-action: none; }
-.touch > * { pointer-events: auto; touch-action: none; }
+/* Touch controls (coarse pointers, in a match). Bottom corners, above the damage HUD. Settings → Touch size and
+   Touch opacity set --touch-scale (0.75 to 1.5) and --touch-opacity (0.3 to 1) on .touch. The groups stay anchored
+   to the safe-area corners and are capped to the window's height, so they never leave the screen at any size. */
+.touch { --touch-scale: 1; --touch-opacity: 1; --btn: min(calc(60px * var(--touch-scale)), 15vh); position: fixed; inset: 0; pointer-events: none; z-index: 6; user-select: none; -webkit-user-select: none; touch-action: none; }
+.touch > * { pointer-events: auto; touch-action: none; opacity: var(--touch-opacity); }
 .touch-stick {
   position: absolute;
   left: max(16px, env(safe-area-inset-left));
   bottom: calc(max(12px, env(safe-area-inset-bottom)) + 70px);
-  width: 128px;
-  height: 128px;
+  width: min(calc(128px * var(--touch-scale)), 36vh);
+  aspect-ratio: 1;
   border-radius: 50%;
   background: rgba(10, 10, 10, 0.55);
   border: 2px solid rgba(255, 255, 255, 0.5);
 }
 .touch-knob {
   position: absolute;
-  left: 38px;
-  top: 38px;
-  width: 52px;
-  height: 52px;
+  left: 29.7%;
+  top: 29.7%;
+  width: 40.6%;
+  height: 40.6%;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.55);
   pointer-events: none;
@@ -875,17 +837,18 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   right: max(16px, env(safe-area-inset-right));
   bottom: calc(max(12px, env(safe-area-inset-bottom)) + 70px);
   display: grid;
-  grid-template-columns: repeat(3, 60px);
-  gap: 8px;
+  grid-template-columns: repeat(3, var(--btn));
+  grid-auto-rows: var(--btn);
+  gap: calc(8px * var(--touch-scale));
 }
 .touch-btn {
-  min-width: 60px;
-  min-height: 60px;
+  min-width: 0;
+  min-height: 0;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.55);
   background: rgba(10, 10, 10, 0.55);
   color: #fff;
-  font: 600 13px Oswald, sans-serif;
+  font: 600 calc(13px * var(--touch-scale)) Oswald, sans-serif;
   letter-spacing: 0.04em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.85);
   text-transform: uppercase;
@@ -901,13 +864,13 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   position: absolute;
   top: max(12px, env(safe-area-inset-top));
   right: max(12px, env(safe-area-inset-right));
-  min-width: 64px;
-  min-height: 56px;
+  min-width: min(calc(64px * var(--touch-scale)), 20vw);
+  min-height: min(calc(56px * var(--touch-scale)), 15vh);
   border-radius: 12px;
   border: 2px solid rgba(255, 255, 255, 0.55);
   background: rgba(10, 10, 10, 0.55);
   color: #fff;
-  font: 600 14px Oswald, sans-serif;
+  font: 600 calc(14px * var(--touch-scale)) Oswald, sans-serif;
   letter-spacing: 0.04em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.85);
   text-transform: uppercase;
@@ -964,6 +927,44 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
 .booth-blog-man { border-left-color: #4fc3f7; font-style: italic; }
 .booth-who { display: block; font-size: 0.6em; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); font-style: normal; }
 @keyframes booth-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+/* Touch layouts: the bottom is the thumbs' (stick, buttons, damage HUD), so the caption goes to a
+   narrow strip under the timer, clear of the PAUSE button. */
+@media (pointer: coarse) {
+  .booth { top: calc(max(12px, env(safe-area-inset-top)) + 84px); bottom: auto; max-width: min(520px, 62vw); padding: 6px 12px; font-size: clamp(14px, 2.2vw, 20px); }
+  @keyframes booth-in-top { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  .booth { animation-name: booth-in-top; }
+}
+
+/* Live story scenes (ui/scene.ts): letterbox bars ease in over the arena (no hard cut), the episode's lower
+   third, and one short subtitle line at a time. The HUD steps aside while the scene plays. */
+.scene { position: fixed; inset: 0; z-index: 8; pointer-events: none; }
+.scene-bar { position: absolute; left: 0; right: 0; height: 9vh; min-height: 34px; background: #000; transition: transform 450ms cubic-bezier(.2, .8, .2, 1); }
+.scene-bar.top { top: 0; transform: translateY(-100%); }
+.scene-bar.bottom { bottom: 0; transform: translateY(100%); display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: 0 max(16px, env(safe-area-inset-right)) env(safe-area-inset-bottom) 16px; }
+.scene.scene-in .scene-bar { transform: none; }
+.scene-bar.bottom button { pointer-events: auto; padding: 6px 16px; font-size: 14px; }
+body.scene-on #hud, body.scene-on #match-top { opacity: 0; pointer-events: none; }
+#hud, #match-top { transition: opacity 300ms; }
+body.scene-on .touch { visibility: hidden; }
+.scene-card { position: absolute; left: max(4vw, env(safe-area-inset-left)); bottom: calc(9vh + 18px); max-width: min(560px, 80vw); padding: 10px 18px 12px; background: linear-gradient(90deg, rgba(20, 8, 6, 0.92), rgba(20, 8, 6, 0.6)); border-left: 5px solid var(--gold); opacity: 0; }
+.scene-card.card-up { animation: lower-third-in 520ms cubic-bezier(.2, .8, .2, 1) forwards; }
+.scene-card.card-down { animation: lower-third-out 380ms ease-in forwards; }
+.scene-card-tag { margin: 0; font-family: Oswald, sans-serif; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--orange, #ff5a1f); }
+.scene-card-kicker { margin: 2px 0 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.75; }
+.scene-card-title { margin: 2px 0 4px; font-family: Oswald, sans-serif; font-size: clamp(24px, 4vw, 40px); line-height: 1; color: var(--gold); text-transform: uppercase; }
+.scene-card-line { margin: 0; font-size: clamp(14px, 1.9vw, 18px); }
+@keyframes lower-third-in { from { opacity: 0; transform: translateX(-40px); clip-path: inset(0 100% 0 0); } to { opacity: 1; transform: none; clip-path: inset(0 0 0 0); } }
+@keyframes lower-third-out { from { opacity: 1; } to { opacity: 0; transform: translateX(-24px); } }
+.scene-sub { position: absolute; left: 50%; bottom: calc(9vh + 16px); transform: translateX(-50%); display: flex; align-items: center; gap: 10px; max-width: min(820px, 92vw); padding: 8px 18px; background: rgba(8, 6, 12, 0.72); border-radius: 6px; font-family: Oswald, sans-serif; font-size: clamp(16px, 2.6vw, 26px); color: #fff; }
+.scene-sub.sub-in { animation: sub-in 240ms ease-out; }
+.scene-sub.narration { background: none; font-style: italic; text-shadow: 0 2px 8px #000, 0 0 2px #000; }
+.scene-head { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); flex: none; }
+.scene-who { color: var(--gold); font-size: 0.62em; letter-spacing: 0.12em; text-transform: uppercase; flex: none; }
+.scene-who[hidden] { display: none; }
+@keyframes sub-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (pointer: coarse) {
+  .scene-sub { font-size: clamp(14px, 2.4vw, 20px); }
+}
 
 /* ---------------------------------------------------------------- narrow */
 
@@ -991,7 +992,6 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   .hud-card { min-width: 0; grid-template-columns: 36px auto; padding-right: 8px; }
   .hud-card img { width: 36px; height: 36px; }
   .hud-name { display: none; }
-  .dlg-portrait { max-width: 60vw; }
   .vs-row { flex-wrap: wrap; }
   .vs-fighter img { height: 30vh; }
 }
@@ -1217,3 +1217,110 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
 .unlock-note b { color: var(--gold); font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.04em; }
 .profile-tile.locked { opacity: 0.4; cursor: not-allowed; }
 .profile-tile.locked img { filter: brightness(0); }
+
+/* Results on a 720p-tall desktop window: fit without scrolling, so the winner banner is never pushed off the top. */
+@media (min-height: 521px) and (max-height: 800px) and (min-width: 561px) {
+  .results-screen, .results-body { gap: 8px; }
+  .results-hero img { height: clamp(80px, 13vh, 130px); }
+  .results-hero div { padding-bottom: 8px; }
+  .results-hero h2 { font-size: clamp(30px, 5vw, 52px); }
+  .results-strip .stat { padding: 6px 14px; }
+  .highlights { padding: 8px 14px; gap: 6px; }
+}
+
+/* ------------------------------------------------------------------ phone */
+
+/* A phone, upright (390x844) or on its side (844x390): menu, select, stages, VS and results. Touch targets are 44px
+   and spaced, the broadcast dressing and name cards scale down, safe areas stay in. Desktop 16:9 / 20:9 never match. */
+@media (max-width: 560px), (max-height: 520px) {
+  .screen {
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-left: max(12px, env(safe-area-inset-left));
+  }
+  button.primary, button.secondary, button.big, button.small, .back-btn { min-height: 44px; }
+  button.big { font-size: 20px; padding: 10px 28px; }
+  .actions { gap: 12px; }
+  .back-btn { padding: 8px 18px; }
+  .rule { gap: 8px; }
+  .rule button, .slot-tools button { min-width: 44px; height: 44px; }
+  .slot-tools { gap: 8px; }
+  .slot-pick { min-height: 44px; align-content: center; }
+  .slot-pick img { width: 40px; height: 40px; }
+  .slots .fight { min-height: 48px; }
+  .menu-item, .stage-card { min-height: 44px; }
+  .menu-item span { overflow-wrap: anywhere; }
+
+  /* Main menu: the ticker is slimmer and its text smaller; the menu clears it. */
+  .main-screen { padding-bottom: calc(40px + env(safe-area-inset-bottom)); padding-inline: max(14px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-right)); }
+  .ticker { height: 30px; gap: 8px; padding-bottom: env(safe-area-inset-bottom); box-sizing: content-box; }
+  .ticker-tag { padding: 0 10px; font-size: 12px; letter-spacing: 0.1em; }
+  .ticker-lines span { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; }
+  .main-menu { gap: 8px; }
+  .menu-item { padding: 8px 16px; }
+  .menu-item.profile-item { min-height: 52px; }
+
+  /* Select: the preview shrinks, tiles stay tappable. */
+  .select-screen { gap: 10px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
+  .tile span { font-size: 10px; }
+  .preview { padding: 10px; }
+  .preview h3 { font-size: 22px; }
+  .preview .blurb { font-size: 14px; }
+  .stage-grid { grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 12px; }
+
+  /* VS: smaller fighters, name cards and mark so both fighters and their cards stay on screen. */
+  .vs-fighter img { height: clamp(120px, 26vh, 240px); max-width: 38vw; }
+  .vs-row.n3 .vs-fighter img, .vs-row.n4 .vs-fighter img { height: clamp(90px, 20vh, 160px); max-width: 24vw; }
+  .vs-fighter figcaption { padding: 4px 10px 4px 8px; border-left-width: 4px; border-bottom-width: 3px; max-width: 42vw; }
+  .vs-fighter figcaption span { font-size: 11px; letter-spacing: 0.08em; }
+  .vs-fighter figcaption strong { font-size: clamp(16px, 4.6vw, 24px); }
+  .vs-mark { font-size: clamp(40px, 9vw, 72px); }
+  .vs-title { font-size: 18px; }
+  .vs-stage { font-size: 17px; }
+  .vs-stage span { font-size: 13px; max-width: 90vw; }
+
+  /* Results: a tighter hero and strip. */
+  .results-hero { gap: 12px; padding: 8px 12px 0; }
+  .results-hero img { height: clamp(90px, 16vh, 150px); }
+  .results-hero h2 { font-size: clamp(26px, 8vw, 44px); overflow-wrap: anywhere; }
+  .results-strip { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+  .results-strip .stat { padding: 8px 12px; }
+  .results-strip .stat strong { font-size: clamp(18px, 5vw, 26px); }
+  .reel { grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); }
+  .results-grid { grid-template-columns: minmax(0, 1fr); }
+  .standing dl { grid-template-columns: repeat(3, auto); }
+  .results-actions { gap: 12px; padding-bottom: 4px; }
+  .results-actions button { flex: 1 1 140px; }
+}
+
+/* Upright phone: the VS fighters sit side by side, with the mark between them on its own line when it won't fit. */
+@media (max-width: 560px) {
+  .vs-row { flex-wrap: nowrap; gap: 4px; }
+  .vs-side { gap: 4px; }
+  .vs-fighter img { height: clamp(140px, 30vh, 260px); max-width: 40vw; }
+  .vs-mark { font-size: 44px; }
+}
+
+/* On its side: the menu goes to two columns so nine entries fit without a long scroll, and the VS screen
+   drops the stage blurb so the cards clear the bottom edge. */
+@media (max-height: 520px) and (min-width: 561px) {
+  .main-screen { grid-template-columns: 1fr; align-items: start; }
+  .main-menu { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+  .main-menu > :not(.menu-item) { grid-column: 1 / -1; }
+  .main-menu .menu-item span { display: none; }
+  .main-menu .menu-item { align-content: center; }
+  .vs-fighter img { height: clamp(100px, 34vh, 180px); }
+  .vs-stage span { display: none; }
+  .versus-body { gap: 6px; }
+}
+
+/* ---------------------------------------------------------- rotate prompt */
+.rotate-prompt { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; text-align: center; padding: 24px; background: rgba(16, 14, 12, 0.96); color: #fff; }
+.rotate-prompt[hidden] { display: none; }
+.rotate-prompt h2 { margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); }
+.rotate-prompt p { margin: 0 auto 20px; max-width: 28ch; opacity: 0.85; }
+.rotate-icon { width: 64px; height: 108px; margin: 0 auto; border: 4px solid var(--gold); border-radius: 12px; animation: rotate-turn 2s ease-in-out infinite; }
+@keyframes rotate-turn { 0%, 25% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+@media (prefers-reduced-motion: reduce) { .rotate-icon { animation: none; } }

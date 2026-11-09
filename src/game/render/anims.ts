@@ -142,6 +142,26 @@ export function clipFrame(f: Fighter, pick: Pick): number {
   }
   else if (pick.exact && f.length > 0 && !clip.loop) span = f.length;
   if (span > 0) return Math.min(n - 1, Math.floor((f.frame / span) * n));
+  if (f.action === ACT.WALK && pick.key === 'walk' && clip.loop) return walkFrame(f, clip);
   const i = Math.floor((f.frame * clip.fps) / 60);
   return clip.loop ? i % n : Math.min(n - 1, i);
+}
+
+/**
+ * The ground one walk cycle covers (sim units). The clip's natural travel speed is the
+ * fighter's full walking speed at the clip's own frame rate.
+ */
+export function walkStride(char: number, clip: Clip): number {
+  return Math.max(1, (CHARACTERS[char].walkSpeed * clip.frames * 60) / clip.fps);
+}
+
+/**
+ * Walk frames follow the ground covered, not the clock (studio rule 5, no foot sliding):
+ * playback is actual speed / clip speed, so a light tilt of the stick walks slowly
+ * instead of skating, and stopping freezes the stride where the feet are.
+ */
+export function walkFrame(f: Fighter, clip: Clip): number {
+  const stride = walkStride(f.char, clip);
+  const d = (((f.x * f.facing) % stride) + stride) % stride;
+  return Math.min(clip.frames - 1, Math.floor((d / stride) * clip.frames));
 }

@@ -8,7 +8,7 @@ import { audio } from '../audio.ts';
 import { screen as trackScreen } from '../analytics.ts';
 
 export type ScreenId =
-  | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'dialogue' | 'card' | 'howto' | 'results' | 'match' | 'leaderboard';
+  | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'howto' | 'results' | 'match' | 'leaderboard';
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const backHandlers = new Map<ScreenId, () => void>();
@@ -47,13 +47,19 @@ export async function go(id: ScreenId, whileCovered?: () => void | Promise<void>
   if (!first) {
     audio.sfx('wipe');
     wipe.className = 'wipe in';
-    await wait(reduceMotion ? 120 : 340);
+    await wait(reduceMotion ? 120 : 260);
   }
-  await whileCovered?.();
+  // The label only appears when the cover has to stay up for a while; a normal switch is just the wipe.
+  const slow = first ? 0 : window.setTimeout(() => { if (wipe.className === 'wipe in') wipe.className = 'wipe in slow'; }, 500);
+  try {
+    await whileCovered?.();
+  } finally {
+    clearTimeout(slow);
+  }
   show(id);
   if (!first) {
     wipe.className = 'wipe out';
-    await wait(reduceMotion ? 120 : 360);
+    await wait(reduceMotion ? 120 : 280);
     wipe.className = 'wipe';
   }
   busy = false;
@@ -98,7 +104,7 @@ export function focusFirst(): void {
   }
   const list = candidates();
   const preferred = list.find((el) => el.dataset.autofocus !== undefined) ?? list[0];
-  preferred?.focus({ preventScroll: false });
+  preferred?.focus({ preventScroll: true });
 }
 
 /** Moves focus to the nearest control in a direction, by on-screen position. */

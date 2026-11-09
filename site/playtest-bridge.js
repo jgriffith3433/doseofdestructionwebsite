@@ -124,6 +124,34 @@
       ]
     },
     {
+      "id": "touch-settings",
+      "title": "Touch size and opacity: Settings shows the two sliders on touch devices, they resize and fade the stick and buttons live in a match, and are kept after a reload",
+      "description": "The run is treated as a touch device. Main menu → Settings shows Touch size (75-150%) and Touch opacity (30-100%) (touch-sliders); sets 150% / 50% (touch-saved: localStorage dod.touch); in a match measures the stick, Attack and Pause button and their opacity, all inside the window (touch-look); from Pause sets 75% / 100% (touch-resized: the controls shrink) and 120% / 60%; reloads (the run carries on through ?playtest=touch-settings) and checks Settings and a new match still have 120% / 60% (touch-kept). The player's own dod.touch is put back.",
+      "seconds": 120,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "touch-match",
+      "title": "Touch match: at phone size, menus to results with only the on-screen stick and buttons (move, jump, attack, special), every control checked on screen and clear of the safe area",
+      "description": "Run it with device phone (landscape 844x390; upright the Rotate prompt waits). The menus are tapped (pointer events: Versus, fighter, CPU, Fight, stage), then the match is played to the results screen only through pointer events on the overlay from input/touch.ts: the Move stick and the Jump, Attack, Special, Shield and Smash buttons (no keyboard, no virtual pad, nothing set in the sim). The bot's decisions are turned into touches; a short drill first presses each control and checks the game read it. Checks every control exists, has size, sits inside the window and the safe-area inset, and is not covered (a problem each: touch-controls-ok otherwise). Events touch-move, touch-jump, touch-attack, touch-special (also touch-shield, touch-smash), touch-controls-ok, touch-summary; metrics touchMoves, touchJumps, touchAttacks, touchSpecials. Option drop: a control (jump, attack, special, shield, smash, stick, pause) to hide first, to show the missing-control problem.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "graphics",
+      "title": "Graphics settings: device defaults (phones Low, glow off), then Glow, Show FPS and Quality each take effect live from Pause, saved, and the fight's frame rate",
+      "description": "A versus match against the CPU. Logs gfx-settings, gfx-device, gfx-default (touch: Low with glow off; desktop: High with glow on), gfx-glow, gfx-fps (the corner readout), gfx-quality (render scale before and after), gfx-no-reload; metrics fpsMatchHigh/Low, renderScale. The player's dod.gfx is put back. Run it at phone size for the 45 fps check.",
+      "seconds": 150,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "commentary",
       "title": "Commentary: the announcer calls the fight from its events (at least 8 kinds of line, never the same line twice in a row), and Blog Man introduces every season's episodes",
       "description": "Part 1: a versus match against the CPU (3 stocks, the bot on a virtual pad), to its end; each announcer call is an event call-<kind> (first-blood, ko, comeback, last-stock, showdown, self-destruct, big-hit, combo, danger, shield-break, hazard, stage-event, time-low, lull) with its caption shown, plus call-kinds (how many kinds came up) and call-repeat problems. Part 2: setup shortcut marks the campaign cleared (the player's own progress is put back), then plays the first chapter of each season (option `all`: every chapter) from the map through its dialogue, and leaves from Pause once Blog Man has spoken: events blog-intro per episode and blog-intros. Metrics callKinds, calls, blogIntros.",
@@ -181,8 +209,8 @@
     },
     {
       "id": "story-cards",
-      "title": "Story cards: every campaign match has an animated card with the episode title and a line from content/campaign.json, before and after, and each can be skipped",
-      "description": "Option chapter (a chapter id, default open-mic). Setup shortcut: the chapters before it are marked cleared (the player's progress is put back). Checks every episode in content/campaign.json has a before and after card line (cards-data), opens the chapter from the Campaign map, reads the before card (card-before: season, episode, title, line, checked against campaign.json), lets it move on by itself (card-auto, about 5 s), plays the intro and the fight, and after Continue reads the after card (card-after) and skips it with its button (card-skipped). Events cards-data, card-before, card-auto, card-after, card-skipped; metrics cardAutoMs, cardsSeen.",
+      "title": "Story cards: every campaign episode opens and signs off in the arena with a lower third (episode title and a line from content/campaign.json), before and after, and each can be cut short",
+      "description": "Option chapter (a chapter id, default open-mic). Setup shortcut: the chapters before it are marked cleared (the player's progress is put back). Checks every episode in content/campaign.json has a before and after card line (cards-data), opens the chapter from the Campaign map, reads the before card (card-before: season, episode, title, line, checked against campaign.json), lets it move on by itself while the fighters arrive (card-auto, about 4-5 s), plays the live intro scene and the fight, and after Game! reads the after card of the outro scene (card-after) and cuts it short with Next (card-skipped). Every piece of scene text must be one short line (10 words at most); event scene per scene. Events cards-data, card-before, card-auto, card-after, card-skipped; metrics cardAutoMs, cardsSeen.",
       "seconds": 240,
       "tags": [
         "full"
@@ -191,8 +219,20 @@
     {
       "id": "presentation",
       "title": "Menu, VS screen and results presentation: the broadcast menu, a name card animating in for each VS fighter, results with winner, time, damage dealt and highlights, no text clipped",
-      "description": "Main menu: the ON AIR bug and Tonight ticker are shown (menu-broadcast). Versus 1v1 (1 stock): on the VS screen each fighter lands and its name card animates in (vs-start, vs-name-card per fighter). The match is played by the bot to its end; the results must show the winner, the time and the damage dealt in the summary strip (results-summary, checked against the match) and list the knockouts as highlights (results-highlights). Each screen is checked for text cut off or pushed off the sides at the window's shape (no-clipping, with the size and 16:9 / 20:9). Options: stage, fighter. Metric highlights.",
+      "description": "Main menu: the ON AIR bug and Tonight ticker are shown (menu-broadcast). Versus 1v1 (1 stock): on the VS screen each fighter lands and its name card animates in (vs-start, vs-name-card per fighter). The match is played by the bot to its end; the results must show the winner, the time and the damage dealt in the summary strip (results-summary, checked against the match) and list the knockouts as highlights (results-highlights). Each screen is checked for text cut off or pushed off the sides at the window's shape (no-clipping, with the size and 16:9 / 20:9 / phone). The character and stage select screens are checked too. At phone size (390x844, 844x390) every button must be at least 44 px tall and none overlap (phone-targets). Options: stage, fighter. Metric highlights.",
       "seconds": 200,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "rotate",
+      "title": "Rotate your phone: upright on a touch device a full-screen prompt covers the game and the match pauses; turned to landscape it hides and play resumes; fullscreen asks for a landscape lock",
+      "description": "Versus match against the CPU, the run treated as a touch device. On a desktop-sized window the run opens its own phone-sized frame (phone-upright, 390x844) and turns it to 844x390 (phone-turned): the events below are the frame's. Start point at: phone plays the window as it is. At 390x844 (upright): the \"Rotate your phone\" prompt fills the screen over the match (rotate-prompt) and the match frame stops (rotate-paused); it then waits for the window to turn to 844x390. At 844x390: the prompt is gone (rotate-hidden) and the match goes on (rotate-resumed). Also checks the landscape lock is requested through screen.orientation.lock (landscape-lock) and that a rejected or missing lock breaks nothing (landscape-lock-safe).",
+      "starts": [
+        "phone"
+      ],
+      "seconds": 90,
       "tags": [
         "full"
       ]

@@ -24,6 +24,7 @@ import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
 import { activeHitboxes, type SimEvent } from '../sim/step.ts';
 import { hitTier, impactFor, screenShake, type HitTier } from '../hitFeel.ts';
+import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
 import { StageLive } from './stageLive.ts';
@@ -44,6 +45,8 @@ const S = 1 / (100 * FX);
 const W = 1 / 100;
 /** How far a hanging fighter's hands come up over the ledge's top edge, in scene units. */
 const GRIP = 0.04;
+/** How long a fighter's drop-in takes in a story scene. */
+const ARRIVE_MS = 520;
 /** The art stands a little taller than the hurtbox. */
 const ART_SCALE = 1.18;
 
@@ -109,7 +112,16 @@ export class Renderer {
   private occluders = false;
   /** Plays a sound effect for stage effects (main wires it to the audio system). */
   onSound: ((id: string) => void) | null = null;
+  /** Procedural effects (synth.ts) the renderer asks for, like an arrival's thud. */
+  onSynth: ((kind: 'thud' | 'whoosh') => void) | null = null;
   private shake = 0;
+  /** A story scene's camera (scene.ts): a close-up on one fighter, or a wide shot; null is the gameplay camera. */
+  private shot: { focus: number | null; since: number } | null = null;
+  /** Fighters held off stage until their arrival, and arrivals in progress (fighter id -> start time). */
+  private offstage = new Set<number>();
+  private arriving = new Map<number, number>();
+  /** Speakers in a story scene: a small bounce while their line starts (fighter id -> start time). */
+  private talking = new Map<number, number>();
   /** The last hit's effect and the camera shake actually applied, for the playtest to read. */
   private hitStats = { hits: 0, last: null as null | { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number }, tiers: { light: 0, medium: 0, heavy: 0 }, shakeApplied: 0, shakeMax: 0 };
   private camPos = new Vector3(0, 1.6, -14);
@@ -117,7 +129,7 @@ export class Renderer {
   debug = false;
 
   constructor(canvas: HTMLCanvasElement) {
-    this.engine = new Engine(canvas, true, { stencil: true, preserveDrawingBuffer: false }, true);
+    this.engine = new Engine(canvas, true, { stencil: true, preserveDrawingBuffer: false }, false);
     this.scene = new Scene(this.engine);
     this.scene.clearColor = new Color4(0.063, 0.055, 0.047, 1);
 
@@ -151,7 +163,60 @@ export class Renderer {
     this.glow.addExcludedMesh(this.flashPlane);
 
     this.setStage(0);
-    window.addEventListener('resize', () => this.engine.resize());
+    this.applyGraphics(graphics());
+    onGraphics((g) => this.applyGraphics(g));
+    this.buildFpsMeter();
+    // A new pixel ratio (zoom, another screen) arrives with a resize.
+    window.addEventListener('resize', () => {
+      this.applyGraphics(graphics());
+      this.engine.resize();
+    });
+  }
+
+  private gfx: Graphics = graphics();
+  private fpsEl: HTMLElement | null = null;
+
+  /** Quality, Glow and Show FPS, applied live: render scale, the glow layer, particle counts, the readout. */
+  private applyGraphics(g: Graphics): void {
+    const qualityChanged = g.quality !== this.gfx.quality;
+    this.gfx = g;
+    this.engine.setHardwareScalingLevel(scalingLevel(g.quality, window.devicePixelRatio));
+    if (qualityChanged) this.engine.resize();
+    this.glow.isEnabled = g.glow;
+    if (this.fpsEl) this.fpsEl.hidden = !g.fps;
+  }
+
+  /** The render scale and glow actually in use, for the playtest. */
+  gfxStats() {
+    return {
+      quality: this.gfx.quality,
+      glow: this.gfx.glow,
+      showFps: this.gfx.fps,
+      dpr: window.devicePixelRatio || 1,
+      scale: Number((1 / this.engine.getHardwareScalingLevel()).toFixed(3)),
+      glowOn: this.glow.isEnabled,
+      fpsShown: !!this.fpsEl && !this.fpsEl.hidden,
+      fpsNow: this.engine.getFps(),
+    };
+  }
+
+  /** A small corner readout, redrawn twice a second from the render loop's own frame end (no timers). */
+  private buildFpsMeter(): void {
+    const el = document.createElement('div');
+    el.id = 'fps-meter';
+    el.setAttribute('aria-hidden', 'true');
+    el.hidden = !this.gfx.fps;
+    el.style.cssText = 'position:fixed;right:6px;bottom:6px;z-index:60;padding:2px 6px;font:700 11px/1.3 monospace;color:#ffd15a;background:rgba(16,14,12,.7);border-radius:3px;pointer-events:none';
+    document.body.appendChild(el);
+    this.fpsEl = el;
+    let last = 0;
+    this.engine.onEndFrameObservable.add(() => {
+      if (el.hidden) return;
+      const now = performance.now();
+      if (now - last < 500) return;
+      last = now;
+      el.textContent = `${Math.round(this.engine.getFps())} FPS`;
+    });
   }
 
   private flatMaterial(name: string, hex: string, alpha = 1): StandardMaterial {
@@ -280,6 +345,9 @@ export class Renderer {
 
   // --------------------------------------------------------------- fighters
 
+  /** Told (sheets ready, sheets total) while a match's clip sheets load; the VS card shows it. */
+  onLoadProgress: ((done: number, total: number) => void) | null = null;
+
   /** Builds a sprite for each fighter. Still art is cropped to its visible pixels first. */
   async setFighters(state: GameState, keepStage = false): Promise<void> {
     for (const v of this.views) {
@@ -367,6 +435,8 @@ export class Renderer {
   private async preloadClips(): Promise<void> {
     const keep = new Set<string>();
     const waits: Promise<void>[] = [];
+    let total = 0;
+    let loaded = 0;
     this.views.forEach((v, slot) => {
       if (!v.anims) return;
       for (const key of Object.keys(v.anims.clips)) {
@@ -375,13 +445,16 @@ export class Renderer {
         keep.add(id);
         let tex = this.clipCache.get(id);
         if (!tex) {
-          const made = new Texture(url, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE);
+          // A sheet that fails (404) counts as settled, so it can't hold the match up; the fighter falls back to its still.
+          const made: Texture = new Texture(url, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE, null, () => made.onLoadObservable.notifyObservers(made));
           made.hasAlpha = true;
           this.clipCache.set(id, made);
           tex = made;
         }
         v.clipTex.set(key, tex);
-        if (!tex.isReady()) waits.push(new Promise((done) => tex!.onLoadObservable.addOnce(() => done())));
+        total++;
+        if (tex.isReady()) loaded++;
+        else waits.push(new Promise((done) => tex!.onLoadObservable.addOnce(() => { loaded++; this.onLoadProgress?.(loaded, total); done(); })));
       }
     });
     for (const [id, tex] of this.clipCache) {
@@ -390,8 +463,9 @@ export class Renderer {
         this.clipCache.delete(id);
       }
     }
-    // A sheet that fails to load shouldn't hold the match up forever.
-    await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, 15000))]);
+    this.onLoadProgress?.(loaded, total);
+    // Every sheet is waited for, so no fighter starts half-loaded. Only a hard cap (a sheet that never answers) lets go.
+    await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, 30000))]);
   }
 
   /** Resolves once every texture in the scene (stage art, clips) is loaded, or after a while. */
@@ -404,7 +478,7 @@ export class Renderer {
    * while a loading screen is up. Without it the first frame on the match screen can stall for
    * seconds (a frozen, blank wipe on slower machines).
    */
-  async warmUp(state: GameState, timeoutMs = 15000): Promise<void> {
+  async warmUp(state: GameState, timeoutMs = 4000): Promise<void> {
     this.engine.resize();
     this.render(state);
     await breathe();
@@ -432,7 +506,7 @@ export class Renderer {
     const lists = this.views.map((v) => [...v.clipTex.values()]);
     const maxClips = Math.max(0, ...lists.map((l) => l.length));
     // Budgeted: on slow (software) renderers the rest upload on first use instead of holding the VS card for ~20 s.
-    const clipDeadline = performance.now() + 4000;
+    const clipDeadline = performance.now() + 1000;
     for (let i = 0; i < maxClips && performance.now() < clipDeadline; i++) {
       for (let slot = 0; slot < this.views.length; slot++) {
         const v = this.views[slot];
@@ -580,7 +654,8 @@ export class Renderer {
     return out;
   }
 
-  private burst(x: number, y: number, n: number, speed: number): void {
+  private burst(x: number, y: number, count: number, speed: number): void {
+    const n = Math.ceil(count * particleShare(this.gfx.quality));
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = speed * (0.4 + Math.random() * 0.8);
@@ -618,14 +693,29 @@ export class Renderer {
     if (!v) return;
     const ch = CHARACTERS[f.char];
     const dead = f.action === ACT.DEAD;
-    v.root.setEnabled(!dead);
-    if (dead) return;
+    const away = this.offstage.has(f.id);
+    v.root.setEnabled(!dead && !away);
+    if (dead || away) return;
 
     const k = f.scale / 100;
     const height = ch.height * W * ART_SCALE * k;
     let x = f.x * S;
     if (f.hitlag > 0 && f.action === ACT.HITSTUN) x += (f.hitlag & 1 ? 1 : -1) * 0.04;
-    v.root.position.set(x, f.y * S, 0);
+    let drop = 0;
+    const came = this.arriving.get(f.id);
+    if (came !== undefined) {
+      // Falls in over ARRIVE_MS (eased like gravity), then lands with dust, a thud and a little shake.
+      const k = Math.min(1, (performance.now() - came) / ARRIVE_MS);
+      drop = (1 - k * k) * 7;
+      if (k >= 1) {
+        this.arriving.delete(f.id);
+        this.burst(x, f.y * S + 0.02, 18, 0.07);
+        this.shake = Math.max(this.shake, 0.35);
+        this.onSound?.('land');
+        this.onSynth?.('thud');
+      }
+    }
+    v.root.position.set(x, f.y * S + drop, 0);
 
     // A clip if there is one, else the still with procedural motion.
     const pick = pickClip(f, v.anims);
@@ -655,7 +745,17 @@ export class Renderer {
       v.body.position.y = height / 2;
     }
 
-    const [sx, sy, rot, lift] = pick?.exact ? [1, 1, 0, 0] : proceduralPose(f, this.stage);
+    let [sx, sy, rot, lift] = pick?.exact ? [1, 1, 0, 0] : proceduralPose(f, this.stage);
+    const spoke = this.talking.get(f.id);
+    if (spoke !== undefined) {
+      const k = (performance.now() - spoke) / 420;
+      if (k >= 1) this.talking.delete(f.id);
+      else {
+        const b = Math.sin(k * Math.PI) * 0.07;
+        sx *= 1 - b * 0.5;
+        sy *= 1 + b;
+      }
+    }
     v.pose.scaling.set(f.facing * sx, sy, 1);
     v.pose.rotation.z = rot;
     v.pose.position.y = lift;
@@ -761,12 +861,30 @@ export class Renderer {
     const tx = (minX + maxX) / 2;
     const ty = (minY + maxY) / 2 + 0.3;
 
-    const ease = 0.08;
-    this.camTarget.x += (tx - this.camTarget.x) * ease;
-    this.camTarget.y += (ty - this.camTarget.y) * ease;
+    let ease = 0.08;
+    let [cx, cy, cd] = [tx, ty, dist];
+    if (this.shot) {
+      // Story scene: ease slower, like a camera operator, onto the speaker or out to the whole stage.
+      ease = 0.045;
+      const secs = (performance.now() - this.shot.since) / 1000;
+      const f = this.shot.focus === null ? undefined : state.fighters[this.shot.focus];
+      if (f && f.action !== ACT.DEAD && !this.offstage.has(f.id)) {
+        const h = CHARACTERS[f.char].height * W * (f.scale / 100);
+        cx = f.x * S + f.facing * h * 0.35;
+        cy = f.y * S + h * 0.62;
+        cd = Math.max(4.5, h * 3.1) - Math.min(0.8, secs * 0.12);
+      } else {
+        const b = this.stage.blast;
+        cx = 0;
+        cy = 1.5;
+        cd = Math.max(12, Math.min(30, ((b.right - b.left) * W) / (2 * tan * aspect) * 0.62)) - Math.min(2.5, secs * 0.35);
+      }
+    }
+    this.camTarget.x += (cx - this.camTarget.x) * ease;
+    this.camTarget.y += (cy - this.camTarget.y) * ease;
     this.camPos.x = this.camTarget.x;
-    this.camPos.y = this.camTarget.y + dist * 0.06;
-    this.camPos.z += (-dist - this.camPos.z) * ease;
+    this.camPos.y = this.camTarget.y + cd * 0.06;
+    this.camPos.z += (-cd - this.camPos.z) * ease;
 
     // Screen shake off (Settings): the camera stays put, whatever the stage or a hit asked for.
     if (!screenShake()) this.shake = 0;
@@ -777,6 +895,31 @@ export class Renderer {
     const jy = (Math.random() - 0.5) * this.shake * 0.4;
     this.camera.position.set(this.camPos.x + jx, this.camPos.y + jy, this.camPos.z);
     this.camera.setTarget(new Vector3(this.camTarget.x + jx, this.camTarget.y + jy, 0));
+  }
+
+  /**
+   * Story-scene camera: `focus` a fighter id for a close-up, null for a wide shot of the stage that slowly
+   * pushes in; `direct(null)` hands the camera back to the fight. The camera always eases, never cuts.
+   */
+  direct(shot: { focus: number | null } | null): void {
+    this.shot = shot ? { focus: shot.focus, since: performance.now() } : null;
+  }
+
+  /** Keeps a fighter off stage (before their arrival in a story scene), or brings them back without one. */
+  holdOffstage(id: number, held: boolean): void {
+    if (held) this.offstage.add(id);
+    else this.offstage.delete(id);
+  }
+
+  /** A fighter's entrance: drops in from above and lands with dust, a thud and a small shake. */
+  arrive(id: number): void {
+    this.offstage.delete(id);
+    this.arriving.set(id, performance.now());
+  }
+
+  /** The speaker of a story line gives a little bounce as they start talking. */
+  cue(id: number): void {
+    this.talking.set(id, performance.now());
   }
 
   /** A match moment the stage's effects can react to: 'start' when play begins, 'end' at Game! */
@@ -812,7 +955,8 @@ function proceduralPose(f: Fighter, stage: StageDef): [number, number, number, n
   const t = f.frame;
   switch (f.action) {
     case ACT.WALK:
-      return [1, 1, -f.facing * 0.06, Math.abs(Math.sin(t * 0.35)) * 0.04];
+      // The bob follows the ground covered (as fast as the old clock at full walking speed), so a slow walk doesn't skate.
+      return [1, 1, -f.facing * 0.06, Math.abs(Math.sin((f.x * f.facing * 0.35) / ch.walkSpeed)) * 0.04];
     case ACT.CROUCH:
       return [1.08, 0.78, 0, 0];
     case ACT.JUMPSQUAT:
@@ -929,6 +1073,47 @@ function paintProps(ctx: CanvasRenderingContext2D, props: StageDef['theme']['pro
       break;
   }
   ctx.restore();
+}
+
+const prefetched = new Map<string, Promise<void>>();
+
+/**
+ * Starts fetching fighters' art and every clip sheet into the browser cache, with no match or scene
+ * needed: called the moment fighters are picked, so setFighters and the VS card find them ready.
+ * Never throws; a failed fetch is simply retried by the real load.
+ */
+export function prefetchFighters(chars: number[]): Promise<void> {
+  const all = [...new Set(chars)].map((c) => {
+    const id = CHARACTERS[c].id;
+    let p = prefetched.get(id);
+    if (!p) {
+      p = (async () => {
+        const [, anims] = await Promise.all([loadArt(`/characters/large/${id}.webp`).catch(() => null), loadAnimSet(id)]);
+        if (!anims) return;
+        await Promise.all(Object.values(anims.clips).map((clip) => new Promise<void>((done) => {
+          const img = new Image();
+          img.onload = img.onerror = () => done();
+          img.src = `${anims.base}${clip.file}?v=${anims.version}`;
+        })));
+      })();
+      prefetched.set(id, p);
+    }
+    return p;
+  });
+  return Promise.all(all).then(() => undefined, () => undefined);
+}
+
+const prefetchedStages = new Set<number>();
+
+/** Starts fetching a stage's painted layers into the browser cache (on hover/focus in Stage Select, or when a chapter starts), so warmUp doesn't wait on them. */
+export function prefetchStage(stage: number): void {
+  if (prefetchedStages.has(stage)) return;
+  prefetchedStages.add(stage);
+  for (const l of STAGES[stage]?.layers ?? []) {
+    if (l.hidden || !l.image) continue;
+    const img = new Image();
+    img.src = `/${l.image}`;
+  }
 }
 
 const artCache = new Map<string, Promise<HTMLCanvasElement>>();

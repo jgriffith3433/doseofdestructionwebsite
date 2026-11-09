@@ -270,8 +270,13 @@ export function scene(id: string, end: { skipped: boolean; line: number }, lines
 
 // ------------------------------------------------------------------ settings, pause, quit
 
-export function setting(name: 'sound' | 'music' | 'sfx' | 'shake', value: boolean | number, from: string): void {
+export function setting(name: 'sound' | 'music' | 'sfx' | 'shake' | 'quality' | 'glow' | 'fps' | 'touch_size' | 'touch_opacity', value: boolean | number | string, from: string): void {
   feature(`settings.${name}`, { value, from });
+}
+
+/** The graphics settings ride along on every event after this (context keys quality, glow, fps). */
+export function graphics(g: { quality: string; glow: boolean; fps: boolean }): void {
+  sdk()?.setContext({ quality: g.quality, glow: g.glow, fps: g.fps });
 }
 
 export function paused(m: Match): void {
