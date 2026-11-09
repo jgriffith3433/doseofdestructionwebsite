@@ -30,7 +30,8 @@
         "x1": -110,
         "x2": 110,
         "y": 280,
-        "solid": false,
+        "solid": true,
+        "depth": 105,
         "hidden": true
       },
       {

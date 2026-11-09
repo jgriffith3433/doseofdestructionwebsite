@@ -812,6 +812,15 @@ class Run {
     t.progress(0.15);
     await this.startVersus(3);
     t.progress(0.4);
+    // Upright on a phone the Rotate prompt holds the match (frame 0 forever): that is the game working, not stuck.
+    // Check the prompt covers the game, then leave from Pause instead of waiting for a fight that cannot start.
+    if (rotateShowing()) {
+      t.event('smoke-rotate', `the Rotate prompt holds the match at ${innerWidth}x${innerHeight}; leaving from Pause`);
+      await this.quitFromPause('main');
+      t.progress(1);
+      t.finish('done');
+      return;
+    }
     const start = () => this.game.match()?.state.frame ?? 0;
     this.progressNow = () => 0.4 + 0.5 * Math.min(1, start() / 1200);
     const ended = await this.fight(() => start() >= 20 * 60, 60000);
