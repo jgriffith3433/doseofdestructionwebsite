@@ -802,8 +802,72 @@ class Run {
     void t;
   }
 
+  /**
+   * On a portrait phone window (the runner's 390x844) the Rotate prompt holds every match, and a page cannot turn its
+   * own window. So the run does what a player does: it turns the phone. It opens a copy of the game in a frame sized
+   * 844x390 (a real landscape viewport for the game inside: media queries, touch controls, no Rotate prompt) and
+   * plays the whole smoke there, forwarding what the frame sees. The prompt itself is untouched (the rotate scenario
+   * still checks it).
+   */
+  private async smokeTurned(): Promise<void> {
+    const t = this.t;
+    type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; outcome: string; state?: { progress?: number } };
+    const back = document.createElement('div');
+    back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
+    const frame = document.createElement('iframe');
+    frame.title = 'Phone window turned to landscape (playtest)';
+    frame.allow = 'autoplay';
+    const w = 844;
+    const h = 390;
+    const k = Math.min(innerWidth / w, innerHeight / h, 1);
+    frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:#000`;
+    back.appendChild(frame);
+    const q = new URLSearchParams(location.search);
+    q.set('playtest', 'smoke');
+    q.set('at', 'phone-turned');
+    if (!q.has('seed')) q.set('seed', String(this.options.seed ?? 1));
+    frame.src = `${location.pathname}?${q.toString()}`;
+    document.body.appendChild(back);
+    const api = () => (frame.contentWindow as (Window & { hawkesPlaytest?: { report(): Inner | null; state(): { progress?: number } | null } }) | null)?.hawkesPlaytest;
+    let seen = 0;
+    const seenProblems = new Set<string>();
+    const forward = (): Inner | null => {
+      const r = api()?.report() ?? null;
+      if (!r) return null;
+      for (const e of r.events.slice(seen)) if (e.type !== 'problem' && e.type !== 'start' && e.type !== 'start-at') t.event(e.type, `${e.detail ?? ''} [landscape frame]`);
+      seen = r.events.length;
+      for (const p of r.problems) {
+        if (!seenProblems.has(p.message)) {
+          seenProblems.add(p.message);
+          t.problem('bug', `${p.message} [landscape frame]`);
+        }
+      }
+      const prog = api()?.state()?.progress;
+      if (typeof prog === 'number') t.progress(prog);
+      return r;
+    };
+    try {
+      t.event('phone-turned', `the portrait phone window (${innerWidth}x${innerHeight}) turned to ${w}x${h} (landscape) for the match`);
+      await t.until(() => {
+        const r = forward();
+        return !!r && (r.outcome === 'done' || r.outcome === 'error' || r.outcome === 'stuck' || r.outcome === 'won' || r.outcome === 'lost');
+      }, 240000, 'the turned phone to play the smoke match');
+      const r = forward();
+      if (r?.outcome !== 'done') t.problem('bug', `the smoke match in the turned phone ended ${r?.outcome ?? 'without a report'}`);
+    } finally {
+      back.remove();
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   private async smokeRun(): Promise<void> {
     const t = this.t;
+    // A portrait phone shows the Rotate prompt: play in a turned copy instead of waiting under the prompt.
+    if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      await this.toMainMenu();
+      if (rotateShowing()) return this.smokeTurned();
+    }
     await this.toMainMenu();
     // The release notes (/releases.json via /site/hawkes-release.js) must load: the version on the menu reads them.
     const release = await ((window as unknown as { hawkesRelease?: Promise<{ current?: string } | null> }).hawkesRelease ?? Promise.resolve(null));
