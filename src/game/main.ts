@@ -24,7 +24,7 @@ import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playVersus, showResults, type ResultAction } from './ui/views.ts';
-import { playScene, skipScene, type SceneLine, type SceneStage } from './ui/scene.ts';
+import { playColdOpen, playScene, skipScene, type SceneLine, type SceneStage } from './ui/scene.ts';
 import { chunkLine, chunkTimes } from './campaign/sceneText.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
@@ -345,6 +345,14 @@ function sceneStage(m: Match): SceneStage {
 async function runScene(m: Match, cue: SceneCue): Promise<void> {
   const c = cue.chapter;
   const lines: SceneLine[] = cue.which === 'intro' ? c.intro : c.outro;
+  if (cue.which === 'intro' && c.coldOpen?.length) {
+    phase = 'scene';
+    audio.playMusic(`music-${STAGES[m.setup.stage].id}`);
+    $('scene-next').focus();
+    const end = await playColdOpen(sceneStage(m), c.coldOpen);
+    analytics.scene(`${c.id}.cold-open`, { skipped: end.skipped, line: 0 }, c.coldOpen.length);
+    return;
+  }
   const card = storyCard(c, cue.which === 'intro' ? 'before' : 'after');
   phase = 'scene';
   audio.playMusic(`music-${STAGES[m.setup.stage].id}`);
@@ -441,7 +449,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
 
   if (stale()) return;
   // An intro scene brings the fighters on itself: they wait in the wings from the first frame.
-  const intro = !!scene && scene.which === 'intro' && scene.chapter.intro.length > 0;
+  const intro = !!scene && scene.which === 'intro' && (scene.chapter.intro.length > 0 || !!scene.chapter.coldOpen?.length);
   for (const f of m.state.fighters) renderer.holdOffstage(f.id, intro);
   const vsMs = performance.now() - t0;
   await go('match', () => {

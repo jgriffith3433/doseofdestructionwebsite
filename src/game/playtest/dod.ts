@@ -812,6 +812,18 @@ class Run {
     const t0 = performance.now();
     const seen = new Set<string>();
     let longest = 0;
+    if (which === 'cold-open') {
+      const cards = !!this.q('#scene-card') && !this.q('#scene-card')!.hidden;
+      if (cards) t.problem('bug', 'a premiere cold open shows a text story card');
+      await this.wait(2500);
+      const beat = root?.getAttribute('data-beat') ?? '';
+      t.event('cold-open', `premiere cold open playing on the stage (${beat}), caption "${this.q('#scene-text')?.textContent ?? ''}", no story card: ${!cards}`);
+      await this.click(() => this.q('#scene-next'), 'Fight (skip the cold open)');
+      const t1 = performance.now();
+      await this.t.until(() => !sceneShowing(), 5000, 'the cold open to be skipped');
+      t.event('cold-open-skipped', `skipped with one click, gone in ${Math.round(performance.now() - t1)} ms`);
+      return;
+    }
     while (sceneShowing() && performance.now() - t0 < 120000) {
       const beat = root?.getAttribute('data-beat') ?? '';
       if (beat === 'card' && !seen.has('card')) {
