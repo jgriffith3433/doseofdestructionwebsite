@@ -973,14 +973,14 @@ class Run {
     this.logViewport(true);
     type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; metrics?: Record<string, number>; outcome: string; state?: { progress?: number } };
     const back = document.createElement('div');
-    back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
+    back.style.cssText = 'position:fixed;inset:0;background:#1c0d06 radial-gradient(ellipse at 50% 45%,#8a3010 0%,#3a1608 45%,#100e0c 80%);z-index:2147483647;overflow:hidden';
     const frame = document.createElement('iframe');
     frame.title = 'Phone window turned to landscape (playtest)';
     frame.allow = 'autoplay';
     const w = 844;
     const h = 390;
     const k = Math.min(innerWidth / w, innerHeight / h, 1);
-    frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:#000`;
+    frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:transparent`;
     back.appendChild(frame);
     const q = new URLSearchParams(location.search);
     q.set('playtest', 'smoke');
@@ -1209,7 +1209,7 @@ class Run {
   private async rotateFramed(): Promise<void> {
     const t = this.t;
     const back = document.createElement('div');
-    back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
+    back.style.cssText = 'position:fixed;inset:0;background:#1c0d06 radial-gradient(ellipse at 50% 45%,#8a3010 0%,#3a1608 45%,#100e0c 80%);z-index:2147483647;overflow:hidden';
     const frame = document.createElement('iframe');
     frame.title = 'Phone window (playtest)';
     frame.allow = 'autoplay';
@@ -1217,7 +1217,7 @@ class Run {
     // The frame keeps its CSS size (so the game inside sees a phone) and is scaled to sit inside the screen.
     const turn = (w: number, h: number) => {
       const k = Math.min(innerWidth / w, innerHeight / h, 1);
-      frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:2px solid #444;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:#000`;
+      frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:2px solid #444;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:transparent`;
     };
     turn(390, 844);
     frame.src = `${location.pathname}?playtest=rotate&at=phone&seed=${this.options.seed ?? 1}`;
@@ -2397,14 +2397,14 @@ class Run {
     this.logViewport(true);
     type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; metrics?: Record<string, number>; outcome: string; state?: { progress?: number } };
     const back = document.createElement('div');
-    back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
+    back.style.cssText = 'position:fixed;inset:0;background:#1c0d06 radial-gradient(ellipse at 50% 45%,#8a3010 0%,#3a1608 45%,#100e0c 80%);z-index:2147483647;overflow:hidden';
     const frame = document.createElement('iframe');
     frame.title = 'Phone window turned to landscape (touch-match playtest)';
     frame.allow = 'autoplay';
     const w = 844;
     const h = 390;
     const k = Math.min(innerWidth / w, innerHeight / h, 1);
-    frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:#000`;
+    frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:transparent`;
     back.appendChild(frame);
     const q = new URLSearchParams(location.search);
     q.set('playtest', 'touch-match');
