@@ -64,17 +64,31 @@ export function stageThumb(stage: StageDef): SVGElement {
   return root;
 }
 
-/** The stage select: the stages a mode offers (content/modes.json), in its order. */
-export function openStages(list: { index: number; entry: ModeStage }[], onPick: (stage: number, entry: ModeStage, random?: boolean) => void, chosen: number): void {
+/**
+ * The stage select: the stages a mode offers (content/modes.json), in its order.
+ * `onPrep(stage, immediate)` builds the Babylon stage + fighters while the player browses
+ * (images via prefetchStage first), so startMatch's wipe into VS isn't blocked by showStage.
+ * The focused card is prepped immediately; later focus/hover can debounce.
+ */
+export function openStages(
+  list: { index: number; entry: ModeStage }[],
+  onPick: (stage: number, entry: ModeStage, random?: boolean) => void,
+  chosen: number,
+  onPrep?: (stage: number, immediate?: boolean) => void,
+): void {
   const grid = $('stage-grid');
   const focus = list.some((x) => x.index === chosen) ? chosen : list[0]?.index;
-  if (focus !== undefined) prefetchStage(focus);
+  const prep = (index: number, immediate?: boolean) => {
+    prefetchStage(index);
+    onPrep?.(index, immediate);
+  };
+  if (focus !== undefined) prep(focus, true);
   grid.replaceChildren(
     ...list.map(({ index, entry }) => {
       const st = STAGES[index];
       return h(
         'button',
-        { type: 'button', class: 'stage-card', 'data-stage': st.id, 'data-autofocus': index === focus || undefined, onclick: () => onPick(index, entry), onfocus: () => prefetchStage(index), onpointerenter: () => prefetchStage(index) },
+        { type: 'button', class: 'stage-card', 'data-stage': st.id, 'data-autofocus': index === focus || undefined, onclick: () => onPick(index, entry), onfocus: () => prep(index), onpointerenter: () => prep(index) },
         stageThumb(st),
         h('strong', {}, entry.name || st.name),
         h('span', {}, entry.blurb || st.blurb),

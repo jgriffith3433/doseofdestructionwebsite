@@ -282,7 +282,10 @@ export class Renderer {
   // ------------------------------------------------------------------ stage
 
   setStage(index: number): void {
-    this.showStage(STAGES[index] ?? STAGES[0]);
+    const next = STAGES[index] ?? STAGES[0];
+    // Same stage already built (Stage Select prep, or a rematch): skip the rebuild so the VS wipe stays free.
+    if (this.stage === next && this.stageRoot) return;
+    this.showStage(next);
   }
 
   /** Builds any stage, saved or not (devtools previews unsaved ones). */
@@ -401,11 +404,42 @@ export class Renderer {
   /** Told (sheets ready, sheets total) while a match's clip sheets load; the VS card shows it. */
   onLoadProgress: ((done: number, total: number) => void) | null = null;
 
+  /** Fingerprint of the fighters currently in `views` (char+scale), so Stage Select pre-builds can be reused at VS. */
+  private fighterKey = '';
+  /** Ghost planes depend on stage occluders: reuse only when that matches too. */
+  private fightersHadOccluders = false;
+  /** One setFighters at a time (Stage Select prep must not interleave with startMatch). */
+  private fightersLock: Promise<void> = Promise.resolve();
+
+  /** Stable id for a match's fighter lineup (meshes only care about character and scale). */
+  static fightersKey(state: GameState): string {
+    return state.fighters.map((f) => `${f.char}:${f.scale}`).join('|');
+  }
+
   /**
    * Builds a sprite for each fighter. Still art is cropped to its visible pixels first.
-   * `clipWaitMs` caps how long we wait for every clip sheet (VS uses a short cap so the card can hand off by 3 s; the rest finish in the background).
+   * `clipWaitMs` caps how long we wait for every clip sheet (VS uses 0 so the card can hand off; the rest finish via warmTick).
+   * Same lineup already built (Stage Select pre-build): skip the mesh work and only refresh clip waits.
    */
   async setFighters(state: GameState, keepStage = false, clipWaitMs = 30000): Promise<void> {
+    const next = this.fightersLock.then(() => this.setFightersBody(state, keepStage, clipWaitMs));
+    this.fightersLock = next.then(() => undefined, () => undefined);
+    return next;
+  }
+
+  /** Resolves when any in-flight setFighters (Stage Select prep) has finished. */
+  whenFightersIdle(): Promise<void> {
+    return this.fightersLock;
+  }
+
+  private async setFightersBody(state: GameState, keepStage = false, clipWaitMs = 30000): Promise<void> {
+    const key = Renderer.fightersKey(state);
+    // keepStage: devtools shows an unsaved stage that isn't in STAGES.
+    if (!keepStage && this.stage !== STAGES[state.stage]) this.setStage(state.stage);
+    if (key === this.fighterKey && this.views.length === state.fighters.length && this.fightersHadOccluders === this.occluders) {
+      await this.preloadClips(clipWaitMs);
+      return;
+    }
     for (const v of this.views) {
       // Clip sheets stay cached; only the fighter's own meshes, materials and still go.
       v.mat.diffuseTexture = v.mat.emissiveTexture = null;
@@ -414,8 +448,7 @@ export class Renderer {
       v.still.dispose();
     }
     this.views = [];
-    // keepStage: devtools shows an unsaved stage that isn't in STAGES.
-    if (!keepStage && this.stage !== STAGES[state.stage]) this.setStage(state.stage);
+    this.fighterKey = '';
     // Load every fighter's still + anim set together (was sequential: two fighters nearly doubled VS wait).
     const loaded = await Promise.all(state.fighters.map(async (f) => {
       const ch = CHARACTERS[f.char];
@@ -423,6 +456,8 @@ export class Renderer {
       return { f, ch, art, anims };
     }));
     for (const { f, ch, art, anims } of loaded) {
+      // Yield between fighters so menus / the VS card can paint (software GL otherwise freezes for seconds).
+      await breathe();
       const still = new DynamicTexture(`art-${f.id}`, { width: art.width, height: art.height }, this.scene, true);
       (still.getContext() as CanvasRenderingContext2D).drawImage(art, 0, 0);
       still.update();
@@ -484,6 +519,8 @@ export class Renderer {
         root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, ghost, ghostMat,
       });
     }
+    this.fighterKey = key;
+    this.fightersHadOccluders = this.occluders;
     await this.preloadClips(clipWaitMs);
   }
 
