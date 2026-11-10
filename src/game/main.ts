@@ -403,11 +403,12 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     audio.preloadLines(chapter ? [`blog-man.intro.${chapter.id}`] : []),
     // The story scenes' voice takes, so lines start on cue.
     audio.preloadUrls(chapter ? [...chapter.intro, ...chapter.outro].map((l) => l.audio) : []),
-  ])
-    .then(() => renderer.warmUp(m.state))
-    .catch((err) => console.error(err));
+  ]).catch((err) => console.error(err));
+  // Warm-up that outlasts the 3 s VS cap finishes in the background during the intro countdown.
+  const warm = loading.then(() => renderer.warmUp(m.state)).catch((err) => console.error(err));
   let loaded = false;
-  void loading.then(() => { loaded = true; });
+  void warm.then(() => { loaded = true; });
+  const vsCap = new Promise<void>((r) => setTimeout(r, 3000));
 
   if (withVersus) {
     let splash: Promise<void> = Promise.resolve();
@@ -415,25 +416,26 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
       splash = playVersus(setup);
     });
     // Still loading after a beat: the card shows how far it got (clip sheets, then the arena).
-    const bar = document.createElement('p');
+    const bar = document.createElement('div');
     bar.className = 'vs-progress';
-    bar.hidden = true;
+    bar.innerHTML = '<div class="vs-progress-fill"></div>';
+    const fill = bar.firstElementChild as HTMLElement;
     $('versus-body').append(bar);
-    const say = (text: string) => { if (!loaded) { bar.hidden = false; bar.textContent = text; } };
-    renderer.onLoadProgress = (done, total) => say(done < total ? `Loading fighters ${done}/${total}` : 'Getting the arena ready…');
-    const late = window.setTimeout(() => say('Loading fighters…'), 500);
+    const set = (f: number) => { fill.style.width = `${Math.round(Math.min(1, f) * 100)}%`; };
+    // Real load events: clip sheets fill 90%, the arena warm-up the rest.
+    renderer.onLoadProgress = (done, total) => set(total ? (done / total) * 0.9 : 0);
+    void loading.then(() => set(0.9));
+    void warm.then(() => set(1));
     await splash;
-    // The card is done but the match isn't ready: keep saying so, rather than leave a frozen-looking card.
-    if (!loaded && !stale()) say(bar.textContent || 'Loading fighters…');
     await loading;
-    clearTimeout(late);
+    await Promise.race([warm, vsCap]);
     renderer.onLoadProgress = null;
     bar.remove();
     if (stale()) return;
   } else {
     // The loading screen stays up until the match's first frame is drawn (under the wipe).
     $('loading').hidden = false;
-    await loading;
+    await warm;
     if (stale()) return;
   }
 
@@ -1068,6 +1070,7 @@ let firstFrame = false;
 // Fallback: if no frame renders, reveal anyway so the Title is never held behind opacity 0.
 setTimeout(() => document.getElementById('stage')?.classList.add('ready'), 1500);
 renderer.engine.runRenderLoop(() => {
+  if (renderer.warming) renderer.warmTick();
   frame();
   if (!firstFrame) {
     firstFrame = true;

@@ -10,6 +10,7 @@ import { TEAM_COLORS } from './select.ts';
 import { $, formatTime, h, kids, largeUrl, pct, thumbUrl } from './dom.ts';
 import type { ModeStage } from '../modes.ts';
 import { audio } from '../audio.ts';
+import { loadAnimSet } from '../render/anims.ts';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -131,6 +132,34 @@ export function playVersus(setup: MatchSetup): Promise<void> {
     h('p', { class: 'vs-stage' }, stage.name, setup.subtitle ? h('span', {}, setup.subtitle) : null),
   ));
 
+  // Each fighter's idle clip plays over its still, stepped from the page's own frames.
+  const sprites: { el: HTMLElement; fps: number; frames: number; cols: number; rows: number }[] = [];
+  body.querySelectorAll<HTMLElement>('.vs-fighter').forEach((fig) => {
+    void loadAnimSet(fig.dataset.fighter!).then((set) => {
+      const c = set?.clips.idle;
+      if (!set || !c || !fig.isConnected) return;
+      const el = h('div', { class: 'vs-sprite' });
+      el.style.aspectRatio = `${c.fw} / ${c.fh}`;
+      el.style.backgroundImage = `url(${set.base}${c.file}?v=${set.version})`;
+      el.style.backgroundSize = `${c.cols * 100}% ${c.rows * 100}%`;
+      fig.querySelector('img')?.replaceWith(el);
+      sprites.push({ el, fps: c.fps, frames: c.frames, cols: c.cols, rows: c.rows });
+    });
+  });
+  const t0 = performance.now();
+  const spin = () => {
+    if (!body.isConnected || body.closest('[hidden]')) return;
+    const n = Math.floor(((performance.now() - t0) / 1000) * 12);
+    for (const sp of sprites) {
+      const i = n % sp.frames;
+      const x = sp.cols > 1 ? ((i % sp.cols) / (sp.cols - 1)) * 100 : 0;
+      const y = sp.rows > 1 ? (Math.floor(i / sp.cols) / (sp.rows - 1)) * 100 : 0;
+      sp.el.style.backgroundPosition = `${x}% ${y}%`;
+    }
+    requestAnimationFrame(spin);
+  };
+  requestAnimationFrame(spin);
+
   // The announcer's lines load first, so the slam and the calls play on time, in order (not
   // all at once when the downloads land). The splash clock starts when they're ready.
   const calls = sides.map((side) => side[0]).filter(Boolean);
@@ -153,7 +182,7 @@ export function playVersus(setup: MatchSetup): Promise<void> {
     timers.push(
       setTimeout(() => audio.sfx('vs-slam'), 300),
       ...cues.map(([t, id]) => setTimeout(() => audio.line(id), t)),
-      setTimeout(finish, Math.max(setup.subtitle ? 3600 : 2600, at + 500)),
+      setTimeout(finish, Math.min(3000, Math.max(2600, at + 500))),
     );
     // Let the slam land before a key can skip it.
     timers.push(setTimeout(() => {
