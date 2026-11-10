@@ -621,6 +621,8 @@ class Run {
     const onTiming = (e: Event) => { timing = (e as CustomEvent).detail; };
     window.addEventListener('dod:scene-timing', onTiming);
     await this.click(() => cards()[pick], `stage ${want && byId >= 0 ? want : pick + 1}`);
+    const confirmAt = performance.now();
+    this.vsWipePending = this.vsHoldWanted;
     if (this.onVersus) await this.onVersus();
     await this.matchLive();
     window.removeEventListener('dod:scene-timing', onTiming);
@@ -632,6 +634,75 @@ class Run {
       this.t.event('select-to-match', `stage picked to match: ${sec(tm.selectToMatch)}`);
       if (tm.selectToMatch !== null && tm.selectToMatch > 3000) this.t.problem('bug', `the VS card took ${sec(tm.selectToMatch)} after the stage pick (limit 3 s)`);
     } else this.t.problem('bug', 'no scene timing reported for the match start');
+    if (this.vsHoldWanted) {
+      await this.t.until(() => (this.game.match()?.state.frame ?? 0) > 0, 10000, 'the first match frame');
+      const ms = Math.round(performance.now() - confirmAt);
+      this.t.metric('vsHoldMs', ms);
+      this.t.event('vsHoldMs', `${ms} ms from the stage confirm to the first match frame`);
+      if (ms > 3000) this.t.problem('bug', `The VS card held ${ms} ms from the stage confirm to the first match frame (limit 3000 ms)`);
+    }
+  }
+
+  private vsHoldWanted = false;
+  private vsWipePending = false;
+
+  /**
+   * From landing to Title: every painted frame (a requestAnimationFrame callback, no timers) is checked, and the
+   * page plus canvas both near-uniform black for over 100 ms is a problem. Returns the stop function.
+   */
+  private watchBlank(): () => void {
+    const t = this.t;
+    let stop = false;
+    let since = -1;
+    let worst = 0;
+    let frames = 0;
+    let blankFrames = 0;
+    const probe = document.createElement('canvas');
+    probe.width = probe.height = 16;
+    const ctx = probe.getContext('2d', { willReadFrequently: true });
+    const dark = (c: string) => {
+      const m = c.match(/[\d.]+/g)?.map(Number) ?? [];
+      return c === 'transparent' || (m.length >= 4 && m[3] === 0) || (m.length >= 3 && m[0] + m[1] + m[2] < 24);
+    };
+    const canvasBlack = () => {
+      const cv = document.querySelector<HTMLCanvasElement>('#stage canvas, canvas');
+      if (!cv || !ctx || !cv.width) return true;
+      try {
+        ctx.clearRect(0, 0, 16, 16);
+        ctx.drawImage(cv, 0, 0, 16, 16);
+        const d = ctx.getImageData(0, 0, 16, 16).data;
+        let max = 0;
+        for (let i = 0; i < d.length; i += 4) max = Math.max(max, d[i], d[i + 1], d[i + 2]);
+        return max < 12;
+      } catch { return false; }
+    };
+    const pageBlack = () => {
+      if (promptShowing() || currentScreen()) return false;
+      for (let e: Element | null = document.elementFromPoint(innerWidth / 2, innerHeight / 2); e; e = e.parentElement) {
+        const cs = getComputedStyle(e);
+        if (cs.backgroundImage !== 'none' || !dark(cs.backgroundColor)) return false;
+      }
+      return true;
+    };
+    const finish = () => {
+      stop = true;
+      t.metric('blankFrames', blankFrames);
+      t.event('blankFrames', `${blankFrames} near-black frames of ${frames} from landing to Title, longest run ${Math.round(worst)} ms`);
+      if (worst > 100) t.problem('bug', `The page and canvas were near-uniform black for ${Math.round(worst)} ms between landing and Title (limit 100 ms)`);
+    };
+    const tick = (now: number) => {
+      if (stop) return;
+      frames++;
+      if (pageBlack() && canvasBlack()) {
+        blankFrames++;
+        if (since < 0) since = now;
+        worst = Math.max(worst, now - since);
+      } else since = -1;
+      if (currentScreen() === 'title') return finish();
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    return () => { if (!stop) finish(); };
   }
 
   /** Waits through the VS splash and loading until "Go!". */
@@ -793,6 +864,11 @@ class Run {
       if (wasSwitching && !covered && wipeFrames > 0) {
         t.event('wipe', `${wipeFrames} frames in ${Math.round(wipeMs)} ms (${Math.round((wipeFrames * 1000) / Math.max(1, wipeMs))} fps), worst gap ${Math.round(worst)} ms`);
         t.metric('wipeFps', Math.round((wipeFrames * 1000) / Math.max(1, wipeMs)));
+        if (this.vsWipePending) {
+          this.vsWipePending = false;
+          t.metric('vsWipeFps', Math.round((wipeFrames * 1000) / Math.max(1, wipeMs)));
+          t.event('vsWipeFps', `${Math.round((wipeFrames * 1000) / Math.max(1, wipeMs))} fps in the wipe into VS (${wipeFrames} frames, ${Math.round(wipeMs)} ms)`);
+        }
         wipeMs = 0;
         wipeFrames = 0;
       }
@@ -806,9 +882,12 @@ class Run {
   async smoke(): Promise<void> {
     const t = this.t;
     const stopWatch = this.watchWipe();
+    const stopBlank = this.watchBlank();
+    this.vsHoldWanted = true;
     try {
       await this.smokeRun();
     } finally {
+      stopBlank();
       stopWatch();
     }
     void t;
