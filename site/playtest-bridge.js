@@ -124,6 +124,16 @@
       ]
     },
     {
+      "id": "input-feel",
+      "title": "Input buffer and coyote time: buffered jump/attack/special/shield within 0.1 s, coyote jump after walking off a ledge, median input-to-action latency under 100 ms",
+      "description": "Setup shortcut: training for the buffer and coyote drills (virtual pad, same path as keyboard/gamepad/touch), then a short versus match for latency samples. Events input-buffer, coyote-jump, input-latency; metrics feel.coyoteMs, feel.jumpBufferMs, inputLatencyMedianMs, inputLatencyWorstMs, bufferedInputs, coyoteJumps. Also run smoke at 1280x720 and touch-match at 844x390.",
+      "seconds": 180,
+      "tags": [
+        "full",
+        "feel"
+      ]
+    },
+    {
       "id": "touch-settings",
       "title": "Touch size and opacity: Settings shows the two sliders on touch devices, they resize and fade the stick and buttons live in a match, and are kept after a reload",
       "description": "The run is treated as a touch device. Main menu → Settings shows Touch size (75-150%) and Touch opacity (30-100%) (touch-sliders); sets 150% / 50% (touch-saved: localStorage dod.touch); in a match measures the stick, Attack and Pause button and their opacity, all inside the window (touch-look); from Pause sets 75% / 100% (touch-resized: the controls shrink) and 120% / 60%; reloads (the run carries on through ?playtest=touch-settings) and checks Settings and a new match still have 120% / 60% (touch-kept). The player's own dod.touch is put back.",

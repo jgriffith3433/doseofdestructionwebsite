@@ -77,6 +77,8 @@ export interface Fighter {
   /** Buttons pressed recently while busy, replayed when the fighter can act. */
   buffer: number;
   bufferAge: number;
+  /** Frames left after walking off a ledge during which jump still gives a ground jump. */
+  coyote: number;
   dir: number;
   lastHitBy: number;
   prevInput: number;
@@ -198,6 +200,7 @@ export function newFighter(id: number, char: number, stocks: number, stage = 0):
     dropThrough: 0,
     buffer: 0,
     bufferAge: 0,
+    coyote: 0,
     dir: 0,
     lastHitBy: -1,
     prevInput: NO_INPUT,

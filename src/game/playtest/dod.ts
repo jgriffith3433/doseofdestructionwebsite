@@ -33,7 +33,7 @@ import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '.
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
 import { loadAnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
-import type { SimEvent } from '../sim/step.ts';
+import { BUFFER_FRAMES, COYOTE_FRAMES, type SimEvent } from '../sim/step.ts';
 import { onlineReady } from '../net/loader.ts';
 import { analyticsDebug } from '../analytics.ts';
 
@@ -126,6 +126,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
+        else if (id === 'input-feel') await r.inputFeel();
         else if (id === 'touch-match') await r.touchMatch();
         else if (id === 'touch-settings') await r.touchSettingsRun();
         else if (id === 'graphics') await r.graphicsRun();
@@ -278,6 +279,34 @@ class Run {
       this.quietWarned = true;
       this.t.problem('warning', `no hits for 30 s in a match on ${STAGES[s.stage].name} (fighters can't reach each other?)`);
     }
+    if (m.bufferedActions > 0) {
+      this.t.metric('bufferedInputs', m.bufferedActions);
+      if (!this.checked.has(`buf:${this.matches}`)) {
+        this.checked.add(`buf:${this.matches}`);
+        this.t.event('input-buffer', `buffered input came out on first actionable frame (${BUFFER_FRAMES} frames / ${Math.round((BUFFER_FRAMES * 1000) / 60)} ms window)`);
+      }
+    }
+    if (m.coyoteJumps > 0) {
+      this.t.metric('coyoteJumps', m.coyoteJumps);
+      if (!this.checked.has(`coyote:${this.matches}`)) {
+        this.checked.add(`coyote:${this.matches}`);
+        this.t.event('coyote-jump', `coyote jump came out after leaving ledge (${COYOTE_FRAMES} frames / ${Math.round((COYOTE_FRAMES * 1000) / 60)} ms window)`);
+      }
+    }
+    if (m.inputLatencies.length > 0) {
+      const lat = m.latencyStats();
+      this.t.metric('inputLatencyMedianMs', lat.median);
+      this.t.metric('inputLatencyWorstMs', lat.worst);
+      this.t.metric('inputLatencyMs', lat.median);
+      this.t.metric('inputLatencySamples', lat.samples);
+      this.t.metric('feel.inputLatencyMs', lat.median);
+      this.t.metric('feel.inputLatencyWorstMs', lat.worst);
+      this.t.metric('feel.inputSamples', lat.samples);
+      if (lat.samples >= 5 && !this.checked.has(`lat:${this.matches}`)) {
+        this.checked.add(`lat:${this.matches}`);
+        this.t.event('input-latency', `median ${lat.median} ms, worst ${lat.worst} ms across ${lat.samples} inputs (${BUFFER_FRAMES}-frame buffer, ${COYOTE_FRAMES}-frame coyote)`);
+      }
+    }
     if (s.over && !this.overSeen) {
       this.overSeen = true;
       const won = m.playerWon();
@@ -309,6 +338,9 @@ class Run {
     this.movesSeen.clear();
     this.matches++;
     this.t.add('matches');
+    this.t.metric('feel.coyoteMs', Math.round((COYOTE_FRAMES * 1000) / 60));
+    this.t.metric('feel.jumpBufferMs', Math.round((BUFFER_FRAMES * 1000) / 60));
+    this.t.metric('feel.hitStopMs', Math.round((8 * 1000) / 60));
     this.t.cut(); // a new stage: an intended cut for the feel sensor
     this.placeAtSpot(m);
     const st = STAGES[m.state.stage];
@@ -939,7 +971,7 @@ class Run {
   private async smokeTurned(): Promise<void> {
     const t = this.t;
     this.logViewport(true);
-    type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; outcome: string; state?: { progress?: number } };
+    type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; metrics?: Record<string, number>; outcome: string; state?: { progress?: number } };
     const back = document.createElement('div');
     back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
     const frame = document.createElement('iframe');
@@ -969,6 +1001,11 @@ class Run {
         if (!seenProblems.has(p.message)) {
           seenProblems.add(p.message);
           t.problem('bug', `${p.message} [landscape frame]`);
+        }
+      }
+      if (r.metrics) {
+        for (const [k, v] of Object.entries(r.metrics)) {
+          if (typeof v === 'number' && !k.startsWith('fps')) t.metric(k, v);
         }
       }
       const prog = api()?.state()?.progress;
@@ -2099,6 +2136,142 @@ class Run {
   // ---------------------------------------------------------- hit-feel
 
   /**
+   * Input buffer (~0.1 s / 6 frames) and coyote time (~0.1 s / 6 frames): drills in training through the virtual pad
+   * (same path as keyboard, gamepad and touch), then a short versus fight so median input-to-action latency is measured.
+   */
+  async inputFeel(): Promise<void> {
+    const t = this.t;
+    t.metric('feel.coyoteMs', Math.round((COYOTE_FRAMES * 1000) / 60));
+    t.metric('feel.jumpBufferMs', Math.round((BUFFER_FRAMES * 1000) / 60));
+
+    const me = () => {
+      const m = this.game.match();
+      return m ? m.state.fighters[m.player] : null;
+    };
+    const frame = () => this.game.match()?.state.frame ?? 0;
+    const hold = async (input: number, frames: number) => {
+      this.manual = input;
+      const end = frame() + frames;
+      await this.t.until(() => frame() >= end, 5000 + frames * 50, 'frames to pass');
+    };
+    const settle = async () => {
+      this.manual = NO_INPUT;
+      await this.t.until(() => {
+        const f = me();
+        return !!f && f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      }, 10000, 'the fighter to stand');
+      await hold(NO_INPUT, 4);
+    };
+
+    await this.toMainMenu();
+    t.progress(0.05);
+    const stage = stagesFor('training')[0]?.index ?? 0;
+    // Setup shortcut: straight into training for the buffer and coyote drills (no menus).
+    void this.game.startMatch({
+      mode: 'training',
+      stage,
+      stocks: 1,
+      rules: {},
+      slots: [{ char: 0, cpu: null }, { char: 1, cpu: 0 }],
+    });
+    await this.matchLive();
+    t.progress(0.15);
+
+    // --- Buffer: press jump / attack / special / shield in the last frames of a jab; each must come out.
+    const bufferButtons: { name: string; btn: number; want: number }[] = [
+      { name: 'jump', btn: BTN.JUMP, want: ACT.JUMPSQUAT },
+      { name: 'attack', btn: BTN.ATTACK, want: ACT.ATTACK },
+      { name: 'special', btn: BTN.SPECIAL, want: ACT.ATTACK },
+      { name: 'shield', btn: BTN.SHIELD, want: ACT.SHIELD },
+    ];
+    let bufferedOk = 0;
+    for (const b of bufferButtons) {
+      await settle();
+      const before = this.game.match()?.bufferedActions ?? 0;
+      await hold(packInput(0, 0, BTN.ATTACK), 2);
+      await this.t.until(() => me()?.action === ACT.ATTACK, 2000, 'jab to start');
+      const f0 = me();
+      if (!f0) continue;
+      const pressAt = Math.max(1, f0.length - Math.min(BUFFER_FRAMES, 3));
+      const wait = Math.max(0, pressAt - f0.frame);
+      if (wait > 0) await hold(NO_INPUT, wait);
+      await hold(packInput(0, 0, b.btn), 1);
+      await hold(NO_INPUT, BUFFER_FRAMES + 4);
+      const f1 = me();
+      const got = !!f1 && f1.action === b.want;
+      const counted = (this.game.match()?.bufferedActions ?? 0) > before;
+      if (got || counted) {
+        bufferedOk++;
+        t.event('input-buffer', `${b.name} pressed ${BUFFER_FRAMES}-frame window before recovery came out`);
+      } else {
+        t.problem('bug', `buffered ${b.name} did not come out (action ${f1?.action ?? 'none'}, want ${b.want})`);
+      }
+    }
+    t.metric('bufferedInputs', this.game.match()?.bufferedActions ?? bufferedOk);
+    t.progress(0.45);
+
+    // --- Coyote: walk off the platform edge, jump within 6 frames, get a ground jump.
+    await settle();
+    const coyoteBefore = this.game.match()?.coyoteJumps ?? 0;
+    let leftGround = false;
+    for (let i = 0; i < 240 && !leftGround; i++) {
+      await hold(packInput(100, 0, 0), 1);
+      const f = me();
+      if (f && !f.grounded) leftGround = true;
+    }
+    if (!leftGround) {
+      t.problem('bug', 'could not walk off a ledge for the coyote drill');
+    } else {
+      const coyoteLeft = me()?.coyote ?? 0;
+      await hold(packInput(100, 0, 0), Math.min(3, Math.max(0, coyoteLeft - 1)));
+      await hold(packInput(100, 0, BTN.JUMP), 2);
+      await hold(NO_INPUT, 8);
+      const jumped = (this.game.match()?.coyoteJumps ?? 0) > coyoteBefore;
+      if (jumped) {
+        t.event('coyote-jump', `jump ${Math.min(3, coyoteLeft)} frames after leaving the ledge (${COYOTE_FRAMES}-frame / ~100 ms coyote)`);
+      } else {
+        t.problem('bug', `coyote jump did not come out (coyote was ${coyoteLeft} at the edge)`);
+      }
+    }
+    t.metric('coyoteJumps', this.game.match()?.coyoteJumps ?? 0);
+    this.manual = null;
+    await this.game.quitMatch();
+    await this.screen('main');
+    t.progress(0.6);
+
+    // --- Latency: a short versus match; the bot on the virtual pad feeds the same input path.
+    await this.startVersus(2);
+    t.progress(0.7);
+    const m0 = () => this.game.match();
+    this.progressNow = () => 0.7 + 0.25 * Math.min(1, (m0()?.state.frame ?? 0) / (45 * 60));
+    await this.fight(() => (m0()?.inputLatencies.length ?? 0) >= 8 || (m0()?.state.frame ?? 0) > 45 * 60, 2 * 60 * 1000);
+    const m = m0() ?? this.seen;
+    if (m) {
+      const lat = m.latencyStats();
+      t.metric('inputLatencyMedianMs', lat.median);
+      t.metric('inputLatencyWorstMs', lat.worst);
+      t.metric('inputLatencyMs', lat.median);
+      t.metric('inputLatencySamples', lat.samples);
+      t.metric('feel.inputLatencyMs', lat.median);
+      t.metric('feel.inputLatencyWorstMs', lat.worst);
+      t.metric('feel.inputSamples', lat.samples);
+      if (lat.samples < 5) t.problem('bug', `too few input-latency samples (${lat.samples})`);
+      else if (lat.median >= 100) t.problem('bug', `median input-to-action latency ${lat.median} ms (want under 100)`);
+      else t.event('input-latency', `median ${lat.median} ms, worst ${lat.worst} ms across ${lat.samples} inputs`);
+    } else {
+      t.problem('bug', 'no match to measure input latency');
+    }
+    if (currentScreen() === 'results') {
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+    } else if (this.game.phase() === 'play' || this.game.phase() === 'pause' || currentScreen() === 'match') {
+      await this.quitFromPause('main');
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  /**
    * Hit feedback: a versus match against the CPU (the bot on a virtual pad). Shows that heavier hits freeze longer
    * (hit-stop frames counted from the sim's own hitlag), that light and heavy hits get different impact effects, and
    * that Settings → Screen shake turns the camera shake off (reached from Pause, like a player).
@@ -2222,7 +2395,7 @@ class Run {
   private async touchMatchTurned(): Promise<void> {
     const t = this.t;
     this.logViewport(true);
-    type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; outcome: string; state?: { progress?: number } };
+    type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; metrics?: Record<string, number>; outcome: string; state?: { progress?: number } };
     const back = document.createElement('div');
     back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
     const frame = document.createElement('iframe');
@@ -2252,6 +2425,11 @@ class Run {
         if (!seenProblems.has(p.message)) {
           seenProblems.add(p.message);
           t.problem('bug', `${p.message} [landscape frame]`);
+        }
+      }
+      if (r.metrics) {
+        for (const [k, v] of Object.entries(r.metrics)) {
+          if (typeof v === 'number' && !k.startsWith('fps')) t.metric(k, v);
         }
       }
       const prog = api()?.state()?.progress;

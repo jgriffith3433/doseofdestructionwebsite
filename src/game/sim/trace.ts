@@ -54,7 +54,7 @@ export class AnimTrace {
     const out: TraceProblem[] = [];
     for (const f of s.fighters) {
       const r = (this.runs[f.id] ??= { air: 0, ground: 0, walkSlow: 0, idleFast: 0, action: -1, since: s.frame });
-      if (f.action !== r.action) {
+      if (f.action !== r.action || f.frame === 0) {
         r.action = f.action;
         r.since = s.frame;
       }
