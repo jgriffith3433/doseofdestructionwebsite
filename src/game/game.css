@@ -127,7 +127,14 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 
 /* ----------------------------------------------------------------- title */
 
-.title-screen { display: grid; place-items: end center; padding-bottom: 6vh; overflow: hidden; }
+/* The brand glow sits under the art, so the title is never flat black while the lineup image loads (or if it fails). */
+.title-screen {
+  display: grid;
+  place-items: end center;
+  padding-bottom: 6vh;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 45%, #8a3010 0%, #3a1608 45%, #100e0c 80%) #1c0d06;
+}
 .title-art { position: absolute; inset: 0; }
 .title-art img {
   width: 100%;
