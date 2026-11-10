@@ -77,6 +77,8 @@ export interface Fighter {
   /** Buttons pressed recently while busy, replayed when the fighter can act. */
   buffer: number;
   bufferAge: number;
+  /** Frames left after walking off a ledge during which jump still gives a ground jump. */
+  coyote: number;
   dir: number;
   lastHitBy: number;
   prevInput: number;
@@ -104,8 +106,30 @@ export interface Rules {
 
 export const DEFAULT_RULES: Rules = { gravity: 100, damage: 100, timeLimit: 0, hazards: 1 };
 
+/** A scripted mid-match broadcast event (content/campaign.json `events`). */
+export interface BroadcastDef {
+  id: string;
+  /** flicker: studio lights flicker; rig-drop: a rig light falls on a fighter; chant: the crowd chants the leader; break: "We'll be right back"; hijack: the rival network takes the stage screens. */
+  kind: 'flicker' | 'rig-drop' | 'chant' | 'break' | 'hijack';
+  /** The trigger: seconds of match time, or the first stock lost, or a fighter's damage percent. */
+  when: { time?: number; stockLost?: boolean; damage?: number };
+}
+
 export interface GameState {
   frame: number;
+  /** Broadcast events: the definitions, and 1 for each that has fired. */
+  bc: BroadcastDef[];
+  bcFired: number[];
+  /** Commercial break frames left (play is frozen), the camera angle it leaves behind. */
+  freeze: number;
+  angle: number;
+  /** Frames left of the flicker and of the rival network's takeover. */
+  flicker: number;
+  hijack: number;
+  /** The rig light: frames since it was called (-1 none), where it falls, the fighters it hit (bitmask). */
+  rigFrame: number;
+  rigX: number;
+  rigHit: number;
   rng: number;
   stage: number;
   rules: Rules;
@@ -176,6 +200,7 @@ export function newFighter(id: number, char: number, stocks: number, stage = 0):
     dropThrough: 0,
     buffer: 0,
     bufferAge: 0,
+    coyote: 0,
     dir: 0,
     lastHitBy: -1,
     prevInput: NO_INPUT,
@@ -193,12 +218,22 @@ export interface GameOptions {
   seed: number;
   stage?: number;
   rules?: Partial<Rules>;
+  broadcast?: BroadcastDef[];
 }
 
 export function newGame(setup: FighterSetup[], opts: GameOptions): GameState {
   const stage = opts.stage ?? 0;
   return {
     frame: 0,
+    bc: opts.broadcast ?? [],
+    bcFired: (opts.broadcast ?? []).map(() => 0),
+    freeze: 0,
+    angle: 0,
+    flicker: 0,
+    hijack: 0,
+    rigFrame: -1,
+    rigX: 0,
+    rigHit: 0,
     rng: opts.seed | 0,
     stage,
     rules: { ...DEFAULT_RULES, ...opts.rules },
@@ -246,6 +281,7 @@ export function cloneState(s: GameState): GameState {
     evPhase: s.evPhase.slice(),
     evTimer: s.evTimer.slice(),
     hazHit: s.hazHit.slice(),
+    bcFired: s.bcFired.slice(),
   };
 }
 
@@ -284,6 +320,14 @@ export function hashState(s: GameState): number {
   for (const v of s.evPhase) mix(v);
   for (const v of s.evTimer) mix(v);
   for (const v of s.hazHit) mix(v);
+  for (const v of s.bcFired) mix(v);
+  mix(s.freeze);
+  mix(s.angle);
+  mix(s.flicker);
+  mix(s.hijack);
+  mix(s.rigFrame);
+  mix(s.rigX);
+  mix(s.rigHit);
   for (const f of s.fighters) {
     for (const key of FIGHTER_KEYS) mix(f[key]);
   }

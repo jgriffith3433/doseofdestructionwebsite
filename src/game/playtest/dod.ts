@@ -33,7 +33,7 @@ import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '.
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
 import { loadAnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
-import type { SimEvent } from '../sim/step.ts';
+import { BUFFER_FRAMES, COYOTE_FRAMES, type SimEvent } from '../sim/step.ts';
 import { onlineReady } from '../net/loader.ts';
 import { analyticsDebug } from '../analytics.ts';
 
@@ -59,6 +59,7 @@ export interface GameHooks {
   /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
+  aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
 }
@@ -125,9 +126,11 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'roster') await r.roster();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
+        else if (id === 'input-feel') await r.inputFeel();
         else if (id === 'touch-match') await r.touchMatch();
         else if (id === 'touch-settings') await r.touchSettingsRun();
         else if (id === 'graphics') await r.graphicsRun();
+        else if (id === 'stage-life') await r.stageLife();
         else if (id === 'commentary') await r.commentary();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
@@ -276,6 +279,34 @@ class Run {
       this.quietWarned = true;
       this.t.problem('warning', `no hits for 30 s in a match on ${STAGES[s.stage].name} (fighters can't reach each other?)`);
     }
+    if (m.bufferedActions > 0) {
+      this.t.metric('bufferedInputs', m.bufferedActions);
+      if (!this.checked.has(`buf:${this.matches}`)) {
+        this.checked.add(`buf:${this.matches}`);
+        this.t.event('input-buffer', `buffered input came out on first actionable frame (${BUFFER_FRAMES} frames / ${Math.round((BUFFER_FRAMES * 1000) / 60)} ms window)`);
+      }
+    }
+    if (m.coyoteJumps > 0) {
+      this.t.metric('coyoteJumps', m.coyoteJumps);
+      if (!this.checked.has(`coyote:${this.matches}`)) {
+        this.checked.add(`coyote:${this.matches}`);
+        this.t.event('coyote-jump', `coyote jump came out after leaving ledge (${COYOTE_FRAMES} frames / ${Math.round((COYOTE_FRAMES * 1000) / 60)} ms window)`);
+      }
+    }
+    if (m.inputLatencies.length > 0) {
+      const lat = m.latencyStats();
+      this.t.metric('inputLatencyMedianMs', lat.median);
+      this.t.metric('inputLatencyWorstMs', lat.worst);
+      this.t.metric('inputLatencyMs', lat.median);
+      this.t.metric('inputLatencySamples', lat.samples);
+      this.t.metric('feel.inputLatencyMs', lat.median);
+      this.t.metric('feel.inputLatencyWorstMs', lat.worst);
+      this.t.metric('feel.inputSamples', lat.samples);
+      if (lat.samples >= 5 && !this.checked.has(`lat:${this.matches}`)) {
+        this.checked.add(`lat:${this.matches}`);
+        this.t.event('input-latency', `median ${lat.median} ms, worst ${lat.worst} ms across ${lat.samples} inputs (${BUFFER_FRAMES}-frame buffer, ${COYOTE_FRAMES}-frame coyote)`);
+      }
+    }
     if (s.over && !this.overSeen) {
       this.overSeen = true;
       const won = m.playerWon();
@@ -307,6 +338,9 @@ class Run {
     this.movesSeen.clear();
     this.matches++;
     this.t.add('matches');
+    this.t.metric('feel.coyoteMs', Math.round((COYOTE_FRAMES * 1000) / 60));
+    this.t.metric('feel.jumpBufferMs', Math.round((BUFFER_FRAMES * 1000) / 60));
+    this.t.metric('feel.hitStopMs', Math.round((8 * 1000) / 60));
     this.t.cut(); // a new stage: an intended cut for the feel sensor
     this.placeAtSpot(m);
     const st = STAGES[m.state.stage];
@@ -617,9 +651,92 @@ class Run {
     const byId = want ? [...cards()].findIndex((c) => c.dataset.stage === want) : -1;
     if (want && byId < 0) this.t.problem('bug', `stage "${want}" is not offered in Versus (content/modes.json)`);
     const pick = byId >= 0 ? byId : Math.abs(this.options.seed - 1) % cards().length;
+    let timing: { selectToVs: number | null; vsToMatch: number; selectToMatch: number | null } | null = null;
+    const onTiming = (e: Event) => { timing = (e as CustomEvent).detail; };
+    window.addEventListener('dod:scene-timing', onTiming);
     await this.click(() => cards()[pick], `stage ${want && byId >= 0 ? want : pick + 1}`);
+    const confirmAt = performance.now();
+    this.vsWipePending = this.vsHoldWanted;
     if (this.onVersus) await this.onVersus();
     await this.matchLive();
+    window.removeEventListener('dod:scene-timing', onTiming);
+    const tm = timing as { selectToVs: number | null; vsToMatch: number; selectToMatch: number | null } | null;
+    if (tm) {
+      const sec = (ms: number | null) => (ms === null ? 'n/a' : `${(ms / 1000).toFixed(2)} s`);
+      this.t.event('select-to-vs', `stage picked to VS card up: ${sec(tm.selectToVs)}`);
+      this.t.event('vs-to-match', `VS card to match: ${sec(tm.vsToMatch)}`);
+      this.t.event('select-to-match', `stage picked to match: ${sec(tm.selectToMatch)}`);
+      if (tm.selectToMatch !== null && tm.selectToMatch > 3000) this.t.problem('bug', `the VS card took ${sec(tm.selectToMatch)} after the stage pick (limit 3 s)`);
+    } else this.t.problem('bug', 'no scene timing reported for the match start');
+    if (this.vsHoldWanted) {
+      await this.t.until(() => (this.game.match()?.state.frame ?? 0) > 0, 10000, 'the first match frame');
+      const ms = Math.round(performance.now() - confirmAt);
+      this.t.metric('vsHoldMs', ms);
+      this.t.event('vsHoldMs', `${ms} ms from the stage confirm to the first match frame`);
+      if (ms > 3000) this.t.problem('bug', `The VS card held ${ms} ms from the stage confirm to the first match frame (limit 3000 ms)`);
+    }
+  }
+
+  private vsHoldWanted = false;
+  private vsWipePending = false;
+
+  /**
+   * From landing to Title: every painted frame (a requestAnimationFrame callback, no timers) is checked, and the
+   * page plus canvas both near-uniform black for over 100 ms is a problem. Returns the stop function.
+   */
+  private watchBlank(): () => void {
+    const t = this.t;
+    let stop = false;
+    let since = -1;
+    let worst = 0;
+    let frames = 0;
+    let blankFrames = 0;
+    const probe = document.createElement('canvas');
+    probe.width = probe.height = 16;
+    const ctx = probe.getContext('2d', { willReadFrequently: true });
+    const dark = (c: string) => {
+      const m = c.match(/[\d.]+/g)?.map(Number) ?? [];
+      return c === 'transparent' || (m.length >= 4 && m[3] === 0) || (m.length >= 3 && m[0] + m[1] + m[2] < 24);
+    };
+    const canvasBlack = () => {
+      const cv = document.querySelector<HTMLCanvasElement>('#stage canvas, canvas');
+      if (!cv || !ctx || !cv.width) return true;
+      try {
+        ctx.clearRect(0, 0, 16, 16);
+        ctx.drawImage(cv, 0, 0, 16, 16);
+        const d = ctx.getImageData(0, 0, 16, 16).data;
+        let max = 0;
+        for (let i = 0; i < d.length; i += 4) max = Math.max(max, d[i], d[i + 1], d[i + 2]);
+        return max < 12;
+      } catch { return false; }
+    };
+    const pageBlack = () => {
+      if (promptShowing() || currentScreen()) return false;
+      for (let e: Element | null = document.elementFromPoint(innerWidth / 2, innerHeight / 2); e; e = e.parentElement) {
+        const cs = getComputedStyle(e);
+        if (cs.backgroundImage !== 'none' || !dark(cs.backgroundColor)) return false;
+      }
+      return true;
+    };
+    const finish = () => {
+      stop = true;
+      t.metric('blankFrames', blankFrames);
+      t.event('blankFrames', `${blankFrames} near-black frames of ${frames} from landing to Title, longest run ${Math.round(worst)} ms`);
+      if (worst > 100) t.problem('bug', `The page and canvas were near-uniform black for ${Math.round(worst)} ms between landing and Title (limit 100 ms)`);
+    };
+    const tick = (now: number) => {
+      if (stop) return;
+      frames++;
+      if (pageBlack() && canvasBlack()) {
+        blankFrames++;
+        if (since < 0) since = now;
+        worst = Math.max(worst, now - since);
+      } else since = -1;
+      if (currentScreen() === 'title') return finish();
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    return () => { if (!stop) finish(); };
   }
 
   /** Waits through the VS splash and loading until "Go!". */
@@ -729,6 +846,18 @@ class Run {
     const t0 = performance.now();
     const seen = new Set<string>();
     let longest = 0;
+    if (which === 'cold-open') {
+      const cards = !!this.q('#scene-card') && !this.q('#scene-card')!.hidden;
+      if (cards) t.problem('bug', 'a premiere cold open shows a text story card');
+      await this.wait(2500);
+      const beat = root?.getAttribute('data-beat') ?? '';
+      t.event('cold-open', `premiere cold open playing on the stage (${beat}), caption "${this.q('#scene-text')?.textContent ?? ''}", no story card: ${!cards}`);
+      await this.click(() => this.q('#scene-next'), 'Fight (skip the cold open)');
+      const t1 = performance.now();
+      await this.t.until(() => !sceneShowing(), 5000, 'the cold open to be skipped');
+      t.event('cold-open-skipped', `skipped with one click, gone in ${Math.round(performance.now() - t1)} ms`);
+      return;
+    }
     while (sceneShowing() && performance.now() - t0 < 120000) {
       const beat = root?.getAttribute('data-beat') ?? '';
       if (beat === 'card' && !seen.has('card')) {
@@ -781,6 +910,11 @@ class Run {
       if (wasSwitching && !covered && wipeFrames > 0) {
         t.event('wipe', `${wipeFrames} frames in ${Math.round(wipeMs)} ms (${Math.round((wipeFrames * 1000) / Math.max(1, wipeMs))} fps), worst gap ${Math.round(worst)} ms`);
         t.metric('wipeFps', Math.round((wipeFrames * 1000) / Math.max(1, wipeMs)));
+        if (this.vsWipePending) {
+          this.vsWipePending = false;
+          t.metric('vsWipeFps', Math.round((wipeFrames * 1000) / Math.max(1, wipeMs)));
+          t.event('vsWipeFps', `${Math.round((wipeFrames * 1000) / Math.max(1, wipeMs))} fps in the wipe into VS (${wipeFrames} frames, ${Math.round(wipeMs)} ms)`);
+        }
         wipeMs = 0;
         wipeFrames = 0;
       }
@@ -794,12 +928,37 @@ class Run {
   async smoke(): Promise<void> {
     const t = this.t;
     const stopWatch = this.watchWipe();
+    const stopBlank = this.watchBlank();
+    this.vsHoldWanted = true;
     try {
       await this.smokeRun();
     } finally {
+      stopBlank();
       stopWatch();
     }
     void t;
+  }
+
+  /**
+   * Real viewport + touch as the game sees them. Phone scenarios (touch-match, smoke's phone leg) must log
+   * 844x390 or 390x844 with touch; a phone run at desktop size is a bug so reviews are not "unclear".
+   */
+  private logViewport(expectPhone: boolean): void {
+    const t = this.t;
+    const touch = touchDevice();
+    const phone = this.isPhone();
+    const size = `${innerWidth}x${innerHeight}`;
+    t.event('viewport', `${size}${touch ? ' touch' : ' no-touch'}${phone ? ' phone' : ''}`);
+    t.metric('viewportW', innerWidth);
+    t.metric('viewportH', innerHeight);
+    if (!expectPhone) return;
+    if (!phone) t.problem('bug', `phone scenario ran at desktop size ${size} (want 844x390 or 390x844 with touch)`);
+    else if (!touch) t.problem('bug', `phone scenario has no touch support at ${size}`);
+  }
+
+  /** Studio's phone twin (and Gen mobile: true): coarse pointer / touch points, or an already phone-sized window. */
+  private phoneScenario(): boolean {
+    return this.isPhone() || touchDevice() || this.options.at === 'phone-turned' || this.options.at === 'phone';
   }
 
   /**
@@ -811,16 +970,17 @@ class Run {
    */
   private async smokeTurned(): Promise<void> {
     const t = this.t;
-    type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; outcome: string; state?: { progress?: number } };
+    this.logViewport(true);
+    type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; metrics?: Record<string, number>; outcome: string; state?: { progress?: number } };
     const back = document.createElement('div');
-    back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
+    back.style.cssText = 'position:fixed;inset:0;background:#1c0d06 radial-gradient(ellipse at 50% 45%,#8a3010 0%,#3a1608 45%,#100e0c 80%);z-index:2147483647;overflow:hidden';
     const frame = document.createElement('iframe');
     frame.title = 'Phone window turned to landscape (playtest)';
     frame.allow = 'autoplay';
     const w = 844;
     const h = 390;
     const k = Math.min(innerWidth / w, innerHeight / h, 1);
-    frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:#000`;
+    frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:transparent`;
     back.appendChild(frame);
     const q = new URLSearchParams(location.search);
     q.set('playtest', 'smoke');
@@ -831,6 +991,7 @@ class Run {
     const api = () => (frame.contentWindow as (Window & { hawkesPlaytest?: { report(): Inner | null; state(): { progress?: number } | null } }) | null)?.hawkesPlaytest;
     let seen = 0;
     const seenProblems = new Set<string>();
+    let heart = 0;
     const forward = (): Inner | null => {
       const r = api()?.report() ?? null;
       if (!r) return null;
@@ -842,18 +1003,34 @@ class Run {
           t.problem('bug', `${p.message} [landscape frame]`);
         }
       }
+      if (r.metrics) {
+        for (const [k, v] of Object.entries(r.metrics)) {
+          if (typeof v === 'number' && !k.startsWith('fps')) t.metric(k, v);
+        }
+      }
       const prog = api()?.state()?.progress;
-      if (typeof prog === 'number') t.progress(prog);
+      if (typeof prog === 'number') t.progress(Math.min(0.99, Math.max(0.05, prog)));
       return r;
     };
     try {
       t.event('phone-turned', `the portrait phone window (${innerWidth}x${innerHeight}) turned to ${w}x${h} (landscape) for the match`);
+      t.progress(0.05);
       await t.until(() => {
+        // Heartbeat while the nested Game boots: without it the outer run softlocks (~30–60 s) before the frame reports.
+        // until() polls every 50 ms: every 100 ticks ≈ 5 s.
+        heart += 1;
+        if (heart === 1 || heart % 100 === 0) t.event('phone-turn-wait', `waiting for the landscape smoke (${Math.round(heart / 20)} s)`);
         const r = forward();
         return !!r && (r.outcome === 'done' || r.outcome === 'error' || r.outcome === 'stuck' || r.outcome === 'won' || r.outcome === 'lost');
       }, 240000, 'the turned phone to play the smoke match');
       const r = forward();
-      if (r?.outcome !== 'done') t.problem('bug', `the smoke match in the turned phone ended ${r?.outcome ?? 'without a report'}`);
+      const out = r?.outcome;
+      if (out !== 'done' && out !== 'won' && out !== 'lost') {
+        t.problem('bug', `the smoke match in the turned phone ended ${out ?? 'without a report'}`);
+        t.progress(1);
+        t.finish(out === 'stuck' || out === 'error' ? out : 'stuck');
+        return;
+      }
     } finally {
       back.remove();
     }
@@ -863,10 +1040,22 @@ class Run {
 
   private async smokeRun(): Promise<void> {
     const t = this.t;
-    // A portrait phone shows the Rotate prompt: play in a turned copy instead of waiting under the prompt.
+    // Always log what the game sees first (desktop or phone), so a review can tell 1280x720 from 390x844.
+    // A portrait phone shows the Rotate prompt: do not drive menus under it — turn to landscape in a frame first.
+    // (Earlier: toMainMenu first, then turn; the nested Game boot then sat silent and the outer run softlocked ~30–60 s.)
     if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
-      await this.toMainMenu();
-      if (rotateShowing()) return this.smokeTurned();
+      return this.smokeTurned();
+    }
+    this.logViewport(this.phoneScenario());
+    // The load: the branded loader (orange glow, wordmark in HTML) is what shows first, and the canvas fades in after its first frame.
+    {
+      const bg = getComputedStyle(document.body).backgroundImage + getComputedStyle(document.body).backgroundColor;
+      const logo = this.q('#tap-to-play .logo')?.textContent ?? '';
+      if (/gradient/.test(bg) && /Destruction/i.test(logo)) t.event('loader-branded', 'brand background and wordmark in the HTML from first paint');
+      else if (promptShowing()) t.problem('bug', 'the loader has no brand background or wordmark in plain HTML');
+      const stage = document.getElementById('stage');
+      await t.until(() => Boolean(stage?.classList.contains('ready')), 15000, 'the canvas to fade in after its first rendered frame');
+      t.event('canvas-fade-in', 'canvas revealed after the first rendered frame');
     }
     await this.toMainMenu();
     // The release notes (/releases.json via /site/hawkes-release.js) must load: the version on the menu reads them.
@@ -943,6 +1132,10 @@ class Run {
       const what = `"${(el.textContent ?? '').trim().slice(0, 30)}" (${el.tagName.toLowerCase()}.${el.className})`;
       if (r.right > vw + 1 || r.left < -1) bad.push(`${what} runs off the side (${Math.round(r.left)}..${Math.round(r.right)} of ${vw})`);
       else if (cs.overflow !== 'visible' && el.scrollWidth > el.clientWidth + 1) bad.push(`${what} is cut off (${el.scrollWidth} in ${el.clientWidth})`);
+      // Headings only: overflow:hidden + tight line-height clips Oswald caps (results winner). Ellipsis rows stay out.
+      else if (/^H[12]$/.test(el.tagName) && cs.overflow !== 'visible' && el.scrollHeight > el.clientHeight + 1) {
+        bad.push(`${what} is cut off vertically (${el.scrollHeight} in ${el.clientHeight})`);
+      }
     }
     return bad;
   }
@@ -1016,7 +1209,7 @@ class Run {
   private async rotateFramed(): Promise<void> {
     const t = this.t;
     const back = document.createElement('div');
-    back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
+    back.style.cssText = 'position:fixed;inset:0;background:#1c0d06 radial-gradient(ellipse at 50% 45%,#8a3010 0%,#3a1608 45%,#100e0c 80%);z-index:2147483647;overflow:hidden';
     const frame = document.createElement('iframe');
     frame.title = 'Phone window (playtest)';
     frame.allow = 'autoplay';
@@ -1024,7 +1217,7 @@ class Run {
     // The frame keeps its CSS size (so the game inside sees a phone) and is scaled to sit inside the screen.
     const turn = (w: number, h: number) => {
       const k = Math.min(innerWidth / w, innerHeight / h, 1);
-      frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:2px solid #444;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:#000`;
+      frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:2px solid #444;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:transparent`;
     };
     turn(390, 844);
     frame.src = `${location.pathname}?playtest=rotate&at=phone&seed=${this.options.seed ?? 1}`;
@@ -1167,10 +1360,11 @@ class Run {
         const op = card ? Number(getComputedStyle(card).opacity) : 0;
         if (!card || !name) t.problem('bug', `VS fighter ${f.dataset.fighter} has no name card`);
         else if (op < 0.99 || !showing(card)) t.problem('bug', `the VS name card for ${name} is not fully shown after the intro (opacity ${op})`);
-        else if (!img || !(img.complete && img.naturalWidth > 0)) t.problem('bug', `the VS fighter picture for ${name} did not load`);
+        else if (!f.querySelector('.vs-sprite') && (!img || !(img.complete && img.naturalWidth > 0))) t.problem('bug', `the VS fighter picture for ${name} did not load`);
         else t.event('vs-name-card', `${name} (${who}) animated in with a name card`);
       });
       if (new Set(figs.map((f) => f.dataset.fighter)).size < 1) t.problem('bug', 'no fighters on the VS screen');
+      t.event('vs-animating', `${document.querySelectorAll('#versus-body .vs-sprite').length} idle clips, progress bar ${document.querySelector('#versus-body .vs-progress') ? 'shown' : 'done'}`);
       this.checkClipping('VS screen', this.q('#versus'));
     };
     await this.startVersus(1);
@@ -1942,6 +2136,142 @@ class Run {
   // ---------------------------------------------------------- hit-feel
 
   /**
+   * Input buffer (~0.1 s / 6 frames) and coyote time (~0.1 s / 6 frames): drills in training through the virtual pad
+   * (same path as keyboard, gamepad and touch), then a short versus fight so median input-to-action latency is measured.
+   */
+  async inputFeel(): Promise<void> {
+    const t = this.t;
+    t.metric('feel.coyoteMs', Math.round((COYOTE_FRAMES * 1000) / 60));
+    t.metric('feel.jumpBufferMs', Math.round((BUFFER_FRAMES * 1000) / 60));
+
+    const me = () => {
+      const m = this.game.match();
+      return m ? m.state.fighters[m.player] : null;
+    };
+    const frame = () => this.game.match()?.state.frame ?? 0;
+    const hold = async (input: number, frames: number) => {
+      this.manual = input;
+      const end = frame() + frames;
+      await this.t.until(() => frame() >= end, 5000 + frames * 50, 'frames to pass');
+    };
+    const settle = async () => {
+      this.manual = NO_INPUT;
+      await this.t.until(() => {
+        const f = me();
+        return !!f && f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      }, 10000, 'the fighter to stand');
+      await hold(NO_INPUT, 4);
+    };
+
+    await this.toMainMenu();
+    t.progress(0.05);
+    const stage = stagesFor('training')[0]?.index ?? 0;
+    // Setup shortcut: straight into training for the buffer and coyote drills (no menus).
+    void this.game.startMatch({
+      mode: 'training',
+      stage,
+      stocks: 1,
+      rules: {},
+      slots: [{ char: 0, cpu: null }, { char: 1, cpu: 0 }],
+    });
+    await this.matchLive();
+    t.progress(0.15);
+
+    // --- Buffer: press jump / attack / special / shield in the last frames of a jab; each must come out.
+    const bufferButtons: { name: string; btn: number; want: number }[] = [
+      { name: 'jump', btn: BTN.JUMP, want: ACT.JUMPSQUAT },
+      { name: 'attack', btn: BTN.ATTACK, want: ACT.ATTACK },
+      { name: 'special', btn: BTN.SPECIAL, want: ACT.ATTACK },
+      { name: 'shield', btn: BTN.SHIELD, want: ACT.SHIELD },
+    ];
+    let bufferedOk = 0;
+    for (const b of bufferButtons) {
+      await settle();
+      const before = this.game.match()?.bufferedActions ?? 0;
+      await hold(packInput(0, 0, BTN.ATTACK), 2);
+      await this.t.until(() => me()?.action === ACT.ATTACK, 2000, 'jab to start');
+      const f0 = me();
+      if (!f0) continue;
+      const pressAt = Math.max(1, f0.length - Math.min(BUFFER_FRAMES, 3));
+      const wait = Math.max(0, pressAt - f0.frame);
+      if (wait > 0) await hold(NO_INPUT, wait);
+      await hold(packInput(0, 0, b.btn), 1);
+      await hold(NO_INPUT, BUFFER_FRAMES + 4);
+      const f1 = me();
+      const got = !!f1 && f1.action === b.want;
+      const counted = (this.game.match()?.bufferedActions ?? 0) > before;
+      if (got || counted) {
+        bufferedOk++;
+        t.event('input-buffer', `${b.name} pressed ${BUFFER_FRAMES}-frame window before recovery came out`);
+      } else {
+        t.problem('bug', `buffered ${b.name} did not come out (action ${f1?.action ?? 'none'}, want ${b.want})`);
+      }
+    }
+    t.metric('bufferedInputs', this.game.match()?.bufferedActions ?? bufferedOk);
+    t.progress(0.45);
+
+    // --- Coyote: walk off the platform edge, jump within 6 frames, get a ground jump.
+    await settle();
+    const coyoteBefore = this.game.match()?.coyoteJumps ?? 0;
+    let leftGround = false;
+    for (let i = 0; i < 240 && !leftGround; i++) {
+      await hold(packInput(100, 0, 0), 1);
+      const f = me();
+      if (f && !f.grounded) leftGround = true;
+    }
+    if (!leftGround) {
+      t.problem('bug', 'could not walk off a ledge for the coyote drill');
+    } else {
+      const coyoteLeft = me()?.coyote ?? 0;
+      await hold(packInput(100, 0, 0), Math.min(3, Math.max(0, coyoteLeft - 1)));
+      await hold(packInput(100, 0, BTN.JUMP), 2);
+      await hold(NO_INPUT, 8);
+      const jumped = (this.game.match()?.coyoteJumps ?? 0) > coyoteBefore;
+      if (jumped) {
+        t.event('coyote-jump', `jump ${Math.min(3, coyoteLeft)} frames after leaving the ledge (${COYOTE_FRAMES}-frame / ~100 ms coyote)`);
+      } else {
+        t.problem('bug', `coyote jump did not come out (coyote was ${coyoteLeft} at the edge)`);
+      }
+    }
+    t.metric('coyoteJumps', this.game.match()?.coyoteJumps ?? 0);
+    this.manual = null;
+    await this.game.quitMatch();
+    await this.screen('main');
+    t.progress(0.6);
+
+    // --- Latency: a short versus match; the bot on the virtual pad feeds the same input path.
+    await this.startVersus(2);
+    t.progress(0.7);
+    const m0 = () => this.game.match();
+    this.progressNow = () => 0.7 + 0.25 * Math.min(1, (m0()?.state.frame ?? 0) / (45 * 60));
+    await this.fight(() => (m0()?.inputLatencies.length ?? 0) >= 8 || (m0()?.state.frame ?? 0) > 45 * 60, 2 * 60 * 1000);
+    const m = m0() ?? this.seen;
+    if (m) {
+      const lat = m.latencyStats();
+      t.metric('inputLatencyMedianMs', lat.median);
+      t.metric('inputLatencyWorstMs', lat.worst);
+      t.metric('inputLatencyMs', lat.median);
+      t.metric('inputLatencySamples', lat.samples);
+      t.metric('feel.inputLatencyMs', lat.median);
+      t.metric('feel.inputLatencyWorstMs', lat.worst);
+      t.metric('feel.inputSamples', lat.samples);
+      if (lat.samples < 5) t.problem('bug', `too few input-latency samples (${lat.samples})`);
+      else if (lat.median >= 100) t.problem('bug', `median input-to-action latency ${lat.median} ms (want under 100)`);
+      else t.event('input-latency', `median ${lat.median} ms, worst ${lat.worst} ms across ${lat.samples} inputs`);
+    } else {
+      t.problem('bug', 'no match to measure input latency');
+    }
+    if (currentScreen() === 'results') {
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+    } else if (this.game.phase() === 'play' || this.game.phase() === 'pause' || currentScreen() === 'match') {
+      await this.quitFromPause('main');
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  /**
    * Hit feedback: a versus match against the CPU (the bot on a virtual pad). Shows that heavier hits freeze longer
    * (hit-stop frames counted from the sim's own hitlag), that light and heavy hits get different impact effects, and
    * that Settings → Screen shake turns the camera shake off (reached from Pause, like a player).
@@ -2061,6 +2391,75 @@ class Run {
 
   // ---------------------------------------------------------- touch-match
 
+  /** Portrait phone → 844x390 landscape frame that plays touch-match (mirrors smokeTurned). */
+  private async touchMatchTurned(): Promise<void> {
+    const t = this.t;
+    this.logViewport(true);
+    type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; metrics?: Record<string, number>; outcome: string; state?: { progress?: number } };
+    const back = document.createElement('div');
+    back.style.cssText = 'position:fixed;inset:0;background:#1c0d06 radial-gradient(ellipse at 50% 45%,#8a3010 0%,#3a1608 45%,#100e0c 80%);z-index:2147483647;overflow:hidden';
+    const frame = document.createElement('iframe');
+    frame.title = 'Phone window turned to landscape (touch-match playtest)';
+    frame.allow = 'autoplay';
+    const w = 844;
+    const h = 390;
+    const k = Math.min(innerWidth / w, innerHeight / h, 1);
+    frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:transparent`;
+    back.appendChild(frame);
+    const q = new URLSearchParams(location.search);
+    q.set('playtest', 'touch-match');
+    q.set('at', 'phone-turned');
+    if (!q.has('seed')) q.set('seed', String(this.options.seed ?? 1));
+    frame.src = `${location.pathname}?${q.toString()}`;
+    document.body.appendChild(back);
+    const api = () => (frame.contentWindow as (Window & { hawkesPlaytest?: { report(): Inner | null; state(): { progress?: number } | null } }) | null)?.hawkesPlaytest;
+    let seen = 0;
+    const seenProblems = new Set<string>();
+    let heart = 0;
+    const forward = (): Inner | null => {
+      const r = api()?.report() ?? null;
+      if (!r) return null;
+      for (const e of r.events.slice(seen)) if (e.type !== 'problem' && e.type !== 'start' && e.type !== 'start-at') t.event(e.type, `${e.detail ?? ''} [landscape frame]`);
+      seen = r.events.length;
+      for (const p of r.problems) {
+        if (!seenProblems.has(p.message)) {
+          seenProblems.add(p.message);
+          t.problem('bug', `${p.message} [landscape frame]`);
+        }
+      }
+      if (r.metrics) {
+        for (const [k, v] of Object.entries(r.metrics)) {
+          if (typeof v === 'number' && !k.startsWith('fps')) t.metric(k, v);
+        }
+      }
+      const prog = api()?.state()?.progress;
+      if (typeof prog === 'number') t.progress(Math.min(0.99, Math.max(0.05, prog)));
+      return r;
+    };
+    try {
+      t.event('phone-turned', `the portrait phone window (${innerWidth}x${innerHeight}) turned to ${w}x${h} (landscape) for touch-match`);
+      t.progress(0.05);
+      await t.until(() => {
+        heart += 1;
+        if (heart === 1 || heart % 100 === 0) t.event('phone-turn-wait', `waiting for the landscape touch-match (${Math.round(heart / 20)} s)`);
+        const r = forward();
+        return !!r && (r.outcome === 'done' || r.outcome === 'error' || r.outcome === 'stuck' || r.outcome === 'won' || r.outcome === 'lost');
+      }, 300000, 'the turned phone to play touch-match');
+      const r = forward();
+      const out = r?.outcome;
+      if (out !== 'done' && out !== 'won' && out !== 'lost') {
+        t.problem('bug', `touch-match in the turned phone ended ${out ?? 'without a report'}`);
+        t.progress(1);
+        t.finish(out === 'stuck' || out === 'error' ? out : 'stuck');
+        return;
+      }
+      t.progress(1);
+      t.finish(out === 'won' || out === 'lost' ? out : 'done');
+    } finally {
+      back.remove();
+    }
+  }
+
   /** The safe-area insets in px (notch, home bar), read through a probe element that CSS env() fills in. */
   private safeInsets(): { top: number; right: number; bottom: number; left: number } {
     const p = document.createElement('div');
@@ -2076,18 +2475,46 @@ class Run {
    * Touch match: at phone size, menus to the results screen with only pointer events on the on-screen controls
    * (input/touch.ts: the Move stick and Jump, Attack, Special, Shield, Smash, plus Pause). The bot's decisions are
    * turned into touches (stick position, buttons held), nothing goes to the keyboard, the virtual pad or the sim.
-   * First every control is checked (present, sized, inside the window and the safe area, not covered), then a short
-   * drill presses each one and checks the game read it, then the bot plays on through touch to the results.
+   * First every control is checked (present, ≥44 px, inside the window and the safe area, above the canvas / not
+   * covered), then a short drill presses each one and checks the game read it, then the bot plays on through touch
+   * to the results. Portrait 390x844 first walks menu / Settings for clipping screenshots, then turns to 844x390
+   * for the match (same pattern as smoke).
    */
   async touchMatch(): Promise<void> {
     const t = this.t;
-    const phone = this.isPhone();
-    if (!phone) t.problem('warning', `touch-match is meant for phone size (run it with device phone: 844x390 or 390x844), this window is ${innerWidth}x${innerHeight}`);
+    // Portrait phone: clip-check menus upright, then turn to an 844x390 frame so Rotate cannot hold the match.
+    if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      this.useTap = true;
+      forceTouchUi(true);
+      try {
+        await this.toMainMenu();
+        await this.phoneUiClipTour('portrait');
+        t.progress(0.08);
+      } finally {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+      return this.touchMatchTurned();
+    }
+    this.logViewport(true);
     this.useTap = true;
+    forceTouchUi(true);
     try {
       await this.toMainMenu();
+      // Landscape (or already-turned) phone: clip-check every listed screen at this size before the fight.
+      if (this.options.at === 'phone-turned' || this.isPhone()) await this.phoneUiClipTour(innerWidth > innerHeight ? 'landscape' : 'portrait');
       t.progress(0.05);
+      // Clipping on select / stages / VS is hooked through startVersus.
+      this.onVersus = async () => {
+        await this.screen('versus', 15000);
+        await this.wait(400);
+        this.checkClipping('VS screen', this.q('#versus'));
+        t.event('phone-shot', `VS screen at ${innerWidth > innerHeight ? 'landscape' : 'portrait'} ${innerWidth}x${innerHeight}`);
+        await this.wait(2000);
+      };
       await this.startVersus(2);
+      this.onVersus = null;
       t.progress(0.15);
       // Upright on a phone the Rotate prompt holds the match: give a runner time to turn the window.
       if (rotateShowing()) {
@@ -2111,6 +2538,7 @@ class Run {
         t.event('touch-forced', 'not a touch device: the overlay was shown for the run');
         root.hidden = false;
       }
+      t.event('touch-visible', `touch overlay shown (hidden=${root.hidden}) above canvas at z-index ${getComputedStyle(root).zIndex} in ${innerWidth}x${innerHeight}`);
       const CONTROLS: { key: string; sel: string; name: string }[] = [
         { key: 'stick', sel: '.touch-stick', name: 'Move stick' },
         { key: 'jump', sel: '.touch-btn.jump', name: 'Jump' },
@@ -2129,9 +2557,18 @@ class Run {
         return el && el.getClientRects().length > 0 ? el : null;
       };
 
-      // 1. Every control is there, sized, on screen, clear of the safe area and not covered.
+      // 1. Every control is there, ≥44 px, on screen, clear of the safe area and not covered (incl. by the canvas).
       const inset = this.safeInsets();
+      const stage = document.getElementById('stage');
+      const stageZ = stage ? Number(getComputedStyle(stage).zIndex) || 0 : 0;
+      const touchZ = Number(getComputedStyle(root).zIndex) || 0;
+      if (touchZ <= stageZ) {
+        t.problem('bug', `touch overlay z-index ${touchZ} is not above the Babylon canvas z-index ${stageZ}`);
+      } else {
+        t.event('touch-z-order', `touch z-index ${touchZ} above canvas z-index ${stageZ}`);
+      }
       let bad = 0;
+      let minSide = Infinity;
       for (const c of CONTROLS) {
         const el = find(c.key);
         if (!el) {
@@ -2140,11 +2577,16 @@ class Run {
           continue;
         }
         const r = el.getBoundingClientRect();
+        const side = Math.min(r.width, r.height);
+        if (side < minSide) minSide = side;
         const where = `${c.name} at ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)} in ${innerWidth}x${innerHeight}`;
         const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
         if (r.width < 2 || r.height < 2) {
           bad++;
           t.problem('bug', `touch control has no size: ${where}`);
+        } else if (side < 43.5) {
+          bad++;
+          t.problem('bug', `touch control under 44 px: ${where}`);
         } else if (r.left < -0.5 || r.top < -0.5 || r.right > innerWidth + 0.5 || r.bottom > innerHeight + 0.5) {
           bad++;
           t.problem('bug', `touch control outside the viewport: ${where}`);
@@ -2153,10 +2595,15 @@ class Run {
           t.problem('bug', `touch control under the safe-area inset (top ${inset.top}, right ${inset.right}, bottom ${inset.bottom}, left ${inset.left}): ${where}`);
         } else if (!hit || !el.contains(hit)) {
           bad++;
-          t.problem('bug', `touch control covered: a press on ${where} lands on ${hit?.id ? '#' + hit.id : hit?.tagName.toLowerCase()}`);
+          const tag = hit?.id ? '#' + hit.id : hit?.tagName.toLowerCase() ?? 'nothing';
+          t.problem('bug', `touch control covered: a press on ${where} lands on ${tag}`);
         }
       }
-      if (!bad) t.event('touch-controls-ok', `all ${CONTROLS.length} controls on screen, clear of the safe area (top ${inset.top}, right ${inset.right}, bottom ${inset.bottom}, left ${inset.left}) and not covered, at ${innerWidth}x${innerHeight}`);
+      if (Number.isFinite(minSide)) t.metric('touchMinPx', Math.round(minSide));
+      if (!bad) t.event('touch-controls-ok', `all ${CONTROLS.length} controls on screen, ≥44 px (min ${Math.round(minSide)}), clear of the safe area (top ${inset.top}, right ${inset.right}, bottom ${inset.bottom}, left ${inset.left}) and not covered, at ${innerWidth}x${innerHeight}`);
+      // Hold a labeled match frame so Studio's screenshots show the stick and buttons (AC1).
+      t.event('phone-shot', `match touch controls at landscape ${innerWidth}x${innerHeight}`);
+      await this.wait(2200);
 
       // 2. Touches: a finger on the stick and on each button, as pointer events on the control itself.
       let pid = 100;
@@ -2319,6 +2766,10 @@ class Run {
       for (const k of ['move', 'jump', 'attack', 'special'])
         if (!counts[k] && !(dropped && (dropped === k || (k === 'move' && dropped === 'stick')))) t.problem('bug', `no touch ${k} happened in the match`);
       const won = await this.results();
+      await this.wait(500);
+      this.checkClipping('results', this.q('#results'));
+      t.event('phone-shot', `results at landscape ${innerWidth}x${innerHeight}`);
+      await this.wait(2000);
       if (dropEl) dropEl.style.display = '';
       await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
       await this.screen('main');
@@ -2326,8 +2777,49 @@ class Run {
       t.finish(won ? 'won' : 'lost');
     } finally {
       this.useTap = false;
+      forceTouchUi(false);
+      this.onVersus = null;
       setVirtualPad(null);
     }
+  }
+
+  /**
+   * Walk menu, Settings, character select and stage select at the current phone size (no match start), logging
+   * clipping / 44 px targets and phone-shot events so Studio captures a frame of each. Holds ~2 s after each
+   * shot so the recorder does not catch the next screen. Used by touch-match at 390x844 (portrait) and again
+   * at 844x390 (landscape) before the fight. VS and results need a started match, so those are checked on the
+   * landscape path only (portrait Rotate would cover them).
+   */
+  private async phoneUiClipTour(shape: 'portrait' | 'landscape'): Promise<void> {
+    const t = this.t;
+    const tag = `${shape} ${innerWidth}x${innerHeight}`;
+    const shot = async (where: string, root: HTMLElement | null) => {
+      this.checkClipping(where, root);
+      t.event('phone-shot', `${where} at ${tag}`);
+      await this.wait(2000);
+    };
+    await this.wait(300);
+    await shot('main menu', this.q('#main'));
+    await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+    await t.until(settingsShowing, 3000, 'Settings to open');
+    await this.wait(200);
+    await shot('Settings', this.q('#settings'));
+    await this.tap(() => this.q('#settings-done'), 'Done');
+    await t.until(() => !settingsShowing(), 3000, 'Settings to close');
+    // Character + stage select without starting a match (Back from stages), so portrait gets those shots too.
+    await this.tap(() => this.q('[data-go="versus"]'), 'Versus');
+    await this.screen('select');
+    await this.wait(300);
+    await shot('character select', this.q('#select'));
+    await this.click(() => this.q('#select-slots .fight'), 'Fight');
+    await this.screen('stages');
+    await t.until(() => document.querySelectorAll('#stage-grid .stage-card').length > 0, 5000, 'stage cards');
+    await this.wait(200);
+    await shot('stage select', this.q('#stages'));
+    await this.tap(() => this.q('#stages .back-btn'), 'Back');
+    await this.screen('select');
+    await this.tap(() => this.q('#select .back-btn'), 'Back');
+    await this.screen('main');
   }
 
   // ---------------------------------------------------------- touch-settings
@@ -2498,6 +2990,30 @@ class Run {
    * no reload (the page's load marker survives) and are saved. Logs the settings and render scale (`gfx-*`) and
    * the average frame rate of the fight (metric `fpsMatch`, split by quality). The player's dod.gfx is put back.
    */
+  async stageLife(): Promise<void> {
+    const t = this.t;
+    await this.toMainMenu();
+    await this.startVersus(1);
+    const m0 = () => this.game.match();
+    await this.fight(() => (m0()?.state.frame ?? 0) > 4 * 60, 90000);
+    const a = this.game.aliveStats?.();
+    if (!a) return t.problem('bug', 'the stage has no living background');
+    await this.fight(() => (m0()?.state.frame ?? 0) > 6 * 60, 90000);
+    const b = this.game.aliveStats?.();
+    const moved = a.positions.filter((p, i) => b?.positions[i].slice(1).join() !== p.slice(1).join()).map((p) => p[0]);
+    t.event('stage-life', `moving: ${moved.join(', ')} of ${a.pieces.join(', ')}`);
+    if (!moved.length) t.problem('bug', 'nothing in the background moved');
+    const g = this.game.gfxStats?.();
+    t.event('stage-screen', `quality ${g?.quality}: the stage screen shows ${a.screen === 'live' ? 'the live match (render target)' : 'a looping graphic'}`);
+    if (g && (g.quality === 'high') !== (a.screen === 'live')) t.problem('bug', `screen mode ${a.screen} does not match quality ${g.quality}`);
+    if (new Set(a.depths).size !== a.depths.length) t.problem('bug', 'two life layers share a depth slot (coplanar)');
+    if (a.depths.some((z) => z <= 0)) t.problem('bug', 'a life layer is not behind the fighters');
+    t.event('stage-depths', `fixed slots ${a.depths.join(', ')}, all behind the fighters`);
+    const fps = g?.fpsNow ?? 0;
+    t.metric('fpsStageLife', Math.round(fps));
+    if (g?.quality === 'low' && innerWidth <= 900 && fps > 0 && fps < 45) t.problem('warning', `phone-size Low ran at ${Math.round(fps)} fps (want 45)`);
+  }
+
   async graphicsRun(): Promise<void> {
     const t = this.t;
     const original = localStorage.getItem(GFX_KEY);

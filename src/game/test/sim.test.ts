@@ -4,11 +4,11 @@
 // 3. Bots finish matches on every stage, including teams, giants and odd rules.
 
 import { rngNext } from '../sim/fixed.ts';
-import { CHARACTERS } from '../sim/characters.ts';
-import { BTN, packInput } from '../sim/input.ts';
+import { CHARACTERS, MOVE } from '../sim/characters.ts';
+import { BTN, NO_INPUT, packInput } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { cloneState, hashState, newGame, type FighterSetup, type GameOptions, type GameState } from '../sim/state.ts';
-import { step } from '../sim/step.ts';
+import { BUFFER_FRAMES, COYOTE_FRAMES, step } from '../sim/step.ts';
 import { Bot } from '../ai/bot.ts';
 import { Match, type SlotSetup } from '../match.ts';
 import { CHAPTERS, SEASONS, isOpen, seasonOpen } from '../campaign/story.ts';
@@ -439,6 +439,187 @@ STAGES.forEach((stage, si) => {
   // A quarter cycle to the left (full speed, 10 frames) is two frames further on, not two back.
   walker.x = -ch.walkSpeed * 10;
   check('walk: walking left plays the cycle forward too', a === 0 && walkFrame(walker, clip) === 2, `${a} -> ${walkFrame(walker, clip)}`);
+}
+
+{
+  // Broadcast events: same inputs, same hash; the break freezes play and keeps inputs; the rig light hits.
+  const events = [
+    { id: 'f', kind: 'flicker' as const, when: { time: 2 } },
+    { id: 'r', kind: 'rig-drop' as const, when: { time: 3 } },
+    { id: 'b', kind: 'break' as const, when: { time: 6 } },
+    { id: 'h', kind: 'hijack' as const, when: { stockLost: true } },
+  ];
+  const run = () => {
+    const g = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 5, broadcast: events });
+    const bots = [new Bot(0, 5, 1), new Bot(1, 5, 2)];
+    let froze = 0;
+    let rig = 0;
+    for (let i = 0; i < 900; i++) {
+      const before = g.frame;
+      const ev = step(g, bots.map((b) => b.think(g)));
+      if (g.frame === before) froze++;
+      rig += ev.filter((e) => e.type === 'hurt' && e.index === -1).length;
+    }
+    return { h: hashState(g), froze, rig, fired: g.bcFired.join('') };
+  };
+  const a = run();
+  const b = run();
+  check('broadcast: events are deterministic', a.h === b.h);
+  check('broadcast: the commercial break freezes play for 1.5 s', a.froze === 90, `${a.froze}`);
+  check('broadcast: events fire', a.fired.startsWith('111'), a.fired);
+}
+
+// ------------------------------------------------ input buffer & coyote time
+{
+  // 1. 6-frame (~0.1 s) input buffer for jump, attack, special and shield:
+  // Pressing 1..6 frames before recovery ends triggers the action on the first
+  // actionable frame; pressing 7 frames before expires and stays idle.
+  const testGroundBuffer = (btn: number, expectedAction: number, expectedMove = -1): boolean => {
+    for (let early = 1; early <= BUFFER_FRAMES + 1; early++) {
+      const g = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 42 });
+      const f = g.fighters[0];
+      // Start a jab; total frames = f.length.
+      step(g, [packInput(0, 0, BTN.ATTACK), NO_INPUT]);
+      const total = f.length;
+      const pressAt = total - early;
+      for (let i = 1; i <= total; i++) {
+        const inp = i === pressAt ? packInput(0, 0, btn) : NO_INPUT;
+        step(g, [inp, NO_INPUT]);
+      }
+      if (early <= BUFFER_FRAMES) {
+        if (f.action !== expectedAction) return false;
+        if (expectedMove >= 0 && f.move !== expectedMove) return false;
+      } else {
+        if (f.action !== ACT.IDLE) return false;
+      }
+    }
+    return true;
+  };
+
+  check('input buffer: jump pressed 1..6 frames before recovery comes out (7 expires)', testGroundBuffer(BTN.JUMP, ACT.JUMPSQUAT));
+  check('input buffer: attack pressed 1..6 frames before recovery comes out (7 expires)', testGroundBuffer(BTN.ATTACK, ACT.ATTACK, MOVE.JAB));
+  check('input buffer: special pressed 1..6 frames before recovery comes out (7 expires)', testGroundBuffer(BTN.SPECIAL, ACT.ATTACK, MOVE.NSPECIAL));
+  check('input buffer: shield tap 1..6 frames before recovery comes out (7 expires)', testGroundBuffer(BTN.SHIELD, ACT.SHIELD));
+
+  // Also test buffering out of landing lag and air recovery (aerials/airdodge).
+  const testAirBuffer = (btn: number, expectedAction: number): boolean => {
+    for (let early = 1; early <= BUFFER_FRAMES + 1; early++) {
+      const g = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 43 });
+      const f = g.fighters[0];
+      f.grounded = 0;
+      f.platform = -1;
+      f.y = 400 * 256;
+      f.action = ACT.HITSTUN;
+      f.hitstun = 12;
+      const pressAt = 12 - early;
+      for (let i = 1; i <= 12; i++) {
+        const inp = i === pressAt ? packInput(0, 0, btn) : NO_INPUT;
+        step(g, [inp, NO_INPUT]);
+      }
+      if (early <= BUFFER_FRAMES) {
+        if (f.action !== expectedAction) return false;
+      } else {
+        if (f.action !== ACT.AIR) return false;
+      }
+    }
+    return true;
+  };
+  check('input buffer: air attack, special and airdodge buffered 1..6 frames before hitstun ends',
+    testAirBuffer(BTN.ATTACK, ACT.ATTACK) && testAirBuffer(BTN.SPECIAL, ACT.ATTACK) && testAirBuffer(BTN.SHIELD, ACT.AIRDODGE));
+
+  // 2. Coyote time (~0.1 s = 6 frames) after walking/running off a ledge:
+  // Jumping 1..6 frames after leaving the platform gives a ground jump (ch.jumpVel)
+  // and keeps all airJumps; frame 7 uses an air jump (ch.airJumpVel, jumpsLeft - 1).
+  const testCoyote = (framesAfterLedge: number): { jumped: boolean; vy: number; jumpsLeft: number; coyoteAtEdge: number } => {
+    const g = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 44 });
+    const f = g.fighters[0];
+    const ch = CHARACTERS[f.char];
+    const p = STAGES[g.stage].platforms[f.platform];
+    // Place fighter right at the right edge of the platform and walk off.
+    f.x = p.x2 * 256 - 100;
+    step(g, [packInput(100, 0, 0), NO_INPUT]);
+    while (f.grounded) step(g, [packInput(100, 0, 0), NO_INPUT]);
+    const coyoteAtEdge = f.coyote;
+    let jumped = false;
+    let jumpVy = 0;
+    for (let i = 1; i <= framesAfterLedge; i++) {
+      const inp = i === framesAfterLedge ? packInput(100, 0, BTN.JUMP) : packInput(100, 0, 0);
+      const ev = step(g, [inp, NO_INPUT]);
+      if (ev.some((e) => e.type === 'jump' && e.id === f.id)) {
+        jumped = true;
+        jumpVy = ch.jumpVel;
+      }
+    }
+    return { jumped, vy: f.vy + ch.gravity, jumpsLeft: f.jumpsLeft, coyoteAtEdge };
+  };
+
+  const ch0 = CHARACTERS[0];
+  let allCoyoteOk = true;
+  for (let d = 1; d <= COYOTE_FRAMES; d++) {
+    const res = testCoyote(d);
+    if (!res.jumped || res.coyoteAtEdge !== COYOTE_FRAMES || res.jumpsLeft !== ch0.airJumps || res.vy !== ch0.jumpVel) {
+      allCoyoteOk = false;
+    }
+  }
+  const pastCoyote = testCoyote(COYOTE_FRAMES + 1);
+  check('coyote time: jumping 1..6 frames (~0.1 s) after walking off a ledge gives ground jump and keeps air jumps', allCoyoteOk);
+  check('coyote time: jumping 7 frames after walking off a ledge uses an air jump instead',
+    pastCoyote.jumped && pastCoyote.jumpsLeft === ch0.airJumps - 1 && pastCoyote.vy === ch0.airJumpVel);
+
+  // Normal ground jump does not grant coyote time.
+  {
+    const g = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 45 });
+    const f = g.fighters[0];
+    for (let i = 0; i < 5; i++) step(g, [packInput(0, 0, BTN.JUMP), NO_INPUT]);
+    check('coyote time: jumping from the ground does not grant coyote frames', !f.grounded && f.coyote === 0);
+  }
+
+  // 3. Determinism & rollback safety for buffered inputs and coyote jumps across input sources:
+  {
+    const buildSequence = (): number[][] => {
+      const seq: number[][] = [];
+      // Walk to ledge, coyote jump on frame 5 off ledge, buffer aerial during jump, land and buffer shield -> jump -> special.
+      for (let i = 0; i < 90; i++) seq.push([packInput(100, 0, i % 11 === 0 ? BTN.ATTACK : 0), packInput(-100, 0, i % 9 === 0 ? BTN.JUMP : 0)]);
+      for (let i = 0; i < 90; i++) seq.push([packInput(i % 2 ? -80 : 80, 0, i % 7 === 0 ? BTN.JUMP : i % 5 === 0 ? BTN.SHIELD : BTN.SPECIAL), packInput(50, 0, BTN.ATTACK)]);
+      return seq;
+    };
+    const seq = buildSequence();
+    const g1 = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 77 });
+    const g2 = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 77 });
+    const h1 = run(g1, seq);
+    const h2 = run(g2, seq);
+
+    const g3 = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 77 });
+    run(g3, seq.slice(0, 65));
+    const snap = cloneState(g3);
+    for (let i = 0; i < 6; i++) step(g3, [packInput(-100, -100, BTN.SHIELD), packInput(100, 100, BTN.SPECIAL)]);
+    const restored = cloneState(snap);
+    run(restored, seq, 65);
+    check('determinism: buffered inputs and coyote jumps produce identical state hashes and rollback cleanly',
+      h1 === h2 && hashState(restored) === h1, h1.toString(16));
+  }
+
+  // 4. Input-to-action latency measurement in Match.tick():
+  {
+    const m = new Match(
+      {
+        mode: 'versus',
+        stage: 0,
+        stocks: 2,
+        rules: {},
+        slots: [{ char: 0, cpu: null }, { char: 1, cpu: 6 }],
+      },
+      101,
+    );
+    const bot = new Bot(0, 9, 202);
+    for (let i = 0; i < 600 && !m.state.over; i++) {
+      m.tick(bot.think(m.state));
+    }
+    const lat = m.latencyStats();
+    check('input latency: median input-to-action latency is measured and under 100 ms',
+      lat.samples >= 5 && lat.median > 0 && lat.median < 100 && lat.worst >= lat.median,
+      `median ${lat.median} ms, worst ${lat.worst} ms, ${lat.samples} samples`);
+  }
 }
 
 if (failed) {

@@ -10,6 +10,7 @@ import { TEAM_COLORS } from './select.ts';
 import { $, formatTime, h, kids, largeUrl, pct, thumbUrl } from './dom.ts';
 import type { ModeStage } from '../modes.ts';
 import { audio } from '../audio.ts';
+import { loadAnimSet } from '../render/anims.ts';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -63,17 +64,31 @@ export function stageThumb(stage: StageDef): SVGElement {
   return root;
 }
 
-/** The stage select: the stages a mode offers (content/modes.json), in its order. */
-export function openStages(list: { index: number; entry: ModeStage }[], onPick: (stage: number, entry: ModeStage, random?: boolean) => void, chosen: number): void {
+/**
+ * The stage select: the stages a mode offers (content/modes.json), in its order.
+ * `onPrep(stage, immediate)` builds the Babylon stage + fighters while the player browses
+ * (images via prefetchStage first), so startMatch's wipe into VS isn't blocked by showStage.
+ * The focused card is prepped immediately; later focus/hover can debounce.
+ */
+export function openStages(
+  list: { index: number; entry: ModeStage }[],
+  onPick: (stage: number, entry: ModeStage, random?: boolean) => void,
+  chosen: number,
+  onPrep?: (stage: number, immediate?: boolean) => void,
+): void {
   const grid = $('stage-grid');
   const focus = list.some((x) => x.index === chosen) ? chosen : list[0]?.index;
-  if (focus !== undefined) prefetchStage(focus);
+  const prep = (index: number, immediate?: boolean) => {
+    prefetchStage(index);
+    onPrep?.(index, immediate);
+  };
+  if (focus !== undefined) prep(focus, true);
   grid.replaceChildren(
     ...list.map(({ index, entry }) => {
       const st = STAGES[index];
       return h(
         'button',
-        { type: 'button', class: 'stage-card', 'data-stage': st.id, 'data-autofocus': index === focus || undefined, onclick: () => onPick(index, entry), onfocus: () => prefetchStage(index), onpointerenter: () => prefetchStage(index) },
+        { type: 'button', class: 'stage-card', 'data-stage': st.id, 'data-autofocus': index === focus || undefined, onclick: () => onPick(index, entry), onfocus: () => prep(index), onpointerenter: () => prep(index) },
         stageThumb(st),
         h('strong', {}, entry.name || st.name),
         h('span', {}, entry.blurb || st.blurb),
@@ -131,6 +146,34 @@ export function playVersus(setup: MatchSetup): Promise<void> {
     h('p', { class: 'vs-stage' }, stage.name, setup.subtitle ? h('span', {}, setup.subtitle) : null),
   ));
 
+  // Each fighter's idle clip plays over its still, stepped from the page's own frames.
+  const sprites: { el: HTMLElement; fps: number; frames: number; cols: number; rows: number }[] = [];
+  body.querySelectorAll<HTMLElement>('.vs-fighter').forEach((fig) => {
+    void loadAnimSet(fig.dataset.fighter!).then((set) => {
+      const c = set?.clips.idle;
+      if (!set || !c || !fig.isConnected) return;
+      const el = h('div', { class: 'vs-sprite' });
+      el.style.aspectRatio = `${c.fw} / ${c.fh}`;
+      el.style.backgroundImage = `url(${set.base}${c.file}?v=${set.version})`;
+      el.style.backgroundSize = `${c.cols * 100}% ${c.rows * 100}%`;
+      fig.querySelector('img')?.replaceWith(el);
+      sprites.push({ el, fps: c.fps, frames: c.frames, cols: c.cols, rows: c.rows });
+    });
+  });
+  const t0 = performance.now();
+  const spin = () => {
+    if (!body.isConnected || body.closest('[hidden]')) return;
+    const n = Math.floor(((performance.now() - t0) / 1000) * 12);
+    for (const sp of sprites) {
+      const i = n % sp.frames;
+      const x = sp.cols > 1 ? ((i % sp.cols) / (sp.cols - 1)) * 100 : 0;
+      const y = sp.rows > 1 ? (Math.floor(i / sp.cols) / (sp.rows - 1)) * 100 : 0;
+      sp.el.style.backgroundPosition = `${x}% ${y}%`;
+    }
+    requestAnimationFrame(spin);
+  };
+  requestAnimationFrame(spin);
+
   // The announcer's lines load first, so the slam and the calls play on time, in order (not
   // all at once when the downloads land). The splash clock starts when they're ready.
   const calls = sides.map((side) => side[0]).filter(Boolean);
@@ -153,7 +196,7 @@ export function playVersus(setup: MatchSetup): Promise<void> {
     timers.push(
       setTimeout(() => audio.sfx('vs-slam'), 300),
       ...cues.map(([t, id]) => setTimeout(() => audio.line(id), t)),
-      setTimeout(finish, Math.max(setup.subtitle ? 3600 : 2600, at + 500)),
+      setTimeout(finish, Math.min(3000, Math.max(2600, at + 500))),
     );
     // Let the slam land before a key can skip it.
     timers.push(setTimeout(() => {
@@ -173,7 +216,16 @@ export function playVersus(setup: MatchSetup): Promise<void> {
     body.removeEventListener('click', finish);
     resolveSplash();
   }
-  const splash = new Promise<void>((resolve) => { resolveSplash = resolve; });
+  // The 3 s VS cap can leave for the match before the splash clock ends: tear down listeners then.
+  const versus = document.getElementById('versus');
+  const stopIfLeft = () => {
+    if (versus?.hidden || !body.isConnected) finish();
+  };
+  const leftWatch = versus ? new MutationObserver(stopIfLeft) : null;
+  leftWatch?.observe(versus!, { attributes: true, attributeFilter: ['hidden'] });
+  const splash = new Promise<void>((resolve) => {
+    resolveSplash = () => { leftWatch?.disconnect(); resolve(); };
+  });
   void audio.preloadLines([...calls.map((s) => `announcer.name.${CHARACTERS[s.char].id}`), 'announcer.versus']).then(schedule);
   return splash;
 }

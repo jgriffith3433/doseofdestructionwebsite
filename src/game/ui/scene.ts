@@ -6,6 +6,7 @@
 
 import { CHARACTERS } from '../sim/characters.ts';
 import { chunkLine, chunkTimes } from '../campaign/sceneText.ts';
+import type { ColdOpenBeat } from '../campaign/story.ts';
 import type { SynthKind } from '../synth.ts';
 import { $, headUrl } from './dom.ts';
 
@@ -257,5 +258,85 @@ export function playScene(stage: SceneStage, which: 'intro' | 'outro', lines: Sc
         nextLine();
       }, wait);
     }
+  });
+}
+
+/**
+ * A season premiere's cold open (content/campaign.json `coldOpen`): data-driven beats on the match stage, no story
+ * card. Any key, click or tap (or Esc/Start) skips it straight to the fight. Resolves with whether it was skipped.
+ */
+export function playColdOpen(stage: SceneStage, beats: ColdOpenBeat[]): Promise<{ skipped: boolean; beats: number }> {
+  const root = $('scene');
+  const sub = $('scene-sub');
+  const textEl = $('scene-text');
+  const next = $<HTMLButtonElement>('scene-next');
+  const skip = $<HTMLButtonElement>('scene-skip');
+  $('scene-card').hidden = true;
+  return new Promise((resolve) => {
+    let timer = 0;
+    let i = -1;
+    let ended = false;
+    const finish = (skipped: boolean) => {
+      if (ended) return;
+      ended = true;
+      clearTimeout(timer);
+      for (const c of stage.cast) stage.holdOffstage(c.id, false);
+      stage.direct(null);
+      next.onclick = null;
+      skip.onclick = null;
+      window.removeEventListener('keydown', onAny, true);
+      root.removeEventListener('pointerdown', onAny, true);
+      document.body.classList.remove('scene-on');
+      sub.hidden = true;
+      root.classList.remove('scene-in');
+      root.hidden = true;
+      root.removeAttribute('data-scene');
+      root.removeAttribute('data-beat');
+      active = null;
+      resolve({ skipped, beats: Math.max(0, i + 1) });
+    };
+    const onAny = () => finish(true);
+    const play = () => {
+      if (ended) return;
+      if (++i >= beats.length) return finish(false);
+      const b = beats[i];
+      root.dataset.beat = `cold-${i}`;
+      const focus = b.camera === undefined || b.camera === null ? null : (stage.cast[b.camera]?.id ?? null);
+      stage.direct({ focus });
+      if (b.sting) stage.synth(b.sting, 0.8);
+      if (b.crowd) stage.synth('crowd', 0.8);
+      if (b.walk !== undefined && stage.cast[b.walk]) {
+        stage.synth('whoosh', 0.7);
+        stage.arrive(stage.cast[b.walk].id);
+        // The taunt: the fighter's bounce once they land.
+        if (b.taunt) window.setTimeout(() => !ended && stage.cue(stage.cast[b.walk!].id), 900);
+      } else if (b.taunt && stage.cast[b.camera ?? 0]) stage.cue(stage.cast[b.camera ?? 0].id);
+      if (b.caption) {
+        textEl.textContent = b.caption;
+        sub.dataset.who = 'narrator';
+        sub.classList.add('narration');
+        sub.hidden = false;
+        sub.classList.remove('sub-in');
+        void sub.offsetWidth;
+        sub.classList.add('sub-in');
+      } else sub.hidden = true;
+      timer = window.setTimeout(play, b.ms);
+    };
+    active = { skip: () => finish(true) };
+    next.onclick = onAny;
+    skip.onclick = onAny;
+    next.textContent = 'Fight';
+    window.addEventListener('keydown', onAny, true);
+    root.addEventListener('pointerdown', onAny, true);
+    document.body.classList.add('scene-on');
+    root.dataset.scene = 'cold-open';
+    root.hidden = false;
+    void root.offsetWidth;
+    root.classList.add('scene-in');
+    sub.hidden = true;
+    textEl.textContent = '';
+    for (const c of stage.cast) stage.holdOffstage(c.id, true);
+    stage.duck(true);
+    play();
   });
 }

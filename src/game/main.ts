@@ -24,7 +24,7 @@ import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playVersus, showResults, type ResultAction } from './ui/views.ts';
-import { playScene, skipScene, type SceneLine, type SceneStage } from './ui/scene.ts';
+import { playColdOpen, playScene, skipScene, type SceneLine, type SceneStage } from './ui/scene.ts';
 import { chunkLine, chunkTimes } from './campaign/sceneText.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
@@ -250,9 +250,9 @@ function openVersus(): void {
         versus = cfg;
         saveVersus();
         analytics.fighterPicks('versus', cfg.slots);
-        // Both fighters are picked: start fetching them now, while the stage is chosen.
+        // Both fighters are picked: fetch art and pre-build Babylon meshes while the stage is chosen.
         void prefetchFighters(cfg.slots.map((s) => s.char));
-        go('stages', () => openStages(stagesFor('versus'), pickStage, stageChoice));
+        go('stages', () => openStages(stagesFor('versus'), pickStage, stageChoice, prepStageSelect));
       },
     }),
   );
@@ -270,14 +270,46 @@ function openTraining(): void {
         training = cfg;
         analytics.fighterPicks('training', cfg.slots);
         void prefetchFighters(cfg.slots.map((s) => s.char));
-        go('stages', () => openStages(stagesFor('training'), pickStage, stageChoice));
+        go('stages', () => openStages(stagesFor('training'), pickStage, stageChoice, prepStageSelect));
       },
     }),
   );
 }
 
+/** Stage Select prep: build the arena + fighter meshes so the VS wipe stays light. */
+let prepTimer = 0;
+let prepGen = 0;
+function prepStageSelect(stage: number, immediate = false): void {
+  prefetchStage(stage);
+  window.clearTimeout(prepTimer);
+  const gen = ++prepGen;
+  const run = () => {
+    if (gen !== prepGen || currentScreen() !== 'stages') return;
+    renderer.setStage(stage);
+    const cfg = lastSelect === 'training' ? training : versus;
+    const setup: MatchSetup = {
+      mode: lastSelect,
+      stage,
+      stocks: cfg.stocks,
+      rules: { timeLimit: cfg.time * 60 * 60 },
+      slots: cfg.slots.map((s) => ({ ...s, team: cfg.teams ? (s.team ?? 0) : undefined })),
+    };
+    // keepStage: don't rebuild the arena we just set; clipWait 0: sheets finish later via warmTick.
+    void renderer.setFighters(new Match(setup, 1).state, true, 0);
+  };
+  // Focused card on open: run now so smoke finishes prep before the stage click.
+  if (immediate) run();
+  else prepTimer = window.setTimeout(run, 120);
+}
+
 function pickStage(stage: number, entry: ModeStage, random = false): void {
   stageChoice = stage;
+  // Drop a pending debounce so it can't start a second build mid-wipe.
+  window.clearTimeout(prepTimer);
+  prepGen++;
+  prefetchStage(stage);
+  renderer.setStage(stage);
+  selectedAt = performance.now();
   const cfg = lastSelect === 'training' ? training : versus;
   analytics.stagePick(lastSelect, stage, random);
   const setup: MatchSetup = {
@@ -288,6 +320,8 @@ function pickStage(stage: number, entry: ModeStage, random = false): void {
     rules: { ...entry.rules, timeLimit: cfg.time * 60 * 60 },
     slots: cfg.slots.map((s) => ({ ...s, team: cfg.teams ? (s.team ?? 0) : undefined })),
   };
+  // Build (or no-op reuse) on the stages screen; startMatch drains the lock before the VS wipe.
+  void renderer.setFighters(new Match(setup, 1).state, true, 0);
   startMatch(setup, lastSelect === 'versus');
 }
 
@@ -308,9 +342,11 @@ async function playChapter(c: Chapter): Promise<void> {
   chapter = c;
   analytics.chapterPlayed(c);
   const n = CHAPTERS.indexOf(c) + 1;
-  // The story card and scene take a while to read: the fight's fighters load meanwhile.
+  // The story card and scene take a while to read: the fight's fighters and arena load meanwhile.
   void prefetchFighters(c.fight.slots.map((s) => s.char));
   prefetchStage(c.fight.stage);
+  renderer.setStage(c.fight.stage);
+  void renderer.setFighters(new Match({ ...c.fight, title: undefined, subtitle: undefined }, 1).state, true, 0);
   // The episode opens in the arena: the VS card, then the intro plays live with the fighters (ui/scene.ts).
   startMatch({ ...c.fight, title: `Chapter ${n} · ${c.title}`, subtitle: c.hint }, true, undefined, { chapter: c, which: 'intro' });
 }
@@ -343,6 +379,14 @@ function sceneStage(m: Match): SceneStage {
 async function runScene(m: Match, cue: SceneCue): Promise<void> {
   const c = cue.chapter;
   const lines: SceneLine[] = cue.which === 'intro' ? c.intro : c.outro;
+  if (cue.which === 'intro' && c.coldOpen?.length) {
+    phase = 'scene';
+    audio.playMusic(`music-${STAGES[m.setup.stage].id}`);
+    $('scene-next').focus();
+    const end = await playColdOpen(sceneStage(m), c.coldOpen);
+    analytics.scene(`${c.id}.cold-open`, { skipped: end.skipped, line: 0 }, c.coldOpen.length);
+    return;
+  }
   const card = storyCard(c, cue.which === 'intro' ? 'before' : 'after');
   phase = 'scene';
   audio.playMusic(`music-${STAGES[m.setup.stage].id}`);
@@ -366,6 +410,8 @@ async function chapterCleared(c: Chapter): Promise<void> {
 
 // ------------------------------------------------------------------ match
 
+let selectedAt = 0;
+
 async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { seed: number; found: Found }, scene?: SceneCue): Promise<void> {
   endMatch();
   // A newer start (an online match found meanwhile) wins over this one.
@@ -382,56 +428,73 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
       if (match === m && phase === 'wait') beginReady(m);
     };
   }
-  renderer.setStage(setup.stage);
-  // Everything the match shows and plays is loaded during the VS splash (or the loading
-  // screen): clip sheets, stage art, sounds, music and voice lines. Nothing loads mid-fight.
-  // Then the first frames are drawn behind the menus, so the switch to the match doesn't stall.
-  const loading = Promise.all([
-    // One retry: a fighter whose art failed once mustn't start the match half-built.
-    renderer.setFighters(m.state).catch(() => renderer.setFighters(m.state)),
+  const t0 = performance.now();
+  const pickedAt = selectedAt && t0 - selectedAt < 30000 ? selectedAt : null;
+  const fromSelect = pickedAt === null ? null : t0 - pickedAt;
+  selectedAt = 0;
+  void prefetchFighters(setup.slots.map((s) => s.char));
+  prefetchStage(setup.stage);
+  // Audio can start during the VS wipe; Babylon stage/fighter work must NOT — it starved the wipe
+  // (vsWipeFps ~17) and the old race still waited on an 1.8 s clip cap (vsHoldMs ~6 s).
+  const audioReady = Promise.all([
     audio.preloadMatch(STAGES[setup.stage].id, m.state.fighters.map((f) => CHARACTERS[f.char].id)),
     audio.preloadLines(chapter ? [`blog-man.intro.${chapter.id}`] : []),
-    // The story scenes' voice takes, so lines start on cue.
     audio.preloadUrls(chapter ? [...chapter.intro, ...chapter.outro].map((l) => l.audio) : []),
-  ])
-    .then(() => renderer.warmUp(m.state))
-    .catch((err) => console.error(err));
-  let loaded = false;
-  void loading.then(() => { loaded = true; });
+  ]).catch((err) => console.error(err));
+
+  let fightersReady: Promise<void> = Promise.resolve();
+  let warm: Promise<void> = Promise.resolve();
 
   if (withVersus) {
     let splash: Promise<void> = Promise.resolve();
+    // Finish Stage Select prep on the stages screen so it can't starve the VS wipe (vsWipeFps).
+    renderer.setStage(setup.stage);
+    await renderer.whenFightersIdle();
+    if (stale()) return;
+    // Wipe into VS with only DOM + audio prefetch on the main thread.
     await go('versus', () => {
       splash = playVersus(setup);
     });
-    // Still loading after a beat: the card shows how far it got (clip sheets, then the arena).
-    const bar = document.createElement('p');
+    if (stale()) return;
+    // After the wipe: reuse pre-built meshes (clipWait 0); sheets finish via warmTick during Ready/Go.
+    fightersReady = renderer.setFighters(m.state, false, 0).catch(() => renderer.setFighters(m.state, false, 0));
+    const loading = Promise.all([fightersReady, audioReady]);
+    warm = loading.then(() => renderer.warmUp(m.state)).catch((err) => console.error(err));
+    const bar = document.createElement('div');
     bar.className = 'vs-progress';
-    bar.hidden = true;
+    bar.innerHTML = '<div class="vs-progress-fill"></div>';
+    const fill = bar.firstElementChild as HTMLElement;
     $('versus-body').append(bar);
-    const say = (text: string) => { if (!loaded) { bar.hidden = false; bar.textContent = text; } };
-    renderer.onLoadProgress = (done, total) => say(done < total ? `Loading fighters ${done}/${total}` : 'Getting the arena ready…');
-    const late = window.setTimeout(() => say('Loading fighters…'), 500);
-    await splash;
-    // The card is done but the match isn't ready: keep saying so, rather than leave a frozen-looking card.
-    if (!loaded && !stale()) say(bar.textContent || 'Loading fighters…');
-    await loading;
-    clearTimeout(late);
+    const set = (p: number) => { fill.style.width = `${Math.round(Math.min(1, p) * 100)}%`; };
+    renderer.onLoadProgress = (done, total) => set(total ? (done / total) * 0.9 : 0);
+    void loading.then(() => set(0.9));
+    void warm.then(() => set(1));
+    // Leave as soon as meshes exist; warm/audio continue under the match wipe and Ready countdown.
+    await fightersReady;
     renderer.onLoadProgress = null;
     bar.remove();
+    void splash;
+    void warm;
     if (stale()) return;
   } else {
+    renderer.setStage(setup.stage);
+    fightersReady = renderer.setFighters(m.state, false, 30000).catch(() => renderer.setFighters(m.state, false, 30000));
+    warm = Promise.all([fightersReady, audioReady]).then(() => renderer.warmUp(m.state)).catch((err) => console.error(err));
     // The loading screen stays up until the match's first frame is drawn (under the wipe).
     $('loading').hidden = false;
-    await loading;
+    await warm;
     if (stale()) return;
   }
 
   if (stale()) return;
   // An intro scene brings the fighters on itself: they wait in the wings from the first frame.
-  const intro = !!scene && scene.which === 'intro' && scene.chapter.intro.length > 0;
-  for (const f of m.state.fighters) renderer.holdOffstage(f.id, intro);
+  const intro = !!scene && scene.which === 'intro' && (scene.chapter.intro.length > 0 || !!scene.chapter.coldOpen?.length);
+  for (const ft of m.state.fighters) renderer.holdOffstage(ft.id, intro);
+  const vsMs = performance.now() - t0;
+  // Ready ticks during the wipe-out (~280 ms), so vsHoldMs (to first play frame) stays under 3 s.
+  const readyUnderWipe = !f && !intro;
   await go('match', () => {
+    window.dispatchEvent(new CustomEvent('dod:scene-timing', { detail: { selectToVs: fromSelect, vsToMatch: vsMs, selectToMatch: pickedAt === null ? null : performance.now() - pickedAt, withVersus } }));
     // The canvas may have changed size while menus were up.
     renderer.engine.resize();
     match = m;
@@ -441,6 +504,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     readyFrames = 0;
     renderer.render(m.state);
     $('loading').hidden = true;
+    if (readyUnderWipe) beginReady(m);
   });
   $('loading').hidden = true;
   if (match !== m) return;
@@ -456,8 +520,10 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     await runScene(m, scene);
     // Something else (an online match found, Quit) took over during the scene.
     if (match !== m) return;
+    beginReady(m);
+    return;
   }
-  beginReady(m);
+  if (!readyUnderWipe) beginReady(m);
 }
 
 function beginReady(m: Match): void {
@@ -562,6 +628,17 @@ function afterTick(m: Match, events: SimEvent[]): void {
 
 const SMASHES: ReadonlySet<number> = new Set([MOVE.FSMASH, MOVE.USMASH, MOVE.DSMASH]);
 
+/** A broadcast caption over the match. */
+function showBanner(text: string, ms: number): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'bc-banner';
+  el.textContent = text;
+  el.dataset.bc = text;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), ms);
+  return el;
+}
+
 function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
   for (const e of events) {
     switch (e.type) {
@@ -580,6 +657,25 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
           audio.synth('whoosh');
           audio.synth('crowd', 0.6);
         } else audio.synth('whoosh', 0.4);
+        break;
+      case 'broadcast':
+        if (e.phase === 'end') {
+          if (e.kind === 'break') document.getElementById('brb')?.remove();
+          break;
+        }
+        if (e.kind === 'chant') {
+          audio.synth('crowd', 1);
+          audio.synth('cheer', 0.9);
+          showBanner(`${CHARACTERS[m.state.fighters[e.who].char].name.toUpperCase()}! ${CHARACTERS[m.state.fighters[e.who].char].name.toUpperCase()}!`, 2500);
+        } else if (e.kind === 'break') {
+          audio.synth('sting');
+          const b = showBanner("WE'LL BE RIGHT BACK", 1500);
+          b.id = 'brb';
+        } else if (e.kind === 'hijack') {
+          audio.synth('alarm', 0.6);
+          showBanner('RIVAL NETWORK · NOW BROADCASTING', 10000).className = 'bc-banner bc-hijack';
+        } else if (e.kind === 'flicker') audio.synth('thud', 0.6);
+        else audio.synth('alarm', 0.9);
         break;
       case 'ko':
         audio.sfx('ko');
@@ -1051,7 +1147,18 @@ function frame(draw = true): void {
 }
 
 wireMenus();
-renderer.engine.runRenderLoop(() => frame());
+// The canvas stays hidden (Game/index.html) until the first rendered frame, then fades in: the engine's default clear colour never shows.
+let firstFrame = false;
+// Fallback: if no frame renders, reveal anyway so the Title is never held behind opacity 0.
+setTimeout(() => document.getElementById('stage')?.classList.add('ready'), 1500);
+renderer.engine.runRenderLoop(() => {
+  if (renderer.warming) renderer.warmTick();
+  frame();
+  if (!firstFrame) {
+    firstFrame = true;
+    requestAnimationFrame(() => document.getElementById('stage')?.classList.add('ready'));
+  }
+});
 
 
 // Devtools playtests open /Game/?play&stage=pit&fighter=slice&vs=break&level=5
@@ -1129,6 +1236,7 @@ installDodPlaytest({
   fxStats: () => renderer.fxStats(),
   hitFxStats: () => renderer.hitFxStats(),
   gfxStats: () => renderer.gfxStats(),
+  aliveStats: () => renderer.aliveStats(),
 });
 
 // Online is always on: the lobby is joined with no clicks (docs/online.md), but only now, after the game and the

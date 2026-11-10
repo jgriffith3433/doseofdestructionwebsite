@@ -3,7 +3,7 @@
 
 import { CHARACTERS, type CharacterDef } from '../sim/characters.ts';
 import type { SlotSetup } from '../match.ts';
-import { PLAYER_COLORS } from '../render/renderer.ts';
+import { PLAYER_COLORS, prefetchFighters } from '../render/renderer.ts';
 import { CHAPTERS, isUnlocked } from '../campaign/story.ts';
 import { $, h, kids, largeUrl, thumbUrl } from './dom.ts';
 
@@ -137,6 +137,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
 
   const assign = (char: number) => {
     if (!open(char, training)) return;
+    void prefetchFighters([char]);
     cfg.slots[active].char = char;
     // After you pick, move on to the next CPU so a whole match can be set from the grid.
     if (active < cfg.slots.length - 1) active++;
@@ -154,7 +155,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
           'aria-disabled': open(i, training) ? undefined : 'true',
           'data-fighter': c.id,
           onclick: () => assign(i),
-          onfocus: () => showPreview(c),
+          onfocus: () => { showPreview(c); if (open(i, training)) void prefetchFighters([i]); },
           onmouseenter: () => showPreview(c),
         },
         thumb(c),

@@ -1,10 +1,30 @@
 // Reads the local keyboard and gamepads and packs them into the sim's input format.
 
 import { BTN, packInput, stickX, stickY } from '../sim/input.ts';
-import { readTouch } from './touch.ts';
+import { consumeTouchEventAt, readTouch } from './touch.ts';
 
 const held = new Set<string>();
 let listening = false;
+let lastKeyEventAt = 0;
+
+export interface InputEdge {
+  at: number;
+  polledAt: number;
+  buttons: number;
+  stick: boolean;
+}
+
+let lastReadButtons = 0;
+let lastReadSignX = 0;
+let lastReadSignY = 0;
+let lastInputEdge: InputEdge | null = null;
+
+/** Returns and clears the most recent input edge read by readLocal(). */
+export function consumeInputEdge(): InputEdge | null {
+  const e = lastInputEdge;
+  lastInputEdge = null;
+  return e;
+}
 
 const GAME_KEYS = new Set([
   'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
@@ -15,7 +35,10 @@ export function listenKeyboard(): void {
   if (listening) return;
   listening = true;
   window.addEventListener('keydown', (e) => {
-    if (GAME_KEYS.has(e.code) && !(e.target instanceof HTMLInputElement)) e.preventDefault();
+    if (GAME_KEYS.has(e.code) && !(e.target instanceof HTMLInputElement)) {
+      e.preventDefault();
+      if (!held.has(e.code)) lastKeyEventAt = performance.now();
+    }
     held.add(e.code);
   });
   window.addEventListener('keyup', (e) => held.delete(e.code));
@@ -113,6 +136,19 @@ export function readLocal(): number {
   if (virtualPad) {
     const v = virtualPad();
     merge([stickX(v), stickY(v), v & ~0xffff]);
+  }
+  const now = typeof performance !== 'undefined' ? performance.now() : 0;
+  const domAt = consumeTouchEventAt() || lastKeyEventAt;
+  lastKeyEventAt = 0;
+  const newButtons = b & ~lastReadButtons;
+  const signX = Math.abs(sx) > 20 ? Math.sign(sx) : 0;
+  const signY = Math.abs(sy) > 60 ? Math.sign(sy) : 0;
+  const newStick = (signX !== 0 && signX !== lastReadSignX) || (signY !== 0 && signY !== lastReadSignY);
+  lastReadButtons = b;
+  lastReadSignX = signX;
+  lastReadSignY = signY;
+  if (newButtons !== 0 || newStick) {
+    lastInputEdge = { at: domAt || now, polledAt: now, buttons: newButtons, stick: newStick };
   }
   return packInput(sx, sy, b);
 }

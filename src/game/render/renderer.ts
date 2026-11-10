@@ -22,12 +22,13 @@ import { FX } from '../sim/fixed.ts';
 import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
-import { activeHitboxes, type SimEvent } from '../sim/step.ts';
+import { activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
 import { hitTier, impactFor, screenShake, type HitTier } from '../hitFeel.ts';
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
 import { StageLive } from './stageLive.ts';
+import { StageAlive } from './stageAlive.ts';
 import { Constants } from '@babylonjs/core/Engines/constants.js';
 
 /** Sim units to scene units: 100 world units per scene unit. */
@@ -85,6 +86,8 @@ export class Renderer {
   readonly engine: Engine;
   readonly scene: Scene;
   private camera: FreeCamera;
+  private sky!: HemisphericLight;
+  private rig: Mesh | null = null;
   private views: FighterView[] = [];
   private sparks: Spark[] = [];
   /** Finished spark meshes, reused so a KO burst doesn't build geometry mid-fight. */
@@ -105,6 +108,7 @@ export class Renderer {
   private clipCache = new Map<string, Texture>();
   private fx: StageFx | null = null;
   private live: StageLive | null = null;
+  private alive: StageAlive | null = null;
   /** A plane over the whole view that stage effects flash. */
   private flashPlane: Mesh;
   private flashMat: StandardMaterial;
@@ -131,14 +135,14 @@ export class Renderer {
   constructor(canvas: HTMLCanvasElement) {
     this.engine = new Engine(canvas, true, { stencil: true, preserveDrawingBuffer: false }, false);
     this.scene = new Scene(this.engine);
-    this.scene.clearColor = new Color4(0.063, 0.055, 0.047, 1);
+    this.scene.clearColor = new Color4(0.063, 0.055, 0.047, 1) // brand dark (#100e0c), the fallback if the canvas ever shows;
 
     this.camera = new FreeCamera('cam', this.camPos.clone(), this.scene);
     this.camera.fov = 0.55;
     this.camera.setTarget(this.camTarget);
     this.camera.inputs.clear();
 
-    const light = new HemisphericLight('sky', new Vector3(0.2, 1, -0.6), this.scene);
+    const light = (this.sky = new HemisphericLight('sky', new Vector3(0.2, 1, -0.6), this.scene));
     light.intensity = 0.95;
     light.groundColor = new Color3(0.18, 0.1, 0.08);
 
@@ -148,6 +152,14 @@ export class Renderer {
     this.scene.setRenderingAutoClearDepthStencil(1, false, false, false);
 
     this.sparkMat = this.flatMaterial('spark', '#ffd15a');
+    // Soft radial alpha so impact stars/rings read as a glow, not a hard square (GlowLayer
+    // used to bloom the whole opaque plane into a blown-out white rectangle over the fighter).
+    const soft = this.softSparkTex();
+    this.sparkMat.diffuseTexture = soft;
+    this.sparkMat.opacityTexture = soft;
+    this.sparkMat.emissiveTexture = soft;
+    this.sparkMat.alphaMode = Constants.ALPHA_ADD;
+    this.sparkMat.disableDepthWrite = true;
     this.debugMat = this.flatMaterial('dbg-hit', '#ff2a2a', 0.45);
     this.hurtMat = this.flatMaterial('dbg-hurt', '#ffd15a', 0.22);
 
@@ -181,9 +193,15 @@ export class Renderer {
     const qualityChanged = g.quality !== this.gfx.quality;
     this.gfx = g;
     this.engine.setHardwareScalingLevel(scalingLevel(g.quality, window.devicePixelRatio));
+    if (qualityChanged && this.alive) this.showStage(this.stage);
     if (qualityChanged) this.engine.resize();
     this.glow.isEnabled = g.glow;
     if (this.fpsEl) this.fpsEl.hidden = !g.fps;
+  }
+
+  /** Stage life pieces and the screen mode, for the playtest. */
+  aliveStats() {
+    return this.alive?.stats() ?? null;
   }
 
   /** The render scale and glow actually in use, for the playtest. */
@@ -228,16 +246,53 @@ export class Renderer {
     return m;
   }
 
+  /** Soft white disc for hit sparks / impact flashes (alpha falls off to the edge). */
+  private softSparkTex(): DynamicTexture {
+    const t = new DynamicTexture('spark-soft', { width: 64, height: 64 }, this.scene, false);
+    const c = t.getContext() as CanvasRenderingContext2D;
+    const g = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.4, 'rgba(255,255,255,0.55)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.clearRect(0, 0, 64, 64);
+    c.fillStyle = g;
+    c.fillRect(0, 0, 64, 64);
+    t.hasAlpha = true;
+    t.update();
+    return t;
+  }
+
+  /** One spark plane from the pool (or a new one), soft-glowed and kept out of the glow layer. */
+  private takeSpark(): Mesh {
+    const reused = this.sparkPool.pop();
+    if (reused) {
+      reused.material = this.sparkMat;
+      reused.setEnabled(true);
+      return reused;
+    }
+    const mesh = CreatePlane('spark', { size: 1 }, this.scene);
+    mesh.material = this.sparkMat;
+    mesh.isPickable = false;
+    mesh.setEnabled(true);
+    // Soft material already looks like a glow; exclude so GlowLayer doesn't square-bloom the plane.
+    this.glow.addExcludedMesh(mesh);
+    return mesh;
+  }
+
   // ------------------------------------------------------------------ stage
 
   setStage(index: number): void {
-    this.showStage(STAGES[index] ?? STAGES[0]);
+    const next = STAGES[index] ?? STAGES[0];
+    // Same stage already built (Stage Select prep, or a rematch): skip the rebuild so the VS wipe stays free.
+    if (this.stage === next && this.stageRoot) return;
+    this.showStage(next);
   }
 
   /** Builds any stage, saved or not (devtools previews unsaved ones). */
   showStage(stage: StageDef): void {
     this.stageRoot?.dispose(false, true);
     this.fx?.dispose();
+    this.alive?.dispose();
     this.movers = [];
     this.stage = stage;
     const root = new TransformNode('stage', this.scene);
@@ -249,6 +304,7 @@ export class Renderer {
     const built = buildLayers(this.scene, root, this.stage, this.glow);
     this.occluders = built.occluders;
     this.live = new StageLive(this.scene, root, this.stage, built.placed, this.glow);
+    this.alive = new StageAlive(this.scene, root, this.stage, this.glow, this.gfx.quality, () => this.views.map((v) => v.body), this.camera);
     // Collision-only platforms whose art isn't painted yet still get a block, so the stage is playable.
     const drawn = drawnPlatforms(this.stage);
     this.fx = new StageFx(this.scene, this.stage, {
@@ -348,8 +404,42 @@ export class Renderer {
   /** Told (sheets ready, sheets total) while a match's clip sheets load; the VS card shows it. */
   onLoadProgress: ((done: number, total: number) => void) | null = null;
 
-  /** Builds a sprite for each fighter. Still art is cropped to its visible pixels first. */
-  async setFighters(state: GameState, keepStage = false): Promise<void> {
+  /** Fingerprint of the fighters currently in `views` (char+scale), so Stage Select pre-builds can be reused at VS. */
+  private fighterKey = '';
+  /** Ghost planes depend on stage occluders: reuse only when that matches too. */
+  private fightersHadOccluders = false;
+  /** One setFighters at a time (Stage Select prep must not interleave with startMatch). */
+  private fightersLock: Promise<void> = Promise.resolve();
+
+  /** Stable id for a match's fighter lineup (meshes only care about character and scale). */
+  static fightersKey(state: GameState): string {
+    return state.fighters.map((f) => `${f.char}:${f.scale}`).join('|');
+  }
+
+  /**
+   * Builds a sprite for each fighter. Still art is cropped to its visible pixels first.
+   * `clipWaitMs` caps how long we wait for every clip sheet (VS uses 0 so the card can hand off; the rest finish via warmTick).
+   * Same lineup already built (Stage Select pre-build): skip the mesh work and only refresh clip waits.
+   */
+  async setFighters(state: GameState, keepStage = false, clipWaitMs = 30000): Promise<void> {
+    const next = this.fightersLock.then(() => this.setFightersBody(state, keepStage, clipWaitMs));
+    this.fightersLock = next.then(() => undefined, () => undefined);
+    return next;
+  }
+
+  /** Resolves when any in-flight setFighters (Stage Select prep) has finished. */
+  whenFightersIdle(): Promise<void> {
+    return this.fightersLock;
+  }
+
+  private async setFightersBody(state: GameState, keepStage = false, clipWaitMs = 30000): Promise<void> {
+    const key = Renderer.fightersKey(state);
+    // keepStage: devtools shows an unsaved stage that isn't in STAGES.
+    if (!keepStage && this.stage !== STAGES[state.stage]) this.setStage(state.stage);
+    if (key === this.fighterKey && this.views.length === state.fighters.length && this.fightersHadOccluders === this.occluders) {
+      await this.preloadClips(clipWaitMs);
+      return;
+    }
     for (const v of this.views) {
       // Clip sheets stay cached; only the fighter's own meshes, materials and still go.
       v.mat.diffuseTexture = v.mat.emissiveTexture = null;
@@ -358,11 +448,16 @@ export class Renderer {
       v.still.dispose();
     }
     this.views = [];
-    // keepStage: devtools shows an unsaved stage that isn't in STAGES.
-    if (!keepStage && this.stage !== STAGES[state.stage]) this.setStage(state.stage);
-    for (const f of state.fighters) {
+    this.fighterKey = '';
+    // Load every fighter's still + anim set together (was sequential: two fighters nearly doubled VS wait).
+    const loaded = await Promise.all(state.fighters.map(async (f) => {
       const ch = CHARACTERS[f.char];
       const [art, anims] = await Promise.all([loadArt(`/characters/large/${ch.id}.webp`), loadAnimSet(ch.id)]);
+      return { f, ch, art, anims };
+    }));
+    for (const { f, ch, art, anims } of loaded) {
+      // Yield between fighters so menus / the VS card can paint (software GL otherwise freezes for seconds).
+      await breathe();
       const still = new DynamicTexture(`art-${f.id}`, { width: art.width, height: art.height }, this.scene, true);
       (still.getContext() as CanvasRenderingContext2D).drawImage(art, 0, 0);
       still.update();
@@ -424,7 +519,9 @@ export class Renderer {
         root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, ghost, ghostMat,
       });
     }
-    await this.preloadClips();
+    this.fighterKey = key;
+    this.fightersHadOccluders = this.occluders;
+    await this.preloadClips(clipWaitMs);
   }
 
   /**
@@ -432,7 +529,7 @@ export class Renderer {
    * no clip waits on the network the first time it plays. Sheets for fighters
    * no longer in the match are freed.
    */
-  private async preloadClips(): Promise<void> {
+  private async preloadClips(timeoutMs = 30000): Promise<void> {
     const keep = new Set<string>();
     const waits: Promise<void>[] = [];
     let total = 0;
@@ -464,8 +561,8 @@ export class Renderer {
       }
     }
     this.onLoadProgress?.(loaded, total);
-    // Every sheet is waited for, so no fighter starts half-loaded. Only a hard cap (a sheet that never answers) lets go.
-    await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, 30000))]);
+    // Wait for sheets up to timeoutMs; a short VS cap lets the match start while the rest finish in the background (warmTick / first use).
+    await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, timeoutMs))]);
   }
 
   /** Resolves once every texture in the scene (stage art, clips) is loaded, or after a while. */
@@ -489,6 +586,7 @@ export class Renderer {
     this.fx?.warmUp();
     await breathe();
     this.live?.warmUp();
+    this.alive?.setFighters(this.views.map((v) => v.body));
     for (const v of this.views) {
       v.shield.setEnabled(true);
       if (v.ghost) v.ghost.setEnabled(true);
@@ -502,23 +600,8 @@ export class Renderer {
     await breathe();
     this.scene.render();
     await breathe();
-    // Warm up every clip texture on the fighter materials in lockstep so the first attack/jump/hurt doesn't upload a sheet mid-fight.
-    const lists = this.views.map((v) => [...v.clipTex.values()]);
-    const maxClips = Math.max(0, ...lists.map((l) => l.length));
-    // Budgeted: on slow (software) renderers the rest upload on first use instead of holding the VS card for ~20 s.
-    const clipDeadline = performance.now() + 1000;
-    for (let i = 0; i < maxClips && performance.now() < clipDeadline; i++) {
-      for (let slot = 0; slot < this.views.length; slot++) {
-        const v = this.views[slot];
-        const tex = lists[slot][i];
-        if (!tex) continue;
-        setTexture(v.mat, tex);
-        if (v.ghostMat) v.ghostMat.diffuseTexture = tex;
-      }
-      this.scene.render();
-      // Let the wipe, the VS card and the page's own frames run between uploads, not freeze behind them.
-      await breathe();
-    }
+    // Clip sheets are uploaded a few ms per frame by warmTick (called from the render loop), not here.
+    this.queueClipWarm();
     this.fx?.endWarmUp();
     for (const s of this.sparks) {
       s.mesh.setEnabled(false);
@@ -534,6 +617,34 @@ export class Renderer {
         setTimeout(r, 100);
       });
       this.render(state);
+    }
+  }
+
+  private clipWarm: { slot: number; tex: Texture }[] = [];
+
+  /** Queues every clip sheet of the fighters in lockstep, so the first attack/jump/hurt doesn't upload a sheet mid-fight. */
+  queueClipWarm(): void {
+    const lists = this.views.map((v) => [...v.clipTex.values()]);
+    const max = Math.max(0, ...lists.map((l) => l.length));
+    this.clipWarm = [];
+    for (let i = 0; i < max; i++) lists.forEach((l, slot) => { if (l[i]) this.clipWarm.push({ slot, tex: l[i] }); });
+  }
+
+  /** Whether clip sheets still wait to be uploaded. */
+  get warming(): boolean {
+    return this.clipWarm.length > 0;
+  }
+
+  /** Uploads queued clip sheets within a small time budget; call once per animation frame, before the frame's own render. */
+  warmTick(budgetMs = 4): void {
+    const end = performance.now() + budgetMs;
+    while (this.clipWarm.length && performance.now() < end) {
+      const w = this.clipWarm.shift()!;
+      const v = this.views[w.slot];
+      if (!v || !w.tex.isReady()) continue;
+      setTexture(v.mat, w.tex);
+      if (v.ghostMat) v.ghostMat.diffuseTexture = w.tex;
+      this.scene.render();
     }
   }
 
@@ -634,11 +745,9 @@ export class Renderer {
     st.last = { tier, lag: e.lag, sparks: fx.sparks, stars: fx.stars, ring: fx.ring, shake: fx.shake, flash: fx.flash };
   }
 
-  /** One impact sprite: a spinning square that blows up as it fades (two make a star, a big fast one reads as a ring). */
+  /** One impact flash: a soft disc that blows up as it fades (two make a heavy burst, a big fast one reads as a shockwave). */
   private sprite(x: number, y: number, rot: number, size: number, life: number, grow: number): void {
-    const mesh = this.sparkPool.pop() ?? CreatePlane('spark', { size: 1 }, this.scene);
-    mesh.material = this.sparkMat;
-    mesh.setEnabled(true);
+    const mesh = this.takeSpark();
     mesh.position.set(x, y, -0.45);
     mesh.rotation.z = rot;
     this.sparks.push({ mesh, vx: 0, vy: 0, life, max: life, size, grow });
@@ -659,9 +768,7 @@ export class Renderer {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = speed * (0.4 + Math.random() * 0.8);
-      const mesh = this.sparkPool.pop() ?? CreatePlane('spark', { size: 1 }, this.scene);
-      mesh.material = this.sparkMat;
-      mesh.setEnabled(true);
+      const mesh = this.takeSpark();
       mesh.position.set(x, y, -0.4);
       mesh.rotation.z = a;
       const life = 14 + Math.floor(Math.random() * 14);
@@ -676,6 +783,20 @@ export class Renderer {
       m.node.position.set(((p.x1 + p.x2) / 2) * S, p.y * S, 0);
     }
     this.live?.update(state);
+    this.alive?.update(performance.now() / 1000);
+    // Broadcast events: the studio lights flicker, the rig light hangs and falls.
+    this.sky.intensity = state.flicker > 0 ? (state.frame % 8 < 3 ? 0.15 : 1) : 1;
+    if (state.rigFrame >= 0) {
+      if (!this.rig) {
+        this.rig = CreateBox('rig', { width: 0.9, height: 0.5, depth: 0.9 }, this.scene);
+        const m = new StandardMaterial('rigm', this.scene);
+        m.emissiveColor = new Color3(1, 0.9, 0.5);
+        this.rig.material = m;
+      }
+      const p = rigPos(state);
+      this.rig.setEnabled(true);
+      this.rig.position.set(p.x * S, p.y * S, 0);
+    } else this.rig?.setEnabled(false);
     for (const f of state.fighters) this.drawFighter(f, this.views[f.id]);
     this.updateSparks();
     this.fx?.setClock(state);
@@ -882,8 +1003,10 @@ export class Renderer {
     }
     this.camTarget.x += (cx - this.camTarget.x) * ease;
     this.camTarget.y += (cy - this.camTarget.y) * ease;
-    this.camPos.x = this.camTarget.x;
-    this.camPos.y = this.camTarget.y + cd * 0.06;
+    // After a commercial break the show returns on another camera angle.
+    const side = [0, 1, -1][state.angle] ?? 0;
+    this.camPos.x = this.camTarget.x + side * cd * 0.12;
+    this.camPos.y = this.camTarget.y + cd * (0.06 + (state.angle === 2 ? 0.1 : 0));
     this.camPos.z += (-cd - this.camPos.z) * ease;
 
     // Screen shake off (Settings): the camera stays put, whatever the stage or a hit asked for.
@@ -930,6 +1053,7 @@ export class Renderer {
 
   /** Frees the engine (devtools previews come and go). */
   dispose(): void {
+    this.alive?.dispose();
     this.fx?.dispose();
     this.engine.dispose();
   }
