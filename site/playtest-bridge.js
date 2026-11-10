@@ -143,6 +143,15 @@
       ]
     },
     {
+      "id": "stage-life",
+      "title": "Living stages: something always moves in the background, High shows the live match on the stage screen, layers sit on fixed depths behind the fighters",
+      "description": "A versus match on the stage from the seed (option stage). Logs stage-life (which pieces moved between two samples), stage-screen (live render target on High, looping graphic on Low), stage-depths; problems when nothing moves, two layers share a depth, or phone-size Low is under 45 fps. Run at 1280x720 and 844x390, High and Low.",
+      "seconds": 90,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "graphics",
       "title": "Graphics settings: device defaults (phones Low, glow off), then Glow, Show FPS and Quality each take effect live from Pause, saved, and the fight's frame rate",
       "description": "A versus match against the CPU. Logs gfx-settings, gfx-device, gfx-default (touch: Low with glow off; desktop: High with glow on), gfx-glow, gfx-fps (the corner readout), gfx-quality (render scale before and after), gfx-no-reload; metrics fpsMatchHigh/Low, renderScale. The player's dod.gfx is put back. Run it at phone size for the 45 fps check.",
