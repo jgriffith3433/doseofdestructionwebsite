@@ -59,6 +59,7 @@ export interface GameHooks {
   /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
+  aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
 }
@@ -128,6 +129,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'touch-match') await r.touchMatch();
         else if (id === 'touch-settings') await r.touchSettingsRun();
         else if (id === 'graphics') await r.graphicsRun();
+        else if (id === 'stage-life') await r.stageLife();
         else if (id === 'commentary') await r.commentary();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
@@ -2612,6 +2614,30 @@ class Run {
    * no reload (the page's load marker survives) and are saved. Logs the settings and render scale (`gfx-*`) and
    * the average frame rate of the fight (metric `fpsMatch`, split by quality). The player's dod.gfx is put back.
    */
+  async stageLife(): Promise<void> {
+    const t = this.t;
+    await this.toMainMenu();
+    await this.startVersus(1);
+    const m0 = () => this.game.match();
+    await this.fight(() => (m0()?.state.frame ?? 0) > 4 * 60, 90000);
+    const a = this.game.aliveStats?.();
+    if (!a) return t.problem('bug', 'the stage has no living background');
+    await this.fight(() => (m0()?.state.frame ?? 0) > 6 * 60, 90000);
+    const b = this.game.aliveStats?.();
+    const moved = a.positions.filter((p, i) => b?.positions[i].slice(1).join() !== p.slice(1).join()).map((p) => p[0]);
+    t.event('stage-life', `moving: ${moved.join(', ')} of ${a.pieces.join(', ')}`);
+    if (!moved.length) t.problem('bug', 'nothing in the background moved');
+    const g = this.game.gfxStats?.();
+    t.event('stage-screen', `quality ${g?.quality}: the stage screen shows ${a.screen === 'live' ? 'the live match (render target)' : 'a looping graphic'}`);
+    if (g && (g.quality === 'high') !== (a.screen === 'live')) t.problem('bug', `screen mode ${a.screen} does not match quality ${g.quality}`);
+    if (new Set(a.depths).size !== a.depths.length) t.problem('bug', 'two life layers share a depth slot (coplanar)');
+    if (a.depths.some((z) => z <= 0)) t.problem('bug', 'a life layer is not behind the fighters');
+    t.event('stage-depths', `fixed slots ${a.depths.join(', ')}, all behind the fighters`);
+    const fps = g?.fpsNow ?? 0;
+    t.metric('fpsStageLife', Math.round(fps));
+    if (g?.quality === 'low' && innerWidth <= 900 && fps > 0 && fps < 45) t.problem('warning', `phone-size Low ran at ${Math.round(fps)} fps (want 45)`);
+  }
+
   async graphicsRun(): Promise<void> {
     const t = this.t;
     const original = localStorage.getItem(GFX_KEY);
