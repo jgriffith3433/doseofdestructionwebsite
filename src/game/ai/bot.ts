@@ -8,7 +8,6 @@ import { CHARACTERS } from '../sim/characters.ts';
 import { BTN, packInput } from '../sim/input.ts';
 import { STAGES, ledges, platformOn, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, allies, type Fighter, type GameState } from '../sim/state.ts';
-import { BUFFER_FRAMES } from '../sim/step.ts';
 
 interface Step {
   sx: number;
@@ -132,7 +131,7 @@ export class Bot {
       return;
     }
     const falling = me.vy <= 0;
-    if ((me.coyote > 0 || me.jumpsLeft > 0) && falling && (me.coyote > 0 || y < h.y + 80)) {
+    if (me.jumpsLeft > 0 && falling && y < h.y + 80) {
       this.press(toward, 0, BTN.JUMP, 2);
       return;
     }
@@ -177,14 +176,8 @@ export class Bot {
     const side = dx >= 0 ? 100 : -100;
     const reach = (50 + ch.width * 0.5 + (ch.height - 110) * 0.4) * ch.tuning.reach * k;
     const skill = this.level / 9;
-    if (me.action === ACT.JUMPSQUAT || me.buffer) return;
-    if (me.action === ACT.ATTACK || me.action === ACT.LAND) {
-      const rem = me.length - me.frame;
-      if (rem > BUFFER_FRAMES) {
-        this.wait = Math.min(this.wait, rem - BUFFER_FRAMES + 1);
-        return;
-      }
-    }
+    const busy = me.action === ACT.ATTACK || me.action === ACT.LAND || me.action === ACT.JUMPSQUAT;
+    if (busy) return;
 
     const h = this.home(mx);
     const towardEdge = side > 0 ? h.x2 - mx : mx - h.x1;
@@ -278,7 +271,7 @@ export class Bot {
       this.press(dirX, dirY, BTN.ATTACK);
       return;
     }
-    if ((me.coyote > 0 || (me.jumpsLeft > 0 && dy > 120)) && this.random() < (me.coyote > 0 ? 0.8 : 0.4)) {
+    if (me.jumpsLeft > 0 && dy > 120 && this.random() < 0.4) {
       this.press(side, 0, BTN.JUMP, 2);
       return;
     }
