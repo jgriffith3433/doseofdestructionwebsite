@@ -29,7 +29,9 @@ export type SimEvent =
   /** The stage hurt someone: a damage zone or a hazard (index into stage.zones or stage.hazards). */
   | { type: 'hurt'; victim: number; source: 'zone' | 'hazard'; index: number; x: number; y: number; dmg: number; kb: number }
   /** A stage event (index into stage.events) warned, started or ended. */
-  | { type: 'stage'; event: number; phase: 'warn' | 'start' | 'end' };
+  | { type: 'stage'; event: number; phase: 'warn' | 'start' | 'end' }
+  /** A broadcast event (state.bc[index]) started or ended; who is the fighter a chant is for. */
+  | { type: 'broadcast'; index: number; kind: string; phase: 'start' | 'end'; who: number };
 
 const BUTTONS = BTN.ATTACK | BTN.SPECIAL | BTN.JUMP | BTN.SHIELD | C_ANY;
 const BUFFER_FRAMES = 6;
@@ -60,6 +62,11 @@ export function step(s: GameState, inputs: readonly number[]): SimEvent[] {
   gravityPct = s.rules.gravity;
   clock = s;
   const ev: SimEvent[] = [];
+  // A commercial break stops play; prevInput is left alone, so presses made during it still register after.
+  if (s.freeze > 0) {
+    if (--s.freeze === 0) ev.push({ type: 'broadcast', index: s.bc.findIndex((b) => b.kind === 'break'), kind: 'break', phase: 'end', who: 0 });
+    return ev;
+  }
   advanceEvents(s, ev);
   for (const f of s.fighters) updateFighter(s, f, inputs[f.id] ?? NO_INPUT, ev);
   separate(s);
@@ -67,6 +74,7 @@ export function step(s: GameState, inputs: readonly number[]): SimEvent[] {
   stageHits(s, ev);
   for (const f of s.fighters) checkBlastZones(s, f, ev);
   triggerEvents(s, ev);
+  broadcastEvents(s, ev);
   checkGameOver(s);
   for (const f of s.fighters) f.prevInput = inputs[f.id] ?? NO_INPUT;
   if (s.endTimer > 0) s.endTimer--;
@@ -1128,4 +1136,86 @@ function checkGameOver(s: GameState): void {
   s.winner = best ? best[0].id : -1;
   s.winnerTeam = best && best[0].team >= 0 ? best[0].team : -1;
   s.endTimer = 120;
+}
+
+// -------------------------------------------------------- broadcast events
+
+const RIG_WARN = 60;
+const RIG_FALL = 24;
+const RIG_R = 90;
+const FLICKER_FRAMES = 150;
+const HIJACK_FRAMES = 600;
+export const BREAK_FRAMES = 90;
+export const RIG_DROP_FRAMES = RIG_WARN + RIG_FALL;
+
+/** Fires each scripted event once, when its trigger is met, and runs the rig light. */
+function broadcastEvents(s: GameState, ev: SimEvent[]): void {
+  if (s.over) return;
+  const koed = ev.some((e) => e.type === 'ko');
+  for (let i = 0; i < s.bc.length; i++) {
+    const b = s.bc[i];
+    if (s.bcFired[i]) continue;
+    const w = b.when;
+    const met =
+      (w.time !== undefined && s.frame >= secs(w.time)) ||
+      (w.stockLost && koed) ||
+      (w.damage !== undefined && s.fighters.some((f) => f.percent >= w.damage! * 10));
+    if (!met) continue;
+    if (b.kind === 'rig-drop' && (!s.rules.hazards || s.rigFrame >= 0)) continue;
+    s.bcFired[i] = 1;
+    let who = 0;
+    if (b.kind === 'flicker') s.flicker = FLICKER_FRAMES;
+    else if (b.kind === 'hijack') s.hijack = HIJACK_FRAMES;
+    else if (b.kind === 'break') {
+      s.freeze = BREAK_FRAMES;
+      s.angle = (s.angle + 1) % 3;
+    } else if (b.kind === 'chant') {
+      // The crowd chants for whoever is ahead: most stocks, then least damage.
+      for (const f of s.fighters) {
+        const c = s.fighters[who];
+        if (f.stocks > c.stocks || (f.stocks === c.stocks && f.percent < c.percent)) who = f.id;
+      }
+    } else {
+      // The rig light picks either fighter, from the match rng.
+      let v: number;
+      [s.rng, v] = rngNext(s.rng);
+      const live = s.fighters.filter((f) => f.action !== ACT.DEAD);
+      const t = live[v % Math.max(1, live.length)] ?? s.fighters[0];
+      who = t.id;
+      s.rigX = t.x;
+      s.rigFrame = 0;
+      s.rigHit = 0;
+    }
+    ev.push({ type: 'broadcast', index: i, kind: b.kind, phase: 'start', who });
+  }
+  if (s.flicker > 0 && --s.flicker === 0) ev.push({ type: 'broadcast', index: s.bc.findIndex((b) => b.kind === 'flicker'), kind: 'flicker', phase: 'end', who: 0 });
+  if (s.hijack > 0 && --s.hijack === 0) ev.push({ type: 'broadcast', index: s.bc.findIndex((b) => b.kind === 'hijack'), kind: 'hijack', phase: 'end', who: 0 });
+  if (s.rigFrame >= 0) {
+    s.rigFrame++;
+    const at = rigPos(s);
+    if (s.rigFrame > RIG_WARN) {
+      const r = RIG_R * FX;
+      const dmg = idiv(120 * s.rules.damage, 100);
+      for (const v of s.fighters) {
+        if (s.rigHit & (1 << v.id) || !hittable(v)) continue;
+        const [w, h] = bodySize(v);
+        const px = clamp(at.x, v.x - (w >> 1), v.x + (w >> 1));
+        const py = clamp(at.y, v.y, v.y + h);
+        if ((at.x - px) ** 2 + (at.y - py) ** 2 > r * r) continue;
+        s.rigHit |= 1 << v.id;
+        const weight = idiv(CHARACTERS[v.char].weight * v.scale, 100);
+        const kb = knockback(Math.min(v.percent + dmg, 9999), dmg, weight, 30, 90);
+        stageHit(s, v, dmg, kb, v.x >= at.x ? 60 : 120, px, py, 'hazard', -1, ev);
+      }
+    }
+    if (s.rigFrame > RIG_DROP_FRAMES + 20) s.rigFrame = -1;
+  }
+}
+
+/** Where the rig light is now: hanging above the stage while it warns, then falling to the floor. */
+export function rigPos(s: GameState): { x: number; y: number } {
+  const floor = stage.platforms[0].y * FX;
+  const top = floor + 700 * FX;
+  const k = Math.max(0, Math.min(RIG_FALL, s.rigFrame - RIG_WARN));
+  return { x: s.rigX, y: top - idiv((top - floor - 40 * FX) * k, RIG_FALL) };
 }

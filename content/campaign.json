@@ -90,7 +90,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "flick", "kind": "flicker", "when": {"time": 20}}],
       "stage": "city-top",
       "stocks": 2,
       "rules": {},
@@ -906,7 +906,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "chant", "kind": "chant", "when": {"time": 25}}, {"id": "rig", "kind": "rig-drop", "when": {"time": 45}}],
       "stage": "city-top",
       "stocks": 2,
       "rules": {
@@ -1403,7 +1403,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "brb", "kind": "break", "when": {"time": 30}}],
       "stage": "humans-in-the-loop",
       "stocks": 4,
       "rules": {},
@@ -1516,7 +1516,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "rival", "kind": "hijack", "when": {"time": 20}}],
       "stage": "watercolor-nebula",
       "stocks": 3,
       "rules": {
@@ -1881,7 +1881,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "rival", "kind": "hijack", "when": {"damage": 80}}, {"id": "rig", "kind": "rig-drop", "when": {"time": 40}}],
       "stage": "solar-array",
       "stocks": 3,
       "rules": {},
@@ -1990,7 +1990,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "brb", "kind": "break", "when": {"stockLost": true}}],
       "stage": "city-top",
       "stocks": 3,
       "rules": {
@@ -2454,7 +2454,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "flick", "kind": "flicker", "when": {"time": 15}}, {"id": "rig", "kind": "rig-drop", "when": {"damage": 60}}],
       "stage": "rainbow-full-pipe",
       "stocks": 3,
       "rules": {
@@ -2894,7 +2894,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "chant", "kind": "chant", "when": {"stockLost": true}}],
       "stage": "city-top",
       "stocks": 2,
       "rules": {},
@@ -3332,7 +3332,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "rig", "kind": "rig-drop", "when": {"time": 25}}],
       "stage": "solar-array",
       "stocks": 3,
       "rules": {
@@ -3772,7 +3772,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "brb", "kind": "break", "when": {"time": 25}}],
       "stage": "city-top",
       "stocks": 3,
       "rules": {
@@ -4235,7 +4235,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "rival", "kind": "hijack", "when": {"time": 15}}, {"id": "chant", "kind": "chant", "when": {"damage": 100}}],
       "stage": "humans-in-the-loop",
       "stocks": 3,
       "rules": {},
