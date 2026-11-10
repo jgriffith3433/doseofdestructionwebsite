@@ -278,6 +278,8 @@ function openTraining(): void {
 
 function pickStage(stage: number, entry: ModeStage, random = false): void {
   stageChoice = stage;
+  prefetchStage(stage);
+  selectedAt = performance.now();
   const cfg = lastSelect === 'training' ? training : versus;
   analytics.stagePick(lastSelect, stage, random);
   const setup: MatchSetup = {
@@ -366,6 +368,8 @@ async function chapterCleared(c: Chapter): Promise<void> {
 
 // ------------------------------------------------------------------ match
 
+let selectedAt = 0;
+
 async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { seed: number; found: Found }, scene?: SceneCue): Promise<void> {
   endMatch();
   // A newer start (an online match found meanwhile) wins over this one.
@@ -382,6 +386,12 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
       if (match === m && phase === 'wait') beginReady(m);
     };
   }
+  const t0 = performance.now();
+  const pickedAt = selectedAt && t0 - selectedAt < 30000 ? selectedAt : null;
+  const fromSelect = pickedAt === null ? null : t0 - pickedAt;
+  selectedAt = 0;
+  void prefetchFighters(setup.slots.map((s) => s.char));
+  prefetchStage(setup.stage);
   renderer.setStage(setup.stage);
   // Everything the match shows and plays is loaded during the VS splash (or the loading
   // screen): clip sheets, stage art, sounds, music and voice lines. Nothing loads mid-fight.
@@ -431,7 +441,9 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   // An intro scene brings the fighters on itself: they wait in the wings from the first frame.
   const intro = !!scene && scene.which === 'intro' && scene.chapter.intro.length > 0;
   for (const f of m.state.fighters) renderer.holdOffstage(f.id, intro);
+  const vsMs = performance.now() - t0;
   await go('match', () => {
+    window.dispatchEvent(new CustomEvent('dod:scene-timing', { detail: { selectToVs: fromSelect, vsToMatch: vsMs, selectToMatch: pickedAt === null ? null : performance.now() - pickedAt, withVersus } }));
     // The canvas may have changed size while menus were up.
     renderer.engine.resize();
     match = m;
