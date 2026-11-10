@@ -1280,10 +1280,11 @@ class Run {
         const op = card ? Number(getComputedStyle(card).opacity) : 0;
         if (!card || !name) t.problem('bug', `VS fighter ${f.dataset.fighter} has no name card`);
         else if (op < 0.99 || !showing(card)) t.problem('bug', `the VS name card for ${name} is not fully shown after the intro (opacity ${op})`);
-        else if (!img || !(img.complete && img.naturalWidth > 0)) t.problem('bug', `the VS fighter picture for ${name} did not load`);
+        else if (!f.querySelector('.vs-sprite') && (!img || !(img.complete && img.naturalWidth > 0))) t.problem('bug', `the VS fighter picture for ${name} did not load`);
         else t.event('vs-name-card', `${name} (${who}) animated in with a name card`);
       });
       if (new Set(figs.map((f) => f.dataset.fighter)).size < 1) t.problem('bug', 'no fighters on the VS screen');
+      t.event('vs-animating', `${document.querySelectorAll('#versus-body .vs-sprite').length} idle clips, progress bar ${document.querySelector('#versus-body .vs-progress') ? 'shown' : 'done'}`);
       this.checkClipping('VS screen', this.q('#versus'));
     };
     await this.startVersus(1);

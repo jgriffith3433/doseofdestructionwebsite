@@ -502,23 +502,8 @@ export class Renderer {
     await breathe();
     this.scene.render();
     await breathe();
-    // Warm up every clip texture on the fighter materials in lockstep so the first attack/jump/hurt doesn't upload a sheet mid-fight.
-    const lists = this.views.map((v) => [...v.clipTex.values()]);
-    const maxClips = Math.max(0, ...lists.map((l) => l.length));
-    // Budgeted: on slow (software) renderers the rest upload on first use instead of holding the VS card for ~20 s.
-    const clipDeadline = performance.now() + 1000;
-    for (let i = 0; i < maxClips && performance.now() < clipDeadline; i++) {
-      for (let slot = 0; slot < this.views.length; slot++) {
-        const v = this.views[slot];
-        const tex = lists[slot][i];
-        if (!tex) continue;
-        setTexture(v.mat, tex);
-        if (v.ghostMat) v.ghostMat.diffuseTexture = tex;
-      }
-      this.scene.render();
-      // Let the wipe, the VS card and the page's own frames run between uploads, not freeze behind them.
-      await breathe();
-    }
+    // Clip sheets are uploaded a few ms per frame by warmTick (called from the render loop), not here.
+    this.queueClipWarm();
     this.fx?.endWarmUp();
     for (const s of this.sparks) {
       s.mesh.setEnabled(false);
@@ -534,6 +519,34 @@ export class Renderer {
         setTimeout(r, 100);
       });
       this.render(state);
+    }
+  }
+
+  private clipWarm: { slot: number; tex: Texture }[] = [];
+
+  /** Queues every clip sheet of the fighters in lockstep, so the first attack/jump/hurt doesn't upload a sheet mid-fight. */
+  queueClipWarm(): void {
+    const lists = this.views.map((v) => [...v.clipTex.values()]);
+    const max = Math.max(0, ...lists.map((l) => l.length));
+    this.clipWarm = [];
+    for (let i = 0; i < max; i++) lists.forEach((l, slot) => { if (l[i]) this.clipWarm.push({ slot, tex: l[i] }); });
+  }
+
+  /** Whether clip sheets still wait to be uploaded. */
+  get warming(): boolean {
+    return this.clipWarm.length > 0;
+  }
+
+  /** Uploads queued clip sheets within a small time budget; call once per animation frame, before the frame's own render. */
+  warmTick(budgetMs = 4): void {
+    const end = performance.now() + budgetMs;
+    while (this.clipWarm.length && performance.now() < end) {
+      const w = this.clipWarm.shift()!;
+      const v = this.views[w.slot];
+      if (!v || !w.tex.isReady()) continue;
+      setTexture(v.mat, w.tex);
+      if (v.ghostMat) v.ghostMat.diffuseTexture = w.tex;
+      this.scene.render();
     }
   }
 
