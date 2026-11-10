@@ -22,7 +22,7 @@ import { FX } from '../sim/fixed.ts';
 import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
-import { activeHitboxes, type SimEvent } from '../sim/step.ts';
+import { activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
 import { hitTier, impactFor, screenShake, type HitTier } from '../hitFeel.ts';
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
@@ -86,6 +86,8 @@ export class Renderer {
   readonly engine: Engine;
   readonly scene: Scene;
   private camera: FreeCamera;
+  private sky!: HemisphericLight;
+  private rig: Mesh | null = null;
   private views: FighterView[] = [];
   private sparks: Spark[] = [];
   /** Finished spark meshes, reused so a KO burst doesn't build geometry mid-fight. */
@@ -140,7 +142,7 @@ export class Renderer {
     this.camera.setTarget(this.camTarget);
     this.camera.inputs.clear();
 
-    const light = new HemisphericLight('sky', new Vector3(0.2, 1, -0.6), this.scene);
+    const light = (this.sky = new HemisphericLight('sky', new Vector3(0.2, 1, -0.6), this.scene));
     light.intensity = 0.95;
     light.groundColor = new Color3(0.18, 0.1, 0.08);
 
@@ -701,6 +703,19 @@ export class Renderer {
     }
     this.live?.update(state);
     this.alive?.update(performance.now() / 1000);
+    // Broadcast events: the studio lights flicker, the rig light hangs and falls.
+    this.sky.intensity = state.flicker > 0 ? (state.frame % 8 < 3 ? 0.15 : 1) : 1;
+    if (state.rigFrame >= 0) {
+      if (!this.rig) {
+        this.rig = CreateBox('rig', { width: 0.9, height: 0.5, depth: 0.9 }, this.scene);
+        const m = new StandardMaterial('rigm', this.scene);
+        m.emissiveColor = new Color3(1, 0.9, 0.5);
+        this.rig.material = m;
+      }
+      const p = rigPos(state);
+      this.rig.setEnabled(true);
+      this.rig.position.set(p.x * S, p.y * S, 0);
+    } else this.rig?.setEnabled(false);
     for (const f of state.fighters) this.drawFighter(f, this.views[f.id]);
     this.updateSparks();
     this.fx?.setClock(state);
@@ -907,8 +922,10 @@ export class Renderer {
     }
     this.camTarget.x += (cx - this.camTarget.x) * ease;
     this.camTarget.y += (cy - this.camTarget.y) * ease;
-    this.camPos.x = this.camTarget.x;
-    this.camPos.y = this.camTarget.y + cd * 0.06;
+    // After a commercial break the show returns on another camera angle.
+    const side = [0, 1, -1][state.angle] ?? 0;
+    this.camPos.x = this.camTarget.x + side * cd * 0.12;
+    this.camPos.y = this.camTarget.y + cd * (0.06 + (state.angle === 2 ? 0.1 : 0));
     this.camPos.z += (-cd - this.camPos.z) * ease;
 
     // Screen shake off (Settings): the camera stays put, whatever the stage or a hit asked for.

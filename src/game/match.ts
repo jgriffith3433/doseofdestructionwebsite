@@ -3,7 +3,7 @@
 
 import { CHARACTERS } from './sim/characters.ts';
 import { NO_INPUT } from './sim/input.ts';
-import { ACT, cloneState, newGame, type GameState, type Rules } from './sim/state.ts';
+import { ACT, cloneState, newGame, type BroadcastDef, type GameState, type Rules } from './sim/state.ts';
 import { step, type SimEvent } from './sim/step.ts';
 import { Bot } from './ai/bot.ts';
 
@@ -26,6 +26,8 @@ export interface MatchSetup {
   stage: number;
   stocks: number;
   rules: Partial<Rules>;
+  /** Scripted broadcast events (content/campaign.json `events`). */
+  events?: BroadcastDef[];
   slots: SlotSetup[];
   /** Shown on the VS screen. */
   title?: string;
@@ -119,7 +121,7 @@ export class Match {
         startPercent: s.startPercent,
         stocks: training ? 99 : s.stocks,
       })),
-      { stocks: setup.stocks, seed, stage: setup.stage, rules: setup.rules },
+      { stocks: setup.stocks, seed, stage: setup.stage, rules: setup.rules, broadcast: setup.events },
     );
     this.bots = setup.slots.map((s, i) => (s.cpu ? new Bot(i, s.cpu, seed + i * 7919) : null));
     this.stats = setup.slots.map(() => ({

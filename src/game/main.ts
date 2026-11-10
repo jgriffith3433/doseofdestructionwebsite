@@ -584,6 +584,17 @@ function afterTick(m: Match, events: SimEvent[]): void {
 
 const SMASHES: ReadonlySet<number> = new Set([MOVE.FSMASH, MOVE.USMASH, MOVE.DSMASH]);
 
+/** A broadcast caption over the match. */
+function showBanner(text: string, ms: number): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'bc-banner';
+  el.textContent = text;
+  el.dataset.bc = text;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), ms);
+  return el;
+}
+
 function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
   for (const e of events) {
     switch (e.type) {
@@ -602,6 +613,25 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
           audio.synth('whoosh');
           audio.synth('crowd', 0.6);
         } else audio.synth('whoosh', 0.4);
+        break;
+      case 'broadcast':
+        if (e.phase === 'end') {
+          if (e.kind === 'break') document.getElementById('brb')?.remove();
+          break;
+        }
+        if (e.kind === 'chant') {
+          audio.synth('crowd', 1);
+          audio.synth('cheer', 0.9);
+          showBanner(`${CHARACTERS[m.state.fighters[e.who].char].name.toUpperCase()}! ${CHARACTERS[m.state.fighters[e.who].char].name.toUpperCase()}!`, 2500);
+        } else if (e.kind === 'break') {
+          audio.synth('sting');
+          const b = showBanner("WE'LL BE RIGHT BACK", 1500);
+          b.id = 'brb';
+        } else if (e.kind === 'hijack') {
+          audio.synth('alarm', 0.6);
+          showBanner('RIVAL NETWORK · NOW BROADCASTING', 10000).className = 'bc-banner bc-hijack';
+        } else if (e.kind === 'flicker') audio.synth('thud', 0.6);
+        else audio.synth('alarm', 0.9);
         break;
       case 'ko':
         audio.sfx('ko');

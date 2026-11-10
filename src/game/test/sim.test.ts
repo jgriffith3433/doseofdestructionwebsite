@@ -441,6 +441,34 @@ STAGES.forEach((stage, si) => {
   check('walk: walking left plays the cycle forward too', a === 0 && walkFrame(walker, clip) === 2, `${a} -> ${walkFrame(walker, clip)}`);
 }
 
+{
+  // Broadcast events: same inputs, same hash; the break freezes play and keeps inputs; the rig light hits.
+  const events = [
+    { id: 'f', kind: 'flicker' as const, when: { time: 2 } },
+    { id: 'r', kind: 'rig-drop' as const, when: { time: 3 } },
+    { id: 'b', kind: 'break' as const, when: { time: 6 } },
+    { id: 'h', kind: 'hijack' as const, when: { stockLost: true } },
+  ];
+  const run = () => {
+    const g = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 5, broadcast: events });
+    const bots = [new Bot(0, 5, 1), new Bot(1, 5, 2)];
+    let froze = 0;
+    let rig = 0;
+    for (let i = 0; i < 900; i++) {
+      const before = g.frame;
+      const ev = step(g, bots.map((b) => b.think(g)));
+      if (g.frame === before) froze++;
+      rig += ev.filter((e) => e.type === 'hurt' && e.index === -1).length;
+    }
+    return { h: hashState(g), froze, rig, fired: g.bcFired.join('') };
+  };
+  const a = run();
+  const b = run();
+  check('broadcast: events are deterministic', a.h === b.h);
+  check('broadcast: the commercial break freezes play for 1.5 s', a.froze === 90, `${a.froze}`);
+  check('broadcast: events fire', a.fired.startsWith('111'), a.fired);
+}
+
 if (failed) {
   console.log(`${failed} failed`);
   process.exit(1);
