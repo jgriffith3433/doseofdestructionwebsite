@@ -506,6 +506,40 @@
         "at": "sky"
       },
       {
+        "on": "ambient",
+        "kind": "firework",
+        "colors": [
+          "#ffd08a",
+          "#6fa8ff",
+          "#ff6a4a"
+        ],
+        "count": 1,
+        "every": 8,
+        "at": "sky"
+      },
+      {
+        "on": "ambient",
+        "kind": "dust",
+        "colors": [
+          "#3a4256",
+          "#556079"
+        ],
+        "count": 4,
+        "every": 5,
+        "at": "sky",
+        "sound": "wipe"
+      },
+      {
+        "on": "ambient",
+        "kind": "flash",
+        "colors": [
+          "#ffd08a"
+        ],
+        "count": 1,
+        "every": 9,
+        "at": "sky"
+      },
+      {
         "on": "end",
         "kind": "firework",
         "colors": [
