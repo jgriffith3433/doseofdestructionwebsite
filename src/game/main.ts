@@ -1053,6 +1053,8 @@ function frame(draw = true): void {
 wireMenus();
 // The canvas stays hidden (Game/index.html) until the first rendered frame, then fades in: the engine's default clear colour never shows.
 let firstFrame = false;
+// Fallback: if no frame renders, reveal anyway so the Title is never held behind opacity 0.
+setTimeout(() => document.getElementById('stage')?.classList.add('ready'), 1500);
 renderer.engine.runRenderLoop(() => {
   frame();
   if (!firstFrame) {
