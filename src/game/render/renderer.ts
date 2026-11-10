@@ -152,6 +152,14 @@ export class Renderer {
     this.scene.setRenderingAutoClearDepthStencil(1, false, false, false);
 
     this.sparkMat = this.flatMaterial('spark', '#ffd15a');
+    // Soft radial alpha so impact stars/rings read as a glow, not a hard square (GlowLayer
+    // used to bloom the whole opaque plane into a blown-out white rectangle over the fighter).
+    const soft = this.softSparkTex();
+    this.sparkMat.diffuseTexture = soft;
+    this.sparkMat.opacityTexture = soft;
+    this.sparkMat.emissiveTexture = soft;
+    this.sparkMat.alphaMode = Constants.ALPHA_ADD;
+    this.sparkMat.disableDepthWrite = true;
     this.debugMat = this.flatMaterial('dbg-hit', '#ff2a2a', 0.45);
     this.hurtMat = this.flatMaterial('dbg-hurt', '#ffd15a', 0.22);
 
@@ -236,6 +244,39 @@ export class Renderer {
     m.alpha = alpha;
     m.backFaceCulling = false;
     return m;
+  }
+
+  /** Soft white disc for hit sparks / impact flashes (alpha falls off to the edge). */
+  private softSparkTex(): DynamicTexture {
+    const t = new DynamicTexture('spark-soft', { width: 64, height: 64 }, this.scene, false);
+    const c = t.getContext() as CanvasRenderingContext2D;
+    const g = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.4, 'rgba(255,255,255,0.55)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.clearRect(0, 0, 64, 64);
+    c.fillStyle = g;
+    c.fillRect(0, 0, 64, 64);
+    t.hasAlpha = true;
+    t.update();
+    return t;
+  }
+
+  /** One spark plane from the pool (or a new one), soft-glowed and kept out of the glow layer. */
+  private takeSpark(): Mesh {
+    const reused = this.sparkPool.pop();
+    if (reused) {
+      reused.material = this.sparkMat;
+      reused.setEnabled(true);
+      return reused;
+    }
+    const mesh = CreatePlane('spark', { size: 1 }, this.scene);
+    mesh.material = this.sparkMat;
+    mesh.isPickable = false;
+    mesh.setEnabled(true);
+    // Soft material already looks like a glow; exclude so GlowLayer doesn't square-bloom the plane.
+    this.glow.addExcludedMesh(mesh);
+    return mesh;
   }
 
   // ------------------------------------------------------------------ stage
@@ -667,11 +708,9 @@ export class Renderer {
     st.last = { tier, lag: e.lag, sparks: fx.sparks, stars: fx.stars, ring: fx.ring, shake: fx.shake, flash: fx.flash };
   }
 
-  /** One impact sprite: a spinning square that blows up as it fades (two make a star, a big fast one reads as a ring). */
+  /** One impact flash: a soft disc that blows up as it fades (two make a heavy burst, a big fast one reads as a shockwave). */
   private sprite(x: number, y: number, rot: number, size: number, life: number, grow: number): void {
-    const mesh = this.sparkPool.pop() ?? CreatePlane('spark', { size: 1 }, this.scene);
-    mesh.material = this.sparkMat;
-    mesh.setEnabled(true);
+    const mesh = this.takeSpark();
     mesh.position.set(x, y, -0.45);
     mesh.rotation.z = rot;
     this.sparks.push({ mesh, vx: 0, vy: 0, life, max: life, size, grow });
@@ -692,9 +731,7 @@ export class Renderer {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = speed * (0.4 + Math.random() * 0.8);
-      const mesh = this.sparkPool.pop() ?? CreatePlane('spark', { size: 1 }, this.scene);
-      mesh.material = this.sparkMat;
-      mesh.setEnabled(true);
+      const mesh = this.takeSpark();
       mesh.position.set(x, y, -0.4);
       mesh.rotation.z = a;
       const life = 14 + Math.floor(Math.random() * 14);
