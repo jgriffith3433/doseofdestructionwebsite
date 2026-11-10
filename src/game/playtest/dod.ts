@@ -62,6 +62,19 @@ export interface GameHooks {
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
+  /** Layered stage bed: calm/intense, ambience under the theme, intensity stem. */
+  musicBedStats?(): {
+    stageId: string | null;
+    state: 'calm' | 'intense' | null;
+    music: string | null;
+    ambience: string | null;
+    intense: string | null;
+    bed: string | null;
+    ambienceOn: boolean;
+    intenseOn: boolean;
+    stung: boolean;
+    musicOn: boolean;
+  };
 }
 
 
@@ -131,6 +144,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'touch-settings') await r.touchSettingsRun();
         else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'stage-life') await r.stageLife();
+        else if (id === 'stage-bed') await r.stageBed();
         else if (id === 'commentary') await r.commentary();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
@@ -3012,6 +3026,115 @@ class Run {
     const fps = g?.fpsNow ?? 0;
     t.metric('fpsStageLife', Math.round(fps));
     if (g?.quality === 'low' && innerWidth <= 900 && fps > 0 && fps < 45) t.problem('warning', `phone-size Low ran at ${Math.round(fps)} fps (want 45)`);
+  }
+
+  /**
+   * Layered stage bed: ambience under the theme at calm, lift to intense on last stock / ≥100%,
+   * final-KO sting without cutting the music, and mute/volume still covering every layer.
+   */
+  async stageBed(): Promise<void> {
+    const t = this.t;
+    const original = localStorage.getItem(SOUND_KEY);
+    const bed = () => this.game.musicBedStats?.() ?? null;
+    let changes = 0;
+    let sawCalm = false;
+    let sawIntense = false;
+    let lastState: string | null = null;
+    const unwatch = this.game.watch(() => {
+      const b = bed();
+      if (!b?.state) return;
+      if (b.state !== lastState) {
+        lastState = b.state;
+        changes++;
+        if (b.state === 'calm' && !sawCalm) {
+          sawCalm = true;
+          t.event('music-calm', `${b.stageId}: theme ${b.music}, ambience ${b.ambience ?? 'procedural-only'} (${b.bed}), ambienceOn=${b.ambienceOn}`);
+        }
+        if (b.state === 'intense' && !sawIntense) {
+          sawIntense = true;
+          t.event('music-intense', `${b.stageId}: lifted (intense stem ${b.intense ?? 'filter/tempo'}, intenseOn=${b.intenseOn})`);
+        }
+      }
+    });
+    try {
+      await this.toMainMenu();
+      if (!soundSettings().on) {
+        await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+        await t.until(settingsShowing, 3000, 'Settings');
+        await this.tap(() => this.q('#sound-switch'), 'Sound on');
+        await this.tap(() => this.q('#settings-done'), 'Done');
+      }
+      t.progress(0.05);
+      await this.startVersus(2);
+      t.progress(0.15);
+      const m0 = () => this.game.match();
+      await t.until(() => !!bed()?.state, 20000, 'the stage bed to start');
+      const first = bed();
+      if (!first?.ambienceOn) t.problem('bug', `stage bed has no ambience under the music (${JSON.stringify(first)})`);
+      else t.event('stage-ambience', `${first.stageId}: procedural ${first.bed} + file ${first.ambience ?? 'none'} under ${first.music}`);
+      if (first?.state === 'calm') {
+        sawCalm = true;
+        if (!this.checked.has('music-calm-ready')) {
+          this.checked.add('music-calm-ready');
+          t.event('music-calm', `${first.stageId}: calm at Ready`);
+        }
+      }
+      this.progressNow = () => 0.15 + 0.4 * Math.min(1, ((m0()?.state.frame ?? 0) / (90 * 60)));
+      // Fight until the bed lifts (last stock or ≥100%), then check mute while the bout is still live.
+      await this.fight(() => sawIntense || !!m0()?.state.over, 3 * 60 * 1000);
+      if (!sawCalm) t.problem('bug', 'the playtest never saw music state calm');
+      if (!sawIntense) t.problem('bug', 'the music never lifted to intense (last stock or ≥100%)');
+      t.progress(0.55);
+
+      if (this.game.phase() !== 'play') {
+        t.problem('bug', `expected to still be in play after the intense lift (phase ${this.game.phase()}), so mute could not be checked`);
+      } else {
+        await tapKey('Escape');
+        await t.until(() => this.game.phase() === 'pause', 3000, 'pause for sound check');
+        await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+        await t.until(settingsShowing, 3000, 'Settings from Pause');
+        const before = bed();
+        await this.tap(() => this.q('#sound-switch'), 'Sound off');
+        if (soundSettings().on) t.problem('bug', 'Sound off did not apply');
+        else if (!before?.state || !before.musicOn) t.problem('bug', 'turning Sound off tore down the stage bed');
+        else t.event('bed-mute', `Sound off with bed still ${before.state} (layers ride the music bus)`);
+        const music = this.q('#vol-music') as HTMLInputElement | null;
+        if (music) {
+          music.value = '25';
+          music.dispatchEvent(new Event('input', { bubbles: true }));
+          music.dispatchEvent(new Event('change', { bubbles: true }));
+          if (Math.abs(soundSettings().music - 0.25) > 0.001) t.problem('bug', `Music 25% did not apply (${soundSettings().music})`);
+          else t.event('bed-volume', `Music set to 25% while bed state ${bed()?.state ?? 'none'}`);
+        } else t.problem('bug', 'Settings has no Music slider');
+        await this.tap(() => this.q('#sound-switch'), 'Sound on');
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+        await tapKey('Escape');
+        await t.until(() => this.game.phase() === 'play', 3000, 'resume the match');
+      }
+
+      t.progress(0.7);
+      this.progressNow = () => 0.7 + 0.25 * Math.min(1, ((m0()?.state.frame ?? 0) / (120 * 60)));
+      const ended = await this.fight(() => !!m0()?.state.over, 3 * 60 * 1000);
+      if (ended !== 'over' && !m0()?.state.over) t.problem('bug', 'the match did not reach Game!');
+      const timedOut = !!m0()?.state.timedOut;
+      const after = bed();
+      if (timedOut) t.problem('warning', 'match ended on time, so the final-KO sting was not the closer');
+      else if (!after?.stung) t.problem('bug', 'Game! did not fire the final-KO sting');
+      else if (!after.musicOn && !after.state) t.problem('bug', 'the stage music cut off on the final KO instead of crossfading');
+      else t.event('music-sting', `final-KO sting fired; bed still ${after.state ?? 'holding'} (no hard cut)`);
+      t.metric('bedStateChanges', changes);
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      unwatch();
+      try {
+        if (original === null) localStorage.removeItem(SOUND_KEY);
+        else localStorage.setItem(SOUND_KEY, original);
+      } catch {
+        // Storage blocked.
+      }
+    }
   }
 
   async graphicsRun(): Promise<void> {

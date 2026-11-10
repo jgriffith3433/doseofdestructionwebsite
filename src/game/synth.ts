@@ -1,9 +1,17 @@
 // Procedural sound effects made in Web Audio, for moments with no recorded file: the studio crowd, whooshes
-// for camera moves and arrivals, a broadcast sting, a stage alarm. Nothing to download, nothing to generate.
+// for camera moves and arrivals, a broadcast sting, a stage alarm. Continuous stage beds (crowd murmur, wind,
+// studio hum) live here too so every arena has a place tone without a dedicated file. Nothing to download.
 
 export type SynthKind = 'crowd' | 'cheer' | 'whoosh' | 'sting' | 'alarm' | 'thud';
 
 export const SYNTH_KINDS: readonly SynthKind[] = ['crowd', 'cheer', 'whoosh', 'sting', 'alarm', 'thud'];
+
+/** Continuous place tones under a stage's music. */
+export type BedKind = 'arena' | 'city-night' | 'indoor' | 'desert' | 'fog' | 'void' | 'park' | 'nebula' | 'solar';
+
+export const BED_KINDS: readonly BedKind[] = [
+  'arena', 'city-night', 'indoor', 'desert', 'fog', 'void', 'park', 'nebula', 'solar',
+];
 
 let noiseBuf: AudioBuffer | null = null;
 
@@ -137,4 +145,103 @@ export function playSynth(ctx: BaseAudioContext, out: AudioNode, kind: SynthKind
       break;
     }
   }
+}
+
+type BedRecipe = { bpHz: number; bpQ: number; humHz: number; humLevel: number; noiseLevel: number; flutter: number };
+
+const BED_RECIPES: Record<BedKind, BedRecipe> = {
+  arena: { bpHz: 780, bpQ: 0.65, humHz: 55, humLevel: 0.04, noiseLevel: 0.09, flutter: 6.5 },
+  'city-night': { bpHz: 420, bpQ: 0.55, humHz: 48, humLevel: 0.035, noiseLevel: 0.07, flutter: 4.2 },
+  indoor: { bpHz: 520, bpQ: 0.8, humHz: 60, humLevel: 0.03, noiseLevel: 0.045, flutter: 3.5 },
+  desert: { bpHz: 340, bpQ: 0.45, humHz: 42, humLevel: 0.02, noiseLevel: 0.08, flutter: 2.8 },
+  fog: { bpHz: 280, bpQ: 0.7, humHz: 38, humLevel: 0.05, noiseLevel: 0.06, flutter: 2.2 },
+  void: { bpHz: 220, bpQ: 0.9, humHz: 70, humLevel: 0.055, noiseLevel: 0.035, flutter: 1.6 },
+  park: { bpHz: 900, bpQ: 0.55, humHz: 52, humLevel: 0.025, noiseLevel: 0.07, flutter: 5.5 },
+  nebula: { bpHz: 640, bpQ: 0.5, humHz: 90, humLevel: 0.04, noiseLevel: 0.05, flutter: 3.1 },
+  solar: { bpHz: 1100, bpQ: 0.6, humHz: 85, humLevel: 0.03, noiseLevel: 0.055, flutter: 4.8 },
+};
+
+/**
+ * Starts a looping place tone into `out`. Returns a stop that crossfades out (never a hard cut).
+ * `level` scales the bed (0 to 1); keep it quiet under the stage theme.
+ */
+export function startBed(ctx: BaseAudioContext, out: AudioNode, kind: BedKind, level = 1): () => void {
+  const recipe = BED_RECIPES[kind];
+  const t0 = ctx.currentTime;
+  const master = ctx.createGain();
+  master.gain.value = 0.0001;
+  master.gain.setTargetAtTime(Math.max(0.0001, level), t0, 0.6);
+  master.connect(out);
+
+  const nodes: AudioNode[] = [master];
+  const stoppers: Array<() => void> = [];
+
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.value = recipe.noiseLevel;
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = recipe.bpHz;
+  bp.Q.value = recipe.bpQ;
+  const flutter = ctx.createGain();
+  flutter.gain.value = 0.82;
+  const lfo = ctx.createOscillator();
+  lfo.frequency.value = recipe.flutter;
+  const depth = ctx.createGain();
+  depth.gain.value = 0.18;
+  lfo.connect(depth).connect(flutter.gain);
+  lfo.start(t0);
+  const src = ctx.createBufferSource();
+  src.buffer = noise(ctx);
+  src.loop = true;
+  src.start(t0, Math.random() * 1.5);
+  src.connect(bp).connect(flutter).connect(noiseGain).connect(master);
+  stoppers.push(() => {
+    try {
+      src.stop();
+    } catch {
+      // Already stopped.
+    }
+    try {
+      lfo.stop();
+    } catch {
+      // Already stopped.
+    }
+  });
+  nodes.push(noiseGain, bp, flutter, depth, lfo, src);
+
+  const hum = ctx.createOscillator();
+  hum.type = 'sine';
+  hum.frequency.value = recipe.humHz;
+  const humGain = ctx.createGain();
+  humGain.gain.value = recipe.humLevel;
+  hum.connect(humGain).connect(master);
+  hum.start(t0);
+  stoppers.push(() => {
+    try {
+      hum.stop();
+    } catch {
+      // Already stopped.
+    }
+  });
+  nodes.push(hum, humGain);
+
+  let stopped = false;
+  return () => {
+    if (stopped) return;
+    stopped = true;
+    const t = ctx.currentTime;
+    master.gain.cancelScheduledValues(t);
+    master.gain.setTargetAtTime(0.0001, t, 0.35);
+    const kill = (typeof window !== 'undefined' ? window.setTimeout : setTimeout)(() => {
+      for (const stop of stoppers) stop();
+      for (const n of nodes) {
+        try {
+          n.disconnect();
+        } catch {
+          // Already disconnected.
+        }
+      }
+    }, 1400);
+    void kill;
+  };
 }

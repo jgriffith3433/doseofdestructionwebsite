@@ -64,9 +64,10 @@ function fakeGame(readyAfter = 3) {
   const game = fakeGame();
   const started = api.start('smoke', { seed: 4, speed: 2, at: 'walk-on' });
   await new Promise((r) => setTimeout(r, 0));
-  check(appended.length === 1, 'start() opens one frame');
-  const frame = appended[0];
-  check(frame.src === 'https://sites.hawkesgen.ai/o/x/dose-of-destruction/Game/?room=abc&peer=1', `the frame is the game next to this page, with room and peer passed on (${frame.src})`);
+  // Brand overlay then the game iframe (both full-screen).
+  const frame = appended.find((el) => el.id === 'hawkes-playtest-frame');
+  check(!!frame && appended.some((el) => el.id === 'hawkes-playtest-brand'), 'start() opens one frame');
+  check(frame?.src === 'https://sites.hawkesgen.ai/o/x/dose-of-destruction/Game/?room=abc&peer=1', `the frame is the game next to this page, with room and peer passed on (${frame?.src})`);
   check(api.state().status === 'running', 'running while the game loads');
   frame.contentWindow = game;
   await started;
@@ -82,9 +83,10 @@ function fakeGame(readyAfter = 3) {
 {
   const { api, appended } = page('https://doseofdestruction.com/?playtest=campaign&seed=7&at=walk-on');
   await new Promise((r) => setTimeout(r, 0));
-  check(appended.length === 1 && appended[0].src === 'https://doseofdestruction.com/Game/', '?playtest=<id> on the landing page starts it (own params not passed to the game)');
+  const frame = appended.find((el) => el.id === 'hawkes-playtest-frame');
+  check(!!frame && frame.src === 'https://doseofdestruction.com/Game/', '?playtest=<id> on the landing page starts it (own params not passed to the game)');
   const game = fakeGame(0);
-  appended[0].contentWindow = game;
+  frame.contentWindow = game;
   await new Promise((r) => setTimeout(r, 600));
   check(JSON.stringify(game.calls[0]) === JSON.stringify(['start', 'campaign', { seed: 7, speed: 1, at: 'walk-on' }]), 'with seed, speed and at from the address');
   api.stop();

@@ -18,7 +18,8 @@ call out where the live build is still thin.
 ### The Foundry floor — Humans In The Loop
 - **Mood:** home set, sold-out arena, the show that never goes dark.
 - **Look / sound:** truss towers, spot and strobe beams, flight cases, floor wedges, a packed crowd ring, cables in
-  front. Crowd noise, stings, cheer on every KO (`go-wild`); theme `music-humans-in-the-loop`.
+  front. Layered bed: arena murmur (`bed: arena`) under `music-foundry` ambience + theme `music-humans-in-the-loop`;
+  lifts on last stock / 100%; final-KO sting. Crowd noise, cheer on every KO (`go-wild`).
 - **Size:** wide main deck with side platforms; the camera opens wide for scene cards then tightens on speakers.
 - **In / out:** Season 1 Encore, Season 2 Sponsored, Season 3 Walk-On, Season 5 Clip Show, Season 8 Best in Show,
   Season 10 First Cut. The city tunes here first every midnight.
@@ -28,7 +29,8 @@ call out where the live build is still thin.
 ### City Top
 - **Mood:** LA rooftops at night, fireworks when someone falls, the first roof of the series.
 - **Look / sound:** skyline backdrop, water tower, fire escape, billboard catwalk, skylight canopy, antenna.
-  Fireworks and roof wind; theme `music-city-top` / rooftop beds.
+  Layered bed: night wind/city hum (`bed: city-night`) under `music-rooftop` ambience + theme `music-city-top`;
+  lifts on last stock / 100%; final-KO sting. Fireworks on falls.
 - **Size:** long main roof, side ledges, a high solid perch; blast left/right into the city.
 - **In / out:** Open Mic, Title Defense, Cold Open, Pilot Remake, Series Finale, Teaser, Final Cut (and returns).
 - **Now:** painted and playable. **Short / vertical-slice fix:** add a soft timed beat every ~8–10 s (billboard
@@ -37,8 +39,9 @@ call out where the live build is still thin.
 
 ### Yo House
 - **Mood:** bright living-room absurdity; the sponsor's living set.
-- **Look / sound:** hardwood, fish tank, sofa, yoga corner, exercise ball, doorway frame, fern. Vacuum whirr and
-  bubbler; theme `music-yo-house`.
+- **Look / sound:** hardwood, fish tank, sofa, yoga corner, exercise ball, doorway frame, fern. Layered bed: room
+  tone (`bed: indoor`) under a quiet `music-drift` ambience + theme `music-yo-house`; lifts on last stock / 100%;
+  final-KO sting. Vacuum whirr and bubbler events.
 - **Size:** indoor box with tank and furniture platforms.
 - **In / out:** House Heavy, Product Placement, Laugh Track, Best Supporting.
 - **Now:** vacuum and bubbler events keep the floor alive. **Short:** fish are mostly art; they should dart on their
@@ -46,8 +49,9 @@ call out where the live build is still thin.
 
 ### Solar Array
 - **Mood:** hard sun, industrial desert, panels that do not care who is standing on them.
-- **Look / sound:** mesa, panel pylons, sun-tracking plates, foreground rocks. Panel motors and desert hush; theme
-  `music-solar-array`.
+- **Look / sound:** mesa, panel pylons, sun-tracking plates, foreground rocks. Layered bed: sun glare hum
+  (`bed: solar`) under `music-drift` ambience + theme `music-solar-array`; lifts on last stock / 100%; final-KO sting.
+  Panel motors on `sun-tracking`.
 - **Size:** mesa floor under tilting panels.
 - **In / out:** Bad Signal, Hostile Takeover, Dead Air, Red Carpet.
 - **Now:** `sun-tracking` tilts platforms away on a timer. **Quiet routine (Red Carpet, `hazards: 0`):** panels stay
@@ -56,40 +60,43 @@ call out where the live build is still thin.
 
 ### Dust Devil Mesa (`desert`)
 - **Mood:** salt flats, wind-carved stone, something hunting overhead.
-- **Look / sound:** rock arch, buttes, lakebed, sage, dust wall, circling hawk. Gusts and wing cuts; theme
-  `music-desert`.
+- **Look / sound:** rock arch, buttes, lakebed, sage, dust wall, circling hawk. Layered bed: dry wind (`bed: desert`)
+  under `music-drift` ambience + theme `music-desert`; lifts on last stock / 100%; final-KO sting. Gusts and hawk dives.
 - **Size:** arch climb over flats with side boulders.
 - **In / out:** Low Pressure, Rerun, Prime Time, Table Read.
 - **Now:** `dust-gust` and `hawk-dive` on timers. **Short:** wind should keep moving dust between storms.
 
 ### Watercolor Nebula
 - **Mood:** soft, floaty, a paint sky that never dries.
-- **Look / sound:** spiral puddles, underwash, cloud banks, drift swirls, dripping wisps. Soft whooshes and pigment
-  hits; theme `music-watercolor-nebula`.
+- **Look / sound:** spiral puddles, underwash, cloud banks, drift swirls, dripping wisps. Layered bed: soft nebula
+  tone (`bed: nebula`) under `music-drift` ambience + theme `music-watercolor-nebula`; lifts on last stock / 100%;
+  final-KO sting. Pigment rain and drift.
 - **Size:** stacked floating islands with long falls.
 - **In / out:** Turn the Page, Simulcast, Global Feed.
 - **Now:** `pigment-rain` and `nebula-drift`. **Short:** islands should breathe (slow bob) even when no event is up.
 
 ### Cursed Town
 - **Mood:** fog streets you do not walk; rooftops only; something below.
-- **Look / sound:** gabled houses, street beam, tentacles, surge fog. Wet hush and a low reach; theme
-  `music-cursed-town`.
+- **Look / sound:** gabled houses, street beam, tentacles, surge fog. Layered bed: fog hush (`bed: fog`) under
+  `music-pit` ambience + theme `music-cursed-town`; lifts on last stock / 100%; final-KO sting. Fog surge and Presence.
 - **Size:** opposing roofs over a lethal street.
 - **In / out:** Sudden Death, Champion's Tax, Cliffhanger.
 - **Now:** `fog-surge` and `presence`. **Short:** tentacles should twitch between surges so the street never reads dead.
 
 ### Space Chess
 - **Mood:** cold void, formal board, a king that falls when someone does.
-- **Look / sound:** chessboard, floating squares, drifting pawn, white and black kings. Soft void hum and a topple
-  sting; theme `music-space-chess`.
+- **Look / sound:** chessboard, floating squares, drifting pawn, white and black kings. Layered bed: void hum
+  (`bed: void`) under `music-pit` ambience + theme `music-space-chess`; lifts on last stock / 100%; final-KO sting.
+  Kings topple on KO.
 - **Size:** flat board with side floats.
 - **In / out:** Dead Weight, Cut to Size, Standards and Practices, Lifetime Achievement.
 - **Now:** `king-falls` on KO. **Short:** pawn drift should be constant; board needs more idle motion when nobody falls.
 
 ### Rainbow Full Pipe
 - **Mood:** sunny skate park, ramps and decks, a skater who drops in whether you are ready.
-- **Look / sound:** full pipe, grind rail, decks, park trees, Drop In! sign. Board carve and park chatter; theme
-  `music-rainbow-full-pipe`.
+- **Look / sound:** full pipe, grind rail, decks, park trees, Drop In! sign. Layered bed: park chatter tone
+  (`bed: park`) under `music-rooftop` ambience + theme `music-rainbow-full-pipe`; lifts on last stock / 100%;
+  final-KO sting. Drop In! skater (or quiet affiliate riders).
 - **Size:** pipe and decks with vertical play.
 - **In / out:** Drop In, Local Affiliate, Crossover Event, Trailer.
 - **Now:** `drop-in` skater on a timer (can be silenced with `hazards: 0`). **Quiet routine (Local Affiliate,
@@ -182,7 +189,7 @@ calls are the others.
 - **Interactions:** brawl on the deck; use cases and wedges as cover height; ride the crowd's KO spike; scene arrivals
   with thud and shake before Ready.
 - **On their own:** crowd beds; `go-wild` on every KO (lights and cheer).
-- **Ambient:** arena murmur, truss buzz, theme music.
+- **Ambient:** layered bed (arena murmur + foundry underbed + theme); lifts on last stock / 100%; final-KO sting.
 - **Over time:** Encore went quiet once; later seasons light the same floor for defenses, awards and the first finale
   cut. Ratings lines change who hosts.
 
@@ -190,51 +197,51 @@ calls are the others.
 - **Interactions:** roof run-outs, fire-escape and catwalk platforms, edge guards into fireworks KO dressing.
 - **On their own:** fireworks on falls; skyline parallax. **Gap:** add a soft timed beat (billboard flicker, distant
   firework volley, or antenna spark) so the roof matches other stages' 10-second rule when players stall.
-- **Ambient:** night wind, city hum, rooftop theme.
+- **Ambient:** layered bed (night wind/city hum + rooftop underbed + theme); lifts on last stock / 100%; final-KO sting.
 - **Over time:** first Open Mic roof returns for title defenses, reboot pilots, the teaser and the last cut of the series.
 
 ### Yo House
 - **Interactions:** tank and furniture platforms; dodge or ride the vacuum path; bubbler burst as a vertical threaten.
 - **On their own:** `robo-vacuum`, `bubbler-burst`; fish should idle-swim between them.
-- **Ambient:** indoor room tone, filter bubbles, house theme.
+- **Ambient:** layered bed (room tone + quiet drift underbed + house theme); lifts on last stock / 100%; final-KO sting.
 - **Over time:** House Heavy's giant Break; sponsor night (Product Placement quota); laugh-track reboot; awards supporting category.
 
 ### Solar Array
 - **Interactions:** stand on panels that will leave; punish landings when a plate tilts; Red Carpet plays the same
   geometry with hazards off (no scuffed carpet).
 - **On their own:** `sun-tracking` on a timer (unless silenced).
-- **Ambient:** sun glare bed, motor ticks, desert theme.
+- **Ambient:** layered bed (sun glare hum + drift underbed + solar theme); lifts on last stock / 100%; final-KO sting.
 - **Over time:** Bad Signal's two-on-one; rival takeover; Dead Air's survive minute; awards carpet with quiet panels.
 
 ### Dust Devil Mesa
 - **Interactions:** arch control, edge guards into gusts, react to hawk dive warnings.
 - **On their own:** `dust-gust`, `hawk-dive`.
-- **Ambient:** dry wind, hawk cry bed, mesa theme.
+- **Ambient:** layered bed (dry wind + drift underbed + desert theme); lifts on last stock / 100%; final-KO sting.
 - **Over time:** low gravity night; rerun Ratings; prime-time quota; table-read Ratings.
 
 ### Watercolor Nebula
 - **Interactions:** island hops, recover through soft gravity nights, weather the pigment rain.
 - **On their own:** `pigment-rain`, `nebula-drift`.
-- **Ambient:** soft nebula bed, drip ticks, nebula theme.
+- **Ambient:** layered bed (nebula tone + drift underbed + nebula theme); lifts on last stock / 100%; final-KO sting.
 - **Over time:** 2v2 with Blog Man; heavy-gravity simulcast; global two-on-one feed.
 
 ### Cursed Town
 - **Interactions:** stay on roofs; punish anyone who drops to the street; read fog and Presence warnings.
 - **On their own:** `fog-surge`, `presence`.
-- **Ambient:** fog hush, low groan, town theme.
+- **Ambient:** layered bed (fog hush + pit underbed + town theme); lifts on last stock / 100%; final-KO sting.
 - **Over time:** sudden death at 150%; champion's tax; cliffhanger quota that sets the finale sheets.
 
 ### Space Chess
 - **Interactions:** board center control, float squares as recoveries, KO for the checkmate sting.
 - **On their own:** `king-falls` on KO; pawn should drift always.
-- **Ambient:** void hum, soft chime, chess theme.
+- **Ambient:** layered bed (void hum + pit underbed + chess theme); lifts on last stock / 100%; final-KO sting.
 - **Over time:** survive heavies; cut-to-size shrink; censored damage; lifetime quota.
 
 ### Rainbow Full Pipe
 - **Interactions:** pipe and deck control, punish off the lip, dodge the Drop In! skater (or play a quiet park when
   the local affiliate cannot afford effects).
 - **On their own:** `drop-in` (optional).
-- **Ambient:** park chatter, board carve, pipe theme.
+- **Ambient:** layered bed (park chatter + rooftop underbed + pipe theme); lifts on last stock / 100%; final-KO sting.
 - **Over time:** Ratings Drop In; quiet affiliate; crossover two-on-one; trailer two-on-one.
 
 ### Booth and broadcast shell

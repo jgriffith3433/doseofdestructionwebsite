@@ -162,6 +162,16 @@
       ]
     },
     {
+      "id": "stage-bed",
+      "title": "Stage sound bed: ambience under the theme, music lifts to intense on last stock or 100%, final-KO sting, mute still covers every layer",
+      "description": "Versus 2 stocks on the stage from the seed (option stage). Checks the calm bed with its ambience layer (music-calm, stage-ambience), fights until someone is on their last stock or over 100% (music-intense), plays to the final KO (music-sting, no abrupt cut), then from Pause toggles Sound off/on and Music so every layer still follows hawkes.sound. Metrics bedStateChanges. The player's hawkes.sound is put back.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "sound"
+      ]
+    },
+    {
       "id": "graphics",
       "title": "Graphics settings: device defaults (phones Low, glow off), then Glow, Show FPS and Quality each take effect live from Pause, saved, and the fight's frame rate",
       "description": "A versus match against the CPU. Logs gfx-settings, gfx-device, gfx-default (touch: Low with glow off; desktop: High with glow on), gfx-glow, gfx-fps (the corner readout), gfx-quality (render scale before and after), gfx-no-reload; metrics fpsMatchHigh/Low, renderScale. The player's dod.gfx is put back. Run it at phone size for the 45 fps check.",

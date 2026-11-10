@@ -2,10 +2,26 @@
 // content/sounds.json and content/voice.json (the Sounds and Voice tabs in
 // devtools.html); an entry with no file yet is simply silent.
 
-import { playSynth, type SynthKind } from './synth.ts';
+import { playSynth, startBed, type BedKind, type SynthKind } from './synth.ts';
 import soundsJson from '../../content/sounds.json' with { type: 'json' };
 import voiceJson from '../../content/voice.json' with { type: 'json' };
+import {
+  fightersNeedIntense,
+  stageBedGaps,
+  stageBedRecipe,
+  type MusicState,
+  type StageBedRecipe,
+} from './stageBed.ts';
 import { busLevel, onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
+
+export { fightersNeedIntense, INTENSE_PERCENT, stageBedGaps, stageBedRecipe, type MusicState, type StageBedRecipe } from './stageBed.ts';
+
+type LoopVoice = {
+  id: string;
+  src: AudioBufferSourceNode;
+  gain: GainNode;
+  filter?: BiquadFilterNode;
+};
 
 export interface SoundEntry {
   id: string;
@@ -65,12 +81,21 @@ class AudioSystem {
   private raw = new Map<string, Promise<ArrayBuffer | null>>();
   private soundById = new Map(SOUNDS.map((s) => [s.id, s]));
   private lineById = new Map(VOICE.lines.map((l) => [l.id, l]));
-  private music: { id: string; src: AudioBufferSourceNode; gain: GainNode } | null = null;
+  private music: LoopVoice | null = null;
   private wantMusic: string | null = null;
   private speech: AudioBufferSourceNode | null = null;
   private silent: HTMLAudioElement | null = null;
   /** True once a gesture has started sound; after that it is taken back whenever the page is in front. */
   private unlocked = false;
+  /** Stage bed layers (ambience file + procedural bed + intensity stem). Cleared when menu/results music takes over. */
+  private bedStageId: string | null = null;
+  private bedWant: StageBedRecipe | null = null;
+  private ambience: LoopVoice | null = null;
+  private intense: LoopVoice | null = null;
+  private bedStop: (() => void) | null = null;
+  private musicState: MusicState | null = null;
+  private ducked = false;
+  private stung = false;
 
   constructor() {
     onSoundSettings(() => this.applyVolumes());
@@ -86,6 +111,38 @@ class AudioSystem {
     return this.music?.id ?? null;
   }
 
+  /** Calm or intense during a stage bed; null on menus / results / silence. */
+  get musicBedState(): MusicState | null {
+    return this.musicState;
+  }
+
+  /** What the playtest (and HUD probes) can see about the live stage bed. */
+  bedStats(): {
+    stageId: string | null;
+    state: MusicState | null;
+    music: string | null;
+    ambience: string | null;
+    intense: string | null;
+    bed: BedKind | null;
+    ambienceOn: boolean;
+    intenseOn: boolean;
+    stung: boolean;
+    musicOn: boolean;
+  } {
+    return {
+      stageId: this.bedStageId,
+      state: this.musicState,
+      music: this.music?.id ?? this.bedWant?.music ?? null,
+      ambience: this.bedWant?.ambience ?? null,
+      intense: this.bedWant?.intense ?? null,
+      bed: this.bedWant?.bed ?? null,
+      ambienceOn: !!(this.ambience || this.bedStop),
+      intenseOn: this.musicState === 'intense',
+      stung: this.stung,
+      musicOn: !!this.music,
+    };
+  }
+
   /** Sound on or off (the M key). Saved with the other settings. */
   toggleSound(): boolean {
     setSoundSettings({ on: !soundSettings().on });
@@ -97,7 +154,8 @@ class AudioSystem {
     const t = this.ctx.currentTime;
     // Effects covers the announcer and the fighters' voices too (the studio standard has two levels).
     this.buses.master.gain.setTargetAtTime(soundSettings().on ? 1 : 0, t, 0.02);
-    this.buses.music.gain.setTargetAtTime(busLevel('music'), t, 0.02);
+    const music = busLevel('music') * (this.ducked ? 0.35 : 1);
+    this.buses.music.gain.setTargetAtTime(music, t, 0.02);
     this.buses.sfx.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
     this.buses.voice.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
   }
@@ -127,7 +185,8 @@ class AudioSystem {
       this.applyVolumes();
       // iOS marks the context 'interrupted' after a call, Siri or a lock: take it back once the page is in front.
       this.ctx.addEventListener('statechange', () => this.resume());
-      if (this.wantMusic) this.playMusic(this.wantMusic);
+      if (this.bedStageId) this.playStageBed(this.bedStageId);
+      else if (this.wantMusic) this.playMusic(this.wantMusic);
     }
     this.unlocked = true;
     if (this.ctx.state !== 'running') void this.ctx.resume().catch(() => {});
@@ -190,8 +249,12 @@ class AudioSystem {
    */
   async preloadMatch(stageId: string, fighterIds: string[], timeoutMs = 15000): Promise<void> {
     const who = new Set(['announcer', ...fighterIds]);
+    const bed = stageBedRecipe(stageId);
+    const musicIds = new Set<string>([bed.music, 'music-results', `music-${stageId}`]);
+    if (bed.ambience) musicIds.add(bed.ambience);
+    if (bed.intense) musicIds.add(bed.intense);
     const urls = [
-      ...SOUNDS.filter((s) => s.file && (s.group !== 'music' || s.id === `music-${stageId}` || s.id === 'music-results')).map((s) => s.file!),
+      ...SOUNDS.filter((s) => s.file && (s.group !== 'music' || musicIds.has(s.id))).map((s) => s.file!),
       ...VOICE.lines.filter((l) => l.audio && who.has(l.who)).map((l) => l.audio!),
     ];
     const all = Promise.all([...new Set(urls)].map((u) => (this.ctx ? this.buffer(u) : this.download(u))));
@@ -257,8 +320,8 @@ class AudioSystem {
 
   /** Lowers the music under dialogue (story scenes), and brings it back. */
   duck(on: boolean): void {
-    if (!this.buses || !this.ctx) return;
-    this.buses.music.gain.setTargetAtTime(busLevel('music') * (on ? 0.35 : 1), this.ctx.currentTime, 0.25);
+    this.ducked = on;
+    this.applyVolumes();
   }
 
   /** Plays a catalog voice line by id, like 'announcer.go' or 'fighter.slice.win'. */
@@ -285,39 +348,234 @@ class AudioSystem {
     this.speech = null;
   }
 
-  /** Crossfades to a music loop by sound id, or to silence with null. */
+  /** Crossfades to a music loop by sound id, or to silence with null. Clears any stage bed. */
   playMusic(id: string | null): void {
+    this.clearBedLayers(false);
     this.wantMusic = id;
+    this.musicState = null;
+    this.stung = false;
+    this.bedStageId = null;
+    this.bedWant = null;
     if (!this.ctx || !this.buses) return;
-    if (this.music?.id === id) return;
-    const old = this.music;
+    if (this.music?.id === id && !this.music.filter) return;
+    this.fadeOutLoop(this.music);
     this.music = null;
-    if (old) {
-      const t = this.ctx.currentTime;
-      old.gain.gain.setTargetAtTime(0, t, 0.3);
-      setTimeout(() => {
-        try {
-          old.src.stop();
-        } catch {
-          // Already stopped.
-        }
-      }, 1500);
+    if (!id) return;
+    this.startMusicLoop(id, false);
+  }
+
+  /**
+   * Starts a stage's layered bed: procedural place tone + reused ambience file under the stage theme.
+   * Intensity is calm until setMusicIntensity(true). Crossfades; never cuts.
+   */
+  playStageBed(stageId: string): void {
+    const recipe = stageBedRecipe(stageId);
+    this.bedStageId = stageId;
+    this.bedWant = recipe;
+    this.wantMusic = recipe.music;
+    this.stung = false;
+    if (!this.ctx || !this.buses) return;
+
+    // Same stage bed already up: keep layers, reset to calm without cutting.
+    if (this.music?.id === recipe.music && this.musicState) {
+      this.setMusicIntensity(false);
+      return;
     }
-    const s = id ? this.soundById.get(id) : null;
-    if (!s?.file) return;
+
+    this.clearBedLayers(true);
+    this.startMusicLoop(recipe.music, true);
+    if (recipe.ambience) this.startAmbienceLoop(recipe.ambience, recipe.ambienceVolume);
+    this.startProceduralBed(recipe.bed);
+    this.musicState = 'calm';
+    this.applyIntensityMix(false, true);
+  }
+
+  /**
+   * Crossfades the bed to intense (last stock or ≥100%) or back to calm.
+   * Returns true when the state actually changed.
+   */
+  setMusicIntensity(intense: boolean): boolean {
+    const next: MusicState = intense ? 'intense' : 'calm';
+    if (!this.bedWant) return false;
+    if (this.musicState === next) return false;
+    this.musicState = next;
+    if (!this.ctx || !this.buses) return true;
+    if (intense && this.bedWant.intense && !this.intense) {
+      this.startIntenseLoop(this.bedWant.intense, this.bedWant.intenseVolume);
+    }
+    this.applyIntensityMix(intense, false);
+    return true;
+  }
+
+  /**
+   * Whether the live fighters call for the intense bed: anyone still in on their last stock, or anyone over 100%.
+   */
+  shouldBeIntense(fighters: ReadonlyArray<{ stocks: number; percent: number }>): boolean {
+    return fightersNeedIntense(fighters);
+  }
+
+  /** Final-KO broadcast sting over the bed; the music crossfades down a little then holds (never cuts). */
+  finalKoSting(): void {
+    this.stung = true;
+    this.synth('sting', 1);
+    this.synth('cheer', 0.85);
+    if (!this.ctx || !this.music) return;
+    const t = this.ctx.currentTime;
+    const g = this.music.gain.gain;
+    const now = Math.max(0.0001, g.value);
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(now, t);
+    g.linearRampToValueAtTime(now * 1.15, t + 0.08);
+    g.setTargetAtTime(now * 0.72, t + 0.12, 0.35);
+  }
+
+  private clearBedLayers(keepMusicSlot: boolean): void {
+    this.fadeOutLoop(this.ambience);
+    this.ambience = null;
+    this.fadeOutLoop(this.intense);
+    this.intense = null;
+    if (this.bedStop) {
+      this.bedStop();
+      this.bedStop = null;
+    }
+    if (!keepMusicSlot) {
+      // playMusic path clears music itself.
+    }
+  }
+
+  private fadeOutLoop(loop: LoopVoice | null): void {
+    if (!loop || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    loop.gain.gain.cancelScheduledValues(t);
+    loop.gain.gain.setTargetAtTime(0, t, 0.3);
+    const src = loop.src;
+    setTimeout(() => {
+      try {
+        src.stop();
+      } catch {
+        // Already stopped.
+      }
+    }, 1500);
+  }
+
+  private startMusicLoop(id: string, withFilter: boolean): void {
+    const s = this.soundById.get(id);
+    if (!s?.file || !this.ctx || !this.buses) return;
     const ctx = this.ctx;
+    const token = id;
+    const stage = this.bedStageId;
     void this.buffer(s.file).then((buf) => {
-      if (!buf || this.wantMusic !== id || this.music) return;
+      if (!buf || this.wantMusic !== token || !this.buses) return;
+      if (withFilter && this.bedStageId !== stage) return;
+      // Same bed track already filtered in: keep it.
+      if (withFilter && this.music?.id === id && this.music.filter) return;
+      this.fadeOutLoop(this.music);
+      this.music = null;
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.loop = true;
+      src.playbackRate.value = 1;
       const g = ctx.createGain();
       g.gain.value = 0;
       g.gain.setTargetAtTime(s.volume, ctx.currentTime, 0.4);
-      src.connect(g).connect(this.buses!.music);
+      let filter: BiquadFilterNode | undefined;
+      if (withFilter) {
+        filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 4200;
+        filter.Q.value = 0.7;
+        src.connect(filter).connect(g).connect(this.buses.music);
+      } else {
+        src.connect(g).connect(this.buses.music);
+      }
       src.start();
-      this.music = { id: s.id, src, gain: g };
+      this.music = { id: s.id, src, gain: g, filter };
+      if (this.musicState === 'intense') this.applyIntensityMix(true, true);
     });
+  }
+
+  private startAmbienceLoop(id: string, volume: number): void {
+    const s = this.soundById.get(id);
+    if (!s?.file || !this.ctx || !this.buses) return;
+    const ctx = this.ctx;
+    const stage = this.bedStageId;
+    void this.buffer(s.file).then((buf) => {
+      if (!buf || this.bedStageId !== stage || !this.buses) return;
+      this.fadeOutLoop(this.ambience);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 900;
+      filter.Q.value = 0.6;
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      g.gain.setTargetAtTime(volume, ctx.currentTime, 0.7);
+      src.connect(filter).connect(g).connect(this.buses.music);
+      src.start();
+      this.ambience = { id: s.id, src, gain: g, filter };
+    });
+  }
+
+  private startIntenseLoop(id: string, volume: number): void {
+    const s = this.soundById.get(id);
+    if (!s?.file || !this.ctx || !this.buses) return;
+    const ctx = this.ctx;
+    const stage = this.bedStageId;
+    void this.buffer(s.file).then((buf) => {
+      if (!buf || this.bedStageId !== stage || this.musicState !== 'intense' || !this.buses) return;
+      this.fadeOutLoop(this.intense);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      src.playbackRate.value = 1.03;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 5200;
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      g.gain.setTargetAtTime(volume, ctx.currentTime, 0.55);
+      src.connect(filter).connect(g).connect(this.buses.music);
+      src.start();
+      this.intense = { id: s.id, src, gain: g, filter };
+    });
+  }
+
+  private startProceduralBed(kind: BedKind): void {
+    if (!this.ctx || !this.buses) return;
+    if (this.bedStop) this.bedStop();
+    this.bedStop = startBed(this.ctx, this.buses.music, kind, 0.55);
+  }
+
+  private applyIntensityMix(intense: boolean, instant: boolean): void {
+    if (!this.ctx || !this.music) return;
+    const t = this.ctx.currentTime;
+    const tau = instant ? 0.05 : 0.55;
+    const rate = intense ? 1.06 : 1;
+    try {
+      this.music.src.playbackRate.cancelScheduledValues(t);
+      this.music.src.playbackRate.setTargetAtTime(rate, t, tau);
+    } catch {
+      // Source already ended.
+    }
+    if (this.music.filter) {
+      this.music.filter.frequency.cancelScheduledValues(t);
+      this.music.filter.frequency.setTargetAtTime(intense ? 7200 : 4200, t, tau);
+    }
+    if (this.ambience?.filter) {
+      this.ambience.filter.frequency.cancelScheduledValues(t);
+      this.ambience.filter.frequency.setTargetAtTime(intense ? 1600 : 900, t, tau);
+    }
+    if (this.ambience && this.bedWant) {
+      const base = this.bedWant.ambienceVolume;
+      this.ambience.gain.gain.cancelScheduledValues(t);
+      this.ambience.gain.gain.setTargetAtTime(intense ? base * 1.35 : base, t, tau);
+    }
+    if (!intense && this.intense) {
+      this.fadeOutLoop(this.intense);
+      this.intense = null;
+    }
   }
 }
 
