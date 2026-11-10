@@ -290,7 +290,12 @@
     frame.title = 'Dose Of Destruction';
     frame.setAttribute('allow', 'autoplay; fullscreen; gamepad');
     // Opaque brand colour from the first frame so "Loading the game" never shows the landing page underneath.
-    frame.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;border:0;margin:0;padding:0;z-index:2147483647;background:#3a1608;display:block;opacity:1';
+    frame.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;border:0;margin:0;padding:0;z-index:2147483647;background:transparent;display:block;opacity:1';
+    var brand = document.createElement('div');
+    brand.id = 'hawkes-playtest-brand';
+    brand.setAttribute('style', 'position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:#1c0d06 radial-gradient(ellipse at 50% 45%,#8a3010 0%,#3a1608 45%,#100e0c 80%);color:#fff3df;font:700 clamp(28px,7vw,80px) Oswald,Impact,Arial Narrow,sans-serif;text-transform:uppercase;letter-spacing:.06em;text-align:center');
+    brand.innerHTML = 'Dose of <span style="color:#ffd15a;text-shadow:0 3px 0 #5a2410">&nbsp;Destruction</span>';
+    document.body.appendChild(brand);
     frame.src = gameUrl();
     document.documentElement.style.overflow = 'hidden';
     document.body.appendChild(frame);
