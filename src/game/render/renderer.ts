@@ -131,7 +131,7 @@ export class Renderer {
   constructor(canvas: HTMLCanvasElement) {
     this.engine = new Engine(canvas, true, { stencil: true, preserveDrawingBuffer: false }, false);
     this.scene = new Scene(this.engine);
-    this.scene.clearColor = new Color4(0.063, 0.055, 0.047, 1);
+    this.scene.clearColor = new Color4(0.063, 0.055, 0.047, 1) // brand dark (#100e0c), the fallback if the canvas ever shows;
 
     this.camera = new FreeCamera('cam', this.camPos.clone(), this.scene);
     this.camera.fov = 0.55;

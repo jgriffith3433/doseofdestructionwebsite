@@ -1051,7 +1051,15 @@ function frame(draw = true): void {
 }
 
 wireMenus();
-renderer.engine.runRenderLoop(() => frame());
+// The canvas stays hidden (Game/index.html) until the first rendered frame, then fades in: the engine's default clear colour never shows.
+let firstFrame = false;
+renderer.engine.runRenderLoop(() => {
+  frame();
+  if (!firstFrame) {
+    firstFrame = true;
+    requestAnimationFrame(() => document.getElementById('stage')?.classList.add('ready'));
+  }
+});
 
 
 // Devtools playtests open /Game/?play&stage=pit&fighter=slice&vs=break&level=5

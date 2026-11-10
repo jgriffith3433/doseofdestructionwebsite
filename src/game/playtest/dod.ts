@@ -868,6 +868,16 @@ class Run {
       await this.toMainMenu();
       if (rotateShowing()) return this.smokeTurned();
     }
+    // The load: the branded loader (orange glow, wordmark in HTML) is what shows first, and the canvas fades in after its first frame.
+    {
+      const bg = getComputedStyle(document.body).backgroundImage + getComputedStyle(document.body).backgroundColor;
+      const logo = this.q('#tap-to-play .logo')?.textContent ?? '';
+      if (/gradient/.test(bg) && /Destruction/i.test(logo)) t.event('loader-branded', 'brand background and wordmark in the HTML from first paint');
+      else if (promptShowing()) t.problem('bug', 'the loader has no brand background or wordmark in plain HTML');
+      const stage = document.getElementById('stage');
+      await t.until(() => Boolean(stage?.classList.contains('ready')), 15000, 'the canvas to fade in after its first rendered frame');
+      t.event('canvas-fade-in', 'canvas revealed after the first rendered frame');
+    }
     await this.toMainMenu();
     // The release notes (/releases.json via /site/hawkes-release.js) must load: the version on the menu reads them.
     const release = await ((window as unknown as { hawkesRelease?: Promise<{ current?: string } | null> }).hawkesRelease ?? Promise.resolve(null));
