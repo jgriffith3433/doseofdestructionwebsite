@@ -99,6 +99,11 @@ export class Bot {
       this.wait = 2;
       return;
     }
+    // The rig light is coming down on us: run out from under it.
+    if (s.rigFrame >= 0 && Math.abs(me.x - s.rigX) < 260 * FX) {
+      this.steer(me.x >= s.rigX ? 100 : -100);
+      return;
+    }
     if (this.offstage(me)) return this.recover(me);
 
     const target = this.pickTarget(s, me);
