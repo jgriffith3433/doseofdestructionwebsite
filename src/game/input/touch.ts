@@ -1,7 +1,7 @@
 // On-screen touch controls for coarse-pointer devices: a left-thumb stick, right-thumb buttons and a pause button.
 
 import { BTN } from '../sim/input.ts';
-import { onTouchSettings, touchSettings, type TouchSettings } from '../touchSettings.ts';
+import { onTouchSettings, touchSettings, touchUiForced, type TouchSettings } from '../touchSettings.ts';
 
 /** Pointer capture keeps a drag on its control, but a pointer that is already gone (or a synthetic one) throws: play on. */
 const capture = (el: Element, id: number) => {
@@ -157,7 +157,8 @@ export function initTouchControls(onPause: () => void, forceBuild = false): void
 }
 
 export function showTouchControls(show: boolean): void {
-  if (!root || (!touchDevice() && show)) return;
+  // Playtests can force the overlay on a desktop browser (touchUiForced); real phones use touchDevice().
+  if (!root || (!touchDevice() && !touchUiForced() && show)) return;
   root.hidden = !show;
   if (!show) {
     stickX = 0;

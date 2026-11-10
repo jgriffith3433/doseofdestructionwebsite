@@ -144,9 +144,9 @@
     },
     {
       "id": "touch-match",
-      "title": "Touch match: at phone size, menus to results with only the on-screen stick and buttons (move, jump, attack, special), every control checked on screen and clear of the safe area",
-      "description": "Run it with device phone (landscape 844x390; upright portrait turns to an 844x390 frame like smoke). Logs viewport (size + touch); a run at desktop size is a bug. The menus are tapped (pointer events: Versus, fighter, CPU, Fight, stage), then the match is played to the results screen only through pointer events on the overlay from input/touch.ts: the Move stick and the Jump, Attack, Special, Shield and Smash buttons (no keyboard, no virtual pad, nothing set in the sim). The bot's decisions are turned into touches; a short drill first presses each control and checks the game read it. Checks every control exists, has size, sits inside the window and the safe-area inset, and is not covered (a problem each: touch-controls-ok otherwise). Events viewport, touch-move, touch-jump, touch-attack, touch-special (also touch-shield, touch-smash), touch-controls-ok, touch-summary; metrics touchMoves, touchJumps, touchAttacks, touchSpecials. Option drop: a control (jump, attack, special, shield, smash, stick, pause) to hide first, to show the missing-control problem.",
-      "seconds": 240,
+      "title": "Touch match: at phone size, menus to results with only the on-screen stick and buttons (move, jump, attack, special), every control ≥44 px above the canvas and clear of the safe area; menu/VS/results/Settings text fully visible",
+      "description": "Run it with device phone. Portrait 390x844: walks main menu, Settings, character select and stage select (phone-shot + no-clipping, ~2 s hold each), then turns to an 844x390 landscape frame like smoke. Landscape: the same tour, then Versus → VS (phone-shot) → match. Every touch control is checked present, ≥44 px, inside the window and safe-area inset, above the Babylon canvas (touch-z-order) and not covered; a phone-shot holds on the match with the stick visible (touch-controls-ok). Results heading and body are clip-checked (phone-shot). A desktop-size run is a bug. VS/results are landscape-only (portrait Rotate covers a match). Metrics touchMoves, touchJumps, touchAttacks, touchSpecials, touchMinPx. Option drop: a control to hide first.",
+      "seconds": 320,
       "tags": [
         "full",
         "touch"
@@ -300,7 +300,12 @@
     frame.title = 'Dose Of Destruction';
     frame.setAttribute('allow', 'autoplay; fullscreen; gamepad');
     // Opaque brand colour from the first frame so "Loading the game" never shows the landing page underneath.
-    frame.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;border:0;margin:0;padding:0;z-index:2147483647;background:#3a1608;display:block;opacity:1';
+    frame.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;border:0;margin:0;padding:0;z-index:2147483647;background:transparent;display:block;opacity:1';
+    var brand = document.createElement('div');
+    brand.id = 'hawkes-playtest-brand';
+    brand.setAttribute('style', 'position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:#1c0d06 radial-gradient(ellipse at 50% 45%,#8a3010 0%,#3a1608 45%,#100e0c 80%);color:#fff3df;font:700 clamp(28px,7vw,80px) Oswald,Impact,Arial Narrow,sans-serif;text-transform:uppercase;letter-spacing:.06em;text-align:center');
+    brand.innerHTML = 'Dose of <span style="color:#ffd15a;text-shadow:0 3px 0 #5a2410">&nbsp;Destruction</span>';
+    document.body.appendChild(brand);
     frame.src = gameUrl();
     document.documentElement.style.overflow = 'hidden';
     document.body.appendChild(frame);

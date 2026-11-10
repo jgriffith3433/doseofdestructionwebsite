@@ -1132,6 +1132,10 @@ class Run {
       const what = `"${(el.textContent ?? '').trim().slice(0, 30)}" (${el.tagName.toLowerCase()}.${el.className})`;
       if (r.right > vw + 1 || r.left < -1) bad.push(`${what} runs off the side (${Math.round(r.left)}..${Math.round(r.right)} of ${vw})`);
       else if (cs.overflow !== 'visible' && el.scrollWidth > el.clientWidth + 1) bad.push(`${what} is cut off (${el.scrollWidth} in ${el.clientWidth})`);
+      // Headings only: overflow:hidden + tight line-height clips Oswald caps (results winner). Ellipsis rows stay out.
+      else if (/^H[12]$/.test(el.tagName) && cs.overflow !== 'visible' && el.scrollHeight > el.clientHeight + 1) {
+        bad.push(`${what} is cut off vertically (${el.scrollHeight} in ${el.clientHeight})`);
+      }
     }
     return bad;
   }
@@ -2471,21 +2475,46 @@ class Run {
    * Touch match: at phone size, menus to the results screen with only pointer events on the on-screen controls
    * (input/touch.ts: the Move stick and Jump, Attack, Special, Shield, Smash, plus Pause). The bot's decisions are
    * turned into touches (stick position, buttons held), nothing goes to the keyboard, the virtual pad or the sim.
-   * First every control is checked (present, sized, inside the window and the safe area, not covered), then a short
-   * drill presses each one and checks the game read it, then the bot plays on through touch to the results.
+   * First every control is checked (present, ≥44 px, inside the window and the safe area, above the canvas / not
+   * covered), then a short drill presses each one and checks the game read it, then the bot plays on through touch
+   * to the results. Portrait 390x844 first walks menu / Settings for clipping screenshots, then turns to 844x390
+   * for the match (same pattern as smoke).
    */
   async touchMatch(): Promise<void> {
     const t = this.t;
-    // Portrait phone: same as smoke — turn to an 844x390 frame so the Rotate prompt cannot hold the match.
+    // Portrait phone: clip-check menus upright, then turn to an 844x390 frame so Rotate cannot hold the match.
     if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      this.useTap = true;
+      forceTouchUi(true);
+      try {
+        await this.toMainMenu();
+        await this.phoneUiClipTour('portrait');
+        t.progress(0.08);
+      } finally {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
       return this.touchMatchTurned();
     }
     this.logViewport(true);
     this.useTap = true;
+    forceTouchUi(true);
     try {
       await this.toMainMenu();
+      // Landscape (or already-turned) phone: clip-check every listed screen at this size before the fight.
+      if (this.options.at === 'phone-turned' || this.isPhone()) await this.phoneUiClipTour(innerWidth > innerHeight ? 'landscape' : 'portrait');
       t.progress(0.05);
+      // Clipping on select / stages / VS is hooked through startVersus.
+      this.onVersus = async () => {
+        await this.screen('versus', 15000);
+        await this.wait(400);
+        this.checkClipping('VS screen', this.q('#versus'));
+        t.event('phone-shot', `VS screen at ${innerWidth > innerHeight ? 'landscape' : 'portrait'} ${innerWidth}x${innerHeight}`);
+        await this.wait(2000);
+      };
       await this.startVersus(2);
+      this.onVersus = null;
       t.progress(0.15);
       // Upright on a phone the Rotate prompt holds the match: give a runner time to turn the window.
       if (rotateShowing()) {
@@ -2509,6 +2538,7 @@ class Run {
         t.event('touch-forced', 'not a touch device: the overlay was shown for the run');
         root.hidden = false;
       }
+      t.event('touch-visible', `touch overlay shown (hidden=${root.hidden}) above canvas at z-index ${getComputedStyle(root).zIndex} in ${innerWidth}x${innerHeight}`);
       const CONTROLS: { key: string; sel: string; name: string }[] = [
         { key: 'stick', sel: '.touch-stick', name: 'Move stick' },
         { key: 'jump', sel: '.touch-btn.jump', name: 'Jump' },
@@ -2527,9 +2557,18 @@ class Run {
         return el && el.getClientRects().length > 0 ? el : null;
       };
 
-      // 1. Every control is there, sized, on screen, clear of the safe area and not covered.
+      // 1. Every control is there, ≥44 px, on screen, clear of the safe area and not covered (incl. by the canvas).
       const inset = this.safeInsets();
+      const stage = document.getElementById('stage');
+      const stageZ = stage ? Number(getComputedStyle(stage).zIndex) || 0 : 0;
+      const touchZ = Number(getComputedStyle(root).zIndex) || 0;
+      if (touchZ <= stageZ) {
+        t.problem('bug', `touch overlay z-index ${touchZ} is not above the Babylon canvas z-index ${stageZ}`);
+      } else {
+        t.event('touch-z-order', `touch z-index ${touchZ} above canvas z-index ${stageZ}`);
+      }
       let bad = 0;
+      let minSide = Infinity;
       for (const c of CONTROLS) {
         const el = find(c.key);
         if (!el) {
@@ -2538,11 +2577,16 @@ class Run {
           continue;
         }
         const r = el.getBoundingClientRect();
+        const side = Math.min(r.width, r.height);
+        if (side < minSide) minSide = side;
         const where = `${c.name} at ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)} in ${innerWidth}x${innerHeight}`;
         const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
         if (r.width < 2 || r.height < 2) {
           bad++;
           t.problem('bug', `touch control has no size: ${where}`);
+        } else if (side < 43.5) {
+          bad++;
+          t.problem('bug', `touch control under 44 px: ${where}`);
         } else if (r.left < -0.5 || r.top < -0.5 || r.right > innerWidth + 0.5 || r.bottom > innerHeight + 0.5) {
           bad++;
           t.problem('bug', `touch control outside the viewport: ${where}`);
@@ -2551,10 +2595,15 @@ class Run {
           t.problem('bug', `touch control under the safe-area inset (top ${inset.top}, right ${inset.right}, bottom ${inset.bottom}, left ${inset.left}): ${where}`);
         } else if (!hit || !el.contains(hit)) {
           bad++;
-          t.problem('bug', `touch control covered: a press on ${where} lands on ${hit?.id ? '#' + hit.id : hit?.tagName.toLowerCase()}`);
+          const tag = hit?.id ? '#' + hit.id : hit?.tagName.toLowerCase() ?? 'nothing';
+          t.problem('bug', `touch control covered: a press on ${where} lands on ${tag}`);
         }
       }
-      if (!bad) t.event('touch-controls-ok', `all ${CONTROLS.length} controls on screen, clear of the safe area (top ${inset.top}, right ${inset.right}, bottom ${inset.bottom}, left ${inset.left}) and not covered, at ${innerWidth}x${innerHeight}`);
+      if (Number.isFinite(minSide)) t.metric('touchMinPx', Math.round(minSide));
+      if (!bad) t.event('touch-controls-ok', `all ${CONTROLS.length} controls on screen, ≥44 px (min ${Math.round(minSide)}), clear of the safe area (top ${inset.top}, right ${inset.right}, bottom ${inset.bottom}, left ${inset.left}) and not covered, at ${innerWidth}x${innerHeight}`);
+      // Hold a labeled match frame so Studio's screenshots show the stick and buttons (AC1).
+      t.event('phone-shot', `match touch controls at landscape ${innerWidth}x${innerHeight}`);
+      await this.wait(2200);
 
       // 2. Touches: a finger on the stick and on each button, as pointer events on the control itself.
       let pid = 100;
@@ -2717,6 +2766,10 @@ class Run {
       for (const k of ['move', 'jump', 'attack', 'special'])
         if (!counts[k] && !(dropped && (dropped === k || (k === 'move' && dropped === 'stick')))) t.problem('bug', `no touch ${k} happened in the match`);
       const won = await this.results();
+      await this.wait(500);
+      this.checkClipping('results', this.q('#results'));
+      t.event('phone-shot', `results at landscape ${innerWidth}x${innerHeight}`);
+      await this.wait(2000);
       if (dropEl) dropEl.style.display = '';
       await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
       await this.screen('main');
@@ -2724,8 +2777,49 @@ class Run {
       t.finish(won ? 'won' : 'lost');
     } finally {
       this.useTap = false;
+      forceTouchUi(false);
+      this.onVersus = null;
       setVirtualPad(null);
     }
+  }
+
+  /**
+   * Walk menu, Settings, character select and stage select at the current phone size (no match start), logging
+   * clipping / 44 px targets and phone-shot events so Studio captures a frame of each. Holds ~2 s after each
+   * shot so the recorder does not catch the next screen. Used by touch-match at 390x844 (portrait) and again
+   * at 844x390 (landscape) before the fight. VS and results need a started match, so those are checked on the
+   * landscape path only (portrait Rotate would cover them).
+   */
+  private async phoneUiClipTour(shape: 'portrait' | 'landscape'): Promise<void> {
+    const t = this.t;
+    const tag = `${shape} ${innerWidth}x${innerHeight}`;
+    const shot = async (where: string, root: HTMLElement | null) => {
+      this.checkClipping(where, root);
+      t.event('phone-shot', `${where} at ${tag}`);
+      await this.wait(2000);
+    };
+    await this.wait(300);
+    await shot('main menu', this.q('#main'));
+    await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+    await t.until(settingsShowing, 3000, 'Settings to open');
+    await this.wait(200);
+    await shot('Settings', this.q('#settings'));
+    await this.tap(() => this.q('#settings-done'), 'Done');
+    await t.until(() => !settingsShowing(), 3000, 'Settings to close');
+    // Character + stage select without starting a match (Back from stages), so portrait gets those shots too.
+    await this.tap(() => this.q('[data-go="versus"]'), 'Versus');
+    await this.screen('select');
+    await this.wait(300);
+    await shot('character select', this.q('#select'));
+    await this.click(() => this.q('#select-slots .fight'), 'Fight');
+    await this.screen('stages');
+    await t.until(() => document.querySelectorAll('#stage-grid .stage-card').length > 0, 5000, 'stage cards');
+    await this.wait(200);
+    await shot('stage select', this.q('#stages'));
+    await this.tap(() => this.q('#stages .back-btn'), 'Back');
+    await this.screen('select');
+    await this.tap(() => this.q('#select .back-btn'), 'Back');
+    await this.screen('main');
   }
 
   // ---------------------------------------------------------- touch-settings
