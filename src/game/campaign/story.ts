@@ -30,9 +30,23 @@ export interface Chapter {
   unlock?: string;
   /** The story cards: one line before the episode's fight and one after it is won (content/campaign.json `card`). */
   card?: { before?: string; after?: string };
+  /** A season premiere's cold open: played in the arena instead of the intro scene and story card (ui/scene.ts `playColdOpen`). */
+  coldOpen?: ColdOpenBeat[];
   intro: Line[];
   outro: Line[];
   fight: MatchSetup;
+}
+
+/** One beat of a cold open: the camera, who walks on (cast index, player first), a taunt, a sting and a one-line caption. */
+export interface ColdOpenBeat {
+  ms: number;
+  /** Cast index to close in on; null or left out is the wide dolly over the stage. */
+  camera?: number | null;
+  walk?: number;
+  taunt?: boolean;
+  sting?: 'sting' | 'whoosh' | 'cheer' | 'alarm';
+  crowd?: boolean;
+  caption?: string;
 }
 
 /** A chapter as written in content/campaign.json, with fighters and stages by id. */

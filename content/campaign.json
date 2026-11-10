@@ -1,6 +1,11 @@
 [
   {
     "id": "open-mic",
+    "coldOpen": [
+      { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season one. The lights come up on City Top." },
+      { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk takes the mic." },
+      { "ms": 4000, "walk": 1, "camera": 1, "taunt": true, "caption": "Kaelen, the crowd's new problem." }
+    ],
     "unlock": "kaelen",
     "title": "Open Mic",
     "tagline": "A walk-on with no record and one skateboard.",
@@ -802,6 +807,11 @@
   },
   {
     "id": "title-defense",
+    "coldOpen": [
+      { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season two. The belt is on the line." },
+      { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "The challenger walks on." },
+      { "ms": 4000, "walk": 1, "camera": 1, "taunt": true, "caption": "The champ never blinks." }
+    ],
     "unlock": "shark-dude",
     "season": 2,
     "title": "Title Defense",
@@ -1250,6 +1260,11 @@
   },
   {
     "id": "walk-on",
+    "coldOpen": [
+      { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "The finale. One episode. Everything." },
+      { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk walks into the loop." },
+      { "ms": 4000, "walk": 1, "camera": 1, "taunt": true, "caption": "The Orchestrator conducts." }
+    ],
     "season": 3,
     "title": "Walk-On",
     "tagline": "One name on the sign-up sheet. No sponsor. No record. One baton.",
@@ -1411,6 +1426,11 @@
   },
   {
     "id": "simulcast",
+    "coldOpen": [
+      { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season four. Two feeds, one fight." },
+      { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk, live on both." },
+      { "ms": 4000, "walk": 1, "camera": 1, "taunt": true, "caption": "Cel, in full colour." }
+    ],
     "unlock": "cel",
     "season": 4,
     "title": "Simulcast",
@@ -1889,6 +1909,11 @@
   },
   {
     "id": "cold-open",
+    "coldOpen": [
+      { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season five. Brought to you by everyone." },
+      { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk, in the product shot." },
+      { "ms": 4000, "walk": 1, "camera": 1, "taunt": true, "caption": "Uh-Me, sponsored." }
+    ],
     "unlock": "uh-me",
     "season": 5,
     "title": "Cold Open",
@@ -2348,6 +2373,11 @@
   },
   {
     "id": "local-affiliate",
+    "coldOpen": [
+      { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season six. Local, loud, live." },
+      { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk hits the pipe." },
+      { "ms": 4000, "walk": 1, "camera": 1, "taunt": true, "caption": "Ball Person rolls in." }
+    ],
     "unlock": "ball-person",
     "season": 6,
     "title": "Local Affiliate",
@@ -2783,6 +2813,11 @@
   },
   {
     "id": "pilot-remake",
+    "coldOpen": [
+      { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season seven. We're doing it again." },
+      { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk, take two." },
+      { "ms": 4000, "walk": 1, "camera": 1, "taunt": true, "caption": "The Evil Blue Bird, reboot." }
+    ],
     "unlock": "evil-blue-bird",
     "season": 7,
     "title": "Pilot Remake",
@@ -3217,6 +3252,11 @@
   },
   {
     "id": "red-carpet",
+    "coldOpen": [
+      { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season eight. The red carpet rolls out." },
+      { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk, camera ready." },
+      { "ms": 4000, "walk": 1, "camera": 1, "taunt": true, "caption": "Kaelen, dressed to win." }
+    ],
     "season": 8,
     "title": "Red Carpet",
     "tagline": "The awards show opens on the red carpet, and nobody is allowed to scuff it.",
@@ -3652,6 +3692,11 @@
   },
   {
     "id": "teaser",
+    "coldOpen": [
+      { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season nine. Coming soon to a ring near you." },
+      { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk, in the trailer." },
+      { "ms": 4000, "walk": 1, "camera": 1, "taunt": true, "caption": "Shark Dude, in the teaser." }
+    ],
     "season": 9,
     "title": "Teaser",
     "tagline": "Season 9 opens with thirty seconds of footage and no explanation.",
@@ -4092,6 +4137,11 @@
   },
   {
     "id": "first-cut",
+    "coldOpen": [
+      { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season ten. The first cut." },
+      { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk walks onto the set." },
+      { "ms": 4000, "walk": 1, "camera": 1, "taunt": true, "caption": "The Orchestrator, final edit." }
+    ],
     "season": 10,
     "title": "First Cut",
     "tagline": "The finale starts on time. The host is on the card, and so is the baton.",
