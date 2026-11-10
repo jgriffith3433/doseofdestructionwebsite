@@ -280,12 +280,12 @@
     frame.id = 'hawkes-playtest-frame';
     frame.title = 'Dose Of Destruction';
     frame.setAttribute('allow', 'autoplay; fullscreen; gamepad');
-    frame.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;border:0;margin:0;padding:0;z-index:2147483647;background:#3a1608;display:block;opacity:0;transition:opacity 250ms ease';
+    // Opaque brand colour from the first frame so "Loading the game" never shows the landing page underneath.
+    frame.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;border:0;margin:0;padding:0;z-index:2147483647;background:#3a1608;display:block;opacity:1';
     frame.src = gameUrl();
     document.documentElement.style.overflow = 'hidden';
     document.body.appendChild(frame);
-    frame.addEventListener('load', function () { frame.style.opacity = '1'; try { frame.focus(); } catch (e) {} });
-    setTimeout(function () { if (frame) frame.style.opacity = '1'; }, 1500);
+    frame.addEventListener('load', function () { try { frame.focus(); } catch (e) {} });
     return frame;
   }
 

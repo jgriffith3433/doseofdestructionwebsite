@@ -17,7 +17,8 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--bg);
+  /* Same brand glow as Game/index.html critical CSS: game.css must not wipe first paint to flat black. */
+  background: #1c0d06 radial-gradient(ellipse at 50% 45%, #8a3010 0%, #3a1608 45%, #100e0c 80%);
   color: var(--text);
   font-family: Barlow, system-ui, sans-serif;
   font-weight: 500;

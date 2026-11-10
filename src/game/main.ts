@@ -404,19 +404,20 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   // Everything the match shows and plays is loaded during the VS splash (or the loading
   // screen): clip sheets, stage art, sounds, music and voice lines. Nothing loads mid-fight.
   // Then the first frames are drawn behind the menus, so the switch to the match doesn't stall.
+  // Versus: short clip wait so the 3 s hand-off can fire; remaining sheets finish via warmTick.
+  const clipWait = withVersus ? 1800 : 30000;
+  const fightersReady = renderer.setFighters(m.state, false, clipWait).catch(() => renderer.setFighters(m.state, false, clipWait));
   const loading = Promise.all([
-    // One retry: a fighter whose art failed once mustn't start the match half-built.
-    renderer.setFighters(m.state).catch(() => renderer.setFighters(m.state)),
+    fightersReady,
     audio.preloadMatch(STAGES[setup.stage].id, m.state.fighters.map((f) => CHARACTERS[f.char].id)),
     audio.preloadLines(chapter ? [`blog-man.intro.${chapter.id}`] : []),
     // The story scenes' voice takes, so lines start on cue.
     audio.preloadUrls(chapter ? [...chapter.intro, ...chapter.outro].map((l) => l.audio) : []),
   ]).catch((err) => console.error(err));
-  // Warm-up that outlasts the 3 s VS cap finishes in the background during the intro countdown.
+  // Warm-up that outlasts the VS cap finishes in the background during the intro countdown.
   const warm = loading.then(() => renderer.warmUp(m.state)).catch((err) => console.error(err));
-  let loaded = false;
-  void warm.then(() => { loaded = true; });
-  const vsCap = new Promise<void>((r) => setTimeout(r, 3000));
+  // Leave budget for the wipe into match (~260 ms) so select-to-match stays under 3 s.
+  const vsCap = new Promise<void>((r) => setTimeout(r, 2500));
 
   if (withVersus) {
     let splash: Promise<void> = Promise.resolve();
@@ -434,11 +435,15 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     renderer.onLoadProgress = (done, total) => set(total ? (done / total) * 0.9 : 0);
     void loading.then(() => set(0.9));
     void warm.then(() => set(1));
-    await splash;
-    await loading;
-    await Promise.race([warm, vsCap]);
+    // Cap is from stage pick: leave by ~2.5 s once fighters exist; warm/audio keep going in the background.
+    await Promise.race([
+      (async () => { await splash; await warm; })(),
+      (async () => { await vsCap; await fightersReady; })(),
+    ]);
     renderer.onLoadProgress = null;
     bar.remove();
+    // Early leave: keep warming clips/shaders while the wipe and Ready countdown run.
+    void warm;
     if (stale()) return;
   } else {
     // The loading screen stays up until the match's first frame is drawn (under the wipe).

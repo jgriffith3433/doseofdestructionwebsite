@@ -350,8 +350,11 @@ export class Renderer {
   /** Told (sheets ready, sheets total) while a match's clip sheets load; the VS card shows it. */
   onLoadProgress: ((done: number, total: number) => void) | null = null;
 
-  /** Builds a sprite for each fighter. Still art is cropped to its visible pixels first. */
-  async setFighters(state: GameState, keepStage = false): Promise<void> {
+  /**
+   * Builds a sprite for each fighter. Still art is cropped to its visible pixels first.
+   * `clipWaitMs` caps how long we wait for every clip sheet (VS uses a short cap so the card can hand off by 3 s; the rest finish in the background).
+   */
+  async setFighters(state: GameState, keepStage = false, clipWaitMs = 30000): Promise<void> {
     for (const v of this.views) {
       // Clip sheets stay cached; only the fighter's own meshes, materials and still go.
       v.mat.diffuseTexture = v.mat.emissiveTexture = null;
@@ -362,9 +365,13 @@ export class Renderer {
     this.views = [];
     // keepStage: devtools shows an unsaved stage that isn't in STAGES.
     if (!keepStage && this.stage !== STAGES[state.stage]) this.setStage(state.stage);
-    for (const f of state.fighters) {
+    // Load every fighter's still + anim set together (was sequential: two fighters nearly doubled VS wait).
+    const loaded = await Promise.all(state.fighters.map(async (f) => {
       const ch = CHARACTERS[f.char];
       const [art, anims] = await Promise.all([loadArt(`/characters/large/${ch.id}.webp`), loadAnimSet(ch.id)]);
+      return { f, ch, art, anims };
+    }));
+    for (const { f, ch, art, anims } of loaded) {
       const still = new DynamicTexture(`art-${f.id}`, { width: art.width, height: art.height }, this.scene, true);
       (still.getContext() as CanvasRenderingContext2D).drawImage(art, 0, 0);
       still.update();
@@ -426,7 +433,7 @@ export class Renderer {
         root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, ghost, ghostMat,
       });
     }
-    await this.preloadClips();
+    await this.preloadClips(clipWaitMs);
   }
 
   /**
@@ -434,7 +441,7 @@ export class Renderer {
    * no clip waits on the network the first time it plays. Sheets for fighters
    * no longer in the match are freed.
    */
-  private async preloadClips(): Promise<void> {
+  private async preloadClips(timeoutMs = 30000): Promise<void> {
     const keep = new Set<string>();
     const waits: Promise<void>[] = [];
     let total = 0;
@@ -466,8 +473,8 @@ export class Renderer {
       }
     }
     this.onLoadProgress?.(loaded, total);
-    // Every sheet is waited for, so no fighter starts half-loaded. Only a hard cap (a sheet that never answers) lets go.
-    await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, 30000))]);
+    // Wait for sheets up to timeoutMs; a short VS cap lets the match start while the rest finish in the background (warmTick / first use).
+    await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, timeoutMs))]);
   }
 
   /** Resolves once every texture in the scene (stage art, clips) is loaded, or after a while. */

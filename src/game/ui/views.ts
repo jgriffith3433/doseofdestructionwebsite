@@ -202,7 +202,16 @@ export function playVersus(setup: MatchSetup): Promise<void> {
     body.removeEventListener('click', finish);
     resolveSplash();
   }
-  const splash = new Promise<void>((resolve) => { resolveSplash = resolve; });
+  // The 3 s VS cap can leave for the match before the splash clock ends: tear down listeners then.
+  const versus = document.getElementById('versus');
+  const stopIfLeft = () => {
+    if (versus?.hidden || !body.isConnected) finish();
+  };
+  const leftWatch = versus ? new MutationObserver(stopIfLeft) : null;
+  leftWatch?.observe(versus!, { attributes: true, attributeFilter: ['hidden'] });
+  const splash = new Promise<void>((resolve) => {
+    resolveSplash = () => { leftWatch?.disconnect(); resolve(); };
+  });
   void audio.preloadLines([...calls.map((s) => `announcer.name.${CHARACTERS[s.char].id}`), 'announcer.versus']).then(schedule);
   return splash;
 }
