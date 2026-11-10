@@ -381,7 +381,7 @@ async function runScene(m: Match, cue: SceneCue): Promise<void> {
   const lines: SceneLine[] = cue.which === 'intro' ? c.intro : c.outro;
   if (cue.which === 'intro' && c.coldOpen?.length) {
     phase = 'scene';
-    audio.playMusic(`music-${STAGES[m.setup.stage].id}`);
+    audio.playStageBed(STAGES[m.setup.stage].id);
     $('scene-next').focus();
     const end = await playColdOpen(sceneStage(m), c.coldOpen);
     analytics.scene(`${c.id}.cold-open`, { skipped: end.skipped, line: 0 }, c.coldOpen.length);
@@ -389,7 +389,7 @@ async function runScene(m: Match, cue: SceneCue): Promise<void> {
   }
   const card = storyCard(c, cue.which === 'intro' ? 'before' : 'after');
   phase = 'scene';
-  audio.playMusic(`music-${STAGES[m.setup.stage].id}`);
+  audio.playStageBed(STAGES[m.setup.stage].id);
   $('scene-next').focus();
   const end = await playScene(sceneStage(m), cue.which, lines, card);
   analytics.scene(`${c.id}.card-${cue.which === 'intro' ? 'before' : 'after'}`, { skipped: end.cardSkipped, line: 0 }, 1);
@@ -536,7 +536,8 @@ function beginReady(m: Match): void {
   audio.line('announcer.ready');
   commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state) : null;
   introPending = (chapter && commentator && introCall(chapter.id)) || null;
-  audio.playMusic(`music-${STAGES[setup.stage].id}`);
+  audio.playStageBed(STAGES[setup.stage].id);
+  audio.setMusicIntensity(audio.shouldBeIntense(m.state.fighters));
   lastActions = m.state.fighters.map((f) => f.action);
   canvas.focus();
 }
@@ -606,6 +607,10 @@ function afterTick(m: Match, events: SimEvent[]): void {
   playEventSounds(m, events);
   updateHud(m);
   const s = m.state;
+  // Layered stage bed: lift to intense on last stock or ≥100%, crossfade back if the threat clears.
+  if (!s.over && phase !== 'scene') {
+    audio.setMusicIntensity(audio.shouldBeIntense(s.fighters));
+  }
   if (commentator && !s.over) {
     // Blog Man opens the episode just after Go! (his line has the booth to itself), then the announcer calls the fight.
     if (introPending && s.frame >= 75) {
@@ -620,7 +625,10 @@ function afterTick(m: Match, events: SimEvent[]): void {
     renderer.stageEvent('end');
     banner(s.timedOut ? 'Time!' : 'Game!');
     audio.line(s.timedOut ? 'announcer.time' : 'announcer.game');
-    audio.synth('cheer');
+    // Final-KO sting only when a stock wipe closes the bout (not a quota/streak/ko chip win).
+    const teamsLeft = new Set(s.fighters.filter((f) => f.stocks > 0).map((f) => f.team));
+    if (!s.timedOut && teamsLeft.size <= 1) audio.finalKoSting();
+    else audio.synth('cheer');
   }
   // Online, the fight decides when it's over (on a frame both sides agree on): onlineEnded.
   if (s.over && s.endTimer === 0 && !fight) finish(m);
@@ -1237,6 +1245,7 @@ installDodPlaytest({
   hitFxStats: () => renderer.hitFxStats(),
   gfxStats: () => renderer.gfxStats(),
   aliveStats: () => renderer.aliveStats(),
+  musicBedStats: () => audio.bedStats(),
 });
 
 // Online is always on: the lobby is joined with no clicks (docs/online.md), but only now, after the game and the
