@@ -28,6 +28,7 @@ import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from
 import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
 import { StageLive } from './stageLive.ts';
+import { StageAlive } from './stageAlive.ts';
 import { Constants } from '@babylonjs/core/Engines/constants.js';
 
 /** Sim units to scene units: 100 world units per scene unit. */
@@ -107,6 +108,7 @@ export class Renderer {
   private clipCache = new Map<string, Texture>();
   private fx: StageFx | null = null;
   private live: StageLive | null = null;
+  private alive: StageAlive | null = null;
   /** A plane over the whole view that stage effects flash. */
   private flashPlane: Mesh;
   private flashMat: StandardMaterial;
@@ -183,9 +185,15 @@ export class Renderer {
     const qualityChanged = g.quality !== this.gfx.quality;
     this.gfx = g;
     this.engine.setHardwareScalingLevel(scalingLevel(g.quality, window.devicePixelRatio));
+    if (qualityChanged && this.alive) this.showStage(this.stage);
     if (qualityChanged) this.engine.resize();
     this.glow.isEnabled = g.glow;
     if (this.fpsEl) this.fpsEl.hidden = !g.fps;
+  }
+
+  /** Stage life pieces and the screen mode, for the playtest. */
+  aliveStats() {
+    return this.alive?.stats() ?? null;
   }
 
   /** The render scale and glow actually in use, for the playtest. */
@@ -240,6 +248,7 @@ export class Renderer {
   showStage(stage: StageDef): void {
     this.stageRoot?.dispose(false, true);
     this.fx?.dispose();
+    this.alive?.dispose();
     this.movers = [];
     this.stage = stage;
     const root = new TransformNode('stage', this.scene);
@@ -251,6 +260,7 @@ export class Renderer {
     const built = buildLayers(this.scene, root, this.stage, this.glow);
     this.occluders = built.occluders;
     this.live = new StageLive(this.scene, root, this.stage, built.placed, this.glow);
+    this.alive = new StageAlive(this.scene, root, this.stage, this.glow, this.gfx.quality, () => this.views.map((v) => v.body), this.camera);
     // Collision-only platforms whose art isn't painted yet still get a block, so the stage is playable.
     const drawn = drawnPlatforms(this.stage);
     this.fx = new StageFx(this.scene, this.stage, {
@@ -498,6 +508,7 @@ export class Renderer {
     this.fx?.warmUp();
     await breathe();
     this.live?.warmUp();
+    this.alive?.setFighters(this.views.map((v) => v.body));
     for (const v of this.views) {
       v.shield.setEnabled(true);
       if (v.ghost) v.ghost.setEnabled(true);
@@ -698,6 +709,7 @@ export class Renderer {
       m.node.position.set(((p.x1 + p.x2) / 2) * S, p.y * S, 0);
     }
     this.live?.update(state);
+    this.alive?.update(performance.now() / 1000);
     // Broadcast events: the studio lights flicker, the rig light hangs and falls.
     this.sky.intensity = state.flicker > 0 ? (state.frame % 8 < 3 ? 0.15 : 1) : 1;
     if (state.rigFrame >= 0) {
@@ -967,6 +979,7 @@ export class Renderer {
 
   /** Frees the engine (devtools previews come and go). */
   dispose(): void {
+    this.alive?.dispose();
     this.fx?.dispose();
     this.engine.dispose();
   }

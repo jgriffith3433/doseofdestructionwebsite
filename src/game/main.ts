@@ -1197,6 +1197,7 @@ installDodPlaytest({
   fxStats: () => renderer.fxStats(),
   hitFxStats: () => renderer.hitFxStats(),
   gfxStats: () => renderer.gfxStats(),
+  aliveStats: () => renderer.aliveStats(),
 });
 
 // Online is always on: the lobby is joined with no clicks (docs/online.md), but only now, after the game and the
