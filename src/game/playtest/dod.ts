@@ -908,6 +908,28 @@ class Run {
   }
 
   /**
+   * Real viewport + touch as the game sees them. Phone scenarios (touch-match, smoke's phone leg) must log
+   * 844x390 or 390x844 with touch; a phone run at desktop size is a bug so reviews are not "unclear".
+   */
+  private logViewport(expectPhone: boolean): void {
+    const t = this.t;
+    const touch = touchDevice();
+    const phone = this.isPhone();
+    const size = `${innerWidth}x${innerHeight}`;
+    t.event('viewport', `${size}${touch ? ' touch' : ' no-touch'}${phone ? ' phone' : ''}`);
+    t.metric('viewportW', innerWidth);
+    t.metric('viewportH', innerHeight);
+    if (!expectPhone) return;
+    if (!phone) t.problem('bug', `phone scenario ran at desktop size ${size} (want 844x390 or 390x844 with touch)`);
+    else if (!touch) t.problem('bug', `phone scenario has no touch support at ${size}`);
+  }
+
+  /** Studio's phone twin (and Gen mobile: true): coarse pointer / touch points, or an already phone-sized window. */
+  private phoneScenario(): boolean {
+    return this.isPhone() || touchDevice() || this.options.at === 'phone-turned' || this.options.at === 'phone';
+  }
+
+  /**
    * On a portrait phone window (the runner's 390x844) the Rotate prompt holds every match, and a page cannot turn its
    * own window. So the run does what a player does: it turns the phone. It opens a copy of the game in a frame sized
    * 844x390 (a real landscape viewport for the game inside: media queries, touch controls, no Rotate prompt) and
@@ -916,6 +938,7 @@ class Run {
    */
   private async smokeTurned(): Promise<void> {
     const t = this.t;
+    this.logViewport(true);
     type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; outcome: string; state?: { progress?: number } };
     const back = document.createElement('div');
     back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
@@ -936,6 +959,7 @@ class Run {
     const api = () => (frame.contentWindow as (Window & { hawkesPlaytest?: { report(): Inner | null; state(): { progress?: number } | null } }) | null)?.hawkesPlaytest;
     let seen = 0;
     const seenProblems = new Set<string>();
+    let heart = 0;
     const forward = (): Inner | null => {
       const r = api()?.report() ?? null;
       if (!r) return null;
@@ -948,12 +972,17 @@ class Run {
         }
       }
       const prog = api()?.state()?.progress;
-      if (typeof prog === 'number') t.progress(prog);
+      if (typeof prog === 'number') t.progress(Math.min(0.99, Math.max(0.05, prog)));
       return r;
     };
     try {
       t.event('phone-turned', `the portrait phone window (${innerWidth}x${innerHeight}) turned to ${w}x${h} (landscape) for the match`);
+      t.progress(0.05);
       await t.until(() => {
+        // Heartbeat while the nested Game boots: without it the outer run softlocks (~30–60 s) before the frame reports.
+        // until() polls every 50 ms: every 100 ticks ≈ 5 s.
+        heart += 1;
+        if (heart === 1 || heart % 100 === 0) t.event('phone-turn-wait', `waiting for the landscape smoke (${Math.round(heart / 20)} s)`);
         const r = forward();
         return !!r && (r.outcome === 'done' || r.outcome === 'error' || r.outcome === 'stuck' || r.outcome === 'won' || r.outcome === 'lost');
       }, 240000, 'the turned phone to play the smoke match');
@@ -968,11 +997,12 @@ class Run {
 
   private async smokeRun(): Promise<void> {
     const t = this.t;
-    // A portrait phone shows the Rotate prompt: play in a turned copy instead of waiting under the prompt.
+    // A portrait phone shows the Rotate prompt: do not drive menus under it — turn to landscape in a frame first.
+    // (Earlier: toMainMenu first, then turn; the nested Game boot then sat silent and the outer run softlocked ~30–60 s.)
     if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
-      await this.toMainMenu();
-      if (rotateShowing()) return this.smokeTurned();
+      return this.smokeTurned();
     }
+    this.logViewport(this.phoneScenario());
     // The load: the branded loader (orange glow, wordmark in HTML) is what shows first, and the canvas fades in after its first frame.
     {
       const bg = getComputedStyle(document.body).backgroundImage + getComputedStyle(document.body).backgroundColor;
@@ -2177,6 +2207,66 @@ class Run {
 
   // ---------------------------------------------------------- touch-match
 
+  /** Portrait phone → 844x390 landscape frame that plays touch-match (mirrors smokeTurned). */
+  private async touchMatchTurned(): Promise<void> {
+    const t = this.t;
+    this.logViewport(true);
+    type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; outcome: string; state?: { progress?: number } };
+    const back = document.createElement('div');
+    back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
+    const frame = document.createElement('iframe');
+    frame.title = 'Phone window turned to landscape (touch-match playtest)';
+    frame.allow = 'autoplay';
+    const w = 844;
+    const h = 390;
+    const k = Math.min(innerWidth / w, innerHeight / h, 1);
+    frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:#000`;
+    back.appendChild(frame);
+    const q = new URLSearchParams(location.search);
+    q.set('playtest', 'touch-match');
+    q.set('at', 'phone-turned');
+    if (!q.has('seed')) q.set('seed', String(this.options.seed ?? 1));
+    frame.src = `${location.pathname}?${q.toString()}`;
+    document.body.appendChild(back);
+    const api = () => (frame.contentWindow as (Window & { hawkesPlaytest?: { report(): Inner | null; state(): { progress?: number } | null } }) | null)?.hawkesPlaytest;
+    let seen = 0;
+    const seenProblems = new Set<string>();
+    let heart = 0;
+    const forward = (): Inner | null => {
+      const r = api()?.report() ?? null;
+      if (!r) return null;
+      for (const e of r.events.slice(seen)) if (e.type !== 'problem' && e.type !== 'start' && e.type !== 'start-at') t.event(e.type, `${e.detail ?? ''} [landscape frame]`);
+      seen = r.events.length;
+      for (const p of r.problems) {
+        if (!seenProblems.has(p.message)) {
+          seenProblems.add(p.message);
+          t.problem('bug', `${p.message} [landscape frame]`);
+        }
+      }
+      const prog = api()?.state()?.progress;
+      if (typeof prog === 'number') t.progress(Math.min(0.99, Math.max(0.05, prog)));
+      return r;
+    };
+    try {
+      t.event('phone-turned', `the portrait phone window (${innerWidth}x${innerHeight}) turned to ${w}x${h} (landscape) for touch-match`);
+      t.progress(0.05);
+      await t.until(() => {
+        heart += 1;
+        if (heart === 1 || heart % 100 === 0) t.event('phone-turn-wait', `waiting for the landscape touch-match (${Math.round(heart / 20)} s)`);
+        const r = forward();
+        return !!r && (r.outcome === 'done' || r.outcome === 'error' || r.outcome === 'stuck' || r.outcome === 'won' || r.outcome === 'lost');
+      }, 300000, 'the turned phone to play touch-match');
+      const r = forward();
+      if (r?.outcome !== 'done' && r?.outcome !== 'won' && r?.outcome !== 'lost') {
+        t.problem('bug', `touch-match in the turned phone ended ${r?.outcome ?? 'without a report'}`);
+      }
+    } finally {
+      back.remove();
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   /** The safe-area insets in px (notch, home bar), read through a probe element that CSS env() fills in. */
   private safeInsets(): { top: number; right: number; bottom: number; left: number } {
     const p = document.createElement('div');
@@ -2197,8 +2287,11 @@ class Run {
    */
   async touchMatch(): Promise<void> {
     const t = this.t;
-    const phone = this.isPhone();
-    if (!phone) t.problem('warning', `touch-match is meant for phone size (run it with device phone: 844x390 or 390x844), this window is ${innerWidth}x${innerHeight}`);
+    // Portrait phone: same as smoke — turn to an 844x390 frame so the Rotate prompt cannot hold the match.
+    if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      return this.touchMatchTurned();
+    }
+    this.logViewport(true);
     this.useTap = true;
     try {
       await this.toMainMenu();
