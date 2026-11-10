@@ -33,7 +33,7 @@ import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '.
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
 import { loadAnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
-import type { SimEvent } from '../sim/step.ts';
+import { BUFFER_FRAMES, COYOTE_FRAMES, type SimEvent } from '../sim/step.ts';
 import { onlineReady } from '../net/loader.ts';
 import { analyticsDebug } from '../analytics.ts';
 
@@ -278,6 +278,34 @@ class Run {
       this.quietWarned = true;
       this.t.problem('warning', `no hits for 30 s in a match on ${STAGES[s.stage].name} (fighters can't reach each other?)`);
     }
+    if (m.bufferedActions > 0) {
+      this.t.metric('bufferedInputs', m.bufferedActions);
+      if (!this.checked.has(`buf:${this.matches}`)) {
+        this.checked.add(`buf:${this.matches}`);
+        this.t.event('input-buffer', `buffered input came out on first actionable frame (${BUFFER_FRAMES} frames / ${Math.round((BUFFER_FRAMES * 1000) / 60)} ms window)`);
+      }
+    }
+    if (m.coyoteJumps > 0) {
+      this.t.metric('coyoteJumps', m.coyoteJumps);
+      if (!this.checked.has(`coyote:${this.matches}`)) {
+        this.checked.add(`coyote:${this.matches}`);
+        this.t.event('coyote-jump', `coyote jump came out after leaving ledge (${COYOTE_FRAMES} frames / ${Math.round((COYOTE_FRAMES * 1000) / 60)} ms window)`);
+      }
+    }
+    if (m.inputLatencies.length > 0) {
+      const lat = m.latencyStats();
+      this.t.metric('inputLatencyMedianMs', lat.median);
+      this.t.metric('inputLatencyWorstMs', lat.worst);
+      this.t.metric('inputLatencyMs', lat.median);
+      this.t.metric('inputLatencySamples', lat.samples);
+      this.t.metric('feel.inputLatencyMs', lat.median);
+      this.t.metric('feel.inputLatencyWorstMs', lat.worst);
+      this.t.metric('feel.inputSamples', lat.samples);
+      if (lat.samples >= 5 && !this.checked.has(`lat:${this.matches}`)) {
+        this.checked.add(`lat:${this.matches}`);
+        this.t.event('input-latency', `median ${lat.median} ms, worst ${lat.worst} ms across ${lat.samples} inputs (${BUFFER_FRAMES}-frame buffer, ${COYOTE_FRAMES}-frame coyote)`);
+      }
+    }
     if (s.over && !this.overSeen) {
       this.overSeen = true;
       const won = m.playerWon();
@@ -309,6 +337,9 @@ class Run {
     this.movesSeen.clear();
     this.matches++;
     this.t.add('matches');
+    this.t.metric('feel.coyoteMs', Math.round((COYOTE_FRAMES * 1000) / 60));
+    this.t.metric('feel.jumpBufferMs', Math.round((BUFFER_FRAMES * 1000) / 60));
+    this.t.metric('feel.hitStopMs', Math.round((8 * 1000) / 60));
     this.t.cut(); // a new stage: an intended cut for the feel sensor
     this.placeAtSpot(m);
     const st = STAGES[m.state.stage];
@@ -939,7 +970,7 @@ class Run {
   private async smokeTurned(): Promise<void> {
     const t = this.t;
     this.logViewport(true);
-    type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; outcome: string; state?: { progress?: number } };
+    type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; metrics?: Record<string, number>; outcome: string; state?: { progress?: number } };
     const back = document.createElement('div');
     back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
     const frame = document.createElement('iframe');
@@ -969,6 +1000,11 @@ class Run {
         if (!seenProblems.has(p.message)) {
           seenProblems.add(p.message);
           t.problem('bug', `${p.message} [landscape frame]`);
+        }
+      }
+      if (r.metrics) {
+        for (const [k, v] of Object.entries(r.metrics)) {
+          if (typeof v === 'number' && !k.startsWith('fps')) t.metric(k, v);
         }
       }
       const prog = api()?.state()?.progress;
@@ -2218,7 +2254,7 @@ class Run {
   private async touchMatchTurned(): Promise<void> {
     const t = this.t;
     this.logViewport(true);
-    type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; outcome: string; state?: { progress?: number } };
+    type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; metrics?: Record<string, number>; outcome: string; state?: { progress?: number } };
     const back = document.createElement('div');
     back.style.cssText = 'position:fixed;inset:0;background:#0c0a09;z-index:2147483647;overflow:hidden';
     const frame = document.createElement('iframe');
@@ -2248,6 +2284,11 @@ class Run {
         if (!seenProblems.has(p.message)) {
           seenProblems.add(p.message);
           t.problem('bug', `${p.message} [landscape frame]`);
+        }
+      }
+      if (r.metrics) {
+        for (const [k, v] of Object.entries(r.metrics)) {
+          if (typeof v === 'number' && !k.startsWith('fps')) t.metric(k, v);
         }
       }
       const prog = api()?.state()?.progress;

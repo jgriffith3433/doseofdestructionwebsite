@@ -34,7 +34,8 @@ export type SimEvent =
   | { type: 'broadcast'; index: number; kind: string; phase: 'start' | 'end'; who: number };
 
 const BUTTONS = BTN.ATTACK | BTN.SPECIAL | BTN.JUMP | BTN.SHIELD | C_ANY;
-const BUFFER_FRAMES = 6;
+export const BUFFER_FRAMES = 6;
+export const COYOTE_FRAMES = 6;
 const JUMPSQUAT = 3;
 // Launch speed per unit of knockback (percent), and how fast that launch decays.
 const KB_SPEED = 17;
@@ -97,7 +98,7 @@ function updateFighter(s: GameState, f: Fighter, inp: number, ev: SimEvent[]): v
   if (pressed) {
     f.buffer = pressed;
     f.bufferAge = 0;
-  } else if (f.buffer && ++f.bufferAge > BUFFER_FRAMES) {
+  } else if (f.buffer && f.hitlag === 0 && ++f.bufferAge > BUFFER_FRAMES) {
     f.buffer = 0;
   }
 
@@ -143,38 +144,48 @@ function updateFighter(s: GameState, f: Fighter, inp: number, ev: SimEvent[]): v
       break;
     case ACT.LAND:
       friction(f, ch);
-      if (f.frame >= f.length) {
-        setAction(f, ACT.IDLE, 0);
-        groundNeutral(f, ch, c);
-      }
+      if (f.frame >= f.length) finishGround(f, ch, c);
       break;
     case ACT.ATTACK:
-      attack(f, ch, c);
+      attack(f, ch, c, ev);
       break;
     case ACT.HITSTUN:
       if (f.grounded) friction(f, ch);
       else drift(f, ch, c, 2);
-      if (--f.hitstun <= 0) setAction(f, f.grounded ? ACT.IDLE : ACT.AIR, 0);
+      if (--f.hitstun <= 0) {
+        if (f.grounded) finishGround(f, ch, c);
+        else finishAir(f, ch, c, ev);
+      }
       break;
     case ACT.SHIELD:
       shield(f, ch, c, ev);
       break;
     case ACT.SHIELD_STUN:
       friction(f, ch);
-      if (f.frame >= f.length) setAction(f, inp & BTN.SHIELD ? ACT.SHIELD : ACT.IDLE, 0);
+      if (f.frame >= f.length) {
+        if (f.buffer & (BTN.JUMP | C_ANY | BTN.SPECIAL | BTN.ATTACK)) {
+          finishGround(f, ch, c);
+        } else if ((inp & BTN.SHIELD) || (f.buffer & BTN.SHIELD)) {
+          if (f.buffer & BTN.SHIELD) consume(f);
+          setAction(f, ACT.SHIELD, 0);
+          shield(f, ch, c, ev);
+        } else {
+          finishGround(f, ch, c);
+        }
+      }
       break;
     case ACT.ROLL:
       if (f.frame === 3) f.intangible = 15;
       f.vx = f.frame >= 4 && f.frame <= 20 ? f.dir * 5 * FX : 0;
       if (f.frame >= f.length) {
         f.facing = -f.dir;
-        setAction(f, ACT.IDLE, 0);
+        finishGround(f, ch, c);
       }
       break;
     case ACT.SPOTDODGE:
       if (f.frame === 2) f.intangible = 16;
       friction(f, ch);
-      if (f.frame >= f.length) setAction(f, ACT.IDLE, 0);
+      if (f.frame >= f.length) finishGround(f, ch, c);
       break;
     case ACT.AIRDODGE:
       if (f.dir) {
@@ -183,28 +194,30 @@ function updateFighter(s: GameState, f: Fighter, inp: number, ev: SimEvent[]): v
       } else {
         drift(f, ch, c, 2);
       }
-      if (f.frame >= f.length) setAction(f, ACT.AIR, 0);
+      if (f.frame >= f.length) finishAir(f, ch, c, ev);
       break;
     case ACT.LEDGE:
       ledge(f, ch, c, ev);
       break;
     case ACT.LEDGE_CLIMB:
-      ledgeClimb(f);
+      ledgeClimb(f, ch, c);
       break;
     case ACT.HELPLESS:
       drift(f, ch, c, 2);
       break;
     case ACT.DIZZY:
       friction(f, ch);
-      if (f.frame >= f.length && f.grounded) setAction(f, ACT.IDLE, 0);
+      if (f.frame >= f.length && f.grounded) finishGround(f, ch, c);
       break;
     case ACT.RESPAWN:
       f.intangible = 120;
       if (f.frame > 180 || (f.frame > 20 && (Math.abs(c.sx) > 40 || Math.abs(c.sy) > 40 || f.buffer))) {
-        setAction(f, ACT.AIR, 0);
+        finishAir(f, ch, c, ev);
       }
       break;
   }
+
+  if (f.coyote > 0) f.coyote--;
 
   if (f.action !== ACT.LEDGE && f.action !== ACT.LEDGE_CLIMB && f.action !== ACT.RESPAWN) {
     physics(s, f, ch, c, ev);
@@ -215,8 +228,22 @@ function setAction(f: Fighter, action: number, length: number): void {
   f.action = action;
   f.frame = 0;
   f.length = length;
+  f.coyote = 0;
   if (action !== ACT.ATTACK) f.move = -1;
   if (action === ACT.JUMPSQUAT) f.shortHop = 0;
+}
+
+function finishGround(f: Fighter, ch: CharacterDef, c: Ctx): void {
+  setAction(f, ACT.IDLE, 0);
+  groundNeutral(f, ch, c);
+}
+
+function finishAir(f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): void {
+  setAction(f, ACT.AIR, 0);
+  if (!tryAir(f, ch, c, ev)) {
+    drift(f, ch, c, 1);
+    fastFall(f, ch, c);
+  }
 }
 
 function consume(f: Fighter): number {
@@ -287,7 +314,7 @@ function tryGround(f: Fighter, ch: CharacterDef, c: Ctx): boolean {
     } else startMove(f, ch, MOVE.JAB);
     return true;
   }
-  if (c.inp & BTN.SHIELD) {
+  if ((b & BTN.SHIELD) || (c.inp & BTN.SHIELD)) {
     if (b & BTN.SHIELD) consume(f);
     setAction(f, ACT.SHIELD, 0);
     return true;
@@ -335,11 +362,18 @@ function friction(f: Fighter, ch: CharacterDef): void {
 
 function tryAir(f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): boolean {
   const b = f.buffer;
-  if (b & BTN.JUMP && f.jumpsLeft > 0) {
+  if (b & BTN.JUMP && (f.coyote > 0 || f.jumpsLeft > 0)) {
     consume(f);
-    f.jumpsLeft--;
-    f.vy = ch.airJumpVel;
-    f.vx = idiv(c.sx * ch.airSpeed, 100);
+    if (f.coyote > 0) {
+      f.coyote = 0;
+      f.jumpsLeft = ch.airJumps;
+      f.vy = ch.jumpVel;
+      f.vx = clamp(f.vx + idiv(c.sx * ch.airAccel * 4, 100), -ch.airSpeed, ch.airSpeed);
+    } else {
+      f.jumpsLeft--;
+      f.vy = ch.airJumpVel;
+      f.vx = idiv(c.sx * ch.airSpeed, 100);
+    }
     f.fastFall = 0;
     ev.push({ type: 'jump', id: f.id, x: f.x, y: f.y });
     return false;
@@ -432,7 +466,7 @@ function startMove(f: Fighter, ch: CharacterDef, move: number): void {
   if (move === MOVE.NSPECIAL && !f.grounded) f.airSpecial++;
 }
 
-function attack(f: Fighter, ch: CharacterDef, c: Ctx): void {
+function attack(f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): void {
   const m = ch.moves[f.move];
   const spent = f.move === MOVE.NSPECIAL && f.airSpecial > 1;
   for (const imp of m.impulses ?? []) {
@@ -457,7 +491,8 @@ function attack(f: Fighter, ch: CharacterDef, c: Ctx): void {
   }
   if (f.frame >= f.length) {
     if (m.helpless && !f.grounded) setAction(f, ACT.HELPLESS, 0);
-    else setAction(f, f.grounded ? ACT.IDLE : ACT.AIR, 0);
+    else if (f.grounded) finishGround(f, ch, c);
+    else finishAir(f, ch, c, ev);
   }
 }
 
@@ -632,7 +667,7 @@ function leaveLedge(f: Fighter, cooldown: number): void {
   setAction(f, ACT.AIR, 0);
 }
 
-function ledgeClimb(f: Fighter): void {
+function ledgeClimb(f: Fighter, ch: CharacterDef, c: Ctx): void {
   const l = heldLedge(f);
   if (!platformOn(stage, clock, l.platform)) {
     leaveLedge(f, 30);
@@ -658,7 +693,7 @@ function ledgeClimb(f: Fighter): void {
     f.platform = l.platform;
     f.vx = 0;
     f.vy = 0;
-    setAction(f, ACT.IDLE, 0);
+    finishGround(f, ch, c);
   }
 }
 
@@ -758,7 +793,10 @@ function physics(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEven
     f.grounded = 0;
     f.platform = -1;
     f.jumpsLeft = ch.airJumps;
-    if (f.action !== ACT.HITSTUN && f.action !== ACT.DIZZY) setAction(f, ACT.AIR, 0);
+    if (f.action !== ACT.HITSTUN && f.action !== ACT.DIZZY) {
+      setAction(f, ACT.AIR, 0);
+      f.coyote = COYOTE_FRAMES;
+    }
   }
 
   if (f.grounded) {
@@ -778,7 +816,10 @@ function physics(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEven
           f.grounded = 0;
           f.platform = -1;
           f.jumpsLeft = ch.airJumps;
-          if (f.action !== ACT.HITSTUN && f.action !== ACT.DIZZY) setAction(f, ACT.AIR, 0);
+          if (f.action !== ACT.HITSTUN && f.action !== ACT.DIZZY) {
+            setAction(f, ACT.AIR, 0);
+            f.coyote = COYOTE_FRAMES;
+          }
         }
       }
     }
@@ -1043,6 +1084,7 @@ function land(f: Fighter, ch: CharacterDef, platform: number, y: number, ev: Sim
       setAction(f, ACT.LAND, 10);
       break;
     case ACT.AIR:
+      if (f.buffer) f.bufferAge = 0;
       setAction(f, ACT.LAND, 4);
       break;
   }

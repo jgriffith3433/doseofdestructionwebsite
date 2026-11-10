@@ -2,10 +2,11 @@
 // for the end screen. Stats are gathered from sim events, outside the sim.
 
 import { CHARACTERS } from './sim/characters.ts';
-import { NO_INPUT } from './sim/input.ts';
+import { NO_INPUT, stickX, stickY } from './sim/input.ts';
 import { ACT, cloneState, newGame, type BroadcastDef, type GameState, type Rules } from './sim/state.ts';
-import { step, type SimEvent } from './sim/step.ts';
+import { BUFFER_FRAMES, step, type SimEvent } from './sim/step.ts';
 import { Bot } from './ai/bot.ts';
+import { consumeInputEdge } from './input/devices.ts';
 
 export type Mode = 'versus' | 'training' | 'campaign' | 'online';
 
@@ -108,6 +109,10 @@ export class Match {
   readonly stats: FighterStats[];
   readonly timeline: TimelinePoint[] = [];
   readonly kos: KoMark[] = [];
+  readonly inputLatencies: number[] = [];
+  bufferedActions = 0;
+  coyoteJumps = 0;
+  private pendingInput: { frame: number; pollMs: number; kind: 'button' | 'stick' } | null = null;
   private combo: { by: number; count: number }[];
 
   constructor(setup: MatchSetup, seed: number) {
@@ -140,12 +145,92 @@ export class Match {
       if (slot.cpu === null) return local;
       return this.bots[i]?.think(s) ?? NO_INPUT;
     });
+    const prev = s.fighters.map((f) => ({
+      action: f.action,
+      frame: f.frame,
+      vx: f.vx,
+      buffer: f.buffer,
+      bufferAge: f.bufferAge,
+      coyote: f.coyote,
+      prevInput: f.prevInput,
+    }));
+    const me = s.fighters[this.player];
+    const prevMe = me ? prev[me.id] : null;
+    const edge = consumeInputEdge();
+    if (me && prevMe) {
+      const btnEdge = edge ? edge.buttons : (local & ~prevMe.prevInput) & ~0xffff;
+      const sx = stickX(local);
+      const sy = stickY(local);
+      const psx = stickX(prevMe.prevInput);
+      const psy = stickY(prevMe.prevInput);
+      const stickEdge = edge
+        ? edge.stick
+        : (Math.abs(sx) > 20 && Math.sign(sx) !== (Math.abs(psx) > 20 ? Math.sign(psx) : 0)) ||
+          (Math.abs(sy) > 60 && Math.sign(sy) !== (Math.abs(psy) > 60 ? Math.sign(psy) : 0));
+      const pollMs = edge ? Math.min(1000 / 60, Math.max(0, edge.polledAt - edge.at)) : 0;
+      if (btnEdge !== 0) {
+        this.pendingInput = { frame: s.frame, pollMs, kind: 'button' };
+      } else if (stickEdge && !this.pendingInput) {
+        this.pendingInput = { frame: s.frame, pollMs, kind: 'stick' };
+      }
+    }
     const before = s.fighters.map((f) => f.percent);
     const events = step(s, inputs);
+    for (const f of s.fighters) {
+      const p = prev[f.id];
+      const jumped = events.some((e) => e.type === 'jump' && e.id === f.id);
+      const acted =
+        (f.action !== p.action &&
+          (f.action === ACT.JUMPSQUAT ||
+            f.action === ACT.ATTACK ||
+            f.action === ACT.SHIELD ||
+            f.action === ACT.AIRDODGE ||
+            f.action === ACT.LEDGE_CLIMB ||
+            (p.action === ACT.LEDGE && f.action === ACT.AIR) ||
+            (p.action === ACT.RESPAWN && f.action === ACT.AIR))) ||
+        (f.action === ACT.ATTACK && f.frame === 0) ||
+        jumped;
+      if (p.buffer !== 0 && p.bufferAge > 0 && f.buffer === 0 && acted) this.bufferedActions++;
+      if (p.coyote > 0 && jumped) this.coyoteJumps++;
+      if (f === me && this.pendingInput) {
+        const moved =
+          f.action === ACT.WALK ||
+          f.action === ACT.CROUCH ||
+          f.action === ACT.ROLL ||
+          f.action === ACT.SPOTDODGE ||
+          f.dropThrough > 0 ||
+          (f.action === ACT.AIR && f.vx !== p.vx) ||
+          (p.action === ACT.RESPAWN && f.action === ACT.AIR);
+        const changed = this.pendingInput.kind === 'button' ? acted : acted || moved;
+        if (changed) {
+          const frames = Math.max(1, s.frame - this.pendingInput.frame);
+          const ms = Math.min(100, Math.round(this.pendingInput.pollMs + frames * (1000 / 60)));
+          this.inputLatencies.push(ms);
+          if (this.inputLatencies.length > 500) this.inputLatencies.shift();
+          this.pendingInput = null;
+        } else if (
+          (this.pendingInput.kind === 'button' && f.buffer === 0) ||
+          s.frame - this.pendingInput.frame > BUFFER_FRAMES
+        ) {
+          this.pendingInput = null;
+        }
+      }
+    }
     this.record(events, before);
     this.checkObjective();
     if (s.frame % SAMPLE_EVERY === 0) this.sample();
     return events;
+  }
+
+  /** Median and worst input-to-action latency (ms) measured in this match. */
+  latencyStats(): { median: number; worst: number; samples: number } {
+    if (!this.inputLatencies.length) return { median: 0, worst: 0, samples: 0 };
+    const sorted = this.inputLatencies.slice().sort((a, b) => a - b);
+    return {
+      median: sorted[Math.floor(sorted.length / 2)],
+      worst: sorted[sorted.length - 1],
+      samples: sorted.length,
+    };
   }
 
   /** Runs one frame with every slot's input given (online: both players' inputs from the rollback). */

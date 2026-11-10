@@ -26,6 +26,14 @@ let root: HTMLElement | null = null;
 let stickX = 0;
 let stickY = 0;
 let buttons = 0;
+let lastTouchEventAt = 0;
+
+/** Returns and clears the timestamp of the most recent touch pointer event. */
+export function consumeTouchEventAt(): number {
+  const t = lastTouchEventAt;
+  lastTouchEventAt = 0;
+  return t;
+}
 
 export function touchDevice(): boolean {
   return window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
@@ -64,8 +72,17 @@ export function initTouchControls(onPause: () => void, forceBuild = false): void
       dy = (dy / len) * STICK_RADIUS;
     }
     knob.style.transform = `translate(${dx}px, ${dy}px)`;
-    stickX = Math.round((dx / STICK_RADIUS) * 100);
-    stickY = Math.round((-dy / STICK_RADIUS) * 100);
+    const nx = Math.round((dx / STICK_RADIUS) * 100);
+    const ny = Math.round((-dy / STICK_RADIUS) * 100);
+    const prevSx = Math.abs(stickX) > 20 ? Math.sign(stickX) : 0;
+    const prevSy = Math.abs(stickY) > 60 ? Math.sign(stickY) : 0;
+    const nextSx = Math.abs(nx) > 20 ? Math.sign(nx) : 0;
+    const nextSy = Math.abs(ny) > 60 ? Math.sign(ny) : 0;
+    if ((nextSx !== 0 && nextSx !== prevSx) || (nextSy !== 0 && nextSy !== prevSy)) {
+      lastTouchEventAt = performance.now();
+    }
+    stickX = nx;
+    stickY = ny;
   };
   const releaseStick = () => {
     stickId = -1;
@@ -99,6 +116,7 @@ export function initTouchControls(onPause: () => void, forceBuild = false): void
     };
     el.addEventListener('pointerdown', (e) => {
       e.preventDefault();
+      lastTouchEventAt = performance.now();
       capture(el, e.pointerId);
       ids.add(e.pointerId);
       sync();
