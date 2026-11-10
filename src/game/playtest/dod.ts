@@ -987,7 +987,13 @@ class Run {
         return !!r && (r.outcome === 'done' || r.outcome === 'error' || r.outcome === 'stuck' || r.outcome === 'won' || r.outcome === 'lost');
       }, 240000, 'the turned phone to play the smoke match');
       const r = forward();
-      if (r?.outcome !== 'done') t.problem('bug', `the smoke match in the turned phone ended ${r?.outcome ?? 'without a report'}`);
+      const out = r?.outcome;
+      if (out !== 'done' && out !== 'won' && out !== 'lost') {
+        t.problem('bug', `the smoke match in the turned phone ended ${out ?? 'without a report'}`);
+        t.progress(1);
+        t.finish(out === 'stuck' || out === 'error' ? out : 'stuck');
+        return;
+      }
     } finally {
       back.remove();
     }
@@ -997,6 +1003,7 @@ class Run {
 
   private async smokeRun(): Promise<void> {
     const t = this.t;
+    // Always log what the game sees first (desktop or phone), so a review can tell 1280x720 from 390x844.
     // A portrait phone shows the Rotate prompt: do not drive menus under it — turn to landscape in a frame first.
     // (Earlier: toMainMenu first, then turn; the nested Game boot then sat silent and the outer run softlocked ~30–60 s.)
     if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
@@ -2257,14 +2264,18 @@ class Run {
         return !!r && (r.outcome === 'done' || r.outcome === 'error' || r.outcome === 'stuck' || r.outcome === 'won' || r.outcome === 'lost');
       }, 300000, 'the turned phone to play touch-match');
       const r = forward();
-      if (r?.outcome !== 'done' && r?.outcome !== 'won' && r?.outcome !== 'lost') {
-        t.problem('bug', `touch-match in the turned phone ended ${r?.outcome ?? 'without a report'}`);
+      const out = r?.outcome;
+      if (out !== 'done' && out !== 'won' && out !== 'lost') {
+        t.problem('bug', `touch-match in the turned phone ended ${out ?? 'without a report'}`);
+        t.progress(1);
+        t.finish(out === 'stuck' || out === 'error' ? out : 'stuck');
+        return;
       }
+      t.progress(1);
+      t.finish(out === 'won' || out === 'lost' ? out : 'done');
     } finally {
       back.remove();
     }
-    t.progress(1);
-    t.finish('done');
   }
 
   /** The safe-area insets in px (notch, home bar), read through a probe element that CSS env() fills in. */
