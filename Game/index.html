@@ -4,7 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Play | Dose of Destruction</title>
-  <meta name="theme-color" content="#100e0c">
+  <meta name="theme-color" content="#3a1608">
+  <!-- First paint: the brand loader (orange glow, wordmark in plain HTML/CSS) shows before game.css, the fonts or the JS bundle load. -->
+  <style>
+    html, body { margin: 0; height: 100%; background: #1c0d06 radial-gradient(ellipse at 50% 45%, #8a3010 0%, #3a1608 45%, #100e0c 80%); }
+    #stage { opacity: 0; transition: opacity 0.4s ease; }
+    #stage.ready { opacity: 1; }
+    #tap-to-play { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; text-align: center; color: #f4efe8; font-family: Oswald, Impact, 'Arial Narrow', sans-serif; animation: dod-boot-in 0.25s ease both; }
+    #tap-to-play .logo { margin: 0; font-weight: 700; font-size: clamp(28px, 7vw, 80px); text-transform: uppercase; letter-spacing: 0.06em; color: #fff3df; }
+    #tap-to-play .logo span { color: #ffd15a; text-shadow: 0 3px 0 #5a2410; }
+    @keyframes dod-boot-in { from { opacity: 0; } to { opacity: 1; } }
+  </style>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
