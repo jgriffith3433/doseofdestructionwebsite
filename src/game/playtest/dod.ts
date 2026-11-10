@@ -617,9 +617,21 @@ class Run {
     const byId = want ? [...cards()].findIndex((c) => c.dataset.stage === want) : -1;
     if (want && byId < 0) this.t.problem('bug', `stage "${want}" is not offered in Versus (content/modes.json)`);
     const pick = byId >= 0 ? byId : Math.abs(this.options.seed - 1) % cards().length;
+    let timing: { selectToVs: number | null; vsToMatch: number; selectToMatch: number | null } | null = null;
+    const onTiming = (e: Event) => { timing = (e as CustomEvent).detail; };
+    window.addEventListener('dod:scene-timing', onTiming);
     await this.click(() => cards()[pick], `stage ${want && byId >= 0 ? want : pick + 1}`);
     if (this.onVersus) await this.onVersus();
     await this.matchLive();
+    window.removeEventListener('dod:scene-timing', onTiming);
+    const tm = timing as { selectToVs: number | null; vsToMatch: number; selectToMatch: number | null } | null;
+    if (tm) {
+      const sec = (ms: number | null) => (ms === null ? 'n/a' : `${(ms / 1000).toFixed(2)} s`);
+      this.t.event('select-to-vs', `stage picked to VS card up: ${sec(tm.selectToVs)}`);
+      this.t.event('vs-to-match', `VS card to match: ${sec(tm.vsToMatch)}`);
+      this.t.event('select-to-match', `stage picked to match: ${sec(tm.selectToMatch)}`);
+      if (tm.selectToMatch !== null && tm.selectToMatch > 3000) this.t.problem('bug', `the VS card took ${sec(tm.selectToMatch)} after the stage pick (limit 3 s)`);
+    } else this.t.problem('bug', 'no scene timing reported for the match start');
   }
 
   /** Waits through the VS splash and loading until "Go!". */
