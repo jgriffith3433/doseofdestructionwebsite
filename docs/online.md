@@ -254,6 +254,16 @@ one they lost (refuse to sign and claim the other left: two claims void). Keys l
 starts a new profile at 1000, and many fresh profiles can farm one another (the pair limit slows it). Results from
 the Nostr days (before 2026-10-26) live only in the players' caches.
 
+## Tonight's Episode (the daily board)
+
+One seeded fight a day, picked from the UTC date (`campaign/daily.ts`, pure, tested in `src/game/test/daily.test.ts`).
+A cleared run's score is a signed Hawkes Net record (kind 30078, `net/daily.ts`): tag `hawkes-dod/daily/<lobby>/<date>`
+(lobby `global` live, `beta`, `test-<room>` for `?room`), `d` = the same per player, so a player has one line a night
+and only a better score is sent. The board is read **once**, when the results open (`RecordsPool.fetchOnce`: no
+subscription, no timer), checked (signature, tag, date, 1..3000) and shown best first with the player's own line even if
+the read missed it. The streak and the night's best are local (`dod.daily`). Scores are client-reported like the rest of
+the board: signed, not provable. Off the live site `?daily=YYYY-MM-DD` plays another date (so two playtest tabs agree).
+
 ## All platforms
 
 - Desktop, phone and tablet in Chrome, Safari and Firefox: WebSocket, WebCrypto and WebRTC data channels are all the

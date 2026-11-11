@@ -529,6 +529,25 @@ Narrator: *"Two Orchestrators. Two fights. One finale. The card is yours, and th
 Later items: the lines are text only (no `audio`/`take`); recording them through Hawkes Gen costs cents. No new art is
 needed (GPU estimate: none). Pacing (CPU 8 and 9, the 60% head start) is not sim-tuned.
 
+## Tonight's Episode: the nightly special (as built)
+
+The Orchestrator's show never goes dark: at midnight UTC the network drops one more episode into the schedule, the same
+for every viewer on every screen, with no booking and no server asked. It is not a chapter (no season, no unlock):
+a one-night special, aired once and gone at the next midnight.
+
+- **The card.** Main menu, above the campaign: "Tonight's Episode", the cast ("Slow Rider vs Lapis Man + Cel"), the
+  stage, the rule in one line ("3 KOs in 2:00 · Low gravity") and Blog Man's too-long headline for it, which is one of
+  his own recorded episode intros (an episode on the same stage when there is one). The countdown says when the next
+  one airs. The show lends the player the night's fighter, locked or not: a loaner, nothing unlocks from it.
+- **The rules** are the campaign's own, drawn from `content/campaign.json` (objectives ko, quota, streak, survive with
+  their targets and clocks; the damage, gravity, scale and start-percent values the chapters use; teams, which gives
+  the player a CPU partner against two). One twist most nights, two about a third of them.
+- **The score** (clears only): 1000, plus up to 400 for the clock left, 100 a stock left and 50 a unit past the target
+  (at most 400), minus 2 a percent taken (at most 600), never under 100. The day streak counts nights in a row cleared;
+  a missed night starts it again. Retries are free; only a better score replaces the night's score.
+- **The board** is the night's: signed scores kept as Hawkes Net records, read once when the results open.
+  Blog Man is not in the show's rating: the board is the viewers'.
+
 ## The booth: announcer and Blog Man commentary (as built)
 
 The show has a voice in the booth. In Versus and in the campaign (not Training, not online) the **announcer** calls the

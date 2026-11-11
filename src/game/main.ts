@@ -38,6 +38,9 @@ import { bootOnline, onlineApi } from './net/loader.ts';
 import { switching } from './ui/screens.ts';
 import { initRotatePrompt, rotateShowing } from './ui/rotate.ts';
 import { Teacher } from './ui/teach.ts';
+import { DAILY_POOL, dailyEpisode, dailyScore, dailySetup, liveStreak, msToNext, recordClear, type DailyEpisode } from './campaign/daily.ts';
+import { dailyDate, loadDaily, saveDaily } from './campaign/dailyStore.ts';
+import { fillBoard, renderDailyCard, renderDailyResults, setCountdown } from './ui/daily.ts';
 import { PILOT_CHAPTER, PILOT_KAELEN, isFirstVisit, markPilotSeen, pilotState } from './campaign/firstVisit.ts';
 
 const TICK_MS = 1000 / 60;
@@ -227,6 +230,7 @@ let spotBusy = false;
 /** Shows the current spotlight fighter: picture and name change together, once the picture is ready. */
 async function spotlight(animate = false): Promise<void> {
   updateNextEpisode();
+  renderDaily();
   const i = spotIndex % CHARACTERS.length;
   const c = CHARACTERS[i];
   if (spotBusy || i === spotShown) return;
@@ -552,6 +556,100 @@ function updateNextEpisode(): void {
   }
 }
 
+// ------------------------------------------------------- tonight's episode
+
+/** The episode being played (its setup object marks the match, so Play again and the results know it). */
+let dailyRun: { ep: DailyEpisode; setup: MatchSetup } | null = null;
+let dailyViewed = '';
+
+function dailyEvent(phase: string, detail: Record<string, unknown> = {}): void {
+  window.dispatchEvent(new CustomEvent('dod:daily', { detail: { phase, ...detail } }));
+}
+
+/** The card on the main menu: rebuilt each time the menu shows (and when the date turns over). */
+function renderDaily(): void {
+  const date = dailyDate();
+  const ep = dailyEpisode(date, DAILY_POOL);
+  const state = loadDaily();
+  const streak = liveStreak(state, date);
+  const blog = introCall(ep.blogChapter)?.text ?? '';
+  renderDailyCard(ep, state, streak, blog, {
+    onPlay: playDaily,
+    onListen: () => {
+      const id = `blog-man.intro.${ep.blogChapter}`;
+      analytics.daily('listen', { date });
+      void audio.preloadLines([id]).then(() => audio.line(id));
+    },
+  });
+  setCountdown(msToNext(Date.now()));
+  if (dailyViewed !== date) {
+    dailyViewed = date;
+    analytics.daily('view', { date, fighter: ep.player, stage: ep.stage, objective: ep.objective, twists: ep.twists.map((t) => t.kind).join('+'), streak });
+  }
+  dailyEvent('card', { date, ep, streak, best: state.best[date] ?? 0 });
+}
+
+// The countdown is text only (no request): once a second while the menu shows, and a new card when midnight UTC passes.
+setInterval(() => {
+  if (currentScreen() !== 'main') return;
+  if ($('daily-card').dataset.date !== dailyDate()) renderDaily();
+  else setCountdown(msToNext(Date.now()));
+}, 1000);
+
+function playDaily(): void {
+  const date = dailyDate();
+  const ep = dailyEpisode(date, DAILY_POOL);
+  const setup = dailySetup(ep);
+  dailyRun = { ep, setup };
+  chapter = null;
+  analytics.setMode('campaign');
+  analytics.daily('play', { date, fighter: ep.player, stage: ep.stage, objective: ep.objective });
+  void startMatch(setup, true);
+}
+
+/** The episode is over: score it, keep the streak, show both on the results and post the score (a better one only). */
+function dailyFinished(m: Match, ep: DailyEpisode, won: boolean): void {
+  const s = m.state;
+  const me = s.fighters[m.player];
+  const margin =
+    ep.objective === 'ko' ? m.koCount() - m.koTarget : ep.objective === 'quota' ? Math.round(m.quotaDealt() / 10) - (ep.quota ?? 0) : ep.objective === 'streak' ? m.streakBest() - m.streakTarget : 0;
+  const taken = Math.round((m.stats[m.player]?.taken ?? 0) / 10);
+  const score = dailyScore(ep, { won, frames: s.frame, taken, stocksLeft: me?.stocks ?? 0, margin });
+  const before = loadDaily();
+  const after = won ? recordClear(before, ep.date, score) : before;
+  if (won) saveDaily(after);
+  const prevBest = before.best[ep.date] ?? 0;
+  const newBest = won && score > prevBest;
+  const best = after.best[ep.date] ?? 0;
+  const streak = liveStreak(after, ep.date);
+  const panel = renderDailyResults({
+    ep,
+    won,
+    score,
+    best,
+    newBest,
+    streak,
+    longest: after.longest,
+    breakdown: `${formatTime(s.frame)} played, ${taken}% taken.`,
+  });
+  const strip = $('results-body').querySelector('.results-strip');
+  if (strip) strip.after(panel);
+  else $('results-body').prepend(panel);
+  // The night's verdict is heard, not only read: a sting and the crowd (a roar for a new best), or the crowd's groan.
+  audio.synth(won ? 'cheer' : 'alarm', newBest ? 1 : 0.6);
+  if (won) window.setTimeout(() => audio.synth('sting', 0.7), 350);
+  analytics.daily('result', { date: ep.date, won, score, best, streak, taken, seconds: Math.round(s.frame / 60) });
+  dailyEvent('result', { date: ep.date, won, score, best, streak, newBest });
+  void import('./net/daily.ts').then(async (d) => {
+    let mine: Awaited<ReturnType<typeof d.postDaily>> | undefined;
+    if (best > 0) mine = newBest ? await d.postDaily(ep.date, score) : { ...d.selfEntry(best) };
+    const board = await d.readDailyBoard(ep.date, mine);
+    fillBoard(board, d.selfEntry(0).id, d.BOARD_SHOWN);
+    analytics.daily('board', { date: ep.date, rank: board.rank, total: board.total, ok: board.ok });
+    dailyEvent('board', { date: ep.date, rank: board.rank, total: board.total, ok: board.ok, posted: newBest });
+  });
+}
+
 // ------------------------------------------------------------------ match
 
 let selectedAt = 0;
@@ -589,7 +687,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   // (vsWipeFps ~17) and the old race still waited on an 1.8 s clip cap (vsHoldMs ~6 s).
   const audioReady = Promise.all([
     audio.preloadMatch(STAGES[setup.stage].id, m.state.fighters.map((f) => CHARACTERS[f.char].id)),
-    audio.preloadLines(chapter ? [`blog-man.intro.${chapter.id}`] : []),
+    audio.preloadLines(chapter ? [`blog-man.intro.${chapter.id}`] : dailyRun?.setup === setup ? [`blog-man.intro.${dailyRun.ep.blogChapter}`] : []),
     audio.preloadUrls(chapter ? [...chapter.intro, ...chapter.outro].map((l) => l.audio) : []),
   ]).catch((err) => console.error(err));
 
@@ -703,7 +801,7 @@ function beginReady(m: Match): void {
   renderer.stageEvent('start');
   audio.line('announcer.ready');
   commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state) : null;
-  introPending = (chapter && commentator && introCall(chapter.id)) || null;
+  introPending = (commentator && (chapter ? introCall(chapter.id) : dailyRun?.setup === setup ? introCall(dailyRun.ep.blogChapter) : null)) || null;
   audio.playStageBed(STAGES[setup.stage].id);
   audio.setMusicIntensity(audio.shouldBeIntense(m.state.fighters));
   lastActions = m.state.fighters.map((f) => f.action);
@@ -1095,6 +1193,9 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
     if (won) actions.push({ label: 'Continue', primary: true, run: () => pilotCleared(c) });
     else actions.push({ label: 'Retry', primary: true, run: () => startMatch(m.setup, false) });
     actions.push({ label: 'Main menu', run: () => { markPilotSeen('left'); chapter = null; return go('main', spotlight); } });
+  } else if (dailyRun?.setup === m.setup) {
+    actions.push({ label: won ? 'Beat your score' : 'Try again', primary: true, run: () => startMatch(m.setup, false) });
+    actions.push({ label: 'Main menu', run: () => go('main', spotlight) });
   } else if (m.setup.mode === 'campaign' && c) {
     if (won) actions.push({ label: 'Continue', primary: true, run: () => chapterCleared(c) });
     else actions.push({ label: 'Retry', primary: true, run: () => startMatch(m.setup, false) });
@@ -1107,6 +1208,7 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   void go('results', () => {
     endMatch();
     showResults(m, actions, undefined, newLooks);
+    if (dailyRun?.setup === m.setup && m.setup.mode === 'campaign') dailyFinished(m, dailyRun.ep, won);
     audio.playMusic('music-results');
   }).then(() => askOnResults(m));
   const winner = m.state.fighters[m.state.winner];

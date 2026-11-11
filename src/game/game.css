@@ -1525,3 +1525,57 @@ body.pilot-boot .screen { visibility: hidden; }
   .slots .slot { flex-basis: 100%; min-width: 0; }
   .swatch { min-height: 60px; font-size: 11px; }
 }
+
+/* ------------------------------------------------------- Tonight's Episode (campaign/daily.ts, ui/daily.ts) */
+.daily-card {
+  display: grid; gap: 4px; min-width: 0; padding: 10px 14px 8px; border-radius: 8px;
+  border: 1px solid rgba(255, 196, 61, 0.55); border-left: 4px solid var(--gold);
+  background: linear-gradient(90deg, rgba(255, 196, 61, 0.14), rgba(0, 0, 0, 0.35));
+}
+.daily-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.daily-tag { font: 700 14px Oswald, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+.daily-streak { font: 600 13px Oswald, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text); }
+.daily-cast { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.daily-cast i { font: 700 13px Oswald, sans-serif; color: var(--muted); text-transform: uppercase; }
+.daily-head { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255, 255, 255, 0.35); background: #1a0d08; }
+.daily-head.you { border-color: var(--gold); }
+.daily-head.foe { border-color: var(--hot); }
+.daily-title { margin: 0; font: 700 clamp(18px, 2.4vw, 24px) Oswald, sans-serif; text-transform: uppercase; line-height: 1.1; overflow-wrap: anywhere; }
+.daily-stage, .daily-rule, .daily-blog { margin: 0; font-size: 13px; line-height: 1.25; color: var(--muted); overflow-wrap: anywhere; }
+.daily-rule { color: var(--text); font-size: 14px; }
+.daily-blog { font-style: italic; }
+.daily-blog b { font-style: normal; color: var(--gold); }
+.daily-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.daily-actions button { min-height: 44px; min-width: 44px; padding: 8px 14px; }
+.daily-actions .daily-play { flex: 1 1 150px; }
+.daily-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 0; font-size: 12px; color: var(--muted); }
+.daily-best { color: var(--gold); font-weight: 700; }
+
+.daily-results { display: grid; gap: 8px; padding: 12px 14px; border-radius: 8px; border-left: 4px solid var(--gold); background: rgba(255, 196, 61, 0.08); min-width: 0; }
+.daily-results h3 { margin: 0; font: 700 16px Oswald, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); }
+.daily-score { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.daily-score .stat { display: grid; gap: 2px; padding: 6px 12px; background: rgba(0, 0, 0, 0.35); border-radius: 6px; min-width: 0; }
+.daily-score .stat span { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.daily-score .stat strong { font: 700 clamp(20px, 3vw, 30px) Oswald, sans-serif; line-height: 1.1; overflow-wrap: anywhere; }
+.daily-note, .daily-rank { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.daily-rank { font-weight: 700; }
+.daily-board { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.daily-row { display: grid; grid-template-columns: 26px 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.3); }
+.daily-row.me { background: rgba(255, 196, 61, 0.25); outline: 1px solid var(--gold); }
+.daily-row img, .daily-row i { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: #1a0d08; }
+.daily-row b { font-family: Oswald, sans-serif; text-align: right; }
+.daily-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.daily-row strong { font-family: Oswald, sans-serif; }
+.daily-gap { text-align: center; color: var(--muted); line-height: 1; }
+@media (max-height: 600px) {
+  .daily-card .daily-blog, .daily-card .daily-stage { display: none; }
+  .daily-head { width: 30px; height: 30px; }
+}
+
+/* The card is on air: a slow gold sweep; a new best flashes gold on the results. */
+.daily-card { position: relative; overflow: hidden; }
+.daily-card::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(100deg, transparent 35%, rgba(255, 209, 90, 0.16) 50%, transparent 65%); transform: translateX(-100%); animation: daily-sweep 6s ease-in-out infinite; }
+@keyframes daily-sweep { 0%, 60% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.daily-results.new-best .daily-score .stat:first-child { animation: daily-flash 1.2s ease-out 2; }
+@keyframes daily-flash { 0% { background: rgba(255, 209, 90, 0.75); transform: scale(1.06); } 100% { background: rgba(0, 0, 0, 0.35); transform: none; } }
+@media (prefers-reduced-motion: reduce) { .daily-card::after, .daily-results.new-best .daily-score .stat:first-child { animation: none; } }
