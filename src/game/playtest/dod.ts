@@ -5399,6 +5399,9 @@ class Run {
       const art = prompt.querySelector('.tap-art img')?.getBoundingClientRect();
       if (!pitch || !art || art.width < 40) t.problem('bug', `the Tap to play card has no pitch line or fighter art ${where}`);
       if (!cta || cta.height < 44 || cta.width < 44 || cta.left < 0 || cta.right > innerWidth || cta.bottom > innerHeight) t.problem('bug', `the Play button is under 44 px or off screen ${where}`);
+      const bd = prompt.querySelector('.tap-backdrop img')?.getBoundingClientRect();
+      if (!bd || bd.width < innerWidth - 1 || bd.height < innerHeight - 1) t.problem('bug', `the Tap to play key-art backdrop does not fill the screen ${where}`);
+      else t.event('key-art-backdrop', `roster key art fills ${Math.round(bd.width)}x${Math.round(bd.height)} behind the card ${where}`);
       if (document.documentElement.scrollWidth > innerWidth + 1) t.problem('bug', `the Tap to play card scrolls sideways ${where}`);
       t.event('guest-card', `pitch "${pitch}", Play as guest ${cta ? Math.round(cta.width) + 'x' + Math.round(cta.height) : 'missing'}, art ${art ? Math.round(art.width) + 'x' + Math.round(art.height) : 'missing'} ${where}`);
       t.event('prompt-shown', `${where}, ${innerWidth}x${innerHeight} ${innerWidth > innerHeight ? 'landscape' : 'portrait'}`);
