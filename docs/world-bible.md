@@ -323,9 +323,13 @@ calls are the others.
   self-destruct, big hit, combo, danger, shield break, hazard, stage-event, time-low, lull); Blog Man intro after Go
   in campaign; pause / settings without leaving the show's voice.
 - **On their own:** calls from sim events; menu ticker lines.
-- **Ambient:** ducked music under voice; procedural crowd, sting, alarm, thud when files are missing.
+- **Ambient:** ducked music (~8 dB) under any voice line, restored over 0.4 s; combat/movement SFX use four takes each
+  with no immediate repeat and 5–10% pitch spread; landings follow the stage surface (metal / wood / stone / soft);
+  crowd ooh on heavy hits, roar on KOs, rising cheer on comebacks (never the same reaction twice in a row); layered
+  stage beds already lift to intense on last stock / ≥100% with a final-KO sting. Procedural sting/alarm/thud when a
+  file is missing.
 - **Over time:** Orchestrator hosts S1; Blog Man from S2; rival booth in S4; commentary still needs recorded takes for
-  many lines.
+  many lines. Dedicated ambience loops (not reused music) remain a gap listed in `content/stage-beds.json`.
 
 **Where the live world falls short today:** City Top's soft timed beat (vertical-slice #1); hazard-off nights need the
 named quiet routines above (Local Affiliate riders, Red Carpet motor ticks); booth and many Season 3+ episode lines

@@ -13,7 +13,25 @@
       "loop": false,
       "duration": null,
       "influence": 0.55
-    }
+    },
+    "takes": [
+      {
+        "id": "hit-light.0",
+        "file": "/audio/sfx/hit-light.mp3"
+      },
+      {
+        "id": "hit-light.1",
+        "file": "/audio/sfx/hit-light-1.mp3"
+      },
+      {
+        "id": "hit-light.2",
+        "file": "/audio/sfx/hit-light-2.mp3"
+      },
+      {
+        "id": "hit-light.3",
+        "file": "/audio/sfx/hit-light-3.mp3"
+      }
+    ]
   },
   {
     "id": "hit-medium",
@@ -29,7 +47,25 @@
       "loop": false,
       "duration": null,
       "influence": 0.55
-    }
+    },
+    "takes": [
+      {
+        "id": "hit-medium.0",
+        "file": "/audio/sfx/hit-medium.mp3"
+      },
+      {
+        "id": "hit-medium.1",
+        "file": "/audio/sfx/hit-medium-1.mp3"
+      },
+      {
+        "id": "hit-medium.2",
+        "file": "/audio/sfx/hit-medium-2.mp3"
+      },
+      {
+        "id": "hit-medium.3",
+        "file": "/audio/sfx/hit-medium-3.mp3"
+      }
+    ]
   },
   {
     "id": "hit-heavy",
@@ -45,7 +81,25 @@
       "loop": false,
       "duration": null,
       "influence": 0.55
-    }
+    },
+    "takes": [
+      {
+        "id": "hit-heavy.0",
+        "file": "/audio/sfx/hit-heavy.mp3"
+      },
+      {
+        "id": "hit-heavy.1",
+        "file": "/audio/sfx/hit-heavy-1.mp3"
+      },
+      {
+        "id": "hit-heavy.2",
+        "file": "/audio/sfx/hit-heavy-2.mp3"
+      },
+      {
+        "id": "hit-heavy.3",
+        "file": "/audio/sfx/hit-heavy-3.mp3"
+      }
+    ]
   },
   {
     "id": "hit-shield",
@@ -61,7 +115,25 @@
       "loop": false,
       "duration": null,
       "influence": 0.55
-    }
+    },
+    "takes": [
+      {
+        "id": "hit-shield.0",
+        "file": "/audio/sfx/hit-shield.mp3"
+      },
+      {
+        "id": "hit-shield.1",
+        "file": "/audio/sfx/hit-shield-1.mp3"
+      },
+      {
+        "id": "hit-shield.2",
+        "file": "/audio/sfx/hit-shield-2.mp3"
+      },
+      {
+        "id": "hit-shield.3",
+        "file": "/audio/sfx/hit-shield-3.mp3"
+      }
+    ]
   },
   {
     "id": "shield-break",
@@ -93,7 +165,25 @@
       "loop": false,
       "duration": null,
       "influence": 0.55
-    }
+    },
+    "takes": [
+      {
+        "id": "swing-light.0",
+        "file": "/audio/sfx/swing-light.mp3"
+      },
+      {
+        "id": "swing-light.1",
+        "file": "/audio/sfx/swing-light-1.mp3"
+      },
+      {
+        "id": "swing-light.2",
+        "file": "/audio/sfx/swing-light-2.mp3"
+      },
+      {
+        "id": "swing-light.3",
+        "file": "/audio/sfx/swing-light-3.mp3"
+      }
+    ]
   },
   {
     "id": "swing-heavy",
@@ -109,7 +199,25 @@
       "loop": false,
       "duration": null,
       "influence": 0.55
-    }
+    },
+    "takes": [
+      {
+        "id": "swing-heavy.0",
+        "file": "/audio/sfx/swing-heavy.mp3"
+      },
+      {
+        "id": "swing-heavy.1",
+        "file": "/audio/sfx/swing-heavy-1.mp3"
+      },
+      {
+        "id": "swing-heavy.2",
+        "file": "/audio/sfx/swing-heavy-2.mp3"
+      },
+      {
+        "id": "swing-heavy.3",
+        "file": "/audio/sfx/swing-heavy-3.mp3"
+      }
+    ]
   },
   {
     "id": "ko",
@@ -125,7 +233,115 @@
       "loop": false,
       "duration": null,
       "influence": 0.55
-    }
+    },
+    "takes": [
+      {
+        "id": "ko.0",
+        "file": "/audio/sfx/ko.mp3"
+      },
+      {
+        "id": "ko.1",
+        "file": "/audio/sfx/ko-1.mp3"
+      },
+      {
+        "id": "ko.2",
+        "file": "/audio/sfx/ko-2.mp3"
+      },
+      {
+        "id": "ko.3",
+        "file": "/audio/sfx/ko-3.mp3"
+      }
+    ]
+  },
+  {
+    "id": "crowd-ooh",
+    "group": "crowd",
+    "text": "Live studio audience reacting with a short surprised ooh gasp at a big hit. One-shot.",
+    "loop": false,
+    "duration": null,
+    "influence": 0.55,
+    "volume": 0.7,
+    "file": "/audio/sfx/crowd-ooh.mp3",
+    "take": {
+      "text": "Live studio audience reacting with a short surprised ooh gasp at a big hit. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "crowd-ooh.0",
+        "file": "/audio/sfx/crowd-ooh.mp3"
+      },
+      {
+        "id": "crowd-ooh.1",
+        "file": "/audio/sfx/crowd-ooh-1.mp3"
+      },
+      {
+        "id": "crowd-ooh.2",
+        "file": "/audio/sfx/crowd-ooh-2.mp3"
+      }
+    ]
+  },
+  {
+    "id": "crowd-roar",
+    "group": "crowd",
+    "text": "Live studio audience roaring at a knockout, big cheer swell. One-shot.",
+    "loop": false,
+    "duration": null,
+    "influence": 0.55,
+    "volume": 0.85,
+    "file": "/audio/sfx/crowd-roar.mp3",
+    "take": {
+      "text": "Live studio audience roaring at a knockout, big cheer swell. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "crowd-roar.0",
+        "file": "/audio/sfx/crowd-roar.mp3"
+      },
+      {
+        "id": "crowd-roar.1",
+        "file": "/audio/sfx/crowd-roar-1.mp3"
+      },
+      {
+        "id": "crowd-roar.2",
+        "file": "/audio/sfx/crowd-roar-2.mp3"
+      }
+    ]
+  },
+  {
+    "id": "crowd-rising",
+    "group": "crowd",
+    "text": "Live studio crowd rising cheer for a comeback. One-shot.",
+    "loop": false,
+    "duration": null,
+    "influence": 0.55,
+    "volume": 0.8,
+    "file": "/audio/sfx/crowd-rising.mp3",
+    "take": {
+      "text": "Live studio crowd rising cheer for a comeback. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "crowd-rising.0",
+        "file": "/audio/sfx/crowd-rising.mp3"
+      },
+      {
+        "id": "crowd-rising.1",
+        "file": "/audio/sfx/crowd-rising-1.mp3"
+      },
+      {
+        "id": "crowd-rising.2",
+        "file": "/audio/sfx/crowd-rising-2.mp3"
+      }
+    ]
   },
   {
     "id": "jump",
@@ -141,7 +357,25 @@
       "loop": false,
       "duration": null,
       "influence": 0.55
-    }
+    },
+    "takes": [
+      {
+        "id": "jump.0",
+        "file": "/audio/sfx/jump.mp3"
+      },
+      {
+        "id": "jump.1",
+        "file": "/audio/sfx/jump-1.mp3"
+      },
+      {
+        "id": "jump.2",
+        "file": "/audio/sfx/jump-2.mp3"
+      },
+      {
+        "id": "jump.3",
+        "file": "/audio/sfx/jump-3.mp3"
+      }
+    ]
   },
   {
     "id": "land",
@@ -157,7 +391,127 @@
       "loop": false,
       "duration": null,
       "influence": 0.55
-    }
+    },
+    "takes": [
+      {
+        "id": "land.0",
+        "file": "/audio/sfx/land.mp3"
+      },
+      {
+        "id": "land.1",
+        "file": "/audio/sfx/land-1.mp3"
+      },
+      {
+        "id": "land.2",
+        "file": "/audio/sfx/land-2.mp3"
+      },
+      {
+        "id": "land.3",
+        "file": "/audio/sfx/land-3.mp3"
+      }
+    ]
+  },
+  {
+    "id": "land-wood",
+    "group": "movement",
+    "text": "Sneakers landing on a hardwood floor, a short warm wood thud. One-shot, dry.",
+    "loop": false,
+    "duration": null,
+    "influence": 0.55,
+    "volume": 0.45,
+    "file": "/audio/sfx/land-wood.mp3",
+    "take": {
+      "text": "Sneakers landing on a hardwood floor, a short warm wood thud. One-shot, dry.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "land-wood.0",
+        "file": "/audio/sfx/land-wood.mp3"
+      },
+      {
+        "id": "land-wood.1",
+        "file": "/audio/sfx/land-wood-1.mp3"
+      },
+      {
+        "id": "land-wood.2",
+        "file": "/audio/sfx/land-wood-2.mp3"
+      },
+      {
+        "id": "land-wood.3",
+        "file": "/audio/sfx/land-wood-3.mp3"
+      }
+    ]
+  },
+  {
+    "id": "land-stone",
+    "group": "movement",
+    "text": "Sneakers landing on stone or rock ground, a short hard dusty thud. One-shot.",
+    "loop": false,
+    "duration": null,
+    "influence": 0.55,
+    "volume": 0.45,
+    "file": "/audio/sfx/land-stone.mp3",
+    "take": {
+      "text": "Sneakers landing on stone or rock ground, a short hard dusty thud. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "land-stone.0",
+        "file": "/audio/sfx/land-stone.mp3"
+      },
+      {
+        "id": "land-stone.1",
+        "file": "/audio/sfx/land-stone-1.mp3"
+      },
+      {
+        "id": "land-stone.2",
+        "file": "/audio/sfx/land-stone-2.mp3"
+      },
+      {
+        "id": "land-stone.3",
+        "file": "/audio/sfx/land-stone-3.mp3"
+      }
+    ]
+  },
+  {
+    "id": "land-soft",
+    "group": "movement",
+    "text": "Sneakers landing on a soft spongy surface, a muted cushioned thud. One-shot.",
+    "loop": false,
+    "duration": null,
+    "influence": 0.55,
+    "volume": 0.45,
+    "file": "/audio/sfx/land-soft.mp3",
+    "take": {
+      "text": "Sneakers landing on a soft spongy surface, a muted cushioned thud. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "land-soft.0",
+        "file": "/audio/sfx/land-soft.mp3"
+      },
+      {
+        "id": "land-soft.1",
+        "file": "/audio/sfx/land-soft-1.mp3"
+      },
+      {
+        "id": "land-soft.2",
+        "file": "/audio/sfx/land-soft-2.mp3"
+      },
+      {
+        "id": "land-soft.3",
+        "file": "/audio/sfx/land-soft-3.mp3"
+      }
+    ]
   },
   {
     "id": "ledge",
@@ -173,7 +527,25 @@
       "loop": false,
       "duration": null,
       "influence": 0.55
-    }
+    },
+    "takes": [
+      {
+        "id": "ledge.0",
+        "file": "/audio/sfx/ledge.mp3"
+      },
+      {
+        "id": "ledge.1",
+        "file": "/audio/sfx/ledge-1.mp3"
+      },
+      {
+        "id": "ledge.2",
+        "file": "/audio/sfx/ledge-2.mp3"
+      },
+      {
+        "id": "ledge.3",
+        "file": "/audio/sfx/ledge-3.mp3"
+      }
+    ]
   },
   {
     "id": "dodge",
@@ -189,7 +561,25 @@
       "loop": false,
       "duration": null,
       "influence": 0.55
-    }
+    },
+    "takes": [
+      {
+        "id": "dodge.0",
+        "file": "/audio/sfx/dodge.mp3"
+      },
+      {
+        "id": "dodge.1",
+        "file": "/audio/sfx/dodge-1.mp3"
+      },
+      {
+        "id": "dodge.2",
+        "file": "/audio/sfx/dodge-2.mp3"
+      },
+      {
+        "id": "dodge.3",
+        "file": "/audio/sfx/dodge-3.mp3"
+      }
+    ]
   },
   {
     "id": "respawn",

@@ -28,11 +28,12 @@
     {
       "id": "match",
       "title": "A full 1v1 versus match against the CPU (2 stocks), to the results screen, its analytics events and the feedback card",
-      "description": "options: stage, fighter (ids) to play specific content. After the results: the \"How was that fight?\" card appears and is dismissed, and the Hawkes Analytics events of the run (screen, fighter_pick, stage_pick, level_start, death, level_end) are shown going out with the build and env (the SDK's debug log). Also logs fighter voice barks (effort / hurt / ko / taunt) from dod:fighter-voice when Season 1 fighters are in the match.",
+      "description": "options: stage, fighter (ids) to play specific content. After the results: the \"How was that fight?\" card appears and is dismissed, and the Hawkes Analytics events of the run (screen, fighter_pick, stage_pick, level_start, death, level_end) are shown going out with the build and env (the SDK's debug log). Also logs fighter voice barks (effort / hurt / ko / taunt) from dod:fighter-voice when Season 1 fighters are in the match. Live-show mix: sound-take ids (no back-to-back repeats), music-calm / music-intense, crowd-ooh / crowd-roar / crowd-rising, music-duck / music-unduck (~8 dB, restore 400 ms). Metrics soundTakes, soundTakeRepeats, crowdRoars, musicDucks.",
       "seconds": 160,
       "tags": [
         "full",
-        "analytics"
+        "analytics",
+        "sound"
       ]
     },
     {
