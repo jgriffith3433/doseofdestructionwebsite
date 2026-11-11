@@ -20,7 +20,8 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 1.0,
-   "autoSizeFrom": "stand"
+   "autoSizeFrom": "stand",
+   "feet": [0, -1, -3, -11, -3, -4, -3, -9, -4, -3, -14, -3, -15, -5, -4, -8, -5, -11, -3, -15, -3, -2, -1, 0]
   },
   "walk": {
    "file": "walk.webp",
@@ -41,7 +42,11 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 0.99,
-   "autoSizeFrom": "stride"
+   "autoSizeFrom": "stride",
+   "feet": [-3, -2, -2, -3, -1, -2, -2, -4, -3, -2, -2, -2, 0, -2, -3, -4, -4, -2, -2, -3, -1, -2, -3, -4],
+   "stride": 629.25,
+   "slip": 0.75,
+   "travel": [33.25, 30, 11.5, 43.75, 27.5, 10.5, 25.5, 43.75, 13.5, 31.5, 13, 42.5, 36.5, 30.5, 15, 43.75, 17.5, 13, 5.25, 40.5, 17.5, 24.5, 22.5, 36.5]
   },
   "fall": {
    "file": "fall.webp",
@@ -62,7 +67,8 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 1.001,
-   "autoSizeFrom": "air"
+   "autoSizeFrom": "air",
+   "feet": [-12, -12, -13, -12, -7, -4, -3, -1, -3, -25, -31, -29, -2, -9, -15, -14, -11, -3, -2, -4, -25, -22, -2, -2]
   },
   "shield": {
    "file": "shield.webp",
@@ -83,7 +89,8 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 1.0,
-   "autoSizeFrom": "guard"
+   "autoSizeFrom": "guard",
+   "feet": [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -2, -2, -1, -2, -2, -2, -2, -1, 0, -1, 0, -1, -1, -1]
   },
   "ledge": {
    "file": "ledge.webp",
@@ -104,7 +111,8 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 0.998,
-   "autoSizeFrom": "hang"
+   "autoSizeFrom": "hang",
+   "feet": [-2, -3, -8, -17, -39, -51, -103, -76, -41, -29, -13, -3, -3, -5, -23, -51, -118, -81, -36, -15, -8, -3, -1, -1]
   },
   "dizzy": {
    "file": "dizzy.webp",
@@ -125,7 +133,8 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 1.0,
-   "autoSizeFrom": "dizzy"
+   "autoSizeFrom": "dizzy",
+   "feet": [-3, -5, -4, -1, -1, -3, -2, -5, -6, -2, -1, -6, -2, -6, -4, -1, -5, -2, -4, -4, -2, 0, -8, -3]
   },
   "helpless": {
    "file": "helpless.webp",
@@ -146,7 +155,8 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 1.0,
-   "autoSizeFrom": "tumble"
+   "autoSizeFrom": "tumble",
+   "feet": [-39, -48, -66, -59, -25, -19, -21, -17, -14, -20, -12, -19, -19, -15, -17, -15, -15, -3, -13, -1, -19, -13, -27, -26]
   },
   "hurt": {
    "file": "hurt.webp",
@@ -167,7 +177,8 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 0.957,
-   "autoSizeFrom": "hurt"
+   "autoSizeFrom": "hurt",
+   "feet": [-2, -3, -4, -10, -3, -21, -27, -29, -33, -38, -39, -37, -34, -32, -28, -27, -22, -17, -13, -9, -6, -3, -2, -1]
   },
   "jumpsquat": {
    "file": "jumpsquat.webp",
@@ -191,7 +202,8 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 1.0,
-   "autoSizeFrom": "stand"
+   "autoSizeFrom": "stand",
+   "feet": [-3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -1, -1]
   },
   "land": {
    "file": "land.webp",
@@ -215,7 +227,8 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 0.999,
-   "autoSizeFrom": "air"
+   "autoSizeFrom": "air",
+   "feet": [-58, -22, -22, -13, -12, -10, -9, -9, -9, -6, -2, -2, -2, -1, -12, -12, -12, -12, -12, -12, -12, -12, -12, -12]
   },
   "roll": {
    "file": "roll.webp",
@@ -239,7 +252,8 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 1.0,
-   "autoSizeFrom": "stand"
+   "autoSizeFrom": "stand",
+   "feet": [-2, -2, -2, -3, -3, -3, -2, -1, -2, -2, -28, -3, -3, -4, -6, -4, -18, -27, -3, -3, -2, -3, -2, -2]
   },
   "dodge": {
    "file": "dodge.webp",
@@ -263,7 +277,8 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 1.0,
-   "autoSizeFrom": "stand"
+   "autoSizeFrom": "stand",
+   "feet": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   },
   "airdodge": {
    "file": "airdodge.webp",
@@ -284,7 +299,8 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 1.001,
-   "autoSizeFrom": "air"
+   "autoSizeFrom": "air",
+   "feet": [-2, -2, -12, -11, -2, -3, -3, -3, -11, -10, -1, -6, -4, -4, -11, -5, 0, -3, -1, -3, -8, -10, -8, -3]
   },
   "climb": {
    "file": "climb.webp",
@@ -308,7 +324,8 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 0.998,
-   "autoSizeFrom": "hang"
+   "autoSizeFrom": "hang",
+   "feet": [-1, -1, -1, -7, -10, -15, -33, -47, -120, -120, -125, -129, -129, -129, -123, -102, -56, -40, -17, -6, -6, -4, -1, -1]
   },
   "jab": {
    "file": "jab.webp",
@@ -332,7 +349,8 @@
    "hit": 16,
    "size": 1.0,
    "autoSize": 1.0,
-   "autoSizeFrom": "stand"
+   "autoSizeFrom": "stand",
+   "feet": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   },
   "ftilt": {
    "file": "ftilt.webp",
@@ -356,7 +374,8 @@
    "hit": 13,
    "size": 1.0,
    "autoSize": 1.0,
-   "autoSizeFrom": "stand"
+   "autoSizeFrom": "stand",
+   "feet": [0, 0, -3, -10, -10, -10, -11, -10, -11, -11, -11, -11, -11, -11, -11, -11, -11, -11, -11, -10, -10, -5, -2, -1]
   },
   "utilt": {
    "file": "utilt.webp",
@@ -380,7 +399,8 @@
    "hit": 6,
    "size": 1.0,
    "autoSize": 0.998,
-   "autoSizeFrom": "stand"
+   "autoSizeFrom": "stand",
+   "feet": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   },
   "fsmash": {
    "file": "fsmash.webp",
@@ -404,7 +424,8 @@
    "hit": 11,
    "size": 1.0,
    "autoSize": 0.975,
-   "autoSizeFrom": "stand"
+   "autoSizeFrom": "stand",
+   "feet": [-4, -4, -4, -4, -4, -4, -4, -4, -3, -3, -3, -3, -2, -3, -2, -3, -3, -3, -2, -4, -5, -5, -4, -4]
   },
   "usmash": {
    "file": "usmash.webp",
@@ -428,7 +449,8 @@
    "hit": 9,
    "size": 1.0,
    "autoSize": 0.996,
-   "autoSizeFrom": "stand"
+   "autoSizeFrom": "stand",
+   "feet": [-3, -3, -3, -3, -3, -3, -3, -2, -1, -1, -1, -1, -2, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3]
   },
   "dsmash": {
    "file": "dsmash.webp",
@@ -452,7 +474,8 @@
    "hit": 10,
    "size": 1.0,
    "autoSize": 1.0,
-   "autoSizeFrom": "stand"
+   "autoSizeFrom": "stand",
+   "feet": [-2, -2, -5, -5, -4, -3, -1, 0, -2, -1, 0, 0, -2, 0, -2, -1, 0, 0, -3, -4, -5, -5, -4, -2]
   },
   "nair": {
    "file": "nair.webp",
@@ -473,7 +496,8 @@
    "hit": 18,
    "size": 1.0,
    "autoSize": 0.846,
-   "autoSizeFrom": "air"
+   "autoSizeFrom": "air",
+   "feet": [-2, -3, -7, -7, -8, -7, -5, -4, -1, 0, -1, -1, -1, -1, -1, -1, -1, -4, -5, -7, -9, -7, -6, -3]
   },
   "fair": {
    "file": "fair.webp",
@@ -497,7 +521,8 @@
    "hit": 13,
    "size": 1.0,
    "autoSize": 0.846,
-   "autoSizeFrom": "air"
+   "autoSizeFrom": "air",
+   "feet": [-6, -6, -5, -3, -1, -8, -8, -26, -34, -35, -37, -38, -38, -37, -37, -35, -35, -32, -26, -21, -16, -16, -13, -9]
   },
   "bair": {
    "file": "bair.webp",
@@ -521,7 +546,8 @@
    "hit": 7,
    "size": 1.0,
    "autoSize": 0.846,
-   "autoSizeFrom": "air"
+   "autoSizeFrom": "air",
+   "feet": [-60, -65, -69, -93, -100, -105, -98, -98, -94, -77, -23, -49, -31, -1, -21, -97, -102, -91, -82, -80, -66, -9, -15, -46]
   },
   "uair": {
    "file": "uair.webp",
@@ -545,7 +571,8 @@
    "hit": 5,
    "size": 1.0,
    "autoSize": 0.84,
-   "autoSizeFrom": "air"
+   "autoSizeFrom": "air",
+   "feet": [-3, -6, -8, -26, -65, -114, -137, -119, -69, -49, -45, -39, -41, -46, -63, -82, -96, -80, -77, -68, -60, -21, -3, 0]
   },
   "nspecial": {
    "file": "nspecial.webp",
@@ -569,7 +596,8 @@
    "hit": 9,
    "size": 1.0,
    "autoSize": 1.002,
-   "autoSizeFrom": "stand"
+   "autoSizeFrom": "stand",
+   "feet": [-3, -3, -2, -2, -3, -4, -2, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -5, -5, -4, -3, -2, -3, -3]
   },
   "upb": {
    "file": "upb.webp",
@@ -593,7 +621,8 @@
    "hit": 6,
    "size": 1.0,
    "autoSize": 1.0,
-   "autoSizeFrom": "stand"
+   "autoSizeFrom": "stand",
+   "feet": [-1, -1, -1, -1, -2, -35, -117, -145, -142, -159, -157, -135, -150, -156, -124, -103, -87, -72, -76, -13, -13, -13, -16, -32]
   },
   "crouch": {
    "file": "crouch.webp",
@@ -616,7 +645,8 @@
    "hit": null,
    "size": 0.73,
    "autoSize": 0.996,
-   "autoSizeFrom": "crouch"
+   "autoSizeFrom": "crouch",
+   "feet": [-1, -1, -1, -2, -2, -2, -2, -3, -11, -10, -2, 0, -1, -1, -1, -2, -2, -2, -2, -2, -10, -9, -2, 0]
   },
   "jump": {
    "file": "jump.webp",
@@ -639,7 +669,8 @@
    "hit": null,
    "size": 1.0,
    "autoSize": 1.134,
-   "autoSizeFrom": "crouch"
+   "autoSizeFrom": "crouch",
+   "feet": [-1, -36, -58, -72, -79, -81, -78, -74, -69, -62, -56]
   },
   "dtilt": {
    "file": "dtilt.webp",
@@ -665,7 +696,8 @@
    "hit": 15,
    "size": 0.74,
    "autoSize": 1.002,
-   "autoSizeFrom": "crouch"
+   "autoSizeFrom": "crouch",
+   "feet": [-5, -5, -5, -5, -16, -25, -20, -17, -16, -16, -16, -16, -16, -16, -16, -16, -16, -17, -17, -4, -1, -6, -6, -6]
   },
   "dair": {
    "file": "dair.webp",
@@ -688,7 +720,8 @@
    "hit": 17,
    "size": 0.93,
    "autoSize": 0.846,
-   "autoSizeFrom": "air"
+   "autoSizeFrom": "air",
+   "feet": [-46, -47, -2, -1, -37, -20, -8, -20, -4, -1, -36, -8, -16, -30, -2, -3, -32, -8, -9, -41, -10, -1, -14, -23]
   }
  },
  "idleScale": 0.6276150627615062,

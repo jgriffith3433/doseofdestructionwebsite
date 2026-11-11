@@ -37,7 +37,7 @@ import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
 import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
-import { loadAnimSet } from '../render/anims.ts';
+import { clipFrame, feetLift, loadAnimSet, pickClip, type AnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import { BUFFER_FRAMES, COYOTE_FRAMES, type SimEvent } from '../sim/step.ts';
 import { onlineReady } from '../net/loader.ts';
@@ -269,12 +269,51 @@ class Run {
   /** Animation over time (studio rule 5): each match's per-frame state is checked against the motion. */
   private trace = new AnimTrace();
   private traceFrames = 0;
+  /** Clip sets of the fighters seen (filled by checkFighter), for the feet check. */
+  private readonly feetSets = new Map<string, AnimSet>();
+  /** Per fighter this match: the worst sole-to-floor gap in sheet pixels as drawn (after the lift), and without it. */
+  private feetGap = new Map<string, { worst: number; idle: number; raw: number; clip: string }>();
+
+  /** Feet on the floor (studio rule 4): each grounded fighter's sole gap in the frame the renderer draws. */
+  private sampleFeet(m: Match): void {
+    for (const f of m.state.fighters) {
+      if (!f.grounded || f.hitlag > 0) continue;
+      const id = CHARACTERS[f.char].id;
+      const set = this.feetSets.get(id);
+      if (!set) continue;
+      const pick = pickClip(f, set);
+      if (!pick || !pick.exact || !pick.clip.feet) continue;
+      const i = clipFrame(f, pick);
+      const raw = pick.clip.feet[i];
+      if (raw == null) continue;
+      const lift = feetLift(f, pick, i);
+      // Only floor clips are corrected; a grounded attack or hurt frame has its own pose.
+      if (lift === 0 && raw !== 0 && pick.key !== 'idle' && pick.key !== 'walk' && pick.key !== 'land' && pick.key !== 'crouch') continue;
+      const gap = Math.abs(raw - lift);
+      const g = this.feetGap.get(id) ?? { worst: 0, idle: 0, raw: 0, clip: '' };
+      g.raw = Math.max(g.raw, Math.abs(raw));
+      if (gap > g.worst) { g.worst = gap; g.clip = pick.key; }
+      if (pick.key === 'idle') g.idle = Math.max(g.idle, gap);
+      this.feetGap.set(id, g);
+    }
+  }
+
+  private reportFeet(): void {
+    for (const [id, g] of this.feetGap) {
+      const detail = { fighter: id, worst: g.worst, idle: g.idle, withoutFit: g.raw, clip: g.clip };
+      this.t.event('feet-gap', `${id}: worst ${g.worst}px (idle ${g.idle}px, ${g.raw}px before the fit) in ${g.clip || 'no floor clip'}`);
+      window.dispatchEvent(new CustomEvent('dod:feet-gap', { detail }));
+      if (g.idle > 2) this.t.problem('bug', `${id}: idle feet ${g.idle}px off the floor (over 2px)`);
+      if (g.worst > 6) this.t.problem('polish', `${id}: feet ${g.worst}px off the floor in ${g.clip}`);
+    }
+  }
 
   private onTick(m: Match, events: SimEvent[]): void {
     const s = m.state;
     const me = m.player;
     if (m !== this.seen) this.onMatchStart(m);
     this.traceFrames++;
+    this.sampleFeet(m);
     for (const p of this.trace.check(s)) {
       this.t.problem('bug', `animation over time on ${STAGES[s.stage].name}: ${p.text}`);
     }
@@ -380,6 +419,7 @@ class Run {
       const used = [...this.specialsUsed].map((x) => CHARACTERS[m.state.fighters[me].char].moves[x].name);
       this.t.event('specials-used', `${CHARACTERS[m.state.fighters[me].char].name} used ${used.length} different specials this match: ${used.join(', ') || 'none'}`);
       this.t.metric('specialsUsed', used.length);
+      this.reportFeet();
       this.t.event('anim-trace', `${this.traceFrames} frames traced, ${this.trace.problems.length} state/motion mismatches`);
     }
     this.t.progress(this.progressNow());
@@ -396,6 +436,7 @@ class Run {
     this.seen = m;
     this.trace = new AnimTrace();
     this.traceFrames = 0;
+    this.feetGap = new Map();
     this.lastHitFrame = m.state.frame;
     this.quietWarned = false;
     this.overSeen = false;
@@ -505,6 +546,7 @@ class Run {
       if (!(await exists(url))) this.t.problem('bug', `${c.name}: missing image ${url}`);
     }
     const set = await loadAnimSet(id);
+    if (set) this.feetSets.set(id, set);
     if (!set) {
       this.t.problem('warning', `${c.name}: no animation clips (shows the still image only)`);
     } else {
