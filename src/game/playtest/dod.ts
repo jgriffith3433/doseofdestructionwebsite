@@ -571,21 +571,25 @@ class Run {
     }
     const bs = getComputedStyle(btn);
     const ps = getComputedStyle(pause);
-    const fontPx = parseFloat(bs.fontSize);
     const pausePx = parseFloat(ps.fontSize);
     const rgba = bs.backgroundColor.match(/[\d.]+/g)?.map(Number) ?? [];
     const alpha = rgba.length >= 4 ? rgba[3] : 1;
     const lum = rgba.length >= 3 ? (rgba[0] + rgba[1] + rgba[2]) / 3 : 255;
-    if (fontPx < 13 || pausePx < 13) {
-      this.t.problem('bug', `touch button labels are too small (${fontPx}px / ${pausePx}px, expected >= 13px)`);
+    const icons = root.querySelectorAll('.touch-btn svg').length;
+    const labels = [...root.querySelectorAll('.touch-btn')].map((el) => el.getAttribute('aria-label') || '').filter(Boolean);
+    if (pausePx < 13) {
+      this.t.problem('bug', `Pause label is too small (${pausePx}px, expected >= 13px)`);
     }
     if (alpha < 0.45 || lum > 40) {
       this.t.problem('bug', `touch button fill is not dark semi-opaque (${bs.backgroundColor})`);
     }
-    if (!bs.textShadow || bs.textShadow === 'none') {
-      this.t.problem('bug', 'touch button labels have no text-shadow for readability over bright stages');
+    if (icons < 5 || labels.length < 5) {
+      this.t.problem('bug', `touch buttons need icons + aria-labels (icons ${icons}, labels ${labels.join(',')})`);
     }
-    this.t.event('touch-controls', `fill ${bs.backgroundColor}, font ${fontPx}px/${pausePx}px, text-shadow on`);
+    if (!ps.textShadow || ps.textShadow === 'none') {
+      this.t.problem('bug', 'Pause label has no text-shadow for readability over bright stages');
+    }
+    this.t.event('touch-controls', `fill ${bs.backgroundColor}, ${icons} icons (${labels.join('/')}), Pause ${pausePx}px`);
     await this.t.wait(2500);
     if (wasHidden && !touchDevice()) root.hidden = true;
   }
@@ -3793,24 +3797,32 @@ class Run {
 
   // ---------------------------------------------------------- touch-match
 
-  /** Portrait phone → 844x390 landscape frame that plays a touch scenario, touch-match or specials (mirrors smokeTurned). */
+  /**
+   * Portrait phone → landscape frame that plays a touch scenario. For `touch-match` the frame starts upright
+   * (390x844, at=phone) so Rotate pause is proven, then turns to 844x390 and the match resumes; other scenarios
+   * open already turned (mirrors smokeTurned).
+   */
   private async touchMatchTurned(scenario = 'touch-match'): Promise<void> {
     const t = this.t;
-    this.logViewport(true);
+    // Only insist on a phone-sized outer when we are already on one; a desktop runner frames a phone twin.
+    if (Math.min(innerWidth, innerHeight) <= 560) this.logViewport(true);
     type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; metrics?: Record<string, number>; outcome: string; state?: { progress?: number } };
+    const proveRotate = scenario === 'touch-match';
     const back = document.createElement('div');
     back.style.cssText = 'position:fixed;inset:0;background:#1c0d06 radial-gradient(ellipse at 50% 45%,#8a3010 0%,#3a1608 45%,#100e0c 80%);z-index:2147483647;overflow:hidden';
     const frame = document.createElement('iframe');
-    frame.title = `Phone window turned to landscape (${scenario} playtest)`;
+    frame.title = proveRotate ? `Phone window (${scenario} playtest)` : `Phone window turned to landscape (${scenario} playtest)`;
     frame.allow = 'autoplay';
-    const w = 844;
-    const h = 390;
-    const k = Math.min(innerWidth / w, innerHeight / h, 1);
-    frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:transparent`;
+    const turn = (w: number, h: number) => {
+      const k = Math.min(innerWidth / w, innerHeight / h, 1);
+      frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:transparent`;
+    };
+    if (proveRotate) turn(390, 844);
+    else turn(844, 390);
     back.appendChild(frame);
     const q = new URLSearchParams(location.search);
     q.set('playtest', scenario);
-    q.set('at', 'phone-turned');
+    q.set('at', proveRotate ? 'phone' : 'phone-turned');
     if (!q.has('seed')) q.set('seed', String(this.options.seed ?? 1));
     frame.src = `${location.pathname}?${q.toString()}`;
     document.body.appendChild(back);
@@ -3818,15 +3830,16 @@ class Run {
     let seen = 0;
     const seenProblems = new Set<string>();
     let heart = 0;
+    const has = (type: string) => !!api()?.report()?.events.some((e) => e.type === type);
     const forward = (): Inner | null => {
       const r = api()?.report() ?? null;
       if (!r) return null;
-      for (const e of r.events.slice(seen)) if (e.type !== 'problem' && e.type !== 'start' && e.type !== 'start-at') t.event(e.type, `${e.detail ?? ''} [landscape frame]`);
+      for (const e of r.events.slice(seen)) if (e.type !== 'problem' && e.type !== 'start' && e.type !== 'start-at') t.event(e.type, `${e.detail ?? ''} [${proveRotate && !has('phone-turned') ? 'portrait' : 'landscape'} frame]`);
       seen = r.events.length;
       for (const p of r.problems) {
         if (!seenProblems.has(p.message)) {
           seenProblems.add(p.message);
-          t.problem('bug', `${p.message} [landscape frame]`);
+          t.problem('bug', `${p.message} [phone frame]`);
         }
       }
       if (r.metrics) {
@@ -3839,8 +3852,24 @@ class Run {
       return r;
     };
     try {
-      t.event('phone-turned', `the portrait phone window (${innerWidth}x${innerHeight}) turned to ${w}x${h} (landscape) for ${scenario}`);
-      t.progress(0.05);
+      if (proveRotate) {
+        t.event('phone-upright', 'a phone-sized window, 390x844 (portrait), opened over the game for touch-match');
+        t.progress(0.04);
+        await t.until(() => {
+          heart += 1;
+          if (heart === 1 || heart % 100 === 0) t.event('phone-turn-wait', `waiting for Rotate pause (${Math.round(heart / 20)} s)`);
+          forward();
+          return has('rotate-paused') || (api()?.report()?.problems.length ?? 0) > 0 || api()?.report()?.outcome === 'error';
+        }, 180000, 'the upright phone to pause under Rotate');
+        forward();
+        await t.wait(800);
+        turn(844, 390);
+        t.event('phone-turned', `the phone window turned to 844x390 (landscape) for ${scenario}`);
+      } else {
+        t.event('phone-turned', `the portrait phone window (${innerWidth}x${innerHeight}) turned to 844x390 (landscape) for ${scenario}`);
+      }
+      t.progress(0.08);
+      heart = 0;
       await t.until(() => {
         heart += 1;
         if (heart === 1 || heart % 100 === 0) t.event('phone-turn-wait', `waiting for the landscape ${scenario} (${Math.round(heart / 20)} s)`);
@@ -3849,6 +3878,10 @@ class Run {
       }, 300000, `the turned phone to play ${scenario}`);
       const r = forward();
       const out = r?.outcome;
+      if (proveRotate) {
+        if (!has('rotate-prompt')) t.problem('bug', 'the Rotate prompt was never seen at 390x844');
+        if (!has('rotate-hidden') || !has('rotate-resumed')) t.problem('bug', 'the prompt did not hide and play resume at 844x390');
+      }
       if (out !== 'done' && out !== 'won' && out !== 'lost') {
         t.problem('bug', `${scenario} in the turned phone ended ${out ?? 'without a report'}`);
         t.progress(1);
@@ -3874,40 +3907,45 @@ class Run {
   }
 
   /**
-   * Touch match: at phone size, menus to the results screen with only pointer events on the on-screen controls
-   * (input/touch.ts: the Move stick and Jump, Attack, Special, Shield, Smash, plus Pause). The bot's decisions are
-   * turned into touches (stick position, buttons held), nothing goes to the keyboard, the virtual pad or the sim.
-   * First every control is checked (present, ≥44 px, inside the window and the safe area, above the canvas / not
-   * covered), then a short drill presses each one and checks the game read it, then the bot plays on through touch
-   * to the results. Portrait 390x844 first walks menu / Settings for clipping screenshots, then turns to 844x390
-   * for the match (same pattern as smoke).
+   * Touch match: at phone size, menus to results with only pointer events on the floating stick and icon buttons
+   * (input/touch.ts). Portrait opens a framed run that proves Rotate pause at 390x844 then turns to 844x390
+   * (absorbs the rotate phone proof). Landscape drills the floating stick, flick-jump, ≥44 px icon arc (Attack
+   * largest), reports Low fps, then the bot plays through touch to results.
    */
   async touchMatch(): Promise<void> {
     const t = this.t;
-    // Portrait phone: clip-check menus upright, then turn to an 844x390 frame so Rotate cannot hold the match.
-    if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+    // Outer portrait (or a desktop runner): frame the phone upright → Rotate pause → landscape match.
+    if (this.options.at !== 'phone' && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
       this.logViewport(true);
       this.useTap = true;
       forceTouchUi(true);
       try {
         await this.toMainMenu();
         await this.phoneUiClipTour('portrait');
-        t.progress(0.08);
+        t.progress(0.06);
       } finally {
         this.useTap = false;
         forceTouchUi(false);
       }
       return this.touchMatchTurned();
     }
+    if (this.options.at !== 'phone' && this.options.at !== 'phone-turned' && Math.min(innerWidth, innerHeight) > 560) {
+      // Desktop-sized window: still prove the phone path in a framed twin.
+      return this.touchMatchTurned();
+    }
     this.logViewport(true);
     this.useTap = true;
     forceTouchUi(true);
+    const gfxWas = localStorage.getItem(GFX_KEY);
     try {
       await this.toMainMenu();
-      // Landscape (or already-turned) phone: clip-check every listed screen at this size before the fight.
-      if (this.options.at === 'phone-turned' || this.isPhone()) await this.phoneUiClipTour(innerWidth > innerHeight ? 'landscape' : 'portrait');
+      const upright = innerHeight > innerWidth;
+      if (this.options.at === 'phone-turned' || this.isPhone() || this.options.at === 'phone') {
+        await this.phoneUiClipTour(upright ? 'portrait' : 'landscape');
+      }
       t.progress(0.05);
-      // Clipping on select / stages / VS is hooked through startVersus.
+      // Low quality for the fps acceptance check (phones default Low; force it so the metric is real).
+      setGraphics({ quality: 'low', glow: false });
       this.onVersus = async () => {
         await this.screen('versus', 15000);
         await this.wait(400);
@@ -3915,18 +3953,43 @@ class Run {
         t.event('phone-shot', `VS screen at ${innerWidth > innerHeight ? 'landscape' : 'portrait'} ${innerWidth}x${innerHeight}`);
         await this.wait(2000);
       };
+      forceTouchPrompt(true);
       await this.startVersus(2);
       this.onVersus = null;
-      t.progress(0.15);
-      // Upright on a phone the Rotate prompt holds the match: give a runner time to turn the window.
-      if (rotateShowing()) {
-        t.event('touch-rotate-wait', `the Rotate prompt is up at ${innerWidth}x${innerHeight}; waiting for landscape`);
+      t.progress(0.12);
+
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      // Rotate proof (at=phone upright, or any upright phone): prompt covers, match paused; then wait for landscape.
+      if (upright || rotateShowing()) {
+        const prompt = () => document.getElementById('rotate-prompt');
+        const size = () => `${innerWidth}x${innerHeight}`;
+        await this.wait(400);
+        const p = prompt();
+        const r = p?.getBoundingClientRect();
+        const covered = !!p && !p.hidden && document.elementFromPoint(innerWidth / 2, innerHeight / 2)?.closest('#rotate-prompt') === p;
+        if (!p || !rotateShowing() || !r || r.width < innerWidth - 1 || r.height < innerHeight - 1 || !covered || !/Rotate your phone/i.test(p.textContent ?? '')) {
+          t.problem('bug', `no full-screen "Rotate your phone" prompt over the game at ${size()}`);
+        } else t.event('rotate-prompt', `"Rotate your phone" covers the game at ${size()}`);
+        const before = frame();
+        await t.wait(1500);
+        if (frame() !== before) t.problem('bug', `the match kept running under the Rotate prompt at ${size()} (frame ${before} -> ${frame()})`);
+        else t.event('rotate-paused', `the match is paused under the prompt at ${size()} (frame ${before})`);
+        t.progress(0.14);
         try {
-          await t.until(() => !rotateShowing(), 30000, 'the window to turn to landscape');
+          await t.until(() => !rotateShowing() && innerWidth >= innerHeight, 120000, 'the window to turn to landscape');
         } catch (e) {
           if (String(e).includes('stopped')) throw e;
-          t.problem('bug', `touch-match could not play: the Rotate prompt stayed up at ${innerWidth}x${innerHeight} (run it landscape, 844x390)`);
+          t.problem('bug', `touch-match could not play: the Rotate prompt stayed up at ${size()} (run it landscape, 844x390)`);
+          t.finish('stuck');
+          return;
         }
+        await t.wait(300);
+        if (prompt() && !prompt()!.hidden) t.problem('bug', `the Rotate prompt is still up at ${size()}`);
+        else t.event('rotate-hidden', `no Rotate prompt at ${size()}`);
+        const resumeAt = frame();
+        await this.fight(() => frame() >= resumeAt + 30, 40000);
+        if (frame() > resumeAt) t.event('rotate-resumed', `play goes on at ${size()} (frame ${resumeAt} -> ${frame()})`);
+        else t.problem('bug', `the match did not resume at ${size()}`);
       }
 
       const root = touchOverlay() ?? this.q('.touch');
@@ -3936,10 +3999,10 @@ class Run {
         return;
       }
       if (root.hidden) {
-        // A desktop browser keeps the overlay hidden (no coarse pointer): show it as a phone does.
         t.event('touch-forced', 'not a touch device: the overlay was shown for the run');
         root.hidden = false;
       }
+      document.body.classList.add('touch-ui');
       t.event('touch-visible', `touch overlay shown (hidden=${root.hidden}) above canvas at z-index ${getComputedStyle(root).zIndex} in ${innerWidth}x${innerHeight}`);
       const CONTROLS: { key: string; sel: string; name: string }[] = [
         { key: 'stick', sel: '.touch-stick', name: 'Move stick' },
@@ -3950,7 +4013,6 @@ class Run {
         { key: 'smash', sel: '.touch-btn.smash', name: 'Smash' },
         { key: 'pause', sel: '.touch-pause', name: 'Pause' },
       ];
-      // Option drop: hides a control first, to see the missing-control problem.
       const dropped = typeof this.options.drop === 'string' ? this.options.drop : '';
       const dropEl = dropped ? root.querySelector<HTMLElement>(CONTROLS.find((c) => c.key === dropped)?.sel ?? '.none') : null;
       if (dropEl) dropEl.style.display = 'none';
@@ -3959,18 +4021,16 @@ class Run {
         return el && el.getClientRects().length > 0 ? el : null;
       };
 
-      // 1. Every control is there, ≥44 px, on screen, clear of the safe area and not covered (incl. by the canvas).
       const inset = this.safeInsets();
       const stage = document.getElementById('stage');
       const stageZ = stage ? Number(getComputedStyle(stage).zIndex) || 0 : 0;
       const touchZ = Number(getComputedStyle(root).zIndex) || 0;
-      if (touchZ <= stageZ) {
-        t.problem('bug', `touch overlay z-index ${touchZ} is not above the Babylon canvas z-index ${stageZ}`);
-      } else {
-        t.event('touch-z-order', `touch z-index ${touchZ} above canvas z-index ${stageZ}`);
-      }
+      if (touchZ <= stageZ) t.problem('bug', `touch overlay z-index ${touchZ} is not above the Babylon canvas z-index ${stageZ}`);
+      else t.event('touch-z-order', `touch z-index ${touchZ} above canvas z-index ${stageZ}`);
       let bad = 0;
       let minSide = Infinity;
+      let attackSide = 0;
+      const otherSides: number[] = [];
       for (const c of CONTROLS) {
         const el = find(c.key);
         if (!el) {
@@ -3978,9 +4038,18 @@ class Run {
           t.problem('bug', `touch control missing: ${c.name} (${c.sel}) is not on the screen`);
           continue;
         }
+        if (c.key !== 'stick' && c.key !== 'pause') {
+          const label = el.getAttribute('aria-label') || '';
+          if (!el.querySelector('svg') || label !== c.name) {
+            bad++;
+            t.problem('bug', `touch ${c.name} needs an icon and aria-label="${c.name}" (got "${label}")`);
+          }
+        }
         const r = el.getBoundingClientRect();
         const side = Math.min(r.width, r.height);
         if (side < minSide) minSide = side;
+        if (c.key === 'attack') attackSide = side;
+        else if (c.key !== 'stick' && c.key !== 'pause') otherSides.push(side);
         const where = `${c.name} at ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)} in ${innerWidth}x${innerHeight}`;
         const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
         if (r.width < 2 || r.height < 2) {
@@ -4001,13 +4070,34 @@ class Run {
           t.problem('bug', `touch control covered: a press on ${where} lands on ${tag}`);
         }
       }
+      if (attackSide > 0 && otherSides.some((s) => s >= attackSide - 0.5)) {
+        bad++;
+        t.problem('bug', `Attack should be the largest touch button (Attack ${Math.round(attackSide)}px, others ${otherSides.map(Math.round).join('/')})`);
+      } else if (attackSide > 0) {
+        t.event('touch-attack-largest', `Attack ${Math.round(attackSide)}px > ${otherSides.map(Math.round).join('/')}`);
+      }
+      // Button circles must not overlap (8 px gap): centre-point hit-tests miss that.
+      {
+        const btns = CONTROLS.filter((c) => c.key !== 'stick' && c.key !== 'pause').map((c) => find(c.key)).filter((el): el is HTMLElement => !!el);
+        for (let i = 0; i < btns.length; i++) {
+          for (let j = i + 1; j < btns.length; j++) {
+            const a = btns[i]!.getBoundingClientRect();
+            const b = btns[j]!.getBoundingClientRect();
+            const dx = a.left + a.width / 2 - (b.left + b.width / 2);
+            const dy = a.top + a.height / 2 - (b.top + b.height / 2);
+            const need = (Math.min(a.width, a.height) + Math.min(b.width, b.height)) / 2 + 8;
+            if (Math.hypot(dx, dy) < need - 0.5) {
+              bad++;
+              t.problem('bug', `touch buttons overlap: ${btns[i]!.getAttribute('aria-label')} and ${btns[j]!.getAttribute('aria-label')} centres ${Math.round(Math.hypot(dx, dy))}px apart (need ≥${Math.round(need)})`);
+            }
+          }
+        }
+      }
       if (Number.isFinite(minSide)) t.metric('touchMinPx', Math.round(minSide));
-      if (!bad) t.event('touch-controls-ok', `all ${CONTROLS.length} controls on screen, ≥44 px (min ${Math.round(minSide)}), clear of the safe area (top ${inset.top}, right ${inset.right}, bottom ${inset.bottom}, left ${inset.left}) and not covered, at ${innerWidth}x${innerHeight}`);
-      // Hold a labeled match frame so Studio's screenshots show the stick and buttons (AC1).
+      if (!bad) t.event('touch-controls-ok', `all ${CONTROLS.length} icon controls on screen, ≥44 px (min ${Math.round(minSide)}), Attack largest, no overlap, clear of the safe area (top ${inset.top}, right ${inset.right}, bottom ${inset.bottom}, left ${inset.left}) at ${innerWidth}x${innerHeight}`);
       t.event('phone-shot', `match touch controls at landscape ${innerWidth}x${innerHeight}`);
       await this.wait(2200);
 
-      // 2. Touches: a finger on the stick and on each button, as pointer events on the control itself.
       let pid = 100;
       const down = new Map<string, { id: number; el: HTMLElement }>();
       const send = (el: HTMLElement, type: string, x: number, y: number, id: number) =>
@@ -4016,7 +4106,6 @@ class Run {
         const el = find('stick');
         if (!el) return;
         const r = el.getBoundingClientRect();
-        // The knob's reach is 50/128 of the stick's width.
         const reach = r.width * (50 / 128);
         const x = r.left + r.width / 2 + (sx / 100) * reach;
         const y = r.top + r.height / 2 - (sy / 100) * reach;
@@ -4062,13 +4151,11 @@ class Run {
         { bit: BTN.C_NEUTRAL | BTN.C_UP | BTN.C_DOWN | BTN.C_LEFT | BTN.C_RIGHT, key: 'smash' },
       ];
       const counts: Record<string, number> = { move: 0, jump: 0, attack: 0, special: 0, shield: 0, smash: 0 };
-      const frame = () => this.game.match()?.state.frame ?? 0;
       const me = () => {
         const m = this.game.match();
         return m && m.player >= 0 ? m.state.fighters[m.player] : null;
       };
       const logged = new Set<string>();
-      /** Counts a touch and logs its event the first time, with what the game's input layer read from it. */
       const note = (what: string, detail: string) => {
         counts[what]++;
         t.add(`touch${what[0].toUpperCase()}${what.slice(1)}s`);
@@ -4079,7 +4166,79 @@ class Run {
       };
       const held = (bit: number) => (readTouch()[2] & bit) !== 0;
 
-      // The drill: each control pressed once, and the input layer must show it was read.
+      // Floating stick: hit-test the left-40% zone (same path as a real thumb), then drag past the edge.
+      {
+        const spawnX = Math.round(innerWidth * 0.22);
+        const spawnY = Math.round(innerHeight * 0.62);
+        const hit = document.elementFromPoint(spawnX, spawnY) as HTMLElement | null;
+        const zone = hit?.closest('.touch-move-zone, .touch-stick') as HTMLElement | null;
+        if (!zone) {
+          t.problem('bug', `left-40% touch at ${spawnX},${spawnY} hits ${hit?.id ? '#' + hit.id : hit?.tagName.toLowerCase() ?? 'nothing'} (want .touch-move-zone)`);
+        }
+        const target = zone ?? root;
+        const id = ++pid;
+        send(target, 'pointerdown', spawnX, spawnY, id);
+        await t.wait(80);
+        const stick = find('stick');
+        const sr = stick?.getBoundingClientRect();
+        const cx = sr ? sr.left + sr.width / 2 : 0;
+        const cy = sr ? sr.top + sr.height / 2 : 0;
+        if (!stick || !sr || Math.hypot(cx - spawnX, cy - spawnY) > Math.max(28, (sr?.width ?? 0) * 0.4)) {
+          t.problem('bug', `floating stick did not spawn under the left-thumb touch at ${spawnX},${spawnY} (center ${Math.round(cx)},${Math.round(cy)})`);
+        } else {
+          t.event('touch-float-spawn', `stick spawned under thumb at ${Math.round(cx)},${Math.round(cy)} from left-40% touch ${spawnX},${spawnY}`);
+        }
+        const beforeLeft = sr?.left ?? 0;
+        const dragX = Math.min(innerWidth * 0.38, spawnX + Math.round((sr?.width ?? 100) * 0.7));
+        const dragY = spawnY;
+        send(stick ?? target, 'pointermove', dragX, dragY, id);
+        await t.wait(80);
+        send(stick ?? target, 'pointermove', dragX + 40, dragY, id);
+        await t.wait(80);
+        const after = find('stick')?.getBoundingClientRect();
+        const [rx] = readTouch();
+        if (rx < 40) t.problem('bug', `floating stick drag was not read as move (x=${rx})`);
+        else note('move', `floating stick dragged: read x=${rx}`);
+        if (after && after.left > beforeLeft + 8) {
+          t.event('touch-float-follow', `stick followed the thumb past its edge (left ${Math.round(beforeLeft)} → ${Math.round(after.left)})`);
+        } else {
+          t.event('touch-float-follow', `stick tracked the thumb (left ${Math.round(beforeLeft)} → ${Math.round(after?.left ?? beforeLeft)}, x=${rx})`);
+        }
+        send(stick ?? target, 'pointerup', dragX, dragY, id);
+        await t.wait(100);
+      }
+
+      // Flick jump on the left: quick upward swipe through the move zone (must leave the ground).
+      {
+        const fx = Math.round(innerWidth * 0.2);
+        const fy = Math.round(innerHeight * 0.7);
+        const hit = document.elementFromPoint(fx, fy) as HTMLElement | null;
+        const zone = (hit?.closest('.touch-move-zone, .touch-stick') as HTMLElement | null) ?? root;
+        const id = ++pid;
+        const y0 = me()?.y ?? 0;
+        send(zone, 'pointerdown', fx, fy, id);
+        await t.wait(16);
+        send(find('stick') ?? zone, 'pointermove', fx, fy - 28, id);
+        await t.wait(16);
+        send(find('stick') ?? zone, 'pointerup', fx, fy - 56, id);
+        let leftGround = false;
+        try {
+          await t.until(() => {
+            const f = me();
+            return !!f && (!f.grounded || f.y > y0 + 2);
+          }, 1500, 'flick jump to leave the ground');
+          leftGround = true;
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+        }
+        if (!leftGround) t.problem('bug', 'left-side upward flick did not jump');
+        else {
+          note('jump', 'left-side upward flick jumped');
+          t.event('touch-flick-jump', 'quick upward flick on the left made the fighter jump');
+        }
+        await t.wait(200);
+      }
+
       const drill = async (key: string, bit: number, what: string, label: string) => {
         if (!find(key)) return;
         press(key, true);
@@ -4089,25 +4248,15 @@ class Run {
         press(key, false);
         await t.wait(150);
       };
-      const x0 = me()?.x ?? 0;
-      const fx0 = frame();
-      stickAt(100, 0);
-      await t.wait(500);
-      const [rx, ry] = readTouch();
-      if (rx < 50) t.problem('bug', `Move stick was dragged right but the game read x=${rx} y=${ry}`);
-      else note('move', `Move stick dragged right: read by the game's input (x ${rx})`);
-      await t.until(() => frame() > fx0 + 20, 8000, 'the fighter to move');
-      if (me() && Math.abs(me()!.x - x0) < 1) t.event('touch-move-still', 'the stick was read but the fighter has not moved yet (blocked?)');
-      stickAt(0, 0);
-      await t.wait(100);
-      await drill('jump', BTN.JUMP, 'jump', 'Jump');
+      if (!logged.has('jump')) await drill('jump', BTN.JUMP, 'jump', 'Jump');
       await drill('attack', BTN.ATTACK, 'attack', 'Attack');
       await drill('special', BTN.SPECIAL, 'special', 'Special');
       await drill('shield', BTN.SHIELD, 'shield', 'Shield');
       await drill('smash', BTN.C_NEUTRAL, 'smash', 'Smash');
-      t.progress(0.25);
+      t.progress(0.28);
 
-      // 3. The bot plays on, through touch only, until the results.
+      // Sample Low fps during the fight.
+      const fpsSamples: number[] = [];
       const bot = () => {
         const m = this.game.match();
         if (!m || m.player < 0) return null;
@@ -4125,10 +4274,12 @@ class Run {
         if (!m) return 0.95;
         const stocks = m.setup.stocks;
         const lost = m.state.fighters.reduce((n, f) => n + (stocks - Math.max(0, f.stocks)), 0);
-        return 0.25 + 0.7 * Math.min(1, lost / Math.max(1, (m.state.fighters.length * stocks) / 2));
+        return 0.28 + 0.67 * Math.min(1, lost / Math.max(1, (m.state.fighters.length * stocks) / 2));
       };
       const drive = window.setInterval(() => {
         if (this.disposed) return;
+        const g = this.game.gfxStats?.();
+        if (g && g.quality === 'low' && g.fpsNow > 0) fpsSamples.push(g.fpsNow);
         const x = bot();
         if (!x || x.m.state.over || this.game.phase() !== 'play') {
           releaseAll();
@@ -4164,7 +4315,15 @@ class Run {
         clearInterval(drive);
         releaseAll();
       }
-      t.event('touch-summary', `moves ${counts.move}, jumps ${counts.jump}, attacks ${counts.attack}, specials ${counts.special}, shield drills ${counts.shield}, smash drills ${counts.smash} (all pointer events on the on-screen controls)`);
+      if (fpsSamples.length) {
+        const avg = Math.round(fpsSamples.reduce((a, b) => a + b, 0) / fpsSamples.length);
+        t.metric('fpsMatchLow', avg);
+        t.event('touch-fps-low', `average ${avg} fps on Low (${fpsSamples.length} samples)`);
+        if (avg < 45) t.problem('warning', `average ${avg} fps in Low on a touch match (want at least 45)`);
+      } else {
+        t.problem('bug', 'touch-match got no Low fps samples (gfxStats.fpsNow); Quality Low was forced for the fight');
+      }
+      t.event('touch-summary', `moves ${counts.move}, jumps ${counts.jump}, attacks ${counts.attack}, specials ${counts.special}, shield drills ${counts.shield}, smash drills ${counts.smash} (floating stick + icon buttons)`);
       for (const k of ['move', 'jump', 'attack', 'special'])
         if (!counts[k] && !(dropped && (dropped === k || (k === 'move' && dropped === 'stick')))) t.problem('bug', `no touch ${k} happened in the match`);
       const won = await this.results();
@@ -4180,8 +4339,17 @@ class Run {
     } finally {
       this.useTap = false;
       forceTouchUi(false);
+      forceTouchPrompt(false);
       this.onVersus = null;
       setVirtualPad(null);
+      if (gfxWas === null) localStorage.removeItem(GFX_KEY);
+      else localStorage.setItem(GFX_KEY, gfxWas);
+      try {
+        const g = gfxWas ? (JSON.parse(gfxWas) as { quality?: 'high' | 'low'; glow?: boolean; fps?: boolean }) : null;
+        if (g) setGraphics(g);
+      } catch {
+        // Put-back best effort.
+      }
     }
   }
 

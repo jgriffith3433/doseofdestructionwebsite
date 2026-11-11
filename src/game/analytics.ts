@@ -278,7 +278,7 @@ export function scene(id: string, end: { skipped: boolean; line: number }, lines
 
 // ------------------------------------------------------------------ settings, pause, quit
 
-export function setting(name: 'sound' | 'music' | 'sfx' | 'shake' | 'quality' | 'glow' | 'fps' | 'touch_size' | 'touch_opacity', value: boolean | number | string, from: string): void {
+export function setting(name: 'sound' | 'music' | 'sfx' | 'shake' | 'quality' | 'glow' | 'fps' | 'touch_size' | 'touch_opacity' | 'touch_vibrate', value: boolean | number | string, from: string): void {
   feature(`settings.${name}`, { value, from });
 }
 

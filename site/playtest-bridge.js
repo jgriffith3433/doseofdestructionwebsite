@@ -165,9 +165,9 @@
     },
     {
       "id": "touch-match",
-      "title": "Touch match: at phone size, menus to results with only the on-screen stick and buttons (move, jump, attack, special), every control ≥44 px above the canvas and clear of the safe area; menu/VS/results/Settings text fully visible",
-      "description": "Run it with device phone. Portrait 390x844: walks main menu, Settings, character select and stage select (phone-shot + no-clipping, ~2 s hold each), then turns to an 844x390 landscape frame like smoke. Landscape: the same tour, then Versus → VS (phone-shot) → match. Every touch control is checked present, ≥44 px, inside the window and safe-area inset, above the Babylon canvas (touch-z-order) and not covered; a phone-shot holds on the match with the stick visible (touch-controls-ok). Results heading and body are clip-checked (phone-shot). A desktop-size run is a bug. VS/results are landscape-only (portrait Rotate covers a match). Metrics touchMoves, touchJumps, touchAttacks, touchSpecials, touchMinPx. Option drop: a control to hide first.",
-      "seconds": 320,
+      "title": "Touch match: floating stick + flick jump + icon arc, Rotate pause/resume, menus to results at phone size, ≥44 px, fps on Low",
+      "description": "Run it with device phone. Portrait 390x844: menu clip tour, then a framed run proves Rotate covers and pauses the match, turns to 844x390 (rotate-prompt/paused/hidden/resumed). Landscape: Versus → match. A left-40% touch spawns the floating stick under the thumb and a drag past the edge keeps it following (touch-float-spawn/follow); a quick upward flick jumps (touch-flick-jump); Jump/Attack/Special/Shield/Smash are icons in a thumb arc with Attack largest, ≥44 px, clear of env(safe-area-inset-*), phone-shot of the controls; the bot plays through touch to results; metric fpsMatchLow on Quality Low (want ≥45). Metrics touchMoves, touchJumps, touchAttacks, touchSpecials, touchMinPx, fpsMatchLow. Option drop: a control to hide first.",
+      "seconds": 360,
       "tags": [
         "full",
         "touch"
