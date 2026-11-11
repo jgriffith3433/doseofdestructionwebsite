@@ -170,6 +170,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'stage-life') await r.stageLife();
         else if (id === 'stage-bed') await r.stageBed();
         else if (id === 'commentary') await r.commentary();
+        else if (id === 'fighter-voice') await r.fighterVoice();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
       } finally {
@@ -505,7 +506,16 @@ class Run {
       await Promise.all(Object.entries(set.clips).map(async ([k, clip]) => { if (!(await exists(`${set.base}${clip.file}`))) broken.push(k); }));
       if (broken.length) this.t.problem('bug', `${c.name}: clip sheets missing (404): ${broken.join(', ')}`);
     }
-    const lines = [`announcer.name.${id}`, `fighter.${id}.ko`, `fighter.${id}.win`];
+    const lines = SEASON_ONE.includes(id)
+      ? [
+          `announcer.name.${id}`,
+          `fighter.${id}.ko`,
+          `fighter.${id}.win`,
+          `fighter.${id}.taunt`,
+          ...[0, 1, 2].map((i) => `fighter.${id}.effort.${i}`),
+          ...[0, 1].map((i) => `fighter.${id}.hurt.${i}`),
+        ]
+      : [`announcer.name.${id}`, `fighter.${id}.ko`, `fighter.${id}.win`];
     const silent: string[] = [];
     for (const lineId of lines) {
       const l = VOICE.lines.find((x) => x.id === lineId);
@@ -671,9 +681,15 @@ class Run {
     const asked = typeof this.options.fighter === 'string' ? CHARACTERS.findIndex((c) => c.id === this.options.fighter) : -1;
     if (typeof this.options.fighter === 'string' && asked < 0) this.t.problem('bug', `fighter "${this.options.fighter}" is not in the roster`);
     if (asked >= 0 && !pool.includes(asked)) this.t.problem('bug', `fighter "${this.options.fighter}" is locked in Versus (clear its chapter first)`);
+    const askedFoe = typeof this.options.foe === 'string' ? CHARACTERS.findIndex((c) => c.id === this.options.foe) : -1;
+    if (typeof this.options.foe === 'string' && askedFoe < 0) this.t.problem('bug', `foe "${this.options.foe}" is not in the roster`);
+    if (askedFoe >= 0 && !pool.includes(askedFoe)) this.t.problem('bug', `foe "${this.options.foe}" is locked in Versus (clear its chapter first)`);
     const mePos = asked >= 0 ? pool.indexOf(asked) : Math.abs(this.options.seed * 11) % n;
     const meIdx = pool[Math.max(0, mePos)];
-    const foeIdx = pool[(Math.max(0, mePos) + 1 + (Math.abs(this.options.seed * 17) % (n - 1))) % n];
+    const foeIdx =
+      askedFoe >= 0 && askedFoe !== meIdx
+        ? askedFoe
+        : pool.filter((i) => i !== meIdx)[(Math.abs(this.options.seed * 17) % Math.max(1, n - 1))];
     await this.click(() => this.q('#select-slots .slot-pick'), 'your slot');
     await this.click(() => document.querySelectorAll<HTMLElement>('#select-grid .tile')[meIdx], CHARACTERS[meIdx].name);
     await this.click(() => document.querySelectorAll<HTMLElement>('#select-grid .tile')[foeIdx], `CPU: ${CHARACTERS[foeIdx].name}`);
@@ -1164,27 +1180,39 @@ class Run {
     const t = this.t;
     // The feedback card shows once per session and sleeps 7 days once closed: this browser may have closed it before.
     resetAsk(MATCH_ASK);
-    await this.toMainMenu();
-    t.progress(0.05);
-    await this.startVersus(2);
-    t.progress(0.1);
-    this.progressNow = () => {
-      const m = this.game.match();
-      if (!m) return 0.95;
-      const s = m.state;
-      const stocks = m.setup.stocks;
-      // A 1v1 is over once one side has lost every stock: about half of all stocks.
-      const lost = s.fighters.reduce((n, f) => n + (stocks - Math.max(0, f.stocks)), 0);
-      return 0.1 + 0.85 * Math.min(1, lost / Math.max(1, (s.fighters.length * stocks) / 2));
+    const voices: { who: string; kind: string; id: string; at: number }[] = [];
+    const onVoice = (e: Event) => {
+      const d = (e as CustomEvent).detail as { who: string; kind: string; id: string; text: string; audio: string; at: number };
+      voices.push(d);
+      t.event(`voice-${d.kind}`, `${d.who}: "${d.text}" (${d.id})`);
     };
-    await this.fight(() => false, 6 * 60 * 1000);
-    const won = await this.results();
-    await this.feedbackCard(MATCH_ASK, 'How was that fight?');
-    await this.analyticsSent(['screen', 'fighter_pick', 'stage_pick', 'level_start', 'death', 'level_end']);
-    await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
-    await this.screen('main');
-    t.progress(1);
-    t.finish(won ? 'won' : 'lost');
+    window.addEventListener('dod:fighter-voice', onVoice);
+    try {
+      await this.toMainMenu();
+      t.progress(0.05);
+      await this.startVersus(2);
+      t.progress(0.1);
+      this.progressNow = () => {
+        const m = this.game.match();
+        if (!m) return 0.95;
+        const s = m.state;
+        const stocks = m.setup.stocks;
+        // A 1v1 is over once one side has lost every stock: about half of all stocks.
+        const lost = s.fighters.reduce((n, f) => n + (stocks - Math.max(0, f.stocks)), 0);
+        return 0.1 + 0.85 * Math.min(1, lost / Math.max(1, (s.fighters.length * stocks) / 2));
+      };
+      await this.fight(() => false, 6 * 60 * 1000);
+      const won = await this.results();
+      await this.feedbackCard(MATCH_ASK, 'How was that fight?');
+      await this.analyticsSent(['screen', 'fighter_pick', 'stage_pick', 'level_start', 'death', 'level_end']);
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.metric('voiceEvents', voices.length);
+      t.progress(1);
+      t.finish(won ? 'won' : 'lost');
+    } finally {
+      window.removeEventListener('dod:fighter-voice', onVoice);
+    }
   }
 
   /** Set by the presentation scenario: runs on the VS screen, before the match loads. */
@@ -4467,6 +4495,135 @@ class Run {
    * chapter) is played from the map through its live intro scene and the match's first seconds, and left from Pause once
    * Blog Man has spoken. Events `call-<kind>`, `call-kinds`, `call-repeat`, `blog-intro`, `blog-intros`.
    */
+  /**
+   * Season 1 fighter voice (effort / hurt / KO / taunt). Setup unlocks the Season 1 card, then a versus 1v1
+   * (default Exit Punk vs Break; options fighter / foe). Logs every `dod:fighter-voice` bark, presses T for a taunt,
+   * and checks no overlap and no effort within 1.5 s from the same fighter. On a portrait phone it turns to landscape
+   * like smoke / touch-match.
+   */
+  async fighterVoice(): Promise<void> {
+    const t = this.t;
+    if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      return this.touchMatchTurned('fighter-voice');
+    }
+    this.logViewport(this.phoneScenario());
+
+    type V = { who: string; kind: string; id: string; text: string; audio: string; at: number };
+    const voices: V[] = [];
+    const lastEnd = new Map<string, number>();
+    const lastEffort = new Map<string, number>();
+    const onVoice = (e: Event) => {
+      const d = (e as CustomEvent).detail as V;
+      voices.push(d);
+      t.event(`voice-${d.kind}`, `${d.who}: "${d.text}" (${d.id} → ${d.audio})`);
+      if (!d.audio || !d.audio.includes(`/audio/voice/${d.id}`)) {
+        t.problem('bug', `fighter voice ${d.id} is not from that fighter's take under audio/voice/`);
+      }
+      const prevEnd = lastEnd.get(d.who) ?? 0;
+      if (d.at < prevEnd - 20) t.problem('bug', `${d.who}: two lines overlapped (${d.kind} at ${Math.round(d.at)} vs busy until ${Math.round(prevEnd)})`);
+      lastEnd.set(d.who, d.at + 400);
+      if (d.kind === 'effort') {
+        const prev = lastEffort.get(d.who);
+        if (prev !== undefined && d.at - prev < 1480) {
+          t.problem('bug', `${d.who}: effort repeated within 1.5 s (${Math.round(d.at - prev)} ms)`);
+        }
+        lastEffort.set(d.who, d.at);
+      }
+    };
+    window.addEventListener('dod:fighter-voice', onVoice);
+
+    const koTexts = SEASON_ONE.map((id) => {
+      const l = VOICE.lines.find((x) => x.id === `fighter.${id}.ko`);
+      return { id, text: l?.text ?? '' };
+    });
+    const shared = koTexts.filter((a, i) => koTexts.findIndex((b) => b.text === a.text) !== i);
+    if (shared.length) t.problem('bug', `Season 1 fighters share KO text: ${shared.map((s) => `${s.id}="${s.text}"`).join(', ')}`);
+    else t.event('ko-texts-unique', '13 Season 1 KO cries, all different');
+
+    const meId = typeof this.options.fighter === 'string' ? this.options.fighter : 'exit-punk';
+    const taunt = VOICE.lines.find((l) => l.id === `fighter.${meId}.taunt`);
+    if (taunt) {
+      const words = taunt.text.trim().split(/\s+/).filter(Boolean).length;
+      if (words > 4) t.problem('bug', `taunt "${taunt.text}" has ${words} words (max 4)`);
+      else t.event('taunt-words', `"${taunt.text}" (${words} words)`);
+    }
+
+    const savedUnlocks = [...unlocks()];
+    for (const id of SEASON_ONE) if (LOCKABLE.has(id)) unlocks().add(id);
+    saveUnlocks(unlocks());
+
+    try {
+      if (!this.options.fighter) this.options.fighter = 'exit-punk';
+      if (!this.options.foe) this.options.foe = 'break';
+      await this.toMainMenu();
+      t.progress(0.08);
+      await this.startVersus(2);
+      t.progress(0.15);
+      await this.matchLive();
+      // Press T for the player's taunt (no touch button on phones).
+      if (!this.isPhone()) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT', key: 't', bubbles: true }));
+        await this.t.wait(50);
+        window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyT', key: 't', bubbles: true }));
+        // Event fires after the take starts decoding; give the buffer a moment.
+        await this.t.until(() => voices.some((v) => v.kind === 'taunt'), 3000, 'taunt bark after T').catch(() => null);
+        if (!voices.some((v) => v.kind === 'taunt')) t.problem('bug', 'pressing T did not play a taunt line');
+        else t.event('taunt-key', `T played ${voices.filter((v) => v.kind === 'taunt').map((v) => v.id).join(', ')}`);
+      }
+      this.progressNow = () => {
+        const m = this.game.match();
+        if (!m) return 0.9;
+        const stocks = m.setup.stocks;
+        const lost = m.state.fighters.reduce((n, f) => n + (stocks - Math.max(0, f.stocks)), 0);
+        return 0.15 + 0.7 * Math.min(1, lost / Math.max(1, (m.state.fighters.length * stocks) / 2));
+      };
+      await this.fight(() => false, 4 * 60 * 1000);
+      if (this.game.match()?.state.over) await this.results().catch(() => null);
+      else await this.quitFromPause('main');
+      if (currentScreen() === 'results') await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu').catch(() => null);
+
+      const byWho = new Map<string, Set<string>>();
+      for (const v of voices) {
+        if (!byWho.has(v.who)) byWho.set(v.who, new Set());
+        byWho.get(v.who)!.add(v.kind);
+      }
+      const pair = [String(this.options.fighter || 'exit-punk'), String(this.options.foe || 'break')];
+      for (const who of pair) {
+        const kinds = byWho.get(who) ?? new Set();
+        for (const need of ['effort', 'hurt', 'ko'] as const) {
+          if (!kinds.has(need)) t.problem('bug', `${who}: no ${need} bark logged in this fight`);
+          else t.event(`has-${need}`, `${who} played a ${need}`);
+        }
+        // Preflight: every Season 1 take file for this fighter must exist (404s fail even if no bark fired).
+        if (SEASON_ONE.includes(who)) {
+          const ids = [
+            `fighter.${who}.ko`,
+            `fighter.${who}.taunt`,
+            ...[0, 1, 2].map((i) => `fighter.${who}.effort.${i}`),
+            ...[0, 1].map((i) => `fighter.${who}.hurt.${i}`),
+          ];
+          for (const lid of ids) {
+            const line = VOICE.lines.find((x) => x.id === lid);
+            if (!line?.audio) t.problem('bug', `${lid}: missing from voice catalog`);
+            else if (!(await exists(line.audio))) t.problem('bug', `${who}: voice file missing (404): ${line.audio}`);
+          }
+        }
+      }
+      t.metric('voiceEfforts', voices.filter((v) => v.kind === 'effort').length);
+      t.metric('voiceHurts', voices.filter((v) => v.kind === 'hurt').length);
+      t.metric('voiceKos', voices.filter((v) => v.kind === 'ko').length);
+      t.metric('voiceTaunts', voices.filter((v) => v.kind === 'taunt').length);
+      t.event('fighter-voice-summary', `${voices.length} barks: ${[...byWho.entries()].map(([w, k]) => `${w}[${[...k].join(',')}]`).join('; ')}`);
+    } finally {
+      window.removeEventListener('dod:fighter-voice', onVoice);
+      unlocks().clear();
+      for (const id of savedUnlocks) unlocks().add(id);
+      saveUnlocks(unlocks());
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   async commentary(): Promise<void> {
     const t = this.t;
     const calls: { kind: string; id: string; text: string; who: string }[] = [];

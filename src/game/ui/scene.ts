@@ -30,6 +30,8 @@ export interface SceneStage {
   holdOffstage(id: number, held: boolean): void;
   arrive(id: number): void;
   cue(id: number): void;
+  /** Optional: play the fighter's match taunt bark (cold opens). */
+  taunt?(who: string): void;
   voice(url: string | null | undefined): void;
   stopVoice(): void;
   voiceMs(url: string | null | undefined): Promise<number | null>;
@@ -308,9 +310,20 @@ export function playColdOpen(stage: SceneStage, beats: ColdOpenBeat[]): Promise<
       if (b.walk !== undefined && stage.cast[b.walk]) {
         stage.synth('whoosh', 0.7);
         stage.arrive(stage.cast[b.walk].id);
-        // The taunt: the fighter's bounce once they land.
-        if (b.taunt) window.setTimeout(() => !ended && stage.cue(stage.cast[b.walk!].id), 900);
-      } else if (b.taunt && stage.cast[b.camera ?? 0]) stage.cue(stage.cast[b.camera ?? 0].id);
+        // The taunt: the fighter's bounce once they land, plus their bark when they have one.
+        if (b.taunt) {
+          window.setTimeout(() => {
+            if (ended) return;
+            const c = stage.cast[b.walk!];
+            stage.cue(c.id);
+            stage.taunt?.(c.who);
+          }, 900);
+        }
+      } else if (b.taunt && stage.cast[b.camera ?? 0]) {
+        const c = stage.cast[b.camera ?? 0];
+        stage.cue(c.id);
+        stage.taunt?.(c.who);
+      }
       if (b.caption) {
         textEl.textContent = b.caption;
         sub.dataset.who = 'narrator';
