@@ -6,6 +6,7 @@ import type { SlotSetup } from '../match.ts';
 import { PLAYER_COLORS, prefetchFighters } from '../render/renderer.ts';
 import { CHAPTERS, isUnlocked } from '../campaign/story.ts';
 import { $, h, kids, largeUrl, thumbUrl } from './dom.ts';
+import { specialsPanel } from './specialsPreview.ts';
 
 export interface VersusConfig {
   slots: SlotSetup[];
@@ -132,6 +133,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
       h('h3', {}, c.name),
       h('p', { class: 'blurb' }, c.blurb),
       statBars(c),
+      specialsPanel(c),
     );
   };
 
@@ -157,6 +159,8 @@ export function openSelect({ mode, config, onDone }: Options): void {
           onclick: () => assign(i),
           onfocus: () => { showPreview(c); if (open(i, training)) void prefetchFighters([i]); },
           onmouseenter: () => showPreview(c),
+          // A tap on a phone: the preview (and its clip) follows the finger, not only the fighter picked.
+          onpointerdown: () => showPreview(c),
         },
         thumb(c),
         h('span', {}, open(i, training) ? c.name : 'Locked'),

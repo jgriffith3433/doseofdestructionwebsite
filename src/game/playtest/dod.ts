@@ -90,6 +90,8 @@ const SCREEN_NAMES: Record<ScreenId, string> = {
   campaign: 'Campaign Map', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
 };
 
+/** The 13 fighters a new player meets in Season 1: each has its own four specials. */
+const SEASON_ONE = ['exit-punk', 'kaelen', 'break', 'dj-wont-read', 'shutup-bot', 'small-weather', 'blog-man', 'evil-blue-bird', 'got-ur-back', 'slice', 'ss-boulder', 'stratabots', 'orchestrator'];
 const MOVE_NAMES = Object.fromEntries(Object.entries(MOVE).map(([k, v]) => [v, k.toLowerCase()])) as Record<number, string>;
 
 export function installDodPlaytest(game: GameHooks): void {
@@ -138,6 +140,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'presentation') await r.presentation();
         else if (id === 'roster') await r.roster();
         else if (id === 'specials') await r.specialsRun();
+        else if (id === 'select-specials') await r.selectSpecials();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
         else if (id === 'input-feel') await r.inputFeel();
@@ -2123,6 +2126,8 @@ class Run {
     const t = this.t;
     await this.toMainMenu();
     const stage = stagesFor('training')[0]?.index ?? 0;
+    // Each fighter's four specials as archetypes (neutral/side/up/down); no two fighters may share them.
+    const kits = new Map<string, string>();
     for (let i = 0; i < CHARACTERS.length; i++) {
       const c = CHARACTERS[i];
       this.progressNow = () => i / CHARACTERS.length;
@@ -2134,18 +2139,130 @@ class Run {
         slots: [{ char: i, cpu: null }, { char: (i + 1) % CHARACTERS.length, cpu: 0 }],
       });
       await this.matchLive();
+      // Hitbox view (H) on from the first fighter, so the footage shows the boxes on the drawn limbs.
+      if (i === 0) pressAction('KeyH', true);
       await this.checkFighter(c.id);
       await this.everyMove(c.name);
+      if (c.specials) {
+        const kit = [MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL].map((m) => `${MOVE_NAMES[m]}=${c.moves[m].kind ?? 'shared'}`).join(' ');
+        kits.set(c.id, kit.replace(/\w+=/g, ''));
+        t.event('kit', `${c.name}: ${c.moves[MOVE.NSPECIAL].name} / ${c.moves[MOVE.SSPECIAL].name} / ${c.moves[MOVE.UPB].name} / ${c.moves[MOVE.DSPECIAL].name} (${kit})`);
+      }
       this.manual = null;
       await this.game.quitMatch();
       await this.screen('main');
       t.add('fightersTested');
     }
+    const byKit = new Map<string, string[]>();
+    for (const [id, kit] of kits) byKit.set(kit, [...(byKit.get(kit) ?? []), id]);
+    const same = [...byKit].filter(([, ids]) => ids.length > 1);
+    if (same.length) t.problem('bug', `Fighters share the same four specials: ${same.map(([k, ids]) => `${ids.join(' + ')} (${k})`).join('; ')}`);
+    else if (kits.size) t.event('kits-distinct', `${kits.size} fighters, ${kits.size} different kits of four specials`);
     t.progress(1);
     t.finish('done');
   }
 
+  // ---------------------------------------------------------- character select: the specials preview
+
+  /**
+   * Character select shows how each fighter plays: tapping (or hovering) a fighter lists its four specials by name
+   * and loops a clip of one of them. Played through real input (a phone: touch taps; a desktop: mouse clicks),
+   * Training's select (every fighter open), the 13 Season 1 fighters in turn (option `fighter`: just that one).
+   * Per fighter: the four rows read the move names the sim plays (`select-specials`), nothing is clipped by the
+   * screen edge or the preview's own edge (`select-fit`), and the clip moves between two looks (`select-clip`).
+   * On a portrait phone window the run turns the phone, like specials does.
+   */
+  async selectSpecials(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('select-specials');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      await this.click(() => this.q('[data-go="training"]'), 'Training');
+      await this.screen('select');
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : SEASON_ONE;
+      let shown = 0;
+      for (const [k, id] of ids.entries()) {
+        t.progress(0.05 + (0.9 * k) / ids.length);
+        const ci = CHARACTERS.findIndex((c) => c.id === id);
+        if (ci < 0) {
+          t.problem('bug', `fighter "${id}" is not in the roster`);
+          continue;
+        }
+        const c = CHARACTERS[ci];
+        // A tap on the fighter's tile (its picture): the preview follows the finger.
+        await this.click(() => this.q(`#select-grid .tile[data-fighter="${id}"]`), c.name);
+        const panel = () => this.q(`#select-preview .specials[data-fighter="${id}"]`);
+        await t.until(() => !!panel() && panel()!.querySelectorAll('.sp-row').length === 4, 6000, `${c.name}'s four specials on the preview`);
+        const rows = [...panel()!.querySelectorAll<HTMLElement>('.sp-row')];
+        const want = [MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL].map((m) => c.moves[m].name);
+        const have = rows.map((r) => r.querySelector('.sp-name')?.textContent?.trim() ?? '');
+        if (want.join('|') !== have.join('|')) t.problem('bug', `${c.name}: character select lists ${have.join(', ')} but the fighter plays ${want.join(', ')}`);
+        else t.event('select-specials', `${c.name}: ${have.join(' / ')}`);
+        // Nothing clipped: the clip and every row sit inside the screen and inside the preview card.
+        const card = this.q('#select-preview')!.getBoundingClientRect();
+        const clipped: string[] = [];
+        for (const el of [panel()!.querySelector<HTMLElement>('.sp-clip')!, ...rows]) {
+          const r = el.getBoundingClientRect();
+          const name = el.classList.contains('sp-clip') ? 'clip' : (el.querySelector('.sp-name')?.textContent ?? 'row');
+          const out = r.left < -0.5 || r.top < -0.5 || r.right > innerWidth + 0.5 || r.bottom > innerHeight + 0.5;
+          const outCard = r.left < card.left - 0.5 || r.right > card.right + 0.5 || r.bottom > card.bottom + 0.5;
+          const text = el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
+          if (out) clipped.push(`${name} past the screen edge`);
+          else if (outCard) clipped.push(`${name} past the preview's edge`);
+          else if (text && !el.classList.contains('sp-clip')) clipped.push(`${name} text cut off`);
+        }
+        if (clipped.length) t.problem('bug', `${c.name}: specials preview clipped at ${innerWidth}x${innerHeight}: ${clipped.join('; ')}`);
+        else {
+          t.event('select-fit', `${c.name}: four specials and the clip fit at ${innerWidth}x${innerHeight}`);
+          shown++;
+        }
+        // The clip plays: what is drawn changes over the next second and a half.
+        const canvas = panel()!.querySelector<HTMLCanvasElement>('.sp-clip')!;
+        const look = () => {
+          const g = canvas.getContext('2d');
+          if (!g) return '';
+          const d = g.getImageData(0, 0, canvas.width, canvas.height).data;
+          let a = 0;
+          let hsh = 0;
+          for (let i = 0; i < d.length; i += 16) {
+            a += d[i + 3] > 200 ? 1 : 0;
+            hsh = (hsh * 31 + d[i] + d[i + 1] * 3 + d[i + 2] * 7) | 0;
+          }
+          return `${a}:${hsh}`;
+        };
+        const looks = new Set<string>();
+        for (let i = 0; i < 12 && looks.size < 3; i++) {
+          looks.add(look());
+          await t.wait(130);
+        }
+        if (looks.size >= 2 && ![...looks].every((l) => l.startsWith('0:'))) t.event('select-clip', `${c.name}: the clip preview is moving (${looks.size} different frames in 1.5 s)`);
+        else t.problem('bug', `${c.name}: the clip preview on character select is not playing (${looks.size} distinct frames)`);
+        // Tapping a special's row pins it: it highlights and the clip changes to that move.
+        const down = rows[3];
+        await this.click(() => this.q(`#select-preview .specials[data-fighter="${id}"] .sp-row[data-slot="down"]`) ?? down, `${c.name}: ${have[3]}`);
+        if (!panel()?.querySelector('.sp-row[data-slot="down"].on')) t.problem('bug', `${c.name}: tapping the down special did not select it`);
+        t.add('fightersShown');
+      }
+      t.metric('selectFits', shown);
+      t.progress(1);
+    } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.finish('done');
+  }
+
   // ---------------------------------------------------------- specials
+
 
   /**
    * Specials: Exit Punk in Training does a different special from each direction (K, K+side, K+down, K+up), and
@@ -3937,6 +4054,13 @@ class Run {
       [MOVE.DSMASH, () => packInput(0, 0, BTN.C_DOWN)],
       [MOVE.NSPECIAL, () => packInput(0, 0, BTN.SPECIAL)],
       [MOVE.UPB, () => packInput(0, 100, BTN.SPECIAL)],
+      // A fighter with its own kit has a side and a down special on the stick; without one they are the neutral special.
+      ...(CHARACTERS[me()?.char ?? 0]?.specials
+        ? ([
+            [MOVE.SSPECIAL, () => packInput(side(), 0, BTN.SPECIAL)],
+            [MOVE.DSPECIAL, () => packInput(0, -100, BTN.SPECIAL)],
+          ] as [number, () => number][])
+        : []),
     ];
     const air: [number, () => number][] = [
       [MOVE.NAIR, () => packInput(0, 0, BTN.ATTACK)],

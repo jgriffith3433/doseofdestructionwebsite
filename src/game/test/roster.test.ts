@@ -2,7 +2,7 @@
 // sides on two stages, and each fighter's win rate has to stay between 35% and 65%, so no kit is a free win or a
 // free loss. `runRosterTests` is run by sim.test.ts; run this file alone with ROSTER_REPORT=1 for the table.
 
-import { CHARACTERS, MOVE_KEYS, characterIndex } from '../sim/characters.ts';
+import { CHARACTERS, FIGHTERS, MOVE, MOVE_KEYS, characterIndex } from '../sim/characters.ts';
 import { newGame, type GameState } from '../sim/state.ts';
 import { step } from '../sim/step.ts';
 import { Bot } from '../ai/bot.ts';
@@ -64,6 +64,15 @@ export function runRosterTests(check: Check): void {
   check('roster: all 13 Season 1 fighters have their own four specials, none the same four archetypes as another',
     SEASON_1.every((id) => CHARACTERS[characterIndex(id)].specials && !kits.get(id)!.includes('shared')) && dup.length === 0,
     dup.map(([id, k]) => `${id} ${k}`).join('; '));
+
+  // The fitted hitbox offsets (tools/fit-hitboxes.mjs) are on every one of the 13 and reach the compiled moves.
+  const unfitted = SEASON_1.filter((id) => {
+    const entry = FIGHTERS.find((f) => f.id === id);
+    const fsmash = entry?.hitboxes?.fsmash?.[0];
+    const box = CHARACTERS[characterIndex(id)].moves[MOVE.FSMASH].hits[0]?.boxes[0];
+    return !fsmash || !box || box.x !== Math.round(fsmash.x) || box.y !== Math.round(fsmash.y);
+  });
+  check('roster: the 13 have fitted hitbox offsets (fit-hitboxes) and the sim plays them', unfitted.length === 0, unfitted.join(', '));
 
   const rates = rosterWinRates();
   if (process.env.ROSTER_REPORT) for (const r of rates) console.log(`${r.id.padEnd(16)} ${(r.rate * 100).toFixed(1)}%  (${r.games} games)  ${kits.get(r.id)}`);
