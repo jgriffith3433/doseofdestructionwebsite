@@ -147,6 +147,14 @@ host and walk-on for the finale (one man, two roles). Blog Man covers Season 1 f
 on, and sometimes fights (Turn the Page, Clip Show). Walk-ons join the Versus card when their episode clears (`unlock`
 in `content/campaign.json`); Season 8–10 reuse nominees and promoters with no new unlocks.
 
+**Signature specials.** A fighter's Special does four different things by stick direction (neutral, side, up, down),
+and a fighter on the card can have its own (`specials` in `content/fighters.json`, `docs/specials.md`). Exit Punk
+is the first, and his kit is the one skateboard he walked on with: **Board throw** (neutral, he lobs the deck down
+the floor like a bowling lane), **Skate dash** (side, he rides it straight through whoever is in the way),
+**Ollie** (up, the pop that gets him back to the ledge) and **Kickflip trap** (down, he flips a board onto the
+floor and walks away from it; whoever steps on it eats it). Dry as ever: no one on the show says what the moves
+are called. Everyone else keeps the shared Neutral and Up special until their own are written.
+
 Routines through a broadcast night: walk-ons wait off-camera until their card; the champion stays on between defenses;
 the host reads the sheet; the announcer only speaks once the match is live. Reaction to the player: opponents fight;
 hosts and the booth talk about ratings and the card, never "levels" or "the game".

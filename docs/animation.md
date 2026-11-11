@@ -105,7 +105,8 @@ Characters page are a good start.
 | `utilt`, `dtilt` | Up and low ground strikes | |
 | `usmash`, `dsmash` | Big upward hit, hit to both sides | |
 | `bair`, `uair`, `dair` | Back, up and down aerials | `bair` hits behind them |
-| `nspecial` | Lunging special | |
+| `nspecial` | Lunging special (a throw, for fighters with their own specials) | |
+| `sspecial`, `dspecial` | Side and down special (optional: without them the move shows `fsmash`/`roll`/`dsmash`, or whatever the fighter's `specials` entry names in `clip`) | |
 | `roll`, `dodge`, `airdodge` | Evasions | |
 | `ledge`, `climb` | Hanging on a ledge, climbing up | |
 | `jumpsquat`, `helpless`, `dizzy` | Small extras | |

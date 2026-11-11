@@ -267,6 +267,16 @@
       ]
     },
     {
+      "id": "specials",
+      "title": "Specials: Exit Punk in Training does four different specials from K, K+side, K+down, K+up (touch: stick + Special), and the thrown board crosses the stage, hits the dummy and disappears",
+      "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus). Played through real input only: keyboard K plus A/D/S/W on a desktop; at phone size (390x844, turned to 844x390 landscape like touch-match, or 844x390) the on-screen stick and Special button as touch pointer events, with no extra button on the overlay. Walks into the board's range, then: neutral Special throws the board (projectile-hit: it crosses the stage, hurts the dummy and is gone), thrown the other way it hits nobody and disappears at its lifetime (projectile-lifetime); Special + side is the skate dash (special-side; touch-side-special), Special + down places the kickflip trap (special-down; touch-down-special), Special + up is the ollie recovery (special-up); specials-distinct when all four were different moves. Options: input (touch forces the overlay on a desktop window), at (phone). Metric specialsSeen.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "roster",
       "title": "Every fighter spawns in training and does each move once (starts matches directly)",
       "seconds": 480,

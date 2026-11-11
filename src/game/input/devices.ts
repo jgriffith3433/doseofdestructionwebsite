@@ -50,7 +50,10 @@ export const KEYBOARD_HELP: [string, string][] = [
   ['Up / down', 'W S'],
   ['Jump', 'Space'],
   ['Attack', 'J'],
-  ['Special', 'K  (W+K recovers)'],
+  ['Special', 'K  (neutral)'],
+  ['Side special', 'K + A / D'],
+  ['Up special', 'K + W  (recovery)'],
+  ['Down special', 'K + S'],
   ['Shield / dodge', 'L'],
   ['Smash', 'I + direction'],
   ['Pause', 'Esc'],
@@ -60,10 +63,21 @@ export const GAMEPAD_HELP: [string, string][] = [
   ['Move', 'Left stick / D-pad'],
   ['Jump', 'X / Y'],
   ['Attack', 'A'],
-  ['Special', 'B'],
+  ['Special', 'B  (neutral)'],
+  ['Side special', 'B + left / right'],
+  ['Up special', 'B + up  (recovery)'],
+  ['Down special', 'B + down'],
   ['Shield / dodge', 'Triggers / bumpers'],
   ['Smash', 'Right stick'],
   ['Pause', 'Start'],
+];
+
+/** The on-screen controls: no extra buttons, the stick picks which special the Special button does. */
+export const TOUCH_HELP: [string, string][] = [
+  ['Move', 'Left stick'],
+  ['Special', 'Special button'],
+  ['Side / down special', 'Hold the stick left, right or down, then Special'],
+  ['Up special', 'Hold the stick up, then Special'],
 ];
 
 function keyboardInput(): [number, number, number] {

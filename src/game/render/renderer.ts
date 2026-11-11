@@ -80,7 +80,12 @@ interface Spark {
   life: number;
   max: number;
   size: number;
+  /** A streak (dash trail): stretched along x. */
+  stretch?: number;
 }
+
+/** Looks of a special's projectile or trap, by ShotDef.style: 0 thrown board, 1 placed trap, 2 orb. */
+const SHOT_LOOKS = ['board', 'trap', 'orb'] as const;
 
 export class Renderer {
   readonly engine: Engine;
@@ -93,6 +98,10 @@ export class Renderer {
   /** Finished spark meshes, reused so a KO burst doesn't build geometry mid-fight. */
   private sparkPool: Mesh[] = [];
   private sparkMat: StandardMaterial;
+  /** Projectile and trap sprites, one plane per shot in play (index = position in state.shots), and their looks. */
+  private shotMeshes: Mesh[] = [];
+  private shotMats: StandardMaterial[] | null = null;
+  private lastTrail = -1;
   private debugMeshes: Mesh[] = [];
   private debugMat: StandardMaterial;
   private hurtMat: StandardMaterial;
@@ -610,6 +619,17 @@ export class Renderer {
     this.fx?.warmUp();
     await breathe();
     this.live?.warmUp();
+    // Each projectile and trap look is shown once, so their shaders compile now and not on the first throw
+    // (the first drawShots with nothing in play hides them again).
+    this.shotMaterials().forEach((mat, i) => {
+      const mesh = this.shotMeshes[i] ?? CreatePlane(`shot-${i}`, { width: 1, height: 0.5 }, this.scene);
+      mesh.isPickable = false;
+      this.glow.addExcludedMesh(mesh);
+      mesh.material = mat;
+      mesh.position.set(this.camTarget.x, this.camTarget.y, -0.3);
+      mesh.setEnabled(true);
+      this.shotMeshes[i] = mesh;
+    });
     this.alive?.setFighters(this.views.map((v) => v.body));
     for (const v of this.views) {
       v.shield.setEnabled(true);
@@ -745,7 +765,133 @@ export class Renderer {
         this.shake = 0.5;
       } else if (e.type === 'land' || e.type === 'jump') {
         this.burst(e.x * S, e.y * S + 0.02, 3, 0.03);
+      } else if (e.type === 'counter') {
+        // The counter flash: a bright ring and star where the hit was caught, and the fighter lights up.
+        const x = e.x * S;
+        const y = e.y * S;
+        this.sprite(x, y, 0, 0.5, 18, 6);
+        this.sprite(x, y, 0.4, 0.7, 12, 2.4);
+        this.burst(x, y, 14, 0.1);
+        if (this.views[e.id]) this.views[e.id].flash = 14;
+        this.shake = Math.max(this.shake, 0.3);
+      } else if (e.type === 'shot') {
+        this.onSynth?.(e.kind === 1 ? 'thud' : 'whoosh');
+        this.burst(e.x * S, e.y * S, 4, 0.04);
       }
+    }
+  }
+
+  private shotMaterials(): StandardMaterial[] {
+    if (this.shotMats) return this.shotMats;
+    const make = (name: string, draw: (c: CanvasRenderingContext2D) => void): StandardMaterial => {
+      const t = new DynamicTexture(`shot-${name}`, { width: 128, height: 64 }, this.scene, true);
+      const c = t.getContext() as CanvasRenderingContext2D;
+      c.clearRect(0, 0, 128, 64);
+      draw(c);
+      t.hasAlpha = true;
+      t.update();
+      const m = new StandardMaterial(`shot-${name}`, this.scene);
+      m.disableLighting = true;
+      m.emissiveTexture = t;
+      m.diffuseTexture = t;
+      m.opacityTexture = t;
+      m.backFaceCulling = false;
+      m.disableDepthWrite = true;
+      return m;
+    };
+    const deck = (c: CanvasRenderingContext2D, y: number) => {
+      c.fillStyle = '#1a1a1a';
+      c.beginPath();
+      c.roundRect(10, y, 108, 14, 7);
+      c.fill();
+      c.fillStyle = '#ff7a2a';
+      c.beginPath();
+      c.roundRect(14, y + 2, 100, 8, 4);
+      c.fill();
+      c.fillStyle = '#ffe3b0';
+      c.fillRect(30, y + 4, 68, 2);
+      c.fillStyle = '#d8d8d8';
+      for (const wx of [30, 98]) {
+        c.beginPath();
+        c.arc(wx, y + 18, 6, 0, Math.PI * 2);
+        c.fill();
+        c.strokeStyle = '#1a1a1a';
+        c.lineWidth = 2;
+        c.stroke();
+      }
+    };
+    this.shotMats = [
+      // The thrown board: deck and wheels, spinning as it flies.
+      make('board', (c) => deck(c, 22)),
+      // The trap: a board lying on the floor inside a warning ring.
+      make('trap', (c) => {
+        c.strokeStyle = 'rgba(255,209,90,0.95)';
+        c.lineWidth = 4;
+        c.setLineDash([10, 6]);
+        c.beginPath();
+        c.ellipse(64, 40, 58, 16, 0, 0, Math.PI * 2);
+        c.stroke();
+        c.setLineDash([]);
+        c.scale(0.8, 0.8);
+        c.translate(16, 14);
+        deck(c, 22);
+      }),
+      make('orb', (c) => {
+        const g = c.createRadialGradient(64, 32, 0, 64, 32, 30);
+        g.addColorStop(0, 'rgba(255,255,255,1)');
+        g.addColorStop(0.35, 'rgba(255,170,60,0.95)');
+        g.addColorStop(1, 'rgba(255,90,20,0)');
+        c.fillStyle = g;
+        c.fillRect(0, 0, 128, 64);
+      }),
+    ];
+    return this.shotMats;
+  }
+
+  /** Draws the projectiles and traps in play, and a dash's trail behind a fighter that is driving. */
+  private drawShots(state: GameState): void {
+    const mats = this.shotMaterials();
+    for (let i = 0; i < state.shots.length; i++) {
+      const o = state.shots[i];
+      let mesh = this.shotMeshes[i];
+      if (!mesh) {
+        mesh = CreatePlane(`shot-${i}`, { width: 1, height: 0.5 }, this.scene);
+        mesh.isPickable = false;
+        this.glow.addExcludedMesh(mesh);
+        this.shotMeshes[i] = mesh;
+      }
+      const look = SHOT_LOOKS[o.style] ?? 'board';
+      mesh.material = mats[o.style] ?? mats[0];
+      mesh.setEnabled(true);
+      const size = Math.max(0.5, o.r * S * 2.6);
+      if (look === 'trap') {
+        // Lies on the floor; dim while it arms, then pulses.
+        const pulse = o.arm > 0 ? 0.6 : 1 + Math.sin(o.age * 0.3) * 0.08;
+        mesh.position.set(o.x * S, o.y * S + size * 0.22, -0.25);
+        mesh.scaling.set(size * pulse, size * pulse, 1);
+        mesh.rotation.z = 0;
+        mesh.visibility = o.arm > 0 ? 0.55 : 1;
+      } else {
+        mesh.position.set(o.x * S, o.y * S, -0.3);
+        mesh.scaling.set(o.facing * size, size, 1);
+        mesh.rotation.z = look === 'board' ? -o.facing * o.age * 0.55 : 0;
+        mesh.visibility = 1;
+      }
+    }
+    for (let i = state.shots.length; i < this.shotMeshes.length; i++) this.shotMeshes[i].setEnabled(false);
+
+    // A dash leaves a streak behind each frame it drives (once per sim frame, so a pause leaves none).
+    if (state.frame === this.lastTrail) return;
+    this.lastTrail = state.frame;
+    for (const f of state.fighters) {
+      if (f.action !== ACT.ATTACK) continue;
+      const m = CHARACTERS[f.char].moves[f.move];
+      if (m.kind !== 'dash' && !(m.kind === 'recovery' && m.drive?.some((d) => f.frame >= d.from && f.frame <= d.to))) continue;
+      if (m.kind === 'dash' && !m.drive?.some((d) => f.frame >= d.from && f.frame <= d.to)) continue;
+      const mesh = this.takeSpark();
+      mesh.position.set((f.x - f.facing * 24 * FX * (f.scale / 100)) * S, (f.y + 40 * FX) * S, -0.35);
+      mesh.rotation.z = m.kind === 'dash' ? 0 : Math.atan2(f.vy, f.vx * f.facing) * f.facing;
+      this.sparks.push({ mesh, vx: 0, vy: 0, life: 9, max: 9, size: 0.32, stretch: m.kind === 'dash' ? 3.2 : 2, grow: 0 });
     }
   }
 
@@ -823,6 +969,7 @@ export class Renderer {
       this.rig.position.set(p.x * S, p.y * S, 0);
     } else this.rig?.setEnabled(false);
     for (const f of state.fighters) this.drawFighter(f, this.views[f.id]);
+    this.drawShots(state);
     this.updateSparks();
     this.fx?.setClock(state);
     this.fx?.update();
@@ -918,6 +1065,10 @@ export class Renderer {
     if (v.flash > 0) {
       v.flash--;
       v.mat.emissiveColor.set(1, 0.55 + (10 - v.flash) * 0.045, 0.45 + (10 - v.flash) * 0.055);
+    } else if (f.action === ACT.ATTACK && CHARACTERS[f.char].moves[f.move].counter && f.frame >= CHARACTERS[f.char].moves[f.move].counter!.from && f.frame <= CHARACTERS[f.char].moves[f.move].counter!.to) {
+      // Counter stance: a cold pulse on the fighter while the window is open.
+      const pulse = f.frame & 4 ? 0.55 : 0.8;
+      v.mat.emissiveColor.set(pulse, 0.95, 1);
     } else {
       v.mat.emissiveColor.set(1, 1, 1);
     }
@@ -941,7 +1092,7 @@ export class Renderer {
       s.vy -= 0.002;
       const k = --s.life / s.max;
       const sz = s.grow ? s.size * (1 + (1 - k) * s.grow) * Math.min(1, k * 2) : k * s.size;
-      s.mesh.scaling.set(sz, sz, 1);
+      s.mesh.scaling.set(sz * (s.stretch ?? 1), sz, 1);
       if (s.life <= 0) {
         s.mesh.setEnabled(false);
         this.sparkPool.push(s.mesh);
@@ -1121,9 +1272,12 @@ function proceduralPose(f: Fighter, stage: StageDef): [number, number, number, n
       return f.vy > 0 ? [0.96, 1.05, 0, 0] : [1.02, 0.98, 0, 0];
     case ACT.ATTACK: {
       const m = ch.moves[f.move];
-      const w = m.hits[0];
+      // Throws, traps and counters have no hit window: they lean in around the moment they take effect.
+      const w = m.hits[0] ?? { start: m.shot?.frame ?? m.counter?.from ?? 4, end: (m.shot?.frame ?? m.counter?.from ?? 4) + 3, boxes: [{ x: 40, y: ch.height * 0.5 }] };
       const b = w.boxes[0];
       const ang = Math.atan2(b.y - ch.height * 0.5, b.x);
+      if (m.kind === 'recovery' && m.helpless && t > w.start) return [1, 1, f.facing * t * 0.5, 0];
+      if (m.kind === 'counter') return t >= w.start ? [1.06, 0.94, 0, 0] : [0.98, 1.03, 0, 0];
       if (f.move === MOVE.UPB && t > w.start) return [1, 1, f.facing * t * 0.5, 0];
       if (t < w.start) {
         // Wind up away from the hit.

@@ -13,7 +13,7 @@ import { onSoundSettings, setSoundSettings, soundSettings } from './soundSetting
 import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
-import { GAMEPAD_HELP, KEYBOARD_HELP, listenKeyboard, onKey, pausePressed, readLocal } from './input/devices.ts';
+import { GAMEPAD_HELP, KEYBOARD_HELP, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal } from './input/devices.ts';
 import { installPerfMonitor } from './playtest/hawkes-perf.js';
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
@@ -184,6 +184,7 @@ function wireMenus(): void {
     $(id).replaceChildren(...rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]));
   fill('keys-kb', KEYBOARD_HELP);
   fill('keys-pad', GAMEPAD_HELP);
+  fill('keys-touch', TOUCH_HELP);
 }
 
 let spotIndex = Math.floor(Math.random() * CHARACTERS.length);
@@ -692,6 +693,11 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         audio.synth('cheer', 0.7);
         audio.line(`fighter.${CHARACTERS[m.state.fighters[e.victim].char].id}.ko`);
         break;
+      case 'counter':
+        // A counter rings out: a shield-bright hit and a sting.
+        audio.sfx('hit-shield');
+        audio.synth('sting', 0.5);
+        break;
       case 'jump':
         audio.sfx('jump', { vary: true });
         break;
@@ -712,7 +718,7 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
   // Swings and dodges start on a change of action, which the sim does not report.
   m.state.fighters.forEach((f, i) => {
     if (f.action !== lastActions[i]) {
-      if (f.action === ACT.ATTACK) audio.sfx(SMASHES.has(f.move) ? 'swing-heavy' : 'swing-light', { vary: true });
+      if (f.action === ACT.ATTACK) audio.sfx(SMASHES.has(f.move) || f.move === MOVE.SSPECIAL || f.move === MOVE.DSPECIAL ? 'swing-heavy' : 'swing-light', { vary: true });
       else if (f.action === ACT.ROLL || f.action === ACT.SPOTDODGE || f.action === ACT.AIRDODGE) audio.sfx('dodge', { vary: true });
     }
     lastActions[i] = f.action;

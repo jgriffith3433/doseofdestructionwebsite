@@ -173,7 +173,13 @@
     "gravity": 0.62,
     "fall": 11,
     "hop": 150,
-    "jumps": 1
+    "jumps": 1,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Board throw", "clip": "nspecial", "startup": 9, "total": 26, "speed": 13, "life": 70, "r": 22, "dmg": 70, "angle": 30, "bkb": 25, "kbg": 60, "x": 36, "y": 60, "style": "board" },
+      "side": { "type": "dash", "name": "Skate dash", "clip": "roll", "startup": 5, "duration": 14, "endlag": 14, "speed": 12, "r": 30, "dmg": 90, "angle": 40, "bkb": 30, "kbg": 90, "x": 36, "y": 40 },
+      "up": { "type": "recovery", "variant": "angled", "name": "Ollie", "clip": "upb", "startup": 5, "duration": 16, "endlag": 24, "rise": 17, "speed": 7, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 64 },
+      "down": { "type": "trap", "name": "Kickflip trap", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 20, "life": 600, "x": 58, "r": 34, "dmg": 100, "angle": 80, "bkb": 40, "kbg": 90, "style": "trap" }
+    }
   },
   {
     "id": "future-man",

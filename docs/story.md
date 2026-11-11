@@ -21,7 +21,8 @@ it; the Voice tab in devtools edits the lines). This doc says what the show is, 
 
 ## Season 1: Open Mic to Encore (as built)
 
-Exit Punk walks on with no sponsor, no record and one skateboard. He's not here for the show; he's here for
+Exit Punk walks on with no sponsor, no record and one skateboard (he throws it, rides it, leaves it on the floor
+as a trap and pops off it to get back to the ledge: his four specials). He's not here for the show; he's here for
 the exit. The Orchestrator tells him the only way out is through everyone else on the card.
 
 | # | Episode (id) | Opponents (CPU level) | Stage | Rule twist |
