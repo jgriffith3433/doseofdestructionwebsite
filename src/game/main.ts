@@ -1251,7 +1251,7 @@ installDodPlaytest({
     return before;
   },
   fxStats: () => renderer.fxStats(),
-  hitFxStats: () => renderer.hitFxStats(),
+  hitFxStats: (reset) => renderer.hitFxStats(reset),
   camFxStats: (reset) => renderer.camFxStats(reset),
   gfxStats: () => renderer.gfxStats(),
   aliveStats: () => renderer.aliveStats(),
