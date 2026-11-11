@@ -137,6 +137,24 @@ export const MOVE_KEYS = [
   'nair', 'fair', 'bair', 'uair', 'dair', 'upb', 'nspecial', 'sspecial', 'dspecial',
 ] as const;
 
+/** The four throws, in THROW order: forward, back, up, down. */
+export const THROW = { FORWARD: 0, BACK: 1, UP: 2, DOWN: 3 } as const;
+export const THROW_KEYS = ['fthrow', 'bthrow', 'uthrow', 'dthrow'] as const;
+/** The existing clip each throw reuses: forward tilt, back air, up tilt, down tilt. */
+export const THROW_CLIPS = ['ftilt', 'bair', 'utilt', 'dtilt'] as const;
+
+/** One throw: the same shape as a hitbox's launch numbers, plus when the held fighter lets go and how long the throw lasts. */
+export interface ThrowDef {
+  name: string;
+  dmg: number;
+  angle: number;
+  bkb: number;
+  kbg: number;
+  /** Frame of the throw the held fighter is released on, and the throw's total frames. */
+  release: number;
+  total: number;
+}
+
 export const AERIALS: ReadonlySet<number> = new Set([MOVE.NAIR, MOVE.FAIR, MOVE.BAIR, MOVE.UAIR, MOVE.DAIR]);
 
 export interface Tuning {
@@ -175,6 +193,10 @@ export interface CharacterDef {
   /** Kept for the select screen's stat bars. */
   tuning: Tuning;
   moves: Move[];
+  /** The four throws of the shared grab (forward, back, up, down), scaled by this fighter's tuning. */
+  throws: ThrowDef[];
+  /** How far in front of the feet the grab reaches, from the jab's furthest hitbox edge. */
+  grabReach: number;
   /** True when the fighter has its own specials: Special with a direction then picks side, up or down. */
   specials: boolean;
 }
@@ -234,6 +256,37 @@ function buildMoves(height: number, t: Tuning): Move[] {
       airLimited: true,
     },
   ];
+}
+
+/**
+ * The shared throws (angles in the fighter's facing space), scaled by each fighter's damage and knockback tuning:
+ * forward is the all-round one, back sends the other way, up is the kill throw off the top at high percent, and
+ * down is the weak one that leaves the victim close by for a follow-up.
+ */
+function buildThrows(t: Tuning): ThrowDef[] {
+  const f = (n: number) => Math.max(1, Math.round(n * t.frames * MOVE_TIME));
+  const th = (name: string, dmg: number, angle: number, bkb: number, kbg: number, release: number, total: number): ThrowDef => ({
+    name,
+    dmg: Math.round(dmg * t.damage),
+    angle,
+    bkb,
+    kbg: Math.round(kbg * t.knockback),
+    release: f(release),
+    total: Math.max(f(total), f(release) + 4),
+  });
+  return [
+    th('Forward throw', 80, 38, 30, 92, 12, 34),
+    th('Back throw', 90, 142, 32, 98, 14, 38),
+    th('Up throw', 70, 88, 30, 90, 12, 34),
+    th('Down throw', 60, 70, 24, 40, 10, 30),
+  ];
+}
+
+/** The grab's reach: how far out the jab's furthest hitbox edge sits. */
+function grabReachOf(jab: Move): number {
+  let reach = 0;
+  for (const w of jab.hits) for (const b of w.boxes) reach = Math.max(reach, b.x + b.r);
+  return Math.max(40, reach);
 }
 
 // ------------------------------------------------------------------ specials
@@ -564,6 +617,7 @@ export function fighter(id: string, name: string, role: string, blurb: string, p
   const fx = (v: number) => Math.round(v * FX);
   const jump = (height: number) => fx(Math.sqrt(2 * p.gravity * height));
   const tuning: Tuning = { frames: p.frames ?? 1, damage: p.dmg ?? 1, knockback: p.kb ?? 1, reach: p.reach ?? 1 };
+  const moves = applyHitboxFit(withSpecials(buildMoves(p.h, tuning), p.specials, p.h, tuning), p.hitboxes);
   return {
     id,
     name,
@@ -587,7 +641,9 @@ export function fighter(id: string, name: string, role: string, blurb: string, p
     airJumpVel: jump(p.hop * 0.85),
     airJumps: p.jumps,
     tuning,
-    moves: applyHitboxFit(withSpecials(buildMoves(p.h, tuning), p.specials, p.h, tuning), p.hitboxes),
+    moves,
+    throws: buildThrows(tuning),
+    grabReach: grabReachOf(moves[MOVE.JAB]),
     specials: !!p.specials,
   };
 }

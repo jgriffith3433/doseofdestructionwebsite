@@ -2,7 +2,7 @@
 // fighter should be showing. Fighters without clips fall back to their still
 // image with procedural squash and lean, so clips can arrive one at a time.
 
-import { CHARACTERS, MOVE_KEYS } from '../sim/characters.ts';
+import { CHARACTERS, MOVE_KEYS, THROW_CLIPS } from '../sim/characters.ts';
 import { ACT, type Fighter } from '../sim/state.ts';
 
 export interface Clip {
@@ -99,6 +99,14 @@ function wanted(f: Fighter): string[] {
       return ['helpless', 'fall', 'idle'];
     case ACT.DIZZY:
       return ['dizzy', 'idle'];
+    // The grab reuses the jab for its reach, the throws reuse the tilts and the back air, the held fighter plays hurt.
+    case ACT.GRAB:
+    case ACT.GRAB_HOLD:
+      return ['jab', 'idle'];
+    case ACT.THROW:
+      return [THROW_CLIPS[Math.max(0, f.throwKind - 1)], 'idle'];
+    case ACT.GRABBED:
+      return ['hurt', 'fall', 'idle'];
     default:
       return ['idle'];
   }
@@ -126,6 +134,10 @@ export function clipFrame(f: Fighter, pick: Pick): number {
   const { clip } = pick;
   const n = clip.frames;
   let span = 0;
+  // Holding someone: the jab's reach stays at full extension, and the held fighter's hurt pose stays put.
+  if (f.action === ACT.GRAB_HOLD) return Math.max(0, Math.min(n - 1, clip.hit && clip.hit > 0 ? clip.hit : n >> 1));
+  if (f.action === ACT.GRABBED) return Math.min(n - 1, n >> 1);
+  if (f.action === ACT.GRAB && pick.exact) return Math.min(n - 1, Math.floor((f.frame / Math.max(1, f.length)) * n));
   if (f.action === ACT.ATTACK && pick.exact) {
     const move = CHARACTERS[f.char].moves[f.move];
     span = move.total;

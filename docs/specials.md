@@ -80,3 +80,18 @@ bot-vs-bot win rates stay between 35% and 65% (balanced with each fighter's `dmg
 `input: "touch"` (390x844, turned to 844x390) has the 20 newer fighters fire all four from the on-screen controls
 (`touch-special`) and the command grab where the kit has one (`touch-grab`: 12 of the 20), and reports
 `specialsOutsideTouch` (0). There is no separate Grab button in the layout; a grab is a special.
+
+## The shared grab and throws
+
+Every fighter has one grab (separate from a command-grab special): **Shield + Attack together** (keyboard L + J, pad
+trigger + A, touch Shield + Attack touched at once; Attack out of a held shield is the same thing). It reaches as far as
+the fighter's jab (`CharacterDef.grabReach`, the furthest jab hitbox edge), plays the jab clip, and has the triangle
+built in: it **beats shield** (the shield is left whole), and **loses to attacks** (a hit that lands on the grabber
+while it reaches, applied before grabs in `resolveHits`/`applyGrabs`, ends it). A whiff is a 30-frame recovery.
+
+The held fighter plays hurt, pinned in front. The hold lasts `holdFrames(percent)`: 40 frames at 0%, 100 at 100%
+(max 240); each mash (a fresh button press or stick flick) takes 4 frames off it. The holder throws with the stick
+(or Attack, which is forward): forward, back, up or down (`CharacterDef.throws`, from `buildThrows` in `fighterDefs.ts`:
+own damage, angle, base and growth knockback, scaled by the fighter's `dmg`/`kb` tuning). Up is the kill throw off
+the top, back sends them behind, down is weak and leaves them close for a follow-up. Throws reuse the clips ftilt,
+bair, utilt and dtilt. Events: `grab`, `throw`, `grab-break`; sound `grab` (synth) and the grab flash in the renderer.
