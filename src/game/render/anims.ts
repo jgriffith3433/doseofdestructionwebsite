@@ -210,13 +210,14 @@ const FEET_CLIPS = new Set(['idle', 'walk', 'run', 'crouch', 'jumpsquat', 'land'
 /**
  * How far to lift the sprite (sheet pixels) so the frame's lowest solid row meets the platform: the clip's
  * per-frame `feet`. Only for a grounded fighter on a floor clip (a stand-in clip or a launched fighter keeps its
- * anchor), and never more than a few percent of the height, so a bad measurement can't throw a fighter.
+ * anchor). Cap at 20% of height so a bad measurement can't throw a fighter, but idle soles that sit ~12% off
+ * the anchor (spider-bot, evil-blue-bird) still correct fully.
  */
 export function feetLift(f: Fighter, pick: Pick, frame: number): number {
   const feet = pick.clip.feet;
   if (!feet || !f.grounded || !pick.exact || !FEET_CLIPS.has(pick.key)) return 0;
   const v = feet[frame];
   if (v == null) return 0;
-  const max = pick.refHeight * 0.06;
+  const max = pick.refHeight * 0.2;
   return Math.max(-max, Math.min(max, v));
 }

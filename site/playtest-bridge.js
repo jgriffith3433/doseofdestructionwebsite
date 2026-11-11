@@ -355,6 +355,16 @@
         "full",
         "roster"
       ]
+    },
+    {
+      "id": "feet",
+      "title": "Feet on the floor: every fighter idles and walks with soles within 2 px (dod:feet-gap), The Mechanic stands on a City Top scaffold, phone 844x390 by touch",
+      "description": "Setup shortcut: each of the 33 fighters into training (option fighter: one). Idles on the main platform, walks so stride playback is on screen, logs feet-gap / dod:feet-gap (idle residual over 2 px is a bug). Then versus on City Top as The Mechanic: jumps onto a soft scaffold deck (city-top-deck) and checks the sole gap there. On a 390x844 phone turns to 844x390 and plays by touch. Metrics fightersTested.",
+      "seconds": 600,
+      "tags": [
+        "full",
+        "touch"
+      ]
     }
   ];
   // END SCENARIOS

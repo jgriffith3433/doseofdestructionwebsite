@@ -47,7 +47,8 @@ const CONTACT_ROWS = 3;
 /** Walk-like clips (the ones played by ground covered). */
 const STRIDE_CLIPS = ['walk', 'run'];
 /** The fighter's walk speed over the clip's measured contact speed is the playback rate; outside this it is not trusted. */
-const RATE = [0.4, 10];
+/** Accept measured contact speed when full-walk sheet speed / contact speed is in this band (ball-person sits near 11). */
+const RATE = [0.4, 12];
 
 const args = process.argv.slice(2);
 const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
