@@ -692,10 +692,10 @@
       "id": "fighter.blog-man.ko",
       "group": "ko",
       "who": "blog-man",
-      "text": "Aaaaagh!",
+      "text": "BREAKING: kid kn—",
       "audio": "/audio/voice/fighter.blog-man.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "BREAKING: kid kn—",
         "voice": "CwhRBWXzGAHq8TQ4Fs17"
       }
     },
@@ -703,10 +703,10 @@
       "id": "fighter.break.ko",
       "group": "ko",
       "who": "break",
-      "text": "Aaaaagh!",
+      "text": "Rule one!",
       "audio": "/audio/voice/fighter.break.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Rule one!",
         "voice": "N2lVS1w4EtoT3dr4eOWO"
       }
     },
@@ -758,10 +758,10 @@
       "id": "fighter.dj-wont-read.ko",
       "group": "ko",
       "who": "dj-wont-read",
-      "text": "Aaaaagh!",
+      "text": "Cut the feed—",
       "audio": "/audio/voice/fighter.dj-wont-read.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Cut the feed—",
         "voice": "iP95p4xoKVk53GoZ742B"
       }
     },
@@ -769,10 +769,10 @@
       "id": "fighter.evil-blue-bird.ko",
       "group": "ko",
       "who": "evil-blue-bird",
-      "text": "Aaaaagh!",
+      "text": "Cute until—",
       "audio": "/audio/voice/fighter.evil-blue-bird.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Cute until—",
         "voice": "cgSgspJ2msm6clMCkdW9"
       }
     },
@@ -780,10 +780,10 @@
       "id": "fighter.exit-punk.ko",
       "group": "ko",
       "who": "exit-punk",
-      "text": "Aaaaagh!",
+      "text": "Not the exit—",
       "audio": "/audio/voice/fighter.exit-punk.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Not the exit—",
         "voice": "bIHbv24MWmeRgasZH58o"
       }
     },
@@ -802,10 +802,10 @@
       "id": "fighter.got-ur-back.ko",
       "group": "ko",
       "who": "got-ur-back",
-      "text": "Aaaaagh!",
+      "text": "I had your—",
       "audio": "/audio/voice/fighter.got-ur-back.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "I had your—",
         "voice": "IKne3meq5aSn9XLyUdCD"
       }
     },
@@ -813,10 +813,10 @@
       "id": "fighter.kaelen.ko",
       "group": "ko",
       "who": "kaelen",
-      "text": "Aaaaagh!",
+      "text": "Bye for real—",
       "audio": "/audio/voice/fighter.kaelen.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Bye for real—",
         "voice": "TX3LPaxmHKxFdv7VOQHJ"
       }
     },
@@ -846,10 +846,10 @@
       "id": "fighter.orchestrator.ko",
       "group": "ko",
       "who": "orchestrator",
-      "text": "Aaaaagh!",
+      "text": "Show's over—",
       "audio": "/audio/voice/fighter.orchestrator.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Show's over—",
         "voice": "onwK4e9ZLuTAKqWW03F9"
       }
     },
@@ -879,10 +879,10 @@
       "id": "fighter.shutup-bot.ko",
       "group": "ko",
       "who": "shutup-bot",
-      "text": "Aaaaagh!",
+      "text": "Kssshhh—",
       "audio": "/audio/voice/fighter.shutup-bot.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Kssshhh—",
         "voice": "SAz9YHcvj6GT2YYXdXww"
       }
     },
@@ -890,10 +890,10 @@
       "id": "fighter.slice.ko",
       "group": "ko",
       "who": "slice",
-      "text": "Aaaaagh!",
+      "text": "I ducked—",
       "audio": "/audio/voice/fighter.slice.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "I ducked—",
         "voice": "XB0fDUnXU5powFXDhCwa"
       }
     },
@@ -912,10 +912,10 @@
       "id": "fighter.small-weather.ko",
       "group": "ko",
       "who": "small-weather",
-      "text": "Aaaaagh!",
+      "text": "Pressure drop—",
       "audio": "/audio/voice/fighter.small-weather.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Pressure drop—",
         "voice": "cjVigY5qzO86Huf0OWal"
       }
     },
@@ -934,10 +934,10 @@
       "id": "fighter.ss-boulder.ko",
       "group": "ko",
       "who": "ss-boulder",
-      "text": "Aaaaagh!",
+      "text": "Boulder falls—",
       "audio": "/audio/voice/fighter.ss-boulder.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Boulder falls—",
         "voice": "XrExE9yKIg1WjnnlVkGX"
       }
     },
@@ -945,10 +945,10 @@
       "id": "fighter.stratabots.ko",
       "group": "ko",
       "who": "stratabots",
-      "text": "Aaaaagh!",
+      "text": "Plates fail—",
       "audio": "/audio/voice/fighter.stratabots.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Plates fail—",
         "voice": "pqHfZKP75CvOlQylNhV4"
       }
     },
@@ -1401,6 +1401,864 @@
       "take": {
         "text": "Yooba yooba.",
         "voice": "FGY2WhTYpPnrIDTdsKH5"
+      }
+    },
+    {
+      "id": "fighter.exit-punk.effort.0",
+      "group": "effort",
+      "who": "exit-punk",
+      "text": "Hah!",
+      "audio": "/audio/voice/fighter.exit-punk.effort.0.mp3",
+      "take": {
+        "text": "Hah!",
+        "voice": "bIHbv24MWmeRgasZH58o"
+      }
+    },
+    {
+      "id": "fighter.exit-punk.effort.1",
+      "group": "effort",
+      "who": "exit-punk",
+      "text": "Out!",
+      "audio": "/audio/voice/fighter.exit-punk.effort.1.mp3",
+      "take": {
+        "text": "Out!",
+        "voice": "bIHbv24MWmeRgasZH58o"
+      }
+    },
+    {
+      "id": "fighter.exit-punk.effort.2",
+      "group": "effort",
+      "who": "exit-punk",
+      "text": "Go!",
+      "audio": "/audio/voice/fighter.exit-punk.effort.2.mp3",
+      "take": {
+        "text": "Go!",
+        "voice": "bIHbv24MWmeRgasZH58o"
+      }
+    },
+    {
+      "id": "fighter.exit-punk.hurt.0",
+      "group": "hurt",
+      "who": "exit-punk",
+      "text": "Tch.",
+      "audio": "/audio/voice/fighter.exit-punk.hurt.0.mp3",
+      "take": {
+        "text": "Tch.",
+        "voice": "bIHbv24MWmeRgasZH58o"
+      }
+    },
+    {
+      "id": "fighter.exit-punk.hurt.1",
+      "group": "hurt",
+      "who": "exit-punk",
+      "text": "Ow—",
+      "audio": "/audio/voice/fighter.exit-punk.hurt.1.mp3",
+      "take": {
+        "text": "Ow—",
+        "voice": "bIHbv24MWmeRgasZH58o"
+      }
+    },
+    {
+      "id": "fighter.exit-punk.taunt",
+      "group": "taunt",
+      "who": "exit-punk",
+      "text": "I'm the exit.",
+      "audio": "/audio/voice/fighter.exit-punk.taunt.mp3",
+      "take": {
+        "text": "I'm the exit.",
+        "voice": "bIHbv24MWmeRgasZH58o"
+      }
+    },
+    {
+      "id": "fighter.kaelen.effort.0",
+      "group": "effort",
+      "who": "kaelen",
+      "text": "Hi!",
+      "audio": "/audio/voice/fighter.kaelen.effort.0.mp3",
+      "take": {
+        "text": "Hi!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
+    },
+    {
+      "id": "fighter.kaelen.effort.1",
+      "group": "effort",
+      "who": "kaelen",
+      "text": "Bye!",
+      "audio": "/audio/voice/fighter.kaelen.effort.1.mp3",
+      "take": {
+        "text": "Bye!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
+    },
+    {
+      "id": "fighter.kaelen.effort.2",
+      "group": "effort",
+      "who": "kaelen",
+      "text": "Hop!",
+      "audio": "/audio/voice/fighter.kaelen.effort.2.mp3",
+      "take": {
+        "text": "Hop!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
+    },
+    {
+      "id": "fighter.kaelen.hurt.0",
+      "group": "hurt",
+      "who": "kaelen",
+      "text": "Ack!",
+      "audio": "/audio/voice/fighter.kaelen.hurt.0.mp3",
+      "take": {
+        "text": "Ack!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
+    },
+    {
+      "id": "fighter.kaelen.hurt.1",
+      "group": "hurt",
+      "who": "kaelen",
+      "text": "Whoa—",
+      "audio": "/audio/voice/fighter.kaelen.hurt.1.mp3",
+      "take": {
+        "text": "Whoa—",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
+    },
+    {
+      "id": "fighter.kaelen.taunt",
+      "group": "taunt",
+      "who": "kaelen",
+      "text": "Hi. Bye.",
+      "audio": "/audio/voice/fighter.kaelen.taunt.mp3",
+      "take": {
+        "text": "Hi. Bye.",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
+    },
+    {
+      "id": "fighter.break.effort.0",
+      "group": "effort",
+      "who": "break",
+      "text": "Hnngh!",
+      "audio": "/audio/voice/fighter.break.effort.0.mp3",
+      "take": {
+        "text": "Hnngh!",
+        "voice": "N2lVS1w4EtoT3dr4eOWO"
+      }
+    },
+    {
+      "id": "fighter.break.effort.1",
+      "group": "effort",
+      "who": "break",
+      "text": "Stay!",
+      "audio": "/audio/voice/fighter.break.effort.1.mp3",
+      "take": {
+        "text": "Stay!",
+        "voice": "N2lVS1w4EtoT3dr4eOWO"
+      }
+    },
+    {
+      "id": "fighter.break.effort.2",
+      "group": "effort",
+      "who": "break",
+      "text": "Down!",
+      "audio": "/audio/voice/fighter.break.effort.2.mp3",
+      "take": {
+        "text": "Down!",
+        "voice": "N2lVS1w4EtoT3dr4eOWO"
+      }
+    },
+    {
+      "id": "fighter.break.hurt.0",
+      "group": "hurt",
+      "who": "break",
+      "text": "Ugh!",
+      "audio": "/audio/voice/fighter.break.hurt.0.mp3",
+      "take": {
+        "text": "Ugh!",
+        "voice": "N2lVS1w4EtoT3dr4eOWO"
+      }
+    },
+    {
+      "id": "fighter.break.hurt.1",
+      "group": "hurt",
+      "who": "break",
+      "text": "No—",
+      "audio": "/audio/voice/fighter.break.hurt.1.mp3",
+      "take": {
+        "text": "No—",
+        "voice": "N2lVS1w4EtoT3dr4eOWO"
+      }
+    },
+    {
+      "id": "fighter.break.taunt",
+      "group": "taunt",
+      "who": "break",
+      "text": "I don't fall.",
+      "audio": "/audio/voice/fighter.break.taunt.mp3",
+      "take": {
+        "text": "I don't fall.",
+        "voice": "N2lVS1w4EtoT3dr4eOWO"
+      }
+    },
+    {
+      "id": "fighter.dj-wont-read.effort.0",
+      "group": "effort",
+      "who": "dj-wont-read",
+      "text": "Drop!",
+      "audio": "/audio/voice/fighter.dj-wont-read.effort.0.mp3",
+      "take": {
+        "text": "Drop!",
+        "voice": "iP95p4xoKVk53GoZ742B"
+      }
+    },
+    {
+      "id": "fighter.dj-wont-read.effort.1",
+      "group": "effort",
+      "who": "dj-wont-read",
+      "text": "Scratch!",
+      "audio": "/audio/voice/fighter.dj-wont-read.effort.1.mp3",
+      "take": {
+        "text": "Scratch!",
+        "voice": "iP95p4xoKVk53GoZ742B"
+      }
+    },
+    {
+      "id": "fighter.dj-wont-read.effort.2",
+      "group": "effort",
+      "who": "dj-wont-read",
+      "text": "Spin!",
+      "audio": "/audio/voice/fighter.dj-wont-read.effort.2.mp3",
+      "take": {
+        "text": "Spin!",
+        "voice": "iP95p4xoKVk53GoZ742B"
+      }
+    },
+    {
+      "id": "fighter.dj-wont-read.hurt.0",
+      "group": "hurt",
+      "who": "dj-wont-read",
+      "text": "Glitch!",
+      "audio": "/audio/voice/fighter.dj-wont-read.hurt.0.mp3",
+      "take": {
+        "text": "Glitch!",
+        "voice": "iP95p4xoKVk53GoZ742B"
+      }
+    },
+    {
+      "id": "fighter.dj-wont-read.hurt.1",
+      "group": "hurt",
+      "who": "dj-wont-read",
+      "text": "Ow—",
+      "audio": "/audio/voice/fighter.dj-wont-read.hurt.1.mp3",
+      "take": {
+        "text": "Ow—",
+        "voice": "iP95p4xoKVk53GoZ742B"
+      }
+    },
+    {
+      "id": "fighter.dj-wont-read.taunt",
+      "group": "taunt",
+      "who": "dj-wont-read",
+      "text": "Drop it again.",
+      "audio": "/audio/voice/fighter.dj-wont-read.taunt.mp3",
+      "take": {
+        "text": "Drop it again.",
+        "voice": "iP95p4xoKVk53GoZ742B"
+      }
+    },
+    {
+      "id": "fighter.shutup-bot.effort.0",
+      "group": "effort",
+      "who": "shutup-bot",
+      "text": "Hsst!",
+      "audio": "/audio/voice/fighter.shutup-bot.effort.0.mp3",
+      "take": {
+        "text": "Hsst!",
+        "voice": "SAz9YHcvj6GT2YYXdXww"
+      }
+    },
+    {
+      "id": "fighter.shutup-bot.effort.1",
+      "group": "effort",
+      "who": "shutup-bot",
+      "text": "Mute!",
+      "audio": "/audio/voice/fighter.shutup-bot.effort.1.mp3",
+      "take": {
+        "text": "Mute!",
+        "voice": "SAz9YHcvj6GT2YYXdXww"
+      }
+    },
+    {
+      "id": "fighter.shutup-bot.effort.2",
+      "group": "effort",
+      "who": "shutup-bot",
+      "text": "Shh!",
+      "audio": "/audio/voice/fighter.shutup-bot.effort.2.mp3",
+      "take": {
+        "text": "Shh!",
+        "voice": "SAz9YHcvj6GT2YYXdXww"
+      }
+    },
+    {
+      "id": "fighter.shutup-bot.hurt.0",
+      "group": "hurt",
+      "who": "shutup-bot",
+      "text": "Zzzt!",
+      "audio": "/audio/voice/fighter.shutup-bot.hurt.0.mp3",
+      "take": {
+        "text": "Zzzt!",
+        "voice": "SAz9YHcvj6GT2YYXdXww"
+      }
+    },
+    {
+      "id": "fighter.shutup-bot.hurt.1",
+      "group": "hurt",
+      "who": "shutup-bot",
+      "text": "Nngh—",
+      "audio": "/audio/voice/fighter.shutup-bot.hurt.1.mp3",
+      "take": {
+        "text": "Nngh—",
+        "voice": "SAz9YHcvj6GT2YYXdXww"
+      }
+    },
+    {
+      "id": "fighter.shutup-bot.taunt",
+      "group": "taunt",
+      "who": "shutup-bot",
+      "text": "Barely flinches.",
+      "audio": "/audio/voice/fighter.shutup-bot.taunt.mp3",
+      "take": {
+        "text": "Barely flinches.",
+        "voice": "SAz9YHcvj6GT2YYXdXww"
+      }
+    },
+    {
+      "id": "fighter.small-weather.effort.0",
+      "group": "effort",
+      "who": "small-weather",
+      "text": "Gust!",
+      "audio": "/audio/voice/fighter.small-weather.effort.0.mp3",
+      "take": {
+        "text": "Gust!",
+        "voice": "cjVigY5qzO86Huf0OWal"
+      }
+    },
+    {
+      "id": "fighter.small-weather.effort.1",
+      "group": "effort",
+      "who": "small-weather",
+      "text": "Blow!",
+      "audio": "/audio/voice/fighter.small-weather.effort.1.mp3",
+      "take": {
+        "text": "Blow!",
+        "voice": "cjVigY5qzO86Huf0OWal"
+      }
+    },
+    {
+      "id": "fighter.small-weather.effort.2",
+      "group": "effort",
+      "who": "small-weather",
+      "text": "Storm!",
+      "audio": "/audio/voice/fighter.small-weather.effort.2.mp3",
+      "take": {
+        "text": "Storm!",
+        "voice": "cjVigY5qzO86Huf0OWal"
+      }
+    },
+    {
+      "id": "fighter.small-weather.hurt.0",
+      "group": "hurt",
+      "who": "small-weather",
+      "text": "Oof!",
+      "audio": "/audio/voice/fighter.small-weather.hurt.0.mp3",
+      "take": {
+        "text": "Oof!",
+        "voice": "cjVigY5qzO86Huf0OWal"
+      }
+    },
+    {
+      "id": "fighter.small-weather.hurt.1",
+      "group": "hurt",
+      "who": "small-weather",
+      "text": "Cold—",
+      "audio": "/audio/voice/fighter.small-weather.hurt.1.mp3",
+      "take": {
+        "text": "Cold—",
+        "voice": "cjVigY5qzO86Huf0OWal"
+      }
+    },
+    {
+      "id": "fighter.small-weather.taunt",
+      "group": "taunt",
+      "who": "small-weather",
+      "text": "Everything is allowed.",
+      "audio": "/audio/voice/fighter.small-weather.taunt.mp3",
+      "take": {
+        "text": "Everything is allowed.",
+        "voice": "cjVigY5qzO86Huf0OWal"
+      }
+    },
+    {
+      "id": "fighter.blog-man.effort.0",
+      "group": "effort",
+      "who": "blog-man",
+      "text": "Lead!",
+      "audio": "/audio/voice/fighter.blog-man.effort.0.mp3",
+      "take": {
+        "text": "Lead!",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.blog-man.effort.1",
+      "group": "effort",
+      "who": "blog-man",
+      "text": "Type!",
+      "audio": "/audio/voice/fighter.blog-man.effort.1.mp3",
+      "take": {
+        "text": "Type!",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.blog-man.effort.2",
+      "group": "effort",
+      "who": "blog-man",
+      "text": "Print!",
+      "audio": "/audio/voice/fighter.blog-man.effort.2.mp3",
+      "take": {
+        "text": "Print!",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.blog-man.hurt.0",
+      "group": "hurt",
+      "who": "blog-man",
+      "text": "Edit!",
+      "audio": "/audio/voice/fighter.blog-man.hurt.0.mp3",
+      "take": {
+        "text": "Edit!",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.blog-man.hurt.1",
+      "group": "hurt",
+      "who": "blog-man",
+      "text": "Ow—",
+      "audio": "/audio/voice/fighter.blog-man.hurt.1.mp3",
+      "take": {
+        "text": "Ow—",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.blog-man.taunt",
+      "group": "taunt",
+      "who": "blog-man",
+      "text": "Front page stuff.",
+      "audio": "/audio/voice/fighter.blog-man.taunt.mp3",
+      "take": {
+        "text": "Front page stuff.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.evil-blue-bird.effort.0",
+      "group": "effort",
+      "who": "evil-blue-bird",
+      "text": "Chirp!",
+      "audio": "/audio/voice/fighter.evil-blue-bird.effort.0.mp3",
+      "take": {
+        "text": "Chirp!",
+        "voice": "cgSgspJ2msm6clMCkdW9"
+      }
+    },
+    {
+      "id": "fighter.evil-blue-bird.effort.1",
+      "group": "effort",
+      "who": "evil-blue-bird",
+      "text": "Peck!",
+      "audio": "/audio/voice/fighter.evil-blue-bird.effort.1.mp3",
+      "take": {
+        "text": "Peck!",
+        "voice": "cgSgspJ2msm6clMCkdW9"
+      }
+    },
+    {
+      "id": "fighter.evil-blue-bird.effort.2",
+      "group": "effort",
+      "who": "evil-blue-bird",
+      "text": "Tweet!",
+      "audio": "/audio/voice/fighter.evil-blue-bird.effort.2.mp3",
+      "take": {
+        "text": "Tweet!",
+        "voice": "cgSgspJ2msm6clMCkdW9"
+      }
+    },
+    {
+      "id": "fighter.evil-blue-bird.hurt.0",
+      "group": "hurt",
+      "who": "evil-blue-bird",
+      "text": "Squawk!",
+      "audio": "/audio/voice/fighter.evil-blue-bird.hurt.0.mp3",
+      "take": {
+        "text": "Squawk!",
+        "voice": "cgSgspJ2msm6clMCkdW9"
+      }
+    },
+    {
+      "id": "fighter.evil-blue-bird.hurt.1",
+      "group": "hurt",
+      "who": "evil-blue-bird",
+      "text": "Yip—",
+      "audio": "/audio/voice/fighter.evil-blue-bird.hurt.1.mp3",
+      "take": {
+        "text": "Yip—",
+        "voice": "cgSgspJ2msm6clMCkdW9"
+      }
+    },
+    {
+      "id": "fighter.evil-blue-bird.taunt",
+      "group": "taunt",
+      "who": "evil-blue-bird",
+      "text": "Cute, right?",
+      "audio": "/audio/voice/fighter.evil-blue-bird.taunt.mp3",
+      "take": {
+        "text": "Cute, right?",
+        "voice": "cgSgspJ2msm6clMCkdW9"
+      }
+    },
+    {
+      "id": "fighter.got-ur-back.effort.0",
+      "group": "effort",
+      "who": "got-ur-back",
+      "text": "Hug!",
+      "audio": "/audio/voice/fighter.got-ur-back.effort.0.mp3",
+      "take": {
+        "text": "Hug!",
+        "voice": "IKne3meq5aSn9XLyUdCD"
+      }
+    },
+    {
+      "id": "fighter.got-ur-back.effort.1",
+      "group": "effort",
+      "who": "got-ur-back",
+      "text": "Boom!",
+      "audio": "/audio/voice/fighter.got-ur-back.effort.1.mp3",
+      "take": {
+        "text": "Boom!",
+        "voice": "IKne3meq5aSn9XLyUdCD"
+      }
+    },
+    {
+      "id": "fighter.got-ur-back.effort.2",
+      "group": "effort",
+      "who": "got-ur-back",
+      "text": "Soft!",
+      "audio": "/audio/voice/fighter.got-ur-back.effort.2.mp3",
+      "take": {
+        "text": "Soft!",
+        "voice": "IKne3meq5aSn9XLyUdCD"
+      }
+    },
+    {
+      "id": "fighter.got-ur-back.hurt.0",
+      "group": "hurt",
+      "who": "got-ur-back",
+      "text": "Oof!",
+      "audio": "/audio/voice/fighter.got-ur-back.hurt.0.mp3",
+      "take": {
+        "text": "Oof!",
+        "voice": "IKne3meq5aSn9XLyUdCD"
+      }
+    },
+    {
+      "id": "fighter.got-ur-back.hurt.1",
+      "group": "hurt",
+      "who": "got-ur-back",
+      "text": "Hey—",
+      "audio": "/audio/voice/fighter.got-ur-back.hurt.1.mp3",
+      "take": {
+        "text": "Hey—",
+        "voice": "IKne3meq5aSn9XLyUdCD"
+      }
+    },
+    {
+      "id": "fighter.got-ur-back.taunt",
+      "group": "taunt",
+      "who": "got-ur-back",
+      "text": "Got your back.",
+      "audio": "/audio/voice/fighter.got-ur-back.taunt.mp3",
+      "take": {
+        "text": "Got your back.",
+        "voice": "IKne3meq5aSn9XLyUdCD"
+      }
+    },
+    {
+      "id": "fighter.slice.effort.0",
+      "group": "effort",
+      "who": "slice",
+      "text": "Cut!",
+      "audio": "/audio/voice/fighter.slice.effort.0.mp3",
+      "take": {
+        "text": "Cut!",
+        "voice": "XB0fDUnXU5powFXDhCwa"
+      }
+    },
+    {
+      "id": "fighter.slice.effort.1",
+      "group": "effort",
+      "who": "slice",
+      "text": "Snap!",
+      "audio": "/audio/voice/fighter.slice.effort.1.mp3",
+      "take": {
+        "text": "Snap!",
+        "voice": "XB0fDUnXU5powFXDhCwa"
+      }
+    },
+    {
+      "id": "fighter.slice.effort.2",
+      "group": "effort",
+      "who": "slice",
+      "text": "Flick!",
+      "audio": "/audio/voice/fighter.slice.effort.2.mp3",
+      "take": {
+        "text": "Flick!",
+        "voice": "XB0fDUnXU5powFXDhCwa"
+      }
+    },
+    {
+      "id": "fighter.slice.hurt.0",
+      "group": "hurt",
+      "who": "slice",
+      "text": "Tsk!",
+      "audio": "/audio/voice/fighter.slice.hurt.0.mp3",
+      "take": {
+        "text": "Tsk!",
+        "voice": "XB0fDUnXU5powFXDhCwa"
+      }
+    },
+    {
+      "id": "fighter.slice.hurt.1",
+      "group": "hurt",
+      "who": "slice",
+      "text": "Ah—",
+      "audio": "/audio/voice/fighter.slice.hurt.1.mp3",
+      "take": {
+        "text": "Ah—",
+        "voice": "XB0fDUnXU5powFXDhCwa"
+      }
+    },
+    {
+      "id": "fighter.slice.taunt",
+      "group": "taunt",
+      "who": "slice",
+      "text": "Clean cut.",
+      "audio": "/audio/voice/fighter.slice.taunt.mp3",
+      "take": {
+        "text": "Clean cut.",
+        "voice": "XB0fDUnXU5powFXDhCwa"
+      }
+    },
+    {
+      "id": "fighter.ss-boulder.effort.0",
+      "group": "effort",
+      "who": "ss-boulder",
+      "text": "Crush!",
+      "audio": "/audio/voice/fighter.ss-boulder.effort.0.mp3",
+      "take": {
+        "text": "Crush!",
+        "voice": "XrExE9yKIg1WjnnlVkGX"
+      }
+    },
+    {
+      "id": "fighter.ss-boulder.effort.1",
+      "group": "effort",
+      "who": "ss-boulder",
+      "text": "Heave!",
+      "audio": "/audio/voice/fighter.ss-boulder.effort.1.mp3",
+      "take": {
+        "text": "Heave!",
+        "voice": "XrExE9yKIg1WjnnlVkGX"
+      }
+    },
+    {
+      "id": "fighter.ss-boulder.effort.2",
+      "group": "effort",
+      "who": "ss-boulder",
+      "text": "Roll!",
+      "audio": "/audio/voice/fighter.ss-boulder.effort.2.mp3",
+      "take": {
+        "text": "Roll!",
+        "voice": "XrExE9yKIg1WjnnlVkGX"
+      }
+    },
+    {
+      "id": "fighter.ss-boulder.hurt.0",
+      "group": "hurt",
+      "who": "ss-boulder",
+      "text": "Ungh!",
+      "audio": "/audio/voice/fighter.ss-boulder.hurt.0.mp3",
+      "take": {
+        "text": "Ungh!",
+        "voice": "XrExE9yKIg1WjnnlVkGX"
+      }
+    },
+    {
+      "id": "fighter.ss-boulder.hurt.1",
+      "group": "hurt",
+      "who": "ss-boulder",
+      "text": "Crack—",
+      "audio": "/audio/voice/fighter.ss-boulder.hurt.1.mp3",
+      "take": {
+        "text": "Crack—",
+        "voice": "XrExE9yKIg1WjnnlVkGX"
+      }
+    },
+    {
+      "id": "fighter.ss-boulder.taunt",
+      "group": "taunt",
+      "who": "ss-boulder",
+      "text": "Biggest hits.",
+      "audio": "/audio/voice/fighter.ss-boulder.taunt.mp3",
+      "take": {
+        "text": "Biggest hits.",
+        "voice": "XrExE9yKIg1WjnnlVkGX"
+      }
+    },
+    {
+      "id": "fighter.stratabots.effort.0",
+      "group": "effort",
+      "who": "stratabots",
+      "text": "Lock!",
+      "audio": "/audio/voice/fighter.stratabots.effort.0.mp3",
+      "take": {
+        "text": "Lock!",
+        "voice": "pqHfZKP75CvOlQylNhV4"
+      }
+    },
+    {
+      "id": "fighter.stratabots.effort.1",
+      "group": "effort",
+      "who": "stratabots",
+      "text": "Clamp!",
+      "audio": "/audio/voice/fighter.stratabots.effort.1.mp3",
+      "take": {
+        "text": "Clamp!",
+        "voice": "pqHfZKP75CvOlQylNhV4"
+      }
+    },
+    {
+      "id": "fighter.stratabots.effort.2",
+      "group": "effort",
+      "who": "stratabots",
+      "text": "Strike!",
+      "audio": "/audio/voice/fighter.stratabots.effort.2.mp3",
+      "take": {
+        "text": "Strike!",
+        "voice": "pqHfZKP75CvOlQylNhV4"
+      }
+    },
+    {
+      "id": "fighter.stratabots.hurt.0",
+      "group": "hurt",
+      "who": "stratabots",
+      "text": "Clank!",
+      "audio": "/audio/voice/fighter.stratabots.hurt.0.mp3",
+      "take": {
+        "text": "Clank!",
+        "voice": "pqHfZKP75CvOlQylNhV4"
+      }
+    },
+    {
+      "id": "fighter.stratabots.hurt.1",
+      "group": "hurt",
+      "who": "stratabots",
+      "text": "Sparks—",
+      "audio": "/audio/voice/fighter.stratabots.hurt.1.mp3",
+      "take": {
+        "text": "Sparks—",
+        "voice": "pqHfZKP75CvOlQylNhV4"
+      }
+    },
+    {
+      "id": "fighter.stratabots.taunt",
+      "group": "taunt",
+      "who": "stratabots",
+      "text": "Plates locked.",
+      "audio": "/audio/voice/fighter.stratabots.taunt.mp3",
+      "take": {
+        "text": "Plates locked.",
+        "voice": "pqHfZKP75CvOlQylNhV4"
+      }
+    },
+    {
+      "id": "fighter.orchestrator.effort.0",
+      "group": "effort",
+      "who": "orchestrator",
+      "text": "Cue!",
+      "audio": "/audio/voice/fighter.orchestrator.effort.0.mp3",
+      "take": {
+        "text": "Cue!",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "fighter.orchestrator.effort.1",
+      "group": "effort",
+      "who": "orchestrator",
+      "text": "Downbeat!",
+      "audio": "/audio/voice/fighter.orchestrator.effort.1.mp3",
+      "take": {
+        "text": "Downbeat!",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "fighter.orchestrator.effort.2",
+      "group": "effort",
+      "who": "orchestrator",
+      "text": "Play!",
+      "audio": "/audio/voice/fighter.orchestrator.effort.2.mp3",
+      "take": {
+        "text": "Play!",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "fighter.orchestrator.hurt.0",
+      "group": "hurt",
+      "who": "orchestrator",
+      "text": "Hmm!",
+      "audio": "/audio/voice/fighter.orchestrator.hurt.0.mp3",
+      "take": {
+        "text": "Hmm!",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "fighter.orchestrator.hurt.1",
+      "group": "hurt",
+      "who": "orchestrator",
+      "text": "Off—",
+      "audio": "/audio/voice/fighter.orchestrator.hurt.1.mp3",
+      "take": {
+        "text": "Off—",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "fighter.orchestrator.taunt",
+      "group": "taunt",
+      "who": "orchestrator",
+      "text": "Next show.",
+      "audio": "/audio/voice/fighter.orchestrator.taunt.mp3",
+      "take": {
+        "text": "Next show.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
       }
     },
     {

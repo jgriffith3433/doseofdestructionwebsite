@@ -15,6 +15,9 @@ import { CHAPTERS, SEASONS, isOpen, seasonOpen } from '../campaign/story.ts';
 import { AnimTrace, TRACE_GRACE, type TraceProblem } from '../sim/trace.ts';
 import { ACT } from '../sim/state.ts';
 import { walkFrame, type Clip } from '../render/anims.ts';
+import { runSpecialsTests } from './specials.test.ts';
+import { runRosterTests } from './roster.test.ts';
+import { runGrabTests } from './grab.test.ts';
 
 declare const process: { exit(code: number): never };
 
@@ -117,6 +120,11 @@ STAGES.forEach((stage, si) => {
   const { state, secs, hits } = botMatch(four, { stocks: 2, seed: 99, stage: si });
   check(`${stage.name}: four bots finish`, state.over === 1, `${secs}s, ${hits} hits, winner P${state.winner + 1}`);
 });
+
+// Special archetypes: projectile, dash, counter, command grab, trap, flurry, recoveries; hashing and rollback for each.
+runSpecialsTests(check);
+// The shared grab and its four throws.
+runGrabTests(check);
 
 {
   // Two-on-one: allies never damage each other, and a team wins together.
@@ -621,6 +629,9 @@ STAGES.forEach((stage, si) => {
       `median ${lat.median} ms, worst ${lat.worst} ms, ${lat.samples} samples`);
   }
 }
+
+// Bot against bot across the 13 Season 1 fighters: own kits, win rates between 35% and 65%.
+runRosterTests(check);
 
 if (failed) {
   console.log(`${failed} failed`);

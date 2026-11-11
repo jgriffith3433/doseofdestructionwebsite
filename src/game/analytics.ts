@@ -57,7 +57,7 @@ export function feature(name: string, props?: Props): void {
 // ------------------------------------------------------------------ screens and context
 
 /** Screens that are menus: on them no match is on, so the match's context goes. */
-const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'howto', 'leaderboard']);
+const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'tour', 'howto', 'leaderboard']);
 
 /** Every screen the game shows (ui/screens.ts), and overlays (settings, profile) as they open. */
 export function screen(id: string): void {
@@ -248,6 +248,19 @@ export function chapterCleared(c: Chapter, firstTime: boolean, done: Set<string>
   if (CHAPTERS.every((x) => done.has(x.id))) endRun('win');
 }
 
+/**
+ * Tonight's Episode (campaign/daily.ts): feature "daily", `value` = view (the card showed, once a page), listen (Blog Man),
+ * play, result (won, score, streak, on the board) or board (rank of total, once the read comes back).
+ */
+export function daily(value: 'view' | 'listen' | 'play' | 'result' | 'board', props: Props = {}): void {
+  feature('daily', { value, ...props });
+}
+
+/** Tour (campaign/tour.ts): feature "tour", `value` = start (a fighter picked), fight (a fight won), lost, continue, quit or clear. */
+export function tour(value: 'start' | 'fight' | 'lost' | 'continue' | 'quit' | 'clear', props: Props = {}): void {
+  feature('tour', { value, ...props });
+}
+
 /** The run ends when the player leaves the campaign for the main menu (or clears it all). */
 function endRun(result?: 'win' | 'lose' | 'quit'): void {
   if (!run) return;
@@ -270,7 +283,7 @@ export function scene(id: string, end: { skipped: boolean; line: number }, lines
 
 // ------------------------------------------------------------------ settings, pause, quit
 
-export function setting(name: 'sound' | 'music' | 'sfx' | 'shake' | 'quality' | 'glow' | 'fps' | 'touch_size' | 'touch_opacity', value: boolean | number | string, from: string): void {
+export function setting(name: 'sound' | 'music' | 'sfx' | 'shake' | 'quality' | 'glow' | 'fps' | 'touch_size' | 'touch_opacity' | 'touch_vibrate', value: boolean | number | string, from: string): void {
   feature(`settings.${name}`, { value, from });
 }
 

@@ -20,6 +20,10 @@ export interface SlotSetup {
   scale?: number;
   startPercent?: number;
   stocks?: number;
+  /** Colour look (looks.ts), 0 is the original art. Cosmetic: the renderer reads it, the sim never does. */
+  look?: number;
+  /** The pilot's gentle Kaelen (ai/bot.ts pilotFight). */
+  pilot?: boolean;
 }
 
 export interface MatchSetup {
@@ -50,6 +54,8 @@ export interface MatchSetup {
   streak?: number;
   /** Online matches: who is in each slot (net/online.ts). */
   online?: OnlineSlots;
+  /** On-stage teaching prompts (ui/teach.ts): the pilot fight reads cues from Kaelen, How to play runs them on a timer. */
+  teach?: 'pilot' | 'training';
 }
 
 export interface OnlineSlots {
@@ -128,7 +134,7 @@ export class Match {
       })),
       { stocks: setup.stocks, seed, stage: setup.stage, rules: setup.rules, broadcast: setup.events },
     );
-    this.bots = setup.slots.map((s, i) => (s.cpu ? new Bot(i, s.cpu, seed + i * 7919) : null));
+    this.bots = setup.slots.map((s, i) => (s.cpu ? new Bot(i, s.cpu, seed + i * 7919, s.pilot) : null));
     this.stats = setup.slots.map(() => ({
       dealt: 0, taken: 0, hitsLanded: 0, hitsShielded: 0, biggestHit: 0, longestCombo: 0, streak: 0, bestStreak: 0,
       kos: 0, falls: 0, selfDestructs: 0, ledgeGrabs: 0, airtime: 0,

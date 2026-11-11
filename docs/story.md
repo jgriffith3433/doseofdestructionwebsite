@@ -21,7 +21,8 @@ it; the Voice tab in devtools edits the lines). This doc says what the show is, 
 
 ## Season 1: Open Mic to Encore (as built)
 
-Exit Punk walks on with no sponsor, no record and one skateboard. He's not here for the show; he's here for
+Exit Punk walks on with no sponsor, no record and one skateboard (he throws it, rides it, leaves it on the floor
+as a trap and pops off it to get back to the ledge: his four specials). He's not here for the show; he's here for
 the exit. The Orchestrator tells him the only way out is through everyone else on the card.
 
 | # | Episode (id) | Opponents (CPU level) | Stage | Rule twist |
@@ -59,6 +60,26 @@ Season end: *"Dose of Destruction will return. The card is yours now."*
 
 Fighters Season 1 used (none of them is a Season 2 walk-on): exit-punk, kaelen, break, dj-wont-read,
 shutup-bot, small-weather, blog-man, evil-blue-bird, got-ur-back, slice, ss-boulder, stratabots, orchestrator.
+
+## The pilot: a stranger's first night (as built)
+
+A player with nothing saved (no `dod-campaign`, `dod-versus` or `dod-pilot` in localStorage) never meets the title or the
+main menu. Tap to play is the walk-on: the Foundry's cold open starts at once with the show's logo over its first shot
+("Season one. The lights come up on City Top."), and Open Mic is the first thing the stranger plays. Skip goes to the
+fight; the small "Menu" link opts out (and sets the `dod-pilot` flag, so the next visit is the usual flow).
+
+- **Kaelen is the house's courtesy.** In the pilot only, he is the slow, readable opponent (`pilot: true` on his slot,
+  `ai/bot.ts` `pilotFight`): he starts the night at 60%, hops up onto a side platform and poses there, then fights
+  with a jab or a tilt now and then, and throws one telegraphed forward smash each time the kid has hurt him. He
+  never defends. The story fits: Kaelen "says hello" ("Hi. Bye.") and is not here to win.
+- **The show teaches, one verb at a time** (`ui/teach.ts`), as button glyphs over Exit Punk's head for the device in
+  use (keyboard, gamepad, touch): Move, Attack, Jump (when Kaelen is up on a platform), Smash (after three hits), Shield
+  (when Kaelen's smash winds up), Up special (when the kid is knocked off the stage). One at a time; each fades once
+  used. No key list, no paragraph.
+- **After the result** the usual outro plays, Open Mic is cleared, Kaelen joins the card, and the main menu opens with
+  Campaign marked "Next episode" (House Heavy).
+- **How to play** is the same prompted fight, in Training, against a dummy Kaelen (who never attacks, so Jump and Shield
+  come on a timer). The key list is "All controls" (a menu item, and a button in Pause).
 
 ## Seasons on the map
 
@@ -507,6 +528,56 @@ Narrator: *"Two Orchestrators. Two fights. One finale. The card is yours, and th
 
 Later items: the lines are text only (no `audio`/`take`); recording them through Hawkes Gen costs cents. No new art is
 needed (GPU estimate: none). Pacing (CPU 8 and 9, the 60% head start) is not sim-tuned.
+
+## Tour: a fighter's own six nights (as built)
+
+The campaign is Exit Punk's. Tour is everyone else's: on the main menu, **Tour** lists every fighter on the card (the
+ones the campaign has opened; The Mechanic is not on it), and picking one plays *their* run, six fights written for them
+in `content/tours.json` from their blurb and this doc. It is the show's "ladder" night: the network books a fighter
+six bouts in a row, ratings rising, and the last slot is always the fighter's **rival**, on the Foundry floor
+(Humans In The Loop) where the broadcast began.
+
+- **The route.** Fight 1 is a straight bout; fights 2 to 5 are the four rule twists the show already runs, in an order
+  of the fighter's own: a **giant** across from you (Break and the Encore), **two on one** (Bad Signal: one stock each
+  for them, three for you), **low gravity** (Low Pressure) and a **KO race** (Drop In: 3 KOs before the 2:00 clock, the
+  foe starts every life at 60%). Fight 6 is the rival, CPU level 8. The CPU rises with the fights (2, 3, 4, 5, 6, 8; the
+  two-on-one pair is one level under its slot) and never gets easier.
+- **Rivals** are picked for the story: Exit Punk and the Orchestrator (the show's own end); Kaelen and Slice (fast
+  against faster); Break and SS Boulder; DJ Won't Read and Shutup Bot (the talker and the silent one); Small Weather and
+  Pyro Singer; Evil Blue Bird and Got Ur Back (the old tag team, now in different corners); Blog Man and Future Man (the
+  host, the guest who won't spoil), and so on: every fighter has one, each route is its own.
+- **Between fights** nobody reads anything. The next foe is heard in the arena, in a recorded line of their own (their
+  taunt where they have one, else their win line), the fighter answers with their own taunt (thirteen have one), and in
+  fights 2 to 5 the **rival heckles** from off the stage, their head beside the line, so the last fight is a thread, not a
+  surprise; all of it under the fight's card: "<Fighter> · Tour · Fight 3 of 6", the twist
+  as the title ("Giant Night", "Two on One", "Thin Air", "Ratings Race", "The Rival") and one line about the foe.
+- **Winning the sixth** plays the ending over the final KO: the camera stays on the winner, the crowd cheers, the
+  fighter's own recorded win line is heard, and the closing card reads "*<Fighter> clears the Tour*" with a line for
+  them ("Six fights. The exit stays closed."). The results follow with the KO highlights, and the Tour is marked cleared
+  on the Tour select (`localStorage` `dod-tours`).
+- **A lost fight** is a Continue (the same fight again, no VS card) or Quit (back to the Tour list); nothing is lost
+  but the fight, and the foe gloats in their own win line over the choice. Every voice is an existing take: new ones per
+  fight (the foe reacting to the last result) are the next step, as is a broadcast beat (ratings bump, host call) between
+  wins.
+
+## Tonight's Episode: the nightly special (as built)
+
+The Orchestrator's show never goes dark: at midnight UTC the network drops one more episode into the schedule, the same
+for every viewer on every screen, with no booking and no server asked. It is not a chapter (no season, no unlock):
+a one-night special, aired once and gone at the next midnight.
+
+- **The card.** Main menu, above the campaign: "Tonight's Episode", the cast ("Slow Rider vs Lapis Man + Cel"), the
+  stage, the rule in one line ("3 KOs in 2:00 · Low gravity") and Blog Man's too-long headline for it, which is one of
+  his own recorded episode intros (an episode on the same stage when there is one). The countdown says when the next
+  one airs. The show lends the player the night's fighter, locked or not: a loaner, nothing unlocks from it.
+- **The rules** are the campaign's own, drawn from `content/campaign.json` (objectives ko, quota, streak, survive with
+  their targets and clocks; the damage, gravity, scale and start-percent values the chapters use; teams, which gives
+  the player a CPU partner against two). One twist most nights, two about a third of them.
+- **The score** (clears only): 1000, plus up to 400 for the clock left, 100 a stock left and 50 a unit past the target
+  (at most 400), minus 2 a percent taken (at most 600), never under 100. The day streak counts nights in a row cleared;
+  a missed night starts it again. Retries are free; only a better score replaces the night's score.
+- **The board** is the night's: signed scores kept as Hawkes Net records, read once when the results open.
+  Blog Man is not in the show's rating: the board is the viewers'.
 
 ## The booth: announcer and Blog Man commentary (as built)
 

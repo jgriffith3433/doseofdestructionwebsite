@@ -4,7 +4,7 @@
 // other player's.
 
 import { FX, rngNext } from '../sim/fixed.ts';
-import { CHARACTERS } from '../sim/characters.ts';
+import { CHARACTERS, MOVE, type SpecialKind } from '../sim/characters.ts';
 import { BTN, packInput } from '../sim/input.ts';
 import { STAGES, ledges, platformOn, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, allies, type Fighter, type GameState } from '../sim/state.ts';
@@ -25,12 +25,20 @@ export class Bot {
   private wait = 0;
   private stage: StageDef = STAGES[0];
   private state: GameState | null = null;
+  /** The pilot's gentle Kaelen (docs/story.md "The pilot"): a first-time player's opponent, see pilotFight. */
+  private readonly pilot: boolean;
+  /** Pilot: 0 hops up to a platform (the Jump lesson), 1 waits there, 2 fights. */
+  private pilotStep = 0;
+  private pilotSince = 0;
+  private pilotSmashAt = -9999;
+  private pilotBase = -1;
 
-  /** level runs 1 (easy) to 9 (hard). */
-  constructor(id: number, level: number, seed: number) {
+  /** level runs 1 (easy) to 9 (hard); pilot makes it the slow, readable opponent of the first fight. */
+  constructor(id: number, level: number, seed: number, pilot = false) {
     this.id = id;
     this.level = Math.max(1, Math.min(9, level));
     this.rng = seed;
+    this.pilot = pilot;
   }
 
   think(s: GameState): number {
@@ -92,6 +100,11 @@ export class Bot {
       return;
     }
     if (me.action === ACT.LEDGE) return this.ledge(me);
+    if (me.action === ACT.GRAB_HOLD) return this.throwHeld(s, me);
+    if (me.action === ACT.GRAB || me.action === ACT.THROW) {
+      this.wait = 2;
+      return;
+    }
     if (me.action === ACT.HITSTUN || me.hitlag > 0) {
       // Survival DI: hold up and back toward the nearest ground.
       const h = this.home(me.x / FX);
@@ -109,6 +122,24 @@ export class Bot {
     const target = this.pickTarget(s, me);
     if (!target) return;
     this.fight(me, target);
+  }
+
+  /**
+   * Holding a fighter: throw them toward the nearer blast zone (forward or back, whichever way that is). A
+   * target at kill damage on a high stage floor goes up instead, and one at low damage goes down, close, for a follow-up.
+   */
+  private throwHeld(s: GameState, me: Fighter): void {
+    this.wait = 2;
+    if (me.frame < 8) return;
+    const v = me.holding ? s.fighters[me.holding - 1] : null;
+    const blast = this.stage.blast;
+    const x = me.x / FX;
+    const nearer = x - blast.left < blast.right - x ? -1 : 1;
+    const high = v !== null && v.percent > 1100 - this.level * 30;
+    const low = v !== null && v.percent < 200 && this.random() < 0.5;
+    if (low) this.press(0, -100, BTN.ATTACK, 2);
+    else if (high && this.random() < 0.35) this.press(0, 100, BTN.ATTACK, 2);
+    else this.press(nearer * 100, 0, BTN.ATTACK, 2);
   }
 
   private offstage(me: Fighter): boolean {
@@ -135,8 +166,11 @@ export class Bot {
       this.press(toward, 0, BTN.JUMP, 2);
       return;
     }
-    if (me.jumpsLeft === 0 && falling && (y < h.y - 60 || gap > 160)) {
-      this.press(toward * 0.4, 100, BTN.SPECIAL);
+    // Out of jumps: the up special. An angled one is aimed by the stick, so the bot points it at the ledge; a
+    // straight or gliding one only steers a little, and the bot leans toward the stage while it climbs.
+    const angled = this.recoveryVariant(me) === 'angled';
+    if (me.jumpsLeft === 0 && falling && (y < h.y - 60 || gap > 160 || (angled && gap > 60))) {
+      this.press(angled ? toward : toward * 0.4, 100, BTN.SPECIAL);
       return;
     }
     this.steer(toward);
@@ -166,7 +200,126 @@ export class Bot {
     return best;
   }
 
+  /** The stick that picks a special slot (neutral, side, down), facing `side`. */
+  private slotStick(slot: 'neutral' | 'side' | 'down', side: number): [number, number] {
+    return slot === 'neutral' ? [side * 0.2, 0] : slot === 'side' ? [side, 0] : [0, -100];
+  }
+
+  /** The slot of this fighter's kit that holds an archetype, if it has one. Fighters without their own specials have none. */
+  private slotOf(me: Fighter, kind: SpecialKind): 'neutral' | 'side' | 'down' | null {
+    const ch = CHARACTERS[me.char];
+    if (!ch.specials) return null;
+    if (ch.moves[MOVE.NSPECIAL].kind === kind) return 'neutral';
+    if (ch.moves[MOVE.SSPECIAL].kind === kind) return 'side';
+    if (ch.moves[MOVE.DSPECIAL].kind === kind) return 'down';
+    return null;
+  }
+
+  /**
+   * Up close, a fighter with a kit mixes it into its swings: a grab (through a shield) or a flurry first, a dash
+   * or a counter as the fight allows. The chances grow with the level.
+   */
+  private closeSpecial(me: Fighter, side: number, skill: number): boolean {
+    if (!CHARACTERS[me.char].specials) return false;
+    const r = this.random();
+    if (r >= 0.12 + skill * 0.22) return false;
+    for (const kind of ['grab', 'flurry', 'counter', 'dash'] as const) {
+      if (this.special(me, kind, side, 0.55)) return true;
+    }
+    return false;
+  }
+
+  /** How the fighter's up special moves: aimed by the stick (angled), a glide, or a straight climb. */
+  private recoveryVariant(me: Fighter): 'angled' | 'glide' | 'straight' {
+    const up = CHARACTERS[me.char].moves[MOVE.UPB];
+    if (!up.helpless) return 'glide';
+    return up.drive?.[0]?.aim ? 'angled' : 'straight';
+  }
+
+  /** Uses a special by its archetype: true when it was pressed. */
+  private special(me: Fighter, kind: SpecialKind, side: number, chance: number, frames = 1): boolean {
+    const slot = this.slotOf(me, kind);
+    if (!slot || this.random() >= chance) return false;
+    const [sx, sy] = this.slotStick(slot, side);
+    this.press(sx, sy, BTN.SPECIAL, frames);
+    return true;
+  }
+
+  /**
+   * The pilot's Kaelen: hops onto a platform and waits there (so the Jump prompt has its moment), then fights slowly:
+   * a jab or a tilt now and then, never a combo, and one telegraphed forward smash each time the player has hurt him
+   * (so the Shield prompt has its moment). He never defends and never dodges, so a first-time player wins.
+   */
+  private pilotFight(me: Fighter, t: Fighter, s: GameState): void {
+    const mx = me.x / FX;
+    const dx = (t.x - me.x) / FX;
+    const adx = Math.abs(dx);
+    const side = dx >= 0 ? 100 : -100;
+    if (this.pilotBase < 0) {
+      this.pilotBase = me.percent;
+      this.pilotSince = s.frame;
+    }
+    const age = s.frame - this.pilotSince;
+    const perch = this.stage.platforms.findIndex((p) => !p.solid && Math.abs((p.x1 + p.x2) / 2 - mx) < 480);
+    if (this.pilotStep === 0) {
+      const p = this.stage.platforms[perch];
+      if (!p || age > 420 || me.platform === perch) {
+        this.pilotStep = p && me.platform === perch ? 1 : 2;
+        this.pilotSince = s.frame;
+      } else if (age > 90) {
+        const cx = (p.x1 + p.x2) / 2;
+        if (me.grounded && Math.abs(cx - mx) < 70) {
+          this.press(Math.sign(cx - mx) * 40, 0, BTN.JUMP, 8);
+          this.queue.push({ sx: 0, sy: 0, btn: 0, frames: 18 });
+          this.wait = 40;
+        } else this.steer(Math.sign(cx - mx) * 100);
+        return;
+      } else return;
+    }
+    if (this.pilotStep === 1) {
+      // On the platform: a beat for the Jump prompt, then down (or off) to fight.
+      if (s.frame - this.pilotSince < 210) return;
+      this.pilotStep = 2;
+      this.steer(0, -100);
+      this.queue.push({ sx: 0, sy: -100, btn: 0, frames: 6 });
+      return;
+    }
+    const ch = CHARACTERS[me.char];
+    const reach = (50 + ch.width * 0.5 + (ch.height - 110) * 0.4) * ch.tuning.reach * (me.scale / 100);
+    this.wait = 18 + Math.floor(this.random() * 16);
+    if (me.action === ACT.ATTACK || me.action === ACT.LAND || me.action === ACT.JUMPSQUAT) return;
+    // Standing high (a respawn platform, the top deck) with the player below: walk off the nearer end to come down and fight.
+    if (me.grounded && me.platform >= 0 && this.stage.platforms[me.platform].y > 100 && (me.y - t.y) / FX > 90) {
+      const p = this.stage.platforms[me.platform];
+      this.steer(mx - p.x1 < p.x2 - mx ? -100 : 100);
+      return;
+    }
+    if (adx > reach * 0.9 || Math.abs((t.y - me.y) / FX) > 90) {
+      this.steer(adx > 40 ? side : 0);
+      // Never chase over an edge.
+      const h = this.home(mx);
+      if ((side > 0 && h.x2 - mx < 60) || (side < 0 && mx - h.x1 < 60)) this.steer(0);
+      return;
+    }
+    if (!me.grounded || me.facing !== Math.sign(dx)) {
+      this.steer(side);
+      return;
+    }
+    // A smash, slow and obvious, when the player has hurt him: once every ten seconds at most.
+    if (me.percent >= this.pilotBase + 150 && s.frame - this.pilotSmashAt > 600) {
+      this.pilotSmashAt = s.frame;
+      this.press(side, 0, side > 0 ? BTN.C_RIGHT : BTN.C_LEFT);
+      this.wait = 70;
+      return;
+    }
+    if (this.random() < 0.4) {
+      this.press(side * 0.3, 0, BTN.ATTACK);
+      this.wait = 40;
+    }
+  }
+
   private fight(me: Fighter, t: Fighter): void {
+    if (this.pilot && this.state) return this.pilotFight(me, t, this.state);
     const ch = CHARACTERS[me.char];
     const k = me.scale / 100;
     const mx = me.x / FX;
@@ -185,6 +338,8 @@ export class Bot {
 
     // Defend against an attack that is about to come out.
     const threat = t.action === ACT.ATTACK && adx < reach + 60 && Math.abs(dy) < 90;
+    // The opponent commits to a swing: a counter special turns it back on them.
+    if (threat && me.grounded && me.facing === Math.sign(dx) && this.special(me, 'counter', side, 0.25 + skill * 0.4)) return;
     if (threat && me.grounded && this.random() < skill * 0.55) {
       if (this.random() < 0.7) {
         this.press(0, 0, BTN.SHIELD, 10 + Math.floor(this.random() * 8));
@@ -202,17 +357,38 @@ export class Bot {
     const targetHome = this.home(t.x / FX);
 
     if (me.grounded) {
+      // A shielding opponent is grabbed, not hit: grab beats shield. Step in until the jab's reach, then Shield + Attack.
+      const guarding = t.grounded && (t.action === ACT.SHIELD || t.action === ACT.SHIELD_STUN) && Math.abs(dy) < 50 * k;
+      if (guarding && adx < reach * 1.3) {
+        this.wait = 2;
+        const grabReach = ch.grabReach * k;
+        if (me.facing === Math.sign(dx) && adx < grabReach * 0.9) {
+          if (this.random() < 0.6 + skill * 0.4) {
+            this.press(0, 0, BTN.ATTACK | BTN.SHIELD, 2);
+            return;
+          }
+        } else if (!nearEdge || me.facing !== Math.sign(dx)) {
+          this.steer(side * 0.6);
+          return;
+        }
+      }
       if (adx < reach && Math.abs(dy) < 50 * k) {
         if (nearEdge) {
           // Facing out over the edge: the forward smash sends them far.
           this.press(side, 0, side > 0 ? BTN.C_RIGHT : BTN.C_LEFT);
         } else if ((t.percent > killPercent || open) && this.random() < 0.5 + skill * 0.3) {
           this.press(side, 0, this.random() < 0.6 ? (side > 0 ? BTN.C_RIGHT : BTN.C_LEFT) : BTN.C_DOWN);
+        } else if (me.facing === Math.sign(dx) && this.closeSpecial(me, side, skill)) {
+          return;
+        } else if (me.facing === Math.sign(dx) && adx < ch.grabReach * k * 0.9 && t.action !== ACT.ATTACK && this.random() < 0.06 + skill * 0.1) {
+          // Mix in a grab: it opens a defender who is waiting to shield, and costs little against one who is not swinging.
+          this.press(0, 0, BTN.ATTACK | BTN.SHIELD, 2);
         } else {
           const r = this.random();
           if (r < 0.35) this.press(0, 0, BTN.ATTACK);
           else if (r < 0.7) this.press(side, 0, BTN.ATTACK);
           else if (r < 0.85) this.press(side * 0.3, -100, BTN.ATTACK);
+          else if (me.facing === Math.sign(dx) && (this.special(me, 'grab', side, 0.5) || this.special(me, 'flurry', side, 0.6))) return;
           else this.press(side, 0, BTN.SPECIAL);
         }
         return;
@@ -234,10 +410,21 @@ export class Bot {
       }
       const tx = t.x / FX;
       if (tx < targetHome.x1 - 20 || tx > targetHome.x2 + 20) {
-        // The target is off stage: wait near the ledge they have to come back to.
+        // The target is off stage: wait near the ledge they have to come back to, and lay a trap on it (or a
+        // projectile out over the gap) so the recovery has something to land on.
         const post = tx > (targetHome.x1 + targetHome.x2) / 2 ? targetHome.x2 - 60 : targetHome.x1 + 60;
         const gap = post - mx;
+        if (Math.abs(gap) < 70 && me.facing === Math.sign(dx)) {
+          if (this.special(me, 'trap', side, 0.25 + skill * 0.5, 3)) return;
+          if (adx < 560 && this.special(me, 'projectile', side, 0.1 + skill * 0.25)) return;
+        }
         this.steer(Math.abs(gap) > 20 ? Math.sign(gap) * 70 : 0);
+        return;
+      }
+      const perch = me.platform >= 0 ? this.stage.platforms[me.platform] : null;
+      if (perch && dy < -120 * k && adx < 420) {
+        // Perched on a high platform with the fight far below: walk off the nearer edge instead of waiting up here.
+        this.steer(mx > (perch.x1 + perch.x2) / 2 ? 100 : -100);
         return;
       }
       if (targetHome !== h && nearEdge) {
@@ -245,6 +432,20 @@ export class Bot {
         this.press(side, 0, BTN.JUMP, 8);
         this.queue.push({ sx: side, sy: 0, btn: 0, frames: 14 }, { sx: side, sy: 0, btn: BTN.JUMP, frames: 2 });
         return;
+      }
+      // A fighter with its own specials uses them by archetype: a thrown projectile down the lane, a trap on the
+      // way in, a dash to close the distance.
+      if (ch.specials && me.facing === Math.sign(dx)) {
+        const lane = Math.abs(dy) < 60;
+        // Harder bots reach for the kit more often: every chance below grows with the level.
+        if (adx > 200 && adx < 640 && lane && this.special(me, 'projectile', side, 0.08 + skill * 0.14)) return;
+        if (adx > 110 && adx < 320 && this.special(me, 'trap', side, 0.03 + skill * 0.06, 3)) return;
+        // A trap by the ledge the target is about to be pushed off, or a stage edge they are standing at.
+        const edge = t.grounded && Math.min(t.x / FX - targetHome.x1, targetHome.x2 - t.x / FX) < 90;
+        if (edge && adx > 90 && adx < 420 && this.special(me, 'trap', side, 0.04 + skill * 0.1, 3)) return;
+        if (adx > 170 && adx < 460 && lane && this.special(me, 'dash', side, 0.06 + skill * 0.1)) return;
+        // A grab or a flurry is a close-range move: step in with it when the swing is nearly in reach.
+        if (adx > reach * 0.8 && adx < reach * 1.5 && lane && (this.special(me, 'grab', side, 0.03 + skill * 0.06) || this.special(me, 'flurry', side, 0.03 + skill * 0.06))) return;
       }
       if (adx > reach * 0.8) {
         // Approach, sometimes with a short hop aerial.
@@ -261,7 +462,10 @@ export class Bot {
       return;
     }
 
-    // In the air near the stage.
+    // In the air near the stage: a fighter with a kit throws or dashes across the gap before it swings.
+    if (ch.specials && adx > 200 && adx < 560 && Math.abs(dy) < 90 && me.facing === Math.sign(dx)) {
+      if (this.special(me, 'projectile', side, 0.04 + skill * 0.1) || this.special(me, 'dash', side, 0.03 + skill * 0.07)) return;
+    }
     if (adx < reach + 15 && Math.abs(dy) < 120 * k) {
       let dirX = 0;
       let dirY = 0;

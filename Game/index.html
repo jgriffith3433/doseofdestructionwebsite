@@ -8,6 +8,7 @@
   <!-- First paint: the brand loader (orange glow, wordmark in plain HTML/CSS) shows before game.css, the fonts or the JS bundle load. -->
   <style>
     html, body { margin: 0; height: 100%; background: #1c0d06 radial-gradient(ellipse at 50% 45%, #8a3010 0%, #3a1608 45%, #100e0c 80%); }
+    body { animation: dod-boot-in 0.25s ease both; } /* the landing page hands off with a fade into the brand colour */
     #stage { opacity: 0; transition: opacity 0.4s ease; }
     #stage.ready { opacity: 1; }
     #tap-to-play { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; text-align: center; color: #f4efe8; font-family: Oswald, Impact, 'Arial Narrow', sans-serif; animation: dod-boot-in 0.25s ease both; }
@@ -25,6 +26,7 @@
   <canvas id="stage" aria-label="Game view"></canvas>
 
   <div id="hud" class="hud" hidden></div>
+  <div id="edge-markers" class="edge-markers" aria-hidden="true"></div>
   <div id="match-top" class="match-top" hidden>
     <div id="timer" class="timer" hidden></div>
     <p id="objective" class="objective" hidden></p>
@@ -51,13 +53,16 @@
         <p class="lobby-count"><i class="dot"></i><span id="lobby-count">Connecting&hellip;</span></p>
         <ul id="lobby-list" class="lobby-list"></ul>
       </div>
+      <section id="daily-card" class="daily-card" aria-label="Tonight's Episode"></section>
       <button class="menu-item" type="button" data-go="campaign" data-autofocus><strong>Campaign</strong><span>Eight chapters. One way off the air.</span></button>
+      <button id="btn-tour" class="menu-item" type="button" data-go="tour"><strong>Tour</strong><span>Pick a fighter. Six fights, one rival, one ending.</span></button>
       <button class="menu-item" type="button" data-go="versus"><strong>Versus</strong><span>Up to four fighters, any mix of you and bots.</span></button>
       <button id="btn-find" class="menu-item online-item" type="button" data-go="online"><strong>Find match</strong><span id="find-sub">Fight another player online. Play on while you wait.</span></button>
       <button id="btn-profile" class="menu-item profile-item" type="button" data-go="profile"><img id="profile-img" alt=""><strong>Profile</strong><span id="profile-sub">Your name and picture.</span></button>
       <button id="btn-board" class="menu-item board-item" type="button" data-go="leaderboard"><strong>Leaderboard</strong><span id="board-sub">Top 100 online, this week and all time.</span></button>
       <button class="menu-item" type="button" data-go="training"><strong>Training</strong><span>A dummy, no stocks, hitboxes on H.</span></button>
-      <button class="menu-item" type="button" data-go="howto"><strong>How to play</strong><span>Controls and the basics.</span></button>
+      <button class="menu-item" type="button" data-go="howto"><strong>How to play</strong><span>Learn it on the stage, one move at a time.</span></button>
+      <button class="menu-item quiet" type="button" data-go="controls"><strong>All controls</strong></button>
       <button class="menu-item" type="button" data-go="settings"><strong>Settings</strong><span>Sound on or off, music and effects.</span></button>
       <a class="menu-item quiet" href="/"><strong>Back to site</strong></a>
       <a class="version-tag in-menu" href="/whatsnew.html" data-hawkes-version data-prefix="What&rsquo;s new &middot; v" hidden></a>
@@ -112,10 +117,20 @@
     <div id="chapter-path" class="chapter-path"></div>
   </section>
 
+  <section id="tour" class="screen tour-screen" hidden>
+    <header class="screen-head">
+      <button class="back-btn" type="button" data-back>&larr; Back</button>
+      <h2>Tour</h2>
+      <span id="tour-count" class="tour-count"></span>
+    </header>
+    <p class="lede">Pick a fighter and play their own six fights, ending on their rival. Clear it and the Tour stays marked.</p>
+    <div id="tour-grid" class="tour-grid"></div>
+  </section>
+
   <section id="howto" class="screen howto-screen" hidden>
     <header class="screen-head">
       <button class="back-btn" type="button" data-back data-autofocus>&larr; Back</button>
-      <h2>How to play</h2>
+      <h2>All controls</h2>
     </header>
     <div class="howto-body">
       <div class="basics">
@@ -124,11 +139,13 @@
           <li><strong>Hits add damage.</strong> The percent under each fighter is how far the next hit sends them.</li>
           <li><strong>Launch them off.</strong> Past the edge of the screen, that fighter loses a stock.</li>
           <li><strong>Get back.</strong> Jump, use your air jumps, then up special (up + special) to reach the ledge.</li>
+          <li><strong>Special changes with the stick.</strong> Hold a direction with Special for the side, up or down special; each fighter's are their own.</li>
           <li><strong>Last one standing</strong> takes the match.</li>
         </ol>
       </div>
       <div><h3>Keyboard</h3><dl id="keys-kb" class="keys"></dl></div>
       <div><h3>Gamepad</h3><dl id="keys-pad" class="keys"></dl></div>
+      <div><h3>Touch</h3><dl id="keys-touch" class="keys"></dl></div>
     </div>
   </section>
 
@@ -177,12 +194,31 @@
     </div>
   </div>
 
+  <!-- First visit: the title logo over the cold open's first shot (campaign/firstVisit.ts), and the small Menu link that opts out. -->
+  <div id="pilot-logo" class="pilot-logo" aria-hidden="true">
+    <h1 class="logo">Dose of <span>Destruction</span></h1>
+  </div>
+  <button id="pilot-menu" class="pilot-menu" type="button" hidden>Menu</button>
+
+  <div id="controls-panel" class="overlay" role="dialog" aria-modal="true" aria-labelledby="controls-title" hidden>
+    <div class="panel controls-panel">
+      <h2 id="controls-title">All controls</h2>
+      <div class="controls-cols">
+        <div><h3>Keyboard</h3><dl id="ctl-kb" class="keys"></dl></div>
+        <div><h3>Gamepad</h3><dl id="ctl-pad" class="keys"></dl></div>
+        <div><h3>Touch</h3><dl id="ctl-touch" class="keys"></dl></div>
+      </div>
+      <div class="actions column"><button id="btn-controls-close" class="primary" type="button">Back</button></div>
+    </div>
+  </div>
+
   <div id="pause" class="overlay" hidden>
     <div class="panel small">
       <h2>Paused</h2>
       <div class="actions column">
         <button id="btn-resume" class="primary" type="button" data-autofocus>Resume</button>
         <button id="btn-restart" class="secondary" type="button">Restart</button>
+        <button id="btn-pause-controls" class="secondary" type="button">All controls</button>
         <button id="btn-pause-settings" class="secondary" type="button">Settings</button>
         <button id="btn-quit" class="secondary" type="button">Quit</button>
       </div>
@@ -219,8 +255,12 @@
       <div id="settings-touch" class="settings-levels" hidden>
         <label class="slider"><span>Touch size</span><input id="touch-size" type="range" min="75" max="150" step="5"><output id="touch-size-value"></output></label>
         <label class="slider"><span>Touch opacity</span><input id="touch-opacity" type="range" min="30" max="100" step="5"><output id="touch-opacity-value"></output></label>
+        <div class="setting-row">
+          <span>Vibrate</span>
+          <button id="vibrate-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
+        </div>
       </div>
-      <p class="hint">Effects covers hits, menus and voices. Screen shake is the camera kick on hits and KOs. Touch size and opacity (touch devices) scale and fade the on-screen controls. Quality Low draws fewer pixels and sparks, for phones; Glow is the bloom on bright art. Press <kbd>M</kbd> any time to turn sound on or off.</p>
+      <p class="hint">Effects covers hits, menus and voices. Screen shake is the camera kick on hits and KOs. Touch size, opacity and vibrate (touch devices) tune the on-screen stick and a light buzz on a landed hit. Quality Low draws fewer pixels and sparks, for phones; Glow is the bloom on bright art. Press <kbd>M</kbd> any time to turn sound on or off.</p>
       <button id="settings-done" class="primary" type="button">Done</button>
     </div>
   </div>

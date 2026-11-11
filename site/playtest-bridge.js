@@ -28,11 +28,22 @@
     {
       "id": "match",
       "title": "A full 1v1 versus match against the CPU (2 stocks), to the results screen, its analytics events and the feedback card",
-      "description": "options: stage, fighter (ids) to play specific content. After the results: the \"How was that fight?\" card appears and is dismissed, and the Hawkes Analytics events of the run (screen, fighter_pick, stage_pick, level_start, death, level_end) are shown going out with the build and env (the SDK's debug log).",
+      "description": "options: stage, fighter (ids) to play specific content. After the results: the \"How was that fight?\" card appears and is dismissed, and the Hawkes Analytics events of the run (screen, fighter_pick, stage_pick, level_start, death, level_end) are shown going out with the build and env (the SDK's debug log). Also logs fighter voice barks (effort / hurt / ko / taunt) from dod:fighter-voice when Season 1 fighters are in the match. Live-show mix: sound-take ids (no back-to-back repeats), music-calm / music-intense, crowd-ooh / crowd-roar / crowd-rising, music-duck / music-unduck (~8 dB, restore 400 ms). Metrics soundTakes, soundTakeRepeats, crowdRoars, musicDucks.",
       "seconds": 160,
       "tags": [
         "full",
-        "analytics"
+        "analytics",
+        "sound"
+      ]
+    },
+    {
+      "id": "fighter-voice",
+      "title": "Season 1 fighter voice: efforts, hurts, KO cries and taunts from each fighter's own takes, no overlap, T taunt, phone landscape",
+      "description": "Setup shortcut unlocks the Season 1 card. Versus 1v1 with two Season 1 fighters (options fighter / foe, default exit-punk vs break). Listens for dod:fighter-voice: logs effort / hurt / ko / taunt per who with the catalog id and audio path; problems for a missing take, a shared KO text, an overlapping bark from one fighter, or an effort within 1.5 s of the last. Presses T for the player taunt. On a 390x844 touch phone, turns to 844x390 landscape like smoke and checks zero missing-voice / 404 problems. Metrics voiceEfforts, voiceHurts, voiceKos, voiceTaunts.",
+      "seconds": 200,
+      "tags": [
+        "full",
+        "sound"
       ]
     },
     {
@@ -96,6 +107,16 @@
       ]
     },
     {
+      "id": "first-visit",
+      "title": "First visit: empty storage, Tap to play drops into Open Mic (no menu), prompts teach the moves, a KO within 90 s, then the main menu says Next episode",
+      "description": "Clears dod-campaign, dod-versus, dod-pilot and dod-unlocks (put back at the end), taps Play, and times the route: no title or main menu, control within 30 s (secondsToControl), a first hit within 45 s (secondsToFirstHit) and a KO within 90 s (secondsToFirstKO). At most one teaching prompt on screen at a time, each gone once its move is used; on a phone they show touch icons and the prompted control is pressed on the real touch overlay. On a portrait phone (390x844) the Rotate prompt is the only screen until the window is turned to landscape, then it plays in an 844x390 frame. Ends on the main menu with Campaign marked Next episode. Events first-visit-*, teach-shown, teach-used, teach-gone, next-episode.",
+      "starts": [],
+      "seconds": 360,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "unlocks",
       "title": "Hero unlocks: a fresh save shows locked fighter tiles in Versus; clearing Open Mic unlocks Kaelen (message on the map) and the tile becomes pickable",
       "description": "Setup shortcut: a fresh save (no chapters cleared, dod-unlocks empty; the player's own are put back). Opens Versus select and counts the locked tiles (events locked-tiles, locked-click: a click on a locked tile picks nothing), plays chapter 1 through the real campaign (the bot), checks the \"joins the card\" message on the map (unlock-message), then opens Versus select again and picks the unlocked fighter (unlocked-pick). Metric lockedTiles.",
@@ -116,9 +137,9 @@
     },
     {
       "id": "hit-feel",
-      "title": "Hit feedback: heavy hits freeze 3+ frames, light and heavy hits look different, Settings turns screen shake off",
-      "description": "A versus match against the CPU (the bot on a virtual pad). Counts the hit-stop frames of the first light and heavy hit (events hit-stop-light/-medium/-heavy, heavy-hit-stop), logs each tier's impact effect (impact-light/-medium/-heavy: sparks, stars, ring, shake, flash) and that they differ (impact-differs), then from Pause opens Settings, turns Screen shake off (shake-off), and checks hits keep landing with the camera still (no-shake). Metrics hitStopLightFrames, hitStopHeavyFrames, shakeMaxOn, shakeMaxOff. The player's dod.shake is put back.",
-      "seconds": 200,
+      "title": "Hit feedback: heavy hits freeze 3+ frames, light and heavy hits look different, Settings turns screen shake off, kill cue on stock-ending hits, smooth camera",
+      "description": "A versus match against the CPU (the bot on a virtual pad). Counts the hit-stop frames of the first light and heavy hit (events hit-stop-light/-medium/-heavy, heavy-hit-stop), logs each tier's impact effect (impact-light/-medium/-heavy: sparks, stars, ring, shake, flash) and that they differ (impact-differs), then from Pause opens Settings, turns Screen shake off (shake-off), and checks hits keep landing with the camera still (no-shake). Also the match camera and the kill cue (a hit predicted to end a stock: extra hit-stop, red flash, punch-in, slow motion, rising whistle): every stock-ending hit logs kill-cue and no other hit does (kill-cue-exact), with Screen shake off the cue still zooms (kill-cue-no-shake), the camera never jumps (camera-smooth) and every fighter stays on screen (camera-framing). Metrics hitStopLightFrames, hitStopHeavyFrames, shakeMaxOn, shakeMaxOff, cameraJumps, killCues, framingMisses, killSlowMinFps. The player's dod.shake is put back.",
+      "seconds": 300,
       "tags": [
         "full"
       ]
@@ -144,9 +165,9 @@
     },
     {
       "id": "touch-match",
-      "title": "Touch match: at phone size, menus to results with only the on-screen stick and buttons (move, jump, attack, special), every control ≥44 px above the canvas and clear of the safe area; menu/VS/results/Settings text fully visible",
-      "description": "Run it with device phone. Portrait 390x844: walks main menu, Settings, character select and stage select (phone-shot + no-clipping, ~2 s hold each), then turns to an 844x390 landscape frame like smoke. Landscape: the same tour, then Versus → VS (phone-shot) → match. Every touch control is checked present, ≥44 px, inside the window and safe-area inset, above the Babylon canvas (touch-z-order) and not covered; a phone-shot holds on the match with the stick visible (touch-controls-ok). Results heading and body are clip-checked (phone-shot). A desktop-size run is a bug. VS/results are landscape-only (portrait Rotate covers a match). Metrics touchMoves, touchJumps, touchAttacks, touchSpecials, touchMinPx. Option drop: a control to hide first.",
-      "seconds": 320,
+      "title": "Touch match: floating stick + flick jump + icon arc, Rotate pause/resume, menus to results at phone size, ≥44 px, fps on Low",
+      "description": "Run it with device phone. Portrait 390x844: menu clip tour, then a framed run proves Rotate covers and pauses the match, turns to 844x390 (rotate-prompt/paused/hidden/resumed). Landscape: Versus → match. A left-40% touch spawns the floating stick under the thumb and a drag past the edge keeps it following (touch-float-spawn/follow); a quick upward flick jumps (touch-flick-jump); Jump/Attack/Special/Shield/Smash are icons in a thumb arc with Attack largest, ≥44 px, clear of env(safe-area-inset-*), phone-shot of the controls; the bot plays through touch to results; metric fpsMatchLow on Quality Low (want ≥45). Metrics touchMoves, touchJumps, touchAttacks, touchSpecials, touchMinPx, fpsMatchLow. Option drop: a control to hide first.",
+      "seconds": 360,
       "tags": [
         "full",
         "touch"
@@ -192,7 +213,7 @@
     {
       "id": "site-links",
       "title": "The website around the game: Powered by HAWKES GEN on every page, Hawkes Biomedical on the landing page, the game screen without them",
-      "description": "Checks the game screen has no site footer marks, then opens the landing page over the game in a full-screen frame and walks the site through its own links (footer Characters, a fighter card picked from the seed, Privacy, What's new), checking on each page that \"Powered by HAWKES GEN\" links to https://hawkesgen.ai (shown, not covered) and on the landing page that Hawkes Biomedical links to https://hawkesbiomedical.com. Every fighter page is also read and checked. The frame is removed at the end and the game checked again.",
+      "description": "Checks the game screen has no site footer marks, then opens the landing page over the game in a full-screen frame and walks the site through its own links (footer Characters, a fighter card picked from the seed, Privacy, What's new), checking on each page that \"Powered by HAWKES GEN\" links to https://hawkesgen.ai (shown, not covered) and on the landing page that Hawkes Biomedical links to https://hawkesbiomedical.com. Every fighter page is also read and checked. On the landing page it first checks the facts and feature cards against the game's own data (fighters, stages, episodes, seasons), that online, ratings and phone are there and no stale claim (Coming, one stage) is left in the page or the share card, and the fit: no sideways scroll, no clipped text, facts and cards in one column and Play above the fold at 390x844 (presses are touch on a touch device). The frame is removed at the end and the game checked again.",
       "seconds": 60,
       "tags": [
         "smoke",
@@ -207,6 +228,26 @@
       "tags": [
         "full",
         "online"
+      ]
+    },
+    {
+      "id": "daily",
+      "title": "Tonight's Episode: the main menu card shows tonight's fighters, stage and twist (the same for everyone on a date), the episode plays to a score, a day streak and today's board with the player on it (phone: 390x844 touch, played in landscape)",
+      "description": "Setup shortcut: the player's own dod.daily is cleared and put back. Checks the card against the pure picker for the date (daily-episode, the signature two tabs must share; option or ?daily=YYYY-MM-DD names a date off the live site), its fit in the window and 44 px targets (daily-card-fit), Blog Man's intro (daily-listen) and the countdown, plays the episode with the bot on the pad (up to 3 tries; daily-objective), then reads the results' score, day streak and the board (daily-result, daily-board: the player's own line, rank and total; the board is read once when the results open) and the card's Best and streak back on the menu (daily-card-after). On a portrait phone it checks the card in the portrait window and plays in the turned 844x390 frame, everything by taps. Metrics dailyScore, dailyStreak, dailyBoardRank, dailyCardFits, dailyBoardFits.",
+      "seconds": 480,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "tour",
+      "title": "Tour: pick a fighter, play their six-fight run (fights 1 and 2, then the rival), a Continue after a loss, the voiced ending with the closing card, the Tour marked cleared and still marked after a reload (phone: 390x844 touch)",
+      "description": "Option fighter (default exit-punk). Main menu → Tour (tour-select: every fighter's tile, none cleared on a fresh save, no sideways scroll, 44 px targets and no overlap on a phone; metric tourSelectFits). Setup shortcut: the Continue or Quit panel is shown without losing a fight so a portrait phone can measure it (tour-choice-fit; metric tourChoiceFits). Picks the fighter's tile and plays fights 1 and 2 with the bot on the pad: each opens in the arena with the fight's card and the foe's recorded line (tour-scene) and checks the twist, stage and CPU level from content/tours.json (tour-fight), the CPU never easier. Setup shortcut: after fight 2 the run jumps to the last fight, the rival; the player stands still until knocked out (tour-lost: Continue or Quit, both ≥44 px and on screen), Continue replays that fight (tour-continue), then the bot wins. The ending plays the fighter's own recorded win line over the final KO under the closing card \"<Fighter> clears the Tour\" (tour-ending), the results show the banner and the KO highlights (tour-cleared; metric tourCleared), the Tour select marks the Tour cleared (tour-marked), and after a page reload the mark is still there (tour-mark-after-reload; metric tourMarkedAfterReload). On a portrait phone it checks the select and the panel in the portrait window and plays in the turned 844x390 frame, all by taps. The player's own dod-tours is put back.",
+      "starts": [],
+      "seconds": 540,
+      "tags": [
+        "full",
+        "touch"
       ]
     },
     {
@@ -267,9 +308,49 @@
       ]
     },
     {
+      "id": "specials",
+      "title": "Specials: Exit Punk in Training does four different specials from K, K+side, K+down, K+up (touch: stick + Special), and the thrown board crosses the stage, hits the dummy and disappears",
+      "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus). Played through real input only: keyboard K plus A/D/S/W on a desktop; at phone size (390x844, turned to 844x390 landscape like touch-match, or 844x390) the on-screen stick and Special button as touch pointer events, with no extra button on the overlay. Walks into the board's range, then: neutral Special throws the board (projectile-hit: it crosses the stage, hurts the dummy and is gone), thrown the other way it hits nobody and disappears at its lifetime (projectile-lifetime); Special + side is the skate dash (special-side; touch-side-special), Special + down places the kickflip trap (special-down; touch-down-special), Special + up is the ollie recovery (special-up); specials-distinct when all four were different moves. Options: input (touch forces the overlay on a desktop window), at (phone). Metric specialsSeen.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "grab",
+      "title": "Grab and throws: Shield + Attack together grabs, the stick picks forward, back, up or down, and the hold lasts longer at 100% than at 0% (touch: both buttons pressed together)",
+      "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus); a second dummy starts at 100%. Played through real input only: keyboard L + J then A/D/W/S on a desktop; at phone size (390x844, turned to 844x390 landscape like touch-match, or 844x390) the on-screen Shield and Attack buttons touched together and the on-screen stick, as touch pointer events. Walks up to the dummy, grabs it (grab: through its shield when it shields; the hold in frames), throws it forward, back, up and down (throw; grab-throws when all four came out; touch-grab on a phone), and the hold on the 100% dummy must be longer than on the 0% one (grab-hold-frames, holds-longer). The versus match scenario also logs every grab and throw the bot makes. Metrics grabs, throws, throwsLanded, holdFrames0, holdFrames1000.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "colours",
+      "title": "Colour looks: every fighter shows 4 swatches (44x44 tap targets in one row, locked ones say \"3 wins to unlock\" / \"10 wins to unlock\"), a tap picks, the same fighter twice gets two colours, and the pick shows on the VS card, in the match and on the results (phone: 390x844 turned to landscape, touch)",
+      "description": "Training's select, all 33 fighters in turn (option fighter: one): four swatches each at least 44x44 CSS px, in one row inside the screen with no sideways scroll, locked ones reading \"3 wins to unlock\" and \"10 wins to unlock\", a tap on an open one picks it and a tap on a locked one picks nothing (swatches, swatch-tap, swatch-locked; metric swatchRows). Then Versus with two Exit Punks: the second gets another colour automatically, and tapping the first's colour moves it on (same-fighter-colour); setup shortcut: 3 wins with Exit Punk (dod-wins) open the third colour while the fourth still says 10 wins; the player's own saves are put back. Picks colour 3, plays the stage: the VS card shows both colours with their names inside the screen (vs-colour), the match draws them with the palette shader (match-colour), the results show them (results-colour) and the win is counted (win-credited). Played through taps (a phone: touch pointer events; 390x844 is turned to 844x390 like select-specials). Options: fighter, input (touch forces the touch UI), at (phone).",
+      "seconds": 420,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "select-specials",
+      "title": "Character select shows how each fighter plays: the hovered or tapped fighter's four specials by name and a looping clip, fitting the screen (phone: 390x844 turned to landscape, touch)",
+      "description": "Opens Training's select from the main menu and taps each of the 33 fighters in turn (option fighter: one): the preview lists the four specials (neutral, side, up, down) with the names the sim plays (select-specials), the clip and the four rows sit inside the screen and the preview with no text cut off (select-fit), the clip preview moves (select-clip), and tapping the down special pins it. Played through taps (a phone: touch pointer events; 390x844 is turned to 844x390 like specials). Options: fighter, input (touch forces the touch UI), at (phone). Metric selectFits.",
+      "seconds": 360,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "roster",
-      "title": "Every fighter spawns in training and does each move once (starts matches directly)",
-      "seconds": 480,
+      "title": "Every fighter spawns in training and does each move and all four specials once, logging each kit (touch: the 20 newer fighters fire all four specials from the touch controls) (starts matches directly)",
+      "seconds": 900,
       "tags": [
         "full",
         "roster"

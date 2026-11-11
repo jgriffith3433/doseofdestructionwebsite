@@ -4,27 +4,30 @@
 // First: analytics (Hawkes Analytics, analytics.ts) marks the load start and stamps the build.
 import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
+import { addWin } from './looks.ts';
 import { audio, tapState } from './audio.ts';
 import { Commentator, introCall, type Call } from './commentary.ts';
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
 import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
-import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings } from './touchSettings.ts';
+import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings, hitVibrate } from './touchSettings.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
 import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
-import { GAMEPAD_HELP, KEYBOARD_HELP, listenKeyboard, onKey, pausePressed, readLocal } from './input/devices.ts';
+import { GAMEPAD_HELP, KEYBOARD_HELP, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
 import { installPerfMonitor } from './playtest/hawkes-perf.js';
+import { damageColor, damageShake } from './hitFeel.ts';
+import { clearMarkers, markerLog, markerRects, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
-import { CHAPTERS, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
+import { CHAPTERS, isUnlocked, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playVersus, showResults, type ResultAction } from './ui/views.ts';
-import { playColdOpen, playScene, skipScene, type SceneLine, type SceneStage } from './ui/scene.ts';
+import { playColdOpen, playScene, skipScene, type SceneCard, type SceneLine, type SceneStage } from './ui/scene.ts';
 import { chunkLine, chunkTimes } from './campaign/sceneText.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
@@ -34,6 +37,14 @@ import type { Found } from './net/matchmaker.ts';
 import { bootOnline, onlineApi } from './net/loader.ts';
 import { switching } from './ui/screens.ts';
 import { initRotatePrompt, rotateShowing } from './ui/rotate.ts';
+import { Teacher } from './ui/teach.ts';
+import { DAILY_POOL, dailyEpisode, dailyScore, dailySetup, liveStreak, msToNext, recordClear, type DailyEpisode } from './campaign/daily.ts';
+import { dailyDate, loadDaily, saveDaily } from './campaign/dailyStore.ts';
+import { fillBoard, renderDailyCard, renderDailyResults, setCountdown } from './ui/daily.ts';
+import { TOURS, TOUR_LENGTH, loadTours, tourFor, markTourCleared, tourEnding, tourIntro, tourSetup, type Tour } from './campaign/tour.ts';
+import { renderTourChoice, renderTourSelect, tourBanner } from './ui/tour.ts';
+import { VOICE } from './audio.ts';
+import { PILOT_CHAPTER, PILOT_KAELEN, isFirstVisit, markPilotSeen, pilotState } from './campaign/firstVisit.ts';
 
 const TICK_MS = 1000 / 60;
 
@@ -55,6 +66,10 @@ let phase: Phase = 'idle';
 /** The online fight running `match`, or null for a local match. */
 let fight: OnlineFight | null = null;
 let readyFrames = 0;
+let readyStart = 0;
+/** How long (ms) the Ready count may wait at its last beat for the stage art to load. */
+const READY_ART_WAIT_MS = 8000;
+const READY_ART_FRAMES = 49;
 let acc = 0;
 let last = performance.now();
 let shownOver = false;
@@ -62,6 +77,8 @@ let shownOver = false;
 let commentator: Commentator | null = null;
 let introPending: Call | null = null;
 let chapter: Chapter | null = null;
+/** On-stage teaching prompts for the pilot fight and How to play (ui/teach.ts). */
+let teacher: Teacher | null = null;
 let stageChoice = 0;
 let versus: VersusConfig = loadVersus();
 let training: VersusConfig = {
@@ -126,9 +143,11 @@ function wireMenus(): void {
       const to = b.dataset.go;
       if (to === 'online' || to === 'profile') analytics.feature(to === 'online' ? 'find_match' : 'profile_open');
       if (to === 'campaign') openCampaignScreen();
+      else if (to === 'tour') openTourScreen();
       else if (to === 'versus') openVersus();
       else if (to === 'training') openTraining();
-      else if (to === 'howto') go('howto');
+      else if (to === 'howto') startHowToPlay();
+      else if (to === 'controls') go('howto');
       else if (to === 'settings') openSettings();
       else if (to === 'online') onlineCall('find match', (o) => o.findMatch());
       else if (to === 'profile') onlineCall('profile', (o) => o.openProfile());
@@ -142,7 +161,9 @@ function wireMenus(): void {
   onBack('select', () => go('main', spotlight));
   onBack('stages', () => (lastSelect === 'training' ? openTraining() : openVersus()));
   onBack('campaign', () => go('main', spotlight));
+  onBack('tour', () => go('main', spotlight));
   onBack('howto', () => go('main', spotlight));
+  wirePilot();
   onBack('leaderboard', () => go('main', spotlight));
 
   $('btn-resume').addEventListener('click', () => setPaused(false));
@@ -154,6 +175,8 @@ function wireMenus(): void {
     }
   });
   $('btn-pause-settings').addEventListener('click', () => openSettings());
+  $('btn-pause-controls').addEventListener('click', () => openControlsPanel(true));
+  $('btn-controls-close').addEventListener('click', () => openControlsPanel(false));
   $('btn-quit').addEventListener('click', () => {
     if (fight) {
       // Online: leaving is a forfeit; the results come from the fight's end.
@@ -167,8 +190,12 @@ function wireMenus(): void {
       analytics.quitToMenu(match, chapter ? 'campaign' : 'main');
       analytics.matchEnd(match, 'quit', { reason: 'pause_quit' });
     }
+    const touring = inTour();
     endMatch();
-    if (chapter) openCampaignScreen();
+    if (touring && tourRun) {
+      analytics.tour('quit', { fighter: tourRun.tour.fighter, fight: tourRun.index + 1 });
+      openTourScreen();
+    } else if (chapter) openCampaignScreen();
     else go('main', spotlight);
   });
   onKey('KeyH', () => {
@@ -184,6 +211,17 @@ function wireMenus(): void {
     $(id).replaceChildren(...rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]));
   fill('keys-kb', KEYBOARD_HELP);
   fill('keys-pad', GAMEPAD_HELP);
+  fill('keys-touch', TOUCH_HELP);
+  fill('ctl-kb', KEYBOARD_HELP);
+  fill('ctl-pad', GAMEPAD_HELP);
+  fill('ctl-touch', TOUCH_HELP);
+}
+
+/** The key list as a panel over Pause ("All controls"); the same lists are the All controls screen in the menu. */
+function openControlsPanel(open: boolean): void {
+  $('controls-panel').hidden = !open;
+  if (open) ($('btn-controls-close') as HTMLButtonElement).focus();
+  else ($('btn-resume') as HTMLButtonElement).focus();
 }
 
 let spotIndex = Math.floor(Math.random() * CHARACTERS.length);
@@ -204,6 +242,8 @@ let spotBusy = false;
 
 /** Shows the current spotlight fighter: picture and name change together, once the picture is ready. */
 async function spotlight(animate = false): Promise<void> {
+  updateNextEpisode();
+  renderDaily();
   const i = spotIndex % CHARACTERS.length;
   const c = CHARACTERS[i];
   if (spotBusy || i === spotShown) return;
@@ -295,6 +335,7 @@ function prepStageSelect(stage: number, immediate = false): void {
       slots: cfg.slots.map((s) => ({ ...s, team: cfg.teams ? (s.team ?? 0) : undefined })),
     };
     // keepStage: don't rebuild the arena we just set; clipWait 0: sheets finish later via warmTick.
+    renderer.setLooks(setup.slots.map((s) => s.look ?? 0));
     void renderer.setFighters(new Match(setup, 1).state, true, 0);
   };
   // Focused card on open: run now so smoke finishes prep before the stage click.
@@ -321,6 +362,7 @@ function pickStage(stage: number, entry: ModeStage, random = false): void {
     slots: cfg.slots.map((s) => ({ ...s, team: cfg.teams ? (s.team ?? 0) : undefined })),
   };
   // Build (or no-op reuse) on the stages screen; startMatch drains the lock before the VS wipe.
+  renderer.setLooks(setup.slots.map((s) => s.look ?? 0));
   void renderer.setFighters(new Match(setup, 1).state, true, 0);
   startMatch(setup, lastSelect === 'versus');
 }
@@ -346,6 +388,7 @@ async function playChapter(c: Chapter): Promise<void> {
   void prefetchFighters(c.fight.slots.map((s) => s.char));
   prefetchStage(c.fight.stage);
   renderer.setStage(c.fight.stage);
+  renderer.setLooks(c.fight.slots.map((s) => s.look ?? 0));
   void renderer.setFighters(new Match({ ...c.fight, title: undefined, subtitle: undefined }, 1).state, true, 0);
   // The episode opens in the arena: the VS card, then the intro plays live with the fighters (ui/scene.ts).
   startMatch({ ...c.fight, title: `Chapter ${n} · ${c.title}`, subtitle: c.hint }, true, undefined, { chapter: c, which: 'intro' });
@@ -353,7 +396,9 @@ async function playChapter(c: Chapter): Promise<void> {
 
 /** What a story scene plays: the chapter's intro (before Ready) or outro (after the episode is won). */
 interface SceneCue {
-  chapter: Chapter;
+  /** A campaign chapter's scene, or a Tour's (its own lines and card). */
+  chapter?: Chapter;
+  tour?: { lines: SceneLine[]; card: SceneCard; id: string };
   which: 'intro' | 'outro';
 }
 
@@ -367,6 +412,7 @@ function sceneStage(m: Match): SceneStage {
     holdOffstage: (id, held) => renderer.holdOffstage(id, held),
     arrive: (id) => renderer.arrive(id),
     cue: (id) => renderer.cue(id),
+    taunt: (who) => audio.fighterVoice(who, 'taunt'),
     voice: (url) => audio.voice(url),
     stopVoice: () => audio.stopVoice(),
     voiceMs: (url) => audio.voiceMs(url),
@@ -377,7 +423,15 @@ function sceneStage(m: Match): SceneStage {
 
 /** Plays a chapter's intro or outro live in the arena (phase 'scene'), with its story card as the lower third. */
 async function runScene(m: Match, cue: SceneCue): Promise<void> {
-  const c = cue.chapter;
+  if (cue.tour) {
+    phase = 'scene';
+    audio.playStageBed(STAGES[m.setup.stage].id);
+    $('scene-next').focus();
+    const end = await playScene(sceneStage(m), cue.which, cue.tour.lines, cue.tour.card);
+    analytics.scene(`${cue.tour.id}.${cue.which}`, end, cue.tour.lines.length);
+    return;
+  }
+  const c = cue.chapter!;
   const lines: SceneLine[] = cue.which === 'intro' ? c.intro : c.outro;
   if (cue.which === 'intro' && c.coldOpen?.length) {
     phase = 'scene';
@@ -408,9 +462,322 @@ async function chapterCleared(c: Chapter): Promise<void> {
   if (currentScreen() === 'campaign') analytics.askAfterEpisode(c);
 }
 
+// ------------------------------------------------------------------ tour
+
+/** The Tour being played: the fighter's route, the fight (zero-based) and its setup (the object marks the match). */
+let tourRun: { tour: Tour; index: number; setup: MatchSetup; continues: number } | null = null;
+/** Playtest setup shortcut (hooks.tourSkipTo): after this many fights are won, the run jumps to the fight at index `to`. */
+let tourSkip: { after: number; to: number } | null = null;
+
+/** The match on screen is a Tour fight. */
+const inTour = (): boolean => !!tourRun && !!match && tourRun.setup === match.setup;
+
+function tourEvent(phase: string, detail: Record<string, unknown> = {}): void {
+  window.dispatchEvent(new CustomEvent('dod:tour', { detail: { phase, ...detail } }));
+}
+
+/** An existing recorded line by id (content/voice.json), for scenes. */
+const voiceLine = (id: string): { text: string; audio?: string | null } | undefined => VOICE.lines.find((l) => l.id === id);
+
+const tourAudio = (tour: Tour, index: number): (string | undefined)[] => [
+  ...tourIntro(tour, index, voiceLine).lines.map((l) => l.audio ?? undefined),
+  ...(index === tour.fights.length - 1 ? tourEnding(tour, voiceLine).lines.map((l) => l.audio ?? undefined) : []),
+];
+
+function openTourScreen(): Promise<void> {
+  tourRun = null;
+  chapter = null;
+  return go('tour', () => {
+    renderTourSelect(loadTours(), { open: (id) => isUnlocked(id), onPlay: playTour });
+    tourEvent('select', { cleared: [...loadTours()] });
+  });
+}
+
+function playTour(tour: Tour): void {
+  tourRun = { tour, index: 0, setup: tourSetup(tour, 0), continues: 0 };
+  analytics.setMode('campaign');
+  analytics.tour('start', { fighter: tour.fighter, rival: tour.rival });
+  tourEvent('start', { fighter: tour.fighter });
+  startTourFight(true);
+}
+
+/** Starts the run's current fight: the VS card, the foe's line in the arena, Ready, Go. */
+function startTourFight(withScene: boolean): void {
+  const r = tourRun;
+  if (!r) return;
+  chapter = null;
+  r.setup = tourSetup(r.tour, r.index);
+  void prefetchFighters(r.setup.slots.map((s) => s.char));
+  prefetchStage(r.setup.stage);
+  tourEvent('fight', { fighter: r.tour.fighter, fight: r.index + 1, of: TOUR_LENGTH, twist: r.tour.fights[r.index].twist, foes: r.tour.fights[r.index].foes, stage: r.tour.fights[r.index].stage, cpu: r.tour.fights[r.index].cpu });
+  const intro = tourIntro(r.tour, r.index, voiceLine);
+  void startMatch(r.setup, true, undefined, withScene ? { tour: { ...intro, id: `tour.${r.tour.fighter}.${r.index + 1}` }, which: 'intro' } : undefined);
+}
+
+/** A lost fight's Continue: the same fight again (no VS card, no scene). */
+function tourContinue(): void {
+  const r = tourRun;
+  if (!r) return;
+  r.continues++;
+  analytics.tour('continue', { fighter: r.tour.fighter, fight: r.index + 1, continues: r.continues });
+  tourEvent('continue', { fighter: r.tour.fighter, fight: r.index + 1, continues: r.continues });
+  r.setup = tourSetup(r.tour, r.index);
+  void startMatch(r.setup, false);
+}
+
+/** A Tour fight is over. A win goes straight on to the next fight; the last win plays the ending; a loss offers Continue or Quit. */
+async function tourFinish(m: Match, won: boolean): Promise<void> {
+  const r = tourRun!;
+  const last = r.index >= r.tour.fights.length - 1;
+  if (!won) {
+    analytics.tour('lost', { fighter: r.tour.fighter, fight: r.index + 1 });
+    // The foe gloats over the Continue or Quit choice, in their own recorded win line.
+    const gloat = r.tour.fights[r.index].foes[0];
+    window.setTimeout(() => audio.line(`fighter.${gloat}.win`), 1200);
+    tourEvent('lost', { fighter: r.tour.fighter, fight: r.index + 1 });
+    showFinish(m, false, null);
+    return;
+  }
+  analytics.matchEnd(m, 'complete');
+  analytics.tour('fight', { fighter: r.tour.fighter, fight: r.index + 1 });
+  tourEvent('won', { fighter: r.tour.fighter, fight: r.index + 1 });
+  if (!last) {
+    r.index = tourSkip && r.index + 1 >= tourSkip.after && tourSkip.to > r.index + 1 ? tourSkip.to : r.index + 1;
+    tourSkip = null;
+    startTourFight(true);
+    return;
+  }
+  // The ending: the fighter's own win line over the final KO, the closing card. The Tour is marked cleared as it starts.
+  const first = markTourCleared(r.tour.fighter);
+  analytics.tour('clear', { fighter: r.tour.fighter, first, continues: r.continues });
+  tourEvent('clear', { fighter: r.tour.fighter, first, continues: r.continues });
+  phase = 'scene';
+  await audio.preloadUrls(tourAudio(r.tour, r.index));
+  if (match !== m) return;
+  await runScene(m, { tour: { ...tourEnding(r.tour, voiceLine), id: `tour.${r.tour.fighter}.ending` }, which: 'outro' });
+  if (match === m) showFinish(m, true, null);
+}
+
+// -------------------------------------------------------------- the pilot
+
+/** Open Mic as the first fight: Kaelen tuned to be beaten (ai/bot.ts pilotFight), prompts on the stage, no VS card. */
+function pilotChapter(): Chapter | null {
+  const c = CHAPTERS.find((x) => x.id === PILOT_CHAPTER);
+  if (!c) return null;
+  const kaelen = CHARACTERS.findIndex((x) => x.id === 'kaelen');
+  return {
+    ...c,
+    fight: {
+      ...c.fight,
+      teach: 'pilot',
+      slots: c.fight.slots.map((sl) => (sl.cpu !== null && sl.char === kaelen ? { ...sl, ...PILOT_KAELEN } : sl)),
+    },
+  };
+}
+
+/** Tap to play with nothing saved: straight into the cold open of Season 1 Episode 1, under the title logo. */
+function startPilot(): void {
+  const c = pilotChapter();
+  if (!c) return;
+  chapter = c;
+  analytics.setMode('campaign');
+  analytics.chapterPlayed(c);
+  const logo = $('pilot-logo');
+  document.body.classList.add('pilot-boot');
+  logo.classList.remove('over-shot', 'gone');
+  void prefetchFighters(c.fight.slots.map((s) => s.char));
+  prefetchStage(c.fight.stage);
+  renderer.setStage(c.fight.stage);
+  // The logo is the loading screen; once the cold open's first shot is up it turns to a title over that shot.
+  const onScene = new MutationObserver(() => {
+    if ($('scene').hidden) return;
+    onScene.disconnect();
+    logo.classList.add('over-shot');
+    window.setTimeout(() => logo.classList.add('gone'), 3200);
+    window.setTimeout(endPilotBoot, 4000);
+  });
+  onScene.observe($('scene'), { attributes: true, attributeFilter: ['hidden'] });
+  void startMatch({ ...c.fight, title: `Chapter 1 · ${c.title}`, subtitle: c.hint }, false, undefined, { chapter: c, which: 'intro' });
+  // After startMatch has cleared the last match (it ends it first), the small Menu link stays up through the scene and the fight.
+  $('pilot-menu').hidden = false;
+}
+
+/** The title logo and its backdrop come down. */
+function endPilotBoot(): void {
+  document.body.classList.remove('pilot-boot');
+}
+
+function wirePilot(): void {
+  // The small Menu link: opts out of the pilot (the flag is set, so the next visit is the usual flow too).
+  $('pilot-menu').addEventListener('click', () => {
+    markPilotSeen('menu');
+    if (match) analytics.matchEnd(match, 'quit', { reason: 'pilot_menu' });
+    endMatch();
+    chapter = null;
+    endPilotBoot();
+    void go('main', spotlight);
+  });
+}
+
+/** The pilot is won: Open Mic is cleared, Kaelen joins the card, and the main menu opens on "Next episode". */
+async function pilotCleared(c: Chapter): Promise<void> {
+  const firstTime = !progress.has(c.id);
+  progress.add(c.id);
+  saveProgress(progress);
+  unlockFor(c);
+  markPilotSeen('won');
+  analytics.chapterCleared(c, firstTime, progress);
+  chapter = null;
+  analytics.setMode('main');
+  await go('main', spotlight);
+}
+
+/** How to play: the same prompted fight in Training against a dummy, with no setup screens. */
+function startHowToPlay(): void {
+  chapter = null;
+  analytics.setMode('training');
+  const ep = CHARACTERS.findIndex((x) => x.id === 'exit-punk');
+  const dummy = CHARACTERS.findIndex((x) => x.id === 'kaelen');
+  const stage = Math.max(0, STAGES.findIndex((x) => x.id === 'city-top'));
+  void startMatch(
+    {
+      mode: 'training',
+      stage,
+      stocks: 1,
+      rules: {},
+      teach: 'training',
+      title: 'How to play',
+      slots: [{ char: ep, cpu: null }, { char: dummy, cpu: 0 }],
+    },
+    false,
+  );
+}
+
+/** The Campaign button on the main menu says "Next episode" once the pilot is won and the player hasn't gone on yet. */
+function updateNextEpisode(): void {
+  const btn = document.querySelector<HTMLElement>('.menu-item[data-go="campaign"]');
+  if (!btn) return;
+  const idx = CHAPTERS.findIndex((x) => !progress.has(x.id));
+  const fresh = pilotState() === 'won' && progress.size === 1 && progress.has(PILOT_CHAPTER) && idx > 0;
+  btn.classList.toggle('next-episode', fresh);
+  let tag = btn.querySelector<HTMLElement>('.next-tag');
+  if (fresh && !tag) {
+    tag = h('em', { class: 'next-tag' }, 'Next episode') as HTMLElement;
+    btn.prepend(tag);
+  }
+  if (tag) tag.hidden = !fresh;
+  const sub = btn.querySelector('span');
+  if (sub) {
+    if (fresh) {
+      sub.dataset.was ??= sub.textContent ?? '';
+      sub.textContent = `${CHAPTERS[idx].title}: ${CHAPTERS[idx].tagline}`;
+    } else if (sub.dataset.was) sub.textContent = sub.dataset.was;
+  }
+}
+
+// ------------------------------------------------------- tonight's episode
+
+/** The episode being played (its setup object marks the match, so Play again and the results know it). */
+let dailyRun: { ep: DailyEpisode; setup: MatchSetup } | null = null;
+let dailyViewed = '';
+
+function dailyEvent(phase: string, detail: Record<string, unknown> = {}): void {
+  window.dispatchEvent(new CustomEvent('dod:daily', { detail: { phase, ...detail } }));
+}
+
+/** The card on the main menu: rebuilt each time the menu shows (and when the date turns over). */
+function renderDaily(): void {
+  const date = dailyDate();
+  const ep = dailyEpisode(date, DAILY_POOL);
+  const state = loadDaily();
+  const streak = liveStreak(state, date);
+  const blog = introCall(ep.blogChapter)?.text ?? '';
+  renderDailyCard(ep, state, streak, blog, {
+    onPlay: playDaily,
+    onListen: () => {
+      const id = `blog-man.intro.${ep.blogChapter}`;
+      analytics.daily('listen', { date });
+      void audio.preloadLines([id]).then(() => audio.line(id));
+    },
+  });
+  setCountdown(msToNext(Date.now()));
+  if (dailyViewed !== date) {
+    dailyViewed = date;
+    analytics.daily('view', { date, fighter: ep.player, stage: ep.stage, objective: ep.objective, twists: ep.twists.map((t) => t.kind).join('+'), streak });
+  }
+  dailyEvent('card', { date, ep, streak, best: state.best[date] ?? 0 });
+}
+
+// The countdown is text only (no request): once a second while the menu shows, and a new card when midnight UTC passes.
+setInterval(() => {
+  if (currentScreen() !== 'main') return;
+  if ($('daily-card').dataset.date !== dailyDate()) renderDaily();
+  else setCountdown(msToNext(Date.now()));
+}, 1000);
+
+function playDaily(): void {
+  const date = dailyDate();
+  const ep = dailyEpisode(date, DAILY_POOL);
+  const setup = dailySetup(ep);
+  dailyRun = { ep, setup };
+  chapter = null;
+  analytics.setMode('campaign');
+  analytics.daily('play', { date, fighter: ep.player, stage: ep.stage, objective: ep.objective });
+  void startMatch(setup, true);
+}
+
+/** The episode is over: score it, keep the streak, show both on the results and post the score (a better one only). */
+function dailyFinished(m: Match, ep: DailyEpisode, won: boolean): void {
+  const s = m.state;
+  const me = s.fighters[m.player];
+  const margin =
+    ep.objective === 'ko' ? m.koCount() - m.koTarget : ep.objective === 'quota' ? Math.round(m.quotaDealt() / 10) - (ep.quota ?? 0) : ep.objective === 'streak' ? m.streakBest() - m.streakTarget : 0;
+  const taken = Math.round((m.stats[m.player]?.taken ?? 0) / 10);
+  const score = dailyScore(ep, { won, frames: s.frame, taken, stocksLeft: me?.stocks ?? 0, margin });
+  const before = loadDaily();
+  const after = won ? recordClear(before, ep.date, score) : before;
+  if (won) saveDaily(after);
+  const prevBest = before.best[ep.date] ?? 0;
+  const newBest = won && score > prevBest;
+  const best = after.best[ep.date] ?? 0;
+  const streak = liveStreak(after, ep.date);
+  const panel = renderDailyResults({
+    ep,
+    won,
+    score,
+    best,
+    newBest,
+    streak,
+    longest: after.longest,
+    breakdown: `${formatTime(s.frame)} played, ${taken}% taken.`,
+  });
+  const strip = $('results-body').querySelector('.results-strip');
+  if (strip) strip.after(panel);
+  else $('results-body').prepend(panel);
+  // The night's verdict is heard, not only read: a sting and the crowd (a roar for a new best), or the crowd's groan.
+  audio.synth(won ? 'cheer' : 'alarm', newBest ? 1 : 0.6);
+  if (won) window.setTimeout(() => audio.synth('sting', 0.7), 350);
+  analytics.daily('result', { date: ep.date, won, score, best, streak, taken, seconds: Math.round(s.frame / 60) });
+  dailyEvent('result', { date: ep.date, won, score, best, streak, newBest });
+  void import('./net/daily.ts').then(async (d) => {
+    let mine: Awaited<ReturnType<typeof d.postDaily>> | undefined;
+    if (best > 0) mine = newBest ? await d.postDaily(ep.date, score) : { ...d.selfEntry(best) };
+    const board = await d.readDailyBoard(ep.date, mine);
+    fillBoard(board, d.selfEntry(0).id, d.BOARD_SHOWN);
+    analytics.daily('board', { date: ep.date, rank: board.rank, total: board.total, ok: board.ok });
+    dailyEvent('board', { date: ep.date, rank: board.rank, total: board.total, ok: board.ok, posted: newBest });
+  });
+}
+
 // ------------------------------------------------------------------ match
 
 let selectedAt = 0;
+/** The VS card is never on screen longer than this from the wipe into it before the match starts. */
+const VS_HOLD_CAP_MS = 4000;
+const nextFrame = (): Promise<void> => new Promise((r) => { requestAnimationFrame(() => r()); setTimeout(r, 50); });
+/** When the wipe into the VS card began, and how long the last warm-up took (null until it finishes). */
+let vsStart = 0;
+let warmUpMs: number | null = null;
 
 async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { seed: number; found: Found }, scene?: SceneCue): Promise<void> {
   endMatch();
@@ -419,6 +786,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   const stale = () => token !== startToken || (f !== null && f.phase === 'done');
   const seed = online ? online.seed : (playtestSeed ?? (Math.random() * 0x7fffffff) | 0);
   const m = new Match(setup, seed);
+  renderer.setLooks(setup.slots.map((s) => s.look ?? 0));
   const net = online ? onlineApi() : null;
   const f: OnlineFight | null = online && net ? new net.OnlineFight(online.found, m) : null;
   if (f) {
@@ -438,10 +806,11 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   // (vsWipeFps ~17) and the old race still waited on an 1.8 s clip cap (vsHoldMs ~6 s).
   const audioReady = Promise.all([
     audio.preloadMatch(STAGES[setup.stage].id, m.state.fighters.map((f) => CHARACTERS[f.char].id)),
-    audio.preloadLines(chapter ? [`blog-man.intro.${chapter.id}`] : []),
-    audio.preloadUrls(chapter ? [...chapter.intro, ...chapter.outro].map((l) => l.audio) : []),
+    audio.preloadLines(chapter ? [`blog-man.intro.${chapter.id}`] : dailyRun?.setup === setup ? [`blog-man.intro.${dailyRun.ep.blogChapter}`] : []),
+    audio.preloadUrls(chapter ? [...chapter.intro, ...chapter.outro].map((l) => l.audio) : tourRun?.setup === setup ? tourAudio(tourRun.tour, tourRun.index) : []),
   ]).catch((err) => console.error(err));
 
+  warmUpMs = null;
   let fightersReady: Promise<void> = Promise.resolve();
   let warm: Promise<void> = Promise.resolve();
 
@@ -452,6 +821,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     await renderer.whenFightersIdle();
     if (stale()) return;
     // Wipe into VS with only DOM + audio prefetch on the main thread.
+    vsStart = performance.now();
     await go('versus', () => {
       splash = playVersus(setup);
     });
@@ -459,7 +829,14 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     // After the wipe: reuse pre-built meshes (clipWait 0); sheets finish via warmTick during Ready/Go.
     fightersReady = renderer.setFighters(m.state, false, 0).catch(() => renderer.setFighters(m.state, false, 0));
     const loading = Promise.all([fightersReady, audioReady]);
-    warm = loading.then(() => renderer.warmUp(m.state)).catch((err) => console.error(err));
+    // The warm-up (shader compiles, particle pools) never starts until the VS card has been painted, and runs
+    // one scene render per animation frame (renderer.warmUp yields between them); it carries on behind the match intro.
+    warm = loading.then(() => nextFrame()).then(() => nextFrame()).then(async () => {
+      const w0 = performance.now();
+      await renderer.warmUp(m.state);
+      warmUpMs = Math.round(performance.now() - w0);
+      window.dispatchEvent(new CustomEvent('dod:warm-up', { detail: { warmUpMs } }));
+    }).catch((err) => console.error(err));
     const bar = document.createElement('div');
     bar.className = 'vs-progress';
     bar.innerHTML = '<div class="vs-progress-fill"></div>';
@@ -471,6 +848,10 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     void warm.then(() => set(1));
     // Leave as soon as meshes exist; warm/audio continue under the match wipe and Ready countdown.
     await fightersReady;
+    // The painted stage must be on screen when the wipe opens, not a clear-colour arena while its pictures load,
+    // but the VS card is never held past VS_HOLD_CAP_MS from the wipe into it: what is still missing then
+    // (stage pictures, clip sheets) finishes behind the match intro. The meshes themselves are mandatory.
+    await renderer.stageArtReady(Math.max(0, VS_HOLD_CAP_MS - (performance.now() - vsStart)));
     renderer.onLoadProgress = null;
     bar.remove();
     void splash;
@@ -488,16 +869,19 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
 
   if (stale()) return;
   // An intro scene brings the fighters on itself: they wait in the wings from the first frame.
-  const intro = !!scene && scene.which === 'intro' && (scene.chapter.intro.length > 0 || !!scene.chapter.coldOpen?.length);
+  const intro = !!scene && scene.which === 'intro' && (scene.tour ? true : scene.chapter!.intro.length > 0 || !!scene.chapter!.coldOpen?.length);
   for (const ft of m.state.fighters) renderer.holdOffstage(ft.id, intro);
   const vsMs = performance.now() - t0;
+  const vsHoldMs = withVersus ? Math.round(performance.now() - vsStart) : null;
   // Ready ticks during the wipe-out (~280 ms), so vsHoldMs (to first play frame) stays under 3 s.
   const readyUnderWipe = !f && !intro;
   await go('match', () => {
-    window.dispatchEvent(new CustomEvent('dod:scene-timing', { detail: { selectToVs: fromSelect, vsToMatch: vsMs, selectToMatch: pickedAt === null ? null : performance.now() - pickedAt, withVersus } }));
+    window.dispatchEvent(new CustomEvent('dod:scene-timing', { detail: { selectToVs: fromSelect, vsToMatch: vsMs, vsHoldMs, warmUpMs, selectToMatch: pickedAt === null ? null : performance.now() - pickedAt, withVersus } }));
     // The canvas may have changed size while menus were up.
     renderer.engine.resize();
     match = m;
+    teacher = setup.teach ? new Teacher({ scripted: setup.teach === 'training' }) : null;
+    if (teacher) teacher.onChange = (step, state) => window.dispatchEvent(new CustomEvent('dod:teach', { detail: { step, state, mode: setup.teach } }));
     showTouchControls(true);
     buildHud(m);
     shownOver = false;
@@ -529,16 +913,19 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
 function beginReady(m: Match): void {
   const setup = m.setup;
   analytics.matchStart(m, chapter);
+  endPilotBoot();
   phase = 'ready';
   readyFrames = 0;
+  readyStart = performance.now();
   banner('Ready');
   renderer.stageEvent('start');
   audio.line('announcer.ready');
   commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state) : null;
-  introPending = (chapter && commentator && introCall(chapter.id)) || null;
+  introPending = (commentator && (chapter ? introCall(chapter.id) : dailyRun?.setup === setup ? introCall(dailyRun.ep.blogChapter) : null)) || null;
   audio.playStageBed(STAGES[setup.stage].id);
   audio.setMusicIntensity(audio.shouldBeIntense(m.state.fighters));
   lastActions = m.state.fighters.map((f) => f.action);
+  crowdStocksBefore = m.state.fighters.map((f) => f.stocks);
   canvas.focus();
 }
 
@@ -549,11 +936,15 @@ function endMatch(): void {
   // Leaving an online match any other way (another match starting) is a forfeit.
   if (fight && fight.phase !== 'done') fight.forfeit();
   fight = null;
+  teacher?.end();
+  teacher = null;
+  $('pilot-menu').hidden = true;
   $('net-status').hidden = true;
   match = null;
   phase = 'idle';
   showTouchControls(false);
   $('hud').hidden = true;
+  clearMarkers();
   $('match-top').hidden = true;
   $('pause').hidden = true;
   renderer.debug = false;
@@ -564,13 +955,15 @@ function pauseKey(): void {
   if (!match || phase === 'idle') return;
   // Esc or Start in a story scene skips it.
   if (phase === 'scene') return skipScene();
-  if (settingsOpen()) closeSettings();
+  if (!$('controls-panel').hidden) openControlsPanel(false);
+  else if (settingsOpen()) closeSettings();
   else setPaused(phase !== 'pause');
 }
 
 function setPaused(paused: boolean): void {
   if (!match) return;
   if (!paused && settingsOpen()) closeSettings();
+  if (!paused) $('controls-panel').hidden = true;
   // Online the match can't stop: the menu opens over it and your fighter stands still meanwhile.
   if (fight && phase !== 'play' && phase !== 'pause') return;
   if (paused && phase !== 'pause') analytics.paused(match);
@@ -579,7 +972,7 @@ function setPaused(paused: boolean): void {
   $('btn-restart').hidden = !!fight;
   $('pause').querySelector('h2')!.textContent = fight ? 'Menu (the match goes on)' : 'Paused';
   if (paused) {
-    $('btn-quit').textContent = fight ? 'Leave match (you lose)' : chapter ? 'Quit to campaign' : 'Quit to menu';
+    $('btn-quit').textContent = fight ? 'Leave match (you lose)' : inTour() ? 'Quit to Tour' : chapter ? 'Quit to campaign' : 'Quit to menu';
     ($('btn-resume') as HTMLButtonElement).focus();
     syncPad();
   } else {
@@ -588,6 +981,8 @@ function setPaused(paused: boolean): void {
 }
 
 let lastActions: number[] = [];
+/** Stocks snapshot before each KO batch, for crowd comeback cheers (mirrors commentary). */
+let crowdStocksBefore: number[] = [];
 let startToken = 0;
 
 function tick(m: Match): void {
@@ -603,9 +998,19 @@ function afterTick(m: Match, events: SimEvent[]): void {
   renderer.onEvents(events);
   analytics.matchEvents(m, events);
   for (const w of matchWatchers) w(m, events);
-  for (const e of events) if (e.type === 'hit' && !e.shield) bumpHud(e.victim);
+  for (const e of events) {
+    if (e.type === 'hit' && !e.shield) {
+      bumpHud(e.victim, e.dmg, m.state.fighters[e.victim]?.percent ?? 0);
+      // Phone feel: a light buzz when you land a hit (Settings → Vibrate, where supported).
+      if (m.player >= 0 && e.attacker === m.player) hitVibrate(e.dmg >= 130 ? 18 : 12);
+    } else if (e.type === 'ko' && m.player >= 0 && (e.by === m.player || e.victim === m.player)) {
+      // Heavier pulse on a KO you deal or take, still behind the same Settings switch.
+      hitVibrate(e.by === m.player ? 28 : 22);
+    }
+  }
   playEventSounds(m, events);
   updateHud(m);
+  if (teacher && phase === 'play') teacher.tick(m, events);
   const s = m.state;
   // Layered stage bed: lift to intense on last stock or ≥100%, crossfade back if the threat clears.
   if (!s.over && phase !== 'scene') {
@@ -635,6 +1040,7 @@ function afterTick(m: Match, events: SimEvent[]): void {
 }
 
 const SMASHES: ReadonlySet<number> = new Set([MOVE.FSMASH, MOVE.USMASH, MOVE.DSMASH]);
+const VOICE_SPECIALS: ReadonlySet<number> = new Set([MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL]);
 
 /** A broadcast caption over the match. */
 function showBanner(text: string, ms: number): HTMLElement {
@@ -652,11 +1058,17 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
     switch (e.type) {
       case 'hit':
         if (e.shield) audio.sfx('hit-shield', { vary: true });
-        else audio.sfx(e.dmg < 70 ? 'hit-light' : e.dmg < 130 ? 'hit-medium' : 'hit-heavy', { vary: true });
+        else {
+          audio.sfx(e.dmg < 70 ? 'hit-light' : e.dmg < 130 ? 'hit-medium' : 'hit-heavy', { vary: true });
+          // Heavy hits: the studio crowd gasps (ooh). Medium/heavy: the victim's hurt bark.
+          if (e.dmg >= 130) audio.crowd('ooh');
+          if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt');
+        }
         break;
       case 'hurt':
         // Stage damage (hazards, damage zones) lands with a hit sound like any other hit.
         audio.sfx(e.dmg < 70 ? 'hit-light' : 'hit-medium', { vary: true });
+        if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt');
         break;
       case 'stage':
         // The stage's events are heard: an alarm on the warning, a rush when it starts, a crowd reaction.
@@ -685,19 +1097,48 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         } else if (e.kind === 'flicker') audio.synth('thud', 0.6);
         else audio.synth('alarm', 0.9);
         break;
-      case 'ko':
+      case 'ko': {
         audio.sfx('ko');
-        audio.synth('cheer', 0.7);
-        audio.line(`fighter.${CHARACTERS[m.state.fighters[e.victim].char].id}.ko`);
+        // Crowd: roar on every KO; rising cheer when the killer was behind and is now level-or-ahead.
+        const before = crowdStocksBefore.length === m.state.fighters.length
+          ? crowdStocksBefore
+          : m.state.fighters.map((f) => f.stocks);
+        const killer = e.by >= 0 && e.by !== e.victim ? e.by : -1;
+        const stocks = m.state.fighters.map((f) => f.stocks);
+        const rival = (i: number) => i !== killer && (m.state.fighters[i].team < 0 || m.state.fighters[i].team !== m.state.fighters[killer]?.team);
+        const behind = killer >= 0 && before.some((n, i) => rival(i) && n > before[killer]);
+        const level = killer >= 0 && stocks.every((n, i) => !rival(i) || n <= stocks[killer]);
+        if (behind && level) audio.crowd('rising');
+        else audio.crowd('roar');
+        crowdStocksBefore = stocks;
+        audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'ko');
+        break;
+      }
+      case 'grab':
+        // The grab clasps (a shielded one cracks through the guard too); a held fighter's shield stays whole.
+        audio.synth('grab', 1);
+        if (e.shield) audio.sfx('hit-shield', { vary: true });
+        break;
+      case 'throw':
+        audio.synth('whoosh', 0.7);
+        audio.sfx(e.kind === 2 ? 'hit-heavy' : 'hit-medium', { vary: true });
+        break;
+      case 'grab-break':
+        audio.synth('whoosh', 0.35);
+        break;
+      case 'counter':
+        // A counter rings out: a shield-bright hit and a sting.
+        audio.sfx('hit-shield');
+        audio.synth('sting', 0.5);
         break;
       case 'jump':
         audio.sfx('jump', { vary: true });
         break;
       case 'land':
-        audio.sfx('land', { vary: true });
+        audio.landSfx();
         break;
       case 'ledge':
-        audio.sfx('ledge');
+        audio.sfx('ledge', { vary: true });
         break;
       case 'shieldbreak':
         audio.sfx('shield-break');
@@ -710,8 +1151,13 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
   // Swings and dodges start on a change of action, which the sim does not report.
   m.state.fighters.forEach((f, i) => {
     if (f.action !== lastActions[i]) {
-      if (f.action === ACT.ATTACK) audio.sfx(SMASHES.has(f.move) ? 'swing-heavy' : 'swing-light', { vary: true });
-      else if (f.action === ACT.ROLL || f.action === ACT.SPOTDODGE || f.action === ACT.AIRDODGE) audio.sfx('dodge', { vary: true });
+      if (f.action === ACT.ATTACK) {
+        audio.sfx(SMASHES.has(f.move) || f.move === MOVE.SSPECIAL || f.move === MOVE.DSPECIAL ? 'swing-heavy' : 'swing-light', { vary: true });
+        // Smash and special effort barks (1.5 s cooldown + no overlap, inside audio.fighterVoice).
+        if (SMASHES.has(f.move) || VOICE_SPECIALS.has(f.move)) {
+          audio.fighterVoice(CHARACTERS[f.char].id, 'effort');
+        }
+      } else if (f.action === ACT.ROLL || f.action === ACT.SPOTDODGE || f.action === ACT.AIRDODGE) audio.sfx('dodge', { vary: true });
     }
     lastActions[i] = f.action;
   });
@@ -746,13 +1192,16 @@ function renderSettings(): void {
     input.value = String(Math.round(s[k] * 100));
     $(`vol-${k}-value`).textContent = `${input.value}%`;
   }
-  // Touch size and opacity: only where there are touch controls.
+  // Touch size, opacity and vibrate: only where there are touch controls.
   $('settings-touch').hidden = !(touchDevice() || touchUiForced());
   const t = touchSettings();
   for (const [k, v] of [['size', t.size], ['opacity', t.opacity]] as const) {
     $<HTMLInputElement>(`touch-${k}`).value = String(v);
     $(`touch-${k}-value`).textContent = `${v}%`;
   }
+  const vib = $('vibrate-switch');
+  vib.setAttribute('aria-checked', String(t.vibrate));
+  vib.textContent = t.vibrate ? 'On' : 'Off';
 }
 
 function openSettings(): void {
@@ -822,11 +1271,15 @@ function wireSettings(): void {
     input.addEventListener('input', () => setTouchSettings({ [k]: Number(input.value) }));
     input.addEventListener('change', () => analytics.setting(`touch_${k}`, Number(input.value), from()));
   }
+  $('vibrate-switch').addEventListener('click', () => {
+    setTouchSettings({ vibrate: !touchSettings().vibrate });
+    analytics.setting('touch_vibrate', touchSettings().vibrate, from());
+  });
   $('settings-done').addEventListener('click', () => closeSettings());
 }
 
 // Menus play the menu loop; matches pick their stage's loop when they start.
-const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'howto', 'leaderboard']);
+const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'tour', 'howto', 'leaderboard']);
 setInterval(() => {
   const s = currentScreen();
   if (s && MENU_SCREENS.has(s)) audio.playMusic('music-menu');
@@ -837,6 +1290,7 @@ function finish(m: Match): void {
   phase = 'idle';
   const won = m.playerWon();
   const c = chapter;
+  if (tourRun?.setup === m.setup && match === m) return void tourFinish(m, won);
   // A won episode signs off in the arena first: the outro plays live, then the results.
   if (m.setup.mode === 'campaign' && c && won && c.outro.length && match === m) {
     void runScene(m, { chapter: c, which: 'outro' }).then(() => {
@@ -847,11 +1301,46 @@ function finish(m: Match): void {
   showFinish(m, won, c);
 }
 
+/** A win with each fighter a person played to victory (any mode): counts toward its colour unlocks. Returns the new colours' names. */
+function creditWins(m: Match, winners: number[]): string[] {
+  const out: string[] = [];
+  for (const i of winners) {
+    const slot = m.setup.slots[i];
+    if (!slot || slot.cpu !== null || slot.remote) continue;
+    out.push(...addWin(CHARACTERS[slot.char].id));
+  }
+  return out;
+}
+
+/** The slots that won a finished match (a team's, or the single winner). */
+function winningSlots(m: Match): number[] {
+  const s = m.state;
+  if (s.winnerTeam >= 0) return s.fighters.filter((f) => f.team === s.winnerTeam).map((f) => f.id);
+  return s.winner >= 0 ? [s.winner] : [];
+}
+
 function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   phase = 'idle';
+  // Training has no winner; a campaign loss or a CPU's win credits nobody.
+  const newLooks = m.setup.mode === 'training' ? [] : creditWins(m, winningSlots(m));
   analytics.matchEnd(m, won ? 'complete' : 'death');
   const actions: ResultAction[] = [];
-  if (m.setup.mode === 'campaign' && c) {
+  if (m.setup.teach === 'pilot' && c) {
+    // The pilot's result: a win opens the main menu on "Next episode"; a loss is a retry (Kaelen is built to lose).
+    if (won) actions.push({ label: 'Continue', primary: true, run: () => pilotCleared(c) });
+    else actions.push({ label: 'Retry', primary: true, run: () => startMatch(m.setup, false) });
+    actions.push({ label: 'Main menu', run: () => { markPilotSeen('left'); chapter = null; return go('main', spotlight); } });
+  } else if (tourRun?.setup === m.setup) {
+    // A lost fight: Continue plays it again, Quit goes back to the Tour list. The final win: the Tour list, with its mark.
+    const r = tourRun;
+    if (won) actions.push({ label: 'Tour list', primary: true, run: () => openTourScreen() });
+    else actions.push({ label: 'Continue', primary: true, run: () => tourContinue() });
+    if (won) actions.push({ label: 'Main menu', run: () => { tourRun = null; return go('main', spotlight); } });
+    else actions.push({ label: 'Quit', run: () => { analytics.tour('quit', { fighter: r.tour.fighter, fight: r.index + 1 }); return openTourScreen(); } });
+  } else if (dailyRun?.setup === m.setup) {
+    actions.push({ label: won ? 'Beat your score' : 'Try again', primary: true, run: () => startMatch(m.setup, false) });
+    actions.push({ label: 'Main menu', run: () => go('main', spotlight) });
+  } else if (m.setup.mode === 'campaign' && c) {
     if (won) actions.push({ label: 'Continue', primary: true, run: () => chapterCleared(c) });
     else actions.push({ label: 'Retry', primary: true, run: () => startMatch(m.setup, false) });
     actions.push({ label: 'Campaign map', run: () => openCampaignScreen() });
@@ -862,11 +1351,17 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   }
   void go('results', () => {
     endMatch();
-    showResults(m, actions);
+    if (tourRun?.setup === m.setup && !won) {
+      showResults(m, actions, undefined, newLooks);
+      renderTourChoice({ tour: tourRun.tour, index: tourRun.index, fight: tourRun.tour.fights[tourRun.index], continues: tourRun.continues, onContinue: () => tourContinue(), onQuit: () => { analytics.tour('quit', { fighter: tourRun!.tour.fighter, fight: tourRun!.index + 1 }); void openTourScreen(); } });
+    } else showResults(m, actions, undefined, newLooks);
+    if (tourRun?.setup === m.setup && won) $('results-body').prepend(tourBanner(tourRun.tour, tourRun.continues));
+    if (dailyRun?.setup === m.setup && m.setup.mode === 'campaign') dailyFinished(m, dailyRun.ep, won);
     audio.playMusic('music-results');
   }).then(() => askOnResults(m));
   const winner = m.state.fighters[m.state.winner];
-  if (winner) setTimeout(() => audio.line(`fighter.${CHARACTERS[winner.char].id}.win`), 900);
+  // The Tour's closing win line already played over the final KO.
+  if (winner && !(tourRun?.setup === m.setup && won)) setTimeout(() => audio.line(`fighter.${CHARACTERS[winner.char].id}.win`), 900);
   syncPad();
 }
 
@@ -900,7 +1395,7 @@ async function startOnlineMatch(found: Found): Promise<void> {
     stage: s.stage,
     stocks: s.stocks,
     rules: { ...s.rules, timeLimit: s.timeLimit },
-    slots: s.chars.map((char, i) => ({ char, cpu: null, remote: i !== found.slot })),
+    slots: s.chars.map((char, i) => ({ char, cpu: null, remote: i !== found.slot, look: s.looks?.[i] ?? 0 })),
     title: 'Online match',
     subtitle: `${s.names[0]} vs ${s.names[1]}`,
     online: { matchId: s.matchId, names: s.names, avatars: s.avatars, ids: s.ids },
@@ -949,9 +1444,10 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
     },
     { label: 'Main menu', run: () => go('main', spotlight) },
   ];
+  const newLooks = won && !voided ? creditWins(m, [f.slot]) : [];
   await go('results', () => {
     endMatch();
-    showResults(m, actions, { ...ending, winner: end.winner >= 0 ? end.winner : undefined });
+    showResults(m, actions, { ...ending, winner: end.winner >= 0 ? end.winner : undefined }, newLooks);
     onlineCall('rating change', (o) => o.showRatingChange(end, f.slot));
     audio.playMusic('music-results');
   });
@@ -1085,9 +1581,8 @@ function updateHud(m: Match): void {
       cache.pct = f.percent;
       const pct = card.querySelector('.hud-pct') as HTMLElement;
       pct.innerHTML = `${Math.floor(f.percent / 10)}<small>.${f.percent % 10}%</small>`;
-      // White at 0%, through orange, to deep red past 150%.
-      const k = Math.min(1, f.percent / 1500);
-      pct.style.color = `rgb(255, ${Math.round(244 - k * 200)}, ${Math.round(232 - k * 220)})`;
+      // White at 0%, through orange, to red past 120% and deep red from 160%.
+      pct.style.color = damageColor(f.percent);
     }
     if (cache.stocks !== f.stocks) {
       cache.stocks = f.stocks;
@@ -1100,27 +1595,42 @@ function updateHud(m: Match): void {
   }
 }
 
-function bumpHud(id: number): void {
-  const pct = $('hud').children[id]?.querySelector('.hud-pct');
+/** A landed hit: the victim's damage number shakes (harder as it climbs) and pops on a heavy hit. */
+function bumpHud(id: number, dmg = 0, tenths = 0): void {
+  const pct = $('hud').children[id]?.querySelector<HTMLElement>('.hud-pct');
   if (!pct) return;
-  pct.classList.remove('bump');
-  void (pct as HTMLElement).offsetWidth;
-  pct.classList.add('bump');
+  const { amp, pop } = damageShake(dmg, tenths);
+  pct.style.setProperty('--amp', `${amp.toFixed(1)}px`);
+  pct.classList.remove('bump', 'pop');
+  void pct.offsetWidth;
+  pct.classList.add(pop ? 'pop' : 'bump');
+  pct.dataset.hits = String(Number(pct.dataset.hits ?? 0) + 1);
+  pct.dataset.pop = pop ? '1' : '0';
 }
 
 // ------------------------------------------------------------------ loop
 
 function frame(draw = true): void {
   const now = performance.now();
-  acc += Math.min(100, now - last) * (fight ? 1 : simSpeed);
+  // The kill cue's beat of slow motion (renderer.timeScale); online the sim must stay at 60 Hz, so only the camera and sound play there.
+  acc += Math.min(100, now - last) * (fight ? 1 : simSpeed * (phase === 'play' ? renderer.timeScale() : 1));
   last = now;
   // Upright phone: the match waits under the Rotate prompt (online it can't stop, so the fighter just stands still).
   if (rotateShowing() && !fight) acc = 0;
 
   if (match && phase !== 'idle' && pausePressed()) pauseKey();
+  // Taunt is presentation-only (T / D-pad up): not packed into sim input, so rollback never sees it.
+  if (match && phase === 'play' && tauntPressed()) {
+    const me = match.player >= 0 ? match.state.fighters[match.player] : null;
+    if (me) audio.fighterVoice(CHARACTERS[me.char].id, 'taunt');
+  }
   if (phase !== 'play' && phase !== 'ready') pollMenuPad(now);
 
   if (match && phase === 'ready') {
+    // Offline, Ready waits (up to READY_ART_WAIT_MS) for the stage pictures, so "Go!" never opens on a black arena.
+    if (!fight && readyFrames >= READY_ART_FRAMES && renderer.stageArtPending() && performance.now() - readyStart < READY_ART_WAIT_MS) {
+      acc = 0;
+    }
     while (acc >= TICK_MS) {
       acc -= TICK_MS;
       if (++readyFrames === 50) {
@@ -1151,7 +1661,29 @@ function frame(draw = true): void {
   }
   if (fight) showNetStatus(fight);
 
-  if (draw && match && currentScreen() === 'match') renderer.render(match.state);
+  if (draw && match && currentScreen() === 'match') {
+    renderer.render(match.state);
+    drawEdgeMarkers(match);
+    // The teaching prompt rides above the player's head, and is hidden while paused or in a scene.
+    if (teacher) {
+      const me = match.state.fighters[match.player];
+      teacher.place(me && phase === 'play' ? renderer.fighterScreen(me) : null);
+    }
+  }
+}
+
+/** Edge bubbles for fighters out of view: the portrait, an arrow at them, bigger the nearer the blast line. */
+function drawEdgeMarkers(m: Match): void {
+  const list: MarkerIn[] = [];
+  if (phase === 'play' || phase === 'pause') {
+    for (const f of m.state.fighters) {
+      const e = renderer.fighterEdge(f);
+      if (!e?.off) continue;
+      const avatar = m.setup.online?.avatars[f.id];
+      list.push({ id: f.id, x: e.x, y: e.y, gap: e.gap, color: slotColor(m, f.id), portrait: headUrl(avatar || CHARACTERS[f.char].id) });
+    }
+  }
+  updateMarkers(list);
 }
 
 wireMenus();
@@ -1184,6 +1716,15 @@ document.addEventListener('dod:tapped', () => focusFirst());
 // The title screen is up: the game is playable (game_ready).
 const titleUp = go('title').then(() => analytics.ready());
 const playtestChapter = CHAPTERS.find((c) => c.id === params.get('chapter'));
+// First visit (campaign/firstVisit.ts): nothing saved, so Tap to play is the way into Season 1 Episode 1. It is decided at
+// the tap (a playtest clears storage first), and the backdrop under the prompt is only for a visit that starts clean.
+if (isFirstVisit()) document.body.classList.add('pilot-boot');
+if (!playtestChapter && !params.has('play')) {
+  titleUp.then(tapped).then(() => {
+    if (isFirstVisit()) startPilot();
+    else document.body.classList.remove('pilot-boot');
+  });
+}
 if (playtestChapter) {
   // Devtools' Story tab: /Game/?chapter=<id> plays that chapter, scene to scene.
   // These wait for the tap, so the chapter starts with its sound.
@@ -1234,6 +1775,16 @@ installDodPlaytest({
     endMatch();
     return go('main', spotlight);
   },
+  tourSkipTo: (after, to) => {
+    tourSkip = { after, to };
+  },
+  tourChoicePreview: (fighter) => {
+    const tour = tourFor(fighter) ?? TOURS[0];
+    return go('results', () => {
+      endMatch();
+      renderTourChoice({ tour, index: tour.fights.length - 1, fight: tour.fights[tour.fights.length - 1], continues: 0, onContinue: () => {}, onQuit: () => void openTourScreen() });
+    });
+  },
   setCampaignProgress: (ids) => {
     const before = [...progress];
     progress.clear();
@@ -1242,8 +1793,12 @@ installDodPlaytest({
     return before;
   },
   fxStats: () => renderer.fxStats(),
-  hitFxStats: () => renderer.hitFxStats(),
+  hitFxStats: (reset) => renderer.hitFxStats(reset),
+  camFxStats: (reset) => renderer.camFxStats(reset),
+  trailStats: (reset) => renderer.trailStats(reset),
+  markerStats: () => ({ ...markerLog, rects: markerRects() }),
   gfxStats: () => renderer.gfxStats(),
+  lookStats: () => renderer.lookStats(),
   aliveStats: () => renderer.aliveStats(),
   musicBedStats: () => audio.bedStats(),
 });

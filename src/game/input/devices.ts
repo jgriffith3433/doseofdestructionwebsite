@@ -6,6 +6,9 @@ import { consumeTouchEventAt, readTouch } from './touch.ts';
 const held = new Set<string>();
 let listening = false;
 let lastKeyEventAt = 0;
+/** Last time a key (or a pad button) was used, to tell which device the player is on (inputDevice). */
+let lastKeyUseAt = 0;
+let lastPadUseAt = 0;
 
 export interface InputEdge {
   at: number;
@@ -28,7 +31,7 @@ export function consumeInputEdge(): InputEdge | null {
 
 const GAME_KEYS = new Set([
   'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyJ', 'KeyK', 'KeyL', 'KeyI', 'KeyU',
+  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyJ', 'KeyK', 'KeyL', 'KeyI', 'KeyU', 'KeyT',
 ]);
 
 export function listenKeyboard(): void {
@@ -40,6 +43,7 @@ export function listenKeyboard(): void {
       if (!held.has(e.code)) lastKeyEventAt = performance.now();
     }
     held.add(e.code);
+    if (GAME_KEYS.has(e.code)) lastKeyUseAt = performance.now();
   });
   window.addEventListener('keyup', (e) => held.delete(e.code));
   window.addEventListener('blur', () => held.clear());
@@ -50,9 +54,15 @@ export const KEYBOARD_HELP: [string, string][] = [
   ['Up / down', 'W S'],
   ['Jump', 'Space'],
   ['Attack', 'J'],
-  ['Special', 'K  (W+K recovers)'],
+  ['Special', 'K  (neutral)'],
+  ['Side special', 'K + A / D'],
+  ['Up special', 'K + W  (recovery)'],
+  ['Down special', 'K + S'],
   ['Shield / dodge', 'L'],
+  ['Grab', 'L + J  (beats shield)'],
+  ['Throw', 'Grab, then A D W S'],
   ['Smash', 'I + direction'],
+  ['Taunt', 'T'],
   ['Pause', 'Esc'],
 ];
 
@@ -60,10 +70,26 @@ export const GAMEPAD_HELP: [string, string][] = [
   ['Move', 'Left stick / D-pad'],
   ['Jump', 'X / Y'],
   ['Attack', 'A'],
-  ['Special', 'B'],
+  ['Special', 'B  (neutral)'],
+  ['Side special', 'B + left / right'],
+  ['Up special', 'B + up  (recovery)'],
+  ['Down special', 'B + down'],
   ['Shield / dodge', 'Triggers / bumpers'],
+  ['Grab', 'Trigger + A  (beats shield)'],
+  ['Throw', 'Grab, then left stick'],
   ['Smash', 'Right stick'],
+  ['Taunt', 'D-pad up'],
   ['Pause', 'Start'],
+];
+
+/** The on-screen controls: no extra buttons, the stick picks which special the Special button does. */
+export const TOUCH_HELP: [string, string][] = [
+  ['Move', 'Left stick'],
+  ['Special', 'Special button'],
+  ['Side / down special', 'Hold the stick left, right or down, then Special'],
+  ['Up special', 'Hold the stick up, then Special'],
+  ['Grab', 'Shield + Attack together'],
+  ['Throw', 'Grab, then the stick: forward, back, up or down'],
 ];
 
 function keyboardInput(): [number, number, number] {
@@ -93,7 +119,7 @@ function gamepadInput(pad: Gamepad): [number, number, number] {
   let sy = -deadzone(pad.axes[1] ?? 0) * 100;
   if (btn(14)) sx = -100;
   if (btn(15)) sx = 100;
-  if (btn(12)) sy = 100;
+  // D-pad up is the taunt (Smash-style); stick still aims up for jumps and recoveries.
   if (btn(13)) sy = -100;
   let b = 0;
   if (btn(0)) b |= BTN.ATTACK;
@@ -122,6 +148,16 @@ export function setVirtualPad(read: (() => number) | null): void {
   virtualPad = read;
 }
 
+export type InputDevice = 'keyboard' | 'gamepad' | 'touch';
+
+/** The device the player is on right now (for on-screen button glyphs): touch controls up, else whichever of pad and keys was used last. */
+export function inputDevice(): InputDevice {
+  if (typeof document !== 'undefined' && document.body.classList.contains('touch-ui')) return 'touch';
+  if (lastPadUseAt > lastKeyUseAt) return 'gamepad';
+  if (lastKeyUseAt === 0 && pads().length > 0) return 'gamepad';
+  return 'keyboard';
+}
+
 /** The local player's input this frame: the keyboard, the first gamepad and any virtual pad, merged. */
 export function readLocal(): number {
   let [sx, sy, b] = keyboardInput();
@@ -131,7 +167,11 @@ export function readLocal(): number {
     b |= pb;
   };
   const pad = pads()[0];
-  if (pad) merge(gamepadInput(pad));
+  if (pad) {
+    const g = gamepadInput(pad);
+    if (g[0] !== 0 || g[1] !== 0 || (g[2] & 0xffff0000) !== 0) lastPadUseAt = performance.now();
+    merge(g);
+  }
   merge(readTouch());
   if (virtualPad) {
     const v = virtualPad();
@@ -159,6 +199,15 @@ export function pausePressed(): boolean {
   const down = held.has('Escape') || pads().some((p) => !!p.buttons[9]?.pressed);
   const edge = down && !pauseWasDown;
   pauseWasDown = down;
+  return edge;
+}
+
+/** True on the frame T or gamepad D-pad up goes down (no touch button: space is tight on phones). */
+let tauntWasDown = false;
+export function tauntPressed(): boolean {
+  const down = held.has('KeyT') || pads().some((p) => !!p.buttons[12]?.pressed);
+  const edge = down && !tauntWasDown;
+  tauntWasDown = down;
   return edge;
 }
 

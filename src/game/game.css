@@ -290,9 +290,32 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
   min-height: 0;
   overflow: hidden;
 }
-.preview img { width: 100%; height: clamp(160px, 34vh, 340px); object-fit: contain; object-position: bottom; }
+.preview img { width: 100%; height: clamp(130px, 26vh, 300px); object-fit: contain; object-position: bottom; }
+.preview { overflow-y: auto; }
 .preview h3 { font-size: 26px; color: var(--text); letter-spacing: 0.02em; }
 .preview .blurb { color: var(--muted); font-size: 15px; margin-bottom: 8px; }
+/* The hovered fighter's four specials: a looping clip of the one in focus and a button per special (specialsPreview.ts). */
+.specials { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr); gap: 8px; align-items: start; margin-top: 8px; min-width: 0; }
+.sp-stage { border-radius: 8px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line); overflow: hidden; }
+.sp-clip { display: block; width: 100%; height: auto; aspect-ratio: 176 / 132; }
+.sp-list { display: grid; gap: 4px; min-width: 0; }
+.sp-row {
+  display: grid;
+  gap: 0;
+  text-align: left;
+  min-height: 38px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sp-row.on { border-color: var(--gold); background: rgba(255, 209, 90, 0.12); }
+.sp-name { font-size: 13px; line-height: 1.2; letter-spacing: 0.02em; }
+.sp-kind { font-style: normal; font-size: 11px; line-height: 1.2; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .stat-bars { display: grid; gap: 5px; }
 .stat-bars div { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 8px; font-size: 13px; }
 .stat-bars dt { color: var(--muted); }
@@ -353,9 +376,10 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 .slot {
   display: grid;
   gap: 4px;
-  min-width: 150px;
-  flex: 1 1 150px;
-  max-width: 240px;
+  /* Wide enough for four 44 px swatches and their gaps. */
+  min-width: 224px;
+  flex: 1 1 224px;
+  max-width: 260px;
   background: var(--card);
   border: 2px solid transparent;
   border-bottom: 4px solid var(--slot);
@@ -726,7 +750,7 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   font-family: Oswald, sans-serif;
   font-size: 22px;
   color: var(--gold);
-  background: rgba(16, 14, 12, 0.85);
+  background: radial-gradient(ellipse at 50% 45%, #8a3010 0%, #3a1608 45%, #100e0c 80%) #1c0d06; /* brand, never a black frame */
   z-index: 30;
 }
 
@@ -757,7 +781,7 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   color: #0c0a09;
 }
 .wipe i b span { color: var(--gold); text-shadow: 0 3px 0 #5a2410; }
-.wipe i:first-child { background: #0c0a09; }
+.wipe i:first-child { background: #1c0d06; } /* brand dark, not pure black */
 .wipe i:last-child { background: var(--hot); border-left: 6px solid var(--gold); }
 /* If the cover has to stay up for a while it says why, rather than read as an empty orange frame. */
 .wipe.in.slow::after {
@@ -818,16 +842,43 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
 .hud-card img { grid-row: 1 / 3; width: 52px; height: 52px; object-fit: contain; object-position: bottom; }
 .hud-pct { font-family: Oswald, sans-serif; font-size: clamp(26px, 4vw, 38px); line-height: 1; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7); }
 .hud-pct small { font-size: 0.55em; }
-.hud-pct.bump { animation: bump 160ms ease-out; }
-@keyframes bump { 0% { transform: scale(1.25) translateY(-3px); } 100% { transform: none; } }
-/* Touch controls (coarse pointers, in a match). Bottom corners, above the damage HUD and the Babylon canvas
-   (canvas is z-index 0; this layer is 15 so WebGL never paints over the stick). Settings → Touch size and
-   Touch opacity set --touch-scale (0.75 to 1.5) and --touch-opacity (0.3 to 1) on .touch. The groups stay anchored
-   to the safe-area corners, never under 44 px, and are capped to the window's height so they stay on screen. */
+.hud-pct { display: inline-block; transform-origin: 50% 80%; }
+.hud-pct.bump { animation: pct-shake 260ms ease-out; }
+.hud-pct.pop { animation: pct-pop 420ms cubic-bezier(0.2, 1.4, 0.4, 1); }
+@keyframes pct-shake {
+  0% { transform: scale(1.15) translate(calc(var(--amp, 3px) * -1), -2px); }
+  20% { transform: scale(1.12) translate(var(--amp, 3px), 1px); }
+  40% { transform: scale(1.08) translate(calc(var(--amp, 3px) * -0.7), -1px); }
+  60% { transform: scale(1.04) translate(calc(var(--amp, 3px) * 0.5), 0); }
+  80% { transform: scale(1.02) translate(calc(var(--amp, 3px) * -0.25), 0); }
+  100% { transform: none; }
+}
+@keyframes pct-pop {
+  0% { transform: scale(1.8) translate(calc(var(--amp, 4px) * -1), -4px); }
+  18% { transform: scale(1.55) translate(var(--amp, 4px), 2px); }
+  36% { transform: scale(1.3) translate(calc(var(--amp, 4px) * -0.8), -1px); }
+  56% { transform: scale(1.12) translate(calc(var(--amp, 4px) * 0.5), 0); }
+  100% { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .hud-pct.bump, .hud-pct.pop { animation: none; } }
+/* Off-screen markers: the fighter's portrait in an edge bubble with an arrow at them; bigger and red near the blast line. */
+.edge-markers { position: fixed; inset: 0; pointer-events: none; z-index: 6; overflow: hidden; }
+.edge-marker { position: absolute; left: 0; top: 0; border-radius: 50%; border: 3px solid var(--player); background: rgba(10, 10, 10, 0.78); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6); will-change: transform; }
+.edge-marker[hidden] { display: none; }
+.edge-marker img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.edge-marker i { position: absolute; left: 50%; top: 50%; width: 0; height: 0; margin: -7px 0 0 -7px; border-left: 14px solid var(--player); border-top: 7px solid transparent; border-bottom: 7px solid transparent; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8)); }
+.edge-marker.danger { border-color: #ff2a2a; animation: marker-pulse 500ms ease-in-out infinite alternate; }
+.edge-marker.danger i { border-left-color: #ff2a2a; }
+@keyframes marker-pulse { to { box-shadow: 0 0 0 5px rgba(255, 42, 42, 0.45), 0 2px 8px rgba(0, 0, 0, 0.6); } }
+body.scene-on #edge-markers { display: none; }
+/* Touch controls (coarse pointers, in a match). Floating stick (left 40%) + right-thumb icon arc above the
+   damage HUD and the Babylon canvas (canvas z-index 0; this layer is 15). Settings → Touch size / opacity set
+   --touch-scale and --touch-opacity. Groups stay clear of env(safe-area-inset-*), never under 44 px. */
 .touch {
   --touch-scale: 1;
   --touch-opacity: 1;
-  --btn: max(44px, min(calc(60px * var(--touch-scale)), 15vh));
+  --btn: max(44px, min(calc(56px * var(--touch-scale)), 14vh));
+  --btn-attack: max(52px, min(calc(72px * var(--touch-scale)), 18vh));
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -838,6 +889,16 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   touch-action: none;
 }
 .touch > * { pointer-events: auto; touch-action: none; opacity: var(--touch-opacity); }
+/* Left 40%: receives the first thumb so the stick can spawn under it (.touch itself is pointer-events:none). */
+.touch-move-zone {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  opacity: 0;
+  /* Keep opacity 0 visually but don't inherit --touch-opacity fade for hit-testing. */
+}
 .touch-stick {
   position: absolute;
   left: max(16px, env(safe-area-inset-left));
@@ -845,8 +906,14 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   width: max(44px, min(calc(128px * var(--touch-scale)), 36vh));
   aspect-ratio: 1;
   border-radius: 50%;
-  background: rgba(10, 10, 10, 0.55);
-  border: 2px solid rgba(255, 255, 255, 0.5);
+  background: rgba(10, 10, 10, 0.45);
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  transition: background 120ms ease, border-color 120ms ease;
+  z-index: 1;
+}
+.touch-stick.active, .touch-stick.floating {
+  background: rgba(10, 10, 10, 0.6);
+  border-color: rgba(255, 255, 255, 0.65);
 }
 .touch-knob {
   position: absolute;
@@ -858,34 +925,48 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   background: rgba(255, 255, 255, 0.55);
   pointer-events: none;
 }
+/* Right-thumb arc: Attack largest; neighbours clear by ≥8 px (no overlapping hit circles). */
 .touch-buttons {
   position: absolute;
-  right: max(16px, env(safe-area-inset-right));
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 70px);
-  display: grid;
-  grid-template-columns: repeat(3, var(--btn));
-  grid-auto-rows: var(--btn);
-  gap: calc(8px * var(--touch-scale));
+  right: max(10px, env(safe-area-inset-right));
+  bottom: calc(max(10px, env(safe-area-inset-bottom)) + 58px);
+  width: calc(var(--btn-attack) + var(--btn) + 20px);
+  height: calc(var(--btn-attack) + var(--btn) * 2 + 24px);
+  pointer-events: none;
 }
+.touch-buttons .touch-btn { pointer-events: auto; position: absolute; }
 .touch-btn {
+  width: var(--btn);
+  height: var(--btn);
   min-width: 44px;
   min-height: 44px;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.55);
   background: rgba(10, 10, 10, 0.55);
   color: #fff;
-  font: 600 calc(13px * var(--touch-scale)) Oswald, sans-serif;
-  letter-spacing: 0.04em;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.85);
-  text-transform: uppercase;
   padding: 0;
+  display: grid;
+  place-items: center;
+}
+.touch-btn svg {
+  width: 52%;
+  height: 52%;
+  fill: currentColor;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9));
 }
 .touch-btn.down { background: rgba(255, 90, 31, 0.85); }
-.touch-btn.special { grid-column: 1; grid-row: 1; }
-.touch-btn.attack { grid-column: 2; grid-row: 1; }
-.touch-btn.jump { grid-column: 3; grid-row: 1; }
-.touch-btn.smash { grid-column: 2; grid-row: 2; }
-.touch-btn.shield { grid-column: 3; grid-row: 2; }
+.touch-btn.attack {
+  width: var(--btn-attack);
+  height: var(--btn-attack);
+  right: 0;
+  bottom: calc(var(--btn) + 10px);
+  border-width: 3px;
+}
+.touch-btn.attack svg { width: 48%; height: 48%; }
+.touch-btn.jump { right: 0; bottom: calc(var(--btn-attack) + var(--btn) + 20px); }
+.touch-btn.special { right: calc(var(--btn-attack) + 12px); bottom: calc(var(--btn-attack) + 10px); }
+.touch-btn.shield { right: calc(var(--btn-attack) + 12px); bottom: 0; }
+.touch-btn.smash { right: 0; bottom: 0; }
 .touch-pause {
   position: absolute;
   top: max(12px, env(safe-area-inset-top));
@@ -955,11 +1036,12 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
 @keyframes booth-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 /* Touch layouts: the bottom is the thumbs' (stick, buttons, damage HUD), so the caption goes to a
    narrow strip under the timer, clear of the PAUSE button. */
+@keyframes booth-in-top { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (pointer: coarse) {
-  .booth { top: calc(max(12px, env(safe-area-inset-top)) + 84px); bottom: auto; max-width: min(520px, 62vw); padding: 6px 12px; font-size: clamp(14px, 2.2vw, 20px); }
-  @keyframes booth-in-top { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
-  .booth { animation-name: booth-in-top; }
+  .booth { top: calc(max(12px, env(safe-area-inset-top)) + 84px); bottom: auto; max-width: min(520px, 62vw); padding: 6px 12px; font-size: clamp(14px, 2.2vw, 20px); animation-name: booth-in-top; }
 }
+/* Same when the touch controls are up (body.touch-ui) even if the browser doesn't report a coarse pointer. */
+body.touch-ui .booth { top: calc(max(12px, env(safe-area-inset-top)) + 84px); bottom: auto; max-width: min(520px, 62vw); padding: 6px 12px; font-size: clamp(14px, 2.2vw, 20px); animation-name: booth-in-top; }
 
 /* Live story scenes (ui/scene.ts): letterbox bars ease in over the arena (no hard cut), the episode's lower
    third, and one short subtitle line at a time. The HUD steps aside while the scene plays. */
@@ -1003,6 +1085,7 @@ body.scene-on .touch { visibility: hidden; }
   .select-body .grid, .select-body .preview { min-height: auto; }
   .preview { grid-template-columns: 110px 1fr; align-items: end; column-gap: 12px; }
   .preview img { grid-row: 1 / 6; height: 150px; }
+  .specials { grid-column: 1 / -1; }
   .grid { overflow: visible; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
   .season-chapters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .howto-body, .results-grid { grid-template-columns: 1fr; }
@@ -1354,6 +1437,30 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
   .results-actions { gap: 8px; }
 }
 
+/* A phone on its side (844x390): nothing scrolls the preview away. The preview is a column beside the tiles (which
+   scroll on their own): name and role, then the clip beside the four specials' buttons. The big picture, the blurb
+   and the stat bars give way (they stay on bigger screens and the upright phone). The slot cards go to one row. */
+@media (max-height: 520px) and (min-width: 561px) {
+  .select-screen { grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; gap: 6px; }
+  .select-body { grid-template-columns: minmax(330px, 46%) minmax(0, 1fr); min-height: 0; gap: 10px; }
+  .select-body .grid { overflow-y: auto; min-height: 0; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+  .preview { align-content: start; gap: 2px; padding: 8px 10px; overflow: hidden; }
+  .preview > img, .preview .blurb, .preview .stat-bars { display: none; }
+  .preview h3 { font-size: 20px; line-height: 1.1; }
+  .preview .kicker { font-size: 11px; }
+  .specials { grid-template-columns: 128px minmax(0, 1fr); margin-top: 4px; gap: 8px; }
+  .sp-row { min-height: 34px; padding: 2px 8px; }
+  .slots { gap: 6px; }
+  .slot { display: flex; align-items: center; flex-wrap: nowrap; gap: 6px; min-width: 0; max-width: none; padding: 3px 6px; }
+  .slot-pick img { width: 36px; height: 36px; }
+  .slot-pick { grid-template-columns: 36px 1fr; }
+}
+/* An upright phone (390x844): the clip sits over the list, both inside the width. */
+@media (max-width: 560px) {
+  .specials { grid-template-columns: minmax(0, 1fr); }
+  .sp-stage { max-width: 176px; justify-self: center; width: 100%; }
+}
+
 /* ---------------------------------------------------------- rotate prompt */
 .rotate-prompt { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; text-align: center; padding: 24px; background: rgba(16, 14, 12, 0.96); color: #fff; }
 .rotate-prompt[hidden] { display: none; }
@@ -1365,3 +1472,213 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
 
 .bc-banner { position: fixed; left: 50%; top: 22%; transform: translateX(-50%); z-index: 40; padding: 10px 28px; background: rgba(10,10,20,.85); color: #fff; font: 800 clamp(18px,3vw,36px) system-ui; letter-spacing: .06em; border: 3px solid #ffd23f; pointer-events: none; text-align: center; }
 .bc-banner.bc-hijack { border-color: #ff3b6b; color: #ff3b6b; top: 12%; }
+
+/* ------------------------------------------------- first visit and teaching prompts */
+/* The title logo: a dark backdrop while the first fight loads, then only the logo over the cold open's first shot. */
+.pilot-logo { display: none; position: fixed; inset: 0; z-index: 85; place-items: center; background: #0b0b12; transition: background 0.7s ease, opacity 0.8s ease; pointer-events: none; }
+body.pilot-boot .pilot-logo { display: grid; place-items: center; }
+.pilot-logo.over-shot { background: transparent; }
+.pilot-logo.gone { opacity: 0; }
+.pilot-logo .logo { margin: 0; font: 700 clamp(28px, 7vw, 80px) Oswald, Impact, 'Arial Narrow', sans-serif; text-transform: uppercase; letter-spacing: 0.06em; color: #fff3df; text-shadow: 0 4px 18px rgba(0, 0, 0, 0.7); text-align: center; }
+.pilot-logo .logo span { color: #ffd15a; text-shadow: 0 3px 0 #5a2410, 0 4px 18px rgba(0, 0, 0, 0.7); }
+.pilot-menu { position: fixed; z-index: 86; top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); min-width: 56px; min-height: 44px; padding: 10px 14px; border: 0; background: rgba(10, 10, 20, 0.55); color: #f4efe8; font: 600 14px Oswald, system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; text-decoration: underline; cursor: pointer; }
+.pilot-menu[hidden] { display: none; }
+.pilot-menu:hover, .pilot-menu:focus-visible { background: rgba(10, 10, 20, 0.85); }
+body.pilot-boot .screen { visibility: hidden; }
+
+/* One prompt at a time, above the player's head. */
+.teach-prompt { position: fixed; z-index: 35; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; animation: teach-in 0.25s ease-out both; transition: opacity 0.4s ease, transform 0.4s ease; }
+.teach-prompt.used, .teach-prompt.gone { opacity: 0; transform: translate(-50%, -140%); }
+.teach-glyphs { display: flex; align-items: center; gap: 6px; }
+.teach-word { padding: 2px 10px; background: rgba(10, 10, 20, 0.82); color: #fff; font: 700 clamp(13px, 1.6vw, 18px) Oswald, system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 3px; }
+.teach-plus { color: #fff; font: 800 18px system-ui; text-shadow: 0 1px 3px #000; }
+.teach-glyph { display: inline-grid; place-items: center; min-width: 38px; height: 38px; padding: 0 8px; border-radius: 7px; background: #f4efe8; color: #14101c; border: 2px solid #14101c; box-shadow: 0 3px 0 #14101c; font: 800 17px system-ui, sans-serif; animation: teach-bob 1s ease-in-out infinite; }
+.teach-glyph.gamepad { min-width: 38px; border-radius: 50%; background: #ffd15a; font-size: 14px; }
+.teach-glyph.touch { border-radius: 50%; min-width: 52px; height: 52px; background: rgba(255, 90, 31, 0.9); color: #fff; border-color: #fff; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.45); font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+.teach-glyph.touch.stick { background: rgba(244, 239, 232, 0.9); color: #14101c; border-color: #14101c; }
+.teach-glyph.touch.stick:empty::after { content: ''; width: 20px; height: 20px; border-radius: 50%; background: #14101c; }
+@keyframes teach-in { from { opacity: 0; margin-top: 10px; } }
+@keyframes teach-bob { 50% { transform: translateY(-4px); } }
+/* The real touch button the prompt is about pulses too. */
+.touch-btn.teach-pulse { animation: teach-ring 0.9s ease-in-out infinite; }
+@keyframes teach-ring { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 209, 90, 0.9); } 50% { box-shadow: 0 0 0 10px rgba(255, 209, 90, 0); } }
+@media (prefers-reduced-motion: reduce) { .teach-glyph, .touch-btn.teach-pulse { animation: none; } }
+
+/* The Next episode tag on the main menu's Campaign button. */
+.menu-item .next-tag { justify-self: start; font-style: normal; padding: 1px 8px; background: var(--gold); color: #14101c; font: 700 12px Oswald, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 3px; margin-bottom: 4px; }
+.menu-item .next-tag[hidden] { display: none; }
+.menu-item.next-episode { border-left-color: var(--gold); }
+
+.controls-panel { width: min(760px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; text-align: left; }
+.controls-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+
+/* ---------------------------------------------------------------- colour looks */
+
+.swatches { display: grid; grid-template-columns: repeat(4, minmax(44px, 1fr)); gap: 8px; margin: 2px 0; }
+.swatch {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
+  align-content: start;
+  gap: 3px;
+  min-width: 44px;
+  min-height: 56px;
+  padding: 5px 2px 4px;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1.1;
+  text-align: center;
+  touch-action: manipulation;
+}
+.swatch .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff6; box-shadow: 0 0 0 1px #0008; }
+.swatch .name { overflow-wrap: anywhere; }
+.swatch:hover, .swatch:focus-visible { border-color: var(--hot); outline: none; }
+.swatch:active { transform: scale(0.96); }
+.swatch.on { border-color: var(--gold); color: var(--text); background: #2a2210; }
+.swatch.locked { opacity: 0.62; cursor: not-allowed; }
+.swatch.locked .dot { filter: grayscale(0.85) brightness(0.7); }
+.swatch.locked .name { color: var(--gold); }
+
+.look-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px 2px 4px; border-radius: 999px; background: #0007; border: 1px solid var(--line); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text); white-space: nowrap; }
+.look-chip i { width: 12px; height: 12px; border-radius: 50%; border: 1px solid #fff8; }
+.vs-card .look-chip { justify-self: center; margin-top: 4px; }
+.results-look { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.look-new { color: var(--gold); font-style: normal; font-weight: 700; }
+.standing .who .look-chip { margin: 2px 0; width: fit-content; }
+
+@media (max-width: 560px) {
+  /* Each slot takes its own row so its four swatches sit in one row of tap targets, no sideways scroll. */
+  .slots .slot { flex-basis: 100%; min-width: 0; }
+  .swatch { min-height: 60px; font-size: 11px; }
+}
+
+/* ------------------------------------------------------- Tonight's Episode (campaign/daily.ts, ui/daily.ts) */
+.daily-card {
+  display: grid; gap: 4px; min-width: 0; padding: 10px 14px 8px; border-radius: 8px;
+  border: 1px solid rgba(255, 196, 61, 0.55); border-left: 4px solid var(--gold);
+  background: linear-gradient(90deg, rgba(255, 196, 61, 0.14), rgba(0, 0, 0, 0.35));
+}
+.daily-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.daily-tag { font: 700 14px Oswald, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+.daily-streak { font: 600 13px Oswald, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text); }
+.daily-cast { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.daily-cast i { font: 700 13px Oswald, sans-serif; color: var(--muted); text-transform: uppercase; }
+.daily-head { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255, 255, 255, 0.35); background: #1a0d08; }
+.daily-head.you { border-color: var(--gold); }
+.daily-head.foe { border-color: var(--hot); }
+.daily-title { margin: 0; font: 700 clamp(18px, 2.4vw, 24px) Oswald, sans-serif; text-transform: uppercase; line-height: 1.1; overflow-wrap: anywhere; }
+.daily-stage, .daily-rule, .daily-blog { margin: 0; font-size: 13px; line-height: 1.25; color: var(--muted); overflow-wrap: anywhere; }
+.daily-rule { color: var(--text); font-size: 14px; }
+.daily-blog { font-style: italic; }
+.daily-blog b { font-style: normal; color: var(--gold); }
+.daily-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.daily-actions button { min-height: 44px; min-width: 44px; padding: 8px 14px; }
+.daily-actions .daily-play { flex: 1 1 150px; }
+.daily-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 0; font-size: 12px; color: var(--muted); }
+.daily-best { color: var(--gold); font-weight: 700; }
+
+.daily-results { display: grid; gap: 8px; padding: 12px 14px; border-radius: 8px; border-left: 4px solid var(--gold); background: rgba(255, 196, 61, 0.08); min-width: 0; }
+.daily-results h3 { margin: 0; font: 700 16px Oswald, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); }
+.daily-score { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.daily-score .stat { display: grid; gap: 2px; padding: 6px 12px; background: rgba(0, 0, 0, 0.35); border-radius: 6px; min-width: 0; }
+.daily-score .stat span { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.daily-score .stat strong { font: 700 clamp(20px, 3vw, 30px) Oswald, sans-serif; line-height: 1.1; overflow-wrap: anywhere; }
+.daily-note, .daily-rank { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.daily-rank { font-weight: 700; }
+.daily-board { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.daily-row { display: grid; grid-template-columns: 26px 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.3); }
+.daily-row.me { background: rgba(255, 196, 61, 0.25); outline: 1px solid var(--gold); }
+.daily-row img, .daily-row i { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: #1a0d08; }
+.daily-row b { font-family: Oswald, sans-serif; text-align: right; }
+.daily-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.daily-row strong { font-family: Oswald, sans-serif; }
+.daily-gap { text-align: center; color: var(--muted); line-height: 1; }
+@media (max-height: 600px) {
+  .daily-card .daily-blog, .daily-card .daily-stage { display: none; }
+  .daily-head { width: 30px; height: 30px; }
+}
+
+/* The card is on air: a slow gold sweep; a new best flashes gold on the results. */
+.daily-card { position: relative; overflow: hidden; }
+.daily-card::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(100deg, transparent 35%, rgba(255, 209, 90, 0.16) 50%, transparent 65%); transform: translateX(-100%); animation: daily-sweep 6s ease-in-out infinite; }
+@keyframes daily-sweep { 0%, 60% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.daily-results.new-best .daily-score .stat:first-child { animation: daily-flash 1.2s ease-out 2; }
+@keyframes daily-flash { 0% { background: rgba(255, 209, 90, 0.75); transform: scale(1.06); } 100% { background: rgba(0, 0, 0, 0.35); transform: none; } }
+@media (prefers-reduced-motion: reduce) { .daily-card::after, .daily-results.new-best .daily-score .stat:first-child { animation: none; } }
+
+/* -------------------------------------------------------------- tour */
+
+.tour-screen > .lede { max-width: 1280px; margin: 0 auto 14px; }
+.tour-screen .screen-head { max-width: 1280px; margin-inline: auto; }
+.tour-count { color: var(--gold); font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.08em; font-size: 14px; }
+.tour-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr));
+  gap: 12px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.tour-tile {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  column-gap: 12px;
+  align-items: center;
+  min-height: 84px;
+  text-align: left;
+  background: radial-gradient(ellipse at 20% 50%, rgba(255, 90, 31, 0.18), transparent 70%), var(--card);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: inherit;
+  transition: transform 140ms ease, border-color 140ms ease;
+}
+.tour-tile:hover:not(:disabled), .tour-tile:focus-visible { border-color: var(--hot); transform: translateY(-2px); outline: none; }
+.tour-tile:active:not(:disabled) { transform: scale(0.98); border-color: var(--gold); }
+.tour-tile img { grid-row: 1 / 4; width: 64px; height: 64px; object-fit: contain; object-position: bottom; }
+.tour-tile strong { font-family: Oswald, sans-serif; font-size: 20px; text-transform: uppercase; line-height: 1.1; overflow-wrap: anywhere; }
+.tour-route { color: var(--muted); font-size: 14px; }
+.tour-status { font-style: normal; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); overflow-wrap: anywhere; }
+.tour-tile.cleared { border-color: rgba(92, 224, 138, 0.45); }
+.tour-tile.cleared .tour-status { color: #5ce08a; }
+.tour-tile.locked { cursor: not-allowed; opacity: 0.6; }
+.tour-tile.locked img { filter: brightness(0) drop-shadow(0 0 1px rgba(255, 255, 255, 0.4)); }
+
+.tour-choice { display: grid; justify-items: center; gap: 8px; text-align: center; max-width: 640px; margin: 0 auto; padding: 12px 8px; }
+.tour-choice h2 { margin: 0; font-family: Oswald, sans-serif; font-size: clamp(30px, 8vw, 52px); text-transform: uppercase; }
+.tour-choice-cast { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.tour-choice-cast img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; background: var(--card); }
+.tour-choice-cast i { font-family: Oswald, sans-serif; color: var(--hot); font-style: normal; }
+.tour-choice-line { margin: 0; overflow-wrap: anywhere; }
+.tour-choice-note { margin: 0; color: var(--muted); font-size: 14px; }
+.tour-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 2px solid var(--gold);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: radial-gradient(ellipse at 10% 50%, rgba(255, 200, 60, 0.22), transparent 70%), var(--card);
+  margin-bottom: 8px;
+}
+.tour-banner img { width: 72px; height: 72px; object-fit: contain; flex: none; }
+.tour-banner h2 { margin: 0; font-family: Oswald, sans-serif; font-size: clamp(22px, 5.5vw, 38px); text-transform: uppercase; color: var(--gold); line-height: 1.1; overflow-wrap: anywhere; }
+.tour-banner p { margin: 2px 0 0; overflow-wrap: anywhere; }
+
+@media (max-width: 560px), (max-height: 520px) {
+  .tour-tile { min-height: 72px; }
+  .tour-grid { grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); gap: 8px; }
+  .tour-screen > .lede { margin-bottom: 8px; font-size: 14px; }
+  .tour-choice-cast img { width: 44px; height: 44px; }
+  .tour-choice-note { font-size: 13px; }
+  .tour-banner { padding: 6px 10px; }
+  .tour-banner img { width: 48px; height: 48px; }
+}
+@media (max-width: 560px) {
+  .tour-grid { grid-template-columns: minmax(0, 1fr); }
+}

@@ -111,6 +111,25 @@ call out where the live build is still thin.
 - **Now:** kinds of call and Blog Man intros exist. **Short:** lines are often caption-only (no take); the booth is
   not a place you can walk into.
 
+### Tonight's Episode (the main menu's nightly card, not a stage)
+- **Mood:** the schedule at midnight: a one-night special every viewer gets at once.
+- **Look / sound:** a gold-edged card above the campaign with the cast's heads, the rule in one line, Blog Man's own
+  recorded episode intro (a button on the card, and again on air in the fight) and a countdown to the next one.
+- **In / out:** from the main menu into a normal campaign-style fight on any of the nine stages, back to the results
+  with the score, the day streak and the night's board.
+- **Now:** picked from the UTC date (`campaign/daily.ts`), scored, streak in localStorage, board on Hawkes Net.
+  **Short:** the intro reuses an existing episode line (no new take); no dedicated scene.
+
+### Tour (the main menu's six-fight run, not a stage)
+- **Mood:** the network's ladder night: six bouts booked for one fighter, the last against their rival.
+- **Look / sound:** the Tour select is a wall of fighter tiles (cleared ones marked with a gold star line); between
+  fights the arena's own lower third and the next foe's recorded line over a wide shot; the ending is the fighter's
+  win line over the final KO with a gold "<Fighter> clears the Tour" card. The finale is always on the Foundry floor.
+- **In / out:** from the main menu into six campaign-style fights on the nine stages, a Continue or Quit panel after a
+  loss, back to the Tour select with the mark.
+- **Now:** `content/tours.json` (32 routes), `campaign/tour.ts`, `ui/tour.ts`. **Short:** the foes' lines are existing
+  takes (no new recorded reaction per fight); no per-Tour music.
+
 ### The rival feed (Season 4 only, cutaway)
 - **Mood:** a second set of lights across town, same hour.
 - **Look / sound:** same stages under a colder grade (cooler grade / second city-light bank in the backdrop or scene
@@ -147,6 +166,63 @@ host and walk-on for the finale (one man, two roles). Blog Man covers Season 1 f
 on, and sometimes fights (Turn the Page, Clip Show). Walk-ons join the Versus card when their episode clears (`unlock`
 in `content/campaign.json`); Season 8–10 reuse nominees and promoters with no new unlocks.
 
+**Wardrobe (colour looks).** Every fighter has four looks in `content/fighters.json` `looks`, drawn by a palette shader on
+the same sprite sheets (`src/game/looks.ts`, `render/lookPlugin.ts`). In the show's terms this is Wardrobe: the same
+contestant in the network's alternate rig. Look 1 is the fighter as aired; look 2 is open; looks 3 and 4 are earned by
+wins with that fighter in any mode (3 and 10, `dod-wins`) and read "3 wins to unlock" on the select card. Outfit looks
+turn the fighter's main colour band (skin, eyes and outlines stay); the dark, grey fighters tint their mid-tones
+instead. Two of the same fighter in one match never share a look (the second is moved on automatically). Colour is
+cosmetic: it is not in the sim, so it never changes a fight; online it rides in the match setup. The VS card and the
+results name each fighter's look in a chip.
+
+**Signature specials.** A fighter's Special does four different things by stick direction (neutral, side, up, down),
+and a fighter on the card can have its own (`specials` in `content/fighters.json`, `docs/specials.md`). Exit Punk
+is the first, and his kit is the one skateboard he walked on with: **Board throw** (neutral, he lobs the deck down
+the floor like a bowling lane), **Skate dash** (side, he rides it straight through whoever is in the way),
+**Ollie** (up, the pop that gets him back to the ledge) and **Kickflip trap** (down, he flips a board onto the
+floor and walks away from it; whoever steps on it eats it). Dry as ever: no one on the show says what the moves
+are called.
+
+The other twelve Season 1 fighters each have their own kit, drawn from their blurb and the show, and no two share
+the same four kinds (neutral / side / up / down): Kaelen (Hi, bye · Gone · Bye · Slip: a flurry, a dash, a straight
+jump, a sidestep counter; gone before the trade lands), Break (Rule one · Hammer fists · House jump · Hold the line:
+the command grab, rule one of the house), DJ Won't Read (Sound wave · Scratch · Drop the bass · Rewind: a thrown
+sound, quick hits, a counter that plays the hit back), Shutup Bot (Mute · Tank charge · Thrusters · Hush: a
+counter, a charge, a command grab; says nothing), Small Weather (Gust · Hailstorm · Front rider · Storm cell: a gust
+projectile and a weather trap), Blog Man (Long headline · Scoop · Stop the presses · No comment: a headline that is
+far too long and slow, a counter), Evil Blue Bird (Peck · Dive · Flap · Egg: pecks, a dive, a glide, an egg trap),
+Got Ur Back (Bear hug · Lean in · Big hop · Got ur back: a hug grab, a shoulder, a protective counter), Slice (Ribbon
+cut · Shred · Slice up · Parry: the fastest flurry and a thin fast cutter), SS Boulder (Hurl rock · Crush · Rock climb
+· Landslide: a slow thrown rock, a grab, a trap), Stratabots (Plate down · Plate stack · Stack up · Plates up: a plate
+trap, a stack of hits, a counter) and the Orchestrator (Baton · Crescendo · Cadenza · Downbeat: a baton counter,
+a crescendo orb, a glide, a downbeat trap). Character select lists them by name with a looping clip.
+
+The other twenty fighters have their own kits too, so all 33 play differently and no two share the same four kinds.
+Each is the blurb turned into four moves (neutral · side · up · down): Ball Person (Free kick · Slide tackle ·
+Bicycle kick · Nutmeg: an arcing ball, a slide, a grab), Cel (Onion skin · Smear · Multiplane · In-betweens: a
+see-through orb, a smear dash, a glide, five drawn frames in a flurry), Chooser (Opt out · Pick a card · Rebound ·
+Pick up: a counter that declines the hit, a card, a glide), Crosser (Cross counter · Red pen · Reshoot · Final cut: a
+slow, heavy counter, three red strokes, a command grab), Crystalline Intelligences (Seed crystal · Refraction ·
+Lattice · Facet storm: a crystal laid on the floor, a bent beam, a flurry), Future Man (Fast forward · Montage ·
+Jump cut · Next season: a dash, a montage of hits, a trap that arms late and does not say what it is), Lapis Man
+(Lapis shard · Planted staff · Vault · Staff parry: the zoner, with a shard, a staff planted in the floor and a
+parry), Not an Old Man Yet (Collar · Lawn chair · Back in the day · Not yet: a collar grab, a lawn chair left in
+the middle, a counter that says not yet), Pyro Singer (Sparkler · High note · Pyro lift · Pyro cue: the opener's
+sparkler flurry, a note thrown across the stage, a flame trap), Shark Dude (Run in · Chomp · Breach · Not a belt: a
+dash, a bite that is a grab, a counter for the belt that is not a belt), Slow Rider (Throttle · Tailpipe · Long haul
+· Oil slick: a long slow dash, a flame, the longest glide, a slick), Spider Bot (Web · Snare · Rappel · Eight legs:
+a web trap, a low grab, an angled climb, a flurry), Susan (Tendril · Drift · Float · Fog patch: a grab from the fog,
+a slow orb that drifts for a long time, a fog trap), TT (Withdraw · Shell roll · Spin up · Spike strip: the shell
+counter, a heavy roll, a trap), Try Belt (Rewrite · Retakes · Cut away · Tape: a counter that rewrites the hit,
+retakes, a tape trap), Uh Me (Hum · Embrace · Drift up · Calm: a hummed orb, a quiet grab, a calm counter), Wallit
+(Tip jar · Bat lunge · Pop fly · Buyout: a jar on the floor, a bat lunge, a command grab called the buyout), Yo Bot
+(Four-leg grapple · Pop-up · Hover legs · Hits back: a four-legged grab, a pop-up thrown at you, the laptop that hits
+back) and Yooba (Gulp · Tongue lash · Squelch · Goo puddle: a long-reach gulp grab, a tongue lash, a puddle). The
+Mechanic (Wrench throw · Ratchet · Lift · Clamp) keeps to his wrench and nothing from the show: his origin short is
+all he has, and he is still not on the card. Bots use them by kind: a thrown special at range, a trap by the ledge
+or on the way in, a dash to close the distance, a counter when the opponent swings, a grab or flurry up close, an
+angled recovery aimed at the ledge; the higher the CPU level, the more often.
+
 Routines through a broadcast night: walk-ons wait off-camera until their card; the champion stays on between defenses;
 the host reads the sheet; the announcer only speaks once the match is live. Reaction to the player: opponents fight;
 hosts and the booth talk about ratings and the card, never "levels" or "the game".
@@ -159,6 +235,14 @@ Stratabots (heavies), Shark Dude (the belt that is not a belt), Pyro Singer (ope
 (network partner), Uh Me / Yo Bot / Spider Bot / Lapis Man / TT (Sweeps), Ball Person / Chooser / Not an Old Man Yet /
 Yooba / Slow Rider (Syndication), Future Man (guest who will not spoil the next season). **The Mechanic:** Foundry
 parts and a fixed board in the origin short only — candidate, unused on the show.
+
+**Match barks (Season 1).** Each of the thirteen Season 1 fighters has its own cast voice for in-bout sound, not a
+shared scream: 3 short attack efforts (smash / special), 2 hurts (medium and heavy hits), 1 KO cry written for the
+character (Break: "Rule one!", Blog Man: a cut-off headline, Shutup Bot: a static burst), and 1 taunt of four words
+or fewer from the blurb or story (T / gamepad D-pad up; no touch button). Lines live in `content/voice.json`
+(`fighter.<id>.effort.*` / `.hurt.*` / `.ko` / `.taunt`) and play through `audio.fighterVoice` with no two lines from
+one fighter overlapping and a 1.5 s effort cooldown. The other twenty fighters keep the shared KO take until their
+kits ship. Cold opens that mark `taunt` also play the bark with the arrival bounce.
 
 ### Creatures and set life
 - City Top: distant fireworks crews; no named mascot on the roof yet.
@@ -249,9 +333,13 @@ calls are the others.
   self-destruct, big hit, combo, danger, shield break, hazard, stage-event, time-low, lull); Blog Man intro after Go
   in campaign; pause / settings without leaving the show's voice.
 - **On their own:** calls from sim events; menu ticker lines.
-- **Ambient:** ducked music under voice; procedural crowd, sting, alarm, thud when files are missing.
+- **Ambient:** ducked music (~8 dB) under any voice line, restored over 0.4 s; combat/movement SFX use four takes each
+  with no immediate repeat and 5–10% pitch spread; landings follow the stage surface (metal / wood / stone / soft);
+  crowd ooh on heavy hits, roar on KOs, rising cheer on comebacks (never the same reaction twice in a row); layered
+  stage beds already lift to intense on last stock / ≥100% with a final-KO sting. Procedural sting/alarm/thud when a
+  file is missing.
 - **Over time:** Orchestrator hosts S1; Blog Man from S2; rival booth in S4; commentary still needs recorded takes for
-  many lines.
+  many lines. Dedicated ambience loops (not reused music) remain a gap listed in `content/stage-beds.json`.
 
 **Where the live world falls short today:** City Top's soft timed beat (vertical-slice #1); hazard-off nights need the
 named quiet routines above (Local Affiliate riders, Red Carpet motor ticks); booth and many Season 3+ episode lines
@@ -302,3 +390,10 @@ must not flatten into paragraphs alone.
 Beats still thin in the build (keep as targets, do not paper over with text): Season 3+ and booth voice takes (hear
 them, do not replace with longer captions); City Top soft timed beat; rival-feed colder grade and Hostile Takeover
 static cut; Local Affiliate / Red Carpet quiet routines. Do not invent new seasons here — extend `docs/story.md` first.
+14. **The pilot (first visit, City Top).** Tap to play opens on the cold open's first shot under the logo; Kaelen hops up
+    onto a side platform and poses (the Jump beat), takes a few hits, winds up one slow smash (the Shield beat); the
+    crowd, the stage's flicker and the booth carry on as in any Open Mic. Prompts are glyphs over Exit Punk, never
+    paragraphs. Win: the main menu says "Next episode".
+15. **Tour (every fighter).** Six bouts, the CPU rising, the four twists in the fighter's own order; each foe is heard in
+    the arena before their fight; the rival closes it on the Foundry floor. The fighter's own win line plays over the final
+    KO under "<Fighter> clears the Tour", and the Tour select keeps the mark.

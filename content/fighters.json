@@ -4,6 +4,12 @@
     "name": "Ball Person",
     "role": "Striker",
     "blurb": "Fast feet and kicks that carry.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":215,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":215,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":215,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 50,
     "h": 112,
     "weight": 98,
@@ -14,14 +20,36 @@
     "hop": 150,
     "jumps": 1,
     "frames": 0.95,
-    "kb": 1.04,
-    "reach": 1.05
+    "kb": 1.031,
+    "reach": 1.05,
+    "dmg": 0.983,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Free kick", "clip": "nspecial", "startup": 9, "total": 26, "speed": 8, "life": 90, "r": 26, "dmg": 75, "angle": 35, "bkb": 25, "kbg": 60, "x": 34, "y": 40, "style": "board", "rise": 6, "gravity": 18 },
+      "side": { "type": "dash", "name": "Slide tackle", "clip": "roll", "startup": 5, "duration": 13, "endlag": 14, "speed": 12, "r": 30, "dmg": 85, "angle": 40, "bkb": 30, "kbg": 90, "x": 36, "y": 26 },
+      "up": { "type": "recovery", "variant": "angled", "name": "Bicycle kick", "clip": "upb", "startup": 5, "duration": 14, "endlag": 24, "rise": 15, "speed": 7, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 70 },
+      "down": { "type": "grab", "name": "Nutmeg", "clip": "nspecial", "startup": 9, "endlag": 40, "r": 34, "x": 46, "y": 36, "pull": 30, "dmg": 115, "angle": 50, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 48, "y": 107 }],
+      "usmash": [{ "x": 11, "y": 130 }],
+      "dsmash": [{ "x": 66, "y": 14 }, { "x": -36, "y": 76 }],
+      "nspecial": [{ "x": 36, "y": 41 }],
+      "sspecial": [{ "x": 38, "y": 26 }],
+      "upb": [{ "x": 0, "y": 71 }],
+      "dspecial": [{ "x": 49, "y": 37 }]
+    }
   },
   {
     "id": "blog-man",
     "name": "Blog Man",
     "role": "All-rounder",
     "blurb": "Floats a little, hits a little harder than he looks.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":5,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":5,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":5,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 48,
     "h": 112,
     "weight": 92,
@@ -31,13 +59,34 @@
     "fall": 9.6,
     "hop": 160,
     "jumps": 1,
-    "dmg": 0.98
+    "kb": 1.06,
+    "dmg": 1.1,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Long headline", "clip": "nspecial", "startup": 12, "total": 32, "speed": 6, "life": 150, "r": 32, "dmg": 80, "angle": 35, "bkb": 28, "kbg": 70, "x": 40, "y": 62, "style": "board" },
+      "side": { "type": "dash", "name": "Scoop", "clip": "roll", "startup": 5, "duration": 13, "endlag": 14, "speed": 11, "r": 30, "dmg": 80, "angle": 40, "bkb": 28, "kbg": 85, "x": 36, "y": 44 },
+      "up": { "type": "recovery", "variant": "glide", "name": "Stop the presses", "clip": "upb", "startup": 5, "duration": 12, "rise": 14, "speed": 5, "glide": 1.1, "life": 45, "r": 32, "dmg": 40, "angle": 80, "bkb": 30, "kbg": 50, "y": 66 },
+      "down": { "type": "counter", "name": "No comment", "clip": "dsmash", "startup": 4, "window": 20, "endlag": 20, "mult": 150, "dmg": 60, "angle": 45, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 18, "y": 97 }],
+      "usmash": [{ "x": 10, "y": 130 }],
+      "dsmash": [{ "x": 63, "y": 14 }, { "x": -4, "y": 26 }],
+      "nspecial": [{ "x": 41, "y": 63 }],
+      "sspecial": [{ "x": 37, "y": 45 }],
+      "upb": [{ "x": 0, "y": 67 }]
+    }
   },
   {
     "id": "break",
     "name": "Break",
     "role": "Heavy",
     "blurb": "Slow hands, huge reach, hard to launch.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":345,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":345,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":345,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 70,
     "h": 130,
     "weight": 122,
@@ -48,14 +97,34 @@
     "hop": 136,
     "jumps": 1,
     "frames": 1.18,
-    "dmg": 1.22,
-    "kb": 1.06
+    "dmg": 1,
+    "kb": 1.1,
+    "specials": {
+      "neutral": { "type": "grab", "name": "Rule one", "clip": "nspecial", "startup": 10, "endlag": 44, "r": 40, "x": 62, "y": 56, "pull": 46, "dmg": 150, "angle": 55, "bkb": 40, "kbg": 95 },
+      "side": { "type": "flurry", "name": "Hammer fists", "clip": "fsmash", "startup": 12, "hits": 3, "interval": 9, "dmg": 40, "finisherDmg": 110, "finisherBkb": 40, "finisherKbg": 110, "speed": 1.2, "x": 70, "y": 60, "r": 38, "endlag": 24 },
+      "up": { "type": "recovery", "variant": "straight", "name": "House jump", "clip": "upb", "startup": 6, "duration": 14, "endlag": 30, "rise": 12, "r": 40, "dmg": 80, "angle": 80, "bkb": 40, "kbg": 70, "y": 70 },
+      "down": { "type": "counter", "name": "Hold the line", "clip": "dsmash", "startup": 6, "window": 24, "endlag": 26, "mult": 160, "dmg": 90, "angle": 40, "bkb": 45, "kbg": 105 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 85, "y": 66 }],
+      "usmash": [{ "x": 12, "y": 151 }],
+      "dsmash": [{ "x": 53, "y": 72 }, { "x": -54, "y": 77 }],
+      "nspecial": [{ "x": 73, "y": 66 }],
+      "sspecial": [{ "x": 83, "y": 71 }, { "x": 83, "y": 71 }, { "x": 83, "y": 71 }],
+      "upb": [{ "x": 0, "y": 83 }]
+    }
   },
   {
     "id": "cel",
     "name": "Cel",
     "role": "Aerial",
     "blurb": "Three extra jumps and the best air speed on the roster.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":255,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":255,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":255,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 54,
     "h": 118,
     "weight": 78,
@@ -66,15 +135,36 @@
     "hop": 150,
     "jumps": 3,
     "frames": 1.02,
-    "dmg": 0.86,
-    "kb": 0.96,
-    "reach": 1.1
+    "dmg": 1.036,
+    "kb": 1.076,
+    "reach": 1.1,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Onion skin", "clip": "nspecial", "startup": 8, "total": 24, "speed": 10, "life": 75, "r": 22, "dmg": 60, "angle": 28, "bkb": 22, "kbg": 55, "x": 40, "y": 62, "style": "orb" },
+      "side": { "type": "dash", "name": "Smear", "clip": "roll", "startup": 4, "duration": 12, "endlag": 13, "speed": 13, "r": 28, "dmg": 80, "angle": 40, "bkb": 30, "kbg": 90, "x": 36, "y": 42 },
+      "up": { "type": "recovery", "variant": "glide", "name": "Multiplane", "clip": "upb", "startup": 5, "duration": 12, "rise": 15, "speed": 7, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 68, "glide": 0.9, "life": 55 },
+      "down": { "type": "flurry", "name": "In-betweens", "clip": "fsmash", "startup": 5, "hits": 5, "interval": 4, "dmg": 15, "finisherDmg": 55, "speed": 1.2, "x": 42, "y": 58, "r": 28, "endlag": 15 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 67, "y": 145 }],
+      "usmash": [{ "x": 12, "y": 137 }],
+      "dsmash": [{ "x": 52, "y": 59 }, { "x": -23, "y": 19 }],
+      "nspecial": [{ "x": 47, "y": 67 }],
+      "sspecial": [{ "x": 42, "y": 45 }],
+      "upb": [{ "x": 0, "y": 73 }],
+      "dspecial": [{ "x": 50, "y": 62 }, { "x": 45, "y": 128 }, { "x": 58, "y": 144 }, { "x": 67, "y": 147 }, { "x": 36, "y": 115 }]
+    }
   },
   {
     "id": "chooser",
     "name": "Chooser",
     "role": "Bouncer",
     "blurb": "Small, round, and very hard to pin down.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":205,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":205,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":205,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 62,
     "h": 90,
     "weight": 82,
@@ -85,14 +175,34 @@
     "hop": 160,
     "jumps": 2,
     "frames": 0.96,
-    "dmg": 0.88,
-    "kb": 0.95
+    "dmg": 1.109,
+    "kb": 1.095,
+    "specials": {
+      "neutral": { "type": "counter", "name": "Opt out", "clip": "dsmash", "startup": 4, "window": 20, "endlag": 18, "mult": 150, "dmg": 70, "angle": 42, "bkb": 40, "kbg": 100 },
+      "side": { "type": "projectile", "name": "Pick a card", "clip": "fsmash", "startup": 9, "total": 26, "speed": 11, "life": 70, "r": 22, "dmg": 65, "angle": 32, "bkb": 25, "kbg": 60, "x": 34, "y": 54, "style": "board" },
+      "up": { "type": "recovery", "variant": "glide", "name": "Rebound", "clip": "upb", "startup": 5, "duration": 12, "rise": 15, "speed": 6, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 60, "glide": 1, "life": 50 },
+      "down": { "type": "grab", "name": "Pick up", "clip": "nspecial", "startup": 8, "endlag": 38, "r": 36, "x": 44, "y": 40, "pull": 28, "dmg": 120, "angle": 58, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 59, "y": 46 }],
+      "usmash": [{ "x": 8, "y": 105 }],
+      "dsmash": [{ "x": 11, "y": 23 }, { "x": -12, "y": 15 }],
+      "sspecial": [{ "x": 28, "y": 44 }],
+      "upb": [{ "x": 0, "y": 49 }],
+      "dspecial": [{ "x": 36, "y": 33 }]
+    }
   },
   {
     "id": "crosser",
     "name": "Crosser",
     "role": "Counter-puncher",
     "blurb": "Slow to start, but every hit lands heavy.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":215,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":215,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":215,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 46,
     "h": 114,
     "weight": 102,
@@ -103,14 +213,34 @@
     "hop": 140,
     "jumps": 1,
     "frames": 1.1,
-    "dmg": 1.12,
-    "kb": 1.06
+    "dmg": 1.07,
+    "kb": 1.033,
+    "specials": {
+      "neutral": { "type": "counter", "name": "Cross counter", "clip": "nspecial", "startup": 5, "window": 28, "endlag": 22, "mult": 175, "dmg": 90, "angle": 42, "bkb": 40, "kbg": 105 },
+      "side": { "type": "flurry", "name": "Red pen", "clip": "fsmash", "startup": 8, "hits": 3, "interval": 8, "dmg": 34, "finisherDmg": 95, "speed": 1.2, "x": 46, "y": 60, "r": 32, "endlag": 22, "finisherBkb": 40, "finisherKbg": 105 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Reshoot", "clip": "upb", "startup": 6, "duration": 14, "endlag": 28, "rise": 13, "speed": 6, "r": 32, "dmg": 70, "angle": 80, "bkb": 40, "kbg": 65, "y": 70 },
+      "down": { "type": "grab", "name": "Final cut", "clip": "nspecial", "startup": 9, "endlag": 44, "r": 36, "x": 48, "y": 56, "pull": 34, "dmg": 150, "angle": 62, "bkb": 40, "kbg": 102 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 75, "y": 58 }],
+      "usmash": [{ "x": 10, "y": 133 }],
+      "dsmash": [{ "x": 13, "y": 25 }, { "x": 11, "y": 16 }],
+      "sspecial": [{ "x": 48, "y": 62 }, { "x": 48, "y": 62 }, { "x": 48, "y": 62 }],
+      "upb": [{ "x": 0, "y": 73 }],
+      "dspecial": [{ "x": 50, "y": 58 }]
+    }
   },
   {
     "id": "crystalline-intelligences",
     "name": "Crystalline Intelligences",
     "role": "Burner",
     "blurb": "Long, bright swings with real weight behind them.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":35,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":35,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":35,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 52,
     "h": 120,
     "weight": 96,
@@ -121,15 +251,35 @@
     "hop": 145,
     "jumps": 1,
     "frames": 1.05,
-    "dmg": 1.08,
-    "kb": 1.03,
-    "reach": 1.12
+    "dmg": 0.992,
+    "kb": 0.979,
+    "reach": 1.12,
+    "specials": {
+      "neutral": { "type": "trap", "name": "Seed crystal", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 22, "life": 600, "x": 60, "r": 36, "dmg": 105, "angle": 80, "bkb": 40, "kbg": 88, "style": "orb" },
+      "side": { "type": "projectile", "name": "Refraction", "clip": "fsmash", "startup": 11, "total": 30, "speed": 9, "life": 95, "r": 28, "dmg": 80, "angle": 34, "bkb": 25, "kbg": 60, "x": 48, "y": 66, "style": "orb" },
+      "up": { "type": "recovery", "variant": "glide", "name": "Lattice", "clip": "upb", "startup": 5, "duration": 12, "rise": 14, "speed": 5, "r": 34, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 72, "glide": 1.2, "life": 45 },
+      "down": { "type": "flurry", "name": "Facet storm", "clip": "fsmash", "startup": 7, "hits": 4, "interval": 6, "dmg": 22, "finisherDmg": 70, "speed": 1, "x": 48, "y": 64, "r": 36, "endlag": 20 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 36, "y": 118 }],
+      "usmash": [{ "x": 12, "y": 140 }],
+      "dsmash": [{ "x": 76, "y": 15 }, { "x": 52, "y": 10 }],
+      "sspecial": [{ "x": 16, "y": 73 }],
+      "upb": [{ "x": 0, "y": 79 }],
+      "dspecial": [{ "x": 59, "y": 70 }, { "x": 59, "y": 70 }, { "x": 59, "y": 70 }, { "x": 59, "y": 70 }]
+    }
   },
   {
     "id": "dj-wont-read",
     "name": "DJ Won't Read",
     "role": "Combo",
     "blurb": "Quick hits that chain into each other.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 48,
     "h": 112,
     "weight": 90,
@@ -140,14 +290,34 @@
     "hop": 150,
     "jumps": 1,
     "frames": 0.88,
-    "dmg": 0.9,
-    "kb": 0.97
+    "dmg": 0.92,
+    "kb": 1,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Sound wave", "clip": "nspecial", "startup": 10, "total": 28, "speed": 9, "life": 80, "r": 20, "dmg": 60, "angle": 25, "bkb": 22, "kbg": 55, "x": 34, "y": 62, "style": "orb" },
+      "side": { "type": "flurry", "name": "Scratch", "clip": "fsmash", "startup": 6, "hits": 5, "interval": 4, "dmg": 18, "finisherDmg": 60, "speed": 1.8, "x": 40, "y": 60, "r": 28, "endlag": 14 },
+      "up": { "type": "recovery", "variant": "angled", "name": "Drop the bass", "clip": "upb", "startup": 5, "duration": 15, "endlag": 22, "rise": 15, "speed": 6, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 64 },
+      "down": { "type": "counter", "name": "Rewind", "clip": "dsmash", "startup": 4, "window": 20, "endlag": 18, "mult": 150, "dmg": 60, "angle": 45, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 43, "y": 114 }],
+      "usmash": [{ "x": 10, "y": 130 }],
+      "dsmash": [{ "x": 63, "y": 14 }, { "x": 10, "y": 19 }],
+      "nspecial": [{ "x": 10, "y": 95 }],
+      "sspecial": [{ "x": 41, "y": 61 }, { "x": 41, "y": 61 }, { "x": 21, "y": 101 }, { "x": 17, "y": 110 }, { "x": 41, "y": 61 }],
+      "upb": [{ "x": 0, "y": 65 }]
+    }
   },
   {
     "id": "evil-blue-bird",
     "name": "Evil Blue Bird",
     "role": "Floaty",
     "blurb": "Two extra jumps and an air game that never lands.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":215,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":215,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":215,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 62,
     "h": 96,
     "weight": 80,
@@ -157,14 +327,34 @@
     "fall": 8.4,
     "hop": 146,
     "jumps": 2,
-    "dmg": 0.9,
-    "kb": 0.96
+    "dmg": 1.15,
+    "kb": 1.1,
+    "specials": {
+      "neutral": { "type": "flurry", "name": "Peck", "clip": "fsmash", "startup": 5, "hits": 5, "interval": 4, "dmg": 16, "finisherDmg": 50, "speed": 1.8, "x": 40, "y": 50, "r": 26, "endlag": 14 },
+      "side": { "type": "dash", "name": "Dive", "clip": "roll", "startup": 5, "duration": 12, "endlag": 14, "speed": 13, "r": 28, "dmg": 90, "angle": 40, "bkb": 30, "kbg": 85, "x": 34, "y": 40 },
+      "up": { "type": "recovery", "variant": "glide", "name": "Flap", "clip": "upb", "startup": 4, "duration": 10, "rise": 15, "speed": 6, "glide": 1, "life": 50, "r": 30, "dmg": 40, "angle": 80, "bkb": 30, "kbg": 50, "y": 60 },
+      "down": { "type": "trap", "name": "Egg", "clip": "dsmash", "startup": 9, "endlag": 20, "arm": 18, "life": 480, "x": 50, "r": 30, "dmg": 90, "angle": 80, "bkb": 40, "kbg": 85, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 63, "y": 49 }],
+      "usmash": [{ "x": 9, "y": 112 }],
+      "dsmash": [{ "x": 54, "y": 12 }, { "x": 2, "y": 22 }],
+      "nspecial": [{ "x": 35, "y": 44 }, { "x": 35, "y": 44 }, { "x": 35, "y": 44 }, { "x": 35, "y": 44 }, { "x": 35, "y": 44 }],
+      "sspecial": [{ "x": 30, "y": 35 }],
+      "upb": [{ "x": 0, "y": 52 }]
+    }
   },
   {
     "id": "exit-punk",
     "name": "Exit Punk",
     "role": "All-rounder",
     "blurb": "Nothing to learn around, nothing to hide behind.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":35,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":35,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":35,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 46,
     "h": 110,
     "weight": 95,
@@ -173,13 +363,34 @@
     "gravity": 0.62,
     "fall": 11,
     "hop": 150,
-    "jumps": 1
+    "jumps": 1,
+    "kb": 1.03,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Board throw", "clip": "nspecial", "startup": 9, "total": 26, "speed": 13, "life": 70, "r": 22, "dmg": 1.06, "angle": 30, "bkb": 25, "kbg": 60, "x": 36, "y": 60, "style": "board" },
+      "side": { "type": "dash", "name": "Skate dash", "clip": "roll", "startup": 5, "duration": 14, "endlag": 14, "speed": 12, "r": 30, "dmg": 90, "angle": 40, "bkb": 30, "kbg": 90, "x": 36, "y": 40 },
+      "up": { "type": "recovery", "variant": "angled", "name": "Ollie", "clip": "upb", "startup": 5, "duration": 16, "endlag": 24, "rise": 17, "speed": 7, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 64 },
+      "down": { "type": "trap", "name": "Kickflip trap", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 20, "life": 600, "x": 58, "r": 34, "dmg": 100, "angle": 80, "bkb": 40, "kbg": 90, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 28, "y": 87 }],
+      "usmash": [{ "x": 36, "y": 64 }],
+      "dsmash": [{ "x": 3, "y": 15 }, { "x": -28, "y": 61 }],
+      "nspecial": [{ "x": 8, "y": 114 }],
+      "sspecial": [{ "x": 36, "y": 40 }],
+      "upb": [{ "x": 0, "y": 64 }]
+    }
   },
   {
     "id": "future-man",
     "name": "Future Man",
     "role": "Brawler",
     "blurb": "Fast for his weight, and he does not fall off.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 48,
     "h": 116,
     "weight": 106,
@@ -190,14 +401,34 @@
     "hop": 140,
     "jumps": 1,
     "frames": 0.95,
-    "dmg": 1.03,
-    "kb": 1.02
+    "dmg": 0.886,
+    "kb": 0.934,
+    "specials": {
+      "neutral": { "type": "dash", "name": "Fast forward", "clip": "roll", "startup": 4, "duration": 12, "endlag": 13, "speed": 14, "r": 30, "dmg": 90, "angle": 40, "bkb": 30, "kbg": 90, "x": 36, "y": 44 },
+      "side": { "type": "flurry", "name": "Montage", "clip": "fsmash", "startup": 6, "hits": 4, "interval": 5, "dmg": 22, "finisherDmg": 70, "speed": 1.8, "x": 44, "y": 60, "r": 30, "endlag": 16 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Jump cut", "clip": "upb", "startup": 4, "duration": 14, "endlag": 22, "rise": 16, "speed": 6, "r": 32, "dmg": 55, "angle": 80, "bkb": 40, "kbg": 60, "y": 66 },
+      "down": { "type": "trap", "name": "Next season", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 40, "life": 600, "x": 60, "r": 34, "dmg": 110, "angle": 80, "bkb": 40, "kbg": 92, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 44, "y": 117 }],
+      "usmash": [{ "x": 11, "y": 135 }],
+      "dsmash": [{ "x": -1, "y": 15 }, { "x": -29, "y": 74 }],
+      "nspecial": [{ "x": 38, "y": 46 }],
+      "sspecial": [{ "x": 46, "y": 63 }, { "x": 46, "y": 63 }, { "x": 14, "y": 110 }, { "x": 46, "y": 63 }],
+      "upb": [{ "x": 0, "y": 70 }]
+    }
   },
   {
     "id": "got-ur-back",
     "name": "Got Ur Back",
     "role": "Big friend",
     "blurb": "Huge, soft, and launches people anyway.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":215,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":215,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":215,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 68,
     "h": 120,
     "weight": 114,
@@ -208,15 +439,35 @@
     "hop": 135,
     "jumps": 1,
     "frames": 1.1,
-    "dmg": 1.1,
-    "kb": 1.05,
-    "reach": 1.1
+    "dmg": 0.94,
+    "kb": 0.98,
+    "reach": 1.04,
+    "specials": {
+      "neutral": { "type": "grab", "name": "Bear hug", "clip": "nspecial", "startup": 11, "endlag": 40, "r": 44, "x": 54, "y": 60, "pull": 30, "dmg": 140, "angle": 60, "bkb": 40, "kbg": 100 },
+      "side": { "type": "dash", "name": "Lean in", "clip": "fsmash", "startup": 8, "duration": 16, "endlag": 20, "speed": 8, "r": 40, "dmg": 110, "angle": 38, "bkb": 32, "kbg": 95, "x": 42, "y": 56 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Big hop", "clip": "upb", "startup": 6, "duration": 14, "endlag": 30, "rise": 12, "r": 40, "dmg": 70, "angle": 80, "bkb": 40, "kbg": 65, "y": 70 },
+      "down": { "type": "counter", "name": "Got ur back", "clip": "dsmash", "startup": 5, "window": 28, "endlag": 22, "mult": 170, "dmg": 90, "angle": 40, "bkb": 45, "kbg": 105 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 82, "y": 61 }],
+      "usmash": [{ "x": 11, "y": 140 }],
+      "dsmash": [{ "x": 70, "y": 15 }, { "x": -45, "y": 66 }],
+      "nspecial": [{ "x": 61, "y": 65 }],
+      "sspecial": [{ "x": 48, "y": 61 }],
+      "upb": [{ "x": 0, "y": 76 }]
+    }
   },
   {
     "id": "kaelen",
     "name": "Kaelen",
     "role": "Fast",
     "blurb": "Quick hits, quick fall, gone before the trade lands.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":65,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":65,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":65,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 44,
     "h": 112,
     "weight": 86,
@@ -227,14 +478,34 @@
     "hop": 148,
     "jumps": 1,
     "frames": 0.84,
-    "dmg": 0.86,
-    "kb": 0.97
+    "dmg": 0.92,
+    "kb": 1.02,
+    "specials": {
+      "neutral": { "type": "flurry", "name": "Hi, bye", "clip": "fsmash", "startup": 5, "hits": 4, "interval": 5, "dmg": 20, "finisherDmg": 60, "speed": 2, "x": 44, "y": 58, "r": 30, "endlag": 14 },
+      "side": { "type": "dash", "name": "Gone", "clip": "roll", "startup": 4, "duration": 12, "endlag": 12, "speed": 14, "r": 28, "dmg": 80, "angle": 40, "bkb": 28, "kbg": 85, "x": 36, "y": 44 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Bye", "clip": "upb", "startup": 4, "duration": 14, "endlag": 20, "rise": 18, "r": 30, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 64 },
+      "down": { "type": "counter", "name": "Slip", "clip": "dsmash", "startup": 3, "window": 16, "endlag": 16, "mult": 140, "dmg": 60, "angle": 45, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 49, "y": 109 }],
+      "usmash": [{ "x": 19, "y": 73 }],
+      "dsmash": [{ "x": 71, "y": 104 }, { "x": 13, "y": 13 }],
+      "nspecial": [{ "x": 35, "y": 94 }, { "x": 35, "y": 96 }, { "x": 38, "y": 99 }, { "x": 45, "y": 59 }],
+      "sspecial": [{ "x": 37, "y": 45 }],
+      "upb": [{ "x": 0, "y": 65 }]
+    }
   },
   {
     "id": "lapis-man",
     "name": "Lapis Man",
     "role": "Zoner",
     "blurb": "The staff reaches farther than anyone expects.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 44,
     "h": 122,
     "weight": 88,
@@ -245,15 +516,34 @@
     "hop": 140,
     "jumps": 1,
     "frames": 1.12,
-    "dmg": 1.08,
-    "kb": 1.04,
-    "reach": 1.3
+    "dmg": 0.99,
+    "kb": 0.988,
+    "reach": 1.3,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Lapis shard", "clip": "nspecial", "startup": 10, "total": 28, "speed": 11, "life": 100, "r": 22, "dmg": 70, "angle": 30, "bkb": 25, "kbg": 60, "x": 50, "y": 70, "style": "orb" },
+      "side": { "type": "trap", "name": "Planted staff", "clip": "fsmash", "startup": 9, "endlag": 22, "arm": 18, "life": 480, "x": 70, "r": 34, "dmg": 95, "angle": 80, "bkb": 40, "kbg": 88, "style": "board" },
+      "up": { "type": "recovery", "variant": "angled", "name": "Vault", "clip": "upb", "startup": 6, "duration": 14, "endlag": 26, "rise": 13, "speed": 7, "r": 34, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 76 },
+      "down": { "type": "counter", "name": "Staff parry", "clip": "dsmash", "startup": 3, "window": 22, "endlag": 18, "mult": 155, "dmg": 65, "angle": 42, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 81, "y": 127 }],
+      "usmash": [{ "x": 14, "y": 142 }],
+      "dsmash": [{ "x": 73, "y": 99 }, { "x": -65, "y": 107 }],
+      "nspecial": [{ "x": 83, "y": 121 }],
+      "upb": [{ "x": 0, "y": 84 }]
+    }
   },
   {
     "id": "not-an-old-man-yet",
     "name": "Not an Old Man Yet",
     "role": "Bruiser",
     "blurb": "Owns the middle of the stage and refuses to leave it.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 50,
     "h": 116,
     "weight": 108,
@@ -264,14 +554,33 @@
     "hop": 140,
     "jumps": 1,
     "frames": 1.04,
-    "dmg": 1.06,
-    "kb": 1.03
+    "dmg": 1.078,
+    "kb": 1.041,
+    "specials": {
+      "neutral": { "type": "grab", "name": "Collar", "clip": "nspecial", "startup": 10, "endlag": 42, "r": 40, "x": 54, "y": 60, "pull": 40, "dmg": 135, "angle": 58, "bkb": 40, "kbg": 100 },
+      "side": { "type": "trap", "name": "Lawn chair", "clip": "dsmash", "startup": 11, "endlag": 22, "arm": 24, "life": 600, "x": 64, "r": 36, "dmg": 110, "angle": 80, "bkb": 40, "kbg": 95, "style": "trap" },
+      "up": { "type": "recovery", "variant": "straight", "name": "Back in the day", "clip": "upb", "startup": 7, "duration": 14, "endlag": 32, "rise": 12, "speed": 6, "r": 38, "dmg": 75, "angle": 80, "bkb": 40, "kbg": 60, "y": 70 },
+      "down": { "type": "counter", "name": "Not yet", "clip": "dsmash", "startup": 5, "window": 26, "endlag": 24, "mult": 170, "dmg": 90, "angle": 42, "bkb": 40, "kbg": 105 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 46, "y": 113 }],
+      "usmash": [{ "x": 22, "y": 72 }],
+      "dsmash": [{ "x": 5, "y": 29 }, { "x": 4, "y": 21 }],
+      "nspecial": [{ "x": 19, "y": 111 }],
+      "upb": [{ "x": 0, "y": 74 }]
+    }
   },
   {
     "id": "orchestrator",
     "name": "Orchestrator",
     "role": "Conductor",
     "blurb": "Floats, waits, and punishes everything.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 46,
     "h": 116,
     "weight": 90,
@@ -282,14 +591,33 @@
     "hop": 155,
     "jumps": 1,
     "frames": 0.98,
-    "kb": 1.02,
-    "reach": 1.1
+    "kb": 1.08,
+    "reach": 1.1,
+    "specials": {
+      "neutral": { "type": "counter", "name": "Baton", "clip": "nspecial", "startup": 3, "window": 24, "endlag": 18, "mult": 160, "dmg": 1.06, "angle": 45, "bkb": 40, "kbg": 100 },
+      "side": { "type": "projectile", "name": "Crescendo", "clip": "fsmash", "startup": 10, "total": 28, "speed": 10, "life": 80, "r": 24, "dmg": 70, "angle": 30, "bkb": 25, "kbg": 60, "x": 46, "y": 66, "style": "orb" },
+      "up": { "type": "recovery", "variant": "glide", "name": "Cadenza", "clip": "upb", "startup": 6, "duration": 12, "rise": 14, "speed": 5, "glide": 1.1, "life": 45, "r": 34, "dmg": 40, "angle": 80, "bkb": 30, "kbg": 50, "y": 70 },
+      "down": { "type": "trap", "name": "Downbeat", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 22, "life": 540, "x": 58, "r": 36, "dmg": 100, "angle": 80, "bkb": 40, "kbg": 90, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 38, "y": 116 }],
+      "usmash": [{ "x": 23, "y": 73 }],
+      "dsmash": [{ "x": 67, "y": 103 }, { "x": 14, "y": 13 }],
+      "sspecial": [{ "x": 23, "y": 85 }],
+      "upb": [{ "x": 0, "y": 74 }]
+    }
   },
   {
     "id": "pyro-singer",
     "name": "Pyro Singer",
     "role": "Air striker",
     "blurb": "Her aerials burn the hardest.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":215,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":215,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":215,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 46,
     "h": 112,
     "weight": 88,
@@ -300,13 +628,34 @@
     "hop": 155,
     "jumps": 1,
     "frames": 0.96,
-    "kb": 1.02
+    "kb": 1.005,
+    "dmg": 0.975,
+    "specials": {
+      "neutral": { "type": "flurry", "name": "Sparkler", "clip": "fsmash", "startup": 5, "hits": 5, "interval": 4, "dmg": 16, "finisherDmg": 52, "speed": 1.5, "x": 40, "y": 58, "r": 28, "endlag": 14 },
+      "side": { "type": "projectile", "name": "High note", "clip": "nspecial", "startup": 9, "total": 27, "speed": 10, "life": 85, "r": 24, "dmg": 75, "angle": 30, "bkb": 25, "kbg": 60, "x": 38, "y": 64, "style": "orb" },
+      "up": { "type": "recovery", "variant": "angled", "name": "Pyro lift", "clip": "upb", "startup": 4, "duration": 14, "endlag": 22, "rise": 16, "speed": 7, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 66 },
+      "down": { "type": "trap", "name": "Pyro cue", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 20, "life": 540, "x": 58, "r": 34, "dmg": 105, "angle": 80, "bkb": 40, "kbg": 92, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 35, "y": 114 }],
+      "usmash": [{ "x": 10, "y": 130 }],
+      "dsmash": [{ "x": -7, "y": 12 }, { "x": 10, "y": 13 }],
+      "nspecial": [{ "x": 28, "y": 102 }, { "x": 29, "y": 103 }, { "x": 31, "y": 109 }, { "x": 29, "y": 112 }, { "x": 21, "y": 111 }],
+      "sspecial": [{ "x": 8, "y": 90 }],
+      "upb": [{ "x": 0, "y": 67 }]
+    }
   },
   {
     "id": "shark-dude",
     "name": "Shark Dude",
     "role": "Rushdown",
     "blurb": "Runs in, bites, runs in again.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 50,
     "h": 116,
     "weight": 100,
@@ -316,13 +665,35 @@
     "fall": 13.5,
     "hop": 145,
     "jumps": 1,
-    "frames": 0.92
+    "frames": 0.92,
+    "dmg": 0.942,
+    "kb": 0.966,
+    "specials": {
+      "neutral": { "type": "dash", "name": "Run in", "clip": "roll", "startup": 5, "duration": 14, "endlag": 14, "speed": 13, "r": 32, "dmg": 95, "angle": 40, "bkb": 30, "kbg": 90, "x": 36, "y": 44 },
+      "side": { "type": "grab", "name": "Chomp", "clip": "nspecial", "startup": 8, "endlag": 40, "r": 38, "x": 52, "y": 50, "pull": 28, "dmg": 135, "angle": 55, "bkb": 40, "kbg": 100 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Breach", "clip": "upb", "startup": 5, "duration": 14, "endlag": 24, "rise": 15, "speed": 6, "r": 32, "dmg": 60, "angle": 80, "bkb": 40, "kbg": 60, "y": 66 },
+      "down": { "type": "counter", "name": "Not a belt", "clip": "dsmash", "startup": 4, "window": 20, "endlag": 20, "mult": 160, "dmg": 75, "angle": 42, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 42, "y": 104 }],
+      "usmash": [{ "x": 11, "y": 135 }],
+      "dsmash": [{ "x": 15, "y": 31 }, { "x": 10, "y": 16 }],
+      "nspecial": [{ "x": 38, "y": 46 }],
+      "sspecial": [{ "x": 55, "y": 53 }],
+      "upb": [{ "x": 0, "y": 70 }]
+    }
   },
   {
     "id": "shutup-bot",
     "name": "Shutup Bot",
     "role": "Tank",
     "blurb": "Barely jumps. Barely flinches.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 72,
     "h": 106,
     "weight": 128,
@@ -333,14 +704,34 @@
     "hop": 115,
     "jumps": 1,
     "frames": 1.15,
-    "dmg": 1.15,
-    "kb": 1.05
+    "dmg": 1,
+    "kb": 0.98,
+    "specials": {
+      "neutral": { "type": "counter", "name": "Mute", "clip": "dsmash", "startup": 3, "window": 26, "endlag": 20, "mult": 170, "dmg": 80, "angle": 40, "bkb": 40, "kbg": 100 },
+      "side": { "type": "dash", "name": "Tank charge", "clip": "fsmash", "startup": 8, "duration": 18, "endlag": 20, "speed": 8, "r": 34, "dmg": 110, "angle": 38, "bkb": 32, "kbg": 95, "x": 38, "y": 50 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Thrusters", "clip": "upb", "startup": 6, "duration": 16, "endlag": 28, "rise": 12, "r": 36, "dmg": 60, "angle": 80, "bkb": 40, "kbg": 60, "y": 64 },
+      "down": { "type": "grab", "name": "Hush", "clip": "dsmash", "startup": 8, "endlag": 40, "r": 34, "x": 46, "y": 50, "pull": 36, "dmg": 120, "angle": 60, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 69, "y": 54 }],
+      "usmash": [{ "x": 10, "y": 123 }],
+      "dsmash": [{ "x": 49, "y": 59 }, { "x": -36, "y": 70 }],
+      "sspecial": [{ "x": 37, "y": 48 }],
+      "upb": [{ "x": 0, "y": 62 }],
+      "dspecial": [{ "x": 44, "y": 48 }]
+    }
   },
   {
     "id": "slice",
     "name": "Slice",
     "role": "Glass cannon",
     "blurb": "The fastest hands, and the lightest body.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 40,
     "h": 112,
     "weight": 72,
@@ -352,13 +743,33 @@
     "jumps": 1,
     "frames": 0.8,
     "dmg": 0.86,
-    "kb": 0.98
+    "kb": 0.98,
+    "specials": {
+      "neutral": { "type": "flurry", "name": "Ribbon cut", "clip": "fsmash", "startup": 4, "hits": 6, "interval": 3, "dmg": 14, "finisherDmg": 60, "speed": 2.4, "x": 46, "y": 58, "r": 28, "endlag": 14 },
+      "side": { "type": "projectile", "name": "Shred", "clip": "nspecial", "startup": 7, "total": 22, "speed": 15, "life": 40, "r": 18, "dmg": 70, "angle": 30, "bkb": 25, "kbg": 60, "x": 44, "y": 60, "style": "board" },
+      "up": { "type": "recovery", "variant": "angled", "name": "Slice up", "clip": "upb", "startup": 4, "duration": 14, "endlag": 22, "rise": 18, "speed": 8, "r": 30, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 64 },
+      "down": { "type": "counter", "name": "Parry", "clip": "dsmash", "startup": 2, "window": 14, "endlag": 12, "mult": 150, "dmg": 60, "angle": 45, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 36, "y": 112 }],
+      "usmash": [{ "x": 10, "y": 130 }],
+      "dsmash": [{ "x": -2, "y": 17 }, { "x": 4, "y": 17 }],
+      "nspecial": [{ "x": 1, "y": 83 }, { "x": 1, "y": 81 }, { "x": 1, "y": 80 }, { "x": 1, "y": 80 }, { "x": 1, "y": 82 }, { "x": 0, "y": 84 }],
+      "sspecial": [{ "x": 4, "y": 102 }],
+      "upb": [{ "x": 0, "y": 65 }]
+    }
   },
   {
     "id": "slow-rider",
     "name": "Slow Rider",
     "role": "Drifter",
     "blurb": "Walks slow, flies far, and never hurries a finish.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 48,
     "h": 118,
     "weight": 96,
@@ -369,14 +780,34 @@
     "hop": 150,
     "jumps": 2,
     "frames": 1.06,
-    "dmg": 1.04,
-    "kb": 1.03
+    "dmg": 1.136,
+    "kb": 1.087,
+    "specials": {
+      "neutral": { "type": "dash", "name": "Throttle", "clip": "fsmash", "startup": 8, "duration": 18, "endlag": 18, "speed": 9, "r": 34, "dmg": 100, "angle": 40, "bkb": 30, "kbg": 90, "x": 36, "y": 48 },
+      "side": { "type": "projectile", "name": "Tailpipe", "clip": "nspecial", "startup": 11, "total": 30, "speed": 7, "life": 110, "r": 28, "dmg": 70, "angle": 30, "bkb": 25, "kbg": 60, "x": 44, "y": 40, "style": "orb" },
+      "up": { "type": "recovery", "variant": "glide", "name": "Long haul", "clip": "upb", "startup": 6, "duration": 12, "rise": 13, "speed": 8, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 68, "glide": 0.8, "life": 75 },
+      "down": { "type": "trap", "name": "Oil slick", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 18, "life": 600, "x": 58, "r": 40, "dmg": 90, "angle": 80, "bkb": 40, "kbg": 85, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 38, "y": 115 }],
+      "usmash": [{ "x": 21, "y": 76 }],
+      "dsmash": [{ "x": 46, "y": 82 }, { "x": -38, "y": 85 }],
+      "nspecial": [{ "x": 39, "y": 51 }],
+      "sspecial": [{ "x": 4, "y": 14 }],
+      "upb": [{ "x": 0, "y": 73 }]
+    }
   },
   {
     "id": "small-weather",
     "name": "Small Weather",
     "role": "Storm caller",
     "blurb": "Floaty, with two extra jumps and long swings.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 46,
     "h": 114,
     "weight": 84,
@@ -386,15 +817,36 @@
     "fall": 8.6,
     "hop": 150,
     "jumps": 2,
+    "kb": 1.06,
     "frames": 1.02,
-    "dmg": 0.94,
-    "reach": 1.12
+    "dmg": 1.1,
+    "reach": 1.12,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Gust", "clip": "nspecial", "startup": 9, "total": 26, "speed": 8, "life": 90, "r": 26, "dmg": 50, "angle": 40, "bkb": 20, "kbg": 40, "x": 40, "y": 70, "style": "orb" },
+      "side": { "type": "flurry", "name": "Hailstorm", "clip": "fsmash", "startup": 6, "hits": 4, "interval": 6, "dmg": 20, "finisherDmg": 60, "speed": 1.4, "x": 52, "y": 60, "r": 34, "endlag": 16 },
+      "up": { "type": "recovery", "variant": "glide", "name": "Front rider", "clip": "upb", "startup": 6, "duration": 12, "rise": 14, "speed": 5, "glide": 1.2, "life": 40, "r": 34, "dmg": 40, "angle": 80, "bkb": 30, "kbg": 50, "y": 70 },
+      "down": { "type": "trap", "name": "Storm cell", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 25, "life": 480, "x": 60, "r": 40, "dmg": 90, "angle": 80, "bkb": 40, "kbg": 90, "style": "orb" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 40, "y": 114 }],
+      "usmash": [{ "x": 12, "y": 133 }],
+      "dsmash": [{ "x": 55, "y": 93 }, { "x": 14, "y": 19 }],
+      "nspecial": [{ "x": 36, "y": 100 }],
+      "sspecial": [{ "x": 7, "y": 68 }, { "x": 13, "y": 98 }, { "x": 7, "y": 109 }, { "x": 5, "y": 107 }],
+      "upb": [{ "x": 0, "y": 73 }]
+    }
   },
   {
     "id": "spider-bot",
     "name": "Spider Bot",
     "role": "Walker",
     "blurb": "Wide, low, and very hard to knock over.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":215,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":215,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":215,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 100,
     "h": 92,
     "weight": 120,
@@ -405,15 +857,35 @@
     "hop": 130,
     "jumps": 1,
     "frames": 1.08,
-    "dmg": 1.08,
-    "kb": 1.02,
-    "reach": 1.15
+    "dmg": 0.935,
+    "kb": 0.939,
+    "reach": 1.15,
+    "specials": {
+      "neutral": { "type": "trap", "name": "Web", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 20, "life": 560, "x": 60, "r": 38, "dmg": 95, "angle": 80, "bkb": 40, "kbg": 88, "style": "orb" },
+      "side": { "type": "grab", "name": "Snare", "clip": "nspecial", "startup": 10, "endlag": 42, "r": 42, "x": 60, "y": 36, "pull": 34, "dmg": 130, "angle": 58, "bkb": 40, "kbg": 100 },
+      "up": { "type": "recovery", "variant": "angled", "name": "Rappel", "clip": "upb", "startup": 6, "duration": 14, "endlag": 28, "rise": 12, "speed": 7, "r": 40, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 60 },
+      "down": { "type": "flurry", "name": "Eight legs", "clip": "fsmash", "startup": 7, "hits": 4, "interval": 6, "dmg": 22, "finisherDmg": 70, "speed": 0.8, "x": 56, "y": 30, "r": 40, "endlag": 20 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 34, "y": 92 }],
+      "usmash": [{ "x": 10, "y": 107 }],
+      "dsmash": [{ "x": 54, "y": 86 }, { "x": -60, "y": 12 }],
+      "sspecial": [{ "x": 10, "y": 49 }],
+      "upb": [{ "x": 0, "y": 50 }],
+      "dspecial": [{ "x": 4, "y": 18 }, { "x": 4, "y": 18 }, { "x": 4, "y": 18 }, { "x": 54, "y": 25 }]
+    }
   },
   {
     "id": "ss-boulder",
     "name": "SS Boulder",
     "role": "Super heavy",
     "blurb": "The slowest swings in the game. The biggest hits too.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 64,
     "h": 124,
     "weight": 126,
@@ -423,16 +895,36 @@
     "fall": 13.5,
     "hop": 125,
     "jumps": 1,
-    "frames": 1.28,
-    "dmg": 1.32,
-    "kb": 1.08,
-    "reach": 1.1
+    "frames": 1.4,
+    "dmg": 0.98,
+    "kb": 0.96,
+    "reach": 1.1,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Hurl rock", "clip": "nspecial", "startup": 18, "total": 44, "speed": 7, "rise": 6, "gravity": 0.35, "life": 70, "r": 34, "dmg": 130, "angle": 40, "bkb": 40, "kbg": 90, "x": 44, "y": 70, "style": "board" },
+      "side": { "type": "grab", "name": "Crush", "clip": "fsmash", "startup": 12, "endlag": 50, "r": 44, "x": 66, "y": 56, "pull": 40, "dmg": 160, "angle": 55, "bkb": 45, "kbg": 100 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Rock climb", "clip": "upb", "startup": 8, "duration": 18, "endlag": 34, "rise": 10, "r": 44, "dmg": 90, "angle": 80, "bkb": 40, "kbg": 70, "y": 76 },
+      "down": { "type": "trap", "name": "Landslide", "clip": "dsmash", "startup": 14, "endlag": 28, "arm": 28, "life": 600, "x": 70, "r": 44, "dmg": 140, "angle": 80, "bkb": 45, "kbg": 95, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 56, "y": 122 }],
+      "usmash": [{ "x": 12, "y": 144 }],
+      "dsmash": [{ "x": 22, "y": 16 }, { "x": 29, "y": 15 }],
+      "nspecial": [{ "x": 55, "y": 79 }],
+      "sspecial": [{ "x": 14, "y": 110 }],
+      "upb": [{ "x": 0, "y": 86 }]
+    }
   },
   {
     "id": "stratabots",
     "name": "Stratabots",
     "role": "Rock",
     "blurb": "Heavy plates and short, hard hits.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":25,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":25,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":25,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 62,
     "h": 118,
     "weight": 120,
@@ -443,14 +935,33 @@
     "hop": 130,
     "jumps": 1,
     "frames": 1.12,
-    "dmg": 1.14,
-    "kb": 1.04
+    "dmg": 1.06,
+    "kb": 1,
+    "specials": {
+      "neutral": { "type": "trap", "name": "Plate down", "clip": "nspecial", "startup": 10, "endlag": 22, "arm": 22, "life": 600, "x": 56, "r": 34, "dmg": 100, "angle": 80, "bkb": 40, "kbg": 90, "style": "trap" },
+      "side": { "type": "flurry", "name": "Plate stack", "clip": "fsmash", "startup": 8, "hits": 3, "interval": 7, "dmg": 30, "finisherDmg": 90, "finisherBkb": 40, "finisherKbg": 105, "speed": 1.4, "x": 56, "y": 58, "r": 34, "endlag": 22 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Stack up", "clip": "upb", "startup": 6, "duration": 14, "endlag": 30, "rise": 12, "r": 38, "dmg": 70, "angle": 80, "bkb": 40, "kbg": 65, "y": 68 },
+      "down": { "type": "counter", "name": "Plates up", "clip": "dsmash", "startup": 4, "window": 22, "endlag": 22, "mult": 160, "dmg": 80, "angle": 40, "bkb": 42, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 63, "y": 123 }],
+      "usmash": [{ "x": 11, "y": 137 }],
+      "dsmash": [{ "x": 22, "y": 29 }, { "x": -43, "y": 64 }],
+      "sspecial": [{ "x": 60, "y": 62 }, { "x": 60, "y": 62 }, { "x": 60, "y": 62 }],
+      "upb": [{ "x": 0, "y": 73 }]
+    }
   },
   {
     "id": "susan",
     "name": "Susan",
     "role": "Shadow",
     "blurb": "Long tendrils and a float that drifts forever.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 46,
     "h": 116,
     "weight": 86,
@@ -460,14 +971,35 @@
     "fall": 9.2,
     "hop": 150,
     "jumps": 1,
-    "dmg": 0.96,
-    "reach": 1.22
+    "dmg": 0.982,
+    "reach": 1.22,
+    "kb": 1.015,
+    "specials": {
+      "neutral": { "type": "grab", "name": "Tendril", "clip": "nspecial", "startup": 11, "endlag": 40, "r": 40, "x": 64, "y": 60, "pull": 40, "dmg": 125, "angle": 58, "bkb": 40, "kbg": 100 },
+      "side": { "type": "projectile", "name": "Drift", "clip": "fsmash", "startup": 12, "total": 32, "speed": 5, "life": 160, "r": 30, "dmg": 65, "angle": 40, "bkb": 28, "kbg": 70, "x": 44, "y": 64, "style": "orb" },
+      "up": { "type": "recovery", "variant": "glide", "name": "Float", "clip": "upb", "startup": 5, "duration": 12, "rise": 13, "speed": 6, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 68, "glide": 0.6, "life": 90 },
+      "down": { "type": "trap", "name": "Fog patch", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 22, "life": 600, "x": 60, "r": 40, "dmg": 95, "angle": 80, "bkb": 40, "kbg": 88, "style": "orb" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 40, "y": 120 }],
+      "usmash": [{ "x": 13, "y": 135 }],
+      "dsmash": [{ "x": 0, "y": 18 }, { "x": -20, "y": 82 }],
+      "nspecial": [{ "x": 82, "y": 63 }],
+      "sspecial": [{ "x": 12, "y": 116 }],
+      "upb": [{ "x": 0, "y": 72 }]
+    }
   },
   {
     "id": "the-mechanic",
     "name": "The Mechanic",
     "role": "Grinder",
     "blurb": "A wrench, a long day, and no quit.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":355,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":355,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":355,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 50,
     "h": 116,
     "weight": 100,
@@ -478,15 +1010,36 @@
     "hop": 145,
     "jumps": 1,
     "frames": 1.02,
-    "dmg": 1.04,
-    "kb": 1.02,
-    "reach": 1.08
+    "dmg": 1.018,
+    "kb": 1.006,
+    "reach": 1.08,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Wrench throw", "clip": "nspecial", "startup": 9, "total": 26, "speed": 10, "life": 70, "r": 22, "dmg": 80, "angle": 28, "bkb": 25, "kbg": 60, "x": 36, "y": 60, "style": "board" },
+      "side": { "type": "flurry", "name": "Ratchet", "clip": "fsmash", "startup": 7, "hits": 4, "interval": 6, "dmg": 22, "finisherDmg": 75, "speed": 1.4, "x": 44, "y": 58, "r": 30, "endlag": 18 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Lift", "clip": "upb", "startup": 6, "duration": 14, "endlag": 28, "rise": 13, "speed": 6, "r": 32, "dmg": 60, "angle": 80, "bkb": 40, "kbg": 60, "y": 66 },
+      "down": { "type": "grab", "name": "Clamp", "clip": "nspecial", "startup": 9, "endlag": 40, "r": 36, "x": 46, "y": 48, "pull": 32, "dmg": 125, "angle": 60, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 18, "y": 94 }],
+      "usmash": [{ "x": 27, "y": 67 }],
+      "dsmash": [{ "x": 10, "y": 10 }, { "x": -6, "y": 10 }],
+      "nspecial": [{ "x": 41, "y": 96 }],
+      "sspecial": [{ "x": 14, "y": 97 }, { "x": 6, "y": 99 }, { "x": 16, "y": 98 }, { "x": 50, "y": 61 }],
+      "upb": [{ "x": 0, "y": 70 }],
+      "dspecial": [{ "x": 52, "y": 51 }]
+    }
   },
   {
     "id": "try-belt",
     "name": "Try Belt",
     "role": "Switch hitter",
     "blurb": "Even speed, even power, and quick off the ground.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 46,
     "h": 114,
     "weight": 92,
@@ -497,13 +1050,33 @@
     "hop": 160,
     "jumps": 1,
     "frames": 0.94,
-    "dmg": 0.96
+    "dmg": 1.009,
+    "kb": 1.032,
+    "specials": {
+      "neutral": { "type": "counter", "name": "Rewrite", "clip": "dsmash", "startup": 3, "window": 22, "endlag": 18, "mult": 155, "dmg": 65, "angle": 42, "bkb": 40, "kbg": 100 },
+      "side": { "type": "flurry", "name": "Retakes", "clip": "fsmash", "startup": 5, "hits": 4, "interval": 5, "dmg": 20, "finisherDmg": 62, "speed": 1.8, "x": 42, "y": 58, "r": 30, "endlag": 15 },
+      "up": { "type": "recovery", "variant": "glide", "name": "Cut away", "clip": "upb", "startup": 5, "duration": 12, "rise": 14, "speed": 6, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 64, "glide": 1.1, "life": 45 },
+      "down": { "type": "trap", "name": "Tape", "clip": "dsmash", "startup": 9, "endlag": 22, "arm": 18, "life": 540, "x": 56, "r": 32, "dmg": 95, "angle": 80, "bkb": 40, "kbg": 88, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 35, "y": 107 }],
+      "usmash": [{ "x": 23, "y": 72 }],
+      "dsmash": [{ "x": 71, "y": 97 }, { "x": 17, "y": 14 }],
+      "sspecial": [{ "x": 44, "y": 60 }, { "x": 18, "y": 101 }, { "x": 12, "y": 103 }, { "x": 44, "y": 60 }],
+      "upb": [{ "x": 0, "y": 66 }]
+    }
   },
   {
     "id": "tt",
     "name": "TT",
     "role": "Shell",
     "blurb": "Short, slow, and much heavier than he looks.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":75,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":75,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":75,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 64,
     "h": 96,
     "weight": 116,
@@ -514,14 +1087,33 @@
     "hop": 125,
     "jumps": 1,
     "frames": 1.08,
-    "dmg": 1.04,
-    "kb": 1.02
+    "dmg": 0.951,
+    "kb": 0.967,
+    "specials": {
+      "neutral": { "type": "counter", "name": "Withdraw", "clip": "dsmash", "startup": 3, "window": 26, "endlag": 22, "mult": 165, "dmg": 75, "angle": 42, "bkb": 40, "kbg": 100 },
+      "side": { "type": "dash", "name": "Shell roll", "clip": "roll", "startup": 7, "duration": 18, "endlag": 20, "speed": 8, "r": 36, "dmg": 110, "angle": 38, "bkb": 32, "kbg": 95, "x": 36, "y": 34 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Spin up", "clip": "upb", "startup": 6, "duration": 14, "endlag": 30, "rise": 12, "speed": 6, "r": 38, "dmg": 65, "angle": 80, "bkb": 40, "kbg": 60, "y": 56 },
+      "down": { "type": "trap", "name": "Spike strip", "clip": "dsmash", "startup": 9, "endlag": 22, "arm": 22, "life": 600, "x": 54, "r": 34, "dmg": 105, "angle": 80, "bkb": 40, "kbg": 90, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 63, "y": 49 }],
+      "usmash": [{ "x": 9, "y": 112 }],
+      "dsmash": [{ "x": 40, "y": 78 }, { "x": -56, "y": 59 }],
+      "sspecial": [{ "x": 31, "y": 30 }],
+      "upb": [{ "x": 0, "y": 49 }]
+    }
   },
   {
     "id": "uh-me",
     "name": "Uh Me",
     "role": "Floater",
     "blurb": "Light, calm, and almost impossible to catch in the air.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 42,
     "h": 104,
     "weight": 74,
@@ -532,14 +1124,34 @@
     "hop": 160,
     "jumps": 2,
     "frames": 0.95,
-    "dmg": 0.86,
-    "kb": 0.96
+    "dmg": 1.093,
+    "kb": 1.113,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Hum", "clip": "nspecial", "startup": 10, "total": 28, "speed": 7, "life": 110, "r": 22, "dmg": 58, "angle": 28, "bkb": 22, "kbg": 55, "x": 34, "y": 62, "style": "orb" },
+      "side": { "type": "grab", "name": "Embrace", "clip": "nspecial", "startup": 9, "endlag": 40, "r": 36, "x": 48, "y": 56, "pull": 30, "dmg": 115, "angle": 55, "bkb": 40, "kbg": 100 },
+      "up": { "type": "recovery", "variant": "glide", "name": "Drift up", "clip": "upb", "startup": 5, "duration": 12, "rise": 14, "speed": 6, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 64, "glide": 0.7, "life": 70 },
+      "down": { "type": "counter", "name": "Calm", "clip": "dsmash", "startup": 3, "window": 24, "endlag": 18, "mult": 150, "dmg": 60, "angle": 42, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 39, "y": 85 }],
+      "usmash": [{ "x": 9, "y": 121 }],
+      "dsmash": [{ "x": 60, "y": 80 }, { "x": -36, "y": 78 }],
+      "nspecial": [{ "x": 32, "y": 59 }],
+      "sspecial": [{ "x": 45, "y": 53 }],
+      "upb": [{ "x": 0, "y": 61 }]
+    }
   },
   {
     "id": "wallit",
     "name": "Wallit",
     "role": "Slugger",
     "blurb": "The bat adds reach. The cash adds attitude.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":25,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":25,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":25,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 58,
     "h": 112,
     "weight": 104,
@@ -550,15 +1162,35 @@
     "hop": 140,
     "jumps": 1,
     "frames": 1.08,
-    "dmg": 1.12,
-    "kb": 1.06,
-    "reach": 1.2
+    "dmg": 0.895,
+    "kb": 0.93,
+    "reach": 1.2,
+    "specials": {
+      "neutral": { "type": "trap", "name": "Tip jar", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 20, "life": 540, "x": 58, "r": 34, "dmg": 100, "angle": 80, "bkb": 40, "kbg": 90, "style": "trap" },
+      "side": { "type": "dash", "name": "Bat lunge", "clip": "fsmash", "startup": 8, "duration": 15, "endlag": 20, "speed": 9, "r": 40, "dmg": 115, "angle": 36, "bkb": 34, "kbg": 100, "x": 48, "y": 56 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Pop fly", "clip": "upb", "startup": 6, "duration": 14, "endlag": 30, "rise": 12, "speed": 6, "r": 38, "dmg": 75, "angle": 80, "bkb": 40, "kbg": 60, "y": 72 },
+      "down": { "type": "grab", "name": "Buyout", "clip": "nspecial", "startup": 10, "endlag": 42, "r": 38, "x": 52, "y": 56, "pull": 34, "dmg": 140, "angle": 60, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 88, "y": 57 }],
+      "usmash": [{ "x": 12, "y": 130 }],
+      "dsmash": [{ "x": 76, "y": 14 }, { "x": -76, "y": 14 }],
+      "sspecial": [{ "x": 59, "y": 57 }],
+      "upb": [{ "x": 0, "y": 73 }],
+      "dspecial": [{ "x": 64, "y": 57 }]
+    }
   },
   {
     "id": "yo-bot",
     "name": "Yo Bot",
     "role": "Rig",
     "blurb": "Four legs, two arms, and a laptop that hits back.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 84,
     "h": 104,
     "weight": 108,
@@ -569,15 +1201,35 @@
     "hop": 135,
     "jumps": 1,
     "frames": 1.02,
-    "dmg": 1.04,
-    "kb": 1.02,
-    "reach": 1.12
+    "dmg": 0.869,
+    "kb": 0.918,
+    "reach": 1.12,
+    "specials": {
+      "neutral": { "type": "grab", "name": "Four-leg grapple", "clip": "nspecial", "startup": 11, "endlag": 42, "r": 44, "x": 58, "y": 44, "pull": 34, "dmg": 135, "angle": 58, "bkb": 40, "kbg": 100 },
+      "side": { "type": "projectile", "name": "Pop-up", "clip": "fsmash", "startup": 10, "total": 28, "speed": 10, "life": 75, "r": 26, "dmg": 70, "angle": 30, "bkb": 25, "kbg": 60, "x": 50, "y": 62, "style": "board" },
+      "up": { "type": "recovery", "variant": "angled", "name": "Hover legs", "clip": "upb", "startup": 6, "duration": 14, "endlag": 28, "rise": 12, "speed": 7, "r": 40, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 62 },
+      "down": { "type": "counter", "name": "Hits back", "clip": "dsmash", "startup": 4, "window": 24, "endlag": 22, "mult": 165, "dmg": 85, "angle": 42, "bkb": 40, "kbg": 104 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 36, "y": 101 }],
+      "usmash": [{ "x": 19, "y": 63 }],
+      "dsmash": [{ "x": 50, "y": 86 }, { "x": -14, "y": 46 }],
+      "nspecial": [{ "x": 61, "y": 42 }],
+      "sspecial": [{ "x": 30, "y": 94 }],
+      "upb": [{ "x": 0, "y": 59 }]
+    }
   },
   {
     "id": "yooba",
     "name": "Yooba",
     "role": "Gooey",
     "blurb": "Two extra jumps and a mouth with a long reach.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":85,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":85,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":85,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 60,
     "h": 108,
     "weight": 90,
@@ -587,7 +1239,22 @@
     "fall": 9.5,
     "hop": 150,
     "jumps": 2,
-    "dmg": 0.98,
-    "reach": 1.08
+    "dmg": 1.077,
+    "reach": 1.08,
+    "kb": 1.059,
+    "specials": {
+      "neutral": { "type": "grab", "name": "Gulp", "clip": "nspecial", "startup": 10, "endlag": 42, "r": 40, "x": 62, "y": 58, "pull": 42, "dmg": 130, "angle": 58, "bkb": 40, "kbg": 100 },
+      "side": { "type": "dash", "name": "Tongue lash", "clip": "fsmash", "startup": 6, "duration": 14, "endlag": 16, "speed": 10, "r": 34, "dmg": 95, "angle": 40, "bkb": 30, "kbg": 90, "x": 50, "y": 56 },
+      "up": { "type": "recovery", "variant": "glide", "name": "Squelch", "clip": "upb", "startup": 5, "duration": 12, "rise": 13, "speed": 6, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 66, "glide": 0.9, "life": 55 },
+      "down": { "type": "trap", "name": "Goo puddle", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 20, "life": 560, "x": 58, "r": 36, "dmg": 90, "angle": 80, "bkb": 40, "kbg": 85, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 76, "y": 55 }],
+      "usmash": [{ "x": 11, "y": 126 }],
+      "dsmash": [{ "x": 69, "y": 90 }, { "x": 15, "y": 10 }],
+      "nspecial": [{ "x": 66, "y": 57 }],
+      "sspecial": [{ "x": 53, "y": 55 }],
+      "upb": [{ "x": 0, "y": 65 }]
+    }
   }
 ]

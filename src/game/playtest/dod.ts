@@ -20,12 +20,18 @@ import { CHARACTERS, MOVE, MOVE_KEYS } from '../sim/characters.ts';
 import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
-import { ACT } from '../sim/state.ts';
+import { ACT, ACT_NAMES } from '../sim/state.ts';
 import { AnimTrace } from '../sim/trace.ts';
 import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
 import { MAX_WORDS } from '../campaign/sceneText.ts';
 import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, saveUnlocks, unlocks } from '../campaign/story.ts';
 import { SCENARIOS } from './scenarios.ts';
+import { DAILY_POOL, dailyEpisode, msToNext, objectiveLine, twistLine } from '../campaign/daily.ts';
+import { DAILY_KEY, dailyDate } from '../campaign/dailyStore.ts';
+import { castLine } from '../ui/daily.ts';
+import { TOURS, TOURS_KEY, TOUR_LENGTH, tourEnding, tourFor, tourIntro } from '../campaign/tour.ts';
+import { suppressFirstVisit } from '../campaign/firstVisit.ts';
+import { PROMPTS, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
@@ -53,11 +59,20 @@ export interface GameHooks {
   startMatch(setup: MatchSetup): Promise<void>;
   /** Setup shortcut (roster only): leave the match for the main menu. */
   quitMatch(): Promise<void>;
+  /** Setup shortcut (tour only): after `after` fights are won the run jumps to the fight at index `to` (the last one). */
+  tourSkipTo(after: number, to: number): void;
+  /** Setup shortcut (tour only): shows the Continue or Quit panel on the results screen without losing a fight, to measure it. */
+  tourChoicePreview(fighter: string): Promise<void>;
   /** Setup shortcut (campaign `chapter` only): the cleared chapter ids (localStorage dod-campaign); returns the ones before. */
   setCampaignProgress(ids: string[]): string[];
   /** Renderer particle and warm-up diagnostics. */
   /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
+  camFxStats?(reset?: boolean): { cameraJumps: number; framingMisses: number; killCues: number; slowFpsMin: number; killActive: boolean; lastCue: { zoom: boolean; slow: boolean; whistle: boolean; shake: number; punch: number } | null };
+  trailStats?(reset?: boolean): { log: { seq: number; victim: number; tier: HitTier; kb: number; kind: 'none' | 'grey' | 'white' | 'streak'; ko: boolean; puffs: number }[]; active: number; puffs: number };
+  markerStats?(): { shown: number; frames: number; unclear: number; last: { id: number; size: number; danger: boolean; clear: boolean; rect: { l: number; t: number; r: number; b: number } } | null; events: { id: number; size: number; danger: boolean }[]; rects: { id: number; rect: { l: number; t: number; r: number; b: number }; danger: boolean }[] };
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
+  /** The colour look each built fighter wears and whether its material runs the palette shader (renderer.lookStats). */
+  lookStats?(): { slot: number; char: number; look: number; shader: boolean }[];
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
@@ -87,9 +102,19 @@ const CORE_CLIPS = ['idle', 'walk', 'jump', 'fall', 'land', 'hurt', 'shield'];
 
 const SCREEN_NAMES: Record<ScreenId, string> = {
   title: 'Title', main: 'Main Menu', select: 'Character Select', stages: 'Stage Select', versus: 'VS',
-  campaign: 'Campaign Map', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
+  campaign: 'Campaign Map', tour: 'Tour Select', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
 };
 
+/** The 13 fighters a new player meets in Season 1; the other 20 are the "newer" fighters (also each with its own four specials). */
+const SEASON_ONE = ['exit-punk', 'kaelen', 'break', 'dj-wont-read', 'shutup-bot', 'small-weather', 'blog-man', 'evil-blue-bird', 'got-ur-back', 'slice', 'ss-boulder', 'stratabots', 'orchestrator'];
+/** A special's archetype for the kit report; a recovery says which way it moves. */
+function kindOf(mv: (typeof CHARACTERS)[number]['moves'][number]): string {
+  if (mv.kind !== 'recovery') return mv.kind ?? 'shared';
+  return mv.helpless ? (mv.drive?.[0]?.aim ? 'recovery-angled' : 'recovery-straight') : 'recovery-glide';
+}
+
+/** A fighter's four specials, in kit order: neutral, side, up, down. */
+const SPECIAL_MOVES: number[] = [MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL];
 const MOVE_NAMES = Object.fromEntries(Object.entries(MOVE).map(([k, v]) => [v, k.toLowerCase()])) as Record<number, string>;
 
 export function installDodPlaytest(game: GameHooks): void {
@@ -123,6 +148,8 @@ export function installDodPlaytest(game: GameHooks): void {
     isReady: () => currentScreen() !== null && !switching(),
     async start(id, options, t) {
       run?.dispose();
+      // Every other scenario clicks through the title and main menu: only first-visit meets the pilot.
+      suppressFirstVisit(id !== 'first-visit');
       const r = new Run(game, t, options, t.spot);
       run = r;
       try {
@@ -130,13 +157,20 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'match') await r.match();
         else if (id === 'campaign') await r.campaign();
         else if (id === 'unlocks') await r.unlocksRun();
+        else if (id === 'daily') await r.dailyRun();
+        else if (id === 'tour') await r.tourScenario();
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'story-cards') await r.storyCards();
         else if (id === 'rotate') await r.rotate();
+        else if (id === 'first-visit') await r.firstVisit();
         else if (id === 'presentation') await r.presentation();
         else if (id === 'roster') await r.roster();
+        else if (id === 'specials') await r.specialsRun();
+        else if (id === 'grab') await r.grabRun();
+        else if (id === 'select-specials') await r.selectSpecials();
+        else if (id === 'colours') await r.coloursRun();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
         else if (id === 'input-feel') await r.inputFeel();
@@ -146,6 +180,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'stage-life') await r.stageLife();
         else if (id === 'stage-bed') await r.stageBed();
         else if (id === 'commentary') await r.commentary();
+        else if (id === 'fighter-voice') await r.fighterVoice();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
       } finally {
@@ -177,6 +212,8 @@ class Run {
   private matches = 0;
   /** Moves the playing fighter started this match (roster). */
   readonly movesSeen = new Set<number>();
+  /** Which of the playing fighter's four specials it used this match (the bot drives it in `match`). */
+  private readonly specialsUsed = new Set<number>();
   private readonly checked = new Set<string>();
   private disposed = false;
 
@@ -249,6 +286,13 @@ class Run {
         if (e.shield) continue;
         if (e.attacker === me) this.damage('damageDealt', e.dmg);
         if (e.victim === me) this.damage('damageTaken', e.dmg);
+      } else if (e.type === 'grab') {
+        this.grabSeen(m, e);
+      } else if (e.type === 'throw') {
+        this.throwSeen(m, e);
+      } else if (e.type === 'grab-break') {
+        this.t.event('grab-break', `${name(m, e.attacker)} held ${name(m, e.victim)} for ${e.held} frames and ${e.mashed ? 'they mashed free early' : 'the hold ran out'}`);
+        this.t.add('grabBreaks');
       } else if (e.type === 'hurt') {
         this.lastHitFrame = s.frame;
         if (e.victim === me) this.damage('damageTaken', e.dmg);
@@ -262,7 +306,10 @@ class Run {
       }
     }
     for (const f of s.fighters) {
-      if (f.action === ACT.ATTACK && f.id === me) this.movesSeen.add(f.move);
+      if (f.action === ACT.ATTACK && f.id === me) {
+        this.movesSeen.add(f.move);
+        if (SPECIAL_MOVES.includes(f.move)) this.specialsUsed.add(f.move);
+      }
       if (![f.x, f.y, f.vx, f.vy, f.percent].every(Number.isFinite)) {
         this.t.problem('bug', `NaN position: ${name(m, f.id)} on ${STAGES[s.stage].name} (x ${f.x}, y ${f.y})`);
         continue;
@@ -330,6 +377,9 @@ class Run {
       this.t.metric('stocksLeft', Math.max(0, s.fighters[me]?.stocks ?? 0));
       this.t.add(won ? 'wins' : 'losses');
       this.t.event('match-end', `${won ? 'won' : 'lost'} in ${Math.round(secs)} s${s.timedOut ? ' (time)' : ''}`);
+      const used = [...this.specialsUsed].map((x) => CHARACTERS[m.state.fighters[me].char].moves[x].name);
+      this.t.event('specials-used', `${CHARACTERS[m.state.fighters[me].char].name} used ${used.length} different specials this match: ${used.join(', ') || 'none'}`);
+      this.t.metric('specialsUsed', used.length);
       this.t.event('anim-trace', `${this.traceFrames} frames traced, ${this.trace.problems.length} state/motion mismatches`);
     }
     this.t.progress(this.progressNow());
@@ -350,6 +400,7 @@ class Run {
     this.quietWarned = false;
     this.overSeen = false;
     this.movesSeen.clear();
+    this.specialsUsed.clear();
     this.matches++;
     this.t.add('matches');
     this.t.metric('feel.coyoteMs', Math.round((COYOTE_FRAMES * 1000) / 60));
@@ -457,14 +508,24 @@ class Run {
     if (!set) {
       this.t.problem('warning', `${c.name}: no animation clips (shows the still image only)`);
     } else {
-      const want = [...CORE_CLIPS, ...MOVE_KEYS];
+      // Side and down special borrow existing clips (nspecial, fsmash, dsmash, upb, roll), so they aren't missing ones.
+      const want = [...CORE_CLIPS, ...MOVE_KEYS.filter((k) => k !== 'sspecial' && k !== 'dspecial')];
       const missing = want.filter((k) => !set.clips[k]);
       if (missing.length) this.t.problem('polish', `${c.name}: missing animation clips (stand-ins used): ${missing.join(', ')}`);
       const broken: string[] = [];
       await Promise.all(Object.entries(set.clips).map(async ([k, clip]) => { if (!(await exists(`${set.base}${clip.file}`))) broken.push(k); }));
       if (broken.length) this.t.problem('bug', `${c.name}: clip sheets missing (404): ${broken.join(', ')}`);
     }
-    const lines = [`announcer.name.${id}`, `fighter.${id}.ko`, `fighter.${id}.win`];
+    const lines = SEASON_ONE.includes(id)
+      ? [
+          `announcer.name.${id}`,
+          `fighter.${id}.ko`,
+          `fighter.${id}.win`,
+          `fighter.${id}.taunt`,
+          ...[0, 1, 2].map((i) => `fighter.${id}.effort.${i}`),
+          ...[0, 1].map((i) => `fighter.${id}.hurt.${i}`),
+        ]
+      : [`announcer.name.${id}`, `fighter.${id}.ko`, `fighter.${id}.win`];
     const silent: string[] = [];
     for (const lineId of lines) {
       const l = VOICE.lines.find((x) => x.id === lineId);
@@ -516,21 +577,25 @@ class Run {
     }
     const bs = getComputedStyle(btn);
     const ps = getComputedStyle(pause);
-    const fontPx = parseFloat(bs.fontSize);
     const pausePx = parseFloat(ps.fontSize);
     const rgba = bs.backgroundColor.match(/[\d.]+/g)?.map(Number) ?? [];
     const alpha = rgba.length >= 4 ? rgba[3] : 1;
     const lum = rgba.length >= 3 ? (rgba[0] + rgba[1] + rgba[2]) / 3 : 255;
-    if (fontPx < 13 || pausePx < 13) {
-      this.t.problem('bug', `touch button labels are too small (${fontPx}px / ${pausePx}px, expected >= 13px)`);
+    const icons = root.querySelectorAll('.touch-btn svg').length;
+    const labels = [...root.querySelectorAll('.touch-btn')].map((el) => el.getAttribute('aria-label') || '').filter(Boolean);
+    if (pausePx < 13) {
+      this.t.problem('bug', `Pause label is too small (${pausePx}px, expected >= 13px)`);
     }
     if (alpha < 0.45 || lum > 40) {
       this.t.problem('bug', `touch button fill is not dark semi-opaque (${bs.backgroundColor})`);
     }
-    if (!bs.textShadow || bs.textShadow === 'none') {
-      this.t.problem('bug', 'touch button labels have no text-shadow for readability over bright stages');
+    if (icons < 5 || labels.length < 5) {
+      this.t.problem('bug', `touch buttons need icons + aria-labels (icons ${icons}, labels ${labels.join(',')})`);
     }
-    this.t.event('touch-controls', `fill ${bs.backgroundColor}, font ${fontPx}px/${pausePx}px, text-shadow on`);
+    if (!ps.textShadow || ps.textShadow === 'none') {
+      this.t.problem('bug', 'Pause label has no text-shadow for readability over bright stages');
+    }
+    this.t.event('touch-controls', `fill ${bs.backgroundColor}, ${icons} icons (${labels.join('/')}), Pause ${pausePx}px`);
     await this.t.wait(2500);
     if (wasHidden && !touchDevice()) root.hidden = true;
   }
@@ -630,9 +695,15 @@ class Run {
     const asked = typeof this.options.fighter === 'string' ? CHARACTERS.findIndex((c) => c.id === this.options.fighter) : -1;
     if (typeof this.options.fighter === 'string' && asked < 0) this.t.problem('bug', `fighter "${this.options.fighter}" is not in the roster`);
     if (asked >= 0 && !pool.includes(asked)) this.t.problem('bug', `fighter "${this.options.fighter}" is locked in Versus (clear its chapter first)`);
+    const askedFoe = typeof this.options.foe === 'string' ? CHARACTERS.findIndex((c) => c.id === this.options.foe) : -1;
+    if (typeof this.options.foe === 'string' && askedFoe < 0) this.t.problem('bug', `foe "${this.options.foe}" is not in the roster`);
+    if (askedFoe >= 0 && !pool.includes(askedFoe)) this.t.problem('bug', `foe "${this.options.foe}" is locked in Versus (clear its chapter first)`);
     const mePos = asked >= 0 ? pool.indexOf(asked) : Math.abs(this.options.seed * 11) % n;
     const meIdx = pool[Math.max(0, mePos)];
-    const foeIdx = pool[(Math.max(0, mePos) + 1 + (Math.abs(this.options.seed * 17) % (n - 1))) % n];
+    const foeIdx =
+      askedFoe >= 0 && askedFoe !== meIdx
+        ? askedFoe
+        : pool.filter((i) => i !== meIdx)[(Math.abs(this.options.seed * 17) % Math.max(1, n - 1))];
     await this.click(() => this.q('#select-slots .slot-pick'), 'your slot');
     await this.click(() => document.querySelectorAll<HTMLElement>('#select-grid .tile')[meIdx], CHARACTERS[meIdx].name);
     await this.click(() => document.querySelectorAll<HTMLElement>('#select-grid .tile')[foeIdx], `CPU: ${CHARACTERS[foeIdx].name}`);
@@ -665,18 +736,36 @@ class Run {
     const byId = want ? [...cards()].findIndex((c) => c.dataset.stage === want) : -1;
     if (want && byId < 0) this.t.problem('bug', `stage "${want}" is not offered in Versus (content/modes.json)`);
     const pick = byId >= 0 ? byId : Math.abs(this.options.seed - 1) % cards().length;
-    let timing: { selectToVs: number | null; vsToMatch: number; selectToMatch: number | null } | null = null;
+    type Timing = { selectToVs: number | null; vsToMatch: number; vsHoldMs: number | null; warmUpMs: number | null; selectToMatch: number | null };
+    let timing: Timing | null = null;
+    let warmUpMs: number | null = null;
     const onTiming = (e: Event) => { timing = (e as CustomEvent).detail; };
+    const onWarm = (e: Event) => { warmUpMs = (e as CustomEvent).detail.warmUpMs; };
     window.addEventListener('dod:scene-timing', onTiming);
+    window.addEventListener('dod:warm-up', onWarm);
     await this.click(() => cards()[pick], `stage ${want && byId >= 0 ? want : pick + 1}`);
     const confirmAt = performance.now();
     this.vsWipePending = this.vsHoldWanted;
     if (this.onVersus) await this.onVersus();
     await this.matchLive();
     window.removeEventListener('dod:scene-timing', onTiming);
-    const tm = timing as { selectToVs: number | null; vsToMatch: number; selectToMatch: number | null } | null;
+    const tm = timing as Timing | null;
     if (tm) {
       const sec = (ms: number | null) => (ms === null ? 'n/a' : `${(ms / 1000).toFixed(2)} s`);
+      // The VS card on screen: from the wipe into it to the wipe into the match (capped at 4 s in main.ts; the
+      // meshes are the only thing it can still wait on past the cap).
+      if (tm.vsHoldMs !== null) {
+        this.t.metric('vsCardHoldMs', tm.vsHoldMs);
+        this.t.event('vsCardHoldMs', `VS card shown to match wipe start: ${tm.vsHoldMs} ms`);
+        if (tm.vsHoldMs > 5000) this.t.problem('bug', `The VS card was held ${tm.vsHoldMs} ms before the match wipe (cap 4000 ms)`);
+        // The warm-up carries on behind the match intro: give it up to 20 s to report.
+        await this.t.until(() => warmUpMs !== null, 20000, 'the warm-up to finish').catch(() => undefined);
+        if (warmUpMs !== null) {
+          this.t.metric('warmUpMs', warmUpMs);
+          this.t.event('warmUpMs', `renderer warm-up took ${warmUpMs} ms (behind the VS card and match intro)`);
+        }
+      }
+      window.removeEventListener('dod:warm-up', onWarm);
       this.t.event('select-to-vs', `stage picked to VS card up: ${sec(tm.selectToVs)}`);
       this.t.event('vs-to-match', `VS card to match: ${sec(tm.vsToMatch)}`);
       this.t.event('select-to-match', `stage picked to match: ${sec(tm.selectToMatch)}`);
@@ -1077,7 +1166,7 @@ class Run {
     if (release?.current) t.event('release', `releases.json loaded: v${release.current}`);
     else t.problem('bug', 'releases.json did not load (404 or invalid): no version or release notes');
     t.progress(0.15);
-    await this.startVersus(3);
+    await this.startVersus(1);
     t.progress(0.4);
     // Upright on a phone the Rotate prompt holds the match (frame 0 forever): that is the game working, not stuck.
     // Check the prompt covers the game, then leave from Pause instead of waiting for a fight that cannot start.
@@ -1090,14 +1179,13 @@ class Run {
     }
     const start = () => this.game.match()?.state.frame ?? 0;
     this.progressNow = () => 0.4 + 0.5 * Math.min(1, start() / 1200);
-    const ended = await this.fight(() => start() >= 20 * 60, 60000);
+    // Plays to the Results screen (1 stock, so it ends); blankFrames, vsHoldMs and wipe fps are reported there.
+    await this.fight(() => false, 4 * 60 * 1000);
     this.progressNow = () => 0.9;
-    if (ended === 'stopped') await this.quitFromPause('main');
-    else {
-      await this.results();
-      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
-      await this.screen('main');
-    }
+    await this.results();
+    t.event('smoke-results', 'the smoke match reached the Results screen');
+    await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+    await this.screen('main');
     t.progress(1);
     t.finish('done');
   }
@@ -1106,27 +1194,97 @@ class Run {
     const t = this.t;
     // The feedback card shows once per session and sleeps 7 days once closed: this browser may have closed it before.
     resetAsk(MATCH_ASK);
-    await this.toMainMenu();
-    t.progress(0.05);
-    await this.startVersus(2);
-    t.progress(0.1);
-    this.progressNow = () => {
-      const m = this.game.match();
-      if (!m) return 0.95;
-      const s = m.state;
-      const stocks = m.setup.stocks;
-      // A 1v1 is over once one side has lost every stock: about half of all stocks.
-      const lost = s.fighters.reduce((n, f) => n + (stocks - Math.max(0, f.stocks)), 0);
-      return 0.1 + 0.85 * Math.min(1, lost / Math.max(1, (s.fighters.length * stocks) / 2));
+    const voices: { who: string; kind: string; id: string; at: number }[] = [];
+    const onVoice = (e: Event) => {
+      const d = (e as CustomEvent).detail as { who: string; kind: string; id: string; text: string; audio: string; at: number };
+      voices.push(d);
+      t.event(`voice-${d.kind}`, `${d.who}: "${d.text}" (${d.id})`);
     };
-    await this.fight(() => false, 6 * 60 * 1000);
-    const won = await this.results();
-    await this.feedbackCard(MATCH_ASK, 'How was that fight?');
-    await this.analyticsSent(['screen', 'fighter_pick', 'stage_pick', 'level_start', 'death', 'level_end']);
-    await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
-    await this.screen('main');
-    t.progress(1);
-    t.finish(won ? 'won' : 'lost');
+    // Live-show mix logs: take ids (no back-to-back repeats), music calm/intense, crowd, duck under voice.
+    const takeLog: { id: string; takeId: string }[] = [];
+    const lastTakeById = new Map<string, string>();
+    let takeRepeats = 0;
+    const onTake = (e: Event) => {
+      const d = (e as CustomEvent).detail as { id: string; takeId: string; file: string; rate: number };
+      takeLog.push({ id: d.id, takeId: d.takeId });
+      const prev = lastTakeById.get(d.id);
+      if (prev && prev === d.takeId) {
+        takeRepeats++;
+        t.problem('bug', `sound take ${d.takeId} played twice in a row for ${d.id}`);
+      }
+      lastTakeById.set(d.id, d.takeId);
+      if (/^(hit-|swing-|jump|land|dodge)/.test(d.id)) {
+        t.event('sound-take', `${d.id} → ${d.takeId} (rate ${d.rate.toFixed(3)})`);
+      }
+    };
+    let sawIntense = false;
+    let roarCount = 0;
+    let duckDown = 0;
+    let duckUp = 0;
+    const onMusic = (e: Event) => {
+      const d = (e as CustomEvent).detail as { state: string; stageId: string | null };
+      t.event(d.state === 'intense' ? 'music-intense' : 'music-calm', `${d.stageId ?? '?'}: ${d.state}`);
+      if (d.state === 'intense') sawIntense = true;
+    };
+    const onCrowd = (e: Event) => {
+      const d = (e as CustomEvent).detail as { kind: string; takeId: string };
+      t.event(`crowd-${d.kind}`, d.takeId);
+      if (d.kind === 'roar') roarCount++;
+    };
+    const onDuck = (e: Event) => {
+      const d = (e as CustomEvent).detail as { on: boolean; db: number; restoreMs: number };
+      if (d.on) {
+        duckDown++;
+        t.event('music-duck', `down ${d.db} dB`);
+      } else {
+        duckUp++;
+        t.event('music-unduck', `restore ${d.restoreMs} ms`);
+      }
+    };
+    window.addEventListener('dod:fighter-voice', onVoice);
+    window.addEventListener('dod:sound-take', onTake);
+    window.addEventListener('dod:music-state', onMusic);
+    window.addEventListener('dod:crowd', onCrowd);
+    window.addEventListener('dod:music-duck', onDuck);
+    try {
+      await this.toMainMenu();
+      t.progress(0.05);
+      await this.startVersus(2);
+      t.progress(0.1);
+      this.progressNow = () => {
+        const m = this.game.match();
+        if (!m) return 0.95;
+        const s = m.state;
+        const stocks = m.setup.stocks;
+        // A 1v1 is over once one side has lost every stock: about half of all stocks.
+        const lost = s.fighters.reduce((n, f) => n + (stocks - Math.max(0, f.stocks)), 0);
+        return 0.1 + 0.85 * Math.min(1, lost / Math.max(1, (s.fighters.length * stocks) / 2));
+      };
+      await this.fight(() => false, 6 * 60 * 1000);
+      const won = await this.results();
+      await this.feedbackCard(MATCH_ASK, 'How was that fight?');
+      await this.analyticsSent(['screen', 'fighter_pick', 'stage_pick', 'level_start', 'death', 'level_end']);
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.metric('voiceEvents', voices.length);
+      t.metric('soundTakes', takeLog.length);
+      t.metric('soundTakeRepeats', takeRepeats);
+      t.metric('crowdRoars', roarCount);
+      t.metric('musicDucks', duckDown);
+      if (!sawIntense) t.problem('bug', 'music never lifted to intense (last stock or ≥100%)');
+      if (roarCount < 1) t.problem('bug', 'no crowd roar logged on a KO');
+      if (duckDown < 1) t.problem('bug', 'music never ducked under a voice line');
+      if (duckUp < 1) t.problem('bug', 'music never restored after a voice duck');
+      if (takeLog.length < 8) t.problem('warning', `only ${takeLog.length} sound takes logged in the match`);
+      t.progress(1);
+      t.finish(won ? 'won' : 'lost');
+    } finally {
+      window.removeEventListener('dod:fighter-voice', onVoice);
+      window.removeEventListener('dod:sound-take', onTake);
+      window.removeEventListener('dod:music-state', onMusic);
+      window.removeEventListener('dod:crowd', onCrowd);
+      window.removeEventListener('dod:music-duck', onDuck);
+    }
   }
 
   /** Set by the presentation scenario: runs on the VS screen, before the match loads. */
@@ -1211,6 +1369,197 @@ class Run {
    * landscape hides it and play goes on. The run judges the window as it is (390x844 upright, 844x390 on its side) and,
    * started upright, waits for the runner to turn the window to landscape. It asks to be treated as a touch device.
    */
+  /**
+   * First visit (docs/story.md "The pilot"): storage cleared, Tap to play, and the clock runs. The fight must open on Open
+   * Mic with no main menu (`first-visit-no-menu`), the player must have control within 30 s (`secondsToControl`), land a hit
+   * within 45 s (`secondsToFirstHit`) and a KO within 90 s (`secondsToFirstKO`) of the tap. One teaching prompt at most is
+   * on screen (`teach-one`), each fades once its move is used (`teach-gone`), and on a phone they show touch icons
+   * (`teach-device`). On a portrait phone the Rotate prompt is the only screen until the window is turned to landscape
+   * (`first-visit-rotate`), then the same route plays in an 844x390 frame. After the result the main menu shows Campaign as
+   * "Next episode" (`next-episode`). On a touch device the prompted move is pressed on the real on-screen control.
+   */
+  async firstVisit(): Promise<void> {
+    const t = this.t;
+    const KEYS = ['dod-campaign', 'dod-versus', 'dod-pilot', 'dod-unlocks'];
+    const saved = KEYS.map((k) => [k, localStorage.getItem(k)] as const);
+    const wipe = () => KEYS.forEach((k) => localStorage.removeItem(k));
+    const portraitPhone = this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560;
+    this.logViewport(this.phoneScenario());
+    try {
+      wipe();
+      if (portraitPhone) {
+        this.useTap = true;
+        forceTouchUi(true);
+        forceTouchPrompt(true);
+        await this.screen('title', 30000);
+        await this.tapToPlay();
+        // Upright: the Rotate prompt covers everything, and nothing else (no menu) shows through to a tap.
+        await t.until(() => rotateShowing(), 60000, 'the Rotate prompt on the upright phone');
+        const p = document.getElementById('rotate-prompt');
+        const covered = !!p && document.elementFromPoint(innerWidth / 2, innerHeight / 2)?.closest('#rotate-prompt') === p;
+        const r = p?.getBoundingClientRect();
+        if (!covered || !r || r.width < innerWidth - 1 || r.height < innerHeight - 1) t.problem('bug', `the Rotate prompt does not cover the first-visit fight at ${innerWidth}x${innerHeight}`);
+        else t.event('first-visit-rotate', `the Rotate prompt is the only screen at ${innerWidth}x${innerHeight} after Tap to play (screen: ${currentScreen()})`);
+        if (currentScreen() === 'main') t.problem('bug', 'the main menu showed on a first visit');
+        await t.wait(1500);
+        forceTouchPrompt(false);
+        // Turn the phone: the first-visit route again, in a landscape frame. This window's own pilot is dropped.
+        await this.game.quitMatch();
+        wipe();
+        this.useTap = false;
+        forceTouchUi(false);
+        return await this.touchMatchTurned('first-visit');
+      }
+
+      const touch = touchDevice() || this.phoneScenario();
+      if (touch) {
+        this.useTap = true;
+        forceTouchUi(true);
+      }
+      await this.screen('title', 30000);
+      await t.until(() => Boolean(document.getElementById('stage')?.classList.contains('ready')), 15000, 'the canvas to fade in');
+      const logoHeld = !!this.q('#pilot-logo') && getComputedStyle(this.q('#pilot-logo')!).display !== 'none';
+      t.event('first-visit-start', `storage cleared; Tap to play next (pilot backdrop up: ${logoHeld})`);
+      let tries = 0;
+      let control = -1;
+      let firstHit = -1;
+      let firstKo = -1;
+      let sawMain = false;
+      let skipped = false;
+      let t0 = 0;
+      const shown: string[] = [];
+      const gone = new Set<string>();
+      const onTeach = (ev: Event) => {
+        const d = (ev as CustomEvent<{ step: TeachStep; state: string }>).detail;
+        const when = Math.round((performance.now() - t0) / 100) / 10;
+        if (d.state === 'shown') {
+          const el = document.querySelector<HTMLElement>('.teach-prompt');
+          const dev = el?.dataset.device ?? '?';
+          shown.push(d.step);
+          t.event('teach-shown', `${d.step} prompt at ${when}s: ${PROMPTS[d.step].word} (${dev}: ${el?.dataset.glyphs ?? ''})`);
+          if (touch && dev !== 'touch') t.problem('bug', `the ${d.step} prompt shows ${dev} glyphs on a touch device (${el?.dataset.glyphs ?? ''})`);
+          if (touch) void this.touchPress(d.step);
+        } else if (d.state === 'used') {
+          t.event('teach-used', `${d.step} used at ${when}s`);
+          window.setTimeout(() => {
+            if (document.querySelector(`.teach-prompt[data-step="${d.step}"]`)) t.problem('bug', `the ${d.step} prompt is still on screen after the move was used`);
+            else if (!gone.has(d.step)) {
+              gone.add(d.step);
+              t.event('teach-gone', `${d.step} prompt gone after use`);
+            }
+          }, 1200);
+        }
+      };
+      window.addEventListener('dod:teach', onTeach);
+      const stopWatch = this.game.watch((m, events) => {
+        for (const e of events) {
+          if (e.type === 'hit' && e.attacker === m.player && !e.shield && firstHit < 0) firstHit = (performance.now() - t0) / 1000;
+          if (e.type === 'ko' && e.by === m.player && e.victim !== m.player && firstKo < 0) firstKo = (performance.now() - t0) / 1000;
+        }
+      });
+      const poll = window.setInterval(() => {
+        if (currentScreen() === 'main' && t0 > 0 && control < 0) sawMain = true;
+        const n = document.querySelectorAll('.teach-prompt:not(.used):not(.gone)').length;
+        if (n > 1) t.problem('bug', `${n} teaching prompts are on screen at once`);
+        const m = this.game.match();
+        if (control < 0 && this.game.phase() === 'play' && m && m.state.frame > 0 && t0 > 0) {
+          control = (performance.now() - t0) / 1000;
+        }
+      }, 50);
+      try {
+        t0 = performance.now();
+        await this.tapToPlay();
+        // The route: Open Mic's cold open over the arena, no title, no main menu.
+        await t.until(() => sceneShowing() || this.game.phase() === 'play', 40000, "Open Mic's cold open");
+        if (sceneShowing()) {
+          const logo = this.q('#pilot-logo');
+          t.event('first-visit-cold-open', `Open Mic's cold open is playing ${(Math.round(performance.now() - t0) / 1000).toFixed(1)} s after the tap, with the title logo ${logo && !logo.hidden ? 'over it' : 'gone'}, no menu: ${currentScreen()}`);
+          await t.wait(2500);
+          skipped = true;
+          await this.click(() => this.q('#scene-skip'), 'Skip the cold open');
+        }
+        t.progress(0.2);
+        for (let attempt = 0; attempt < 2; attempt++) {
+          tries++;
+          await t.until(() => this.game.phase() === 'play' || currentScreen() === 'results', 60000, 'the fight to open');
+          this.progressNow = () => {
+            const m = this.game.match();
+            return m ? 0.2 + 0.6 * Math.min(1, m.state.frame / 5400) : 0.85;
+          };
+          await this.fight(() => false, 5 * 60 * 1000);
+          const won = await this.results();
+          if (won) break;
+          t.event('first-visit-lost', `the pilot was lost (try ${tries}); retrying`);
+          if (attempt === 0) await this.click(() => this.button('#results-actions', 'Retry'), 'Retry');
+        }
+        const result = this.game.match() ?? this.seen;
+        await this.click(() => this.button('#results-actions', 'Continue') ?? this.button('#results-actions', 'Main menu'), 'Continue');
+        await this.screen('main', 20000);
+        const tag = this.q('.menu-item[data-go="campaign"] .next-tag');
+        if (tag && !tag.hidden && /Next episode/i.test(tag.textContent ?? '')) t.event('next-episode', `the main menu marks Campaign "${tag.textContent}" after the pilot (${this.q('.menu-item[data-go="campaign"] span')?.textContent ?? ''})`);
+        else t.problem('bug', 'after the pilot the main menu does not mark Campaign "Next episode"');
+        void result;
+      } finally {
+        clearInterval(poll);
+        stopWatch();
+        window.removeEventListener('dod:teach', onTeach);
+      }
+      if (sawMain) t.problem('bug', 'the main menu showed between Tap to play and the first fight');
+      else t.event('first-visit-no-menu', 'no title or main menu between Tap to play and the fight');
+      const rep = (name: string, v: number, limit: number) => {
+        if (v < 0) {
+          t.problem('bug', `${name}: never happened`);
+          return;
+        }
+        t.metric(name, Math.round(v * 10) / 10);
+        t.event(name, `${v.toFixed(1)} s after Tap to play${skipped ? ' (cold open skipped at 2.5 s)' : ''}`);
+        if (v > limit) t.problem('bug', `${name} was ${v.toFixed(1)} s, over the ${limit} s limit`);
+      };
+      rep('secondsToControl', control, 30);
+      rep('secondsToFirstHit', firstHit, 45);
+      rep('secondsToFirstKO', firstKo, 90);
+      t.metric('teachPromptsShown', new Set(shown).size);
+      if (!shown.length) t.problem('bug', 'no teaching prompt ever showed in the first fight');
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      for (const [k, v] of saved) {
+        if (v === null) localStorage.removeItem(k);
+        else localStorage.setItem(k, v);
+      }
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+  }
+
+  /** On a touch device: presses the real on-screen control the prompt is about (pointer events, like a finger). */
+  private async touchPress(step: TeachStep): Promise<void> {
+    const root = touchOverlay();
+    if (!root) return;
+    await this.t.wait(400);
+    const fire = (el: Element, type: string, x: number, y: number) =>
+      el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: 77, isPrimary: true, bubbles: true, cancelable: true, clientX: x, clientY: y, buttons: type === 'pointerup' ? 0 : 1 }));
+    if (step === 'move') {
+      const stick = root.querySelector('.touch-stick');
+      if (!stick) return;
+      const r = stick.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      fire(stick, 'pointerdown', cx, cy);
+      fire(stick, 'pointermove', cx + r.width * 0.3, cy);
+      await this.t.wait(500);
+      fire(stick, 'pointerup', cx, cy);
+      return;
+    }
+    const cls = PROMPTS[step].touch;
+    const btn = cls ? root.querySelector(`.touch-btn.${cls}`) : null;
+    if (!btn) return;
+    const r = btn.getBoundingClientRect();
+    fire(btn, 'pointerdown', r.left + r.width / 2, r.top + r.height / 2);
+    await this.t.wait(120);
+    fire(btn, 'pointerup', r.left + r.width / 2, r.top + r.height / 2);
+  }
+
   async rotate(): Promise<void> {
     // On a window that is not phone-shaped (the runner's 1280x720) the run makes its own phone: a framed copy of the game
     // at 390x844 that the run then turns to 844x390 (a real resize and orientation media-query change inside the frame).
@@ -2060,6 +2409,444 @@ class Run {
     t.finish(won ? 'won' : 'lost');
   }
 
+  /**
+   * Tonight's Episode (campaign/daily.ts): the card on the main menu shows tonight's fighters, stage and twist (the same
+   * episode the pure picker gives for the date, so two tabs on one date agree: `daily-episode` logs its signature), Blog
+   * Man's line and the countdown, and fits the window; Play tonight plays the episode (the bot on the pad, up to 3 tries),
+   * the results show the score, the day streak and today's board with the player on it. On a phone (390x844 touch) the
+   * card is checked in the portrait window and the episode is played in the turned 844x390 frame, all by taps. The
+   * player's own `dod.daily` is put back at the end.
+   */
+  async dailyRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const portrait = touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560;
+    this.logViewport(touch && this.isPhone());
+    const saved = localStorage.getItem(DAILY_KEY);
+    localStorage.removeItem(DAILY_KEY);
+    try {
+      await this.toMainMenu();
+      if (touch) {
+        this.useTap = true;
+        forceTouchUi(true);
+      }
+      const date = dailyDate();
+      const ep = dailyEpisode(date, DAILY_POOL);
+      t.progress(0.05);
+      await t.until(() => this.q('#daily-card')?.dataset.date === date && !!this.q('#daily-play'), 10000, "Tonight's Episode card");
+      const card = () => this.q('#daily-card')!;
+      const text = (sel: string) => card().querySelector(sel)?.textContent?.trim() ?? '';
+      // The card says what the picker says for the date.
+      const sig = `${ep.date} ${ep.player} vs ${ep.ally ? `${ep.ally}+` : ''}${ep.foes.join('+')} @ ${ep.stage} ${ep.objective} ${ep.twists.map((x) => x.kind).join('+') || 'no-twist'}`;
+      t.event('daily-episode', sig);
+      if (text('.daily-title') !== castLine(ep)) t.problem('bug', `the card says "${text('.daily-title')}" but the episode for ${date} is "${castLine(ep)}"`);
+      if (!text('.daily-rule').startsWith(objectiveLine(ep)) || (twistLine(ep) && !text('.daily-rule').includes(twistLine(ep)))) {
+        t.problem('bug', `the card's rule line "${text('.daily-rule')}" doesn't match "${objectiveLine(ep)} · ${twistLine(ep)}"`);
+      }
+      if (!text('.daily-tag').includes("Tonight's Episode")) t.problem('bug', "the main menu card isn't headed Tonight's Episode");
+      if (!/Day streak \d+/.test(text('.daily-streak'))) t.problem('bug', 'the card shows no day streak');
+      if (!text('.daily-blog').includes('Blog Man')) t.problem('bug', "the card has no Blog Man intro");
+      const count = text('.daily-count');
+      if (!/^Next episode in \d+[hm] \d{2}[ms]$/.test(count)) t.problem('bug', `the countdown reads "${count}"`);
+      t.event('daily-card', `${castLine(ep)} · ${text('.daily-stage')} · ${text('.daily-rule')} · "${text('.daily-blog').slice(0, 60)}" · ${count} (tomorrow in ${Math.round(msToNext(Date.now()) / 60000)} min)`);
+      // It fits: in the window sideways and top to bottom, nothing cut off inside it, targets 44 px.
+      card().scrollIntoView({ block: 'nearest' });
+      await t.wait(150);
+      const fit = (el: HTMLElement, what: string) => {
+        const r = el.getBoundingClientRect();
+        const inside = r.left >= -0.5 && r.right <= innerWidth + 0.5 && r.top >= -0.5 && r.bottom <= innerHeight + 0.5;
+        const cut = [el, ...el.querySelectorAll<HTMLElement>('*')].filter((c) => c.scrollWidth > c.clientWidth + 1 && getComputedStyle(c).overflow !== 'visible' && c.clientWidth > 0 && !(c instanceof HTMLImageElement));
+        if (!inside) t.problem('bug', `${what} is not fully on screen at ${innerWidth}x${innerHeight} (${Math.round(r.left)},${Math.round(r.top)} to ${Math.round(r.right)},${Math.round(r.bottom)})`);
+        if (cut.length) t.problem('bug', `${what} has clipped text (${cut.map((c) => c.className || c.tagName).join(', ')})`);
+        const small = this.phoneTargets(el);
+        if (touch && small.length) t.problem('bug', `${what}: ${small.join('; ')}`);
+        return inside && !cut.length && !small.length;
+      };
+      const fits = fit(card(), "Tonight's Episode card");
+      t.event('daily-card-fit', `${fits ? 'fits' : 'does not fit'} at ${innerWidth}x${innerHeight}${touch ? ' touch' : ''}`);
+      t.metric('dailyCardFits', fits ? 1 : 0);
+      await this.click(() => this.q('#daily-listen'), 'Blog Man');
+      t.event('daily-listen', 'Blog Man intro played from the card');
+      if (portrait) {
+        // A portrait phone can't hold a match: turn it, and play the episode in the landscape frame.
+        if (saved === null) localStorage.removeItem(DAILY_KEY);
+        else localStorage.setItem(DAILY_KEY, saved);
+        return this.touchMatchTurned('daily');
+      }
+
+      let result: { won: boolean; score: number; streak: number } | null = null;
+      for (let tryNo = 1; tryNo <= 3 && !result?.won; tryNo++) {
+        t.progress(0.1 + tryNo * 0.2);
+        if (tryNo === 1) await this.click(() => this.q('#daily-play'), 'Play tonight');
+        else await this.click(() => this.button('#results-actions', 'Try again'), 'Try again');
+        await this.matchLive();
+        const m = this.game.match()!;
+        const chip = this.q('#objective');
+        const chipShown = !!chip && !chip.hidden && chip.getClientRects().length > 0;
+        if (!chipShown) t.problem('bug', `the ${ep.objective} episode shows no objective chip on the HUD`);
+        else t.event('daily-objective', `try ${tryNo}: ${chip?.textContent ?? ''} with ${this.q('#timer')?.textContent ?? '?'} on the clock`);
+        this.progressNow = () => 0.1 + tryNo * 0.2 + 0.15 * Math.min(1, m.state.frame / Math.max(1, ep.timeLimit));
+        await this.fight(() => false, (ep.timeLimit / 60 + 120) * 1000 * 4);
+        const won = await this.results();
+        await this.t.until(() => !!this.q('#daily-results'), 10000, "Tonight's Episode on the results");
+        const panel = this.q('#daily-results')!;
+        const stat = (k: string) => panel.querySelector(`[data-stat="${k}"] strong`)?.textContent?.trim() ?? '';
+        const score = Number(stat('daily-score').replace(/,/g, '')) || 0;
+        const streak = Number(stat('daily-streak')) || 0;
+        // The board is read once, when the results open: wait for it (no polling here either).
+        await this.t.until(() => this.q('#daily-board')?.dataset.total !== undefined, 20000, "today's board");
+        const board = this.q('#daily-board')!;
+        const rank = Number(board.dataset.rank ?? 0);
+        const total = Number(board.dataset.total ?? 0);
+        const mine = board.querySelector('.daily-row.me');
+        if (won && (!score || streak < 1)) t.problem('bug', `a cleared episode shows score "${stat('daily-score')}" and streak "${stat('daily-streak')}"`);
+        if (won && !mine) t.problem('bug', `a cleared episode: the player is not on today's board (${total} on it, rank ${rank})`);
+        if (!won && stat('daily-score') !== 'No score') t.problem('bug', `a lost episode shows "${stat('daily-score')}" as its score`);
+        panel.scrollIntoView({ block: 'nearest' });
+        await t.wait(150);
+        const boardFits = fit(panel, "the results' Tonight's Episode panel");
+        t.event('daily-result', `try ${tryNo}: ${won ? 'cleared' : 'not cleared'} · score ${score} · day streak ${streak} · best ${stat('daily-best')} · ${this.q('#daily-rank')?.textContent ?? ''}`);
+        t.event('daily-board', `${total} on tonight's board, rank ${rank || 'none'}${boardFits ? ', fits the window' : ''}: ${[...board.querySelectorAll('.daily-row')].slice(0, 3).map((r) => r.textContent).join(' | ')}`);
+        t.metric('dailyScore', score);
+        t.metric('dailyStreak', streak);
+        t.metric('dailyBoardRank', rank);
+        t.metric('dailyBoardFits', boardFits ? 1 : 0);
+        result = { won, score, streak };
+      }
+      if (!result?.won) t.problem('warning', 'the bot did not clear tonight\'s episode in 3 tries, so no score reached the board');
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      await t.until(() => this.q('#daily-card')?.dataset.cleared === (result?.won ? '1' : '0'), 5000, 'the card after the episode');
+      t.event('daily-card-after', `${text('.daily-streak')} · ${text('.daily-foot')}`);
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      if (!portrait) {
+        if (saved === null) localStorage.removeItem(DAILY_KEY);
+        else localStorage.setItem(DAILY_KEY, saved);
+      }
+    }
+  }
+
+  /**
+   * Tour (campaign/tour.ts, content/tours.json): the main menu's Tour opens the select screen (every fighter's tile, none
+   * cleared on a fresh save, fits the window with no sideways scroll, 44 px targets on a phone), the Continue or Quit panel
+   * is measured (setup shortcut: shown without losing a fight, so a portrait phone can see it), the fighter's Tour starts
+   * and the bot plays fights 1 and 2 (each opens with the foe's recorded line in the arena under the fight's card, the twist
+   * and CPU level from the route), then a setup shortcut jumps to the last fight: the rival. The player stands still until
+   * knocked out (the Continue or Quit panel, then Continue replays that fight), then the bot wins: the ending plays the
+   * fighter's own recorded win line over the final KO, the closing card "<Fighter> clears the Tour", the results banner, and
+   * the Tour select shows the mark; the page reloads and the mark is still there. Option `fighter` (default exit-punk). On a
+   * portrait phone (390x844 touch) the select and the panel are checked in the portrait window and the Tour is played in the
+   * turned 844x390 frame, everything by taps. The player's own `dod-tours` is put back at the end.
+   */
+  async tourScenario(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const portrait = touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560;
+    this.logViewport(touch && this.isPhone());
+    const fighterId = typeof this.options.fighter === 'string' ? this.options.fighter : 'exit-punk';
+    const tour = tourFor(fighterId);
+    const name = CHARACTERS.find((c) => c.id === fighterId)?.name ?? fighterId;
+    if (!tour) {
+      t.problem('bug', `no Tour for "${fighterId}" in content/tours.json`);
+      t.finish('error');
+      return;
+    }
+    const RUN_KEY = 'dod.playtest.tour';
+    const carried = (() => {
+      try {
+        return JSON.parse(sessionStorage.getItem(RUN_KEY) ?? 'null') as { original: string | null } | null;
+      } catch {
+        return null;
+      }
+    })();
+    const original = carried ? carried.original : localStorage.getItem(TOURS_KEY);
+    const restore = () => {
+      if (original === null) localStorage.removeItem(TOURS_KEY);
+      else localStorage.setItem(TOURS_KEY, original);
+    };
+    let reloading = false;
+    const phases: { phase: string; [k: string]: unknown }[] = [];
+    const voices: string[] = [];
+    const onTour = (e: Event) => phases.push((e as CustomEvent).detail);
+    const onVoice = (e: Event) => voices.push((e as CustomEvent).detail.url);
+    window.addEventListener('dod:tour', onTour);
+    window.addEventListener('dod:voice', onVoice);
+    const lookup = (id: string) => VOICE.lines.find((l) => l.id === id);
+    const fit = (el: HTMLElement | null, what: string): boolean => {
+      if (!el) {
+        t.problem('bug', `${what} is not on screen`);
+        return false;
+      }
+      const sideways = document.documentElement.scrollWidth > innerWidth + 1 || document.body.scrollWidth > innerWidth + 1;
+      const bad = [...el.querySelectorAll<HTMLElement>('button')].filter((b) => {
+        const r = b.getBoundingClientRect();
+        return r.width > 0 && (r.left < -0.5 || r.right > innerWidth + 0.5);
+      });
+      if (sideways) t.problem('bug', `${what} scrolls sideways at ${innerWidth}x${innerHeight} (page ${document.documentElement.scrollWidth} wide)`);
+      if (bad.length) t.problem('bug', `${what}: ${bad.length} button(s) run off the side of the window`);
+      const small = touch ? this.phoneTargets(el) : [];
+      if (small.length) t.problem('bug', `${what}: ${small.join('; ')}`);
+      return !sideways && !bad.length && !small.length;
+    };
+    const openSelect = async () => {
+      await this.click(() => this.q('#btn-tour'), 'Tour');
+      await this.screen('tour');
+      await t.until(() => document.querySelectorAll('#tour-grid .tour-tile').length > 0, 5000, 'the Tour tiles');
+    };
+    const tile = () => this.q(`#tour-grid [data-tour="${fighterId}"]`);
+    try {
+      await this.toMainMenu();
+      if (touch) {
+        this.useTap = true;
+        forceTouchUi(true);
+      }
+      if (carried) {
+        // The page was reloaded: the mark must still be there.
+        sessionStorage.removeItem(RUN_KEY);
+        await openSelect();
+        const el = tile();
+        const marked = el?.dataset.cleared === '1' && /Tour cleared/.test(el.textContent ?? '');
+        if (!marked) t.problem('bug', `after a reload, ${name}'s Tour is not marked cleared on the Tour select`);
+        t.event('tour-mark-after-reload', `${name}'s tile reads "${el?.querySelector('.tour-status')?.textContent ?? '?'}" after the page reloaded (localStorage ${TOURS_KEY}: ${localStorage.getItem(TOURS_KEY)})`);
+        t.metric('tourMarkedAfterReload', marked ? 1 : 0);
+        restore();
+        t.progress(1);
+        t.finish('done');
+        return;
+      }
+      localStorage.removeItem(TOURS_KEY);
+      t.progress(0.03);
+      // The main menu has Tour; the select screen shows every fighter, none cleared yet.
+      const item = this.q('#btn-tour');
+      if (!item || item.getClientRects().length === 0) t.problem('bug', 'the main menu has no Tour entry');
+      else if (touch && item.getBoundingClientRect().height < 43.5) t.problem('bug', `the main menu's Tour entry is ${Math.round(item.getBoundingClientRect().height)} px tall`);
+      await openSelect();
+      const tiles = [...document.querySelectorAll<HTMLElement>('#tour-grid .tour-tile')];
+      const doneNow = tiles.filter((x) => x.dataset.cleared === '1').length;
+      if (tiles.length !== TOURS.length) t.problem('bug', `the Tour select shows ${tiles.length} tiles, content/tours.json has ${TOURS.length} Tours`);
+      if (doneNow) t.problem('bug', `a fresh save shows ${doneNow} Tours already cleared`);
+      if (!tile() || (tile() as HTMLButtonElement).disabled) t.problem('bug', `${name}'s tile is missing or locked on the Tour select`);
+      const selectFits = fit(this.q('#tour'), 'the Tour select');
+      t.event('tour-select', `${tiles.length} fighters (${tiles.filter((x) => !(x as HTMLButtonElement).disabled).length} open), ${doneNow} cleared, ${selectFits ? 'fits' : 'does not fit'} at ${innerWidth}x${innerHeight}${touch ? ' touch' : ''}`);
+      t.metric('tourSelectFits', selectFits ? 1 : 0);
+      // The Continue or Quit panel, measured without losing a fight (a portrait phone can't play one).
+      await this.game.tourChoicePreview(fighterId);
+      await this.screen('results');
+      const choiceFits = fit(this.q('#results'), 'the Continue or Quit panel');
+      const cont = this.q('#tour-continue');
+      const quit = this.q('#tour-quit');
+      if (!cont || !quit) t.problem('bug', 'the Tour panel has no Continue and Quit buttons');
+      else {
+        for (const b of [cont, quit]) {
+          const r = b.getBoundingClientRect();
+          if (r.top < 0 || r.bottom > innerHeight + 0.5) t.problem('bug', `"${b.textContent}" is not on screen without scrolling (${Math.round(r.top)} to ${Math.round(r.bottom)} of ${innerHeight})`);
+        }
+      }
+      t.event('tour-choice-fit', `${choiceFits ? 'fits' : 'does not fit'} at ${innerWidth}x${innerHeight}${touch ? ' touch' : ''}: ${[cont, quit].map((b) => `${b?.textContent} ${Math.round(b?.getBoundingClientRect().height ?? 0)} px`).join(', ')}`);
+      t.metric('tourChoiceFits', choiceFits ? 1 : 0);
+      await this.click(() => this.q('#tour-quit'), 'Quit');
+      await this.screen('tour');
+      if (portrait) {
+        restore();
+        return this.touchMatchTurned('tour');
+      }
+
+      // Fights 1 and 2, played by the bot.
+      t.progress(0.1);
+      await this.click(() => {
+        const el = tile();
+        el?.scrollIntoView({ block: 'center' });
+        return el;
+      }, `${name}'s Tour`);
+      this.game.tourSkipTo(2, TOUR_LENGTH - 1);
+      let prev: Match | null = null;
+      const intoFight = async (n: number): Promise<Match> => {
+        const f = tour.fights[n];
+        await t.until(() => this.game.match() !== prev && (sceneShowing() || this.game.phase() === 'play'), 120000, `fight ${n + 1}'s opening`);
+        let beats: { card: { tag: string; kicker: string; title: string; line: string }; lines: string[] } | null = null;
+        if (sceneShowing()) beats = await this.passTourScene();
+        const want = tourIntro(tour, n, lookup);
+        if (!beats) t.problem('bug', `fight ${n + 1} has no scene in the arena before it`);
+        else {
+          if (beats.card.tag !== 'Tonight' || beats.card.kicker !== want.card.kicker || beats.card.title !== f.title || beats.card.line !== f.line) {
+            t.problem('bug', `fight ${n + 1}'s card reads "${beats.card.kicker} / ${beats.card.title} / ${beats.card.line}", expected "${want.card.kicker} / ${f.title} / ${f.line}"`);
+          }
+          // A line is shown a sentence at a time (campaign/sceneText.ts), so compare the words in order.
+          const got = beats.lines.join(' ');
+          if (got !== want.lines.map((l) => l.text).join(' ')) t.problem('bug', `fight ${n + 1}'s scene says "${got}", expected "${want.lines.map((l) => l.text).join(' ')}"`);
+          const unvoiced = want.lines.filter((l) => l.audio && !voices.includes(l.audio));
+          if (unvoiced.length) t.problem('bug', `fight ${n + 1}'s scene did not play the recorded line ${unvoiced.map((l) => l.audio).join(', ')}`);
+          t.event('tour-scene', `fight ${n + 1}: ${beats.card.kicker} · ${beats.card.title} · "${beats.card.line}" then ${beats.lines.map((l) => `"${l}"`).join(', ')} (${want.lines.filter((l) => l.audio && voices.includes(l.audio)).length} recorded)`);
+        }
+        await t.until(() => this.game.phase() === 'play', 30000, `fight ${n + 1} to start`);
+        const m = this.game.match()!;
+        prev = m;
+        const s = m.setup;
+        const foes = s.slots.filter((x) => x.team === 1);
+        const twistOk =
+          s.slots[0].cpu === null &&
+          foes.length === f.foes.length &&
+          foes.every((x) => x.cpu === f.cpu) &&
+          (f.twist !== 'giant' || foes[0].scale === f.scale) &&
+          (f.twist !== 'low' || s.rules.gravity === f.gravity) &&
+          (f.twist !== 'race' || (s.objective === 'ko' && s.kos === f.kos));
+        if (!twistOk) t.problem('bug', `fight ${n + 1} (${f.twist}) is not set up as content/tours.json says`);
+        t.event('tour-fight', `fight ${n + 1} of ${TOUR_LENGTH}: ${f.title} (${f.twist}) vs ${f.foes.join(' + ')} on ${f.stage}, CPU ${f.cpu}${f.scale ? `, giant ${f.scale}%` : ''}${f.gravity ? `, gravity ${f.gravity}%` : ''}${f.kos ? `, ${f.kos} KOs before the clock` : ''}`);
+        return m;
+      };
+      const cpus: number[] = [];
+      for (let n = 0; n < 2; n++) {
+        t.progress(0.15 + n * 0.2);
+        const m = await intoFight(n);
+        cpus.push(tour.fights[n].cpu);
+        await this.fight(() => false, 480000);
+        const won = m.playerWon();
+        t.event('tour-fight-result', `fight ${n + 1} ${won ? 'won' : 'lost'}`);
+        if (!won) {
+          // A loss is a Continue: the same fight again.
+          await this.screen('results');
+          await this.click(() => this.q('#tour-continue'), 'Continue');
+          prev = m;
+          n--;
+        }
+      }
+
+      // The last fight, the rival: knocked out once on purpose (the Continue panel), then the bot wins.
+      t.progress(0.55);
+      let m = await intoFight(TOUR_LENGTH - 1);
+      cpus.push(tour.fights[TOUR_LENGTH - 1].cpu);
+      if (!cpus.every((c, i) => i === 0 || c >= cpus[i - 1])) t.problem('bug', `the CPU gets easier through the Tour (${cpus.join(', ')})`);
+      t.metric('tourFinalCpu', tour.fights[TOUR_LENGTH - 1].cpu);
+      this.manual = NO_INPUT;
+      const idleFrom = performance.now();
+      while (currentScreen() !== 'results' && performance.now() - idleFrom < 170000) await this.wait(500);
+      this.manual = null;
+      let continues = 0;
+      if (currentScreen() === 'results' && this.q('#tour-choice')) {
+        const fits = fit(this.q('#results'), 'the Continue or Quit panel after a lost fight');
+        const head = this.q('#tour-choice h2')?.textContent ?? '';
+        if (head !== 'Knocked out') t.problem('bug', `a lost Tour fight's panel is headed "${head}"`);
+        t.event('tour-lost', `fight ${TOUR_LENGTH} lost: the panel offers ${[...document.querySelectorAll('#results-actions button')].map((b) => `${b.textContent} (${Math.round(b.getBoundingClientRect().height)} px)`).join(' or ')}, ${fits ? 'fits' : 'does not fit'}`);
+        await this.click(() => this.q('#tour-continue'), 'Continue');
+        continues++;
+        await this.screen('match', 60000);
+        await t.until(() => this.game.phase() === 'play' && this.game.match() !== m, 30000, 'the same fight to start again');
+        m = this.game.match()!;
+        const again = tour.fights[TOUR_LENGTH - 1];
+        if (m.setup.slots.filter((x) => x.team === 1).length !== again.foes.length || m.setup.stage !== STAGES.findIndex((x) => x.id === again.stage)) t.problem('bug', 'Continue did not restart the same fight');
+        t.event('tour-continue', `Continue replayed fight ${TOUR_LENGTH} (${again.title}) on ${again.stage}`);
+      } else {
+        t.problem('warning', `the rival beat nobody in ${Math.round((performance.now() - idleFrom) / 1000)} s of standing still, so the Continue panel was only measured from the preview`);
+      }
+      t.metric('tourContinues', continues);
+      prev = m;
+      await this.fight(() => false, 480000);
+      let won = m.playerWon();
+      for (let tries = 0; !won && tries < 3; tries++) {
+        await this.screen('results');
+        await this.click(() => this.q('#tour-continue'), 'Continue');
+        continues++;
+        await t.until(() => this.game.phase() === 'play' && this.game.match() !== m, 60000, 'the rival fight to start again');
+        m = this.game.match()!;
+        await this.fight(() => false, 480000);
+        won = m.playerWon();
+      }
+      if (!won) {
+        t.problem('warning', 'the bot did not beat the rival in 4 tries, so the ending was not reached');
+        restore();
+        t.finish('done');
+        return;
+      }
+
+      // The ending: the fighter's own win line over the final KO, the closing card, the banner, the mark.
+      t.progress(0.85);
+      await t.until(() => sceneShowing() || currentScreen() === 'results', 60000, 'the ending');
+      const end = tourEnding(tour, lookup);
+      if (!sceneShowing()) t.problem('bug', 'the last win has no ending in the arena');
+      else {
+        const e = await this.passTourScene();
+        if (e.card.tag !== 'Signing off' || e.card.title !== `${name} clears the Tour` || e.card.line !== tour.ending) {
+          t.problem('bug', `the closing card reads "${e.card.tag} / ${e.card.title} / ${e.card.line}", expected "${name} clears the Tour / ${tour.ending}"`);
+        }
+        const winAudio = end.lines[0]?.audio;
+        if (e.lines.join(' ') !== end.lines.map((l) => l.text).join(' ')) t.problem('bug', `the ending says "${e.lines.join(' ')}", expected the win line "${end.lines[0]?.text}"`);
+        if (!winAudio || !voices.includes(winAudio)) t.problem('bug', `the ending did not play ${name}'s recorded win line (${winAudio})`);
+        t.event('tour-ending', `${e.card.title} · "${e.card.line}" · win line "${e.lines.join(' ')}" ${winAudio && voices.includes(winAudio) ? 'played' : 'NOT played'} over the final KO`);
+      }
+      await this.screen('results', 30000);
+      const banner = this.q('#tour-cleared');
+      if (!banner || !(banner.textContent ?? '').includes(`${name} clears the Tour`)) t.problem('bug', `the results show no "${name} clears the Tour" banner`);
+      if (!this.q('#results-body .highlights')) t.problem('bug', 'the final results show no KO highlights');
+      const stored = (() => {
+        try {
+          return (JSON.parse(localStorage.getItem(TOURS_KEY) ?? '[]') as string[]).includes(fighterId);
+        } catch {
+          return false;
+        }
+      })();
+      if (!stored) t.problem('bug', `localStorage ${TOURS_KEY} does not hold ${fighterId} after the ending`);
+      t.event('tour-cleared', `${banner?.querySelector('h2')?.textContent ?? ''} · ${continues} continue(s) used · ${TOURS_KEY} ${stored ? 'has' : 'lacks'} ${fighterId}`);
+      t.metric('tourCleared', stored ? 1 : 0);
+      await this.click(() => this.button('#results-actions', 'Tour list'), 'Tour list');
+      await this.screen('tour');
+      const el = tile();
+      const marked = el?.dataset.cleared === '1' && /Tour cleared/.test(el.textContent ?? '');
+      if (!marked) t.problem('bug', `the Tour select does not mark ${name}'s Tour cleared after the ending`);
+      t.event('tour-marked', `${name}'s tile reads "${el?.querySelector('.tour-status')?.textContent ?? '?'}" on the Tour select`);
+
+      // Reload: the mark comes back from localStorage.
+      sessionStorage.setItem(RUN_KEY, JSON.stringify({ original }));
+      reloading = true;
+      t.event('reload', 'the page reloads; the run carries on after it');
+      const url = new URL(location.href);
+      url.searchParams.set('playtest', 'tour');
+      url.searchParams.set('seed', String(this.options.seed ?? 1));
+      url.searchParams.set('speed', String(this.options.speed ?? 1));
+      await t.wait(300);
+      location.replace(url.toString());
+      await new Promise(() => {});
+    } finally {
+      window.removeEventListener('dod:tour', onTour);
+      window.removeEventListener('dod:voice', onVoice);
+      if (!reloading && !portrait) restore();
+    }
+  }
+
+  /** A Tour scene (the between-fights line or the ending): the card, then each line, cut through with Next once heard. */
+  private async passTourScene(): Promise<{ card: { tag: string; kicker: string; title: string; line: string }; lines: string[] }> {
+    const t = this.t;
+    const root = this.q('#scene');
+    const text = (id: string) => this.q(id)?.textContent?.trim() ?? '';
+    let card = { tag: '', kicker: '', title: '', line: '' };
+    const lines: string[] = [];
+    const seen = new Set<string>();
+    const t0 = performance.now();
+    while (sceneShowing() && performance.now() - t0 < 120000) {
+      const beat = root?.getAttribute('data-beat') ?? '';
+      if (beat === 'card' && !seen.has('card')) {
+        seen.add('card');
+        card = { tag: text('#scene-card-tag'), kicker: text('#scene-card-kicker'), title: text('#scene-card-title'), line: text('#scene-card-line') };
+        await this.wait(1200);
+        if (root?.getAttribute('data-beat') === 'card') await this.click(() => this.q('#scene-next'), 'Next (card)');
+        continue;
+      }
+      if (beat.startsWith('line-') && !seen.has(beat)) {
+        seen.add(beat);
+        const said = text('#scene-text');
+        const words = said.split(/\s+/).filter(Boolean).length;
+        if (words > MAX_WORDS) t.problem('bug', `a Tour scene shows ${words} words at once ("${said}")`);
+        lines.push(said);
+        await this.wait(900);
+        if (sceneShowing() && root?.getAttribute('data-beat') === beat) await this.click(() => this.q('#scene-next'), 'Next');
+        continue;
+      }
+      await this.wait(150);
+    }
+    return { card, lines };
+  }
+
   /** The 'ko' objective, both ways it ends: on the third KO, and on time. */
   async koObjective(): Promise<void> {
     const t = this.t;
@@ -2118,27 +2905,807 @@ class Run {
     t.finish('done');
   }
 
+  /**
+   * Every fighter spawns in Training and does each move from its input, and every one of the four specials is logged
+   * (`special`: slot, name, archetype, whether it came out). The report lists each fighter's four archetypes (`kit`)
+   * and fails when two fighters share them (`kits-distinct`). On a phone (touch, 390x844 turned to 844x390) the 20
+   * fighters outside Season 1 fire all four specials and the command grab through the on-screen stick and Special
+   * button only (`touch-special`, `touch-grab`), and the run counts any special that needed a button the touch layout
+   * doesn't have (`specialsOutsideTouch`, must stay 0). Options: `fighter` (one id), `input: "touch"`, `at`.
+   */
   async roster(): Promise<void> {
     const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('roster');
+    }
+    if (touch) {
+      this.logViewport(this.isPhone());
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      await this.toMainMenu();
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      // Each fighter's four specials as archetypes (neutral/side/up/down); no two fighters may share them.
+      const kits = new Map<string, string>();
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : touch ? CHARACTERS.map((c) => c.id).filter((id) => !SEASON_ONE.includes(id)) : CHARACTERS.map((c) => c.id);
+      let outside = 0;
+      for (const [n, id] of ids.entries()) {
+        const i = CHARACTERS.findIndex((c) => c.id === id);
+        if (i < 0) {
+          t.problem('bug', `fighter "${id}" is not in the roster`);
+          continue;
+        }
+        const c = CHARACTERS[i];
+        this.progressNow = () => n / ids.length;
+        t.progress(n / ids.length);
+        t.event('fighter', c.name);
+        // Setup shortcut: straight into training, no menus.
+        void this.game.startMatch({
+          mode: 'training', stage, stocks: 1, rules: {},
+          slots: [{ char: i, cpu: null }, { char: (i + 1) % CHARACTERS.length, cpu: 0 }],
+        });
+        await this.matchLive();
+        // Hitbox view (H) on from the first fighter, so the footage shows the boxes on the drawn limbs.
+        if (n === 0 && !touch) pressAction('KeyH', true);
+        await this.checkFighter(c.id);
+        const kit = SPECIAL_MOVES.map((m) => kindOf(c.moves[m])).join('/');
+        if (c.specials) {
+          kits.set(c.id, kit);
+          t.event('kit', `${c.name}: ${SPECIAL_MOVES.map((m) => c.moves[m].name).join(' / ')} (${kit})`);
+        }
+        if (touch) outside += await this.touchKit(c.name, c);
+        else await this.everyMove(c.name);
+        // Every fighter grabs the dummy and throws it all four ways (keyboard or the touch buttons and stick).
+        const gpad = touch ? makeTouchPad() : makeKeyboardPad();
+        if (gpad) {
+          this.manual = NO_INPUT;
+          const got = await this.grabThrows(c.name, gpad, touch ? 'touch' : 'keyboard');
+          if (got.size === 4) t.add('fightersThrowAll');
+        }
+        this.manual = null;
+        await this.game.quitMatch();
+        await this.screen('main');
+        t.add('fightersTested');
+      }
+      const byKit = new Map<string, string[]>();
+      for (const [id, kit] of kits) byKit.set(kit, [...(byKit.get(kit) ?? []), id]);
+      const same = [...byKit].filter(([, kitIds]) => kitIds.length > 1);
+      if (same.length) t.problem('bug', `Fighters share the same four specials: ${same.map(([k, kitIds]) => `${kitIds.join(' + ')} (${k})`).join('; ')}`);
+      else if (kits.size) t.event('kits-distinct', `${kits.size} fighters, ${kits.size} different kits of four specials`);
+      if (typeof this.options.fighter !== 'string' && kits.size !== ids.length) t.problem('bug', `only ${kits.size} of ${ids.length} fighters have their own four specials`);
+      if (touch) {
+        t.metric('specialsOutsideTouch', outside);
+        t.event('touch-layout', outside === 0 ? 'every special was fired from the existing touch controls (stick + Special): none needed another button' : `${outside} specials did not come out from the touch controls`);
+      }
+    } finally {
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  /**
+   * One fighter's four specials from the touch controls only: the stick pushed a direction, then the Special button
+   * (touch pointer events). Returns how many did not come out (those would need a button the layout does not have).
+   */
+  private async touchKit(who: string, c: (typeof CHARACTERS)[number]): Promise<number> {
+    const t = this.t;
+    const pad = makeTouchPad();
+    if (!pad) {
+      t.problem('bug', `${who}: the touch controls (stick and Special button) were not built`);
+      return SPECIAL_MOVES.length;
+    }
+    const match = () => this.game.match()!;
+    const me = () => match().state.fighters[match().player];
+    const frame = () => this.game.match()?.state.frame ?? 0;
+    const frames = async (n: number) => {
+      const end = frame() + n;
+      await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+    };
+    this.manual = NO_INPUT;
+    const standing = () => {
+      const f = me();
+      return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+    };
+    const settle = async () => {
+      pad.release();
+      try {
+        await t.until(standing, 10000, 'the fighter to stand');
+      } catch (e) {
+        if (String(e).includes('stopped')) throw e;
+      }
+      await frames(8);
+    };
+    const dummyAt = () => match().state.fighters.find((f) => f.id !== match().player)!;
+    const slots: { slot: string; label: string; sx: number; sy: number; move: number }[] = [
+      { slot: 'neutral', label: 'Special', sx: 0, sy: 0, move: MOVE.NSPECIAL },
+      { slot: 'side', label: 'stick right + Special', sx: 100, sy: 0, move: MOVE.SSPECIAL },
+      { slot: 'up', label: 'stick up + Special', sx: 0, sy: 100, move: MOVE.UPB },
+      { slot: 'down', label: 'stick down + Special', sx: 0, sy: -100, move: MOVE.DSPECIAL },
+    ];
+    let missing = 0;
+    for (const sl of slots) {
+      await settle();
+      // Face the dummy, so side and neutral specials point at it.
+      pad.stick(dummyAt().x >= me().x ? 100 : -100, 0);
+      await frames(2);
+      pad.stick(0, 0);
+      await frames(2);
+      this.movesSeen.clear();
+      pad.stick(sl.sx, sl.sy);
+      await frames(3);
+      pad.special(true);
+      await frames(4);
+      pad.special(false);
+      try {
+        await t.until(() => this.movesSeen.has(sl.move), 4000, `${who}'s ${sl.slot} special to come out`);
+      } catch (e) {
+        if (String(e).includes('stopped')) throw e;
+      }
+      const mv = c.moves[sl.move];
+      if (!this.movesSeen.has(sl.move)) {
+        missing++;
+        t.problem('bug', `${who}: ${sl.label} did not do the ${sl.slot} special "${mv.name}" from the touch controls (did ${[...this.movesSeen].map((x) => MOVE_NAMES[x]).join(', ') || 'nothing'})`);
+      } else {
+        t.event('touch-special', `${who}: ${sl.label} -> ${sl.slot} special "${mv.name}" (${kindOf(mv)}), no extra button`);
+        t.add('touchSpecials');
+        if (mv.kind === 'grab') {
+          t.event('touch-grab', `${who}: "${mv.name}", the command grab, came out of ${sl.label}`);
+          t.add('touchGrabs');
+        }
+      }
+      pad.stick(0, 0);
+    }
+    pad.release();
+    if (!SPECIAL_MOVES.some((m) => c.moves[m].kind === 'grab')) t.event('touch-grab', `${who}: no command grab in this kit (${SPECIAL_MOVES.map((m) => kindOf(c.moves[m])).join('/')})`);
+    await settle();
+    return missing;
+  }
+
+
+  // ---------------------------------------------------------- grab and throws
+
+  /** Every grab, whoever made it: logged with the frames the hold lasts (hold grows with the victim's damage). */
+  private grabSeen(m: Match, e: Extract<SimEvent, { type: 'grab' }>): void {
+    const pct = Math.round((m.state.fighters[e.victim]?.percent ?? 0) / 10);
+    this.t.event('grab', `${name(m, e.attacker)} grabbed ${name(m, e.victim)}${e.shield ? ' through their shield' : ''} at ${pct}%: held ${e.hold} frames`);
+    this.t.add('grabs');
+    if (e.shield) this.t.add('shieldGrabs');
+    this.t.event('grab-hold-frames', `${pct}% -> ${e.hold} frames`);
+    this.holds.set(Math.round(pct / 100) * 100, e.hold);
+    this.t.metric(`holdFrames${Math.round(pct / 100) * 100}`, e.hold);
+  }
+
+  private throwSeen(m: Match, e: Extract<SimEvent, { type: 'throw' }>): void {
+    const kind = ['forward', 'back', 'up', 'down'][e.kind] ?? String(e.kind);
+    this.t.event('throw', `${name(m, e.attacker)} threw ${name(m, e.victim)}: ${kind} throw`);
+    this.t.add('throws');
+    this.throwsSeen.add(e.kind);
+  }
+
+  private readonly holds = new Map<number, number>();
+  private readonly throwsSeen = new Set<number>();
+
+  /**
+   * Grab and the four throws on the dummy, from real input: Shield + Attack together (keyboard L + J, or both touch
+   * buttons), then the stick forward, back, up or down. The fighter first walks up to the dummy. Returns the throws
+   * (0 forward .. 3 down) that came out.
+   */
+  private async grabThrows(who: string, pad: Pad, how: string): Promise<Set<number>> {
+    const t = this.t;
+    const match = () => this.game.match()!;
+    const me = () => match().state.fighters[match().player];
+    const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+    const frame = () => this.game.match()?.state.frame ?? 0;
+    const frames = async (n: number) => {
+      const end = frame() + n;
+      await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+    };
+    const standing = () => {
+      const f = me();
+      return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+    };
+    const got = new Set<number>();
+    const dirs: { kind: number; label: string; sx: number; sy: number }[] = [
+      { kind: 0, label: 'forward', sx: 100, sy: 0 },
+      { kind: 1, label: 'back', sx: -100, sy: 0 },
+      { kind: 2, label: 'up', sx: 0, sy: 100 },
+      { kind: 3, label: 'down', sx: 0, sy: -100 },
+    ];
+    for (const d of dirs) {
+      pad.release();
+      try {
+        await t.until(standing, 10000, 'the fighter to stand');
+      } catch (e) {
+        if (String(e).includes('stopped')) throw e;
+      }
+      await frames(10);
+      // Walk to the dummy until it is inside the grab's reach, facing it.
+      const toward = () => (dummy().x >= me().x ? 1 : -1);
+      const reach = CHARACTERS[me().char].grabReach * 0.7;
+      const gap = () => Math.abs(dummy().x - me().x) / FX;
+      if (gap() > reach || me().facing !== toward()) {
+        const dir = toward();
+        pad.stick(dir * 100, 0);
+        try {
+          await t.until(() => gap() < reach && me().facing === toward(), 8000, `${who} to walk up to the dummy`);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+        } finally {
+          pad.stick(0, 0);
+        }
+        await frames(6);
+      }
+      // Shield and Attack together: the grab.
+      this.throwsSeen.delete(d.kind);
+      pad.button('shield', true);
+      pad.button('attack', true);
+      await frames(3);
+      pad.button('attack', false);
+      pad.button('shield', false);
+      try {
+        await t.until(() => me().action === ACT.GRAB_HOLD, 3000, `${who}'s grab to catch the dummy`);
+      } catch (e) {
+        if (String(e).includes('stopped')) throw e;
+      }
+      if (me().action !== ACT.GRAB_HOLD) {
+        t.problem('bug', `${how}: ${who}'s Shield + Attack did not grab the dummy (${ACT_NAMES[me().action]}, ${Math.round(gap())} units away)`);
+        continue;
+      }
+      await frames(10);
+      // The stick picks the throw.
+      pad.stick(d.kind === 0 ? me().facing * 100 : d.kind === 1 ? -me().facing * 100 : 0, d.sy);
+      try {
+        await t.until(() => this.throwsSeen.has(d.kind), 3000, `${who}'s ${d.label} throw`);
+      } catch (e) {
+        if (String(e).includes('stopped')) throw e;
+      }
+      pad.stick(0, 0);
+      if (this.throwsSeen.has(d.kind)) got.add(d.kind);
+      else t.problem('bug', `${how}: ${who}: the stick ${d.label} after a grab did not do the ${d.label} throw`);
+      // Let the dummy land and recover before the next one.
+      await frames(70);
+    }
+    pad.release();
+    if (got.size === 4) t.event('grab-throws', `${how}: ${who} grabbed the dummy and threw it all four ways (forward, back, up, down)`);
+    else t.problem('bug', `${how}: ${who} threw the dummy only ${got.size} of 4 ways`);
+    return got;
+  }
+
+  /**
+   * Grab: Exit Punk in Training grabs the dummy with Shield + Attack and throws it forward, back, up and down by the
+   * stick (touch: both buttons pressed together and the on-screen stick, at 390x844 turned to landscape), then
+   * again on a dummy at 100% to show the hold lasts longer than at 0% (`grab-hold-frames`, `holds-longer`).
+   * Setup shortcut: straight into Training; the second dummy starts at 100%.
+   */
+  async grabRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('grab');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
     await this.toMainMenu();
-    const stage = stagesFor('training')[0]?.index ?? 0;
-    for (let i = 0; i < CHARACTERS.length; i++) {
-      const c = CHARACTERS[i];
-      this.progressNow = () => i / CHARACTERS.length;
-      t.progress(i / CHARACTERS.length);
-      t.event('fighter', c.name);
-      // Setup shortcut: straight into training, no menus.
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      let thrown = 0;
+      for (const [n, percent] of [0, 1000].entries()) {
+        void this.game.startMatch({
+          mode: 'training', stage, stocks: 1, rules: {},
+          slots: [{ char: punk, cpu: null }, { char: (punk + 1) % CHARACTERS.length, cpu: 0, startPercent: percent }],
+        });
+        await this.matchLive();
+        this.manual = NO_INPUT;
+        const pad = touch ? makeTouchPad() : makeKeyboardPad();
+        if (!pad) {
+          t.problem('bug', 'the touch controls (stick, Attack and Shield) were not built');
+          t.finish('error');
+          return;
+        }
+        if (touch && n === 0) t.event('phone-shot', `training with the touch overlay: Shield + Attack together grab, the stick picks the throw (${innerWidth}x${innerHeight})`);
+        const got = await this.grabThrows('Exit Punk', pad, how);
+        thrown += got.size;
+        if (touch && got.size > 0) t.event('touch-grab', `Shield + Attack touched together grabbed the dummy and the stick threw it (${[...got].map((k) => ['forward', 'back', 'up', 'down'][k]).join(', ')})`);
+        this.manual = null;
+        await this.game.quitMatch();
+        await this.screen('main');
+        t.progress(0.2 + 0.4 * (n + 1));
+      }
+      const low = this.holds.get(0);
+      const high = this.holds.get(1000);
+      if (low !== undefined && high !== undefined && high > low) t.event('holds-longer', `a dummy at 100% was held ${high} frames, at 0% only ${low} frames`);
+      else t.problem('bug', `the hold did not grow with damage (0%: ${low ?? 'no grab'} frames, 100%: ${high ?? 'no grab'} frames)`);
+      t.metric('throwsLanded', thrown);
+    } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- character select: the specials preview
+
+  /**
+   * Character select shows how each fighter plays: tapping (or hovering) a fighter lists its four specials by name
+   * and loops a clip of one of them. Played through real input (a phone: touch taps; a desktop: mouse clicks),
+   * Training's select (every fighter open), all 33 fighters in turn (option `fighter`: just that one).
+   * Per fighter: the four rows read the move names the sim plays (`select-specials`), nothing is clipped by the
+   * screen edge or the preview's own edge (`select-fit`), and the clip moves between two looks (`select-clip`).
+   * On a portrait phone window the run turns the phone, like specials does.
+   */
+  async selectSpecials(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('select-specials');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      await this.click(() => this.q('[data-go="training"]'), 'Training');
+      await this.screen('select');
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : CHARACTERS.filter((c) => c.specials).map((c) => c.id);
+      let shown = 0;
+      for (const [k, id] of ids.entries()) {
+        t.progress(0.05 + (0.9 * k) / ids.length);
+        const ci = CHARACTERS.findIndex((c) => c.id === id);
+        if (ci < 0) {
+          t.problem('bug', `fighter "${id}" is not in the roster`);
+          continue;
+        }
+        const c = CHARACTERS[ci];
+        // A tap on the fighter's tile (its picture): the preview follows the finger.
+        await this.click(() => this.q(`#select-grid .tile[data-fighter="${id}"]`), c.name);
+        const panel = () => this.q(`#select-preview .specials[data-fighter="${id}"]`);
+        await t.until(() => !!panel() && panel()!.querySelectorAll('.sp-row').length === 4, 6000, `${c.name}'s four specials on the preview`);
+        const rows = [...panel()!.querySelectorAll<HTMLElement>('.sp-row')];
+        const want = [MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL].map((m) => c.moves[m].name);
+        const have = rows.map((r) => r.querySelector('.sp-name')?.textContent?.trim() ?? '');
+        if (want.join('|') !== have.join('|')) t.problem('bug', `${c.name}: character select lists ${have.join(', ')} but the fighter plays ${want.join(', ')}`);
+        else t.event('select-specials', `${c.name}: ${have.join(' / ')}`);
+        // Nothing clipped: the clip and every row sit inside the screen and inside the preview card.
+        const card = this.q('#select-preview')!.getBoundingClientRect();
+        const clipped: string[] = [];
+        for (const el of [panel()!.querySelector<HTMLElement>('.sp-clip')!, ...rows]) {
+          const r = el.getBoundingClientRect();
+          const name = el.classList.contains('sp-clip') ? 'clip' : (el.querySelector('.sp-name')?.textContent ?? 'row');
+          const out = r.left < -0.5 || r.top < -0.5 || r.right > innerWidth + 0.5 || r.bottom > innerHeight + 0.5;
+          const outCard = r.left < card.left - 0.5 || r.right > card.right + 0.5 || r.bottom > card.bottom + 0.5;
+          const text = el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
+          if (out) clipped.push(`${name} past the screen edge`);
+          else if (outCard) clipped.push(`${name} past the preview's edge`);
+          else if (text && !el.classList.contains('sp-clip')) clipped.push(`${name} text cut off`);
+        }
+        if (clipped.length) t.problem('bug', `${c.name}: specials preview clipped at ${innerWidth}x${innerHeight}: ${clipped.join('; ')}`);
+        else {
+          t.event('select-fit', `${c.name}: four specials and the clip fit at ${innerWidth}x${innerHeight}`);
+          shown++;
+        }
+        // The clip plays: what is drawn changes over the next second and a half.
+        const canvas = panel()!.querySelector<HTMLCanvasElement>('.sp-clip')!;
+        const look = () => {
+          const g = canvas.getContext('2d');
+          if (!g) return '';
+          const d = g.getImageData(0, 0, canvas.width, canvas.height).data;
+          let a = 0;
+          let hsh = 0;
+          for (let i = 0; i < d.length; i += 16) {
+            a += d[i + 3] > 200 ? 1 : 0;
+            hsh = (hsh * 31 + d[i] + d[i + 1] * 3 + d[i + 2] * 7) | 0;
+          }
+          return `${a}:${hsh}`;
+        };
+        const looks = new Set<string>();
+        for (let i = 0; i < 12 && looks.size < 3; i++) {
+          looks.add(look());
+          await t.wait(130);
+        }
+        if (looks.size >= 2 && ![...looks].every((l) => l.startsWith('0:'))) t.event('select-clip', `${c.name}: the clip preview is moving (${looks.size} different frames in 1.5 s)`);
+        else t.problem('bug', `${c.name}: the clip preview on character select is not playing (${looks.size} distinct frames)`);
+        // Tapping a special's row pins it: it highlights and the clip changes to that move.
+        const down = rows[3];
+        await this.click(() => this.q(`#select-preview .specials[data-fighter="${id}"] .sp-row[data-slot="down"]`) ?? down, `${c.name}: ${have[3]}`);
+        if (!panel()?.querySelector('.sp-row[data-slot="down"].on')) t.problem('bug', `${c.name}: tapping the down special did not select it`);
+        t.add('fightersShown');
+      }
+      t.metric('selectFits', shown);
+      t.progress(1);
+    } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- colour looks
+
+  /**
+   * Colour looks (looks.ts): character select shows each fighter's swatches as tap targets, locked ones read
+   * "N wins to unlock"; a tap picks; the same fighter twice gets two colours; the pick shows on the VS card, in the
+   * match (the palette shader on the fighter's material) and on the results. Played through taps (a phone: touch pointer
+   * events; 390x844 is turned to 844x390 like specials, because the Rotate prompt covers the menus upright).
+   * Setup shortcut: the colour save (dod-wins, dod-looks) starts empty, then holds 3 wins with Exit Punk for the unlock
+   * leg; the player's own are put back. Option `fighter`: just that one for the swatch-size sweep (default all 33).
+   * Events: `swatches`, `swatch-tap`, `swatch-locked`, `same-fighter-colour`, `vs-colour`, `match-colour`, `results-colour`, `win-credited`.
+   */
+  async coloursRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('colours');
+    }
+    this.logViewport(touch && this.isPhone());
+    const KEYS = ['dod-wins', 'dod-looks', 'dod-versus'];
+    const saved = KEYS.map((k) => localStorage.getItem(k));
+    for (const k of KEYS) localStorage.removeItem(k);
+    const store = (wins: Record<string, number>) => localStorage.setItem('dod-wins', JSON.stringify(wins));
+    const wide = () => document.documentElement.scrollWidth > innerWidth + 1;
+    const slotRow = (slot: number) => this.q(`#select-slots .swatches[data-slot="${slot}"]`);
+    const swatch = (slot: number, look: number) => this.q(`#select-slots .swatches[data-slot="${slot}"] .swatch[data-look="${look}"]`);
+    const picked = (slot: number) => Number(slotRow(slot)?.querySelector<HTMLElement>('.swatch.on')?.dataset.look ?? -1);
+    /** Scrolls a control into view (the select page scrolls on a phone) and taps it. */
+    const tapSwatch = async (slot: number, look: number, what: string) => {
+      swatch(slot, look)?.scrollIntoView({ block: 'center' });
+      await this.click(() => swatch(slot, look), what);
+    };
+    try {
+      await this.toMainMenu();
+      if (touch) {
+        this.useTap = true;
+        forceTouchUi(true);
+      }
+      // ---- 1. every fighter: four swatches, each a 44x44 tap target, one row, locked ones say what unlocks them.
+      await this.click(() => this.q('[data-go="training"]'), 'Training');
+      await this.screen('select');
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : CHARACTERS.map((c) => c.id);
+      let rows = 0;
+      for (const [k, id] of ids.entries()) {
+        t.progress(0.05 + (0.4 * k) / ids.length);
+        const ci = CHARACTERS.findIndex((c) => c.id === id);
+        if (ci < 0) {
+          t.problem('bug', `fighter "${id}" is not in the roster`);
+          continue;
+        }
+        const c = CHARACTERS[ci];
+        await this.click(() => this.q('#select-slots .slot .slot-pick'), 'your slot');
+        await this.click(() => this.q(`#select-grid .tile[data-fighter="${id}"]`), c.name);
+        await t.until(() => (slotRow(0)?.querySelectorAll('.swatch').length ?? 0) >= 4 && this.q('#select-slots .slot strong')?.textContent === c.name, 6000, `${c.name}'s swatches`);
+        const list = [...slotRow(0)!.querySelectorAll<HTMLElement>('.swatch')];
+        slotRow(0)!.scrollIntoView({ block: 'center' });
+        const rects = list.map((el) => el.getBoundingClientRect());
+        const small = rects.filter((r) => r.width < 44 - 0.5 || r.height < 44 - 0.5);
+        const oneRow = rects.every((r) => Math.abs(r.top - rects[0].top) < 2);
+        const inside = rects.every((r) => r.left >= -0.5 && r.right <= innerWidth + 0.5);
+        const lockedText = list.filter((el) => el.classList.contains('locked')).map((el) => el.querySelector('.name')?.textContent?.trim() ?? '');
+        const overlap = rects.some((r, i) => i > 0 && r.left < rects[i - 1].right - 0.5);
+        const cut = list.some((el) => el.querySelector<HTMLElement>('.name')!.scrollWidth > el.clientWidth + 1);
+        if (list.length < 4) t.problem('bug', `${c.name}: only ${list.length} colour swatches on character select (want 4)`);
+        else if (small.length) t.problem('bug', `${c.name}: ${small.length} swatch(es) under 44x44 CSS px at ${innerWidth}x${innerHeight} (smallest ${Math.round(Math.min(...small.map((r) => r.width)))}x${Math.round(Math.min(...small.map((r) => r.height)))})`);
+        else if (!oneRow || !inside || overlap || wide()) t.problem('bug', `${c.name}: swatches are not one row inside the screen at ${innerWidth}x${innerHeight} (one row ${oneRow}, inside ${inside}, overlap ${overlap}, page scrolls sideways ${wide()})`);
+        else if (cut) t.problem('bug', `${c.name}: a swatch label is cut off at ${innerWidth}x${innerHeight}`);
+        else if (lockedText.length !== 2 || lockedText[0] !== '3 wins to unlock' || lockedText[1] !== '10 wins to unlock') t.problem('bug', `${c.name}: locked swatches read ${JSON.stringify(lockedText)}, want "3 wins to unlock" and "10 wins to unlock"`);
+        else {
+          rows++;
+          t.event('swatches', `${c.name}: ${list.length} swatches, each ${Math.round(Math.min(...rects.map((r) => r.width)))}x${Math.round(Math.min(...rects.map((r) => r.height)))} px or more, one row; locked: ${lockedText.join(' / ')}`);
+        }
+        // A tap on an open swatch picks it; a tap on a locked one does nothing.
+        await tapSwatch(0, 1, `${c.name}: colour 2`);
+        if (picked(0) !== 1) t.problem('bug', `${c.name}: tapping the second swatch did not pick it (picked ${picked(0)})`);
+        else t.event('swatch-tap', `${c.name}: one tap picked colour 2`);
+        await tapSwatch(0, 2, `${c.name}: locked colour 3`);
+        if (picked(0) !== 1) t.problem('bug', `${c.name}: a locked swatch could be picked`);
+        else if (k === 0) t.event('swatch-locked', `${c.name}: a tap on "3 wins to unlock" picked nothing`);
+        t.add('swatchRows');
+      }
+      t.metric('swatchRows', rows);
+      await this.click(() => this.q('#select [data-back]'), 'Back');
+      await this.screen('main');
+
+      // ---- 2. Versus: the same fighter twice gets two colours; wins unlock the later looks.
+      t.progress(0.5);
+      await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+      await this.screen('select');
+      const rule = (label: string) => [...document.querySelectorAll<HTMLElement>('#select-rules .rule')].find((r) => r.querySelector('span')?.textContent === label);
+      for (let i = 0; i < 4 && document.querySelectorAll('#select-slots .slot:not(.add)').length > 2; i++) {
+        await this.click(() => [...document.querySelectorAll<HTMLElement>('#select-slots [aria-label="Remove"]')].pop(), 'remove a CPU');
+      }
+      for (let i = 0; i < 2 && rule('Teams')?.querySelector('.value')?.textContent === 'On'; i++) await this.click(() => rule('Teams')?.querySelector<HTMLElement>('.value'), 'Teams off');
+      for (let i = 0; i < 4 && rule('Time')?.querySelector('.value')?.textContent !== 'Off'; i++) await this.click(() => rule('Time')?.querySelector<HTMLElement>('.value'), 'Time');
+      for (let i = 0; i < 10 && Number(rule('Stocks')?.querySelector('b')?.textContent) !== 1; i++) {
+        await this.click(() => rule('Stocks')?.querySelector<HTMLElement>('[aria-label="Fewer stocks"]'), 'Fewer stocks');
+      }
+      const hero = 'exit-punk';
+      const heroIdx = CHARACTERS.findIndex((c) => c.id === hero);
+      const tile = () => this.q(`#select-grid .tile[data-fighter="${hero}"]`);
+      await this.click(() => this.q('#select-slots .slot:nth-child(1) .slot-pick'), 'your slot');
+      await this.click(tile, CHARACTERS[heroIdx].name);
+      await this.click(() => this.q('#select-slots .slot:nth-child(2) .slot-pick'), 'CPU slot');
+      await this.click(tile, `CPU: ${CHARACTERS[heroIdx].name}`);
+      await t.until(() => picked(0) >= 0 && picked(1) >= 0, 4000, 'both slots to show a colour');
+      if (picked(0) === picked(1)) t.problem('bug', `both slots are ${CHARACTERS[heroIdx].name} in colour ${picked(0) + 1}: the second was not moved`);
+      else t.event('same-fighter-colour', `two ${CHARACTERS[heroIdx].name}: you colour ${picked(0) + 1}, CPU colour ${picked(1) + 1} (moved automatically)`);
+      // The CPU taps the colour you wear: it moves on to the next one.
+      await tapSwatch(1, picked(0), 'CPU: the same colour as yours');
+      if (picked(0) === picked(1)) t.problem('bug', "the second player could pick the first player's colour on the same fighter");
+      else t.event('same-fighter-colour', `the CPU tapped colour ${picked(0) + 1}: it moved to colour ${picked(1) + 1}`);
+      // A few sessions later: 3 wins with this fighter open the third colour and the fourth says it needs 10.
+      store({ [hero]: 3 });
+      await this.click(() => this.q('#select-slots .slot:nth-child(1) .slot-pick'), 'your slot');
+      await this.click(tile, CHARACTERS[heroIdx].name);
+      await t.until(() => !swatch(0, 2)?.classList.contains('locked'), 4000, 'the third colour to open after 3 wins');
+      const fourth = swatch(0, 3)?.querySelector('.name')?.textContent?.trim();
+      if (!swatch(0, 3)?.classList.contains('locked') || fourth !== '10 wins to unlock') t.problem('bug', `after 3 wins the fourth swatch reads "${fourth}", want "10 wins to unlock"`);
+      else t.event('swatch-locked', `3 wins: colour 3 is open, colour 4 still says "${fourth}"`);
+      await tapSwatch(0, 2, 'colour 3');
+      if (picked(0) !== 2) t.problem('bug', `colour 3 was not picked after 3 wins (picked ${picked(0)})`);
+      else t.event('swatch-tap', `colour 3 (${CHARACTERS[heroIdx].looks[2].name}) picked after 3 wins`);
+      const want = [picked(0), picked(1)];
+      if (want[0] === want[1]) t.problem('bug', 'the two Exit Punks share a colour after the pick');
+
+      // ---- 3. The VS card, the match and the results all wear the pick.
+      t.progress(0.65);
+      await this.click(() => this.q('#select-slots .fight'), 'Fight');
+      await this.screen('stages');
+      const cards = () => document.querySelectorAll<HTMLElement>('#stage-grid .stage-card:not(.random)');
+      await t.until(() => cards().length > 0, 5000, 'stage cards');
+      await this.click(() => cards()[Math.abs(this.options.seed - 1) % cards().length], 'a stage');
+      await this.screen('versus', 30000);
+      await t.until(() => document.querySelectorAll('#versus-body .vs-fighter .look-chip').length >= 2, 5000, 'the colour on the VS card');
+      const figs = [...document.querySelectorAll<HTMLElement>('#versus-body .vs-fighter')];
+      const onCard = figs.map((f) => Number(f.dataset.look));
+      const chips = figs.map((f) => f.querySelector('.look-chip')?.textContent?.trim() ?? '');
+      const names = want.map((l) => CHARACTERS[heroIdx].looks[l].name);
+      const edge = [...document.querySelectorAll<HTMLElement>('#versus-body .vs-fighter, #versus-body .look-chip')].filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.left < -0.5 || r.right > innerWidth + 0.5 || r.top < -0.5 || r.bottom > innerHeight + 0.5;
+      });
+      if (onCard.join() !== want.join() || chips.join() !== names.join()) t.problem('bug', `the VS card shows colours ${onCard.join()} (${chips.join(', ')}) but ${want.join()} (${names.join(', ')}) were picked`);
+      else if (edge.length || wide()) t.problem('bug', `the VS card has ${edge.length} clipped element(s) or scrolls sideways at ${innerWidth}x${innerHeight}`);
+      else t.event('vs-colour', `VS card: ${names.join(' and ')}, colours ${want.map((l) => l + 1).join(' and ')}, inside ${innerWidth}x${innerHeight}`);
+      await this.matchLive();
+      const stats = this.game.lookStats?.() ?? [];
+      const m = this.game.match();
+      const drawn = stats.map((x) => x.look);
+      const sent = m?.setup.slots.map((x) => x.look ?? 0) ?? [];
+      const shaderOk = stats.every((x) => x.shader === (x.look > 0));
+      if (drawn.join() !== want.join() || sent.join() !== want.join()) t.problem('bug', `in the match the fighters are drawn in colours ${drawn.join()} (setup ${sent.join()}) but ${want.join()} were picked`);
+      else if (!shaderOk) t.problem('bug', 'a fighter in a non-Classic colour has no palette shader on its material (or a Classic one has)');
+      else t.event('match-colour', `in the match: slot colours ${drawn.join(' and ')}, palette shader on for the non-Classic looks`);
+      await this.fight(() => false, 4 * 60 * 1000);
+      await this.results();
+      const winsBefore = 3;
+      const hero0 = this.q('#results-body .results-look .look-chip');
+      const wonSlot = m && m.state.winner >= 0 ? m.state.winner : 0;
+      const heroLook = Number(hero0?.dataset.look ?? -1);
+      const resEdge = [...document.querySelectorAll<HTMLElement>('#results-body .results-hero, #results-body .look-chip, #results-actions button')].filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.left < -0.5 || r.right > innerWidth + 0.5;
+      });
+      const standLooks = [...document.querySelectorAll<HTMLElement>('#results-body .standing .look-chip')].map((c) => Number(c.dataset.look));
+      if (heroLook !== want[wonSlot] || standLooks.slice().sort().join() !== want.slice().sort().join()) t.problem('bug', `results show colours ${heroLook} / ${standLooks.join()} but the match was ${want.join()} (winner slot ${wonSlot})`);
+      else if (resEdge.length || wide()) t.problem('bug', `the results have ${resEdge.length} element(s) past the screen edge or scroll sideways at ${innerWidth}x${innerHeight}`);
+      else t.event('results-colour', `results: winner in ${hero0?.textContent?.trim()}, standings ${standLooks.map((l) => l + 1).join(' and ')}, inside ${innerWidth}x${innerHeight}`);
+      const wins = JSON.parse(localStorage.getItem('dod-wins') ?? '{}')[hero] ?? 0;
+      if (wonSlot === 0 && wins !== winsBefore + 1) t.problem('bug', `a win with ${CHARACTERS[heroIdx].name} was not counted (${wins} wins, want ${winsBefore + 1})`);
+      else if (wonSlot === 0) t.event('win-credited', `${CHARACTERS[heroIdx].name}: ${winsBefore} -> ${wins} wins`);
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.progress(1);
+    } finally {
+      for (const [i, k] of KEYS.entries()) {
+        if (saved[i] === null) localStorage.removeItem(k);
+        else localStorage.setItem(k, saved[i]!);
+      }
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- specials
+
+
+  /**
+   * Specials: Exit Punk in Training does a different special from each direction (K, K+side, K+down, K+up), and
+   * the thrown board crosses the stage, hits the dummy and is gone (and, thrown away from it, runs out its
+   * lifetime). Played through real input: the keyboard on a desktop, the on-screen stick and Special button on a
+   * phone (touch pointer events, nothing else; no extra button on the overlay). Setup shortcut: straight into
+   * training (no menus). Options: input (touch forces the overlay on a desktop window), at (phone).
+   */
+  async specialsRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    // A portrait phone window can't hold a match (the Rotate prompt): turn the phone, like touch-match does.
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('specials');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      if (punk < 0) {
+        t.problem('bug', 'Exit Punk is not on the roster');
+        t.finish('error');
+        return;
+      }
+      const stage = stagesFor('training')[0]?.index ?? 0;
       void this.game.startMatch({
         mode: 'training', stage, stocks: 1, rules: {},
-        slots: [{ char: i, cpu: null }, { char: (i + 1) % CHARACTERS.length, cpu: 0 }],
+        slots: [{ char: punk, cpu: null }, { char: (punk + 1) % CHARACTERS.length, cpu: 0 }],
       });
       await this.matchLive();
-      await this.checkFighter(c.id);
-      await this.everyMove(c.name);
+      // The virtual pad adds nothing: only the keyboard or the on-screen controls move the fighter.
+      this.manual = NO_INPUT;
+      t.progress(0.1);
+
+      const match = () => this.game.match()!;
+      const me = () => match().state.fighters[match().player];
+      const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+      };
+
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls (stick and Special button) were not built');
+        t.finish('error');
+        return;
+      }
+      if (touch) t.event('phone-shot', `training with the touch overlay (stick + Special, no extra button) at ${innerWidth}x${innerHeight}`);
+
+      const standing = () => {
+        const f = me();
+        return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      };
+      const settle = async () => {
+        pad.release();
+        await t.until(standing, 10000, 'the fighter to stand');
+        await frames(8);
+      };
+      /** Walks (the stick) until `done`, then lets go. */
+      const walk = async (dir: number, done: () => boolean, what: string) => {
+        pad.stick(dir * 100, 0);
+        try {
+          await t.until(done, 12000, what);
+        } finally {
+          pad.stick(0, 0);
+        }
+      };
+
+      // Face the dummy and walk into the board's range.
+      const toward = () => (dummy().x >= me().x ? 1 : -1);
+      const gap = () => Math.abs(dummy().x - me().x) / FX;
+      await walk(toward(), () => gap() < 460, 'Exit Punk to walk toward the dummy');
+      await settle();
+      t.progress(0.25);
+
+      // Neutral: the thrown board. Thrown at the dummy it crosses the stage and hits; thrown away it runs out its lifetime.
+      const owner = () => match().player;
+      const board = () => match().state.shots.filter((o) => o.owner === owner() && o.kind === 0);
+      const throwBoard = async (): Promise<{ shot: boolean; travelled: number; frames: number; dmg: number; gone: boolean }> => {
+        await settle();
+        const d0 = dummy().percent;
+        const startX = me().x;
+        let shot = false;
+        let travelled = 0;
+        let life = 0;
+        pad.stick(0, 0);
+        pad.special(true);
+        await frames(3);
+        pad.special(false);
+        try {
+          await t.until(() => {
+            const b = board();
+            if (b.length) {
+              shot = true;
+              life++;
+              travelled = Math.max(travelled, ...b.map((o) => Math.abs(o.x - startX) / FX));
+            }
+            return shot && b.length === 0;
+          }, 15000, 'the board to hit or run out');
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+        }
+        return { shot, travelled: Math.round(travelled), frames: life, dmg: dummy().percent - d0, gone: board().length === 0 };
+      };
+      this.movesSeen.clear();
+      const hit = await throwBoard();
+      if (!hit.shot) t.problem('bug', `${how}: pressing Special (neutral) with Exit Punk threw no board`);
+      else if (hit.dmg <= 0) t.problem('bug', `${how}: the thrown board went ${hit.travelled} units and never hurt the dummy`);
+      else if (!hit.gone) t.problem('bug', `${how}: the board is still in play after it hit the dummy`);
+      else t.event('projectile-hit', `${how}: the board crossed ${hit.travelled} units in ${hit.frames} frames, hit the dummy (+${(hit.dmg / 10).toFixed(1)}%) and disappeared`);
+      const neutralSeen = this.movesSeen.has(MOVE.NSPECIAL);
+      t.progress(0.4);
+
+      // Thrown the other way it hits nobody and goes at the end of its lifetime.
+      await settle();
+      await walk(-toward(), () => me().facing === -toward(), 'Exit Punk to turn away');
+      const away = await throwBoard();
+      if (!away.shot) t.problem('bug', `${how}: the second board never appeared`);
+      else if (!away.gone) t.problem('bug', `${how}: a board that missed is still in play`);
+      else if (away.dmg > 0) t.problem('bug', `${how}: a board thrown away from the dummy hurt it`);
+      else t.event('projectile-lifetime', `${how}: a board thrown away from the dummy flew ${away.travelled} units for ${away.frames} frames and disappeared (lifetime ${CHARACTERS[punk].moves[MOVE.NSPECIAL].shot?.life} frames)`);
+      t.progress(0.55);
+
+      // The other three, each from its own stick direction with Special held.
+      interface Try { slot: string; label: string; sx: number; sy: number; move: number }
+      const tries: Try[] = [
+        { slot: 'side', label: touch ? 'stick right + Special' : 'K + right', sx: 100, sy: 0, move: MOVE.SSPECIAL },
+        { slot: 'down', label: touch ? 'stick down + Special' : 'K + down', sx: 0, sy: -100, move: MOVE.DSPECIAL },
+        { slot: 'up', label: touch ? 'stick up + Special' : 'K + up', sx: 0, sy: 100, move: MOVE.UPB },
+      ];
+      const moved = new Set<number>(neutralSeen ? [MOVE.NSPECIAL] : []);
+      for (const [i, tr] of tries.entries()) {
+        await settle();
+        this.movesSeen.clear();
+        const x0 = me().x;
+        pad.stick(tr.sx, tr.sy);
+        await frames(3);
+        pad.special(true);
+        await frames(4);
+        pad.special(false);
+        try {
+          await t.until(() => this.movesSeen.has(tr.move), 4000, `the ${tr.slot} special to come out`);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+        }
+        const seen = [...this.movesSeen];
+        const others = seen.filter((x) => x !== tr.move);
+        if (!this.movesSeen.has(tr.move)) {
+          t.problem('bug', `${how}: ${tr.label} did not do Exit Punk's ${tr.slot} special (did ${seen.map((x) => MOVE_NAMES[x]).join(', ') || 'nothing'})`);
+        } else {
+          moved.add(tr.move);
+          const trap = match().state.shots.some((o) => o.owner === owner() && o.kind === 1);
+          const dx = Math.round(Math.abs(me().x - x0) / FX);
+          const shown = tr.slot === 'side' ? `skate dash, moved ${dx} units` : tr.slot === 'down' ? `kickflip trap ${trap ? 'placed on the floor' : 'thrown'}` : `ollie, climbed to ${Math.round(me().y / FX)} units`;
+          t.event(`special-${tr.slot}`, `${how}: ${tr.label} -> ${MOVE_NAMES[tr.move]} (${shown})${others.length ? `; also saw ${others.map((x) => MOVE_NAMES[x]).join(', ')}` : ''}`);
+          if (touch && tr.slot !== 'up') t.event(`touch-${tr.slot}-special`, `${tr.label} fired the ${tr.slot} special (${MOVE_NAMES[tr.move]}) with no extra button on the overlay`);
+        }
+        pad.stick(0, 0);
+        if (touch && i === 1) t.event('phone-shot', `down special placed the kickflip trap at ${innerWidth}x${innerHeight}`);
+        t.progress(0.55 + (i + 1) * 0.12);
+      }
+      pad.release();
+      await settle();
+      if (moved.size === 4) t.event('specials-distinct', `${how}: four different specials from four inputs (${[...moved].map((x) => MOVE_NAMES[x]).join(', ')})`);
+      else t.problem('bug', `${how}: only ${moved.size} different specials came out of the four inputs (${[...moved].map((x) => MOVE_NAMES[x]).join(', ')})`);
+      t.add('specialsSeen', moved.size);
       this.manual = null;
       await this.game.quitMatch();
       await this.screen('main');
-      t.add('fightersTested');
+    } finally {
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
     }
     t.progress(1);
     t.finish('done');
@@ -2301,8 +3868,60 @@ class Run {
     const seen: Record<HitTier, { lag: number; frozen: number; dmg: number; fx: string } | null> = { light: null, medium: null, heavy: null };
     const fxLine = (l: NonNullable<ReturnType<NonNullable<GameHooks['hitFxStats']>>['last']>) =>
       `${l.sparks} sparks, ${l.stars} impact stars, ${l.ring ? 'shockwave ring' : 'no ring'}, shake ${l.shake.toFixed(2)}, flash ${l.flash}`;
+    let cuesPrev = 0;
+    let killsCued = 0;
+    let killsMissed = 0;
+    let falseCues = 0;
+    const lastHit = new Map<number, { ko: boolean; frame: number }>();
+    const cuePending = new Map<number, number>();
     const pending: { victim: number; tier: HitTier; lag: number; dmg: number; frozen: number; fx: string }[] = [];
+    // Launch trails and edge markers: one event per launch (trail kind and puffs) and per fighter that goes off screen.
+    let trailSeq = 0;
+    let markerSeen = 0;
+    let markerProblems = 0;
+    const touchUi = this.isPhone() || touchDevice() || this.options.input === 'touch';
+    type R4 = { l: number; t: number; r: number; b: number };
+    const overlap = (a: R4, b: R4) => a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
+    const sampleScreen = () => {
+      const ms = this.game.markerStats?.();
+      if (!ms) return;
+      if (ms.shown > markerSeen) {
+        for (const e of ms.events.slice(-(ms.shown - markerSeen))) {
+          t.event('marker', `fighter ${e.id} is off screen: edge marker with their portrait and an arrow, ${e.size}px${e.danger ? ', red (near the blast line)' : ''}`);
+        }
+        markerSeen = ms.shown;
+      }
+      // Safe area and touch controls: every bubble stays inside the window (minus the notch insets) and off the buttons.
+      const blockers = [...document.querySelectorAll('.touch-stick, .touch-buttons, .touch-pause, .hud-card')].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0);
+      for (const mk of ms.rects) {
+        const r = mk.rect;
+        const hit = blockers.find((b) => overlap(r, { l: b.left, t: b.top, r: b.right, b: b.bottom }));
+        if (r.l < 0 || r.t < 0 || r.r > innerWidth || r.b > innerHeight || hit) {
+          markerProblems++;
+          if (markerProblems <= 3) t.problem('bug', `an edge marker (${Math.round(r.l)},${Math.round(r.t)} to ${Math.round(r.r)},${Math.round(r.b)}) ${hit ? 'sits under a control or damage card' : 'leaves the window'}${touchUi ? ' on the phone layout' : ''}`);
+        }
+      }
+      // Damage numbers: inside the window and clear of the touch buttons.
+      for (const el of document.querySelectorAll('.hud-pct')) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0) continue;
+        const under = [...document.querySelectorAll('.touch-stick, .touch-buttons, .touch-pause')].some((b) => {
+          const q = b.getBoundingClientRect();
+          return q.width > 0 && overlap({ l: r.left, t: r.top, r: r.right, b: r.bottom }, { l: q.left, t: q.top, r: q.right, b: q.bottom });
+        });
+        if ((r.left < 0 || r.right > innerWidth || r.top < 0 || r.bottom > innerHeight || under) && !this.checked.has('hud-pct-bad')) {
+          this.checked.add('hud-pct-bad');
+          t.problem('bug', `a damage number (${Math.round(r.left)},${Math.round(r.top)} to ${Math.round(r.right)},${Math.round(r.bottom)}) ${under ? 'sits under a touch button' : 'leaves the window'}`);
+        }
+      }
+    };
     const unwatch = this.game.watch((m, events) => {
+      sampleScreen();
+      for (const rec of this.game.trailStats?.()?.log ?? []) {
+        if (rec.seq <= trailSeq) continue;
+        trailSeq = rec.seq;
+        t.event('trail', rec.kind === 'none' ? `launch of fighter ${rec.victim} (${rec.tier} hit, knockback ${rec.kb}): light hit, no smoke trail` : `launch of fighter ${rec.victim} (${rec.tier} hit, knockback ${rec.kb}): ${rec.kind === 'streak' ? 'coloured KO streak' : `${rec.kind} smoke trail`} behind them for the hit-stun`);
+      }
       for (const p of pending.slice()) {
         if (m.state.fighters[p.victim].hitlag > 0) p.frozen++;
         else {
@@ -2311,6 +3930,35 @@ class Run {
             seen[p.tier] = p;
             t.event(`hit-stop-${p.tier}`, `${p.tier} hit (${p.dmg / 10}%): frozen ${p.frozen + 1} frames (sim hit-stop ${p.lag})`);
           }
+        }
+      }
+      // Kill cues: a cue on exactly the hits the sim flagged as stock-ending, and a KO only after such a hit.
+      const cues = this.game.camFxStats?.()?.killCues ?? cuesPrev;
+      const fresh = cues - cuesPrev;
+      cuesPrev = cues;
+      const flagged = events.filter((e) => e.type === 'launch' && e.ko).length;
+      if (fresh !== flagged) t.problem('bug', `${fresh} kill cue(s) played for ${flagged} stock-ending hit(s) in one tick`);
+      for (const e of events) {
+        if (e.type === 'launch') {
+          lastHit.set(e.victim, { ko: e.ko, frame: m.state.frame });
+          if (e.ko) {
+            cuePending.set(e.victim, m.state.frame);
+            t.event('kill-cue', `launch of fighter ${e.victim} (hit by ${e.by}) carries out of the blast zone: red flash, punch-in, slow motion and whistle, 4 extra hit-stop frames`);
+          }
+        } else if (e.type === 'ko') {
+          const h = lastHit.get(e.victim);
+          if (cuePending.delete(e.victim)) killsCued++;
+          else if (h && !h.ko && e.by >= 0 && e.by !== e.victim) {
+            killsMissed++;
+            t.event('kill-cue-missed', `fighter ${e.victim} was KO'd by a hit that was not predicted (${m.state.frame - h.frame} frames after it)`);
+          }
+        }
+      }
+      for (const [v, fr] of cuePending) {
+        if (m.state.frame - fr > 300) {
+          cuePending.delete(v);
+          falseCues++;
+          t.event('kill-cue-false', `a kill cue played on a hit that did not end the stock (fighter ${v} survived)`);
         }
       }
       for (const e of events) {
@@ -2340,11 +3988,54 @@ class Run {
       await this.startVersus(3);
       t.progress(0.15);
       this.game.hitFxStats?.(true);
+      this.game.camFxStats?.(true);
+      cuesPrev = this.game.camFxStats?.()?.killCues ?? 0;
       const m0 = () => this.game.match();
       this.progressNow = () => 0.15 + 0.5 * Math.min(1, ((m0()?.state.frame ?? 0) / (75 * 60)));
       // Fight until a light and a heavy hit were both seen (and counted), or 75 s of game time.
       const ended = await this.fight(() => (!!seen.light && !!seen.heavy) || (m0()?.state.frame ?? 0) > 75 * 60, 4 * 60 * 1000);
       if (ended === 'over') t.problem('warning', 'the match ended before a light and a heavy hit were both seen');
+      // Launch trails: a heavy launch left smoke (more puffs with more knockback), a light hit none.
+      const tlog = this.game.trailStats?.()?.log ?? [];
+      const heavyTrails = tlog.filter((r) => r.tier === 'heavy' && r.kind !== 'none');
+      const lightTrails = tlog.filter((r) => r.tier === 'light' && !r.ko);
+      t.metric('trailLaunches', tlog.length);
+      t.metric('trailPuffsMax', Math.max(0, ...tlog.map((r) => r.puffs)));
+      if (!heavyTrails.length) t.problem('warning', 'no heavy launch landed, so the smoke trail could not be checked');
+      else if (heavyTrails.every((r) => r.puffs === 0)) t.problem('bug', 'a heavy launch threw no smoke puffs');
+      else t.event('trail-heavy', `${heavyTrails.length} heavy launch(es) threw white smoke (most puffs: ${Math.max(...heavyTrails.map((r) => r.puffs))})`);
+      if (lightTrails.some((r) => r.puffs > 0)) t.problem('bug', 'a light hit threw a smoke trail');
+      else if (lightTrails.length) t.event('trail-light', `${lightTrails.length} light hit(s) launched with no smoke trail`);
+      // Damage numbers: white at 0%, red past 120%, and they shake when hit.
+      const pcts = [...document.querySelectorAll<HTMLElement>('.hud-pct')];
+      for (const el of pcts) {
+        if (el.dataset.hits) t.event('damage-shake', `a damage number shook on ${el.dataset.hits} hit(s)${el.dataset.pop === '1' ? ' and popped on a heavy one' : ''}`);
+      }
+      t.event('damage-color', `damage numbers now: ${pcts.map((e) => `${e.textContent} ${e.style.color}`).join(' | ')}`);
+      for (const el of pcts) {
+        const v = parseFloat(el.textContent ?? '');
+        const m = /rgb\((\d+), (\d+), (\d+)\)/.exec(el.style.color);
+        if (!m || Number.isNaN(v)) continue;
+        const [r, g, b] = [Number(m[1]), Number(m[2]), Number(m[3])];
+        if (v === 0 && (r < 250 || g < 250 || b < 250)) t.problem('bug', `a damage number at 0% is not white (${el.style.color})`);
+        if (v > 120 && !(r > 150 && g < 70 && b < 70)) t.problem('bug', `a damage number at ${v}% is not red (${el.style.color})`);
+      }
+      // Setup shortcut when nobody was knocked out of view in the fight: the CPU is put by the stage's side blast line (named, not a
+      // hit), so the camera's edge shows the marker. The bubble must show a portrait and keep inside the window.
+      if (!this.game.markerStats?.()?.shown && m0()) {
+        const mm = m0()!;
+        const foe = mm.state.fighters.find((f) => f.id !== mm.player);
+        const b = STAGES[mm.state.stage].blast;
+        if (foe) {
+          foe.x = (b.right - 20) * FX;
+          foe.y = Math.max(b.bottom + 200, foe.y / FX) * FX;
+          foe.vx = foe.vy = foe.kbx = foe.kby = 0;
+          t.event('marker-setup', `setup shortcut: fighter ${foe.id} placed 20 units inside the right blast line`);
+          await t.wait(900);
+        }
+      }
+      if (!this.game.markerStats?.()?.shown) t.problem('warning', 'no fighter went off screen, so no edge marker was seen (the kill cue usually shows one)');
+      else t.metric('markersShown', this.game.markerStats!()!.shown);
       const stats = this.game.hitFxStats?.();
       t.metric('shakeMaxOn', Number((stats?.shakeMax ?? 0).toFixed(3)));
       for (const k of ['light', 'medium', 'heavy'] as const) if (seen[k]) t.metric(`hitStop${k[0].toUpperCase()}${k.slice(1)}Frames`, seen[k]!.frozen + 1);
@@ -2377,12 +4068,38 @@ class Run {
       await t.until(() => this.game.phase() === 'play', 3000, 'the match to resume');
       this.game.hitFxStats?.(true);
       const f0 = m0()?.state.frame ?? 0;
-      await this.fight(() => (this.game.hitFxStats?.()?.hits ?? 0) >= 4 || (m0()?.state.frame ?? 0) - f0 > 40 * 60, 2 * 60 * 1000);
+      const cuedBefore = killsCued;
+      // Four hits, and (up to 90 s of game time) a stock ended by a kill cue, so the cue is seen with shake off.
+      await this.fight(() => ((this.game.hitFxStats?.()?.hits ?? 0) >= 4 && killsCued > cuedBefore) || (m0()?.state.frame ?? 0) - f0 > 90 * 60, 3 * 60 * 1000);
       const off = this.game.hitFxStats?.();
       t.metric('shakeMaxOff', Number((off?.shakeMax ?? 0).toFixed(3)));
       if (!off || off.hits === 0) t.problem('warning', 'no hit landed with Screen shake off, so the camera could not be checked');
       else if (off.shakeMax > 0) t.problem('bug', `the camera still shook (${off.shakeMax.toFixed(2)}) with Screen shake off`);
       else t.event('no-shake', `${off.hits} hits landed with Screen shake off and the camera stayed still (hit-stop and impact effects still play)`);
+      const cam = this.game.camFxStats?.();
+      if (cam) {
+        t.metric('cameraJumps', cam.cameraJumps);
+        t.metric('killCues', cam.killCues);
+        t.metric('killsCued', killsCued);
+        t.metric('framingMisses', cam.framingMisses);
+        if (cam.slowFpsMin > 0) t.metric('killSlowMinFps', Math.round(cam.slowFpsMin));
+        if (cam.cameraJumps > 0) t.problem('bug', `the camera jumped ${cam.cameraJumps} time(s) (moved or zoomed past the threshold in one frame)`);
+        else t.event('camera-smooth', 'the match camera never jumped (cameraJumps 0)');
+        if (cam.framingMisses > 0) t.problem('bug', `a fighter was outside the view ${cam.framingMisses} time(s) before reaching the blast zone`);
+        else t.event('camera-framing', 'every fighter stayed on screen until the blast zone');
+        if (cam.slowFpsMin > 0 && cam.slowFpsMin < 40) t.problem('warning', `frame rate dipped to ${Math.round(cam.slowFpsMin)} fps during the kill slow motion (want 40+ on a phone)`);
+        if (cam.killCues === 0) t.problem('warning', 'no stock ended in this run, so the kill cue was not seen');
+        else {
+          if (falseCues > 0) t.problem('bug', `${falseCues} kill cue(s) played on a hit that did not end the stock`);
+          if (killsMissed > 0) t.problem('warning', `${killsMissed} of ${killsMissed + killsCued} stocks ended with no kill cue (the victim was launched inside the zone and fell out, so the launch was not a KO)`);
+          if (falseCues === 0) t.event('kill-cue-exact', `${killsCued} stock-ending hits played a kill cue, no other hit did (${killsMissed} falls out of a spent launch had none)`);
+          const lc = cam.lastCue;
+          if (lc && !(lc.zoom && lc.slow && lc.whistle)) t.problem('bug', 'a kill cue was missing its zoom, slow motion or whistle');
+          if (lc && lc.punch <= 0.2) t.problem('bug', 'the kill cue did not punch the camera in');
+          if (lc && cam.killCues > 0 && !screenShake() && lc.shake > 0) t.problem('bug', 'the kill cue shook the camera with Screen shake off');
+          else if (lc && !screenShake()) t.event('kill-cue-no-shake', `with Screen shake off the kill cue still zoomed (punch ${lc.punch.toFixed(2)}) and the shake was ${lc.shake}`);
+        }
+      }
       t.progress(0.9);
 
       // Back on for the next visit, then out.
@@ -2405,24 +4122,32 @@ class Run {
 
   // ---------------------------------------------------------- touch-match
 
-  /** Portrait phone → 844x390 landscape frame that plays touch-match (mirrors smokeTurned). */
-  private async touchMatchTurned(): Promise<void> {
+  /**
+   * Portrait phone → landscape frame that plays a touch scenario. For `touch-match` the frame starts upright
+   * (390x844, at=phone) so Rotate pause is proven, then turns to 844x390 and the match resumes; other scenarios
+   * open already turned (mirrors smokeTurned).
+   */
+  private async touchMatchTurned(scenario = 'touch-match'): Promise<void> {
     const t = this.t;
-    this.logViewport(true);
+    // Only insist on a phone-sized outer when we are already on one; a desktop runner frames a phone twin.
+    if (Math.min(innerWidth, innerHeight) <= 560) this.logViewport(true);
     type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; metrics?: Record<string, number>; outcome: string; state?: { progress?: number } };
+    const proveRotate = scenario === 'touch-match';
     const back = document.createElement('div');
     back.style.cssText = 'position:fixed;inset:0;background:#1c0d06 radial-gradient(ellipse at 50% 45%,#8a3010 0%,#3a1608 45%,#100e0c 80%);z-index:2147483647;overflow:hidden';
     const frame = document.createElement('iframe');
-    frame.title = 'Phone window turned to landscape (touch-match playtest)';
+    frame.title = proveRotate ? `Phone window (${scenario} playtest)` : `Phone window turned to landscape (${scenario} playtest)`;
     frame.allow = 'autoplay';
-    const w = 844;
-    const h = 390;
-    const k = Math.min(innerWidth / w, innerHeight / h, 1);
-    frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:transparent`;
+    const turn = (w: number, h: number) => {
+      const k = Math.min(innerWidth / w, innerHeight / h, 1);
+      frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:transparent`;
+    };
+    if (proveRotate) turn(390, 844);
+    else turn(844, 390);
     back.appendChild(frame);
     const q = new URLSearchParams(location.search);
-    q.set('playtest', 'touch-match');
-    q.set('at', 'phone-turned');
+    q.set('playtest', scenario);
+    q.set('at', proveRotate ? 'phone' : 'phone-turned');
     if (!q.has('seed')) q.set('seed', String(this.options.seed ?? 1));
     frame.src = `${location.pathname}?${q.toString()}`;
     document.body.appendChild(back);
@@ -2430,15 +4155,16 @@ class Run {
     let seen = 0;
     const seenProblems = new Set<string>();
     let heart = 0;
+    const has = (type: string) => !!api()?.report()?.events.some((e) => e.type === type);
     const forward = (): Inner | null => {
       const r = api()?.report() ?? null;
       if (!r) return null;
-      for (const e of r.events.slice(seen)) if (e.type !== 'problem' && e.type !== 'start' && e.type !== 'start-at') t.event(e.type, `${e.detail ?? ''} [landscape frame]`);
+      for (const e of r.events.slice(seen)) if (e.type !== 'problem' && e.type !== 'start' && e.type !== 'start-at') t.event(e.type, `${e.detail ?? ''} [${proveRotate && !has('phone-turned') ? 'portrait' : 'landscape'} frame]`);
       seen = r.events.length;
       for (const p of r.problems) {
         if (!seenProblems.has(p.message)) {
           seenProblems.add(p.message);
-          t.problem('bug', `${p.message} [landscape frame]`);
+          t.problem('bug', `${p.message} [phone frame]`);
         }
       }
       if (r.metrics) {
@@ -2451,18 +4177,38 @@ class Run {
       return r;
     };
     try {
-      t.event('phone-turned', `the portrait phone window (${innerWidth}x${innerHeight}) turned to ${w}x${h} (landscape) for touch-match`);
-      t.progress(0.05);
+      if (proveRotate) {
+        t.event('phone-upright', 'a phone-sized window, 390x844 (portrait), opened over the game for touch-match');
+        t.progress(0.04);
+        await t.until(() => {
+          heart += 1;
+          if (heart === 1 || heart % 100 === 0) t.event('phone-turn-wait', `waiting for Rotate pause (${Math.round(heart / 20)} s)`);
+          forward();
+          return has('rotate-paused') || (api()?.report()?.problems.length ?? 0) > 0 || api()?.report()?.outcome === 'error';
+        }, 180000, 'the upright phone to pause under Rotate');
+        forward();
+        await t.wait(800);
+        turn(844, 390);
+        t.event('phone-turned', `the phone window turned to 844x390 (landscape) for ${scenario}`);
+      } else {
+        t.event('phone-turned', `the portrait phone window (${innerWidth}x${innerHeight}) turned to 844x390 (landscape) for ${scenario}`);
+      }
+      t.progress(0.08);
+      heart = 0;
       await t.until(() => {
         heart += 1;
-        if (heart === 1 || heart % 100 === 0) t.event('phone-turn-wait', `waiting for the landscape touch-match (${Math.round(heart / 20)} s)`);
+        if (heart === 1 || heart % 100 === 0) t.event('phone-turn-wait', `waiting for the landscape ${scenario} (${Math.round(heart / 20)} s)`);
         const r = forward();
         return !!r && (r.outcome === 'done' || r.outcome === 'error' || r.outcome === 'stuck' || r.outcome === 'won' || r.outcome === 'lost');
-      }, 300000, 'the turned phone to play touch-match');
+      }, 300000, `the turned phone to play ${scenario}`);
       const r = forward();
       const out = r?.outcome;
+      if (proveRotate) {
+        if (!has('rotate-prompt')) t.problem('bug', 'the Rotate prompt was never seen at 390x844');
+        if (!has('rotate-hidden') || !has('rotate-resumed')) t.problem('bug', 'the prompt did not hide and play resume at 844x390');
+      }
       if (out !== 'done' && out !== 'won' && out !== 'lost') {
-        t.problem('bug', `touch-match in the turned phone ended ${out ?? 'without a report'}`);
+        t.problem('bug', `${scenario} in the turned phone ended ${out ?? 'without a report'}`);
         t.progress(1);
         t.finish(out === 'stuck' || out === 'error' ? out : 'stuck');
         return;
@@ -2486,40 +4232,45 @@ class Run {
   }
 
   /**
-   * Touch match: at phone size, menus to the results screen with only pointer events on the on-screen controls
-   * (input/touch.ts: the Move stick and Jump, Attack, Special, Shield, Smash, plus Pause). The bot's decisions are
-   * turned into touches (stick position, buttons held), nothing goes to the keyboard, the virtual pad or the sim.
-   * First every control is checked (present, ≥44 px, inside the window and the safe area, above the canvas / not
-   * covered), then a short drill presses each one and checks the game read it, then the bot plays on through touch
-   * to the results. Portrait 390x844 first walks menu / Settings for clipping screenshots, then turns to 844x390
-   * for the match (same pattern as smoke).
+   * Touch match: at phone size, menus to results with only pointer events on the floating stick and icon buttons
+   * (input/touch.ts). Portrait opens a framed run that proves Rotate pause at 390x844 then turns to 844x390
+   * (absorbs the rotate phone proof). Landscape drills the floating stick, flick-jump, ≥44 px icon arc (Attack
+   * largest), reports Low fps, then the bot plays through touch to results.
    */
   async touchMatch(): Promise<void> {
     const t = this.t;
-    // Portrait phone: clip-check menus upright, then turn to an 844x390 frame so Rotate cannot hold the match.
-    if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+    // Outer portrait (or a desktop runner): frame the phone upright → Rotate pause → landscape match.
+    if (this.options.at !== 'phone' && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
       this.logViewport(true);
       this.useTap = true;
       forceTouchUi(true);
       try {
         await this.toMainMenu();
         await this.phoneUiClipTour('portrait');
-        t.progress(0.08);
+        t.progress(0.06);
       } finally {
         this.useTap = false;
         forceTouchUi(false);
       }
       return this.touchMatchTurned();
     }
+    if (this.options.at !== 'phone' && this.options.at !== 'phone-turned' && Math.min(innerWidth, innerHeight) > 560) {
+      // Desktop-sized window: still prove the phone path in a framed twin.
+      return this.touchMatchTurned();
+    }
     this.logViewport(true);
     this.useTap = true;
     forceTouchUi(true);
+    const gfxWas = localStorage.getItem(GFX_KEY);
     try {
       await this.toMainMenu();
-      // Landscape (or already-turned) phone: clip-check every listed screen at this size before the fight.
-      if (this.options.at === 'phone-turned' || this.isPhone()) await this.phoneUiClipTour(innerWidth > innerHeight ? 'landscape' : 'portrait');
+      const upright = innerHeight > innerWidth;
+      if (this.options.at === 'phone-turned' || this.isPhone() || this.options.at === 'phone') {
+        await this.phoneUiClipTour(upright ? 'portrait' : 'landscape');
+      }
       t.progress(0.05);
-      // Clipping on select / stages / VS is hooked through startVersus.
+      // Low quality for the fps acceptance check (phones default Low; force it so the metric is real).
+      setGraphics({ quality: 'low', glow: false });
       this.onVersus = async () => {
         await this.screen('versus', 15000);
         await this.wait(400);
@@ -2527,18 +4278,43 @@ class Run {
         t.event('phone-shot', `VS screen at ${innerWidth > innerHeight ? 'landscape' : 'portrait'} ${innerWidth}x${innerHeight}`);
         await this.wait(2000);
       };
+      forceTouchPrompt(true);
       await this.startVersus(2);
       this.onVersus = null;
-      t.progress(0.15);
-      // Upright on a phone the Rotate prompt holds the match: give a runner time to turn the window.
-      if (rotateShowing()) {
-        t.event('touch-rotate-wait', `the Rotate prompt is up at ${innerWidth}x${innerHeight}; waiting for landscape`);
+      t.progress(0.12);
+
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      // Rotate proof (at=phone upright, or any upright phone): prompt covers, match paused; then wait for landscape.
+      if (upright || rotateShowing()) {
+        const prompt = () => document.getElementById('rotate-prompt');
+        const size = () => `${innerWidth}x${innerHeight}`;
+        await this.wait(400);
+        const p = prompt();
+        const r = p?.getBoundingClientRect();
+        const covered = !!p && !p.hidden && document.elementFromPoint(innerWidth / 2, innerHeight / 2)?.closest('#rotate-prompt') === p;
+        if (!p || !rotateShowing() || !r || r.width < innerWidth - 1 || r.height < innerHeight - 1 || !covered || !/Rotate your phone/i.test(p.textContent ?? '')) {
+          t.problem('bug', `no full-screen "Rotate your phone" prompt over the game at ${size()}`);
+        } else t.event('rotate-prompt', `"Rotate your phone" covers the game at ${size()}`);
+        const before = frame();
+        await t.wait(1500);
+        if (frame() !== before) t.problem('bug', `the match kept running under the Rotate prompt at ${size()} (frame ${before} -> ${frame()})`);
+        else t.event('rotate-paused', `the match is paused under the prompt at ${size()} (frame ${before})`);
+        t.progress(0.14);
         try {
-          await t.until(() => !rotateShowing(), 30000, 'the window to turn to landscape');
+          await t.until(() => !rotateShowing() && innerWidth >= innerHeight, 120000, 'the window to turn to landscape');
         } catch (e) {
           if (String(e).includes('stopped')) throw e;
-          t.problem('bug', `touch-match could not play: the Rotate prompt stayed up at ${innerWidth}x${innerHeight} (run it landscape, 844x390)`);
+          t.problem('bug', `touch-match could not play: the Rotate prompt stayed up at ${size()} (run it landscape, 844x390)`);
+          t.finish('stuck');
+          return;
         }
+        await t.wait(300);
+        if (prompt() && !prompt()!.hidden) t.problem('bug', `the Rotate prompt is still up at ${size()}`);
+        else t.event('rotate-hidden', `no Rotate prompt at ${size()}`);
+        const resumeAt = frame();
+        await this.fight(() => frame() >= resumeAt + 30, 40000);
+        if (frame() > resumeAt) t.event('rotate-resumed', `play goes on at ${size()} (frame ${resumeAt} -> ${frame()})`);
+        else t.problem('bug', `the match did not resume at ${size()}`);
       }
 
       const root = touchOverlay() ?? this.q('.touch');
@@ -2548,10 +4324,10 @@ class Run {
         return;
       }
       if (root.hidden) {
-        // A desktop browser keeps the overlay hidden (no coarse pointer): show it as a phone does.
         t.event('touch-forced', 'not a touch device: the overlay was shown for the run');
         root.hidden = false;
       }
+      document.body.classList.add('touch-ui');
       t.event('touch-visible', `touch overlay shown (hidden=${root.hidden}) above canvas at z-index ${getComputedStyle(root).zIndex} in ${innerWidth}x${innerHeight}`);
       const CONTROLS: { key: string; sel: string; name: string }[] = [
         { key: 'stick', sel: '.touch-stick', name: 'Move stick' },
@@ -2562,7 +4338,6 @@ class Run {
         { key: 'smash', sel: '.touch-btn.smash', name: 'Smash' },
         { key: 'pause', sel: '.touch-pause', name: 'Pause' },
       ];
-      // Option drop: hides a control first, to see the missing-control problem.
       const dropped = typeof this.options.drop === 'string' ? this.options.drop : '';
       const dropEl = dropped ? root.querySelector<HTMLElement>(CONTROLS.find((c) => c.key === dropped)?.sel ?? '.none') : null;
       if (dropEl) dropEl.style.display = 'none';
@@ -2571,18 +4346,16 @@ class Run {
         return el && el.getClientRects().length > 0 ? el : null;
       };
 
-      // 1. Every control is there, ≥44 px, on screen, clear of the safe area and not covered (incl. by the canvas).
       const inset = this.safeInsets();
       const stage = document.getElementById('stage');
       const stageZ = stage ? Number(getComputedStyle(stage).zIndex) || 0 : 0;
       const touchZ = Number(getComputedStyle(root).zIndex) || 0;
-      if (touchZ <= stageZ) {
-        t.problem('bug', `touch overlay z-index ${touchZ} is not above the Babylon canvas z-index ${stageZ}`);
-      } else {
-        t.event('touch-z-order', `touch z-index ${touchZ} above canvas z-index ${stageZ}`);
-      }
+      if (touchZ <= stageZ) t.problem('bug', `touch overlay z-index ${touchZ} is not above the Babylon canvas z-index ${stageZ}`);
+      else t.event('touch-z-order', `touch z-index ${touchZ} above canvas z-index ${stageZ}`);
       let bad = 0;
       let minSide = Infinity;
+      let attackSide = 0;
+      const otherSides: number[] = [];
       for (const c of CONTROLS) {
         const el = find(c.key);
         if (!el) {
@@ -2590,9 +4363,18 @@ class Run {
           t.problem('bug', `touch control missing: ${c.name} (${c.sel}) is not on the screen`);
           continue;
         }
+        if (c.key !== 'stick' && c.key !== 'pause') {
+          const label = el.getAttribute('aria-label') || '';
+          if (!el.querySelector('svg') || label !== c.name) {
+            bad++;
+            t.problem('bug', `touch ${c.name} needs an icon and aria-label="${c.name}" (got "${label}")`);
+          }
+        }
         const r = el.getBoundingClientRect();
         const side = Math.min(r.width, r.height);
         if (side < minSide) minSide = side;
+        if (c.key === 'attack') attackSide = side;
+        else if (c.key !== 'stick' && c.key !== 'pause') otherSides.push(side);
         const where = `${c.name} at ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)} in ${innerWidth}x${innerHeight}`;
         const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
         if (r.width < 2 || r.height < 2) {
@@ -2613,13 +4395,34 @@ class Run {
           t.problem('bug', `touch control covered: a press on ${where} lands on ${tag}`);
         }
       }
+      if (attackSide > 0 && otherSides.some((s) => s >= attackSide - 0.5)) {
+        bad++;
+        t.problem('bug', `Attack should be the largest touch button (Attack ${Math.round(attackSide)}px, others ${otherSides.map(Math.round).join('/')})`);
+      } else if (attackSide > 0) {
+        t.event('touch-attack-largest', `Attack ${Math.round(attackSide)}px > ${otherSides.map(Math.round).join('/')}`);
+      }
+      // Button circles must not overlap (8 px gap): centre-point hit-tests miss that.
+      {
+        const btns = CONTROLS.filter((c) => c.key !== 'stick' && c.key !== 'pause').map((c) => find(c.key)).filter((el): el is HTMLElement => !!el);
+        for (let i = 0; i < btns.length; i++) {
+          for (let j = i + 1; j < btns.length; j++) {
+            const a = btns[i]!.getBoundingClientRect();
+            const b = btns[j]!.getBoundingClientRect();
+            const dx = a.left + a.width / 2 - (b.left + b.width / 2);
+            const dy = a.top + a.height / 2 - (b.top + b.height / 2);
+            const need = (Math.min(a.width, a.height) + Math.min(b.width, b.height)) / 2 + 8;
+            if (Math.hypot(dx, dy) < need - 0.5) {
+              bad++;
+              t.problem('bug', `touch buttons overlap: ${btns[i]!.getAttribute('aria-label')} and ${btns[j]!.getAttribute('aria-label')} centres ${Math.round(Math.hypot(dx, dy))}px apart (need ≥${Math.round(need)})`);
+            }
+          }
+        }
+      }
       if (Number.isFinite(minSide)) t.metric('touchMinPx', Math.round(minSide));
-      if (!bad) t.event('touch-controls-ok', `all ${CONTROLS.length} controls on screen, ≥44 px (min ${Math.round(minSide)}), clear of the safe area (top ${inset.top}, right ${inset.right}, bottom ${inset.bottom}, left ${inset.left}) and not covered, at ${innerWidth}x${innerHeight}`);
-      // Hold a labeled match frame so Studio's screenshots show the stick and buttons (AC1).
+      if (!bad) t.event('touch-controls-ok', `all ${CONTROLS.length} icon controls on screen, ≥44 px (min ${Math.round(minSide)}), Attack largest, no overlap, clear of the safe area (top ${inset.top}, right ${inset.right}, bottom ${inset.bottom}, left ${inset.left}) at ${innerWidth}x${innerHeight}`);
       t.event('phone-shot', `match touch controls at landscape ${innerWidth}x${innerHeight}`);
       await this.wait(2200);
 
-      // 2. Touches: a finger on the stick and on each button, as pointer events on the control itself.
       let pid = 100;
       const down = new Map<string, { id: number; el: HTMLElement }>();
       const send = (el: HTMLElement, type: string, x: number, y: number, id: number) =>
@@ -2628,7 +4431,6 @@ class Run {
         const el = find('stick');
         if (!el) return;
         const r = el.getBoundingClientRect();
-        // The knob's reach is 50/128 of the stick's width.
         const reach = r.width * (50 / 128);
         const x = r.left + r.width / 2 + (sx / 100) * reach;
         const y = r.top + r.height / 2 - (sy / 100) * reach;
@@ -2674,13 +4476,11 @@ class Run {
         { bit: BTN.C_NEUTRAL | BTN.C_UP | BTN.C_DOWN | BTN.C_LEFT | BTN.C_RIGHT, key: 'smash' },
       ];
       const counts: Record<string, number> = { move: 0, jump: 0, attack: 0, special: 0, shield: 0, smash: 0 };
-      const frame = () => this.game.match()?.state.frame ?? 0;
       const me = () => {
         const m = this.game.match();
         return m && m.player >= 0 ? m.state.fighters[m.player] : null;
       };
       const logged = new Set<string>();
-      /** Counts a touch and logs its event the first time, with what the game's input layer read from it. */
       const note = (what: string, detail: string) => {
         counts[what]++;
         t.add(`touch${what[0].toUpperCase()}${what.slice(1)}s`);
@@ -2691,7 +4491,79 @@ class Run {
       };
       const held = (bit: number) => (readTouch()[2] & bit) !== 0;
 
-      // The drill: each control pressed once, and the input layer must show it was read.
+      // Floating stick: hit-test the left-40% zone (same path as a real thumb), then drag past the edge.
+      {
+        const spawnX = Math.round(innerWidth * 0.22);
+        const spawnY = Math.round(innerHeight * 0.62);
+        const hit = document.elementFromPoint(spawnX, spawnY) as HTMLElement | null;
+        const zone = hit?.closest('.touch-move-zone, .touch-stick') as HTMLElement | null;
+        if (!zone) {
+          t.problem('bug', `left-40% touch at ${spawnX},${spawnY} hits ${hit?.id ? '#' + hit.id : hit?.tagName.toLowerCase() ?? 'nothing'} (want .touch-move-zone)`);
+        }
+        const target = zone ?? root;
+        const id = ++pid;
+        send(target, 'pointerdown', spawnX, spawnY, id);
+        await t.wait(80);
+        const stick = find('stick');
+        const sr = stick?.getBoundingClientRect();
+        const cx = sr ? sr.left + sr.width / 2 : 0;
+        const cy = sr ? sr.top + sr.height / 2 : 0;
+        if (!stick || !sr || Math.hypot(cx - spawnX, cy - spawnY) > Math.max(28, (sr?.width ?? 0) * 0.4)) {
+          t.problem('bug', `floating stick did not spawn under the left-thumb touch at ${spawnX},${spawnY} (center ${Math.round(cx)},${Math.round(cy)})`);
+        } else {
+          t.event('touch-float-spawn', `stick spawned under thumb at ${Math.round(cx)},${Math.round(cy)} from left-40% touch ${spawnX},${spawnY}`);
+        }
+        const beforeLeft = sr?.left ?? 0;
+        const dragX = Math.min(innerWidth * 0.38, spawnX + Math.round((sr?.width ?? 100) * 0.7));
+        const dragY = spawnY;
+        send(stick ?? target, 'pointermove', dragX, dragY, id);
+        await t.wait(80);
+        send(stick ?? target, 'pointermove', dragX + 40, dragY, id);
+        await t.wait(80);
+        const after = find('stick')?.getBoundingClientRect();
+        const [rx] = readTouch();
+        if (rx < 40) t.problem('bug', `floating stick drag was not read as move (x=${rx})`);
+        else note('move', `floating stick dragged: read x=${rx}`);
+        if (after && after.left > beforeLeft + 8) {
+          t.event('touch-float-follow', `stick followed the thumb past its edge (left ${Math.round(beforeLeft)} → ${Math.round(after.left)})`);
+        } else {
+          t.event('touch-float-follow', `stick tracked the thumb (left ${Math.round(beforeLeft)} → ${Math.round(after?.left ?? beforeLeft)}, x=${rx})`);
+        }
+        send(stick ?? target, 'pointerup', dragX, dragY, id);
+        await t.wait(100);
+      }
+
+      // Flick jump on the left: quick upward swipe through the move zone (must leave the ground).
+      {
+        const fx = Math.round(innerWidth * 0.2);
+        const fy = Math.round(innerHeight * 0.7);
+        const hit = document.elementFromPoint(fx, fy) as HTMLElement | null;
+        const zone = (hit?.closest('.touch-move-zone, .touch-stick') as HTMLElement | null) ?? root;
+        const id = ++pid;
+        const y0 = me()?.y ?? 0;
+        send(zone, 'pointerdown', fx, fy, id);
+        await t.wait(16);
+        send(find('stick') ?? zone, 'pointermove', fx, fy - 28, id);
+        await t.wait(16);
+        send(find('stick') ?? zone, 'pointerup', fx, fy - 56, id);
+        let leftGround = false;
+        try {
+          await t.until(() => {
+            const f = me();
+            return !!f && (!f.grounded || f.y > y0 + 2);
+          }, 1500, 'flick jump to leave the ground');
+          leftGround = true;
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+        }
+        if (!leftGround) t.problem('bug', 'left-side upward flick did not jump');
+        else {
+          note('jump', 'left-side upward flick jumped');
+          t.event('touch-flick-jump', 'quick upward flick on the left made the fighter jump');
+        }
+        await t.wait(200);
+      }
+
       const drill = async (key: string, bit: number, what: string, label: string) => {
         if (!find(key)) return;
         press(key, true);
@@ -2701,25 +4573,15 @@ class Run {
         press(key, false);
         await t.wait(150);
       };
-      const x0 = me()?.x ?? 0;
-      const fx0 = frame();
-      stickAt(100, 0);
-      await t.wait(500);
-      const [rx, ry] = readTouch();
-      if (rx < 50) t.problem('bug', `Move stick was dragged right but the game read x=${rx} y=${ry}`);
-      else note('move', `Move stick dragged right: read by the game's input (x ${rx})`);
-      await t.until(() => frame() > fx0 + 20, 8000, 'the fighter to move');
-      if (me() && Math.abs(me()!.x - x0) < 1) t.event('touch-move-still', 'the stick was read but the fighter has not moved yet (blocked?)');
-      stickAt(0, 0);
-      await t.wait(100);
-      await drill('jump', BTN.JUMP, 'jump', 'Jump');
+      if (!logged.has('jump')) await drill('jump', BTN.JUMP, 'jump', 'Jump');
       await drill('attack', BTN.ATTACK, 'attack', 'Attack');
       await drill('special', BTN.SPECIAL, 'special', 'Special');
       await drill('shield', BTN.SHIELD, 'shield', 'Shield');
       await drill('smash', BTN.C_NEUTRAL, 'smash', 'Smash');
-      t.progress(0.25);
+      t.progress(0.28);
 
-      // 3. The bot plays on, through touch only, until the results.
+      // Sample Low fps during the fight.
+      const fpsSamples: number[] = [];
       const bot = () => {
         const m = this.game.match();
         if (!m || m.player < 0) return null;
@@ -2737,10 +4599,12 @@ class Run {
         if (!m) return 0.95;
         const stocks = m.setup.stocks;
         const lost = m.state.fighters.reduce((n, f) => n + (stocks - Math.max(0, f.stocks)), 0);
-        return 0.25 + 0.7 * Math.min(1, lost / Math.max(1, (m.state.fighters.length * stocks) / 2));
+        return 0.28 + 0.67 * Math.min(1, lost / Math.max(1, (m.state.fighters.length * stocks) / 2));
       };
       const drive = window.setInterval(() => {
         if (this.disposed) return;
+        const g = this.game.gfxStats?.();
+        if (g && g.quality === 'low' && g.fpsNow > 0) fpsSamples.push(g.fpsNow);
         const x = bot();
         if (!x || x.m.state.over || this.game.phase() !== 'play') {
           releaseAll();
@@ -2776,7 +4640,15 @@ class Run {
         clearInterval(drive);
         releaseAll();
       }
-      t.event('touch-summary', `moves ${counts.move}, jumps ${counts.jump}, attacks ${counts.attack}, specials ${counts.special}, shield drills ${counts.shield}, smash drills ${counts.smash} (all pointer events on the on-screen controls)`);
+      if (fpsSamples.length) {
+        const avg = Math.round(fpsSamples.reduce((a, b) => a + b, 0) / fpsSamples.length);
+        t.metric('fpsMatchLow', avg);
+        t.event('touch-fps-low', `average ${avg} fps on Low (${fpsSamples.length} samples)`);
+        if (avg < 45) t.problem('warning', `average ${avg} fps in Low on a touch match (want at least 45)`);
+      } else {
+        t.problem('bug', 'touch-match got no Low fps samples (gfxStats.fpsNow); Quality Low was forced for the fight');
+      }
+      t.event('touch-summary', `moves ${counts.move}, jumps ${counts.jump}, attacks ${counts.attack}, specials ${counts.special}, shield drills ${counts.shield}, smash drills ${counts.smash} (floating stick + icon buttons)`);
       for (const k of ['move', 'jump', 'attack', 'special'])
         if (!counts[k] && !(dropped && (dropped === k || (k === 'move' && dropped === 'stick')))) t.problem('bug', `no touch ${k} happened in the match`);
       const won = await this.results();
@@ -2792,8 +4664,17 @@ class Run {
     } finally {
       this.useTap = false;
       forceTouchUi(false);
+      forceTouchPrompt(false);
       this.onVersus = null;
       setVirtualPad(null);
+      if (gfxWas === null) localStorage.removeItem(GFX_KEY);
+      else localStorage.setItem(GFX_KEY, gfxWas);
+      try {
+        const g = gfxWas ? (JSON.parse(gfxWas) as { quality?: 'high' | 'low'; glow?: boolean; fps?: boolean }) : null;
+        if (g) setGraphics(g);
+      } catch {
+        // Put-back best effort.
+      }
     }
   }
 
@@ -3288,6 +5169,135 @@ class Run {
    * chapter) is played from the map through its live intro scene and the match's first seconds, and left from Pause once
    * Blog Man has spoken. Events `call-<kind>`, `call-kinds`, `call-repeat`, `blog-intro`, `blog-intros`.
    */
+  /**
+   * Season 1 fighter voice (effort / hurt / KO / taunt). Setup unlocks the Season 1 card, then a versus 1v1
+   * (default Exit Punk vs Break; options fighter / foe). Logs every `dod:fighter-voice` bark, presses T for a taunt,
+   * and checks no overlap and no effort within 1.5 s from the same fighter. On a portrait phone it turns to landscape
+   * like smoke / touch-match.
+   */
+  async fighterVoice(): Promise<void> {
+    const t = this.t;
+    if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      return this.touchMatchTurned('fighter-voice');
+    }
+    this.logViewport(this.phoneScenario());
+
+    type V = { who: string; kind: string; id: string; text: string; audio: string; at: number };
+    const voices: V[] = [];
+    const lastEnd = new Map<string, number>();
+    const lastEffort = new Map<string, number>();
+    const onVoice = (e: Event) => {
+      const d = (e as CustomEvent).detail as V;
+      voices.push(d);
+      t.event(`voice-${d.kind}`, `${d.who}: "${d.text}" (${d.id} → ${d.audio})`);
+      if (!d.audio || !d.audio.includes(`/audio/voice/${d.id}`)) {
+        t.problem('bug', `fighter voice ${d.id} is not from that fighter's take under audio/voice/`);
+      }
+      const prevEnd = lastEnd.get(d.who) ?? 0;
+      if (d.at < prevEnd - 20) t.problem('bug', `${d.who}: two lines overlapped (${d.kind} at ${Math.round(d.at)} vs busy until ${Math.round(prevEnd)})`);
+      lastEnd.set(d.who, d.at + 400);
+      if (d.kind === 'effort') {
+        const prev = lastEffort.get(d.who);
+        if (prev !== undefined && d.at - prev < 1480) {
+          t.problem('bug', `${d.who}: effort repeated within 1.5 s (${Math.round(d.at - prev)} ms)`);
+        }
+        lastEffort.set(d.who, d.at);
+      }
+    };
+    window.addEventListener('dod:fighter-voice', onVoice);
+
+    const koTexts = SEASON_ONE.map((id) => {
+      const l = VOICE.lines.find((x) => x.id === `fighter.${id}.ko`);
+      return { id, text: l?.text ?? '' };
+    });
+    const shared = koTexts.filter((a, i) => koTexts.findIndex((b) => b.text === a.text) !== i);
+    if (shared.length) t.problem('bug', `Season 1 fighters share KO text: ${shared.map((s) => `${s.id}="${s.text}"`).join(', ')}`);
+    else t.event('ko-texts-unique', '13 Season 1 KO cries, all different');
+
+    const meId = typeof this.options.fighter === 'string' ? this.options.fighter : 'exit-punk';
+    const taunt = VOICE.lines.find((l) => l.id === `fighter.${meId}.taunt`);
+    if (taunt) {
+      const words = taunt.text.trim().split(/\s+/).filter(Boolean).length;
+      if (words > 4) t.problem('bug', `taunt "${taunt.text}" has ${words} words (max 4)`);
+      else t.event('taunt-words', `"${taunt.text}" (${words} words)`);
+    }
+
+    const savedUnlocks = [...unlocks()];
+    for (const id of SEASON_ONE) if (LOCKABLE.has(id)) unlocks().add(id);
+    saveUnlocks(unlocks());
+
+    try {
+      if (!this.options.fighter) this.options.fighter = 'exit-punk';
+      if (!this.options.foe) this.options.foe = 'break';
+      await this.toMainMenu();
+      t.progress(0.08);
+      await this.startVersus(2);
+      t.progress(0.15);
+      await this.matchLive();
+      // Press T for the player's taunt (no touch button on phones).
+      if (!this.isPhone()) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT', key: 't', bubbles: true }));
+        await this.t.wait(50);
+        window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyT', key: 't', bubbles: true }));
+        // Event fires after the take starts decoding; give the buffer a moment.
+        await this.t.until(() => voices.some((v) => v.kind === 'taunt'), 3000, 'taunt bark after T').catch(() => null);
+        if (!voices.some((v) => v.kind === 'taunt')) t.problem('bug', 'pressing T did not play a taunt line');
+        else t.event('taunt-key', `T played ${voices.filter((v) => v.kind === 'taunt').map((v) => v.id).join(', ')}`);
+      }
+      this.progressNow = () => {
+        const m = this.game.match();
+        if (!m) return 0.9;
+        const stocks = m.setup.stocks;
+        const lost = m.state.fighters.reduce((n, f) => n + (stocks - Math.max(0, f.stocks)), 0);
+        return 0.15 + 0.7 * Math.min(1, lost / Math.max(1, (m.state.fighters.length * stocks) / 2));
+      };
+      await this.fight(() => false, 4 * 60 * 1000);
+      if (this.game.match()?.state.over) await this.results().catch(() => null);
+      else await this.quitFromPause('main');
+      if (currentScreen() === 'results') await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu').catch(() => null);
+
+      const byWho = new Map<string, Set<string>>();
+      for (const v of voices) {
+        if (!byWho.has(v.who)) byWho.set(v.who, new Set());
+        byWho.get(v.who)!.add(v.kind);
+      }
+      const pair = [String(this.options.fighter || 'exit-punk'), String(this.options.foe || 'break')];
+      for (const who of pair) {
+        const kinds = byWho.get(who) ?? new Set();
+        for (const need of ['effort', 'hurt', 'ko'] as const) {
+          if (!kinds.has(need)) t.problem('bug', `${who}: no ${need} bark logged in this fight`);
+          else t.event(`has-${need}`, `${who} played a ${need}`);
+        }
+        // Preflight: every Season 1 take file for this fighter must exist (404s fail even if no bark fired).
+        if (SEASON_ONE.includes(who)) {
+          const ids = [
+            `fighter.${who}.ko`,
+            `fighter.${who}.taunt`,
+            ...[0, 1, 2].map((i) => `fighter.${who}.effort.${i}`),
+            ...[0, 1].map((i) => `fighter.${who}.hurt.${i}`),
+          ];
+          for (const lid of ids) {
+            const line = VOICE.lines.find((x) => x.id === lid);
+            if (!line?.audio) t.problem('bug', `${lid}: missing from voice catalog`);
+            else if (!(await exists(line.audio))) t.problem('bug', `${who}: voice file missing (404): ${line.audio}`);
+          }
+        }
+      }
+      t.metric('voiceEfforts', voices.filter((v) => v.kind === 'effort').length);
+      t.metric('voiceHurts', voices.filter((v) => v.kind === 'hurt').length);
+      t.metric('voiceKos', voices.filter((v) => v.kind === 'ko').length);
+      t.metric('voiceTaunts', voices.filter((v) => v.kind === 'taunt').length);
+      t.event('fighter-voice-summary', `${voices.length} barks: ${[...byWho.entries()].map(([w, k]) => `${w}[${[...k].join(',')}]`).join('; ')}`);
+    } finally {
+      window.removeEventListener('dod:fighter-voice', onVoice);
+      unlocks().clear();
+      for (const id of savedUnlocks) unlocks().add(id);
+      saveUnlocks(unlocks());
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   async commentary(): Promise<void> {
     const t = this.t;
     const calls: { kind: string; id: string; text: string; who: string }[] = [];
@@ -3560,7 +5570,7 @@ class Run {
       const y = r.top + r.height / 2;
       const target = (doc()!.elementFromPoint(x, y) as HTMLElement | null) ?? el;
       if (!el.contains(target)) t.problem('bug', `${what} is covered: a press on it lands on ${target.tagName.toLowerCase()}`);
-      const init = { pointerType: 'mouse', pointerId: 1, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, clientX: x, clientY: y };
+      const init = { pointerType: touchDevice() ? 'touch' : 'mouse', pointerId: 1, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, clientX: x, clientY: y };
       t.log(`press ${what}`);
       target.dispatchEvent(new PointerEvent('pointerdown', init));
       await t.wait(60);
@@ -3595,8 +5605,66 @@ class Run {
     };
     const checkCredit = () => checkLink('.footer-credit a', HAWKES_GEN, 'Powered by HAWKES GEN', 'Powered by HAWKES GEN');
 
+    /** What the landing page tells a new player is true (counts from the game's own data) and fits the window. */
+    const checkLanding = async () => {
+      const d = doc()!;
+      const w = frame.contentWindow!;
+      const text = (sel: string) => [...d.querySelectorAll<HTMLElement>(sel)].map((e) => e.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+      const facts = text('.facts li');
+      const cards = text('.feature');
+      const shown = [...facts, ...cards].join(' | ');
+      const og = d.querySelector<HTMLMetaElement>('meta[property="og:description"]')?.content ?? '';
+      const desc = d.querySelector<HTMLMetaElement>('meta[name="description"]')?.content ?? '';
+      const want = { fighters: CHARACTERS.length, stages: STAGES.length, episodes: CHAPTERS.length, seasons: SEASONS.length };
+      t.event('landing-want', JSON.stringify(want));
+      const has = (hay: string, re: RegExp, what: string) => {
+        if (!re.test(hay)) t.problem('bug', `the landing page does not say ${what}`);
+      };
+      has(facts.join(' | '), new RegExp(`\\b${want.fighters} fighters, ${want.stages} stages`), `${want.fighters} fighters, ${want.stages} stages in the facts`);
+      has(facts.join(' | '), new RegExp(`\\b${want.seasons}-season.*\\b${want.episodes}\\b.*episodes`), `${want.episodes} episodes across ${want.seasons} seasons in the facts`);
+      has(facts.join(' | '), /online/i, 'online with ratings in the facts');
+      has(facts.join(' | '), /phone/i, 'phone / touch in the facts');
+      has(cards.join(' | '), new RegExp(`\\b${want.episodes} episodes across ${want.seasons} seasons`), `${want.episodes} episodes across ${want.seasons} seasons in a feature card`);
+      has(og + ' ' + desc, new RegExp(`\\b${want.fighters} fighters`), `${want.fighters} fighters in the share card and description`);
+      has(og + ' ' + desc, new RegExp(`\\b${want.stages} stages`), `${want.stages} stages in the share card and description`);
+      if (/\bcoming\b|one stage|eight chapters|room codes/i.test(shown + ' ' + og + ' ' + desc)) t.problem('bug', 'the landing page still carries a stale claim (Coming, one stage, eight chapters or room codes)');
+      if (d.querySelector('.soon')) t.problem('bug', 'a Coming tag is still on the landing page');
+      if (/<!--|dod:/.test(og + desc + d.querySelector('picture img')?.getAttribute('alt'))) t.problem('bug', 'a generator marker leaked into a meta tag or alt text');
+      t.event('landing-facts', `${facts.length} facts, ${cards.length} feature cards: ${shown.slice(0, 300)}`);
+
+      // Fit: no sideways scroll, no clipped text, facts and cards in one column on a phone, Play above the fold.
+      d.documentElement.scrollTop = 0;
+      await t.wait(300);
+      const root = d.documentElement;
+      if (root.scrollWidth > root.clientWidth + 1) t.problem('bug', `the landing page scrolls sideways (${root.scrollWidth} wide in ${root.clientWidth})`);
+      const clipped = [...d.querySelectorAll<HTMLElement>('.facts li, .feature, .feature h2, .feature p, .kicker, .logo, .logo span, .tagline, .cta-row a')].filter((e) => {
+        const r = e.getBoundingClientRect();
+        return r.width > 0 && (e.scrollWidth > e.clientWidth + 1 || r.right > w.innerWidth + 1 || r.left < -1);
+      });
+      if (clipped.length) t.problem('bug', `landing text is clipped or runs off the screen (${clipped.map((e) => e.tagName.toLowerCase() + '.' + e.className).slice(0, 3).join(', ')})`);
+      const phone = w.innerWidth <= 520;
+      const col = (sel: string) => new Set([...d.querySelectorAll<HTMLElement>(sel)].map((e) => Math.round(e.getBoundingClientRect().left)));
+      if (phone) {
+        if (col('.facts li').size !== 1) t.problem('bug', `the facts are not in one column at ${w.innerWidth}px`);
+        if (col('.feature').size !== 1) t.problem('bug', `the feature cards are not in one column at ${w.innerWidth}px`);
+      }
+      const playBtn = d.querySelector<HTMLElement>('.landing-copy .play');
+      const pr = playBtn?.getBoundingClientRect();
+      if (!pr) t.problem('bug', 'no Play button in the landing hero');
+      else {
+        if (pr.bottom > w.innerHeight || pr.top < 0) t.problem('bug', `the Play button is below the fold (bottom ${Math.round(pr.bottom)} of ${w.innerHeight})`);
+        if (pr.height < 44 || pr.width < 44) t.problem('bug', `the Play button is ${Math.round(pr.width)}x${Math.round(pr.height)}, under 44x44`);
+      }
+      const factsBottom = d.querySelector('.facts')?.getBoundingClientRect().bottom ?? 0;
+      t.metric('landingFactsBottom', Math.round(factsBottom));
+      t.metric('landingPlayBottom', Math.round(pr?.bottom ?? 0));
+      t.event('landing-fit', `${w.innerWidth}x${w.innerHeight}${touchDevice() ? ' touch' : ''}: Play bottom ${Math.round(pr?.bottom ?? 0)}, facts bottom ${Math.round(factsBottom)}, no sideways scroll, ${phone ? 'one column' : 'wide layout'}`);
+      await t.wait(1500);
+    };
+
     try {
       await loaded('/', 'the landing page');
+      await checkLanding();
       await checkLink('a[data-hawkes-parent]', HAWKES_BIOMEDICAL, 'Hawkes Biomedical', 'Hawkes Biomedical');
       await checkCredit();
       t.progress(0.25);
@@ -3679,6 +5747,13 @@ class Run {
       [MOVE.DSMASH, () => packInput(0, 0, BTN.C_DOWN)],
       [MOVE.NSPECIAL, () => packInput(0, 0, BTN.SPECIAL)],
       [MOVE.UPB, () => packInput(0, 100, BTN.SPECIAL)],
+      // A fighter with its own kit has a side and a down special on the stick; without one they are the neutral special.
+      ...(CHARACTERS[me()?.char ?? 0]?.specials
+        ? ([
+            [MOVE.SSPECIAL, () => packInput(side(), 0, BTN.SPECIAL)],
+            [MOVE.DSPECIAL, () => packInput(0, -100, BTN.SPECIAL)],
+          ] as [number, () => number][])
+        : []),
     ];
     const air: [number, () => number][] = [
       [MOVE.NAIR, () => packInput(0, 0, BTN.ATTACK)],
@@ -3694,6 +5769,12 @@ class Run {
       await hold(input(), 2);
       await hold(NO_INPUT, 3);
       if (!this.movesSeen.has(move)) failed.push(MOVE_NAMES[move]);
+      // Every special is logged: slot, name, archetype, and whether it came out.
+      if (SPECIAL_MOVES.includes(move)) {
+        const mv = CHARACTERS[me()?.char ?? 0].moves[move];
+        this.t.event('special', `${who}: ${MOVE_NAMES[move]} "${mv.name}" (${kindOf(mv)}) ${this.movesSeen.has(move) ? 'came out' : 'did NOT come out'}`);
+        if (this.movesSeen.has(move)) this.t.add('specialsSeen');
+      }
     }
     for (const [move, input] of air) {
       await settle();
@@ -3712,6 +5793,101 @@ class Run {
 }
 
 // ---------------------------------------------------------------- helpers
+
+/** A way to drive a fighter's stick and Special button the way a player does: the keyboard, or the on-screen controls. */
+export interface Pad { stick(sx: number, sy: number): void; special(on: boolean): void; button(name: 'attack' | 'shield', on: boolean): void; release(): void }
+export function makeKeyboardPad(): Pad {
+  const on = new Set<string>();
+  const set = (a: string, v: boolean) => {
+    if (v === on.has(a)) return;
+    if (v) on.add(a);
+    else on.delete(a);
+    pressAction(a, v);
+  };
+  return {
+    stick: (sx, sy) => {
+      set('left', sx < 0);
+      set('right', sx > 0);
+      set('down', sy < 0);
+      set('up', sy > 0);
+    },
+    special: (v) => set('special', v),
+    button: (name, v) => set(name, v),
+    release: () => {
+      for (const a of [...on]) set(a, false);
+    },
+  };
+}
+
+export function makeTouchPad(): Pad | null {
+  const root = touchOverlay() ?? document.querySelector<HTMLElement>('.touch');
+  if (!root) return null;
+  if (root.hidden) root.hidden = false;
+  const stickEl = root.querySelector<HTMLElement>('.touch-stick');
+  const specialEl = root.querySelector<HTMLElement>('.touch-btn.special');
+  if (!stickEl || !specialEl) return null;
+  let stickId = -1;
+  let specialId = -1;
+  const btnIds: Record<string, number> = {};
+  let pid = 200;
+  const send = (el: HTMLElement, type: string, x: number, y: number, id: number) =>
+    el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: id, isPrimary: id === 201, button: 0, buttons: type === 'pointerup' ? 0 : 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y }));
+  return {
+    stick: (sx, sy) => {
+      const r = stickEl.getBoundingClientRect();
+      // The knob's reach is 50/128 of the stick's width: a push of 100 is all the way over.
+      const reach = r.width * (50 / 128);
+      const x = r.left + r.width / 2 + (sx / 100) * reach;
+      const y = r.top + r.height / 2 - (sy / 100) * reach;
+      if (sx === 0 && sy === 0) {
+        if (stickId >= 0) send(stickEl, 'pointerup', x, y, stickId);
+        stickId = -1;
+      } else if (stickId < 0) {
+        stickId = ++pid;
+        send(stickEl, 'pointerdown', x, y, stickId);
+      } else send(stickEl, 'pointermove', x, y, stickId);
+    },
+    special: (v) => {
+      const r = specialEl.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      if (v && specialId < 0) {
+        specialId = ++pid;
+        send(specialEl, 'pointerdown', x, y, specialId);
+      } else if (!v && specialId >= 0) {
+        send(specialEl, 'pointerup', x, y, specialId);
+        specialId = -1;
+      }
+    },
+    // Attack and Shield are touched at the same moment with two fingers: the grab.
+    button: (name, v) => {
+      const el = root.querySelector<HTMLElement>(`.touch-btn.${name}`);
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      if (v && !(name in btnIds)) {
+        btnIds[name] = ++pid;
+        send(el, 'pointerdown', x, y, btnIds[name]);
+      } else if (!v && name in btnIds) {
+        send(el, 'pointerup', x, y, btnIds[name]);
+        delete btnIds[name];
+      }
+    },
+    release: () => {
+      for (const [name, id] of Object.entries(btnIds)) {
+        const el = root.querySelector<HTMLElement>(`.touch-btn.${name}`);
+        if (el) send(el, 'pointerup', 0, 0, id);
+      }
+      for (const k of Object.keys(btnIds)) delete btnIds[k];
+      if (specialId >= 0) send(specialEl, 'pointerup', 0, 0, specialId);
+      specialId = -1;
+      if (stickId >= 0) send(stickEl, 'pointerup', 0, 0, stickId);
+      stickId = -1;
+    },
+  };
+}
+
 
 const HAWKES_GEN = 'https://hawkesgen.ai';
 const HAWKES_BIOMEDICAL = 'https://hawkesbiomedical.com';
