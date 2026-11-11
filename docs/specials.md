@@ -40,12 +40,14 @@ cloned and hashed with the rest, so rollback and the desync hash hold). The rend
 flashes. `src/game/test/specials.test.ts` has a test and a rollback replay for each archetype; the `specials`
 playtest scenario plays Exit Punk's kit with the keyboard or the touch overlay.
 
-## Season 1 kits, hitbox fit and character select
+## All 33 kits, hitbox fit and character select
 
-The 13 Season 1 fighters (`exit-punk`, `kaelen`, `break`, `dj-wont-read`, `shutup-bot`, `small-weather`, `blog-man`,
-`evil-blue-bird`, `got-ur-back`, `slice`, `ss-boulder`, `stratabots`, `orchestrator`) each have their own `specials`, and no
-two have the same four archetypes (`roster.test.ts` checks it; the `roster` playtest logs each `kit` and
-`kits-distinct`). Names are in `docs/world-bible.md`.
+All 33 fighters in `content/fighters.json` (the 13 of Season 1 and the 20 newer: `ball-person`, `cel`, `chooser`,
+`crosser`, `crystalline-intelligences`, `future-man`, `lapis-man`, `not-an-old-man-yet`, `pyro-singer`, `shark-dude`,
+`slow-rider`, `spider-bot`, `susan`, `the-mechanic`, `try-belt`, `tt`, `uh-me`, `wallit`, `yo-bot`, `yooba`) each have their
+own `specials`, and no two have the same four archetypes (`roster.test.ts` checks it, up recovery variants counted
+in the report and the other three kinds required to differ; the `roster` playtest logs each `special`, each `kit`
+and `kits-distinct`). Names are in `docs/world-bible.md`.
 
 **`hitboxes`** in a fighter's entry (written by `node tools/fit-hitboxes.mjs`, read by `applyHitboxFit` in
 `fighterDefs.ts`): for each of fsmash, usmash, dsmash, nspecial, sspecial, upb and dspecial, one `{ x, y }` per hitbox in
@@ -65,3 +67,16 @@ the tiles and nothing scrolls it away. The `select-specials` playtest taps all 1
 
 **Bot** (`ai/bot.ts`): uses its kit by archetype: a projectile at range down the lane, a trap on the way in, a dash to
 close distance, a counter when the opponent commits to a swing, a grab or flurry up close.
+
+**Bot levels** (`ai/bot.ts`): every chance below grows with the level. A thrown special at range down the lane (also in
+the air), a trap on the way in and one laid at the ledge when the target is off stage, hanging or standing at an
+edge, a dash to close distance, a counter the moment the opponent commits, a grab or flurry up close (and stepping in
+with one), and the recovery: an angled up special is aimed at the ledge, a straight or gliding one leans toward the
+stage. `roster.test.ts` plays every fighter's bot at levels 2, 7 and 8: at level 7 a match uses at least three
+different specials on average, a level 8 bot presses them more often than a level 2 one, and across all 33 fighters
+bot-vs-bot win rates stay between 35% and 65% (balanced with each fighter's `dmg` and `kb`).
+
+**On a phone:** all four specials are the stick plus the one Special button, nothing else. The `roster` playtest with
+`input: "touch"` (390x844, turned to 844x390) has the 20 newer fighters fire all four from the on-screen controls
+(`touch-special`) and the command grab where the kit has one (`touch-grab`: 12 of the 20), and reports
+`specialsOutsideTouch` (0). There is no separate Grab button in the layout; a grab is a special.

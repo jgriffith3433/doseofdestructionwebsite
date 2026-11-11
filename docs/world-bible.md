@@ -167,8 +167,33 @@ Got Ur Back (Bear hug · Lean in · Big hop · Got ur back: a hug grab, a should
 cut · Shred · Slice up · Parry: the fastest flurry and a thin fast cutter), SS Boulder (Hurl rock · Crush · Rock climb
 · Landslide: a slow thrown rock, a grab, a trap), Stratabots (Plate down · Plate stack · Stack up · Plates up: a plate
 trap, a stack of hits, a counter) and the Orchestrator (Baton · Crescendo · Cadenza · Downbeat: a baton counter,
-a crescendo orb, a glide, a downbeat trap). Character select lists them by name with a looping clip. Everyone
-else keeps the shared Neutral and Up special until their own are written.
+a crescendo orb, a glide, a downbeat trap). Character select lists them by name with a looping clip.
+
+The other twenty fighters have their own kits too, so all 33 play differently and no two share the same four kinds.
+Each is the blurb turned into four moves (neutral · side · up · down): Ball Person (Free kick · Slide tackle ·
+Bicycle kick · Nutmeg: an arcing ball, a slide, a grab), Cel (Onion skin · Smear · Multiplane · In-betweens: a
+see-through orb, a smear dash, a glide, five drawn frames in a flurry), Chooser (Opt out · Pick a card · Rebound ·
+Pick up: a counter that declines the hit, a card, a glide), Crosser (Cross counter · Red pen · Reshoot · Final cut: a
+slow, heavy counter, three red strokes, a command grab), Crystalline Intelligences (Seed crystal · Refraction ·
+Lattice · Facet storm: a crystal laid on the floor, a bent beam, a flurry), Future Man (Fast forward · Montage ·
+Jump cut · Next season: a dash, a montage of hits, a trap that arms late and does not say what it is), Lapis Man
+(Lapis shard · Planted staff · Vault · Staff parry: the zoner, with a shard, a staff planted in the floor and a
+parry), Not an Old Man Yet (Collar · Lawn chair · Back in the day · Not yet: a collar grab, a lawn chair left in
+the middle, a counter that says not yet), Pyro Singer (Sparkler · High note · Pyro lift · Pyro cue: the opener's
+sparkler flurry, a note thrown across the stage, a flame trap), Shark Dude (Run in · Chomp · Breach · Not a belt: a
+dash, a bite that is a grab, a counter for the belt that is not a belt), Slow Rider (Throttle · Tailpipe · Long haul
+· Oil slick: a long slow dash, a flame, the longest glide, a slick), Spider Bot (Web · Snare · Rappel · Eight legs:
+a web trap, a low grab, an angled climb, a flurry), Susan (Tendril · Drift · Float · Fog patch: a grab from the fog,
+a slow orb that drifts for a long time, a fog trap), TT (Withdraw · Shell roll · Spin up · Spike strip: the shell
+counter, a heavy roll, a trap), Try Belt (Rewrite · Retakes · Cut away · Tape: a counter that rewrites the hit,
+retakes, a tape trap), Uh Me (Hum · Embrace · Drift up · Calm: a hummed orb, a quiet grab, a calm counter), Wallit
+(Tip jar · Bat lunge · Pop fly · Buyout: a jar on the floor, a bat lunge, a command grab called the buyout), Yo Bot
+(Four-leg grapple · Pop-up · Hover legs · Hits back: a four-legged grab, a pop-up thrown at you, the laptop that hits
+back) and Yooba (Gulp · Tongue lash · Squelch · Goo puddle: a long-reach gulp grab, a tongue lash, a puddle). The
+Mechanic (Wrench throw · Ratchet · Lift · Clamp) keeps to his wrench and nothing from the show: his origin short is
+all he has, and he is still not on the card. Bots use them by kind: a thrown special at range, a trap by the ledge
+or on the way in, a dash to close the distance, a counter when the opponent swings, a grab or flurry up close, an
+angled recovery aimed at the ledge; the higher the CPU level, the more often.
 
 Routines through a broadcast night: walk-ons wait off-camera until their card; the champion stays on between defenses;
 the host reads the sheet; the announcer only speaks once the match is live. Reaction to the player: opponents fight;

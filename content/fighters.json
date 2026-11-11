@@ -14,8 +14,24 @@
     "hop": 150,
     "jumps": 1,
     "frames": 0.95,
-    "kb": 1.04,
-    "reach": 1.05
+    "kb": 1.031,
+    "reach": 1.05,
+    "dmg": 0.983,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Free kick", "clip": "nspecial", "startup": 9, "total": 26, "speed": 8, "life": 90, "r": 26, "dmg": 75, "angle": 35, "bkb": 25, "kbg": 60, "x": 34, "y": 40, "style": "board", "rise": 6, "gravity": 18 },
+      "side": { "type": "dash", "name": "Slide tackle", "clip": "roll", "startup": 5, "duration": 13, "endlag": 14, "speed": 12, "r": 30, "dmg": 85, "angle": 40, "bkb": 30, "kbg": 90, "x": 36, "y": 26 },
+      "up": { "type": "recovery", "variant": "angled", "name": "Bicycle kick", "clip": "upb", "startup": 5, "duration": 14, "endlag": 24, "rise": 15, "speed": 7, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 70 },
+      "down": { "type": "grab", "name": "Nutmeg", "clip": "nspecial", "startup": 9, "endlag": 40, "r": 34, "x": 46, "y": 36, "pull": 30, "dmg": 115, "angle": 50, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 48, "y": 107 }],
+      "usmash": [{ "x": 11, "y": 130 }],
+      "dsmash": [{ "x": 66, "y": 14 }, { "x": -36, "y": 76 }],
+      "nspecial": [{ "x": 36, "y": 41 }],
+      "sspecial": [{ "x": 38, "y": 26 }],
+      "upb": [{ "x": 0, "y": 71 }],
+      "dspecial": [{ "x": 49, "y": 37 }]
+    }
   },
   {
     "id": "blog-man",
@@ -95,9 +111,24 @@
     "hop": 150,
     "jumps": 3,
     "frames": 1.02,
-    "dmg": 0.86,
-    "kb": 0.96,
-    "reach": 1.1
+    "dmg": 1.036,
+    "kb": 1.076,
+    "reach": 1.1,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Onion skin", "clip": "nspecial", "startup": 8, "total": 24, "speed": 10, "life": 75, "r": 22, "dmg": 60, "angle": 28, "bkb": 22, "kbg": 55, "x": 40, "y": 62, "style": "orb" },
+      "side": { "type": "dash", "name": "Smear", "clip": "roll", "startup": 4, "duration": 12, "endlag": 13, "speed": 13, "r": 28, "dmg": 80, "angle": 40, "bkb": 30, "kbg": 90, "x": 36, "y": 42 },
+      "up": { "type": "recovery", "variant": "glide", "name": "Multiplane", "clip": "upb", "startup": 5, "duration": 12, "rise": 15, "speed": 7, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 68, "glide": 0.9, "life": 55 },
+      "down": { "type": "flurry", "name": "In-betweens", "clip": "fsmash", "startup": 5, "hits": 5, "interval": 4, "dmg": 15, "finisherDmg": 55, "speed": 1.2, "x": 42, "y": 58, "r": 28, "endlag": 15 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 67, "y": 145 }],
+      "usmash": [{ "x": 12, "y": 137 }],
+      "dsmash": [{ "x": 52, "y": 59 }, { "x": -23, "y": 19 }],
+      "nspecial": [{ "x": 47, "y": 67 }],
+      "sspecial": [{ "x": 42, "y": 45 }],
+      "upb": [{ "x": 0, "y": 73 }],
+      "dspecial": [{ "x": 50, "y": 62 }, { "x": 45, "y": 128 }, { "x": 58, "y": 144 }, { "x": 67, "y": 147 }, { "x": 36, "y": 115 }]
+    }
   },
   {
     "id": "chooser",
@@ -114,8 +145,22 @@
     "hop": 160,
     "jumps": 2,
     "frames": 0.96,
-    "dmg": 0.88,
-    "kb": 0.95
+    "dmg": 1.109,
+    "kb": 1.095,
+    "specials": {
+      "neutral": { "type": "counter", "name": "Opt out", "clip": "dsmash", "startup": 4, "window": 20, "endlag": 18, "mult": 150, "dmg": 70, "angle": 42, "bkb": 40, "kbg": 100 },
+      "side": { "type": "projectile", "name": "Pick a card", "clip": "fsmash", "startup": 9, "total": 26, "speed": 11, "life": 70, "r": 22, "dmg": 65, "angle": 32, "bkb": 25, "kbg": 60, "x": 34, "y": 54, "style": "board" },
+      "up": { "type": "recovery", "variant": "glide", "name": "Rebound", "clip": "upb", "startup": 5, "duration": 12, "rise": 15, "speed": 6, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 60, "glide": 1, "life": 50 },
+      "down": { "type": "grab", "name": "Pick up", "clip": "nspecial", "startup": 8, "endlag": 38, "r": 36, "x": 44, "y": 40, "pull": 28, "dmg": 120, "angle": 58, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 59, "y": 46 }],
+      "usmash": [{ "x": 8, "y": 105 }],
+      "dsmash": [{ "x": 11, "y": 23 }, { "x": -12, "y": 15 }],
+      "sspecial": [{ "x": 28, "y": 44 }],
+      "upb": [{ "x": 0, "y": 49 }],
+      "dspecial": [{ "x": 36, "y": 33 }]
+    }
   },
   {
     "id": "crosser",
@@ -132,8 +177,22 @@
     "hop": 140,
     "jumps": 1,
     "frames": 1.1,
-    "dmg": 1.12,
-    "kb": 1.06
+    "dmg": 1.07,
+    "kb": 1.033,
+    "specials": {
+      "neutral": { "type": "counter", "name": "Cross counter", "clip": "nspecial", "startup": 5, "window": 28, "endlag": 22, "mult": 175, "dmg": 90, "angle": 42, "bkb": 40, "kbg": 105 },
+      "side": { "type": "flurry", "name": "Red pen", "clip": "fsmash", "startup": 8, "hits": 3, "interval": 8, "dmg": 34, "finisherDmg": 95, "speed": 1.2, "x": 46, "y": 60, "r": 32, "endlag": 22, "finisherBkb": 40, "finisherKbg": 105 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Reshoot", "clip": "upb", "startup": 6, "duration": 14, "endlag": 28, "rise": 13, "speed": 6, "r": 32, "dmg": 70, "angle": 80, "bkb": 40, "kbg": 65, "y": 70 },
+      "down": { "type": "grab", "name": "Final cut", "clip": "nspecial", "startup": 9, "endlag": 44, "r": 36, "x": 48, "y": 56, "pull": 34, "dmg": 150, "angle": 62, "bkb": 40, "kbg": 102 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 75, "y": 58 }],
+      "usmash": [{ "x": 10, "y": 133 }],
+      "dsmash": [{ "x": 13, "y": 25 }, { "x": 11, "y": 16 }],
+      "sspecial": [{ "x": 48, "y": 62 }, { "x": 48, "y": 62 }, { "x": 48, "y": 62 }],
+      "upb": [{ "x": 0, "y": 73 }],
+      "dspecial": [{ "x": 50, "y": 58 }]
+    }
   },
   {
     "id": "crystalline-intelligences",
@@ -150,9 +209,23 @@
     "hop": 145,
     "jumps": 1,
     "frames": 1.05,
-    "dmg": 1.08,
-    "kb": 1.03,
-    "reach": 1.12
+    "dmg": 0.992,
+    "kb": 0.979,
+    "reach": 1.12,
+    "specials": {
+      "neutral": { "type": "trap", "name": "Seed crystal", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 22, "life": 600, "x": 60, "r": 36, "dmg": 105, "angle": 80, "bkb": 40, "kbg": 88, "style": "orb" },
+      "side": { "type": "projectile", "name": "Refraction", "clip": "fsmash", "startup": 11, "total": 30, "speed": 9, "life": 95, "r": 28, "dmg": 80, "angle": 34, "bkb": 25, "kbg": 60, "x": 48, "y": 66, "style": "orb" },
+      "up": { "type": "recovery", "variant": "glide", "name": "Lattice", "clip": "upb", "startup": 5, "duration": 12, "rise": 14, "speed": 5, "r": 34, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 72, "glide": 1.2, "life": 45 },
+      "down": { "type": "flurry", "name": "Facet storm", "clip": "fsmash", "startup": 7, "hits": 4, "interval": 6, "dmg": 22, "finisherDmg": 70, "speed": 1, "x": 48, "y": 64, "r": 36, "endlag": 20 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 36, "y": 118 }],
+      "usmash": [{ "x": 12, "y": 140 }],
+      "dsmash": [{ "x": 76, "y": 15 }, { "x": 52, "y": 10 }],
+      "sspecial": [{ "x": 16, "y": 73 }],
+      "upb": [{ "x": 0, "y": 79 }],
+      "dspecial": [{ "x": 59, "y": 70 }, { "x": 59, "y": 70 }, { "x": 59, "y": 70 }, { "x": 59, "y": 70 }]
+    }
   },
   {
     "id": "dj-wont-read",
@@ -262,8 +335,22 @@
     "hop": 140,
     "jumps": 1,
     "frames": 0.95,
-    "dmg": 1.03,
-    "kb": 1.02
+    "dmg": 0.886,
+    "kb": 0.934,
+    "specials": {
+      "neutral": { "type": "dash", "name": "Fast forward", "clip": "roll", "startup": 4, "duration": 12, "endlag": 13, "speed": 14, "r": 30, "dmg": 90, "angle": 40, "bkb": 30, "kbg": 90, "x": 36, "y": 44 },
+      "side": { "type": "flurry", "name": "Montage", "clip": "fsmash", "startup": 6, "hits": 4, "interval": 5, "dmg": 22, "finisherDmg": 70, "speed": 1.8, "x": 44, "y": 60, "r": 30, "endlag": 16 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Jump cut", "clip": "upb", "startup": 4, "duration": 14, "endlag": 22, "rise": 16, "speed": 6, "r": 32, "dmg": 55, "angle": 80, "bkb": 40, "kbg": 60, "y": 66 },
+      "down": { "type": "trap", "name": "Next season", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 40, "life": 600, "x": 60, "r": 34, "dmg": 110, "angle": 80, "bkb": 40, "kbg": 92, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 44, "y": 117 }],
+      "usmash": [{ "x": 11, "y": 135 }],
+      "dsmash": [{ "x": -1, "y": 15 }, { "x": -29, "y": 74 }],
+      "nspecial": [{ "x": 38, "y": 46 }],
+      "sspecial": [{ "x": 46, "y": 63 }, { "x": 46, "y": 63 }, { "x": 14, "y": 110 }, { "x": 46, "y": 63 }],
+      "upb": [{ "x": 0, "y": 70 }]
+    }
   },
   {
     "id": "got-ur-back",
@@ -345,9 +432,22 @@
     "hop": 140,
     "jumps": 1,
     "frames": 1.12,
-    "dmg": 1.08,
-    "kb": 1.04,
-    "reach": 1.3
+    "dmg": 0.99,
+    "kb": 0.988,
+    "reach": 1.3,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Lapis shard", "clip": "nspecial", "startup": 10, "total": 28, "speed": 11, "life": 100, "r": 22, "dmg": 70, "angle": 30, "bkb": 25, "kbg": 60, "x": 50, "y": 70, "style": "orb" },
+      "side": { "type": "trap", "name": "Planted staff", "clip": "fsmash", "startup": 9, "endlag": 22, "arm": 18, "life": 480, "x": 70, "r": 34, "dmg": 95, "angle": 80, "bkb": 40, "kbg": 88, "style": "board" },
+      "up": { "type": "recovery", "variant": "angled", "name": "Vault", "clip": "upb", "startup": 6, "duration": 14, "endlag": 26, "rise": 13, "speed": 7, "r": 34, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 76 },
+      "down": { "type": "counter", "name": "Staff parry", "clip": "dsmash", "startup": 3, "window": 22, "endlag": 18, "mult": 155, "dmg": 65, "angle": 42, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 81, "y": 127 }],
+      "usmash": [{ "x": 14, "y": 142 }],
+      "dsmash": [{ "x": 73, "y": 99 }, { "x": -65, "y": 107 }],
+      "nspecial": [{ "x": 83, "y": 121 }],
+      "upb": [{ "x": 0, "y": 84 }]
+    }
   },
   {
     "id": "not-an-old-man-yet",
@@ -364,8 +464,21 @@
     "hop": 140,
     "jumps": 1,
     "frames": 1.04,
-    "dmg": 1.06,
-    "kb": 1.03
+    "dmg": 1.078,
+    "kb": 1.041,
+    "specials": {
+      "neutral": { "type": "grab", "name": "Collar", "clip": "nspecial", "startup": 10, "endlag": 42, "r": 40, "x": 54, "y": 60, "pull": 40, "dmg": 135, "angle": 58, "bkb": 40, "kbg": 100 },
+      "side": { "type": "trap", "name": "Lawn chair", "clip": "dsmash", "startup": 11, "endlag": 22, "arm": 24, "life": 600, "x": 64, "r": 36, "dmg": 110, "angle": 80, "bkb": 40, "kbg": 95, "style": "trap" },
+      "up": { "type": "recovery", "variant": "straight", "name": "Back in the day", "clip": "upb", "startup": 7, "duration": 14, "endlag": 32, "rise": 12, "speed": 6, "r": 38, "dmg": 75, "angle": 80, "bkb": 40, "kbg": 60, "y": 70 },
+      "down": { "type": "counter", "name": "Not yet", "clip": "dsmash", "startup": 5, "window": 26, "endlag": 24, "mult": 170, "dmg": 90, "angle": 42, "bkb": 40, "kbg": 105 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 46, "y": 113 }],
+      "usmash": [{ "x": 22, "y": 72 }],
+      "dsmash": [{ "x": 5, "y": 29 }, { "x": 4, "y": 21 }],
+      "nspecial": [{ "x": 19, "y": 111 }],
+      "upb": [{ "x": 0, "y": 74 }]
+    }
   },
   {
     "id": "orchestrator",
@@ -413,7 +526,22 @@
     "hop": 155,
     "jumps": 1,
     "frames": 0.96,
-    "kb": 1.02
+    "kb": 1.005,
+    "dmg": 0.975,
+    "specials": {
+      "neutral": { "type": "flurry", "name": "Sparkler", "clip": "fsmash", "startup": 5, "hits": 5, "interval": 4, "dmg": 16, "finisherDmg": 52, "speed": 1.5, "x": 40, "y": 58, "r": 28, "endlag": 14 },
+      "side": { "type": "projectile", "name": "High note", "clip": "nspecial", "startup": 9, "total": 27, "speed": 10, "life": 85, "r": 24, "dmg": 75, "angle": 30, "bkb": 25, "kbg": 60, "x": 38, "y": 64, "style": "orb" },
+      "up": { "type": "recovery", "variant": "angled", "name": "Pyro lift", "clip": "upb", "startup": 4, "duration": 14, "endlag": 22, "rise": 16, "speed": 7, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 66 },
+      "down": { "type": "trap", "name": "Pyro cue", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 20, "life": 540, "x": 58, "r": 34, "dmg": 105, "angle": 80, "bkb": 40, "kbg": 92, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 35, "y": 114 }],
+      "usmash": [{ "x": 10, "y": 130 }],
+      "dsmash": [{ "x": -7, "y": 12 }, { "x": 10, "y": 13 }],
+      "nspecial": [{ "x": 28, "y": 102 }, { "x": 29, "y": 103 }, { "x": 31, "y": 109 }, { "x": 29, "y": 112 }, { "x": 21, "y": 111 }],
+      "sspecial": [{ "x": 8, "y": 90 }],
+      "upb": [{ "x": 0, "y": 67 }]
+    }
   },
   {
     "id": "shark-dude",
@@ -429,7 +557,23 @@
     "fall": 13.5,
     "hop": 145,
     "jumps": 1,
-    "frames": 0.92
+    "frames": 0.92,
+    "dmg": 0.942,
+    "kb": 0.966,
+    "specials": {
+      "neutral": { "type": "dash", "name": "Run in", "clip": "roll", "startup": 5, "duration": 14, "endlag": 14, "speed": 13, "r": 32, "dmg": 95, "angle": 40, "bkb": 30, "kbg": 90, "x": 36, "y": 44 },
+      "side": { "type": "grab", "name": "Chomp", "clip": "nspecial", "startup": 8, "endlag": 40, "r": 38, "x": 52, "y": 50, "pull": 28, "dmg": 135, "angle": 55, "bkb": 40, "kbg": 100 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Breach", "clip": "upb", "startup": 5, "duration": 14, "endlag": 24, "rise": 15, "speed": 6, "r": 32, "dmg": 60, "angle": 80, "bkb": 40, "kbg": 60, "y": 66 },
+      "down": { "type": "counter", "name": "Not a belt", "clip": "dsmash", "startup": 4, "window": 20, "endlag": 20, "mult": 160, "dmg": 75, "angle": 42, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 42, "y": 104 }],
+      "usmash": [{ "x": 11, "y": 135 }],
+      "dsmash": [{ "x": 15, "y": 31 }, { "x": 10, "y": 16 }],
+      "nspecial": [{ "x": 38, "y": 46 }],
+      "sspecial": [{ "x": 55, "y": 53 }],
+      "upb": [{ "x": 0, "y": 70 }]
+    }
   },
   {
     "id": "shutup-bot",
@@ -510,8 +654,22 @@
     "hop": 150,
     "jumps": 2,
     "frames": 1.06,
-    "dmg": 1.04,
-    "kb": 1.03
+    "dmg": 1.136,
+    "kb": 1.087,
+    "specials": {
+      "neutral": { "type": "dash", "name": "Throttle", "clip": "fsmash", "startup": 8, "duration": 18, "endlag": 18, "speed": 9, "r": 34, "dmg": 100, "angle": 40, "bkb": 30, "kbg": 90, "x": 36, "y": 48 },
+      "side": { "type": "projectile", "name": "Tailpipe", "clip": "nspecial", "startup": 11, "total": 30, "speed": 7, "life": 110, "r": 28, "dmg": 70, "angle": 30, "bkb": 25, "kbg": 60, "x": 44, "y": 40, "style": "orb" },
+      "up": { "type": "recovery", "variant": "glide", "name": "Long haul", "clip": "upb", "startup": 6, "duration": 12, "rise": 13, "speed": 8, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 68, "glide": 0.8, "life": 75 },
+      "down": { "type": "trap", "name": "Oil slick", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 18, "life": 600, "x": 58, "r": 40, "dmg": 90, "angle": 80, "bkb": 40, "kbg": 85, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 38, "y": 115 }],
+      "usmash": [{ "x": 21, "y": 76 }],
+      "dsmash": [{ "x": 46, "y": 82 }, { "x": -38, "y": 85 }],
+      "nspecial": [{ "x": 39, "y": 51 }],
+      "sspecial": [{ "x": 4, "y": 14 }],
+      "upb": [{ "x": 0, "y": 73 }]
+    }
   },
   {
     "id": "small-weather",
@@ -561,9 +719,23 @@
     "hop": 130,
     "jumps": 1,
     "frames": 1.08,
-    "dmg": 1.08,
-    "kb": 1.02,
-    "reach": 1.15
+    "dmg": 0.935,
+    "kb": 0.939,
+    "reach": 1.15,
+    "specials": {
+      "neutral": { "type": "trap", "name": "Web", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 20, "life": 560, "x": 60, "r": 38, "dmg": 95, "angle": 80, "bkb": 40, "kbg": 88, "style": "orb" },
+      "side": { "type": "grab", "name": "Snare", "clip": "nspecial", "startup": 10, "endlag": 42, "r": 42, "x": 60, "y": 36, "pull": 34, "dmg": 130, "angle": 58, "bkb": 40, "kbg": 100 },
+      "up": { "type": "recovery", "variant": "angled", "name": "Rappel", "clip": "upb", "startup": 6, "duration": 14, "endlag": 28, "rise": 12, "speed": 7, "r": 40, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 60 },
+      "down": { "type": "flurry", "name": "Eight legs", "clip": "fsmash", "startup": 7, "hits": 4, "interval": 6, "dmg": 22, "finisherDmg": 70, "speed": 0.8, "x": 56, "y": 30, "r": 40, "endlag": 20 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 34, "y": 92 }],
+      "usmash": [{ "x": 10, "y": 107 }],
+      "dsmash": [{ "x": 54, "y": 86 }, { "x": -60, "y": 12 }],
+      "sspecial": [{ "x": 10, "y": 49 }],
+      "upb": [{ "x": 0, "y": 50 }],
+      "dspecial": [{ "x": 4, "y": 18 }, { "x": 4, "y": 18 }, { "x": 4, "y": 18 }, { "x": 54, "y": 25 }]
+    }
   },
   {
     "id": "ss-boulder",
@@ -643,8 +815,23 @@
     "fall": 9.2,
     "hop": 150,
     "jumps": 1,
-    "dmg": 0.96,
-    "reach": 1.22
+    "dmg": 0.982,
+    "reach": 1.22,
+    "kb": 1.015,
+    "specials": {
+      "neutral": { "type": "grab", "name": "Tendril", "clip": "nspecial", "startup": 11, "endlag": 40, "r": 40, "x": 64, "y": 60, "pull": 40, "dmg": 125, "angle": 58, "bkb": 40, "kbg": 100 },
+      "side": { "type": "projectile", "name": "Drift", "clip": "fsmash", "startup": 12, "total": 32, "speed": 5, "life": 160, "r": 30, "dmg": 65, "angle": 40, "bkb": 28, "kbg": 70, "x": 44, "y": 64, "style": "orb" },
+      "up": { "type": "recovery", "variant": "glide", "name": "Float", "clip": "upb", "startup": 5, "duration": 12, "rise": 13, "speed": 6, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 68, "glide": 0.6, "life": 90 },
+      "down": { "type": "trap", "name": "Fog patch", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 22, "life": 600, "x": 60, "r": 40, "dmg": 95, "angle": 80, "bkb": 40, "kbg": 88, "style": "orb" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 40, "y": 120 }],
+      "usmash": [{ "x": 13, "y": 135 }],
+      "dsmash": [{ "x": 0, "y": 18 }, { "x": -20, "y": 82 }],
+      "nspecial": [{ "x": 82, "y": 63 }],
+      "sspecial": [{ "x": 12, "y": 116 }],
+      "upb": [{ "x": 0, "y": 72 }]
+    }
   },
   {
     "id": "the-mechanic",
@@ -661,9 +848,24 @@
     "hop": 145,
     "jumps": 1,
     "frames": 1.02,
-    "dmg": 1.04,
-    "kb": 1.02,
-    "reach": 1.08
+    "dmg": 1.018,
+    "kb": 1.006,
+    "reach": 1.08,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Wrench throw", "clip": "nspecial", "startup": 9, "total": 26, "speed": 10, "life": 70, "r": 22, "dmg": 80, "angle": 28, "bkb": 25, "kbg": 60, "x": 36, "y": 60, "style": "board" },
+      "side": { "type": "flurry", "name": "Ratchet", "clip": "fsmash", "startup": 7, "hits": 4, "interval": 6, "dmg": 22, "finisherDmg": 75, "speed": 1.4, "x": 44, "y": 58, "r": 30, "endlag": 18 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Lift", "clip": "upb", "startup": 6, "duration": 14, "endlag": 28, "rise": 13, "speed": 6, "r": 32, "dmg": 60, "angle": 80, "bkb": 40, "kbg": 60, "y": 66 },
+      "down": { "type": "grab", "name": "Clamp", "clip": "nspecial", "startup": 9, "endlag": 40, "r": 36, "x": 46, "y": 48, "pull": 32, "dmg": 125, "angle": 60, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 18, "y": 94 }],
+      "usmash": [{ "x": 27, "y": 67 }],
+      "dsmash": [{ "x": 10, "y": 10 }, { "x": -6, "y": 10 }],
+      "nspecial": [{ "x": 41, "y": 96 }],
+      "sspecial": [{ "x": 14, "y": 97 }, { "x": 6, "y": 99 }, { "x": 16, "y": 98 }, { "x": 50, "y": 61 }],
+      "upb": [{ "x": 0, "y": 70 }],
+      "dspecial": [{ "x": 52, "y": 51 }]
+    }
   },
   {
     "id": "try-belt",
@@ -680,7 +882,21 @@
     "hop": 160,
     "jumps": 1,
     "frames": 0.94,
-    "dmg": 0.96
+    "dmg": 1.009,
+    "kb": 1.032,
+    "specials": {
+      "neutral": { "type": "counter", "name": "Rewrite", "clip": "dsmash", "startup": 3, "window": 22, "endlag": 18, "mult": 155, "dmg": 65, "angle": 42, "bkb": 40, "kbg": 100 },
+      "side": { "type": "flurry", "name": "Retakes", "clip": "fsmash", "startup": 5, "hits": 4, "interval": 5, "dmg": 20, "finisherDmg": 62, "speed": 1.8, "x": 42, "y": 58, "r": 30, "endlag": 15 },
+      "up": { "type": "recovery", "variant": "glide", "name": "Cut away", "clip": "upb", "startup": 5, "duration": 12, "rise": 14, "speed": 6, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 64, "glide": 1.1, "life": 45 },
+      "down": { "type": "trap", "name": "Tape", "clip": "dsmash", "startup": 9, "endlag": 22, "arm": 18, "life": 540, "x": 56, "r": 32, "dmg": 95, "angle": 80, "bkb": 40, "kbg": 88, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 35, "y": 107 }],
+      "usmash": [{ "x": 23, "y": 72 }],
+      "dsmash": [{ "x": 71, "y": 97 }, { "x": 17, "y": 14 }],
+      "sspecial": [{ "x": 44, "y": 60 }, { "x": 18, "y": 101 }, { "x": 12, "y": 103 }, { "x": 44, "y": 60 }],
+      "upb": [{ "x": 0, "y": 66 }]
+    }
   },
   {
     "id": "tt",
@@ -697,8 +913,21 @@
     "hop": 125,
     "jumps": 1,
     "frames": 1.08,
-    "dmg": 1.04,
-    "kb": 1.02
+    "dmg": 0.951,
+    "kb": 0.967,
+    "specials": {
+      "neutral": { "type": "counter", "name": "Withdraw", "clip": "dsmash", "startup": 3, "window": 26, "endlag": 22, "mult": 165, "dmg": 75, "angle": 42, "bkb": 40, "kbg": 100 },
+      "side": { "type": "dash", "name": "Shell roll", "clip": "roll", "startup": 7, "duration": 18, "endlag": 20, "speed": 8, "r": 36, "dmg": 110, "angle": 38, "bkb": 32, "kbg": 95, "x": 36, "y": 34 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Spin up", "clip": "upb", "startup": 6, "duration": 14, "endlag": 30, "rise": 12, "speed": 6, "r": 38, "dmg": 65, "angle": 80, "bkb": 40, "kbg": 60, "y": 56 },
+      "down": { "type": "trap", "name": "Spike strip", "clip": "dsmash", "startup": 9, "endlag": 22, "arm": 22, "life": 600, "x": 54, "r": 34, "dmg": 105, "angle": 80, "bkb": 40, "kbg": 90, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 63, "y": 49 }],
+      "usmash": [{ "x": 9, "y": 112 }],
+      "dsmash": [{ "x": 40, "y": 78 }, { "x": -56, "y": 59 }],
+      "sspecial": [{ "x": 31, "y": 30 }],
+      "upb": [{ "x": 0, "y": 49 }]
+    }
   },
   {
     "id": "uh-me",
@@ -715,8 +944,22 @@
     "hop": 160,
     "jumps": 2,
     "frames": 0.95,
-    "dmg": 0.86,
-    "kb": 0.96
+    "dmg": 1.093,
+    "kb": 1.113,
+    "specials": {
+      "neutral": { "type": "projectile", "name": "Hum", "clip": "nspecial", "startup": 10, "total": 28, "speed": 7, "life": 110, "r": 22, "dmg": 58, "angle": 28, "bkb": 22, "kbg": 55, "x": 34, "y": 62, "style": "orb" },
+      "side": { "type": "grab", "name": "Embrace", "clip": "nspecial", "startup": 9, "endlag": 40, "r": 36, "x": 48, "y": 56, "pull": 30, "dmg": 115, "angle": 55, "bkb": 40, "kbg": 100 },
+      "up": { "type": "recovery", "variant": "glide", "name": "Drift up", "clip": "upb", "startup": 5, "duration": 12, "rise": 14, "speed": 6, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 64, "glide": 0.7, "life": 70 },
+      "down": { "type": "counter", "name": "Calm", "clip": "dsmash", "startup": 3, "window": 24, "endlag": 18, "mult": 150, "dmg": 60, "angle": 42, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 39, "y": 85 }],
+      "usmash": [{ "x": 9, "y": 121 }],
+      "dsmash": [{ "x": 60, "y": 80 }, { "x": -36, "y": 78 }],
+      "nspecial": [{ "x": 32, "y": 59 }],
+      "sspecial": [{ "x": 45, "y": 53 }],
+      "upb": [{ "x": 0, "y": 61 }]
+    }
   },
   {
     "id": "wallit",
@@ -733,9 +976,23 @@
     "hop": 140,
     "jumps": 1,
     "frames": 1.08,
-    "dmg": 1.12,
-    "kb": 1.06,
-    "reach": 1.2
+    "dmg": 0.895,
+    "kb": 0.93,
+    "reach": 1.2,
+    "specials": {
+      "neutral": { "type": "trap", "name": "Tip jar", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 20, "life": 540, "x": 58, "r": 34, "dmg": 100, "angle": 80, "bkb": 40, "kbg": 90, "style": "trap" },
+      "side": { "type": "dash", "name": "Bat lunge", "clip": "fsmash", "startup": 8, "duration": 15, "endlag": 20, "speed": 9, "r": 40, "dmg": 115, "angle": 36, "bkb": 34, "kbg": 100, "x": 48, "y": 56 },
+      "up": { "type": "recovery", "variant": "straight", "name": "Pop fly", "clip": "upb", "startup": 6, "duration": 14, "endlag": 30, "rise": 12, "speed": 6, "r": 38, "dmg": 75, "angle": 80, "bkb": 40, "kbg": 60, "y": 72 },
+      "down": { "type": "grab", "name": "Buyout", "clip": "nspecial", "startup": 10, "endlag": 42, "r": 38, "x": 52, "y": 56, "pull": 34, "dmg": 140, "angle": 60, "bkb": 40, "kbg": 100 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 88, "y": 57 }],
+      "usmash": [{ "x": 12, "y": 130 }],
+      "dsmash": [{ "x": 76, "y": 14 }, { "x": -76, "y": 14 }],
+      "sspecial": [{ "x": 59, "y": 57 }],
+      "upb": [{ "x": 0, "y": 73 }],
+      "dspecial": [{ "x": 64, "y": 57 }]
+    }
   },
   {
     "id": "yo-bot",
@@ -752,9 +1009,23 @@
     "hop": 135,
     "jumps": 1,
     "frames": 1.02,
-    "dmg": 1.04,
-    "kb": 1.02,
-    "reach": 1.12
+    "dmg": 0.869,
+    "kb": 0.918,
+    "reach": 1.12,
+    "specials": {
+      "neutral": { "type": "grab", "name": "Four-leg grapple", "clip": "nspecial", "startup": 11, "endlag": 42, "r": 44, "x": 58, "y": 44, "pull": 34, "dmg": 135, "angle": 58, "bkb": 40, "kbg": 100 },
+      "side": { "type": "projectile", "name": "Pop-up", "clip": "fsmash", "startup": 10, "total": 28, "speed": 10, "life": 75, "r": 26, "dmg": 70, "angle": 30, "bkb": 25, "kbg": 60, "x": 50, "y": 62, "style": "board" },
+      "up": { "type": "recovery", "variant": "angled", "name": "Hover legs", "clip": "upb", "startup": 6, "duration": 14, "endlag": 28, "rise": 12, "speed": 7, "r": 40, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 62 },
+      "down": { "type": "counter", "name": "Hits back", "clip": "dsmash", "startup": 4, "window": 24, "endlag": 22, "mult": 165, "dmg": 85, "angle": 42, "bkb": 40, "kbg": 104 }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 36, "y": 101 }],
+      "usmash": [{ "x": 19, "y": 63 }],
+      "dsmash": [{ "x": 50, "y": 86 }, { "x": -14, "y": 46 }],
+      "nspecial": [{ "x": 61, "y": 42 }],
+      "sspecial": [{ "x": 30, "y": 94 }],
+      "upb": [{ "x": 0, "y": 59 }]
+    }
   },
   {
     "id": "yooba",
@@ -770,7 +1041,22 @@
     "fall": 9.5,
     "hop": 150,
     "jumps": 2,
-    "dmg": 0.98,
-    "reach": 1.08
+    "dmg": 1.077,
+    "reach": 1.08,
+    "kb": 1.059,
+    "specials": {
+      "neutral": { "type": "grab", "name": "Gulp", "clip": "nspecial", "startup": 10, "endlag": 42, "r": 40, "x": 62, "y": 58, "pull": 42, "dmg": 130, "angle": 58, "bkb": 40, "kbg": 100 },
+      "side": { "type": "dash", "name": "Tongue lash", "clip": "fsmash", "startup": 6, "duration": 14, "endlag": 16, "speed": 10, "r": 34, "dmg": 95, "angle": 40, "bkb": 30, "kbg": 90, "x": 50, "y": 56 },
+      "up": { "type": "recovery", "variant": "glide", "name": "Squelch", "clip": "upb", "startup": 5, "duration": 12, "rise": 13, "speed": 6, "r": 32, "dmg": 50, "angle": 80, "bkb": 40, "kbg": 60, "y": 66, "glide": 0.9, "life": 55 },
+      "down": { "type": "trap", "name": "Goo puddle", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 20, "life": 560, "x": 58, "r": 36, "dmg": 90, "angle": 80, "bkb": 40, "kbg": 85, "style": "trap" }
+    },
+    "hitboxes": {
+      "fsmash": [{ "x": 76, "y": 55 }],
+      "usmash": [{ "x": 11, "y": 126 }],
+      "dsmash": [{ "x": 69, "y": 90 }, { "x": 15, "y": 10 }],
+      "nspecial": [{ "x": 66, "y": 57 }],
+      "sspecial": [{ "x": 53, "y": 55 }],
+      "upb": [{ "x": 0, "y": 65 }]
+    }
   }
 ]

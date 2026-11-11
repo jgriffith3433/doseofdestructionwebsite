@@ -93,8 +93,16 @@ const SCREEN_NAMES: Record<ScreenId, string> = {
   campaign: 'Campaign Map', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
 };
 
-/** The 13 fighters a new player meets in Season 1: each has its own four specials. */
+/** The 13 fighters a new player meets in Season 1; the other 20 are the "newer" fighters (also each with its own four specials). */
 const SEASON_ONE = ['exit-punk', 'kaelen', 'break', 'dj-wont-read', 'shutup-bot', 'small-weather', 'blog-man', 'evil-blue-bird', 'got-ur-back', 'slice', 'ss-boulder', 'stratabots', 'orchestrator'];
+/** A special's archetype for the kit report; a recovery says which way it moves. */
+function kindOf(mv: (typeof CHARACTERS)[number]['moves'][number]): string {
+  if (mv.kind !== 'recovery') return mv.kind ?? 'shared';
+  return mv.helpless ? (mv.drive?.[0]?.aim ? 'recovery-angled' : 'recovery-straight') : 'recovery-glide';
+}
+
+/** A fighter's four specials, in kit order: neutral, side, up, down. */
+const SPECIAL_MOVES: number[] = [MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL];
 const MOVE_NAMES = Object.fromEntries(Object.entries(MOVE).map(([k, v]) => [v, k.toLowerCase()])) as Record<number, string>;
 
 export function installDodPlaytest(game: GameHooks): void {
@@ -187,6 +195,8 @@ class Run {
   private matches = 0;
   /** Moves the playing fighter started this match (roster). */
   readonly movesSeen = new Set<number>();
+  /** Which of the playing fighter's four specials it used this match (the bot drives it in `match`). */
+  private readonly specialsUsed = new Set<number>();
   private readonly checked = new Set<string>();
   private disposed = false;
 
@@ -272,7 +282,10 @@ class Run {
       }
     }
     for (const f of s.fighters) {
-      if (f.action === ACT.ATTACK && f.id === me) this.movesSeen.add(f.move);
+      if (f.action === ACT.ATTACK && f.id === me) {
+        this.movesSeen.add(f.move);
+        if (SPECIAL_MOVES.includes(f.move)) this.specialsUsed.add(f.move);
+      }
       if (![f.x, f.y, f.vx, f.vy, f.percent].every(Number.isFinite)) {
         this.t.problem('bug', `NaN position: ${name(m, f.id)} on ${STAGES[s.stage].name} (x ${f.x}, y ${f.y})`);
         continue;
@@ -340,6 +353,9 @@ class Run {
       this.t.metric('stocksLeft', Math.max(0, s.fighters[me]?.stocks ?? 0));
       this.t.add(won ? 'wins' : 'losses');
       this.t.event('match-end', `${won ? 'won' : 'lost'} in ${Math.round(secs)} s${s.timedOut ? ' (time)' : ''}`);
+      const used = [...this.specialsUsed].map((x) => CHARACTERS[m.state.fighters[me].char].moves[x].name);
+      this.t.event('specials-used', `${CHARACTERS[m.state.fighters[me].char].name} used ${used.length} different specials this match: ${used.join(', ') || 'none'}`);
+      this.t.metric('specialsUsed', used.length);
       this.t.event('anim-trace', `${this.traceFrames} frames traced, ${this.trace.problems.length} state/motion mismatches`);
     }
     this.t.progress(this.progressNow());
@@ -360,6 +376,7 @@ class Run {
     this.quietWarned = false;
     this.overSeen = false;
     this.movesSeen.clear();
+    this.specialsUsed.clear();
     this.matches++;
     this.t.add('matches');
     this.t.metric('feel.coyoteMs', Math.round((COYOTE_FRAMES * 1000) / 60));
@@ -2337,44 +2354,160 @@ class Run {
     t.finish('done');
   }
 
+  /**
+   * Every fighter spawns in Training and does each move from its input, and every one of the four specials is logged
+   * (`special`: slot, name, archetype, whether it came out). The report lists each fighter's four archetypes (`kit`)
+   * and fails when two fighters share them (`kits-distinct`). On a phone (touch, 390x844 turned to 844x390) the 20
+   * fighters outside Season 1 fire all four specials and the command grab through the on-screen stick and Special
+   * button only (`touch-special`, `touch-grab`), and the run counts any special that needed a button the touch layout
+   * doesn't have (`specialsOutsideTouch`, must stay 0). Options: `fighter` (one id), `input: "touch"`, `at`.
+   */
   async roster(): Promise<void> {
     const t = this.t;
-    await this.toMainMenu();
-    const stage = stagesFor('training')[0]?.index ?? 0;
-    // Each fighter's four specials as archetypes (neutral/side/up/down); no two fighters may share them.
-    const kits = new Map<string, string>();
-    for (let i = 0; i < CHARACTERS.length; i++) {
-      const c = CHARACTERS[i];
-      this.progressNow = () => i / CHARACTERS.length;
-      t.progress(i / CHARACTERS.length);
-      t.event('fighter', c.name);
-      // Setup shortcut: straight into training, no menus.
-      void this.game.startMatch({
-        mode: 'training', stage, stocks: 1, rules: {},
-        slots: [{ char: i, cpu: null }, { char: (i + 1) % CHARACTERS.length, cpu: 0 }],
-      });
-      await this.matchLive();
-      // Hitbox view (H) on from the first fighter, so the footage shows the boxes on the drawn limbs.
-      if (i === 0) pressAction('KeyH', true);
-      await this.checkFighter(c.id);
-      await this.everyMove(c.name);
-      if (c.specials) {
-        const kit = [MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL].map((m) => `${MOVE_NAMES[m]}=${c.moves[m].kind ?? 'shared'}`).join(' ');
-        kits.set(c.id, kit.replace(/\w+=/g, ''));
-        t.event('kit', `${c.name}: ${c.moves[MOVE.NSPECIAL].name} / ${c.moves[MOVE.SSPECIAL].name} / ${c.moves[MOVE.UPB].name} / ${c.moves[MOVE.DSPECIAL].name} (${kit})`);
-      }
-      this.manual = null;
-      await this.game.quitMatch();
-      await this.screen('main');
-      t.add('fightersTested');
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('roster');
     }
-    const byKit = new Map<string, string[]>();
-    for (const [id, kit] of kits) byKit.set(kit, [...(byKit.get(kit) ?? []), id]);
-    const same = [...byKit].filter(([, ids]) => ids.length > 1);
-    if (same.length) t.problem('bug', `Fighters share the same four specials: ${same.map(([k, ids]) => `${ids.join(' + ')} (${k})`).join('; ')}`);
-    else if (kits.size) t.event('kits-distinct', `${kits.size} fighters, ${kits.size} different kits of four specials`);
+    if (touch) {
+      this.logViewport(this.isPhone());
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      await this.toMainMenu();
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      // Each fighter's four specials as archetypes (neutral/side/up/down); no two fighters may share them.
+      const kits = new Map<string, string>();
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : touch ? CHARACTERS.map((c) => c.id).filter((id) => !SEASON_ONE.includes(id)) : CHARACTERS.map((c) => c.id);
+      let outside = 0;
+      for (const [n, id] of ids.entries()) {
+        const i = CHARACTERS.findIndex((c) => c.id === id);
+        if (i < 0) {
+          t.problem('bug', `fighter "${id}" is not in the roster`);
+          continue;
+        }
+        const c = CHARACTERS[i];
+        this.progressNow = () => n / ids.length;
+        t.progress(n / ids.length);
+        t.event('fighter', c.name);
+        // Setup shortcut: straight into training, no menus.
+        void this.game.startMatch({
+          mode: 'training', stage, stocks: 1, rules: {},
+          slots: [{ char: i, cpu: null }, { char: (i + 1) % CHARACTERS.length, cpu: 0 }],
+        });
+        await this.matchLive();
+        // Hitbox view (H) on from the first fighter, so the footage shows the boxes on the drawn limbs.
+        if (n === 0 && !touch) pressAction('KeyH', true);
+        await this.checkFighter(c.id);
+        const kit = SPECIAL_MOVES.map((m) => kindOf(c.moves[m])).join('/');
+        if (c.specials) {
+          kits.set(c.id, kit);
+          t.event('kit', `${c.name}: ${SPECIAL_MOVES.map((m) => c.moves[m].name).join(' / ')} (${kit})`);
+        }
+        if (touch) outside += await this.touchKit(c.name, c);
+        else await this.everyMove(c.name);
+        this.manual = null;
+        await this.game.quitMatch();
+        await this.screen('main');
+        t.add('fightersTested');
+      }
+      const byKit = new Map<string, string[]>();
+      for (const [id, kit] of kits) byKit.set(kit, [...(byKit.get(kit) ?? []), id]);
+      const same = [...byKit].filter(([, kitIds]) => kitIds.length > 1);
+      if (same.length) t.problem('bug', `Fighters share the same four specials: ${same.map(([k, kitIds]) => `${kitIds.join(' + ')} (${k})`).join('; ')}`);
+      else if (kits.size) t.event('kits-distinct', `${kits.size} fighters, ${kits.size} different kits of four specials`);
+      if (typeof this.options.fighter !== 'string' && kits.size !== ids.length) t.problem('bug', `only ${kits.size} of ${ids.length} fighters have their own four specials`);
+      if (touch) {
+        t.metric('specialsOutsideTouch', outside);
+        t.event('touch-layout', outside === 0 ? 'every special was fired from the existing touch controls (stick + Special): none needed another button' : `${outside} specials did not come out from the touch controls`);
+      }
+    } finally {
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
     t.progress(1);
     t.finish('done');
+  }
+
+  /**
+   * One fighter's four specials from the touch controls only: the stick pushed a direction, then the Special button
+   * (touch pointer events). Returns how many did not come out (those would need a button the layout does not have).
+   */
+  private async touchKit(who: string, c: (typeof CHARACTERS)[number]): Promise<number> {
+    const t = this.t;
+    const pad = makeTouchPad();
+    if (!pad) {
+      t.problem('bug', `${who}: the touch controls (stick and Special button) were not built`);
+      return SPECIAL_MOVES.length;
+    }
+    const match = () => this.game.match()!;
+    const me = () => match().state.fighters[match().player];
+    const frame = () => this.game.match()?.state.frame ?? 0;
+    const frames = async (n: number) => {
+      const end = frame() + n;
+      await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+    };
+    this.manual = NO_INPUT;
+    const standing = () => {
+      const f = me();
+      return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+    };
+    const settle = async () => {
+      pad.release();
+      try {
+        await t.until(standing, 10000, 'the fighter to stand');
+      } catch (e) {
+        if (String(e).includes('stopped')) throw e;
+      }
+      await frames(8);
+    };
+    const dummyAt = () => match().state.fighters.find((f) => f.id !== match().player)!;
+    const slots: { slot: string; label: string; sx: number; sy: number; move: number }[] = [
+      { slot: 'neutral', label: 'Special', sx: 0, sy: 0, move: MOVE.NSPECIAL },
+      { slot: 'side', label: 'stick right + Special', sx: 100, sy: 0, move: MOVE.SSPECIAL },
+      { slot: 'up', label: 'stick up + Special', sx: 0, sy: 100, move: MOVE.UPB },
+      { slot: 'down', label: 'stick down + Special', sx: 0, sy: -100, move: MOVE.DSPECIAL },
+    ];
+    let missing = 0;
+    for (const sl of slots) {
+      await settle();
+      // Face the dummy, so side and neutral specials point at it.
+      pad.stick(dummyAt().x >= me().x ? 100 : -100, 0);
+      await frames(2);
+      pad.stick(0, 0);
+      await frames(2);
+      this.movesSeen.clear();
+      pad.stick(sl.sx, sl.sy);
+      await frames(3);
+      pad.special(true);
+      await frames(4);
+      pad.special(false);
+      try {
+        await t.until(() => this.movesSeen.has(sl.move), 4000, `${who}'s ${sl.slot} special to come out`);
+      } catch (e) {
+        if (String(e).includes('stopped')) throw e;
+      }
+      const mv = c.moves[sl.move];
+      if (!this.movesSeen.has(sl.move)) {
+        missing++;
+        t.problem('bug', `${who}: ${sl.label} did not do the ${sl.slot} special "${mv.name}" from the touch controls (did ${[...this.movesSeen].map((x) => MOVE_NAMES[x]).join(', ') || 'nothing'})`);
+      } else {
+        t.event('touch-special', `${who}: ${sl.label} -> ${sl.slot} special "${mv.name}" (${kindOf(mv)}), no extra button`);
+        t.add('touchSpecials');
+        if (mv.kind === 'grab') {
+          t.event('touch-grab', `${who}: "${mv.name}", the command grab, came out of ${sl.label}`);
+          t.add('touchGrabs');
+        }
+      }
+      pad.stick(0, 0);
+    }
+    pad.release();
+    if (!SPECIAL_MOVES.some((m) => c.moves[m].kind === 'grab')) t.event('touch-grab', `${who}: no command grab in this kit (${SPECIAL_MOVES.map((m) => kindOf(c.moves[m])).join('/')})`);
+    await settle();
+    return missing;
   }
 
   // ---------------------------------------------------------- character select: the specials preview
@@ -2382,7 +2515,7 @@ class Run {
   /**
    * Character select shows how each fighter plays: tapping (or hovering) a fighter lists its four specials by name
    * and loops a clip of one of them. Played through real input (a phone: touch taps; a desktop: mouse clicks),
-   * Training's select (every fighter open), the 13 Season 1 fighters in turn (option `fighter`: just that one).
+   * Training's select (every fighter open), all 33 fighters in turn (option `fighter`: just that one).
    * Per fighter: the four rows read the move names the sim plays (`select-specials`), nothing is clipped by the
    * screen edge or the preview's own edge (`select-fit`), and the clip moves between two looks (`select-clip`).
    * On a portrait phone window the run turns the phone, like specials does.
@@ -2403,7 +2536,7 @@ class Run {
     try {
       await this.click(() => this.q('[data-go="training"]'), 'Training');
       await this.screen('select');
-      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : SEASON_ONE;
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : CHARACTERS.filter((c) => c.specials).map((c) => c.id);
       let shown = 0;
       for (const [k, id] of ids.entries()) {
         t.progress(0.05 + (0.9 * k) / ids.length);
@@ -2527,76 +2660,7 @@ class Run {
         await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
       };
 
-      interface Pad { stick(sx: number, sy: number): void; special(on: boolean): void; release(): void }
-      const keyboardPad = (): Pad => {
-        const on = new Set<string>();
-        const set = (a: string, v: boolean) => {
-          if (v === on.has(a)) return;
-          if (v) on.add(a);
-          else on.delete(a);
-          pressAction(a, v);
-        };
-        return {
-          stick: (sx, sy) => {
-            set('left', sx < 0);
-            set('right', sx > 0);
-            set('down', sy < 0);
-            set('up', sy > 0);
-          },
-          special: (v) => set('special', v),
-          release: () => {
-            for (const a of [...on]) set(a, false);
-          },
-        };
-      };
-      const touchPad = (): Pad | null => {
-        const root = touchOverlay() ?? this.q('.touch');
-        if (!root) return null;
-        if (root.hidden) root.hidden = false;
-        const stickEl = root.querySelector<HTMLElement>('.touch-stick');
-        const specialEl = root.querySelector<HTMLElement>('.touch-btn.special');
-        if (!stickEl || !specialEl) return null;
-        let stickId = -1;
-        let specialId = -1;
-        let pid = 200;
-        const send = (el: HTMLElement, type: string, x: number, y: number, id: number) =>
-          el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: id, isPrimary: id === 201, button: 0, buttons: type === 'pointerup' ? 0 : 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y }));
-        return {
-          stick: (sx, sy) => {
-            const r = stickEl.getBoundingClientRect();
-            // The knob's reach is 50/128 of the stick's width: a push of 100 is all the way over.
-            const reach = r.width * (50 / 128);
-            const x = r.left + r.width / 2 + (sx / 100) * reach;
-            const y = r.top + r.height / 2 - (sy / 100) * reach;
-            if (sx === 0 && sy === 0) {
-              if (stickId >= 0) send(stickEl, 'pointerup', x, y, stickId);
-              stickId = -1;
-            } else if (stickId < 0) {
-              stickId = ++pid;
-              send(stickEl, 'pointerdown', x, y, stickId);
-            } else send(stickEl, 'pointermove', x, y, stickId);
-          },
-          special: (v) => {
-            const r = specialEl.getBoundingClientRect();
-            const x = r.left + r.width / 2;
-            const y = r.top + r.height / 2;
-            if (v && specialId < 0) {
-              specialId = ++pid;
-              send(specialEl, 'pointerdown', x, y, specialId);
-            } else if (!v && specialId >= 0) {
-              send(specialEl, 'pointerup', x, y, specialId);
-              specialId = -1;
-            }
-          },
-          release: () => {
-            if (specialId >= 0) send(specialEl, 'pointerup', 0, 0, specialId);
-            specialId = -1;
-            if (stickId >= 0) send(stickEl, 'pointerup', 0, 0, stickId);
-            stickId = -1;
-          },
-        };
-      };
-      const pad = touch ? touchPad() : keyboardPad();
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
       if (!pad) {
         t.problem('bug', 'the touch controls (stick and Special button) were not built');
         t.finish('error');
@@ -4354,6 +4418,12 @@ class Run {
       await hold(input(), 2);
       await hold(NO_INPUT, 3);
       if (!this.movesSeen.has(move)) failed.push(MOVE_NAMES[move]);
+      // Every special is logged: slot, name, archetype, and whether it came out.
+      if (SPECIAL_MOVES.includes(move)) {
+        const mv = CHARACTERS[me()?.char ?? 0].moves[move];
+        this.t.event('special', `${who}: ${MOVE_NAMES[move]} "${mv.name}" (${kindOf(mv)}) ${this.movesSeen.has(move) ? 'came out' : 'did NOT come out'}`);
+        if (this.movesSeen.has(move)) this.t.add('specialsSeen');
+      }
     }
     for (const [move, input] of air) {
       await settle();
@@ -4372,6 +4442,79 @@ class Run {
 }
 
 // ---------------------------------------------------------------- helpers
+
+/** A way to drive a fighter's stick and Special button the way a player does: the keyboard, or the on-screen controls. */
+export interface Pad { stick(sx: number, sy: number): void; special(on: boolean): void; release(): void }
+export function makeKeyboardPad(): Pad {
+  const on = new Set<string>();
+  const set = (a: string, v: boolean) => {
+    if (v === on.has(a)) return;
+    if (v) on.add(a);
+    else on.delete(a);
+    pressAction(a, v);
+  };
+  return {
+    stick: (sx, sy) => {
+      set('left', sx < 0);
+      set('right', sx > 0);
+      set('down', sy < 0);
+      set('up', sy > 0);
+    },
+    special: (v) => set('special', v),
+    release: () => {
+      for (const a of [...on]) set(a, false);
+    },
+  };
+}
+
+export function makeTouchPad(): Pad | null {
+  const root = touchOverlay() ?? document.querySelector<HTMLElement>('.touch');
+  if (!root) return null;
+  if (root.hidden) root.hidden = false;
+  const stickEl = root.querySelector<HTMLElement>('.touch-stick');
+  const specialEl = root.querySelector<HTMLElement>('.touch-btn.special');
+  if (!stickEl || !specialEl) return null;
+  let stickId = -1;
+  let specialId = -1;
+  let pid = 200;
+  const send = (el: HTMLElement, type: string, x: number, y: number, id: number) =>
+    el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: id, isPrimary: id === 201, button: 0, buttons: type === 'pointerup' ? 0 : 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y }));
+  return {
+    stick: (sx, sy) => {
+      const r = stickEl.getBoundingClientRect();
+      // The knob's reach is 50/128 of the stick's width: a push of 100 is all the way over.
+      const reach = r.width * (50 / 128);
+      const x = r.left + r.width / 2 + (sx / 100) * reach;
+      const y = r.top + r.height / 2 - (sy / 100) * reach;
+      if (sx === 0 && sy === 0) {
+        if (stickId >= 0) send(stickEl, 'pointerup', x, y, stickId);
+        stickId = -1;
+      } else if (stickId < 0) {
+        stickId = ++pid;
+        send(stickEl, 'pointerdown', x, y, stickId);
+      } else send(stickEl, 'pointermove', x, y, stickId);
+    },
+    special: (v) => {
+      const r = specialEl.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      if (v && specialId < 0) {
+        specialId = ++pid;
+        send(specialEl, 'pointerdown', x, y, specialId);
+      } else if (!v && specialId >= 0) {
+        send(specialEl, 'pointerup', x, y, specialId);
+        specialId = -1;
+      }
+    },
+    release: () => {
+      if (specialId >= 0) send(specialEl, 'pointerup', 0, 0, specialId);
+      specialId = -1;
+      if (stickId >= 0) send(stickEl, 'pointerup', 0, 0, stickId);
+      stickId = -1;
+    },
+  };
+}
+
 
 const HAWKES_GEN = 'https://hawkesgen.ai';
 const HAWKES_BIOMEDICAL = 'https://hawkesbiomedical.com';
