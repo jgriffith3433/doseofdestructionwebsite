@@ -230,6 +230,15 @@
       ]
     },
     {
+      "id": "daily",
+      "title": "Tonight's Episode: the main menu card shows tonight's fighters, stage and twist (the same for everyone on a date), the episode plays to a score, a day streak and today's board with the player on it (phone: 390x844 touch, played in landscape)",
+      "description": "Setup shortcut: the player's own dod.daily is cleared and put back. Checks the card against the pure picker for the date (daily-episode, the signature two tabs must share; option or ?daily=YYYY-MM-DD names a date off the live site), its fit in the window and 44 px targets (daily-card-fit), Blog Man's intro (daily-listen) and the countdown, plays the episode with the bot on the pad (up to 3 tries; daily-objective), then reads the results' score, day streak and the board (daily-result, daily-board: the player's own line, rank and total; the board is read once when the results open) and the card's Best and streak back on the menu (daily-card-after). On a portrait phone it checks the card in the portrait window and plays in the turned 844x390 frame, everything by taps. Metrics dailyScore, dailyStreak, dailyBoardRank, dailyCardFits, dailyBoardFits.",
+      "seconds": 480,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "ko-objective",
       "title": "The ko objective: \"KOs 0/3\" with the clock, counting up, won on the third KO; then a round lost when time runs out",
       "description": "Setup shortcut: straight into each match as a campaign fight, no menus (the ko objective has no chapter yet). Round 1: Exit Punk (the bot) vs Kaelen (CPU 1, 9 stocks, every life at 120%) on Yo House, 3 KOs before a 2-minute clock; it ends on the third KO. Round 2: vs a giant Break (CPU 9, 9 stocks), 3 KOs before a 20-second clock; it ends on time. Each round checks the chip and the clock as the match starts, every change of the chip against the KOs scored, and the results line saying which way it ended. Events ko-chip, ko-clock, ko-count, ko-result.",

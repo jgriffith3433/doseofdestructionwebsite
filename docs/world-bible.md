@@ -111,6 +111,15 @@ call out where the live build is still thin.
 - **Now:** kinds of call and Blog Man intros exist. **Short:** lines are often caption-only (no take); the booth is
   not a place you can walk into.
 
+### Tonight's Episode (the main menu's nightly card, not a stage)
+- **Mood:** the schedule at midnight: a one-night special every viewer gets at once.
+- **Look / sound:** a gold-edged card above the campaign with the cast's heads, the rule in one line, Blog Man's own
+  recorded episode intro (a button on the card, and again on air in the fight) and a countdown to the next one.
+- **In / out:** from the main menu into a normal campaign-style fight on any of the nine stages, back to the results
+  with the score, the day streak and the night's board.
+- **Now:** picked from the UTC date (`campaign/daily.ts`), scored, streak in localStorage, board on Hawkes Net.
+  **Short:** the intro reuses an existing episode line (no new take); no dedicated scene.
+
 ### The rival feed (Season 4 only, cutaway)
 - **Mood:** a second set of lights across town, same hour.
 - **Look / sound:** same stages under a colder grade (cooler grade / second city-light bank in the backdrop or scene

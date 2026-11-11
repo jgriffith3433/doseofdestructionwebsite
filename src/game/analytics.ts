@@ -248,6 +248,14 @@ export function chapterCleared(c: Chapter, firstTime: boolean, done: Set<string>
   if (CHAPTERS.every((x) => done.has(x.id))) endRun('win');
 }
 
+/**
+ * Tonight's Episode (campaign/daily.ts): feature "daily", `value` = view (the card showed, once a page), listen (Blog Man),
+ * play, result (won, score, streak, on the board) or board (rank of total, once the read comes back).
+ */
+export function daily(value: 'view' | 'listen' | 'play' | 'result' | 'board', props: Props = {}): void {
+  feature('daily', { value, ...props });
+}
+
 /** The run ends when the player leaves the campaign for the main menu (or clears it all). */
 function endRun(result?: 'win' | 'lose' | 'quit'): void {
   if (!run) return;

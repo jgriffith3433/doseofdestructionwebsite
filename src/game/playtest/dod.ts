@@ -26,6 +26,9 @@ import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
 import { MAX_WORDS } from '../campaign/sceneText.ts';
 import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, saveUnlocks, unlocks } from '../campaign/story.ts';
 import { SCENARIOS } from './scenarios.ts';
+import { DAILY_POOL, dailyEpisode, msToNext, objectiveLine, twistLine } from '../campaign/daily.ts';
+import { DAILY_KEY, dailyDate } from '../campaign/dailyStore.ts';
+import { castLine } from '../ui/daily.ts';
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
 import { PROMPTS, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
@@ -149,6 +152,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'match') await r.match();
         else if (id === 'campaign') await r.campaign();
         else if (id === 'unlocks') await r.unlocksRun();
+        else if (id === 'daily') await r.dailyRun();
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
@@ -2335,6 +2339,125 @@ class Run {
     await this.screen('main');
     t.progress(1);
     t.finish(won ? 'won' : 'lost');
+  }
+
+  /**
+   * Tonight's Episode (campaign/daily.ts): the card on the main menu shows tonight's fighters, stage and twist (the same
+   * episode the pure picker gives for the date, so two tabs on one date agree: `daily-episode` logs its signature), Blog
+   * Man's line and the countdown, and fits the window; Play tonight plays the episode (the bot on the pad, up to 3 tries),
+   * the results show the score, the day streak and today's board with the player on it. On a phone (390x844 touch) the
+   * card is checked in the portrait window and the episode is played in the turned 844x390 frame, all by taps. The
+   * player's own `dod.daily` is put back at the end.
+   */
+  async dailyRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const portrait = touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560;
+    this.logViewport(touch && this.isPhone());
+    const saved = localStorage.getItem(DAILY_KEY);
+    localStorage.removeItem(DAILY_KEY);
+    try {
+      await this.toMainMenu();
+      if (touch) {
+        this.useTap = true;
+        forceTouchUi(true);
+      }
+      const date = dailyDate();
+      const ep = dailyEpisode(date, DAILY_POOL);
+      t.progress(0.05);
+      await t.until(() => this.q('#daily-card')?.dataset.date === date && !!this.q('#daily-play'), 10000, "Tonight's Episode card");
+      const card = () => this.q('#daily-card')!;
+      const text = (sel: string) => card().querySelector(sel)?.textContent?.trim() ?? '';
+      // The card says what the picker says for the date.
+      const sig = `${ep.date} ${ep.player} vs ${ep.ally ? `${ep.ally}+` : ''}${ep.foes.join('+')} @ ${ep.stage} ${ep.objective} ${ep.twists.map((x) => x.kind).join('+') || 'no-twist'}`;
+      t.event('daily-episode', sig);
+      if (text('.daily-title') !== castLine(ep)) t.problem('bug', `the card says "${text('.daily-title')}" but the episode for ${date} is "${castLine(ep)}"`);
+      if (!text('.daily-rule').startsWith(objectiveLine(ep)) || (twistLine(ep) && !text('.daily-rule').includes(twistLine(ep)))) {
+        t.problem('bug', `the card's rule line "${text('.daily-rule')}" doesn't match "${objectiveLine(ep)} · ${twistLine(ep)}"`);
+      }
+      if (!text('.daily-tag').includes("Tonight's Episode")) t.problem('bug', "the main menu card isn't headed Tonight's Episode");
+      if (!/Day streak \d+/.test(text('.daily-streak'))) t.problem('bug', 'the card shows no day streak');
+      if (!text('.daily-blog').includes('Blog Man')) t.problem('bug', "the card has no Blog Man intro");
+      const count = text('.daily-count');
+      if (!/^Next episode in \d+[hm] \d{2}[ms]$/.test(count)) t.problem('bug', `the countdown reads "${count}"`);
+      t.event('daily-card', `${castLine(ep)} · ${text('.daily-stage')} · ${text('.daily-rule')} · "${text('.daily-blog').slice(0, 60)}" · ${count} (tomorrow in ${Math.round(msToNext(Date.now()) / 60000)} min)`);
+      // It fits: in the window sideways and top to bottom, nothing cut off inside it, targets 44 px.
+      card().scrollIntoView({ block: 'nearest' });
+      await t.wait(150);
+      const fit = (el: HTMLElement, what: string) => {
+        const r = el.getBoundingClientRect();
+        const inside = r.left >= -0.5 && r.right <= innerWidth + 0.5 && r.top >= -0.5 && r.bottom <= innerHeight + 0.5;
+        const cut = [el, ...el.querySelectorAll<HTMLElement>('*')].filter((c) => c.scrollWidth > c.clientWidth + 1 && getComputedStyle(c).overflow !== 'visible' && c.clientWidth > 0 && !(c instanceof HTMLImageElement));
+        if (!inside) t.problem('bug', `${what} is not fully on screen at ${innerWidth}x${innerHeight} (${Math.round(r.left)},${Math.round(r.top)} to ${Math.round(r.right)},${Math.round(r.bottom)})`);
+        if (cut.length) t.problem('bug', `${what} has clipped text (${cut.map((c) => c.className || c.tagName).join(', ')})`);
+        const small = this.phoneTargets(el);
+        if (touch && small.length) t.problem('bug', `${what}: ${small.join('; ')}`);
+        return inside && !cut.length && !small.length;
+      };
+      const fits = fit(card(), "Tonight's Episode card");
+      t.event('daily-card-fit', `${fits ? 'fits' : 'does not fit'} at ${innerWidth}x${innerHeight}${touch ? ' touch' : ''}`);
+      t.metric('dailyCardFits', fits ? 1 : 0);
+      await this.click(() => this.q('#daily-listen'), 'Blog Man');
+      t.event('daily-listen', 'Blog Man intro played from the card');
+      if (portrait) {
+        // A portrait phone can't hold a match: turn it, and play the episode in the landscape frame.
+        if (saved === null) localStorage.removeItem(DAILY_KEY);
+        else localStorage.setItem(DAILY_KEY, saved);
+        return this.touchMatchTurned('daily');
+      }
+
+      let result: { won: boolean; score: number; streak: number } | null = null;
+      for (let tryNo = 1; tryNo <= 3 && !result?.won; tryNo++) {
+        t.progress(0.1 + tryNo * 0.2);
+        if (tryNo === 1) await this.click(() => this.q('#daily-play'), 'Play tonight');
+        else await this.click(() => this.button('#results-actions', 'Try again'), 'Try again');
+        await this.matchLive();
+        const m = this.game.match()!;
+        const chip = this.q('#objective');
+        const chipShown = !!chip && !chip.hidden && chip.getClientRects().length > 0;
+        if (!chipShown) t.problem('bug', `the ${ep.objective} episode shows no objective chip on the HUD`);
+        else t.event('daily-objective', `try ${tryNo}: ${chip?.textContent ?? ''} with ${this.q('#timer')?.textContent ?? '?'} on the clock`);
+        this.progressNow = () => 0.1 + tryNo * 0.2 + 0.15 * Math.min(1, m.state.frame / Math.max(1, ep.timeLimit));
+        await this.fight(() => false, (ep.timeLimit / 60 + 120) * 1000 * 4);
+        const won = await this.results();
+        await this.t.until(() => !!this.q('#daily-results'), 10000, "Tonight's Episode on the results");
+        const panel = this.q('#daily-results')!;
+        const stat = (k: string) => panel.querySelector(`[data-stat="${k}"] strong`)?.textContent?.trim() ?? '';
+        const score = Number(stat('daily-score').replace(/,/g, '')) || 0;
+        const streak = Number(stat('daily-streak')) || 0;
+        // The board is read once, when the results open: wait for it (no polling here either).
+        await this.t.until(() => this.q('#daily-board')?.dataset.total !== undefined, 20000, "today's board");
+        const board = this.q('#daily-board')!;
+        const rank = Number(board.dataset.rank ?? 0);
+        const total = Number(board.dataset.total ?? 0);
+        const mine = board.querySelector('.daily-row.me');
+        if (won && (!score || streak < 1)) t.problem('bug', `a cleared episode shows score "${stat('daily-score')}" and streak "${stat('daily-streak')}"`);
+        if (won && !mine) t.problem('bug', `a cleared episode: the player is not on today's board (${total} on it, rank ${rank})`);
+        if (!won && stat('daily-score') !== 'No score') t.problem('bug', `a lost episode shows "${stat('daily-score')}" as its score`);
+        panel.scrollIntoView({ block: 'nearest' });
+        await t.wait(150);
+        const boardFits = fit(panel, "the results' Tonight's Episode panel");
+        t.event('daily-result', `try ${tryNo}: ${won ? 'cleared' : 'not cleared'} · score ${score} · day streak ${streak} · best ${stat('daily-best')} · ${this.q('#daily-rank')?.textContent ?? ''}`);
+        t.event('daily-board', `${total} on tonight's board, rank ${rank || 'none'}${boardFits ? ', fits the window' : ''}: ${[...board.querySelectorAll('.daily-row')].slice(0, 3).map((r) => r.textContent).join(' | ')}`);
+        t.metric('dailyScore', score);
+        t.metric('dailyStreak', streak);
+        t.metric('dailyBoardRank', rank);
+        t.metric('dailyBoardFits', boardFits ? 1 : 0);
+        result = { won, score, streak };
+      }
+      if (!result?.won) t.problem('warning', 'the bot did not clear tonight\'s episode in 3 tries, so no score reached the board');
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      await t.until(() => this.q('#daily-card')?.dataset.cleared === (result?.won ? '1' : '0'), 5000, 'the card after the episode');
+      t.event('daily-card-after', `${text('.daily-streak')} · ${text('.daily-foot')}`);
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      if (!portrait) {
+        if (saved === null) localStorage.removeItem(DAILY_KEY);
+        else localStorage.setItem(DAILY_KEY, saved);
+      }
+    }
   }
 
   /** The 'ko' objective, both ways it ends: on the third KO, and on time. */
