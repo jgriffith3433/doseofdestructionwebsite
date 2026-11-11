@@ -631,9 +631,13 @@ export class Renderer {
       m.setEnabled(false);
       this.sparkPool.push(m);
     }
+    // One heavy step per animation frame (each compiles shaders synchronously, seconds on a software renderer),
+    // so the match wipe and Ready countdown that run alongside keep painting.
+    await breathe();
     this.fx?.warmUp();
     await breathe();
     this.live?.warmUp();
+    await breathe();
     // Each projectile and trap look is shown once, so their shaders compile now and not on the first throw
     // (the first drawShots with nothing in play hides them again).
     this.shotMaterials().forEach((mat, i) => {

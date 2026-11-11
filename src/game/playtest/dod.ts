@@ -676,18 +676,36 @@ class Run {
     const byId = want ? [...cards()].findIndex((c) => c.dataset.stage === want) : -1;
     if (want && byId < 0) this.t.problem('bug', `stage "${want}" is not offered in Versus (content/modes.json)`);
     const pick = byId >= 0 ? byId : Math.abs(this.options.seed - 1) % cards().length;
-    let timing: { selectToVs: number | null; vsToMatch: number; selectToMatch: number | null } | null = null;
+    type Timing = { selectToVs: number | null; vsToMatch: number; vsHoldMs: number | null; warmUpMs: number | null; selectToMatch: number | null };
+    let timing: Timing | null = null;
+    let warmUpMs: number | null = null;
     const onTiming = (e: Event) => { timing = (e as CustomEvent).detail; };
+    const onWarm = (e: Event) => { warmUpMs = (e as CustomEvent).detail.warmUpMs; };
     window.addEventListener('dod:scene-timing', onTiming);
+    window.addEventListener('dod:warm-up', onWarm);
     await this.click(() => cards()[pick], `stage ${want && byId >= 0 ? want : pick + 1}`);
     const confirmAt = performance.now();
     this.vsWipePending = this.vsHoldWanted;
     if (this.onVersus) await this.onVersus();
     await this.matchLive();
     window.removeEventListener('dod:scene-timing', onTiming);
-    const tm = timing as { selectToVs: number | null; vsToMatch: number; selectToMatch: number | null } | null;
+    const tm = timing as Timing | null;
     if (tm) {
       const sec = (ms: number | null) => (ms === null ? 'n/a' : `${(ms / 1000).toFixed(2)} s`);
+      // The VS card on screen: from the wipe into it to the wipe into the match (capped at 4 s in main.ts; the
+      // meshes are the only thing it can still wait on past the cap).
+      if (tm.vsHoldMs !== null) {
+        this.t.metric('vsCardHoldMs', tm.vsHoldMs);
+        this.t.event('vsCardHoldMs', `VS card shown to match wipe start: ${tm.vsHoldMs} ms`);
+        if (tm.vsHoldMs > 5000) this.t.problem('bug', `The VS card was held ${tm.vsHoldMs} ms before the match wipe (cap 4000 ms)`);
+        // The warm-up carries on behind the match intro: give it up to 20 s to report.
+        await this.t.until(() => warmUpMs !== null, 20000, 'the warm-up to finish').catch(() => undefined);
+        if (warmUpMs !== null) {
+          this.t.metric('warmUpMs', warmUpMs);
+          this.t.event('warmUpMs', `renderer warm-up took ${warmUpMs} ms (behind the VS card and match intro)`);
+        }
+      }
+      window.removeEventListener('dod:warm-up', onWarm);
       this.t.event('select-to-vs', `stage picked to VS card up: ${sec(tm.selectToVs)}`);
       this.t.event('vs-to-match', `VS card to match: ${sec(tm.vsToMatch)}`);
       this.t.event('select-to-match', `stage picked to match: ${sec(tm.selectToMatch)}`);
