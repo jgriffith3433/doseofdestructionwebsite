@@ -980,18 +980,23 @@ export class Renderer {
       maxY = 2;
     }
     // Keep some of the stage in frame so players never lose their footing.
-    minX = Math.min(minX, -2.5);
-    maxX = Math.max(maxX, 2.5);
+    const aspect = this.engine.getAspectRatio(this.camera);
+    // Portrait phone: the screen is narrow, so frame tighter (less stage kept in view, smaller padding)
+    // and never stop pulling out before both fighters fit; width is what limits the zoom there.
+    const portrait = aspect < 0.9;
+    minX = Math.min(minX, portrait ? -1.2 : -2.5);
+    maxX = Math.max(maxX, portrait ? 1.2 : 2.5);
     minY = Math.min(minY, -0.4);
-    const pad = 1.6;
+    const pad = portrait ? 1.0 : 1.6;
     const width = maxX - minX + pad * 2;
     const height = maxY - minY + pad * 2;
-    const aspect = this.engine.getAspectRatio(this.camera);
     const tan = Math.tan(this.camera.fov / 2);
     // Far enough out for fighters at the ends of the widest stages.
-    const dist = Math.max(10, Math.min(40, Math.max(height / (2 * tan), width / (2 * tan * aspect))));
+    const need = Math.max(height / (2 * tan), width / (2 * tan * aspect));
+    const dist = portrait ? Math.max(7, need) : Math.max(10, Math.min(40, need));
     const tx = (minX + maxX) / 2;
-    const ty = (minY + maxY) / 2 + 0.3;
+    // Portrait: sit the fight lower on screen, nearer the thumbs, instead of centred under empty sky.
+    const ty = (minY + maxY) / 2 + 0.3 + (portrait ? dist * tan * 0.2 : 0);
 
     let ease = 0.08;
     let [cx, cy, cd] = [tx, ty, dist];
