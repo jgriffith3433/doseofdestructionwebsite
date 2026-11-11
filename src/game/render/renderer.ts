@@ -6,7 +6,7 @@ import { Scene } from '@babylonjs/core/scene.js';
 import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera.js';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight.js';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color.js';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
+import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder.js';
@@ -23,7 +23,7 @@ import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
 import { activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
-import { hitTier, impactFor, screenShake, type HitTier } from '../hitFeel.ts';
+import { KILL_CUE, hitTier, impactFor, killPunch, killTimeScale, screenShake, type HitTier } from '../hitFeel.ts';
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
@@ -126,7 +126,7 @@ export class Renderer {
   /** Plays a sound effect for stage effects (main wires it to the audio system). */
   onSound: ((id: string) => void) | null = null;
   /** Procedural effects (synth.ts) the renderer asks for, like an arrival's thud. */
-  onSynth: ((kind: 'thud' | 'whoosh') => void) | null = null;
+  onSynth: ((kind: 'thud' | 'whoosh' | 'whistle') => void) | null = null;
   private shake = 0;
   /** A story scene's camera (scene.ts): a close-up on one fighter, or a wide shot; null is the gameplay camera. */
   private shot: { focus: number | null; since: number } | null = null;
@@ -137,6 +137,18 @@ export class Renderer {
   private talking = new Map<number, number>();
   /** The last hit's effect and the camera shake actually applied, for the playtest to read. */
   private hitStats = { hits: 0, last: null as null | { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number }, tiers: { light: 0, medium: 0, heavy: 0 }, shakeApplied: 0, shakeMax: 0 };
+  /** Camera follow state: smoothed distance and the critically damped velocities (pan x, pan y, zoom), and the last frame's time. */
+  private camDist = 14;
+  private camVel = { x: 0, y: 0, d: 0 };
+  private camSide = 0;
+  private camTilt = 0;
+  private camMs = 0;
+  /** The next gameplay frame sets the camera outright (a new stage, a rematch, a menu shot): an intended cut, never a jump. */
+  private camCut = true;
+  /** The kill cue in progress: when the finishing hit landed (ms) and where. */
+  private kill: { at: number; x: number; y: number } | null = null;
+  /** What the camera and kill cues did, for the playtest (cameraJumps must stay 0). */
+  private camStats = { cameraJumps: 0, framingMisses: 0, killCues: 0, slowFpsMin: 0, lastCue: null as null | { zoom: boolean; slow: boolean; whistle: boolean; shake: number; punch: number } };
   private camPos = new Vector3(0, 1.6, -14);
   private camTarget = new Vector3(0, 1.6, 0);
   debug = false;
@@ -315,6 +327,8 @@ export class Renderer {
     this.alive?.dispose();
     this.movers = [];
     this.stage = stage;
+    this.camCut = true;
+    this.kill = null;
     const root = new TransformNode('stage', this.scene);
     this.stageRoot = root;
     const t = this.stage.theme;
@@ -752,6 +766,9 @@ export class Renderer {
         const on = e.phase === 'warn' ? `warn:${id}` : e.phase === 'start' ? `event:${id}` : `eventEnd:${id}`;
         this.fx?.trigger(on);
         this.live?.trigger(on);
+      } else if (e.type === 'launch') {
+        // The launch that will carry the victim out of the blast zone: the kill cue.
+        if (e.ko && !this.shot) this.killCue(e.x * S, e.y * S + 0.5);
       } else if (e.type === 'ko') {
         const b = this.stage.blast;
         const x = Math.max(b.left + 40, Math.min(b.right - 40, e.x / FX)) * W;
@@ -916,6 +933,43 @@ export class Renderer {
     st.last = { tier, lag: e.lag, sparks: fx.sparks, stars: fx.stars, ring: fx.ring, shake: fx.shake, flash: fx.flash };
   }
 
+  /**
+   * The hit that ends a stock announces itself (hitFeel.ts predicts it as the hit-stop ends and the launch begins): a red-tinted
+   * flash, a sharper impact ring, a punch-in on the impact, a beat of slow motion (`timeScale`) and a rising whistle.
+   * Screen shake off still removes the shake; the zoom stays.
+   */
+  private killCue(x: number, y: number): void {
+    this.kill = { at: performance.now(), x, y };
+    this.flashMat.emissiveColor = new Color3(1, 0.12, 0.08);
+    this.flashMat.alpha = KILL_CUE.redFlash;
+    this.flashPlane.setEnabled(true);
+    this.sprite(x, y, 0, 0.5, 12, 9);
+    this.sprite(x, y, 0.5, 0.8, 18, 6);
+    this.shake = Math.max(this.shake, 0.8);
+    this.onSynth?.('whistle');
+    const c = this.camStats;
+    c.killCues++;
+    c.lastCue = { zoom: true, slow: true, whistle: !!this.onSynth, shake: screenShake() ? this.shake : 0, punch: 0 };
+  }
+
+  /** How fast the match clock should run right now: slow motion for the kill cue's beat, else 1. */
+  timeScale(): number {
+    if (!this.kill) return 1;
+    const t = (performance.now() - this.kill.at) / 1000;
+    if (t > KILL_CUE.slowSeconds + KILL_CUE.easeBack + 0.1) this.kill = null;
+    return killTimeScale(t);
+  }
+
+  /** Camera and kill-cue counters for the playtest. */
+  camFxStats(reset = false) {
+    const out = { ...this.camStats, killActive: !!this.kill };
+    if (reset) {
+      this.camStats.cameraJumps = 0;
+      this.camStats.framingMisses = 0;
+    }
+    return out;
+  }
+
   /** One impact flash: a soft disc that blows up as it fades (two make a heavy burst, a big fast one reads as a shockwave). */
   private sprite(x: number, y: number, rot: number, size: number, life: number, grow: number): void {
     const mesh = this.takeSpark();
@@ -980,6 +1034,11 @@ export class Renderer {
     this.drawDebug(state);
     this.updateCamera(state);
     this.scene.render();
+    this.checkFraming(state);
+    if (this.kill && (performance.now() - this.kill.at) / 1000 > 0.15 && (performance.now() - this.kill.at) / 1000 < KILL_CUE.slowSeconds) {
+      const fps = this.engine.getFps();
+      this.camStats.slowFpsMin = this.camStats.slowFpsMin === 0 ? fps : Math.min(this.camStats.slowFpsMin, fps);
+    }
   }
 
   private drawFighter(f: Fighter, v: FighterView | undefined): void {
@@ -1122,7 +1181,16 @@ export class Renderer {
     }
   }
 
+  /**
+   * The match camera: frames the box around every living fighter (plus padding and a little of the stage), with
+   * critically damped pan and zoom (smoothDamp: it never snaps, whatever a KO or a respawn does to the box), clamped
+   * to the stage's blast zone and to zoom limits that keep fighters readable. A kill cue punches in on the impact and
+   * eases back out. An intended cut (new stage, rematch) sets it outright and is not counted as a jump.
+   */
   private updateCamera(state: GameState): void {
+    const now = performance.now();
+    const dt = Math.min(0.05, Math.max(0.001, (now - (this.camMs || now - 16.7)) / 1000));
+    this.camMs = now;
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
@@ -1130,8 +1198,9 @@ export class Renderer {
     const b = this.stage.blast;
     for (const f of state.fighters) {
       if (f.action === ACT.DEAD) continue;
-      const x = Math.max(b.left + 200, Math.min(b.right - 200, f.x / FX)) * W;
-      const y = Math.max(b.bottom + 200, Math.min(b.top - 150, f.y / FX)) * W;
+      // Up to the blast zone itself, so nobody leaves the frame before they are out.
+      const x = Math.max(b.left, Math.min(b.right, f.x / FX)) * W;
+      const y = Math.max(b.bottom, Math.min(b.top, f.y / FX)) * W;
       const h = CHARACTERS[f.char].height * W * (f.scale / 100);
       minX = Math.min(minX, x);
       maxX = Math.max(maxX, x);
@@ -1156,19 +1225,23 @@ export class Renderer {
     const width = maxX - minX + pad * 2;
     const height = maxY - minY + pad * 2;
     const tan = Math.tan(this.camera.fov / 2);
-    // Far enough out for fighters at the ends of the widest stages.
+    // Zoom limits: close enough to read fighters, far enough for the widest stage's ends.
     const need = Math.max(height / (2 * tan), width / (2 * tan * aspect));
     const dist = portrait ? Math.max(7, need) : Math.max(10, Math.min(40, need));
-    const tx = (minX + maxX) / 2;
+    const clampX = (v: number) => Math.max(b.left * W, Math.min(b.right * W, v));
+    const clampY = (v: number) => Math.max(b.bottom * W, Math.min(b.top * W, v));
+    let cx = clampX((minX + maxX) / 2);
     // Portrait: sit the fight lower on screen, nearer the thumbs, instead of centred under empty sky.
-    const ty = (minY + maxY) / 2 + 0.3 + (portrait ? dist * tan * 0.2 : 0);
+    let cy = clampY((minY + maxY) / 2 + 0.3 + (portrait ? dist * tan * 0.2 : 0));
+    let cd = dist;
 
-    let ease = 0.08;
-    let [cx, cy, cd] = [tx, ty, dist];
+    let smooth = 0.18;
+    let smoothZoom = 0.25;
     if (this.shot) {
       // Story scene: ease slower, like a camera operator, onto the speaker or out to the whole stage.
-      ease = 0.045;
-      const secs = (performance.now() - this.shot.since) / 1000;
+      smooth = 0.6;
+      smoothZoom = 0.8;
+      const secs = (now - this.shot.since) / 1000;
       const f = this.shot.focus === null ? undefined : state.fighters[this.shot.focus];
       if (f && f.action !== ACT.DEAD && !this.offstage.has(f.id)) {
         const h = CHARACTERS[f.char].height * W * (f.scale / 100);
@@ -1176,19 +1249,54 @@ export class Renderer {
         cy = f.y * S + h * 0.62;
         cd = Math.max(4.5, h * 3.1) - Math.min(0.8, secs * 0.12);
       } else {
-        const b = this.stage.blast;
         cx = 0;
         cy = 1.5;
         cd = Math.max(12, Math.min(30, ((b.right - b.left) * W) / (2 * tan * aspect) * 0.62)) - Math.min(2.5, secs * 0.35);
       }
+    } else if (this.kill) {
+      // The kill cue's punch-in: toward the impact, closer, quickly; then back out as the punch fades.
+      const t = (now - this.kill.at) / 1000;
+      const p = killPunch(t);
+      cx += (this.kill.x - cx) * 0.7 * p;
+      cy += (this.kill.y - cy) * 0.7 * p;
+      cd = Math.max(6, cd * (1 - KILL_CUE.punchIn * p));
+      smooth = 0.12 + 0.16 * (1 - p);
+      smoothZoom = 0.1 + 0.3 * (1 - p);
+      if (this.camStats.lastCue && t < 0.3) this.camStats.lastCue.punch = Math.max(this.camStats.lastCue.punch, p);
     }
-    this.camTarget.x += (cx - this.camTarget.x) * ease;
-    this.camTarget.y += (cy - this.camTarget.y) * ease;
-    // After a commercial break the show returns on another camera angle.
-    const side = [0, 1, -1][state.angle] ?? 0;
-    this.camPos.x = this.camTarget.x + side * cd * 0.12;
-    this.camPos.y = this.camTarget.y + cd * (0.06 + (state.angle === 2 ? 0.1 : 0));
-    this.camPos.z += (-cd - this.camPos.z) * ease;
+
+    // Commercial-break angles ease too, so the camera never jumps to the new one.
+    const sideGoal = [0, 1, -1][state.angle] ?? 0;
+    const tiltGoal = state.angle === 2 ? 0.1 : 0;
+    const k = 1 - Math.exp(-dt * 3);
+    this.camSide += (sideGoal - this.camSide) * k;
+    this.camTilt += (tiltGoal - this.camTilt) * k;
+
+    const px = this.camTarget.x;
+    const py = this.camTarget.y;
+    const pd = this.camDist;
+    if (this.camCut) {
+      this.camTarget.x = cx;
+      this.camTarget.y = cy;
+      this.camDist = cd;
+      this.camVel = { x: 0, y: 0, d: 0 };
+      this.camSide = sideGoal;
+      this.camTilt = tiltGoal;
+      this.camCut = false;
+    } else {
+      [this.camTarget.x, this.camVel.x] = smoothDamp(this.camTarget.x, cx, this.camVel.x, smooth, dt);
+      [this.camTarget.y, this.camVel.y] = smoothDamp(this.camTarget.y, cy, this.camVel.y, smooth, dt);
+      [this.camDist, this.camVel.d] = smoothDamp(this.camDist, cd, this.camVel.d, smoothZoom, dt);
+      // A frame that moved or zoomed past the threshold (scaled for a slow frame) is a jump, scenes aside.
+      const frames = Math.max(1, dt * 60);
+      if (!this.shot && (Math.hypot(this.camTarget.x - px, this.camTarget.y - py) > 1.2 * frames || Math.abs(this.camDist - pd) > 1.5 * frames)) {
+        this.camStats.cameraJumps++;
+      }
+    }
+    const d = this.camDist;
+    this.camPos.x = this.camTarget.x + this.camSide * d * 0.12;
+    this.camPos.y = this.camTarget.y + d * (0.06 + this.camTilt);
+    this.camPos.z = -d;
 
     // Screen shake off (Settings): the camera stays put, whatever the stage or a hit asked for.
     if (!screenShake()) this.shake = 0;
@@ -1199,6 +1307,23 @@ export class Renderer {
     const jy = (Math.random() - 0.5) * this.shake * 0.4;
     this.camera.position.set(this.camPos.x + jx, this.camPos.y + jy, this.camPos.z);
     this.camera.setTarget(new Vector3(this.camTarget.x + jx, this.camTarget.y + jy, 0));
+  }
+
+  /** After a render: counts a living fighter whose body is outside the view (the playtest wants none). */
+  private checkFraming(state: GameState): void {
+    if (this.shot || this.camCut) return;
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    for (const f of state.fighters) {
+      if (f.action === ACT.DEAD || this.offstage.has(f.id)) continue;
+      const wx = f.x * S;
+      const wy = f.y * S;
+      if (f.x / FX <= this.stage.blast.left || f.x / FX >= this.stage.blast.right || f.y / FX >= this.stage.blast.top || f.y / FX <= this.stage.blast.bottom) continue;
+      const p = Vector3.Project(new Vector3(wx, wy, 0), Matrix.IdentityReadOnly, m, vp);
+      if (p.x < 0 || p.x > w || p.y < 0 || p.y > h) this.camStats.framingMisses++;
+    }
   }
 
   /**
@@ -1241,11 +1366,23 @@ export class Renderer {
 
   /** Points the camera at the stage, for menus that show it behind them. */
   frameStage(): void {
+    this.camCut = true;
     this.camTarget.set(0, 1.4, 0);
     this.camPos.set(0, 1.9, -16);
     this.camera.position.copyFrom(this.camPos);
     this.camera.setTarget(this.camTarget);
   }
+}
+
+/** Critically damped follow (Unity's SmoothDamp): reaches `target` in about `smooth` seconds with no overshoot and no snap. */
+function smoothDamp(cur: number, target: number, vel: number, smooth: number, dt: number): [number, number] {
+  const omega = 2 / Math.max(0.0001, smooth);
+  const x = omega * dt;
+  const e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+  const change = cur - target;
+  const temp = (vel + omega * change) * dt;
+  const nv = (vel - omega * temp) * e;
+  return [target + (change + temp) * e, nv];
 }
 
 function setTexture(mat: StandardMaterial, tex: Texture | DynamicTexture): void {

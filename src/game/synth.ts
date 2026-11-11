@@ -2,9 +2,9 @@
 // for camera moves and arrivals, a broadcast sting, a stage alarm. Continuous stage beds (crowd murmur, wind,
 // studio hum) live here too so every arena has a place tone without a dedicated file. Nothing to download.
 
-export type SynthKind = 'crowd' | 'cheer' | 'whoosh' | 'sting' | 'alarm' | 'thud';
+export type SynthKind = 'crowd' | 'cheer' | 'whoosh' | 'sting' | 'alarm' | 'thud' | 'whistle';
 
-export const SYNTH_KINDS: readonly SynthKind[] = ['crowd', 'cheer', 'whoosh', 'sting', 'alarm', 'thud'];
+export const SYNTH_KINDS: readonly SynthKind[] = ['crowd', 'cheer', 'whoosh', 'sting', 'alarm', 'thud', 'whistle'];
 
 /** Continuous place tones under a stage's music. */
 export type BedKind = 'arena' | 'city-night' | 'indoor' | 'desert' | 'fog' | 'void' | 'park' | 'nebula' | 'solar';
@@ -124,6 +124,38 @@ export function playSynth(ctx: BaseAudioContext, out: AudioNode, kind: SynthKind
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.78);
       o.start(t);
       o.stop(t + 0.8);
+      break;
+    }
+    case 'whistle': {
+      // The kill cue: a rising whistle (a slide-whistle sweep with breath). Three takes, picked at random so a run of
+      // finishing blows never plays the same one twice in a row. Hawkes Gen SFX takes replace these when approved.
+      const take = [
+        { from: 520, to: 2300, dur: 0.55, vib: 6 },
+        { from: 700, to: 2700, dur: 0.48, vib: 8 },
+        { from: 440, to: 2000, dur: 0.6, vib: 5 },
+      ][Math.floor(Math.random() * 3)];
+      const dur = env(g, t, 0.16 * level, 0.04, take.dur - 0.12, 0.08);
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(take.from, t);
+      o.frequency.exponentialRampToValueAtTime(take.to, t + take.dur);
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = take.vib;
+      const depth = ctx.createGain();
+      depth.gain.value = 18;
+      lfo.connect(depth).connect(o.frequency);
+      o.connect(g);
+      const breath = ctx.createGain();
+      env(breath, t, 0.05 * level, 0.04, take.dur - 0.12, 0.08);
+      breath.connect(out);
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 2400;
+      noiseSource(ctx, t, dur).connect(hp).connect(breath);
+      o.start(t);
+      lfo.start(t);
+      o.stop(t + dur + 0.05);
+      lfo.stop(t + dur + 0.05);
       break;
     }
     case 'thud': {

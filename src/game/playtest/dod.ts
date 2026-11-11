@@ -57,6 +57,7 @@ export interface GameHooks {
   setCampaignProgress(ids: string[]): string[];
   /** Renderer particle and warm-up diagnostics. */
   /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
+  camFxStats?(reset?: boolean): { cameraJumps: number; framingMisses: number; killCues: number; slowFpsMin: number; killActive: boolean; lastCue: { zoom: boolean; slow: boolean; whistle: boolean; shake: number; punch: number } | null };
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
@@ -2559,6 +2560,12 @@ class Run {
     const seen: Record<HitTier, { lag: number; frozen: number; dmg: number; fx: string } | null> = { light: null, medium: null, heavy: null };
     const fxLine = (l: NonNullable<ReturnType<NonNullable<GameHooks['hitFxStats']>>['last']>) =>
       `${l.sparks} sparks, ${l.stars} impact stars, ${l.ring ? 'shockwave ring' : 'no ring'}, shake ${l.shake.toFixed(2)}, flash ${l.flash}`;
+    let cuesPrev = 0;
+    let killsCued = 0;
+    let killsMissed = 0;
+    let falseCues = 0;
+    const lastHit = new Map<number, { ko: boolean; frame: number }>();
+    const cuePending = new Map<number, number>();
     const pending: { victim: number; tier: HitTier; lag: number; dmg: number; frozen: number; fx: string }[] = [];
     const unwatch = this.game.watch((m, events) => {
       for (const p of pending.slice()) {
@@ -2569,6 +2576,35 @@ class Run {
             seen[p.tier] = p;
             t.event(`hit-stop-${p.tier}`, `${p.tier} hit (${p.dmg / 10}%): frozen ${p.frozen + 1} frames (sim hit-stop ${p.lag})`);
           }
+        }
+      }
+      // Kill cues: a cue on exactly the hits the sim flagged as stock-ending, and a KO only after such a hit.
+      const cues = this.game.camFxStats?.()?.killCues ?? cuesPrev;
+      const fresh = cues - cuesPrev;
+      cuesPrev = cues;
+      const flagged = events.filter((e) => e.type === 'launch' && e.ko).length;
+      if (fresh !== flagged) t.problem('bug', `${fresh} kill cue(s) played for ${flagged} stock-ending hit(s) in one tick`);
+      for (const e of events) {
+        if (e.type === 'launch') {
+          lastHit.set(e.victim, { ko: e.ko, frame: m.state.frame });
+          if (e.ko) {
+            cuePending.set(e.victim, m.state.frame);
+            t.event('kill-cue', `launch of fighter ${e.victim} (hit by ${e.by}) carries out of the blast zone: red flash, punch-in, slow motion and whistle, 4 extra hit-stop frames`);
+          }
+        } else if (e.type === 'ko') {
+          const h = lastHit.get(e.victim);
+          if (cuePending.delete(e.victim)) killsCued++;
+          else if (h && !h.ko && e.by >= 0 && e.by !== e.victim) {
+            killsMissed++;
+            t.event('kill-cue-missed', `fighter ${e.victim} was KO'd by a hit that was not predicted (${m.state.frame - h.frame} frames after it)`);
+          }
+        }
+      }
+      for (const [v, fr] of cuePending) {
+        if (m.state.frame - fr > 300) {
+          cuePending.delete(v);
+          falseCues++;
+          t.event('kill-cue-false', `a kill cue played on a hit that did not end the stock (fighter ${v} survived)`);
         }
       }
       for (const e of events) {
@@ -2598,6 +2634,8 @@ class Run {
       await this.startVersus(3);
       t.progress(0.15);
       this.game.hitFxStats?.(true);
+      this.game.camFxStats?.(true);
+      cuesPrev = this.game.camFxStats?.()?.killCues ?? 0;
       const m0 = () => this.game.match();
       this.progressNow = () => 0.15 + 0.5 * Math.min(1, ((m0()?.state.frame ?? 0) / (75 * 60)));
       // Fight until a light and a heavy hit were both seen (and counted), or 75 s of game time.
@@ -2635,12 +2673,38 @@ class Run {
       await t.until(() => this.game.phase() === 'play', 3000, 'the match to resume');
       this.game.hitFxStats?.(true);
       const f0 = m0()?.state.frame ?? 0;
-      await this.fight(() => (this.game.hitFxStats?.()?.hits ?? 0) >= 4 || (m0()?.state.frame ?? 0) - f0 > 40 * 60, 2 * 60 * 1000);
+      const cuedBefore = killsCued;
+      // Four hits, and (up to 90 s of game time) a stock ended by a kill cue, so the cue is seen with shake off.
+      await this.fight(() => ((this.game.hitFxStats?.()?.hits ?? 0) >= 4 && killsCued > cuedBefore) || (m0()?.state.frame ?? 0) - f0 > 90 * 60, 3 * 60 * 1000);
       const off = this.game.hitFxStats?.();
       t.metric('shakeMaxOff', Number((off?.shakeMax ?? 0).toFixed(3)));
       if (!off || off.hits === 0) t.problem('warning', 'no hit landed with Screen shake off, so the camera could not be checked');
       else if (off.shakeMax > 0) t.problem('bug', `the camera still shook (${off.shakeMax.toFixed(2)}) with Screen shake off`);
       else t.event('no-shake', `${off.hits} hits landed with Screen shake off and the camera stayed still (hit-stop and impact effects still play)`);
+      const cam = this.game.camFxStats?.();
+      if (cam) {
+        t.metric('cameraJumps', cam.cameraJumps);
+        t.metric('killCues', cam.killCues);
+        t.metric('killsCued', killsCued);
+        t.metric('framingMisses', cam.framingMisses);
+        if (cam.slowFpsMin > 0) t.metric('killSlowMinFps', Math.round(cam.slowFpsMin));
+        if (cam.cameraJumps > 0) t.problem('bug', `the camera jumped ${cam.cameraJumps} time(s) (moved or zoomed past the threshold in one frame)`);
+        else t.event('camera-smooth', 'the match camera never jumped (cameraJumps 0)');
+        if (cam.framingMisses > 0) t.problem('bug', `a fighter was outside the view ${cam.framingMisses} time(s) before reaching the blast zone`);
+        else t.event('camera-framing', 'every fighter stayed on screen until the blast zone');
+        if (cam.slowFpsMin > 0 && cam.slowFpsMin < 40) t.problem('warning', `frame rate dipped to ${Math.round(cam.slowFpsMin)} fps during the kill slow motion (want 40+ on a phone)`);
+        if (cam.killCues === 0) t.problem('warning', 'no stock ended in this run, so the kill cue was not seen');
+        else {
+          if (falseCues > 0) t.problem('bug', `${falseCues} kill cue(s) played on a hit that did not end the stock`);
+          if (killsMissed > 0) t.problem('warning', `${killsMissed} of ${killsMissed + killsCued} stocks ended with no kill cue (the victim was launched inside the zone and fell out, so the launch was not a KO)`);
+          if (falseCues === 0) t.event('kill-cue-exact', `${killsCued} stock-ending hits played a kill cue, no other hit did (${killsMissed} falls out of a spent launch had none)`);
+          const lc = cam.lastCue;
+          if (lc && !(lc.zoom && lc.slow && lc.whistle)) t.problem('bug', 'a kill cue was missing its zoom, slow motion or whistle');
+          if (lc && lc.punch <= 0.2) t.problem('bug', 'the kill cue did not punch the camera in');
+          if (lc && cam.killCues > 0 && !screenShake() && lc.shake > 0) t.problem('bug', 'the kill cue shook the camera with Screen shake off');
+          else if (lc && !screenShake()) t.event('kill-cue-no-shake', `with Screen shake off the kill cue still zoomed (punch ${lc.punch.toFixed(2)}) and the shake was ${lc.shake}`);
+        }
+      }
       t.progress(0.9);
 
       // Back on for the next visit, then out.

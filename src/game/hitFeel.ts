@@ -4,6 +4,8 @@
  * choice, Screen shake on or off, is saved in localStorage "dod.shake" and read live by the renderer.
  */
 
+import { idiv, isqrt } from './sim/fixed.ts';
+
 export type HitTier = 'light' | 'medium' | 'heavy';
 
 /** Damage is in tenths of a percent (the same cut-offs pick hit-light / hit-medium / hit-heavy in main.ts). */
@@ -57,3 +59,113 @@ export const onScreenShake = (l: (on: boolean) => void): (() => boolean) => {
 };
 
 export const SHAKE_STORAGE_KEY = SHAKE_KEY;
+
+// ------------------------------------------------------------------ kill cue
+
+/** The blast zone, in world units (the stage's `blast`). */
+export interface BlastBox {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+export interface LaunchInput {
+  /** Victim position when the launch starts, fixed-point (the sim's FX = 1000 per unit). */
+  x: number;
+  y: number;
+  /** The launch velocity (fixed-point per frame), after DI and the ground bounce. */
+  kx: number;
+  ky: number;
+  /** Gravity per frame and the fall-speed cap, fixed-point. */
+  gravity: number;
+  fallSpeed: number;
+  blast: BlastBox;
+  /** The victim's air speed (fixed-point per frame): once hit-stun ends they can steer back toward the stage against the launch. */
+  drift?: number;
+  /** Floors the victim lands on, and solid blocks (depth set: the launch bounces off their sides and underside): x range and top y in world units. A launch that comes down onto one is a bounce, not a KO. */
+  floors?: { x1: number; x2: number; y: number; depth?: number }[];
+}
+
+/** Knockback speed bleeds off by this much per frame (the sim's KB_DECAY), fixed-point. */
+export const KB_DECAY_PER_FRAME = 300;
+const FXU = 1000;
+const PREDICT_FRAMES = 240;
+
+/**
+ * Pure "will this launch KO": flies the victim along the launch (knockback bleeding off linearly, gravity pulling
+ * down to the fall-speed cap) and says whether they pass the blast zone before landing on a floor. It only calls a KO the launch itself carries out of the zone (a fighter left falling can still recover). It ignores DI,
+ * jumps and air dodges, so it is a prediction: the sim's KO is the truth, the cue only has to be right for the
+ * usual finishing hit.
+ */
+export const predictLaunchKo = (p: LaunchInput): boolean => {
+  // Integer math only: the sim calls this (the extra hit-stop depends on it), so every peer must agree.
+  let kx = p.kx;
+  let ky = p.ky;
+  let x = p.x;
+  let y = p.y;
+  let vy = 0;
+  const b = p.blast;
+  const stun = Math.round(isqrt(kx * kx + ky * ky) / 4250);
+  for (let i = 0; i < PREDICT_FRAMES; i++) {
+    const sp = isqrt(kx * kx + ky * ky);
+    if (sp <= KB_DECAY_PER_FRAME) {
+      // The knockback is spent inside the stage: the fighter has control back and can recover, so no KO is called.
+      return false;
+    } else {
+      kx -= idiv(kx * KB_DECAY_PER_FRAME, sp);
+      ky -= idiv(ky * KB_DECAY_PER_FRAME, sp);
+    }
+    vy = Math.max(vy - p.gravity, Math.min(vy, -p.fallSpeed));
+    const py = y;
+    x += kx;
+    y += vy + ky;
+    if (p.drift && i >= stun) x -= x > 0 ? p.drift : -p.drift;
+    if (x <= b.left * FXU || x >= b.right * FXU || y >= b.top * FXU || y <= b.bottom * FXU) return true;
+    if (p.floors) {
+      for (const f of p.floors) {
+        if (f.depth && x >= (f.x1 - 40) * FXU && x <= (f.x2 + 40) * FXU && y < (f.y - 1) * FXU && y > (f.y - f.depth) * FXU) return false;
+      }
+    }
+    if (vy + ky < 0 && p.floors) {
+      for (const f of p.floors) if (x >= f.x1 * FXU && x <= f.x2 * FXU && py >= f.y * FXU && y <= f.y * FXU) return false;
+    }
+  }
+  return false;
+};
+
+/** Extra hit-stop frames on a hit that will end a stock: the match clock holds this long before the slow motion (presentation only, the sim is unchanged). */
+export const KILL_EXTRA_HITSTOP = 4;
+
+/** The kill cue's timing, in real seconds: punch in, hold in slow motion, ease back. */
+export const KILL_CUE = {
+  /** Slow motion lasts this long in real time (0.4-0.6 s) at this fraction of normal speed. */
+  slowSeconds: 0.5,
+  slowScale: 0.3,
+  /** The camera closes in by this share of its distance, on the impact. */
+  punchIn: 0.42,
+  /** Seconds the punch-in takes to settle back after the slow motion. */
+  easeBack: 0.45,
+  /** A brief red tint over the screen (alpha) and a sharper ring. */
+  redFlash: 0.32,
+} as const;
+
+/** Sim speed multiplier for a kill cue `t` seconds old: held still for the extra hit-stop, slow for the beat, then back up smoothly. */
+export const killTimeScale = (t: number): number => {
+  const hold = KILL_EXTRA_HITSTOP / 60;
+  if (t < 0 || t >= hold + KILL_CUE.slowSeconds + 0.12) return 1;
+  if (t < hold) return 0;
+  if (t < hold + KILL_CUE.slowSeconds) return KILL_CUE.slowScale;
+  const k = (t - hold - KILL_CUE.slowSeconds) / 0.12;
+  return KILL_CUE.slowScale + (1 - KILL_CUE.slowScale) * k;
+};
+
+/** How far the punch-in is applied (0 to 1) `t` seconds after the impact: snaps in, holds, eases back. */
+export const killPunch = (t: number): number => {
+  if (t < 0) return 0;
+  const hold = KILL_CUE.slowSeconds;
+  if (t < 0.08) return t / 0.08;
+  if (t < hold) return 1;
+  const k = Math.min(1, (t - hold) / KILL_CUE.easeBack);
+  return 1 - k * k * (3 - 2 * k);
+};

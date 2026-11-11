@@ -1120,7 +1120,8 @@ function bumpHud(id: number): void {
 
 function frame(draw = true): void {
   const now = performance.now();
-  acc += Math.min(100, now - last) * (fight ? 1 : simSpeed);
+  // The kill cue's beat of slow motion (renderer.timeScale); online the sim must stay at 60 Hz, so only the camera and sound play there.
+  acc += Math.min(100, now - last) * (fight ? 1 : simSpeed * (phase === 'play' ? renderer.timeScale() : 1));
   last = now;
   // Upright phone: the match waits under the Rotate prompt (online it can't stop, so the fighter just stands still).
   if (rotateShowing() && !fight) acc = 0;
@@ -1251,6 +1252,7 @@ installDodPlaytest({
   },
   fxStats: () => renderer.fxStats(),
   hitFxStats: () => renderer.hitFxStats(),
+  camFxStats: (reset) => renderer.camFxStats(reset),
   gfxStats: () => renderer.gfxStats(),
   aliveStats: () => renderer.aliveStats(),
   musicBedStats: () => audio.bedStats(),
