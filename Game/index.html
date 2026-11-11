@@ -311,7 +311,7 @@
         <h1 class="logo">Dose of <span>Destruction</span></h1>
         <p class="tap-pitch">A platform fighter: knock every rival off the stage.</p>
         <p class="tap-cta">Play as guest</p>
-        <p class="tap-note">No sign-in. Sound on.</p>
+        <p class="tap-note">No sign-in. Starting&hellip;</p>
       </div>
     </div>
   </div>
@@ -339,6 +339,9 @@
         setTimeout(function () { prompt.hidden = true; document.dispatchEvent(new Event('dod:tapped')); }, 400);
         if (tap.onTap) tap.onTap();
       };
+      // Nobody has to tap: a stranger who only watches is dropped into the cold open after 3 s (sound unlocks on their
+      // first touch or key). Not under a playtest, which taps it like a player.
+      if (!/[?&](playtest|play|chapter)\b/.test(location.search)) setTimeout(go, 3000);
       prompt.addEventListener('click', go);
       prompt.addEventListener('pointerup', go);
       prompt.addEventListener('touchend', go);
