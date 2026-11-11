@@ -529,6 +529,37 @@ Narrator: *"Two Orchestrators. Two fights. One finale. The card is yours, and th
 Later items: the lines are text only (no `audio`/`take`); recording them through Hawkes Gen costs cents. No new art is
 needed (GPU estimate: none). Pacing (CPU 8 and 9, the 60% head start) is not sim-tuned.
 
+## Tour: a fighter's own six nights (as built)
+
+The campaign is Exit Punk's. Tour is everyone else's: on the main menu, **Tour** lists every fighter on the card (the
+ones the campaign has opened; The Mechanic is not on it), and picking one plays *their* run, six fights written for them
+in `content/tours.json` from their blurb and this doc. It is the show's "ladder" night: the network books a fighter
+six bouts in a row, ratings rising, and the last slot is always the fighter's **rival**, on the Foundry floor
+(Humans In The Loop) where the broadcast began.
+
+- **The route.** Fight 1 is a straight bout; fights 2 to 5 are the four rule twists the show already runs, in an order
+  of the fighter's own: a **giant** across from you (Break and the Encore), **two on one** (Bad Signal: one stock each
+  for them, three for you), **low gravity** (Low Pressure) and a **KO race** (Drop In: 3 KOs before the 2:00 clock, the
+  foe starts every life at 60%). Fight 6 is the rival, CPU level 8. The CPU rises with the fights (2, 3, 4, 5, 6, 8; the
+  two-on-one pair is one level under its slot) and never gets easier.
+- **Rivals** are picked for the story: Exit Punk and the Orchestrator (the show's own end); Kaelen and Slice (fast
+  against faster); Break and SS Boulder; DJ Won't Read and Shutup Bot (the talker and the silent one); Small Weather and
+  Pyro Singer; Evil Blue Bird and Got Ur Back (the old tag team, now in different corners); Blog Man and Future Man (the
+  host, the guest who won't spoil), and so on: every fighter has one, each route is its own.
+- **Between fights** nobody reads anything. The next foe is heard in the arena, in a recorded line of their own (their
+  taunt where they have one, else their win line), the fighter answers with their own taunt (thirteen have one), and in
+  fights 2 to 5 the **rival heckles** from off the stage, their head beside the line, so the last fight is a thread, not a
+  surprise; all of it under the fight's card: "<Fighter> · Tour · Fight 3 of 6", the twist
+  as the title ("Giant Night", "Two on One", "Thin Air", "Ratings Race", "The Rival") and one line about the foe.
+- **Winning the sixth** plays the ending over the final KO: the camera stays on the winner, the crowd cheers, the
+  fighter's own recorded win line is heard, and the closing card reads "*<Fighter> clears the Tour*" with a line for
+  them ("Six fights. The exit stays closed."). The results follow with the KO highlights, and the Tour is marked cleared
+  on the Tour select (`localStorage` `dod-tours`).
+- **A lost fight** is a Continue (the same fight again, no VS card) or Quit (back to the Tour list); nothing is lost
+  but the fight, and the foe gloats in their own win line over the choice. Every voice is an existing take: new ones per
+  fight (the foe reacting to the last result) are the next step, as is a broadcast beat (ratings bump, host call) between
+  wins.
+
 ## Tonight's Episode: the nightly special (as built)
 
 The Orchestrator's show never goes dark: at midnight UTC the network drops one more episode into the schedule, the same
