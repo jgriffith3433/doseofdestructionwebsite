@@ -160,6 +160,8 @@ export function showTouchControls(show: boolean): void {
   // Playtests can force the overlay on a desktop browser (touchUiForced); real phones use touchDevice().
   if (!root || (!touchDevice() && !touchUiForced() && show)) return;
   root.hidden = !show;
+  // CSS keys off this (not only `pointer: coarse`, which an emulated or hybrid phone may not report).
+  document.body.classList.toggle('touch-ui', show);
   if (!show) {
     stickX = 0;
     stickY = 0;
