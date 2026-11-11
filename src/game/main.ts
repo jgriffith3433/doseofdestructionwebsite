@@ -471,6 +471,8 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     void warm.then(() => set(1));
     // Leave as soon as meshes exist; warm/audio continue under the match wipe and Ready countdown.
     await fightersReady;
+    // The painted stage must be on screen when the wipe opens, not a clear-colour arena while its pictures load.
+    await renderer.stageArtReady();
     renderer.onLoadProgress = null;
     bar.remove();
     void splash;
