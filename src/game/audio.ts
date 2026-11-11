@@ -386,20 +386,23 @@ class AudioSystem {
     }
     const audioUrl = l.audio;
     const text = l.text;
+    // Fire the playtest event only once the buffer actually starts (a 404 must not look like a played line).
     void this.start(audioUrl, this.buses.voice, 1).then(async (src) => {
       if (!src) {
         this.fighterBusyUntil.set(who, now);
+        if (kind === 'effort') this.effortAt.set(who, 0);
         return;
       }
       this.fighterSrc.set(who, src);
+      const started = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      this.emitFighterVoice(who, kind, id, text, audioUrl, started);
       const buf = await this.buffer(audioUrl);
       const ms = buf ? buf.duration * 1000 : 800;
-      this.fighterBusyUntil.set(who, (typeof performance !== 'undefined' ? performance.now() : Date.now()) + ms);
+      this.fighterBusyUntil.set(who, started + ms);
       src.onended = () => {
         if (this.fighterSrc.get(who) === src) this.fighterSrc.delete(who);
       };
     });
-    this.emitFighterVoice(who, kind, id, text, audioUrl, now);
     return true;
   }
 

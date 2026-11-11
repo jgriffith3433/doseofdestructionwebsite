@@ -495,7 +495,16 @@ class Run {
       await Promise.all(Object.entries(set.clips).map(async ([k, clip]) => { if (!(await exists(`${set.base}${clip.file}`))) broken.push(k); }));
       if (broken.length) this.t.problem('bug', `${c.name}: clip sheets missing (404): ${broken.join(', ')}`);
     }
-    const lines = [`announcer.name.${id}`, `fighter.${id}.ko`, `fighter.${id}.win`];
+    const lines = SEASON_ONE.includes(id)
+      ? [
+          `announcer.name.${id}`,
+          `fighter.${id}.ko`,
+          `fighter.${id}.win`,
+          `fighter.${id}.taunt`,
+          ...[0, 1, 2].map((i) => `fighter.${id}.effort.${i}`),
+          ...[0, 1].map((i) => `fighter.${id}.hurt.${i}`),
+        ]
+      : [`announcer.name.${id}`, `fighter.${id}.ko`, `fighter.${id}.win`];
     const silent: string[] = [];
     for (const lineId of lines) {
       const l = VOICE.lines.find((x) => x.id === lineId);
@@ -4183,7 +4192,8 @@ class Run {
         window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT', key: 't', bubbles: true }));
         await this.t.wait(50);
         window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyT', key: 't', bubbles: true }));
-        await this.t.wait(400);
+        // Event fires after the take starts decoding; give the buffer a moment.
+        await this.t.until(() => voices.some((v) => v.kind === 'taunt'), 3000, 'taunt bark after T').catch(() => null);
         if (!voices.some((v) => v.kind === 'taunt')) t.problem('bug', 'pressing T did not play a taunt line');
         else t.event('taunt-key', `T played ${voices.filter((v) => v.kind === 'taunt').map((v) => v.id).join(', ')}`);
       }
@@ -4208,8 +4218,22 @@ class Run {
       for (const who of pair) {
         const kinds = byWho.get(who) ?? new Set();
         for (const need of ['effort', 'hurt', 'ko'] as const) {
-          if (!kinds.has(need)) t.problem('warning', `${who}: no ${need} bark logged in this fight`);
+          if (!kinds.has(need)) t.problem('bug', `${who}: no ${need} bark logged in this fight`);
           else t.event(`has-${need}`, `${who} played a ${need}`);
+        }
+        // Preflight: every Season 1 take file for this fighter must exist (404s fail even if no bark fired).
+        if (SEASON_ONE.includes(who)) {
+          const ids = [
+            `fighter.${who}.ko`,
+            `fighter.${who}.taunt`,
+            ...[0, 1, 2].map((i) => `fighter.${who}.effort.${i}`),
+            ...[0, 1].map((i) => `fighter.${who}.hurt.${i}`),
+          ];
+          for (const lid of ids) {
+            const line = VOICE.lines.find((x) => x.id === lid);
+            if (!line?.audio) t.problem('bug', `${lid}: missing from voice catalog`);
+            else if (!(await exists(line.audio))) t.problem('bug', `${who}: voice file missing (404): ${line.audio}`);
+          }
         }
       }
       t.metric('voiceEfforts', voices.filter((v) => v.kind === 'effort').length);
