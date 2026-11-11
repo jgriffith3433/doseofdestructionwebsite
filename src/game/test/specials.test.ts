@@ -35,7 +35,9 @@ export function runSpecialsTests(check: Check): void {
     },
   }));
   const punk = characterIndex('exit-punk');
-  const plain = characterIndex('ball-person');
+  // Every fighter on the roster has its own specials now: a test fighter stands in for one that keeps the shared moves.
+  const plain = CHARACTERS.length;
+  CHARACTERS.push(fighter('t-plain', 'Plain', 'Test', '', { ...body, reach: 1.05 }));
 
   const RIGHT = 100;
   const duel = (a: number, b: number, gap: number): GameState => {
