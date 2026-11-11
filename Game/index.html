@@ -58,7 +58,8 @@
       <button id="btn-profile" class="menu-item profile-item" type="button" data-go="profile"><img id="profile-img" alt=""><strong>Profile</strong><span id="profile-sub">Your name and picture.</span></button>
       <button id="btn-board" class="menu-item board-item" type="button" data-go="leaderboard"><strong>Leaderboard</strong><span id="board-sub">Top 100 online, this week and all time.</span></button>
       <button class="menu-item" type="button" data-go="training"><strong>Training</strong><span>A dummy, no stocks, hitboxes on H.</span></button>
-      <button class="menu-item" type="button" data-go="howto"><strong>How to play</strong><span>Controls and the basics.</span></button>
+      <button class="menu-item" type="button" data-go="howto"><strong>How to play</strong><span>Learn it on the stage, one move at a time.</span></button>
+      <button class="menu-item quiet" type="button" data-go="controls"><strong>All controls</strong></button>
       <button class="menu-item" type="button" data-go="settings"><strong>Settings</strong><span>Sound on or off, music and effects.</span></button>
       <a class="menu-item quiet" href="/"><strong>Back to site</strong></a>
       <a class="version-tag in-menu" href="/whatsnew.html" data-hawkes-version data-prefix="What&rsquo;s new &middot; v" hidden></a>
@@ -116,7 +117,7 @@
   <section id="howto" class="screen howto-screen" hidden>
     <header class="screen-head">
       <button class="back-btn" type="button" data-back data-autofocus>&larr; Back</button>
-      <h2>How to play</h2>
+      <h2>All controls</h2>
     </header>
     <div class="howto-body">
       <div class="basics">
@@ -180,12 +181,31 @@
     </div>
   </div>
 
+  <!-- First visit: the title logo over the cold open's first shot (campaign/firstVisit.ts), and the small Menu link that opts out. -->
+  <div id="pilot-logo" class="pilot-logo" aria-hidden="true">
+    <h1 class="logo">Dose of <span>Destruction</span></h1>
+  </div>
+  <button id="pilot-menu" class="pilot-menu" type="button" hidden>Menu</button>
+
+  <div id="controls-panel" class="overlay" role="dialog" aria-modal="true" aria-labelledby="controls-title" hidden>
+    <div class="panel controls-panel">
+      <h2 id="controls-title">All controls</h2>
+      <div class="controls-cols">
+        <div><h3>Keyboard</h3><dl id="ctl-kb" class="keys"></dl></div>
+        <div><h3>Gamepad</h3><dl id="ctl-pad" class="keys"></dl></div>
+        <div><h3>Touch</h3><dl id="ctl-touch" class="keys"></dl></div>
+      </div>
+      <div class="actions column"><button id="btn-controls-close" class="primary" type="button">Back</button></div>
+    </div>
+  </div>
+
   <div id="pause" class="overlay" hidden>
     <div class="panel small">
       <h2>Paused</h2>
       <div class="actions column">
         <button id="btn-resume" class="primary" type="button" data-autofocus>Resume</button>
         <button id="btn-restart" class="secondary" type="button">Restart</button>
+        <button id="btn-pause-controls" class="secondary" type="button">All controls</button>
         <button id="btn-pause-settings" class="secondary" type="button">Settings</button>
         <button id="btn-quit" class="secondary" type="button">Quit</button>
       </div>

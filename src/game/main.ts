@@ -34,6 +34,8 @@ import type { Found } from './net/matchmaker.ts';
 import { bootOnline, onlineApi } from './net/loader.ts';
 import { switching } from './ui/screens.ts';
 import { initRotatePrompt, rotateShowing } from './ui/rotate.ts';
+import { Teacher } from './ui/teach.ts';
+import { PILOT_CHAPTER, PILOT_KAELEN, isFirstVisit, markPilotSeen, pilotState } from './campaign/firstVisit.ts';
 
 const TICK_MS = 1000 / 60;
 
@@ -62,6 +64,8 @@ let shownOver = false;
 let commentator: Commentator | null = null;
 let introPending: Call | null = null;
 let chapter: Chapter | null = null;
+/** On-stage teaching prompts for the pilot fight and How to play (ui/teach.ts). */
+let teacher: Teacher | null = null;
 let stageChoice = 0;
 let versus: VersusConfig = loadVersus();
 let training: VersusConfig = {
@@ -128,7 +132,8 @@ function wireMenus(): void {
       if (to === 'campaign') openCampaignScreen();
       else if (to === 'versus') openVersus();
       else if (to === 'training') openTraining();
-      else if (to === 'howto') go('howto');
+      else if (to === 'howto') startHowToPlay();
+      else if (to === 'controls') go('howto');
       else if (to === 'settings') openSettings();
       else if (to === 'online') onlineCall('find match', (o) => o.findMatch());
       else if (to === 'profile') onlineCall('profile', (o) => o.openProfile());
@@ -143,6 +148,7 @@ function wireMenus(): void {
   onBack('stages', () => (lastSelect === 'training' ? openTraining() : openVersus()));
   onBack('campaign', () => go('main', spotlight));
   onBack('howto', () => go('main', spotlight));
+  wirePilot();
   onBack('leaderboard', () => go('main', spotlight));
 
   $('btn-resume').addEventListener('click', () => setPaused(false));
@@ -154,6 +160,8 @@ function wireMenus(): void {
     }
   });
   $('btn-pause-settings').addEventListener('click', () => openSettings());
+  $('btn-pause-controls').addEventListener('click', () => openControlsPanel(true));
+  $('btn-controls-close').addEventListener('click', () => openControlsPanel(false));
   $('btn-quit').addEventListener('click', () => {
     if (fight) {
       // Online: leaving is a forfeit; the results come from the fight's end.
@@ -185,6 +193,16 @@ function wireMenus(): void {
   fill('keys-kb', KEYBOARD_HELP);
   fill('keys-pad', GAMEPAD_HELP);
   fill('keys-touch', TOUCH_HELP);
+  fill('ctl-kb', KEYBOARD_HELP);
+  fill('ctl-pad', GAMEPAD_HELP);
+  fill('ctl-touch', TOUCH_HELP);
+}
+
+/** The key list as a panel over Pause ("All controls"); the same lists are the All controls screen in the menu. */
+function openControlsPanel(open: boolean): void {
+  $('controls-panel').hidden = !open;
+  if (open) ($('btn-controls-close') as HTMLButtonElement).focus();
+  else ($('btn-resume') as HTMLButtonElement).focus();
 }
 
 let spotIndex = Math.floor(Math.random() * CHARACTERS.length);
@@ -205,6 +223,7 @@ let spotBusy = false;
 
 /** Shows the current spotlight fighter: picture and name change together, once the picture is ready. */
 async function spotlight(animate = false): Promise<void> {
+  updateNextEpisode();
   const i = spotIndex % CHARACTERS.length;
   const c = CHARACTERS[i];
   if (spotBusy || i === spotShown) return;
@@ -409,6 +428,123 @@ async function chapterCleared(c: Chapter): Promise<void> {
   if (currentScreen() === 'campaign') analytics.askAfterEpisode(c);
 }
 
+// -------------------------------------------------------------- the pilot
+
+/** Open Mic as the first fight: Kaelen tuned to be beaten (ai/bot.ts pilotFight), prompts on the stage, no VS card. */
+function pilotChapter(): Chapter | null {
+  const c = CHAPTERS.find((x) => x.id === PILOT_CHAPTER);
+  if (!c) return null;
+  const kaelen = CHARACTERS.findIndex((x) => x.id === 'kaelen');
+  return {
+    ...c,
+    fight: {
+      ...c.fight,
+      teach: 'pilot',
+      slots: c.fight.slots.map((sl) => (sl.cpu !== null && sl.char === kaelen ? { ...sl, ...PILOT_KAELEN } : sl)),
+    },
+  };
+}
+
+/** Tap to play with nothing saved: straight into the cold open of Season 1 Episode 1, under the title logo. */
+function startPilot(): void {
+  const c = pilotChapter();
+  if (!c) return;
+  chapter = c;
+  analytics.setMode('campaign');
+  analytics.chapterPlayed(c);
+  const logo = $('pilot-logo');
+  document.body.classList.add('pilot-boot');
+  logo.classList.remove('over-shot', 'gone');
+  void prefetchFighters(c.fight.slots.map((s) => s.char));
+  prefetchStage(c.fight.stage);
+  renderer.setStage(c.fight.stage);
+  // The logo is the loading screen; once the cold open's first shot is up it turns to a title over that shot.
+  const onScene = new MutationObserver(() => {
+    if ($('scene').hidden) return;
+    onScene.disconnect();
+    logo.classList.add('over-shot');
+    window.setTimeout(() => logo.classList.add('gone'), 3200);
+    window.setTimeout(endPilotBoot, 4000);
+  });
+  onScene.observe($('scene'), { attributes: true, attributeFilter: ['hidden'] });
+  void startMatch({ ...c.fight, title: `Chapter 1 · ${c.title}`, subtitle: c.hint }, false, undefined, { chapter: c, which: 'intro' });
+  // After startMatch has cleared the last match (it ends it first), the small Menu link stays up through the scene and the fight.
+  $('pilot-menu').hidden = false;
+}
+
+/** The title logo and its backdrop come down. */
+function endPilotBoot(): void {
+  document.body.classList.remove('pilot-boot');
+}
+
+function wirePilot(): void {
+  // The small Menu link: opts out of the pilot (the flag is set, so the next visit is the usual flow too).
+  $('pilot-menu').addEventListener('click', () => {
+    markPilotSeen('menu');
+    if (match) analytics.matchEnd(match, 'quit', { reason: 'pilot_menu' });
+    endMatch();
+    chapter = null;
+    endPilotBoot();
+    void go('main', spotlight);
+  });
+}
+
+/** The pilot is won: Open Mic is cleared, Kaelen joins the card, and the main menu opens on "Next episode". */
+async function pilotCleared(c: Chapter): Promise<void> {
+  const firstTime = !progress.has(c.id);
+  progress.add(c.id);
+  saveProgress(progress);
+  unlockFor(c);
+  markPilotSeen('won');
+  analytics.chapterCleared(c, firstTime, progress);
+  chapter = null;
+  analytics.setMode('main');
+  await go('main', spotlight);
+}
+
+/** How to play: the same prompted fight in Training against a dummy, with no setup screens. */
+function startHowToPlay(): void {
+  chapter = null;
+  analytics.setMode('training');
+  const ep = CHARACTERS.findIndex((x) => x.id === 'exit-punk');
+  const dummy = CHARACTERS.findIndex((x) => x.id === 'kaelen');
+  const stage = Math.max(0, STAGES.findIndex((x) => x.id === 'city-top'));
+  void startMatch(
+    {
+      mode: 'training',
+      stage,
+      stocks: 1,
+      rules: {},
+      teach: 'training',
+      title: 'How to play',
+      slots: [{ char: ep, cpu: null }, { char: dummy, cpu: 0 }],
+    },
+    false,
+  );
+}
+
+/** The Campaign button on the main menu says "Next episode" once the pilot is won and the player hasn't gone on yet. */
+function updateNextEpisode(): void {
+  const btn = document.querySelector<HTMLElement>('.menu-item[data-go="campaign"]');
+  if (!btn) return;
+  const idx = CHAPTERS.findIndex((x) => !progress.has(x.id));
+  const fresh = pilotState() === 'won' && progress.size === 1 && progress.has(PILOT_CHAPTER) && idx > 0;
+  btn.classList.toggle('next-episode', fresh);
+  let tag = btn.querySelector<HTMLElement>('.next-tag');
+  if (fresh && !tag) {
+    tag = h('em', { class: 'next-tag' }, 'Next episode') as HTMLElement;
+    btn.prepend(tag);
+  }
+  if (tag) tag.hidden = !fresh;
+  const sub = btn.querySelector('span');
+  if (sub) {
+    if (fresh) {
+      sub.dataset.was ??= sub.textContent ?? '';
+      sub.textContent = `${CHAPTERS[idx].title}: ${CHAPTERS[idx].tagline}`;
+    } else if (sub.dataset.was) sub.textContent = sub.dataset.was;
+  }
+}
+
 // ------------------------------------------------------------------ match
 
 let selectedAt = 0;
@@ -501,6 +637,8 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     // The canvas may have changed size while menus were up.
     renderer.engine.resize();
     match = m;
+    teacher = setup.teach ? new Teacher({ scripted: setup.teach === 'training' }) : null;
+    if (teacher) teacher.onChange = (step, state) => window.dispatchEvent(new CustomEvent('dod:teach', { detail: { step, state, mode: setup.teach } }));
     showTouchControls(true);
     buildHud(m);
     shownOver = false;
@@ -532,6 +670,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
 function beginReady(m: Match): void {
   const setup = m.setup;
   analytics.matchStart(m, chapter);
+  endPilotBoot();
   phase = 'ready';
   readyFrames = 0;
   banner('Ready');
@@ -552,6 +691,9 @@ function endMatch(): void {
   // Leaving an online match any other way (another match starting) is a forfeit.
   if (fight && fight.phase !== 'done') fight.forfeit();
   fight = null;
+  teacher?.end();
+  teacher = null;
+  $('pilot-menu').hidden = true;
   $('net-status').hidden = true;
   match = null;
   phase = 'idle';
@@ -567,13 +709,15 @@ function pauseKey(): void {
   if (!match || phase === 'idle') return;
   // Esc or Start in a story scene skips it.
   if (phase === 'scene') return skipScene();
-  if (settingsOpen()) closeSettings();
+  if (!$('controls-panel').hidden) openControlsPanel(false);
+  else if (settingsOpen()) closeSettings();
   else setPaused(phase !== 'pause');
 }
 
 function setPaused(paused: boolean): void {
   if (!match) return;
   if (!paused && settingsOpen()) closeSettings();
+  if (!paused) $('controls-panel').hidden = true;
   // Online the match can't stop: the menu opens over it and your fighter stands still meanwhile.
   if (fight && phase !== 'play' && phase !== 'pause') return;
   if (paused && phase !== 'pause') analytics.paused(match);
@@ -609,6 +753,7 @@ function afterTick(m: Match, events: SimEvent[]): void {
   for (const e of events) if (e.type === 'hit' && !e.shield) bumpHud(e.victim);
   playEventSounds(m, events);
   updateHud(m);
+  if (teacher && phase === 'play') teacher.tick(m, events);
   const s = m.state;
   // Layered stage bed: lift to intense on last stock or ≥100%, crossfade back if the threat clears.
   if (!s.over && phase !== 'scene') {
@@ -859,7 +1004,12 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   phase = 'idle';
   analytics.matchEnd(m, won ? 'complete' : 'death');
   const actions: ResultAction[] = [];
-  if (m.setup.mode === 'campaign' && c) {
+  if (m.setup.teach === 'pilot' && c) {
+    // The pilot's result: a win opens the main menu on "Next episode"; a loss is a retry (Kaelen is built to lose).
+    if (won) actions.push({ label: 'Continue', primary: true, run: () => pilotCleared(c) });
+    else actions.push({ label: 'Retry', primary: true, run: () => startMatch(m.setup, false) });
+    actions.push({ label: 'Main menu', run: () => { markPilotSeen('left'); chapter = null; return go('main', spotlight); } });
+  } else if (m.setup.mode === 'campaign' && c) {
     if (won) actions.push({ label: 'Continue', primary: true, run: () => chapterCleared(c) });
     else actions.push({ label: 'Retry', primary: true, run: () => startMatch(m.setup, false) });
     actions.push({ label: 'Campaign map', run: () => openCampaignScreen() });
@@ -1160,7 +1310,14 @@ function frame(draw = true): void {
   }
   if (fight) showNetStatus(fight);
 
-  if (draw && match && currentScreen() === 'match') renderer.render(match.state);
+  if (draw && match && currentScreen() === 'match') {
+    renderer.render(match.state);
+    // The teaching prompt rides above the player's head, and is hidden while paused or in a scene.
+    if (teacher) {
+      const me = match.state.fighters[match.player];
+      teacher.place(me && phase === 'play' ? renderer.fighterScreen(me) : null);
+    }
+  }
 }
 
 wireMenus();
@@ -1193,6 +1350,15 @@ document.addEventListener('dod:tapped', () => focusFirst());
 // The title screen is up: the game is playable (game_ready).
 const titleUp = go('title').then(() => analytics.ready());
 const playtestChapter = CHAPTERS.find((c) => c.id === params.get('chapter'));
+// First visit (campaign/firstVisit.ts): nothing saved, so Tap to play is the way into Season 1 Episode 1. It is decided at
+// the tap (a playtest clears storage first), and the backdrop under the prompt is only for a visit that starts clean.
+if (isFirstVisit()) document.body.classList.add('pilot-boot');
+if (!playtestChapter && !params.has('play')) {
+  titleUp.then(tapped).then(() => {
+    if (isFirstVisit()) startPilot();
+    else document.body.classList.remove('pilot-boot');
+  });
+}
 if (playtestChapter) {
   // Devtools' Story tab: /Game/?chapter=<id> plays that chapter, scene to scene.
   // These wait for the tap, so the chapter starts with its sound.

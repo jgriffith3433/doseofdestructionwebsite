@@ -6,6 +6,9 @@ import { consumeTouchEventAt, readTouch } from './touch.ts';
 const held = new Set<string>();
 let listening = false;
 let lastKeyEventAt = 0;
+/** Last time a key (or a pad button) was used, to tell which device the player is on (inputDevice). */
+let lastKeyUseAt = 0;
+let lastPadUseAt = 0;
 
 export interface InputEdge {
   at: number;
@@ -40,6 +43,7 @@ export function listenKeyboard(): void {
       if (!held.has(e.code)) lastKeyEventAt = performance.now();
     }
     held.add(e.code);
+    if (GAME_KEYS.has(e.code)) lastKeyUseAt = performance.now();
   });
   window.addEventListener('keyup', (e) => held.delete(e.code));
   window.addEventListener('blur', () => held.clear());
@@ -136,6 +140,16 @@ export function setVirtualPad(read: (() => number) | null): void {
   virtualPad = read;
 }
 
+export type InputDevice = 'keyboard' | 'gamepad' | 'touch';
+
+/** The device the player is on right now (for on-screen button glyphs): touch controls up, else whichever of pad and keys was used last. */
+export function inputDevice(): InputDevice {
+  if (typeof document !== 'undefined' && document.body.classList.contains('touch-ui')) return 'touch';
+  if (lastPadUseAt > lastKeyUseAt) return 'gamepad';
+  if (lastKeyUseAt === 0 && pads().length > 0) return 'gamepad';
+  return 'keyboard';
+}
+
 /** The local player's input this frame: the keyboard, the first gamepad and any virtual pad, merged. */
 export function readLocal(): number {
   let [sx, sy, b] = keyboardInput();
@@ -145,7 +159,11 @@ export function readLocal(): number {
     b |= pb;
   };
   const pad = pads()[0];
-  if (pad) merge(gamepadInput(pad));
+  if (pad) {
+    const g = gamepadInput(pad);
+    if (g[0] !== 0 || g[1] !== 0 || (g[2] & 0xffff0000) !== 0) lastPadUseAt = performance.now();
+    merge(g);
+  }
   merge(readTouch());
   if (virtualPad) {
     const v = virtualPad();
