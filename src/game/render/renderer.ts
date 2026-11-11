@@ -600,6 +600,13 @@ export class Renderer {
     // and KO flash once, so their shaders (and the glow layer's variants) compile now instead of on
     // the first hit, event or KO, and the particle pools are filled.
     this.burst(this.camTarget.x, this.camTarget.y, 64, 0);
+    // The burst took the pool's meshes: refill it now, so a match that starts while the warm-up is still
+    // running (the VS card hands over early) never finds the pool empty.
+    while (this.sparkPool.length < 64) {
+      const m = this.makeSpark();
+      m.setEnabled(false);
+      this.sparkPool.push(m);
+    }
     this.fx?.warmUp();
     await breathe();
     this.live?.warmUp();
@@ -622,7 +629,8 @@ export class Renderer {
     this.fx?.endWarmUp();
     for (const s of this.sparks) {
       s.mesh.setEnabled(false);
-      this.sparkPool.push(s.mesh);
+      if (this.sparkPool.length < 128) this.sparkPool.push(s.mesh);
+      else s.mesh.dispose();
     }
     this.sparks = [];
     this.flashMat.alpha = 0;
