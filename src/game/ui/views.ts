@@ -11,6 +11,8 @@ import { $, formatTime, h, kids, largeUrl, pct, thumbUrl } from './dom.ts';
 import type { ModeStage } from '../modes.ts';
 import { audio } from '../audio.ts';
 import { loadAnimSet } from '../render/anims.ts';
+import { lookOf, recolorUrl } from '../looks.ts';
+import { lookChip, paintImage } from './lookUi.ts';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -107,6 +109,13 @@ export function openStages(
 // ---------------------------------------------------------------- versus
 
 /** Fills the VS splash. Resolves when it has played or the player skips it. */
+/** A picture of a fighter in the colour it plays in. */
+function paintedImg(url: string, char: number, look: number): HTMLImageElement {
+  const img = h('img', { alt: '' }) as HTMLImageElement;
+  paintImage(img, url, char, look);
+  return img;
+}
+
 export function playVersus(setup: MatchSetup): Promise<void> {
   const body = $('versus-body');
   const teams = setup.slots.some((s) => s.team !== undefined) && new Set(setup.slots.map((s) => s.team)).size > 1;
@@ -128,13 +137,14 @@ export function playVersus(setup: MatchSetup): Promise<void> {
             const c = CHARACTERS[s.char];
             return h(
               'figure',
-              { class: 'vs-fighter', 'data-fighter': c.id, style: `--slot:${color}` },
-              h('img', { src: largeUrl(c.id), alt: '' }),
+              { class: 'vs-fighter', 'data-fighter': c.id, 'data-look': String(s.look ?? 0), style: `--slot:${color}` },
+              paintedImg(largeUrl(c.id), s.char, s.look ?? 0),
               h(
                 'figcaption',
                 { class: 'vs-card' },
                 h('span', {}, setup.online ? setup.online.names[slot] : s.cpu === null ? 'You' : s.cpu === 0 ? 'Dummy' : `CPU ${s.cpu}`),
                 h('strong', {}, c.name),
+                lookChip(s.char, s.look ?? 0),
               ),
               s.scale && s.scale > 100 ? h('em', { class: 'vs-tag' }, 'Giant') : null,
             );
@@ -154,7 +164,12 @@ export function playVersus(setup: MatchSetup): Promise<void> {
       if (!set || !c || !fig.isConnected) return;
       const el = h('div', { class: 'vs-sprite' });
       el.style.aspectRatio = `${c.fw} / ${c.fh}`;
-      el.style.backgroundImage = `url(${set.base}${c.file}?v=${set.version})`;
+      const sheet = `${set.base}${c.file}?v=${set.version}`;
+      el.style.backgroundImage = `url(${sheet})`;
+      // A colour look repaints the sheet (the same maths as the in-match shader).
+      const look = Number(fig.dataset.look) || 0;
+      const char = CHARACTERS.findIndex((x) => x.id === fig.dataset.fighter);
+      if (look > 0) void recolorUrl(sheet, lookOf(char, look)).then((u) => { if (el.isConnected) el.style.backgroundImage = `url(${u})`; });
       el.style.backgroundSize = `${c.cols * 100}% ${c.rows * 100}%`;
       fig.querySelector('img')?.replaceWith(el);
       sprites.push({ el, fps: c.fps, frames: c.frames, cols: c.cols, rows: c.rows });
@@ -341,7 +356,7 @@ export interface ResultAction {
 }
 
 /** `online`: an online match's ending, which can come before the sim's (a forfeit, a lost link, a desync). */
-export function showResults(m: Match, actions: ResultAction[], online?: { headline: string; note?: string; winner?: number }): void {
+export function showResults(m: Match, actions: ResultAction[], online?: { headline: string; note?: string; winner?: number }, unlocked: string[] = []): void {
   const s = m.state;
   const teams = m.setup.slots.some((x) => x.team !== undefined) && new Set(m.setup.slots.map((x) => x.team)).size > 1;
   const colors = s.fighters.map((f, i) => (teams && m.setup.mode !== 'campaign' ? TEAM_COLORS[f.team < 0 ? 0 : f.team] : PLAYER_COLORS[i]));
@@ -350,6 +365,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
     const bw = s.winnerTeam >= 0 ? b.team === s.winnerTeam : b.id === s.winner;
     return Number(bw) - Number(aw) || b.stocks - a.stocks || m.stats[b.id].kos - m.stats[a.id].kos || a.percent - b.percent;
   });
+  const look = (i: number) => m.setup.slots[i]?.look ?? 0;
   const winner = s.fighters[s.winner];
   const campaign = m.setup.mode === 'campaign';
   const won = m.playerWon();
@@ -370,12 +386,13 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
     h(
       'header',
       { class: 'results-hero', style: `--slot:${colors[hero.id]}` },
-      h('img', { src: largeUrl(CHARACTERS[hero.char].id), alt: '' }),
+      paintedImg(largeUrl(CHARACTERS[hero.char].id), hero.char, look(hero.id)),
       h(
         'div',
         {},
         h('p', { class: 'kicker' }, s.timedOut ? 'Time' : 'Game', ' · ', formatTime(s.frame)),
         h('h2', {}, headline),
+        h('p', { class: 'results-look' }, lookChip(hero.char, look(hero.id)), unlocked.length ? h('em', { class: 'look-new' }, `New colour: ${unlocked.join(', ')}`) : null),
         campaign && m.setup.objective === 'survive' && h('p', {}, won ? 'You lasted the whole minute.' : 'They took you off the air.'),
         m.setup.objective === 'ko' && h('p', { class: 'results-objective' }, koLine(m, won)),
         m.setup.objective === 'quota' && h('p', { class: 'results-objective' }, quotaLine(m, won)),
@@ -425,7 +442,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
             { class: 'standing', style: `--slot:${colors[f.id]}` },
             h('b', { class: 'rank' }, String(rank + 1)),
             h('img', { src: thumbUrl(CHARACTERS[f.char].id), alt: '' }),
-            h('div', { class: 'who' }, h('strong', {}, m.label(f.id)), h('span', {}, f.stocks > 0 && f.stocks < 90 ? `${f.stocks} stock${f.stocks > 1 ? 's' : ''} left` : f.stocks >= 90 ? 'Training' : 'Out')),
+            h('div', { class: 'who' }, h('strong', {}, m.label(f.id)), lookChip(f.char, look(f.id)), h('span', {}, f.stocks > 0 && f.stocks < 90 ? `${f.stocks} stock${f.stocks > 1 ? 's' : ''} left` : f.stocks >= 90 ? 'Training' : 'Out')),
             h(
               'dl',
               {},

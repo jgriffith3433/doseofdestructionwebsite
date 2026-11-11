@@ -15,6 +15,7 @@ import { Emitter, netError, now } from './util.ts';
 import type { Rules } from '../sim/state.ts';
 import { STAGES } from '../sim/stage.ts';
 import { CHARACTERS } from '../sim/characters.ts';
+import { lookCount, separateLooks } from '../looks.ts';
 
 /** A setup from the other page is checked before it's used: ids in range, sane numbers, names cleaned. */
 export function checkSetup(s: OnlineSetup, ids: string[], pids?: string[]): OnlineSetup | null {
@@ -34,9 +35,13 @@ export function checkSetup(s: OnlineSetup, ids: string[], pids?: string[]): Onli
     if (int(s.rules.damage, 10, 400)) rules.damage = s.rules.damage;
     if (s.rules.hazards === 0 || s.rules.hazards === 1) rules.hazards = s.rules.hazards;
   }
+  // Colours: each in range for its fighter; the same fighter never twice in one colour (an old or odd setup is fixed here too).
+  const looks = [0, 1].map((i) => (int(s.looks?.[i], 0, lookCount(s.chars[i]) - 1) ? (s.looks as number[])[i] : 0));
+  const slots = [0, 1].map((i) => ({ char: s.chars[i], look: looks[i] }));
+  separateLooks(slots);
   const names = [0, 1].map((i) => cleanName(s.names?.[i]) || 'Player');
   const avatars = [0, 1].map((i) => cleanAvatar(s.avatars?.[i]) || CHARACTERS[s.chars[i]].id);
-  return { matchId: s.matchId, seed: s.seed, stage: s.stage, stocks: s.stocks, timeLimit: s.timeLimit, rules, ids: s.ids.slice(), names, avatars, chars: s.chars.slice(), pids: s.pids.slice(), at: s.at };
+  return { matchId: s.matchId, seed: s.seed, stage: s.stage, stocks: s.stocks, timeLimit: s.timeLimit, rules, ids: s.ids.slice(), names, avatars, chars: s.chars.slice(), looks: slots.map((x) => x.look ?? 0), pids: s.pids.slice(), at: s.at };
 }
 
 const HANDSHAKE_MS = 20000;
@@ -57,6 +62,8 @@ export interface OnlineSetup {
   names: string[];
   avatars: string[];
   chars: number[];
+  /** Colour look of each slot (looks.ts), sent in the setup so both sides draw the same colours. Never the same on the same fighter. */
+  looks?: number[];
   /** Profile ids (public keys) by slot: who the leaderboard credits. */
   pids: string[];
   /** When the host set the match up, unix seconds: the time both players sign into the result. */
@@ -80,6 +87,8 @@ interface Me {
   name: string;
   avatar: string;
   char: number;
+  /** The colour look this player wears (looks.ts); the host settles clashes. */
+  look: number;
   /** Profile id (public key). */
   pid: string;
 }
@@ -89,6 +98,7 @@ interface Pending {
   name: string;
   avatar: string;
   char: number;
+  look: number;
   pid: string;
   host: boolean;
   room: PairRoom;
@@ -108,7 +118,7 @@ export interface MatchmakerOptions {
 }
 
 type Msg =
-  | { t: 'hello'; q: number; you: number; n: string; a: string; c: number; k: string }
+  | { t: 'hello'; q: number; you: number; n: string; a: string; c: number; l?: number; k: string }
   | { t: 'ok' }
   | { t: 'no' }
   | { t: 'setup'; s: OnlineSetup }
@@ -218,6 +228,7 @@ export class Matchmaker extends Emitter {
       name: other?.name ?? 'Player',
       avatar: other?.avatar ?? '',
       char: -1,
+      look: 0,
       pid: '',
       host,
       room,
@@ -236,7 +247,7 @@ export class Matchmaker extends Emitter {
       this.linkFailures = 0;
       this.natTrouble = false;
       const me = this.opts.me();
-      this.send(p, { t: 'hello', q: this.queuedAt, you: partner.queuedAt, n: me.name, a: me.avatar, c: me.char, k: me.pid });
+      this.send(p, { t: 'hello', q: this.queuedAt, you: partner.queuedAt, n: me.name, a: me.avatar, c: me.char, l: me.look, k: me.pid });
     });
     room.on('message', (m: { kind: string; data: string }) => {
       if (this.pending !== p || m.kind !== 'mm') return;
@@ -263,6 +274,7 @@ export class Matchmaker extends Emitter {
       p.name = cleanName(msg.n) || p.name;
       p.avatar = cleanAvatar(msg.a) || p.avatar;
       p.char = Number.isInteger(msg.c) ? msg.c : -1;
+      p.look = Number.isInteger(msg.l) && (msg.l as number) >= 0 && (msg.l as number) < 16 ? (msg.l as number) : 0;
       p.pid = typeof msg.k === 'string' && /^[0-9a-f]{64}$/.test(msg.k) ? msg.k : '';
       if (!fits || !p.pid) {
         this.send(p, { t: 'no' });
@@ -305,7 +317,7 @@ export class Matchmaker extends Emitter {
     if (!p.host) return;
     const me = this.opts.me();
     const char = p.char >= 0 ? p.char : me.char;
-    const setup = this.opts.makeSetup({ ...me, id: this.lobby.id }, { name: p.name, avatar: p.avatar, char, pid: p.pid, id: p.partner.id });
+    const setup = this.opts.makeSetup({ ...me, id: this.lobby.id }, { name: p.name, avatar: p.avatar, char, look: p.look, pid: p.pid, id: p.partner.id });
     this.send(p, { t: 'setup', s: setup });
     this.found(p, setup);
   }

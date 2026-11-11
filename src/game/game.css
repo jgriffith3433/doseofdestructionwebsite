@@ -376,9 +376,10 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 .slot {
   display: grid;
   gap: 4px;
-  min-width: 150px;
-  flex: 1 1 150px;
-  max-width: 240px;
+  /* Wide enough for four 44 px swatches and their gaps. */
+  min-width: 224px;
+  flex: 1 1 224px;
+  max-width: 260px;
   background: var(--card);
   border: 2px solid transparent;
   border-bottom: 4px solid var(--slot);
@@ -1480,3 +1481,47 @@ body.pilot-boot .screen { visibility: hidden; }
 
 .controls-panel { width: min(760px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; text-align: left; }
 .controls-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+
+/* ---------------------------------------------------------------- colour looks */
+
+.swatches { display: grid; grid-template-columns: repeat(4, minmax(44px, 1fr)); gap: 8px; margin: 2px 0; }
+.swatch {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
+  align-content: start;
+  gap: 3px;
+  min-width: 44px;
+  min-height: 56px;
+  padding: 5px 2px 4px;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1.1;
+  text-align: center;
+  touch-action: manipulation;
+}
+.swatch .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff6; box-shadow: 0 0 0 1px #0008; }
+.swatch .name { overflow-wrap: anywhere; }
+.swatch:hover, .swatch:focus-visible { border-color: var(--hot); outline: none; }
+.swatch:active { transform: scale(0.96); }
+.swatch.on { border-color: var(--gold); color: var(--text); background: #2a2210; }
+.swatch.locked { opacity: 0.62; cursor: not-allowed; }
+.swatch.locked .dot { filter: grayscale(0.85) brightness(0.7); }
+.swatch.locked .name { color: var(--gold); }
+
+.look-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px 2px 4px; border-radius: 999px; background: #0007; border: 1px solid var(--line); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text); white-space: nowrap; }
+.look-chip i { width: 12px; height: 12px; border-radius: 50%; border: 1px solid #fff8; }
+.vs-card .look-chip { justify-self: center; margin-top: 4px; }
+.results-look { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.look-new { color: var(--gold); font-style: normal; font-weight: 700; }
+.standing .who .look-chip { margin: 2px 0; width: fit-content; }
+
+@media (max-width: 560px) {
+  /* Each slot takes its own row so its four swatches sit in one row of tap targets, no sideways scroll. */
+  .slots .slot { flex-basis: 100%; min-width: 0; }
+  .swatch { min-height: 60px; font-size: 11px; }
+}

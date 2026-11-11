@@ -13,6 +13,8 @@ import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder.js';
 import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder.js';
 import { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder.js';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
+import { LookPlugin } from './lookPlugin.ts';
+import { lookOf } from '../looks.ts';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture.js';
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture.js';
 import { GlowLayer } from '@babylonjs/core/Layers/glowLayer.js';
@@ -73,6 +75,9 @@ interface FighterView {
   /** A thin player-colour silhouette just behind the body, so a fighter separates from a busy stage. */
   rim: Mesh;
   rimMat: StandardMaterial;
+  /** Roster index and colour look this view was built for (playtest). */
+  charIdx: number;
+  lookIdx: number;
 }
 
 /** One launch's smoke trail, kept for the playtest: what it was and how many puffs it threw. */
@@ -467,14 +472,25 @@ export class Renderer {
 
   /** Fingerprint of the fighters currently in `views` (char+scale), so Stage Select pre-builds can be reused at VS. */
   private fighterKey = '';
+  private looks: number[] = [];
   /** Ghost planes depend on stage occluders: reuse only when that matches too. */
   private fightersHadOccluders = false;
   /** One setFighters at a time (Stage Select prep must not interleave with startMatch). */
   private fightersLock: Promise<void> = Promise.resolve();
 
   /** Stable id for a match's fighter lineup (meshes only care about character and scale). */
-  static fightersKey(state: GameState): string {
-    return state.fighters.map((f) => `${f.char}:${f.scale}`).join('|');
+  static fightersKey(state: GameState, looks: number[] = []): string {
+    return state.fighters.map((f) => `${f.char}:${f.scale}:${looks[f.id] ?? 0}`).join('|');
+  }
+
+  /** What each built fighter wears (playtest): the look index and whether the palette shader is on its material. */
+  lookStats(): { slot: number; char: number; look: number; shader: boolean }[] {
+    return this.views.map((v, slot) => ({ slot, char: v.charIdx, look: v.lookIdx, shader: v.mat.pluginManager?.getPlugin('DodLook') !== undefined }));
+  }
+
+  /** The colour look of each fighter slot for the next setFighters (looks.ts; 0 is the original art). Cosmetic only, never in the sim. */
+  setLooks(looks: number[]): void {
+    this.looks = looks.slice();
   }
 
   /**
@@ -494,7 +510,7 @@ export class Renderer {
   }
 
   private async setFightersBody(state: GameState, keepStage = false, clipWaitMs = 30000): Promise<void> {
-    const key = Renderer.fightersKey(state);
+    const key = Renderer.fightersKey(state, this.looks);
     // keepStage: devtools shows an unsaved stage that isn't in STAGES.
     if (!keepStage && this.stage !== STAGES[state.stage]) this.setStage(state.stage);
     if (key === this.fighterKey && this.views.length === state.fighters.length && this.fightersHadOccluders === this.occluders) {
@@ -533,6 +549,9 @@ export class Renderer {
       mat.backFaceCulling = false;
       mat.emissiveColor = Color3.White();
       setTexture(mat, still);
+      // A colour look other than Classic recolours the sprite in the shader; Classic keeps the plain material.
+      const look = lookOf(f.char, this.looks[f.id] ?? 0);
+      if (look.from !== undefined) new LookPlugin(mat, look);
 
       const body = CreatePlane(`body-${f.id}`, { size: 1 }, this.scene);
       body.position.z = -0.05 * f.id;
@@ -593,7 +612,7 @@ export class Renderer {
       root.onDisposeObservable.add(() => rimMat.dispose());
 
       this.views.push({
-        root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, ghost, ghostMat, rim, rimMat,
+        root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, ghost, ghostMat, rim, rimMat, charIdx: f.char, lookIdx: this.looks[f.id] ?? 0,
       });
     }
     this.fighterKey = key;
