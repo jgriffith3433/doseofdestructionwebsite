@@ -147,6 +147,15 @@ host and walk-on for the finale (one man, two roles). Blog Man covers Season 1 f
 on, and sometimes fights (Turn the Page, Clip Show). Walk-ons join the Versus card when their episode clears (`unlock`
 in `content/campaign.json`); Season 8–10 reuse nominees and promoters with no new unlocks.
 
+**Wardrobe (colour looks).** Every fighter has four looks in `content/fighters.json` `looks`, drawn by a palette shader on
+the same sprite sheets (`src/game/looks.ts`, `render/lookPlugin.ts`). In the show's terms this is Wardrobe: the same
+contestant in the network's alternate rig. Look 1 is the fighter as aired; look 2 is open; looks 3 and 4 are earned by
+wins with that fighter in any mode (3 and 10, `dod-wins`) and read "3 wins to unlock" on the select card. Outfit looks
+turn the fighter's main colour band (skin, eyes and outlines stay); the dark, grey fighters tint their mid-tones
+instead. Two of the same fighter in one match never share a look (the second is moved on automatically). Colour is
+cosmetic: it is not in the sim, so it never changes a fight; online it rides in the match setup. The VS card and the
+results name each fighter's look in a chip.
+
 **Signature specials.** A fighter's Special does four different things by stick direction (neutral, side, up, down),
 and a fighter on the card can have its own (`specials` in `content/fighters.json`, `docs/specials.md`). Exit Punk
 is the first, and his kit is the one skateboard he walked on with: **Board throw** (neutral, he lobs the deck down

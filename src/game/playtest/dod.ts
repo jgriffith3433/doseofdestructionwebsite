@@ -63,6 +63,8 @@ export interface GameHooks {
   trailStats?(reset?: boolean): { log: { seq: number; victim: number; tier: HitTier; kb: number; kind: 'none' | 'grey' | 'white' | 'streak'; ko: boolean; puffs: number }[]; active: number; puffs: number };
   markerStats?(): { shown: number; frames: number; unclear: number; last: { id: number; size: number; danger: boolean; clear: boolean; rect: { l: number; t: number; r: number; b: number } } | null; events: { id: number; size: number; danger: boolean }[]; rects: { id: number; rect: { l: number; t: number; r: number; b: number }; danger: boolean }[] };
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
+  /** The colour look each built fighter wears and whether its material runs the palette shader (renderer.lookStats). */
+  lookStats?(): { slot: number; char: number; look: number; shader: boolean }[];
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
@@ -158,6 +160,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'specials') await r.specialsRun();
         else if (id === 'grab') await r.grabRun();
         else if (id === 'select-specials') await r.selectSpecials();
+        else if (id === 'colours') await r.coloursRun();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
         else if (id === 'input-feel') await r.inputFeel();
@@ -2789,6 +2792,192 @@ class Run {
       t.metric('selectFits', shown);
       t.progress(1);
     } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- colour looks
+
+  /**
+   * Colour looks (looks.ts): character select shows each fighter's swatches as tap targets, locked ones read
+   * "N wins to unlock"; a tap picks; the same fighter twice gets two colours; the pick shows on the VS card, in the
+   * match (the palette shader on the fighter's material) and on the results. Played through taps (a phone: touch pointer
+   * events; 390x844 is turned to 844x390 like specials, because the Rotate prompt covers the menus upright).
+   * Setup shortcut: the colour save (dod-wins, dod-looks) starts empty, then holds 3 wins with Exit Punk for the unlock
+   * leg; the player's own are put back. Option `fighter`: just that one for the swatch-size sweep (default all 33).
+   * Events: `swatches`, `swatch-tap`, `swatch-locked`, `same-fighter-colour`, `vs-colour`, `match-colour`, `results-colour`, `win-credited`.
+   */
+  async coloursRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('colours');
+    }
+    this.logViewport(touch && this.isPhone());
+    const KEYS = ['dod-wins', 'dod-looks', 'dod-versus'];
+    const saved = KEYS.map((k) => localStorage.getItem(k));
+    for (const k of KEYS) localStorage.removeItem(k);
+    const store = (wins: Record<string, number>) => localStorage.setItem('dod-wins', JSON.stringify(wins));
+    const wide = () => document.documentElement.scrollWidth > innerWidth + 1;
+    const slotRow = (slot: number) => this.q(`#select-slots .swatches[data-slot="${slot}"]`);
+    const swatch = (slot: number, look: number) => this.q(`#select-slots .swatches[data-slot="${slot}"] .swatch[data-look="${look}"]`);
+    const picked = (slot: number) => Number(slotRow(slot)?.querySelector<HTMLElement>('.swatch.on')?.dataset.look ?? -1);
+    /** Scrolls a control into view (the select page scrolls on a phone) and taps it. */
+    const tapSwatch = async (slot: number, look: number, what: string) => {
+      swatch(slot, look)?.scrollIntoView({ block: 'center' });
+      await this.click(() => swatch(slot, look), what);
+    };
+    try {
+      await this.toMainMenu();
+      if (touch) {
+        this.useTap = true;
+        forceTouchUi(true);
+      }
+      // ---- 1. every fighter: four swatches, each a 44x44 tap target, one row, locked ones say what unlocks them.
+      await this.click(() => this.q('[data-go="training"]'), 'Training');
+      await this.screen('select');
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : CHARACTERS.map((c) => c.id);
+      let rows = 0;
+      for (const [k, id] of ids.entries()) {
+        t.progress(0.05 + (0.4 * k) / ids.length);
+        const ci = CHARACTERS.findIndex((c) => c.id === id);
+        if (ci < 0) {
+          t.problem('bug', `fighter "${id}" is not in the roster`);
+          continue;
+        }
+        const c = CHARACTERS[ci];
+        await this.click(() => this.q('#select-slots .slot .slot-pick'), 'your slot');
+        await this.click(() => this.q(`#select-grid .tile[data-fighter="${id}"]`), c.name);
+        await t.until(() => (slotRow(0)?.querySelectorAll('.swatch').length ?? 0) >= 4 && this.q('#select-slots .slot strong')?.textContent === c.name, 6000, `${c.name}'s swatches`);
+        const list = [...slotRow(0)!.querySelectorAll<HTMLElement>('.swatch')];
+        slotRow(0)!.scrollIntoView({ block: 'center' });
+        const rects = list.map((el) => el.getBoundingClientRect());
+        const small = rects.filter((r) => r.width < 44 - 0.5 || r.height < 44 - 0.5);
+        const oneRow = rects.every((r) => Math.abs(r.top - rects[0].top) < 2);
+        const inside = rects.every((r) => r.left >= -0.5 && r.right <= innerWidth + 0.5);
+        const lockedText = list.filter((el) => el.classList.contains('locked')).map((el) => el.querySelector('.name')?.textContent?.trim() ?? '');
+        const overlap = rects.some((r, i) => i > 0 && r.left < rects[i - 1].right - 0.5);
+        const cut = list.some((el) => el.querySelector<HTMLElement>('.name')!.scrollWidth > el.clientWidth + 1);
+        if (list.length < 4) t.problem('bug', `${c.name}: only ${list.length} colour swatches on character select (want 4)`);
+        else if (small.length) t.problem('bug', `${c.name}: ${small.length} swatch(es) under 44x44 CSS px at ${innerWidth}x${innerHeight} (smallest ${Math.round(Math.min(...small.map((r) => r.width)))}x${Math.round(Math.min(...small.map((r) => r.height)))})`);
+        else if (!oneRow || !inside || overlap || wide()) t.problem('bug', `${c.name}: swatches are not one row inside the screen at ${innerWidth}x${innerHeight} (one row ${oneRow}, inside ${inside}, overlap ${overlap}, page scrolls sideways ${wide()})`);
+        else if (cut) t.problem('bug', `${c.name}: a swatch label is cut off at ${innerWidth}x${innerHeight}`);
+        else if (lockedText.length !== 2 || lockedText[0] !== '3 wins to unlock' || lockedText[1] !== '10 wins to unlock') t.problem('bug', `${c.name}: locked swatches read ${JSON.stringify(lockedText)}, want "3 wins to unlock" and "10 wins to unlock"`);
+        else {
+          rows++;
+          t.event('swatches', `${c.name}: ${list.length} swatches, each ${Math.round(Math.min(...rects.map((r) => r.width)))}x${Math.round(Math.min(...rects.map((r) => r.height)))} px or more, one row; locked: ${lockedText.join(' / ')}`);
+        }
+        // A tap on an open swatch picks it; a tap on a locked one does nothing.
+        await tapSwatch(0, 1, `${c.name}: colour 2`);
+        if (picked(0) !== 1) t.problem('bug', `${c.name}: tapping the second swatch did not pick it (picked ${picked(0)})`);
+        else t.event('swatch-tap', `${c.name}: one tap picked colour 2`);
+        await tapSwatch(0, 2, `${c.name}: locked colour 3`);
+        if (picked(0) !== 1) t.problem('bug', `${c.name}: a locked swatch could be picked`);
+        else if (k === 0) t.event('swatch-locked', `${c.name}: a tap on "3 wins to unlock" picked nothing`);
+        t.add('swatchRows');
+      }
+      t.metric('swatchRows', rows);
+      await this.click(() => this.q('#select [data-back]'), 'Back');
+      await this.screen('main');
+
+      // ---- 2. Versus: the same fighter twice gets two colours; wins unlock the later looks.
+      t.progress(0.5);
+      await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+      await this.screen('select');
+      const rule = (label: string) => [...document.querySelectorAll<HTMLElement>('#select-rules .rule')].find((r) => r.querySelector('span')?.textContent === label);
+      for (let i = 0; i < 4 && document.querySelectorAll('#select-slots .slot:not(.add)').length > 2; i++) {
+        await this.click(() => [...document.querySelectorAll<HTMLElement>('#select-slots [aria-label="Remove"]')].pop(), 'remove a CPU');
+      }
+      for (let i = 0; i < 2 && rule('Teams')?.querySelector('.value')?.textContent === 'On'; i++) await this.click(() => rule('Teams')?.querySelector<HTMLElement>('.value'), 'Teams off');
+      for (let i = 0; i < 4 && rule('Time')?.querySelector('.value')?.textContent !== 'Off'; i++) await this.click(() => rule('Time')?.querySelector<HTMLElement>('.value'), 'Time');
+      for (let i = 0; i < 10 && Number(rule('Stocks')?.querySelector('b')?.textContent) !== 1; i++) {
+        await this.click(() => rule('Stocks')?.querySelector<HTMLElement>('[aria-label="Fewer stocks"]'), 'Fewer stocks');
+      }
+      const hero = 'exit-punk';
+      const heroIdx = CHARACTERS.findIndex((c) => c.id === hero);
+      const tile = () => this.q(`#select-grid .tile[data-fighter="${hero}"]`);
+      await this.click(() => this.q('#select-slots .slot:nth-child(1) .slot-pick'), 'your slot');
+      await this.click(tile, CHARACTERS[heroIdx].name);
+      await this.click(() => this.q('#select-slots .slot:nth-child(2) .slot-pick'), 'CPU slot');
+      await this.click(tile, `CPU: ${CHARACTERS[heroIdx].name}`);
+      await t.until(() => picked(0) >= 0 && picked(1) >= 0, 4000, 'both slots to show a colour');
+      if (picked(0) === picked(1)) t.problem('bug', `both slots are ${CHARACTERS[heroIdx].name} in colour ${picked(0) + 1}: the second was not moved`);
+      else t.event('same-fighter-colour', `two ${CHARACTERS[heroIdx].name}: you colour ${picked(0) + 1}, CPU colour ${picked(1) + 1} (moved automatically)`);
+      // The CPU taps the colour you wear: it moves on to the next one.
+      await tapSwatch(1, picked(0), 'CPU: the same colour as yours');
+      if (picked(0) === picked(1)) t.problem('bug', "the second player could pick the first player's colour on the same fighter");
+      else t.event('same-fighter-colour', `the CPU tapped colour ${picked(0) + 1}: it moved to colour ${picked(1) + 1}`);
+      // A few sessions later: 3 wins with this fighter open the third colour and the fourth says it needs 10.
+      store({ [hero]: 3 });
+      await this.click(() => this.q('#select-slots .slot:nth-child(1) .slot-pick'), 'your slot');
+      await this.click(tile, CHARACTERS[heroIdx].name);
+      await t.until(() => !swatch(0, 2)?.classList.contains('locked'), 4000, 'the third colour to open after 3 wins');
+      const fourth = swatch(0, 3)?.querySelector('.name')?.textContent?.trim();
+      if (!swatch(0, 3)?.classList.contains('locked') || fourth !== '10 wins to unlock') t.problem('bug', `after 3 wins the fourth swatch reads "${fourth}", want "10 wins to unlock"`);
+      else t.event('swatch-locked', `3 wins: colour 3 is open, colour 4 still says "${fourth}"`);
+      await tapSwatch(0, 2, 'colour 3');
+      if (picked(0) !== 2) t.problem('bug', `colour 3 was not picked after 3 wins (picked ${picked(0)})`);
+      else t.event('swatch-tap', `colour 3 (${CHARACTERS[heroIdx].looks[2].name}) picked after 3 wins`);
+      const want = [picked(0), picked(1)];
+      if (want[0] === want[1]) t.problem('bug', 'the two Exit Punks share a colour after the pick');
+
+      // ---- 3. The VS card, the match and the results all wear the pick.
+      t.progress(0.65);
+      await this.click(() => this.q('#select-slots .fight'), 'Fight');
+      await this.screen('stages');
+      const cards = () => document.querySelectorAll<HTMLElement>('#stage-grid .stage-card:not(.random)');
+      await t.until(() => cards().length > 0, 5000, 'stage cards');
+      await this.click(() => cards()[Math.abs(this.options.seed - 1) % cards().length], 'a stage');
+      await this.screen('versus', 30000);
+      await t.until(() => document.querySelectorAll('#versus-body .vs-fighter .look-chip').length >= 2, 5000, 'the colour on the VS card');
+      const figs = [...document.querySelectorAll<HTMLElement>('#versus-body .vs-fighter')];
+      const onCard = figs.map((f) => Number(f.dataset.look));
+      const chips = figs.map((f) => f.querySelector('.look-chip')?.textContent?.trim() ?? '');
+      const names = want.map((l) => CHARACTERS[heroIdx].looks[l].name);
+      const edge = [...document.querySelectorAll<HTMLElement>('#versus-body .vs-fighter, #versus-body .look-chip')].filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.left < -0.5 || r.right > innerWidth + 0.5 || r.top < -0.5 || r.bottom > innerHeight + 0.5;
+      });
+      if (onCard.join() !== want.join() || chips.join() !== names.join()) t.problem('bug', `the VS card shows colours ${onCard.join()} (${chips.join(', ')}) but ${want.join()} (${names.join(', ')}) were picked`);
+      else if (edge.length || wide()) t.problem('bug', `the VS card has ${edge.length} clipped element(s) or scrolls sideways at ${innerWidth}x${innerHeight}`);
+      else t.event('vs-colour', `VS card: ${names.join(' and ')}, colours ${want.map((l) => l + 1).join(' and ')}, inside ${innerWidth}x${innerHeight}`);
+      await this.matchLive();
+      const stats = this.game.lookStats?.() ?? [];
+      const m = this.game.match();
+      const drawn = stats.map((x) => x.look);
+      const sent = m?.setup.slots.map((x) => x.look ?? 0) ?? [];
+      const shaderOk = stats.every((x) => x.shader === (x.look > 0));
+      if (drawn.join() !== want.join() || sent.join() !== want.join()) t.problem('bug', `in the match the fighters are drawn in colours ${drawn.join()} (setup ${sent.join()}) but ${want.join()} were picked`);
+      else if (!shaderOk) t.problem('bug', 'a fighter in a non-Classic colour has no palette shader on its material (or a Classic one has)');
+      else t.event('match-colour', `in the match: slot colours ${drawn.join(' and ')}, palette shader on for the non-Classic looks`);
+      await this.fight(() => false, 4 * 60 * 1000);
+      await this.results();
+      const winsBefore = 3;
+      const hero0 = this.q('#results-body .results-look .look-chip');
+      const wonSlot = m && m.state.winner >= 0 ? m.state.winner : 0;
+      const heroLook = Number(hero0?.dataset.look ?? -1);
+      const resEdge = [...document.querySelectorAll<HTMLElement>('#results-body .results-hero, #results-body .look-chip, #results-actions button')].filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.left < -0.5 || r.right > innerWidth + 0.5;
+      });
+      const standLooks = [...document.querySelectorAll<HTMLElement>('#results-body .standing .look-chip')].map((c) => Number(c.dataset.look));
+      if (heroLook !== want[wonSlot] || standLooks.slice().sort().join() !== want.slice().sort().join()) t.problem('bug', `results show colours ${heroLook} / ${standLooks.join()} but the match was ${want.join()} (winner slot ${wonSlot})`);
+      else if (resEdge.length || wide()) t.problem('bug', `the results have ${resEdge.length} element(s) past the screen edge or scroll sideways at ${innerWidth}x${innerHeight}`);
+      else t.event('results-colour', `results: winner in ${hero0?.textContent?.trim()}, standings ${standLooks.map((l) => l + 1).join(' and ')}, inside ${innerWidth}x${innerHeight}`);
+      const wins = JSON.parse(localStorage.getItem('dod-wins') ?? '{}')[hero] ?? 0;
+      if (wonSlot === 0 && wins !== winsBefore + 1) t.problem('bug', `a win with ${CHARACTERS[heroIdx].name} was not counted (${wins} wins, want ${winsBefore + 1})`);
+      else if (wonSlot === 0) t.event('win-credited', `${CHARACTERS[heroIdx].name}: ${winsBefore} -> ${wins} wins`);
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.progress(1);
+    } finally {
+      for (const [i, k] of KEYS.entries()) {
+        if (saved[i] === null) localStorage.removeItem(k);
+        else localStorage.setItem(k, saved[i]!);
+      }
       this.useTap = false;
       forceTouchUi(false);
     }

@@ -7,6 +7,8 @@ import { PLAYER_COLORS, prefetchFighters } from '../render/renderer.ts';
 import { CHAPTERS, isUnlocked } from '../campaign/story.ts';
 import { $, h, kids, largeUrl, thumbUrl } from './dom.ts';
 import { specialsPanel } from './specialsPreview.ts';
+import { swatchRow } from './lookUi.ts';
+import { lookCount, lookOpen, openLook, preferredLook, rememberLook, separateLooks } from '../looks.ts';
 
 export interface VersusConfig {
   slots: SlotSetup[];
@@ -71,6 +73,15 @@ export function openSelect({ mode, config, onDone }: Options): void {
   for (const s of cfg.slots) {
     if (!open(s.char, training)) s.char = Math.max(0, CHARACTERS.findIndex((_, i) => open(i, training) && !cfg.slots.some((o) => o.char === i)));
   }
+
+  // Colours: yours must be open (wins unlock them); a CPU may wear any. A saved look that is not open any more falls back to Classic.
+  const may = (slot: number, look: number): boolean => cfg.slots[slot].cpu !== null || lookOpen(cfg.slots[slot].char, look);
+  const fixLooks = (): number[] => {
+    for (const s of cfg.slots) s.look = s.cpu === null ? openLook(s.char, s.look ?? preferredLook(s.char)) : Math.min(Math.max(0, s.look ?? 0), lookCount(s.char) - 1);
+    return separateLooks(cfg.slots, may);
+  };
+  let slotFocus = -1;
+  fixLooks();
 
   const preview = $('select-preview');
   const grid = $('select-grid');
@@ -141,6 +152,9 @@ export function openSelect({ mode, config, onDone }: Options): void {
     if (!open(char, training)) return;
     void prefetchFighters([char]);
     cfg.slots[active].char = char;
+    // A person gets the colour they last wore with this fighter; a CPU starts on Classic. Same fighter twice: the second moves on.
+    cfg.slots[active].look = cfg.slots[active].cpu === null ? preferredLook(char) : 0;
+    fixLooks();
     // After you pick, move on to the next CPU so a whole match can be set from the grid.
     if (active < cfg.slots.length - 1) active++;
     renderSlots();
@@ -183,6 +197,8 @@ export function openSelect({ mode, config, onDone }: Options): void {
   );
 
   function renderSlots(): void {
+    const back = slotFocus;
+    slotFocus = -1;
     slotsEl.replaceChildren(
       ...kids(...cfg.slots.map((s, i) => {
         const c = CHARACTERS[s.char];
@@ -199,6 +215,19 @@ export function openSelect({ mode, config, onDone }: Options): void {
             h('span', { class: 'slot-label' }, label),
             h('strong', {}, c.name),
           ),
+          swatchRow({
+            char: s.char,
+            picked: s.look ?? 0,
+            slot: i,
+            allOpen: isCpu,
+            pick: (look) => {
+              s.look = look;
+              if (!isCpu) rememberLook(s.char, look);
+              slotFocus = i;
+              fixLooks();
+              renderSlots();
+            },
+          }),
           isCpu &&
             h(
               'div',
@@ -212,8 +241,10 @@ export function openSelect({ mode, config, onDone }: Options): void {
         );
       }),
       !training && cfg.slots.length < 4 && h('button', { type: 'button', class: 'slot add', onclick: addCpu }, '+ Add CPU'),
-      h('button', { type: 'button', class: 'primary fight', onclick: () => onDone(cfg) }, training ? 'Train' : 'Fight'),
+      h('button', { type: 'button', class: 'primary fight', onclick: () => { fixLooks(); onDone(cfg); } }, training ? 'Train' : 'Fight'),
     ));
+    // Keep the keyboard on the row it was using after a colour pick redraws the slots.
+    if (back >= 0) slotsEl.querySelector<HTMLElement>(`.swatches[data-slot="${back}"] .swatch.on`)?.focus();
   }
 
   function level(i: number, d: number): void {

@@ -20,6 +20,8 @@ export interface SlotSetup {
   scale?: number;
   startPercent?: number;
   stocks?: number;
+  /** Colour look (looks.ts), 0 is the original art. Cosmetic: the renderer reads it, the sim never does. */
+  look?: number;
   /** The pilot's gentle Kaelen (ai/bot.ts pilotFight). */
   pilot?: boolean;
 }
