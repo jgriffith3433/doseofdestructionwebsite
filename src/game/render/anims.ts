@@ -79,7 +79,7 @@ function wanted(f: Fighter): string[] {
     case ACT.LAND:
       return ['land', 'crouch', 'idle'];
     case ACT.ATTACK:
-      return [MOVE_KEYS[f.move], 'idle'];
+      return [MOVE_KEYS[f.move], ...(CHARACTERS[f.char].moves[f.move].clips ?? []), 'idle'];
     case ACT.HITSTUN:
       return ['hurt', 'fall', 'idle'];
     case ACT.SHIELD:

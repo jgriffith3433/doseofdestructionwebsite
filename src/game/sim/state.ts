@@ -93,6 +93,38 @@ export interface Fighter {
   startPercent: number;
 }
 
+/**
+ * Something a special put in the world: a thrown projectile (kind 0) or a placed trap (kind 1). Plain integers,
+ * copied from the move's ShotDef when it spawns, so it is cloned and hashed like everything else.
+ */
+export interface Shot {
+  kind: number;
+  owner: number;
+  x: number;
+  y: number;
+  /** The platform a trap sits on (index), or -1. */
+  plat: number;
+  /** FX units per frame; vy falls by g each frame. */
+  vx: number;
+  vy: number;
+  g: number;
+  /** Frames left. */
+  life: number;
+  /** Frames until a trap can go off. */
+  arm: number;
+  /** Hit radius in FX units. */
+  r: number;
+  dmg: number;
+  angle: number;
+  bkb: number;
+  kbg: number;
+  /** The way it flies or was placed: 1 right, -1 left. */
+  facing: number;
+  style: number;
+  /** Frames since it appeared (the renderer spins and pulses by it). */
+  age: number;
+}
+
 export interface Rules {
   /** Percent of normal gravity. */
   gravity: number;
@@ -134,6 +166,8 @@ export interface GameState {
   stage: number;
   rules: Rules;
   fighters: Fighter[];
+  /** Projectiles and traps in play, oldest first. */
+  shots: Shot[];
   over: number;
   /** Winning fighter id, or -1 for no contest. */
   winner: number;
@@ -237,6 +271,7 @@ export function newGame(setup: FighterSetup[], opts: GameOptions): GameState {
     rng: opts.seed | 0,
     stage,
     rules: { ...DEFAULT_RULES, ...opts.rules },
+    shots: [],
     fighters: setup.map((s, i) => {
       const f = newFighter(i, s.char, s.stocks ?? opts.stocks, stage);
       f.team = s.team ?? -1;
@@ -278,6 +313,7 @@ export function cloneState(s: GameState): GameState {
     ...s,
     rules: { ...s.rules },
     fighters: s.fighters.map((f) => ({ ...f })),
+    shots: s.shots.map((o) => ({ ...o })),
     evPhase: s.evPhase.slice(),
     evTimer: s.evTimer.slice(),
     hazHit: s.hazHit.slice(),
@@ -331,7 +367,16 @@ export function hashState(s: GameState): number {
   for (const f of s.fighters) {
     for (const key of FIGHTER_KEYS) mix(f[key]);
   }
+  mix(s.shots.length);
+  for (const o of s.shots) {
+    for (const key of SHOT_KEYS) mix(o[key]);
+  }
   return h >>> 0;
 }
 
 const FIGHTER_KEYS = Object.keys(newFighter(0, 0, 1)) as (keyof Fighter)[];
+const SHOT_KEYS = Object.keys(newShot()) as (keyof Shot)[];
+
+export function newShot(): Shot {
+  return { kind: 0, owner: 0, x: 0, y: 0, plat: -1, vx: 0, vy: 0, g: 0, life: 0, arm: 0, r: 0, dmg: 0, angle: 0, bkb: 0, kbg: 0, facing: 1, style: 0, age: 0 };
+}

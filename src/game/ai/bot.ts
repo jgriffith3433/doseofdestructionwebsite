@@ -246,6 +246,17 @@ export class Bot {
         this.queue.push({ sx: side, sy: 0, btn: 0, frames: 14 }, { sx: side, sy: 0, btn: BTN.JUMP, frames: 2 });
         return;
       }
+      // A fighter with its own specials uses them at range: a thrown projectile down the lane, a trap on the way in.
+      if (ch.specials && me.facing === Math.sign(dx)) {
+        if (adx > 220 && adx < 640 && Math.abs(dy) < 60 && this.random() < 0.06 + skill * 0.08) {
+          this.press(side * 0.2, 0, BTN.SPECIAL);
+          return;
+        }
+        if (adx > 120 && adx < 320 && this.random() < 0.02 + skill * 0.03) {
+          this.press(0, -100, BTN.SPECIAL, 3);
+          return;
+        }
+      }
       if (adx > reach * 0.8) {
         // Approach, sometimes with a short hop aerial.
         if (adx < 240 && this.random() < 0.25 + skill * 0.15) {

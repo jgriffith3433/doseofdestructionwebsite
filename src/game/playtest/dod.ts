@@ -137,6 +137,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'rotate') await r.rotate();
         else if (id === 'presentation') await r.presentation();
         else if (id === 'roster') await r.roster();
+        else if (id === 'specials') await r.specialsRun();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
         else if (id === 'input-feel') await r.inputFeel();
@@ -457,7 +458,8 @@ class Run {
     if (!set) {
       this.t.problem('warning', `${c.name}: no animation clips (shows the still image only)`);
     } else {
-      const want = [...CORE_CLIPS, ...MOVE_KEYS];
+      // Side and down special borrow existing clips (nspecial, fsmash, dsmash, upb, roll), so they aren't missing ones.
+      const want = [...CORE_CLIPS, ...MOVE_KEYS.filter((k) => k !== 'sspecial' && k !== 'dspecial')];
       const missing = want.filter((k) => !set.clips[k]);
       if (missing.length) this.t.problem('polish', `${c.name}: missing animation clips (stand-ins used): ${missing.join(', ')}`);
       const broken: string[] = [];
@@ -2143,6 +2145,263 @@ class Run {
     t.finish('done');
   }
 
+  // ---------------------------------------------------------- specials
+
+  /**
+   * Specials: Exit Punk in Training does a different special from each direction (K, K+side, K+down, K+up), and
+   * the thrown board crosses the stage, hits the dummy and is gone (and, thrown away from it, runs out its
+   * lifetime). Played through real input: the keyboard on a desktop, the on-screen stick and Special button on a
+   * phone (touch pointer events, nothing else; no extra button on the overlay). Setup shortcut: straight into
+   * training (no menus). Options: input (touch forces the overlay on a desktop window), at (phone).
+   */
+  async specialsRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    // A portrait phone window can't hold a match (the Rotate prompt): turn the phone, like touch-match does.
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('specials');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      if (punk < 0) {
+        t.problem('bug', 'Exit Punk is not on the roster');
+        t.finish('error');
+        return;
+      }
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      void this.game.startMatch({
+        mode: 'training', stage, stocks: 1, rules: {},
+        slots: [{ char: punk, cpu: null }, { char: (punk + 1) % CHARACTERS.length, cpu: 0 }],
+      });
+      await this.matchLive();
+      // The virtual pad adds nothing: only the keyboard or the on-screen controls move the fighter.
+      this.manual = NO_INPUT;
+      t.progress(0.1);
+
+      const match = () => this.game.match()!;
+      const me = () => match().state.fighters[match().player];
+      const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+      };
+
+      interface Pad { stick(sx: number, sy: number): void; special(on: boolean): void; release(): void }
+      const keyboardPad = (): Pad => {
+        const on = new Set<string>();
+        const set = (a: string, v: boolean) => {
+          if (v === on.has(a)) return;
+          if (v) on.add(a);
+          else on.delete(a);
+          pressAction(a, v);
+        };
+        return {
+          stick: (sx, sy) => {
+            set('left', sx < 0);
+            set('right', sx > 0);
+            set('down', sy < 0);
+            set('up', sy > 0);
+          },
+          special: (v) => set('special', v),
+          release: () => {
+            for (const a of [...on]) set(a, false);
+          },
+        };
+      };
+      const touchPad = (): Pad | null => {
+        const root = touchOverlay() ?? this.q('.touch');
+        if (!root) return null;
+        if (root.hidden) root.hidden = false;
+        const stickEl = root.querySelector<HTMLElement>('.touch-stick');
+        const specialEl = root.querySelector<HTMLElement>('.touch-btn.special');
+        if (!stickEl || !specialEl) return null;
+        let stickId = -1;
+        let specialId = -1;
+        let pid = 200;
+        const send = (el: HTMLElement, type: string, x: number, y: number, id: number) =>
+          el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: id, isPrimary: id === 201, button: 0, buttons: type === 'pointerup' ? 0 : 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y }));
+        return {
+          stick: (sx, sy) => {
+            const r = stickEl.getBoundingClientRect();
+            // The knob's reach is 50/128 of the stick's width: a push of 100 is all the way over.
+            const reach = r.width * (50 / 128);
+            const x = r.left + r.width / 2 + (sx / 100) * reach;
+            const y = r.top + r.height / 2 - (sy / 100) * reach;
+            if (sx === 0 && sy === 0) {
+              if (stickId >= 0) send(stickEl, 'pointerup', x, y, stickId);
+              stickId = -1;
+            } else if (stickId < 0) {
+              stickId = ++pid;
+              send(stickEl, 'pointerdown', x, y, stickId);
+            } else send(stickEl, 'pointermove', x, y, stickId);
+          },
+          special: (v) => {
+            const r = specialEl.getBoundingClientRect();
+            const x = r.left + r.width / 2;
+            const y = r.top + r.height / 2;
+            if (v && specialId < 0) {
+              specialId = ++pid;
+              send(specialEl, 'pointerdown', x, y, specialId);
+            } else if (!v && specialId >= 0) {
+              send(specialEl, 'pointerup', x, y, specialId);
+              specialId = -1;
+            }
+          },
+          release: () => {
+            if (specialId >= 0) send(specialEl, 'pointerup', 0, 0, specialId);
+            specialId = -1;
+            if (stickId >= 0) send(stickEl, 'pointerup', 0, 0, stickId);
+            stickId = -1;
+          },
+        };
+      };
+      const pad = touch ? touchPad() : keyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls (stick and Special button) were not built');
+        t.finish('error');
+        return;
+      }
+      if (touch) t.event('phone-shot', `training with the touch overlay (stick + Special, no extra button) at ${innerWidth}x${innerHeight}`);
+
+      const standing = () => {
+        const f = me();
+        return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      };
+      const settle = async () => {
+        pad.release();
+        await t.until(standing, 10000, 'the fighter to stand');
+        await frames(8);
+      };
+      /** Walks (the stick) until `done`, then lets go. */
+      const walk = async (dir: number, done: () => boolean, what: string) => {
+        pad.stick(dir * 100, 0);
+        try {
+          await t.until(done, 12000, what);
+        } finally {
+          pad.stick(0, 0);
+        }
+      };
+
+      // Face the dummy and walk into the board's range.
+      const toward = () => (dummy().x >= me().x ? 1 : -1);
+      const gap = () => Math.abs(dummy().x - me().x) / FX;
+      await walk(toward(), () => gap() < 460, 'Exit Punk to walk toward the dummy');
+      await settle();
+      t.progress(0.25);
+
+      // Neutral: the thrown board. Thrown at the dummy it crosses the stage and hits; thrown away it runs out its lifetime.
+      const owner = () => match().player;
+      const board = () => match().state.shots.filter((o) => o.owner === owner() && o.kind === 0);
+      const throwBoard = async (): Promise<{ shot: boolean; travelled: number; frames: number; dmg: number; gone: boolean }> => {
+        await settle();
+        const d0 = dummy().percent;
+        const startX = me().x;
+        let shot = false;
+        let travelled = 0;
+        let life = 0;
+        pad.stick(0, 0);
+        pad.special(true);
+        await frames(3);
+        pad.special(false);
+        try {
+          await t.until(() => {
+            const b = board();
+            if (b.length) {
+              shot = true;
+              life++;
+              travelled = Math.max(travelled, ...b.map((o) => Math.abs(o.x - startX) / FX));
+            }
+            return shot && b.length === 0;
+          }, 15000, 'the board to hit or run out');
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+        }
+        return { shot, travelled: Math.round(travelled), frames: life, dmg: dummy().percent - d0, gone: board().length === 0 };
+      };
+      this.movesSeen.clear();
+      const hit = await throwBoard();
+      if (!hit.shot) t.problem('bug', `${how}: pressing Special (neutral) with Exit Punk threw no board`);
+      else if (hit.dmg <= 0) t.problem('bug', `${how}: the thrown board went ${hit.travelled} units and never hurt the dummy`);
+      else if (!hit.gone) t.problem('bug', `${how}: the board is still in play after it hit the dummy`);
+      else t.event('projectile-hit', `${how}: the board crossed ${hit.travelled} units in ${hit.frames} frames, hit the dummy (+${(hit.dmg / 10).toFixed(1)}%) and disappeared`);
+      const neutralSeen = this.movesSeen.has(MOVE.NSPECIAL);
+      t.progress(0.4);
+
+      // Thrown the other way it hits nobody and goes at the end of its lifetime.
+      await settle();
+      await walk(-toward(), () => me().facing === -toward(), 'Exit Punk to turn away');
+      const away = await throwBoard();
+      if (!away.shot) t.problem('bug', `${how}: the second board never appeared`);
+      else if (!away.gone) t.problem('bug', `${how}: a board that missed is still in play`);
+      else if (away.dmg > 0) t.problem('bug', `${how}: a board thrown away from the dummy hurt it`);
+      else t.event('projectile-lifetime', `${how}: a board thrown away from the dummy flew ${away.travelled} units for ${away.frames} frames and disappeared (lifetime ${CHARACTERS[punk].moves[MOVE.NSPECIAL].shot?.life} frames)`);
+      t.progress(0.55);
+
+      // The other three, each from its own stick direction with Special held.
+      interface Try { slot: string; label: string; sx: number; sy: number; move: number }
+      const tries: Try[] = [
+        { slot: 'side', label: touch ? 'stick right + Special' : 'K + right', sx: 100, sy: 0, move: MOVE.SSPECIAL },
+        { slot: 'down', label: touch ? 'stick down + Special' : 'K + down', sx: 0, sy: -100, move: MOVE.DSPECIAL },
+        { slot: 'up', label: touch ? 'stick up + Special' : 'K + up', sx: 0, sy: 100, move: MOVE.UPB },
+      ];
+      const moved = new Set<number>(neutralSeen ? [MOVE.NSPECIAL] : []);
+      for (const [i, tr] of tries.entries()) {
+        await settle();
+        this.movesSeen.clear();
+        const x0 = me().x;
+        pad.stick(tr.sx, tr.sy);
+        await frames(3);
+        pad.special(true);
+        await frames(4);
+        pad.special(false);
+        try {
+          await t.until(() => this.movesSeen.has(tr.move), 4000, `the ${tr.slot} special to come out`);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+        }
+        const seen = [...this.movesSeen];
+        const others = seen.filter((x) => x !== tr.move);
+        if (!this.movesSeen.has(tr.move)) {
+          t.problem('bug', `${how}: ${tr.label} did not do Exit Punk's ${tr.slot} special (did ${seen.map((x) => MOVE_NAMES[x]).join(', ') || 'nothing'})`);
+        } else {
+          moved.add(tr.move);
+          const trap = match().state.shots.some((o) => o.owner === owner() && o.kind === 1);
+          const dx = Math.round(Math.abs(me().x - x0) / FX);
+          const shown = tr.slot === 'side' ? `skate dash, moved ${dx} units` : tr.slot === 'down' ? `kickflip trap ${trap ? 'placed on the floor' : 'thrown'}` : `ollie, climbed to ${Math.round(me().y / FX)} units`;
+          t.event(`special-${tr.slot}`, `${how}: ${tr.label} -> ${MOVE_NAMES[tr.move]} (${shown})${others.length ? `; also saw ${others.map((x) => MOVE_NAMES[x]).join(', ')}` : ''}`);
+          if (touch && tr.slot !== 'up') t.event(`touch-${tr.slot}-special`, `${tr.label} fired the ${tr.slot} special (${MOVE_NAMES[tr.move]}) with no extra button on the overlay`);
+        }
+        pad.stick(0, 0);
+        if (touch && i === 1) t.event('phone-shot', `down special placed the kickflip trap at ${innerWidth}x${innerHeight}`);
+        t.progress(0.55 + (i + 1) * 0.12);
+      }
+      pad.release();
+      await settle();
+      if (moved.size === 4) t.event('specials-distinct', `${how}: four different specials from four inputs (${[...moved].map((x) => MOVE_NAMES[x]).join(', ')})`);
+      else t.problem('bug', `${how}: only ${moved.size} different specials came out of the four inputs (${[...moved].map((x) => MOVE_NAMES[x]).join(', ')})`);
+      t.add('specialsSeen', moved.size);
+      this.manual = null;
+      await this.game.quitMatch();
+      await this.screen('main');
+    } finally {
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   // ---------------------------------------------------------- sound-settings
 
   /** The studio standard: the Tap to play prompt, sound running, Settings from the menu and Pause, kept across a reload. */
@@ -2404,15 +2663,15 @@ class Run {
 
   // ---------------------------------------------------------- touch-match
 
-  /** Portrait phone → 844x390 landscape frame that plays touch-match (mirrors smokeTurned). */
-  private async touchMatchTurned(): Promise<void> {
+  /** Portrait phone → 844x390 landscape frame that plays a touch scenario, touch-match or specials (mirrors smokeTurned). */
+  private async touchMatchTurned(scenario = 'touch-match'): Promise<void> {
     const t = this.t;
     this.logViewport(true);
     type Inner = { events: Array<{ type: string; detail?: string }>; problems: Array<{ severity: string; message: string }>; metrics?: Record<string, number>; outcome: string; state?: { progress?: number } };
     const back = document.createElement('div');
     back.style.cssText = 'position:fixed;inset:0;background:#1c0d06 radial-gradient(ellipse at 50% 45%,#8a3010 0%,#3a1608 45%,#100e0c 80%);z-index:2147483647;overflow:hidden';
     const frame = document.createElement('iframe');
-    frame.title = 'Phone window turned to landscape (touch-match playtest)';
+    frame.title = `Phone window turned to landscape (${scenario} playtest)`;
     frame.allow = 'autoplay';
     const w = 844;
     const h = 390;
@@ -2420,7 +2679,7 @@ class Run {
     frame.style.cssText = `position:absolute;left:50%;top:50%;width:${w}px;height:${h}px;border:0;transform-origin:0 0;transform:translate(${-(w * k) / 2}px,${-(h * k) / 2}px) scale(${k});background:transparent`;
     back.appendChild(frame);
     const q = new URLSearchParams(location.search);
-    q.set('playtest', 'touch-match');
+    q.set('playtest', scenario);
     q.set('at', 'phone-turned');
     if (!q.has('seed')) q.set('seed', String(this.options.seed ?? 1));
     frame.src = `${location.pathname}?${q.toString()}`;
@@ -2450,18 +2709,18 @@ class Run {
       return r;
     };
     try {
-      t.event('phone-turned', `the portrait phone window (${innerWidth}x${innerHeight}) turned to ${w}x${h} (landscape) for touch-match`);
+      t.event('phone-turned', `the portrait phone window (${innerWidth}x${innerHeight}) turned to ${w}x${h} (landscape) for ${scenario}`);
       t.progress(0.05);
       await t.until(() => {
         heart += 1;
-        if (heart === 1 || heart % 100 === 0) t.event('phone-turn-wait', `waiting for the landscape touch-match (${Math.round(heart / 20)} s)`);
+        if (heart === 1 || heart % 100 === 0) t.event('phone-turn-wait', `waiting for the landscape ${scenario} (${Math.round(heart / 20)} s)`);
         const r = forward();
         return !!r && (r.outcome === 'done' || r.outcome === 'error' || r.outcome === 'stuck' || r.outcome === 'won' || r.outcome === 'lost');
-      }, 300000, 'the turned phone to play touch-match');
+      }, 300000, `the turned phone to play ${scenario}`);
       const r = forward();
       const out = r?.outcome;
       if (out !== 'done' && out !== 'won' && out !== 'lost') {
-        t.problem('bug', `touch-match in the turned phone ended ${out ?? 'without a report'}`);
+        t.problem('bug', `${scenario} in the turned phone ended ${out ?? 'without a report'}`);
         t.progress(1);
         t.finish(out === 'stuck' || out === 'error' ? out : 'stuck');
         return;
