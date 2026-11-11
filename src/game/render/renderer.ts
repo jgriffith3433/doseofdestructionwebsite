@@ -32,6 +32,7 @@ import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
 import { StageLive } from './stageLive.ts';
 import { StageAlive } from './stageAlive.ts';
+import { PostChain } from './post.ts';
 import { Constants } from '@babylonjs/core/Engines/constants.js';
 
 /** Sim units to scene units: 100 world units per scene unit. */
@@ -126,6 +127,7 @@ export class Renderer {
   private debugMat: StandardMaterial;
   private hurtMat: StandardMaterial;
   private glow: GlowLayer;
+  private post: PostChain;
   private stageRoot: TransformNode | null = null;
   private movers: { platform: Platform; node: TransformNode }[] = [];
   private stage: StageDef = STAGES[0];
@@ -187,6 +189,7 @@ export class Renderer {
     light.intensity = 0.95;
     light.groundColor = new Color3(0.18, 0.1, 0.08);
 
+    this.post = new PostChain(this.scene, this.camera);
     this.glow = new GlowLayer('glow', this.scene, { mainTextureSamples: 2 });
     this.glow.intensity = 0.6;
     // Silhouettes draw in group 1 against the depth group 0 left behind.
@@ -254,7 +257,13 @@ export class Renderer {
     if (qualityChanged && this.alive) this.showStage(this.stage);
     if (qualityChanged) this.engine.resize();
     this.glow.isEnabled = g.glow;
+    this.post.setQuality(g.quality);
     if (this.fpsEl) this.fpsEl.hidden = !g.fps;
+  }
+
+  /** The post chain's state (grade, vignette, grain, hit punches), for the playtest. */
+  postStats() {
+    return this.post.report();
   }
 
   /** Stage life pieces and the screen mode, for the playtest. */
@@ -359,6 +368,7 @@ export class Renderer {
     this.alive?.dispose();
     this.movers = [];
     this.stage = stage;
+    this.post.setStage(stage.id);
     this.camCut = true;
     this.kill = null;
     const root = new TransformNode('stage', this.scene);
@@ -367,7 +377,7 @@ export class Renderer {
     this.sparkMat.emissiveColor = Color3.FromHexString(t.thinEdge);
 
     this.buildBackdrop(root);
-    const built = buildLayers(this.scene, root, this.stage, this.glow);
+    const built = buildLayers(this.scene, root, this.stage, this.glow, this.gfx.quality === 'high');
     this.occluders = built.occluders;
     this.live = new StageLive(this.scene, root, this.stage, built.placed, this.glow);
     this.alive = new StageAlive(this.scene, root, this.stage, this.glow, this.gfx.quality, () => this.views.map((v) => v.body), this.camera);
@@ -832,6 +842,7 @@ export class Renderer {
         } else if (e.type === 'hit') {
           this.lastHits.set(e.victim, { kb: e.kb, tier: hitTier(e.dmg) });
           this.impact(e);
+          if (hitTier(e.dmg) === 'heavy') this.post.punch();
         } else {
           this.burst(e.x * S, e.y * S, 8 + Math.min(16, e.kb >> 3), 0.09 + e.kb * 0.0006);
           this.shake = Math.max(this.shake, Math.min(0.5, e.kb * 0.003));
@@ -849,6 +860,7 @@ export class Renderer {
         this.live?.trigger(on);
       } else if (e.type === 'launch') {
         // The launch that will carry the victim out of the blast zone: the kill cue.
+        if (e.ko) this.post.punch();
         if (e.ko && !this.shot) this.killCue(e.x * S, e.y * S + 0.5);
         this.startTrail(e.victim, e.ko);
       } else if (e.type === 'ko') {
@@ -1184,6 +1196,7 @@ export class Renderer {
     this.drawDebug(state);
     this.updateCamera(state);
     this.scene.render();
+    this.post.endFrame();
     this.checkFraming(state);
     if (this.kill && (performance.now() - this.kill.at) / 1000 > 0.15 && (performance.now() - this.kill.at) / 1000 < KILL_CUE.slowSeconds) {
       const fps = this.engine.getFps();

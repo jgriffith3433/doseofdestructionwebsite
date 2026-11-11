@@ -202,6 +202,16 @@
       ]
     },
     {
+      "id": "post-chain",
+      "title": "Post chain: every stage has its own colour grade (3D LUT), vignette and grain, heavy hits and KOs punch the screen for 4 frames, Low runs the grade and vignette only and holds 45 fps (phone: 390x844 turned to landscape, touch)",
+      "description": "Setup shortcut: straight into a match on each of the 9 stages (option stage: one) with no menus; per stage checks its LUT (stages/<id>/lut.png, built by tools/make-luts.mjs from the stage's grade numbers) is applied (stage-grade: tint, saturation, vignette, grain), then a full fight on the last stage on High: the first heavy hit or KO draws the chromatic aberration and exposure punch for exactly 4 frames (post-punch). On a phone (touch, Low) only the grade and vignette run (post-low; grain 0, no punch) and the fight holds 45 fps (metric fpsPost). Metric postStages. The player's dod.gfx is put back.",
+      "seconds": 200,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "commentary",
       "title": "Commentary: the announcer calls the fight from its events (at least 8 kinds of line, never the same line twice in a row), and Blog Man introduces every season's episodes",
       "description": "Part 1: a versus match against the CPU (3 stocks, the bot on a virtual pad), to its end; each announcer call is an event call-<kind> (first-blood, ko, comeback, last-stock, showdown, self-destruct, big-hit, combo, danger, shield-break, hazard, stage-event, time-low, lull) with its caption shown, plus call-kinds (how many kinds came up) and call-repeat problems. Part 2: setup shortcut marks the campaign cleared (the player's own progress is put back), then plays the first chapter of each season (option `all`: every chapter) from the map through its dialogue, and leaves from Pause once Blog Man has spoken: events blog-intro per episode and blog-intros. Metrics callKinds, calls, blogIntros.",
