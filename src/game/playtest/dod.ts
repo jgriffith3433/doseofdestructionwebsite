@@ -5394,6 +5394,13 @@ class Run {
       }
       const r = prompt.getBoundingClientRect();
       if (r.width < innerWidth - 1 || r.height < innerHeight - 1) t.problem('bug', `the Tap to play prompt does not fill the screen ${where} (${Math.round(r.width)}x${Math.round(r.height)} of ${innerWidth}x${innerHeight})`);
+      const cta = prompt.querySelector('.tap-cta')?.getBoundingClientRect();
+      const pitch = prompt.querySelector('.tap-pitch')?.textContent?.trim() ?? '';
+      const art = prompt.querySelector('.tap-art img')?.getBoundingClientRect();
+      if (!pitch || !art || art.width < 40) t.problem('bug', `the Tap to play card has no pitch line or fighter art ${where}`);
+      if (!cta || cta.height < 44 || cta.width < 44 || cta.left < 0 || cta.right > innerWidth || cta.bottom > innerHeight) t.problem('bug', `the Play as guest button is under 44 px or off screen ${where}`);
+      if (document.documentElement.scrollWidth > innerWidth + 1) t.problem('bug', `the Tap to play card scrolls sideways ${where}`);
+      t.event('guest-card', `pitch "${pitch}", Play as guest ${cta ? Math.round(cta.width) + 'x' + Math.round(cta.height) : 'missing'}, art ${art ? Math.round(art.width) + 'x' + Math.round(art.height) : 'missing'} ${where}`);
       t.event('prompt-shown', `${where}, ${innerWidth}x${innerHeight} ${innerWidth > innerHeight ? 'landscape' : 'portrait'}`);
     };
     const checkSound = async (where: string) => {

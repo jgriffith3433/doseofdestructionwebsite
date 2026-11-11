@@ -652,6 +652,22 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   color: var(--gold);
   animation: tap-pulse 2.4s ease-in-out infinite;
 }
+.tap-card { display: flex; flex-direction: column; align-items: center; gap: 16px; max-width: 100%; }
+.tap-art { display: block; width: min(100%, 420px); border-radius: 14px; overflow: hidden; box-shadow: 0 0 0 2px rgba(255, 209, 90, 0.35); }
+.tap-art img { display: block; width: 100%; height: auto; }
+.tap-copy { max-width: 100%; }
+.tap-pitch { margin: 10px auto 0; max-width: 24em; font-size: 16px; line-height: 1.35; color: var(--text, #f4efe8); }
+.tap-card .tap-cta { margin-top: 18px; min-height: 48px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
+@media (min-width: 700px) and (orientation: landscape) {
+  .tap-card { flex-direction: row; gap: 32px; max-width: 960px; }
+  .tap-art { width: 46%; flex: none; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .tap-art { width: 38%; flex: none; }
+  .tap-card { flex-direction: row; gap: 20px; }
+  .tap-card .tap-cta { margin-top: 10px; }
+  .tap-pitch { font-size: 14px; margin-top: 6px; }
+}
 .tap-note { margin-top: 16px; color: var(--muted); font-size: 14px; letter-spacing: 0.04em; }
 @keyframes tap-pulse {
   0%, 100% { opacity: 1; }
