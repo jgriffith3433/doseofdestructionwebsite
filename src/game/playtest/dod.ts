@@ -1077,7 +1077,7 @@ class Run {
     if (release?.current) t.event('release', `releases.json loaded: v${release.current}`);
     else t.problem('bug', 'releases.json did not load (404 or invalid): no version or release notes');
     t.progress(0.15);
-    await this.startVersus(3);
+    await this.startVersus(1);
     t.progress(0.4);
     // Upright on a phone the Rotate prompt holds the match (frame 0 forever): that is the game working, not stuck.
     // Check the prompt covers the game, then leave from Pause instead of waiting for a fight that cannot start.
@@ -1090,14 +1090,13 @@ class Run {
     }
     const start = () => this.game.match()?.state.frame ?? 0;
     this.progressNow = () => 0.4 + 0.5 * Math.min(1, start() / 1200);
-    const ended = await this.fight(() => start() >= 20 * 60, 60000);
+    // Plays to the Results screen (1 stock, so it ends); blankFrames, vsHoldMs and wipe fps are reported there.
+    await this.fight(() => false, 4 * 60 * 1000);
     this.progressNow = () => 0.9;
-    if (ended === 'stopped') await this.quitFromPause('main');
-    else {
-      await this.results();
-      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
-      await this.screen('main');
-    }
+    await this.results();
+    t.event('smoke-results', 'the smoke match reached the Results screen');
+    await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+    await this.screen('main');
     t.progress(1);
     t.finish('done');
   }

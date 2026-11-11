@@ -160,6 +160,12 @@ export class Renderer {
     this.sparkMat.emissiveTexture = soft;
     this.sparkMat.alphaMode = Constants.ALPHA_ADD;
     this.sparkMat.disableDepthWrite = true;
+    // The spark/KO pool exists from the start, so the warm-up (which can finish under the match wipe) never counts an empty one.
+    for (let i = 0; i < 64; i++) {
+      const m = this.makeSpark();
+      m.setEnabled(false);
+      this.sparkPool.push(m);
+    }
     this.debugMat = this.flatMaterial('dbg-hit', '#ff2a2a', 0.45);
     this.hurtMat = this.flatMaterial('dbg-hurt', '#ffd15a', 0.22);
 
@@ -270,10 +276,15 @@ export class Renderer {
       reused.setEnabled(true);
       return reused;
     }
+    const mesh = this.makeSpark();
+    mesh.setEnabled(true);
+    return mesh;
+  }
+
+  private makeSpark(): Mesh {
     const mesh = CreatePlane('spark', { size: 1 }, this.scene);
     mesh.material = this.sparkMat;
     mesh.isPickable = false;
-    mesh.setEnabled(true);
     // Soft material already looks like a glow; exclude so GlowLayer doesn't square-bloom the plane.
     this.glow.addExcludedMesh(mesh);
     return mesh;
