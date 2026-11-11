@@ -116,9 +116,9 @@
     },
     {
       "id": "hit-feel",
-      "title": "Hit feedback: heavy hits freeze 3+ frames, light and heavy hits look different, Settings turns screen shake off",
-      "description": "A versus match against the CPU (the bot on a virtual pad). Counts the hit-stop frames of the first light and heavy hit (events hit-stop-light/-medium/-heavy, heavy-hit-stop), logs each tier's impact effect (impact-light/-medium/-heavy: sparks, stars, ring, shake, flash) and that they differ (impact-differs), then from Pause opens Settings, turns Screen shake off (shake-off), and checks hits keep landing with the camera still (no-shake). Metrics hitStopLightFrames, hitStopHeavyFrames, shakeMaxOn, shakeMaxOff. The player's dod.shake is put back.",
-      "seconds": 200,
+      "title": "Hit feedback: heavy hits freeze 3+ frames, light and heavy hits look different, Settings turns screen shake off, kill cue on stock-ending hits, smooth camera",
+      "description": "A versus match against the CPU (the bot on a virtual pad). Counts the hit-stop frames of the first light and heavy hit (events hit-stop-light/-medium/-heavy, heavy-hit-stop), logs each tier's impact effect (impact-light/-medium/-heavy: sparks, stars, ring, shake, flash) and that they differ (impact-differs), then from Pause opens Settings, turns Screen shake off (shake-off), and checks hits keep landing with the camera still (no-shake). Also the match camera and the kill cue (a hit predicted to end a stock: extra hit-stop, red flash, punch-in, slow motion, rising whistle): every stock-ending hit logs kill-cue and no other hit does (kill-cue-exact), with Screen shake off the cue still zooms (kill-cue-no-shake), the camera never jumps (camera-smooth) and every fighter stays on screen (camera-framing). Metrics hitStopLightFrames, hitStopHeavyFrames, shakeMaxOn, shakeMaxOff, cameraJumps, killCues, framingMisses, killSlowMinFps. The player's dod.shake is put back.",
+      "seconds": 300,
       "tags": [
         "full"
       ]

@@ -20,10 +20,13 @@ import {
   type StageDef,
   type StageZone,
 } from './stage.ts';
+import { predictLaunchKo } from '../hitFeel.ts';
 import { ACT, SHIELD_MAX, allies, bodySize, newShot, type Fighter, type GameState, type Shot } from './state.ts';
 
 export type SimEvent =
   | { type: 'hit'; attacker: number; victim: number; x: number; y: number; dmg: number; kb: number; shield: boolean; lag: number }
+  /** A launch begins as hit-stop ends. ko: the launch carries the victim out of the blast zone, so the kill cue plays (hitFeel.ts). Presentation only. */
+  | { type: 'launch'; victim: number; by: number; x: number; y: number; ko: boolean }
   | { type: 'ko'; victim: number; by: number; x: number; y: number }
   | { type: 'jump' | 'land' | 'ledge' | 'shieldbreak' | 'respawn'; id: number; x: number; y: number }
   /** A counter special turned a hit back on its attacker. */
@@ -109,7 +112,7 @@ function updateFighter(s: GameState, f: Fighter, inp: number, ev: SimEvent[]): v
 
   if (f.hitlag > 0) {
     f.hitlag--;
-    if (f.hitlag === 0 && f.launchSpeed > 0) launch(f, inp);
+    if (f.hitlag === 0 && f.launchSpeed > 0) launch(f, inp, ev);
     return;
   }
 
@@ -775,7 +778,7 @@ function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, 
 }
 
 /** Applies a stored launch once hitlag ends, bent by the victim's stick (DI). */
-function launch(f: Fighter, inp: number): void {
+function launch(f: Fighter, inp: number, ev: SimEvent[]): void {
   let a = f.launchAngle;
   const sx = stickX(inp);
   const sy = stickY(inp);
@@ -795,6 +798,19 @@ function launch(f: Fighter, inp: number): void {
       f.platform = -1;
     }
   }
+  const vc = CHARACTERS[f.char];
+  const ko = predictLaunchKo({
+    x: f.x,
+    y: f.y,
+    kx: f.kbx,
+    ky: f.kby,
+    gravity: idiv(vc.gravity * gravityPct, 100),
+    fallSpeed: fallSpeed(vc, false),
+    blast: stage.blast,
+    drift: idiv(vc.airSpeed * 3, 4),
+    floors: stage.platforms.map((p) => ({ x1: p.x1, x2: p.x2, y: p.y, depth: p.solid ? (p.depth ?? 100) : undefined })),
+  });
+  ev.push({ type: 'launch', victim: f.id, by: f.lastHitBy, x: f.x, y: f.y, ko });
 }
 
 // -------------------------------------------------------------------- ledge
