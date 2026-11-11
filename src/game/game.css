@@ -871,14 +871,14 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
 .edge-marker.danger i { border-left-color: #ff2a2a; }
 @keyframes marker-pulse { to { box-shadow: 0 0 0 5px rgba(255, 42, 42, 0.45), 0 2px 8px rgba(0, 0, 0, 0.6); } }
 body.scene-on #edge-markers { display: none; }
-/* Touch controls (coarse pointers, in a match). Bottom corners, above the damage HUD and the Babylon canvas
-   (canvas is z-index 0; this layer is 15 so WebGL never paints over the stick). Settings → Touch size and
-   Touch opacity set --touch-scale (0.75 to 1.5) and --touch-opacity (0.3 to 1) on .touch. The groups stay anchored
-   to the safe-area corners, never under 44 px, and are capped to the window's height so they stay on screen. */
+/* Touch controls (coarse pointers, in a match). Floating stick (left 40%) + right-thumb icon arc above the
+   damage HUD and the Babylon canvas (canvas z-index 0; this layer is 15). Settings → Touch size / opacity set
+   --touch-scale and --touch-opacity. Groups stay clear of env(safe-area-inset-*), never under 44 px. */
 .touch {
   --touch-scale: 1;
   --touch-opacity: 1;
-  --btn: max(44px, min(calc(60px * var(--touch-scale)), 15vh));
+  --btn: max(44px, min(calc(56px * var(--touch-scale)), 14vh));
+  --btn-attack: max(52px, min(calc(72px * var(--touch-scale)), 18vh));
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -889,6 +889,16 @@ body.scene-on #edge-markers { display: none; }
   touch-action: none;
 }
 .touch > * { pointer-events: auto; touch-action: none; opacity: var(--touch-opacity); }
+/* Left 40%: receives the first thumb so the stick can spawn under it (.touch itself is pointer-events:none). */
+.touch-move-zone {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  opacity: 0;
+  /* Keep opacity 0 visually but don't inherit --touch-opacity fade for hit-testing. */
+}
 .touch-stick {
   position: absolute;
   left: max(16px, env(safe-area-inset-left));
@@ -896,8 +906,14 @@ body.scene-on #edge-markers { display: none; }
   width: max(44px, min(calc(128px * var(--touch-scale)), 36vh));
   aspect-ratio: 1;
   border-radius: 50%;
-  background: rgba(10, 10, 10, 0.55);
-  border: 2px solid rgba(255, 255, 255, 0.5);
+  background: rgba(10, 10, 10, 0.45);
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  transition: background 120ms ease, border-color 120ms ease;
+  z-index: 1;
+}
+.touch-stick.active, .touch-stick.floating {
+  background: rgba(10, 10, 10, 0.6);
+  border-color: rgba(255, 255, 255, 0.65);
 }
 .touch-knob {
   position: absolute;
@@ -909,34 +925,48 @@ body.scene-on #edge-markers { display: none; }
   background: rgba(255, 255, 255, 0.55);
   pointer-events: none;
 }
+/* Right-thumb arc: Attack largest; neighbours clear by ≥8 px (no overlapping hit circles). */
 .touch-buttons {
   position: absolute;
-  right: max(16px, env(safe-area-inset-right));
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 70px);
-  display: grid;
-  grid-template-columns: repeat(3, var(--btn));
-  grid-auto-rows: var(--btn);
-  gap: calc(8px * var(--touch-scale));
+  right: max(10px, env(safe-area-inset-right));
+  bottom: calc(max(10px, env(safe-area-inset-bottom)) + 58px);
+  width: calc(var(--btn-attack) + var(--btn) + 20px);
+  height: calc(var(--btn-attack) + var(--btn) * 2 + 24px);
+  pointer-events: none;
 }
+.touch-buttons .touch-btn { pointer-events: auto; position: absolute; }
 .touch-btn {
+  width: var(--btn);
+  height: var(--btn);
   min-width: 44px;
   min-height: 44px;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.55);
   background: rgba(10, 10, 10, 0.55);
   color: #fff;
-  font: 600 calc(13px * var(--touch-scale)) Oswald, sans-serif;
-  letter-spacing: 0.04em;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.85);
-  text-transform: uppercase;
   padding: 0;
+  display: grid;
+  place-items: center;
+}
+.touch-btn svg {
+  width: 52%;
+  height: 52%;
+  fill: currentColor;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9));
 }
 .touch-btn.down { background: rgba(255, 90, 31, 0.85); }
-.touch-btn.special { grid-column: 1; grid-row: 1; }
-.touch-btn.attack { grid-column: 2; grid-row: 1; }
-.touch-btn.jump { grid-column: 3; grid-row: 1; }
-.touch-btn.smash { grid-column: 2; grid-row: 2; }
-.touch-btn.shield { grid-column: 3; grid-row: 2; }
+.touch-btn.attack {
+  width: var(--btn-attack);
+  height: var(--btn-attack);
+  right: 0;
+  bottom: calc(var(--btn) + 10px);
+  border-width: 3px;
+}
+.touch-btn.attack svg { width: 48%; height: 48%; }
+.touch-btn.jump { right: 0; bottom: calc(var(--btn-attack) + var(--btn) + 20px); }
+.touch-btn.special { right: calc(var(--btn-attack) + 12px); bottom: calc(var(--btn-attack) + 10px); }
+.touch-btn.shield { right: calc(var(--btn-attack) + 12px); bottom: 0; }
+.touch-btn.smash { right: 0; bottom: 0; }
 .touch-pause {
   position: absolute;
   top: max(12px, env(safe-area-inset-top));

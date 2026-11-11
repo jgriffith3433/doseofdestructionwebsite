@@ -9,7 +9,7 @@ import { audio, tapState } from './audio.ts';
 import { Commentator, introCall, type Call } from './commentary.ts';
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
 import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
-import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings } from './touchSettings.ts';
+import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings, hitVibrate } from './touchSettings.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
 import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
@@ -878,7 +878,16 @@ function afterTick(m: Match, events: SimEvent[]): void {
   renderer.onEvents(events);
   analytics.matchEvents(m, events);
   for (const w of matchWatchers) w(m, events);
-  for (const e of events) if (e.type === 'hit' && !e.shield) bumpHud(e.victim, e.dmg, m.state.fighters[e.victim]?.percent ?? 0);
+  for (const e of events) {
+    if (e.type === 'hit' && !e.shield) {
+      bumpHud(e.victim, e.dmg, m.state.fighters[e.victim]?.percent ?? 0);
+      // Phone feel: a light buzz when you land a hit (Settings → Vibrate, where supported).
+      if (m.player >= 0 && e.attacker === m.player) hitVibrate(e.dmg >= 130 ? 18 : 12);
+    } else if (e.type === 'ko' && m.player >= 0 && (e.by === m.player || e.victim === m.player)) {
+      // Heavier pulse on a KO you deal or take, still behind the same Settings switch.
+      hitVibrate(e.by === m.player ? 28 : 22);
+    }
+  }
   playEventSounds(m, events);
   updateHud(m);
   if (teacher && phase === 'play') teacher.tick(m, events);
@@ -1063,13 +1072,16 @@ function renderSettings(): void {
     input.value = String(Math.round(s[k] * 100));
     $(`vol-${k}-value`).textContent = `${input.value}%`;
   }
-  // Touch size and opacity: only where there are touch controls.
+  // Touch size, opacity and vibrate: only where there are touch controls.
   $('settings-touch').hidden = !(touchDevice() || touchUiForced());
   const t = touchSettings();
   for (const [k, v] of [['size', t.size], ['opacity', t.opacity]] as const) {
     $<HTMLInputElement>(`touch-${k}`).value = String(v);
     $(`touch-${k}-value`).textContent = `${v}%`;
   }
+  const vib = $('vibrate-switch');
+  vib.setAttribute('aria-checked', String(t.vibrate));
+  vib.textContent = t.vibrate ? 'On' : 'Off';
 }
 
 function openSettings(): void {
@@ -1139,6 +1151,10 @@ function wireSettings(): void {
     input.addEventListener('input', () => setTouchSettings({ [k]: Number(input.value) }));
     input.addEventListener('change', () => analytics.setting(`touch_${k}`, Number(input.value), from()));
   }
+  $('vibrate-switch').addEventListener('click', () => {
+    setTouchSettings({ vibrate: !touchSettings().vibrate });
+    analytics.setting('touch_vibrate', touchSettings().vibrate, from());
+  });
   $('settings-done').addEventListener('click', () => closeSettings());
 }
 
