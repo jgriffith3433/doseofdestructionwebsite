@@ -26,6 +26,11 @@ export const ACT = {
   DIZZY: 16,
   DEAD: 17,
   RESPAWN: 18,
+  /** The shared grab: reaching out (the jab clip), holding someone, throwing, and being held. */
+  GRAB: 19,
+  GRAB_HOLD: 20,
+  THROW: 21,
+  GRABBED: 22,
 } as const;
 
 export const ACT_NAMES = Object.fromEntries(Object.entries(ACT).map(([k, v]) => [v, k])) as Record<number, string>;
@@ -91,6 +96,11 @@ export interface Fighter {
   scale: number;
   /** Percent restored on respawn, tenths. Sudden death starts everyone high. */
   startPercent: number;
+  /** The shared grab: the fighter id + 1 this one holds (0 none), and the id + 1 holding this one. */
+  holding: number;
+  heldBy: number;
+  /** The throw being thrown (THROW index + 1, 0 none). */
+  throwKind: number;
 }
 
 /**
@@ -244,6 +254,9 @@ export function newFighter(id: number, char: number, stocks: number, stage = 0):
     team: -1,
     scale: 100,
     startPercent: 0,
+    holding: 0,
+    heldBy: 0,
+    throwKind: 0,
   };
 }
 

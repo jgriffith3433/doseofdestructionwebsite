@@ -20,7 +20,7 @@ import { CHARACTERS, MOVE, MOVE_KEYS } from '../sim/characters.ts';
 import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
-import { ACT } from '../sim/state.ts';
+import { ACT, ACT_NAMES } from '../sim/state.ts';
 import { AnimTrace } from '../sim/trace.ts';
 import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
 import { MAX_WORDS } from '../campaign/sceneText.ts';
@@ -156,6 +156,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'presentation') await r.presentation();
         else if (id === 'roster') await r.roster();
         else if (id === 'specials') await r.specialsRun();
+        else if (id === 'grab') await r.grabRun();
         else if (id === 'select-specials') await r.selectSpecials();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
@@ -271,6 +272,13 @@ class Run {
         if (e.shield) continue;
         if (e.attacker === me) this.damage('damageDealt', e.dmg);
         if (e.victim === me) this.damage('damageTaken', e.dmg);
+      } else if (e.type === 'grab') {
+        this.grabSeen(m, e);
+      } else if (e.type === 'throw') {
+        this.throwSeen(m, e);
+      } else if (e.type === 'grab-break') {
+        this.t.event('grab-break', `${name(m, e.attacker)} held ${name(m, e.victim)} for ${e.held} frames and ${e.mashed ? 'they mashed free early' : 'the hold ran out'}`);
+        this.t.add('grabBreaks');
       } else if (e.type === 'hurt') {
         this.lastHitFrame = s.frame;
         if (e.victim === me) this.damage('damageTaken', e.dmg);
@@ -2409,6 +2417,13 @@ class Run {
         }
         if (touch) outside += await this.touchKit(c.name, c);
         else await this.everyMove(c.name);
+        // Every fighter grabs the dummy and throws it all four ways (keyboard or the touch buttons and stick).
+        const gpad = touch ? makeTouchPad() : makeKeyboardPad();
+        if (gpad) {
+          this.manual = NO_INPUT;
+          const got = await this.grabThrows(c.name, gpad, touch ? 'touch' : 'keyboard');
+          if (got.size === 4) t.add('fightersThrowAll');
+        }
         this.manual = null;
         await this.game.quitMatch();
         await this.screen('main');
@@ -2510,6 +2525,175 @@ class Run {
     if (!SPECIAL_MOVES.some((m) => c.moves[m].kind === 'grab')) t.event('touch-grab', `${who}: no command grab in this kit (${SPECIAL_MOVES.map((m) => kindOf(c.moves[m])).join('/')})`);
     await settle();
     return missing;
+  }
+
+
+  // ---------------------------------------------------------- grab and throws
+
+  /** Every grab, whoever made it: logged with the frames the hold lasts (hold grows with the victim's damage). */
+  private grabSeen(m: Match, e: Extract<SimEvent, { type: 'grab' }>): void {
+    const pct = Math.round((m.state.fighters[e.victim]?.percent ?? 0) / 10);
+    this.t.event('grab', `${name(m, e.attacker)} grabbed ${name(m, e.victim)}${e.shield ? ' through their shield' : ''} at ${pct}%: held ${e.hold} frames`);
+    this.t.add('grabs');
+    if (e.shield) this.t.add('shieldGrabs');
+    this.t.event('grab-hold-frames', `${pct}% -> ${e.hold} frames`);
+    this.holds.set(Math.round(pct / 100) * 100, e.hold);
+    this.t.metric(`holdFrames${Math.round(pct / 100) * 100}`, e.hold);
+  }
+
+  private throwSeen(m: Match, e: Extract<SimEvent, { type: 'throw' }>): void {
+    const kind = ['forward', 'back', 'up', 'down'][e.kind] ?? String(e.kind);
+    this.t.event('throw', `${name(m, e.attacker)} threw ${name(m, e.victim)}: ${kind} throw`);
+    this.t.add('throws');
+    this.throwsSeen.add(e.kind);
+  }
+
+  private readonly holds = new Map<number, number>();
+  private readonly throwsSeen = new Set<number>();
+
+  /**
+   * Grab and the four throws on the dummy, from real input: Shield + Attack together (keyboard L + J, or both touch
+   * buttons), then the stick forward, back, up or down. The fighter first walks up to the dummy. Returns the throws
+   * (0 forward .. 3 down) that came out.
+   */
+  private async grabThrows(who: string, pad: Pad, how: string): Promise<Set<number>> {
+    const t = this.t;
+    const match = () => this.game.match()!;
+    const me = () => match().state.fighters[match().player];
+    const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+    const frame = () => this.game.match()?.state.frame ?? 0;
+    const frames = async (n: number) => {
+      const end = frame() + n;
+      await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+    };
+    const standing = () => {
+      const f = me();
+      return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+    };
+    const got = new Set<number>();
+    const dirs: { kind: number; label: string; sx: number; sy: number }[] = [
+      { kind: 0, label: 'forward', sx: 100, sy: 0 },
+      { kind: 1, label: 'back', sx: -100, sy: 0 },
+      { kind: 2, label: 'up', sx: 0, sy: 100 },
+      { kind: 3, label: 'down', sx: 0, sy: -100 },
+    ];
+    for (const d of dirs) {
+      pad.release();
+      try {
+        await t.until(standing, 10000, 'the fighter to stand');
+      } catch (e) {
+        if (String(e).includes('stopped')) throw e;
+      }
+      await frames(10);
+      // Walk to the dummy until it is inside the grab's reach, facing it.
+      const toward = () => (dummy().x >= me().x ? 1 : -1);
+      const reach = CHARACTERS[me().char].grabReach * 0.7;
+      const gap = () => Math.abs(dummy().x - me().x) / FX;
+      if (gap() > reach || me().facing !== toward()) {
+        const dir = toward();
+        pad.stick(dir * 100, 0);
+        try {
+          await t.until(() => gap() < reach && me().facing === toward(), 8000, `${who} to walk up to the dummy`);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+        } finally {
+          pad.stick(0, 0);
+        }
+        await frames(6);
+      }
+      // Shield and Attack together: the grab.
+      this.throwsSeen.delete(d.kind);
+      pad.button('shield', true);
+      pad.button('attack', true);
+      await frames(3);
+      pad.button('attack', false);
+      pad.button('shield', false);
+      try {
+        await t.until(() => me().action === ACT.GRAB_HOLD, 3000, `${who}'s grab to catch the dummy`);
+      } catch (e) {
+        if (String(e).includes('stopped')) throw e;
+      }
+      if (me().action !== ACT.GRAB_HOLD) {
+        t.problem('bug', `${how}: ${who}'s Shield + Attack did not grab the dummy (${ACT_NAMES[me().action]}, ${Math.round(gap())} units away)`);
+        continue;
+      }
+      await frames(10);
+      // The stick picks the throw.
+      pad.stick(d.kind === 0 ? me().facing * 100 : d.kind === 1 ? -me().facing * 100 : 0, d.sy);
+      try {
+        await t.until(() => this.throwsSeen.has(d.kind), 3000, `${who}'s ${d.label} throw`);
+      } catch (e) {
+        if (String(e).includes('stopped')) throw e;
+      }
+      pad.stick(0, 0);
+      if (this.throwsSeen.has(d.kind)) got.add(d.kind);
+      else t.problem('bug', `${how}: ${who}: the stick ${d.label} after a grab did not do the ${d.label} throw`);
+      // Let the dummy land and recover before the next one.
+      await frames(70);
+    }
+    pad.release();
+    if (got.size === 4) t.event('grab-throws', `${how}: ${who} grabbed the dummy and threw it all four ways (forward, back, up, down)`);
+    else t.problem('bug', `${how}: ${who} threw the dummy only ${got.size} of 4 ways`);
+    return got;
+  }
+
+  /**
+   * Grab: Exit Punk in Training grabs the dummy with Shield + Attack and throws it forward, back, up and down by the
+   * stick (touch: both buttons pressed together and the on-screen stick, at 390x844 turned to landscape), then
+   * again on a dummy at 100% to show the hold lasts longer than at 0% (`grab-hold-frames`, `holds-longer`).
+   * Setup shortcut: straight into Training; the second dummy starts at 100%.
+   */
+  async grabRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('grab');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      let thrown = 0;
+      for (const [n, percent] of [0, 1000].entries()) {
+        void this.game.startMatch({
+          mode: 'training', stage, stocks: 1, rules: {},
+          slots: [{ char: punk, cpu: null }, { char: (punk + 1) % CHARACTERS.length, cpu: 0, startPercent: percent }],
+        });
+        await this.matchLive();
+        this.manual = NO_INPUT;
+        const pad = touch ? makeTouchPad() : makeKeyboardPad();
+        if (!pad) {
+          t.problem('bug', 'the touch controls (stick, Attack and Shield) were not built');
+          t.finish('error');
+          return;
+        }
+        if (touch && n === 0) t.event('phone-shot', `training with the touch overlay: Shield + Attack together grab, the stick picks the throw (${innerWidth}x${innerHeight})`);
+        const got = await this.grabThrows('Exit Punk', pad, how);
+        thrown += got.size;
+        if (touch && got.size > 0) t.event('touch-grab', `Shield + Attack touched together grabbed the dummy and the stick threw it (${[...got].map((k) => ['forward', 'back', 'up', 'down'][k]).join(', ')})`);
+        this.manual = null;
+        await this.game.quitMatch();
+        await this.screen('main');
+        t.progress(0.2 + 0.4 * (n + 1));
+      }
+      const low = this.holds.get(0);
+      const high = this.holds.get(1000);
+      if (low !== undefined && high !== undefined && high > low) t.event('holds-longer', `a dummy at 100% was held ${high} frames, at 0% only ${low} frames`);
+      else t.problem('bug', `the hold did not grow with damage (0%: ${low ?? 'no grab'} frames, 100%: ${high ?? 'no grab'} frames)`);
+      t.metric('throwsLanded', thrown);
+    } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.progress(1);
+    t.finish('done');
   }
 
   // ---------------------------------------------------------- character select: the specials preview
@@ -4533,7 +4717,7 @@ class Run {
 // ---------------------------------------------------------------- helpers
 
 /** A way to drive a fighter's stick and Special button the way a player does: the keyboard, or the on-screen controls. */
-export interface Pad { stick(sx: number, sy: number): void; special(on: boolean): void; release(): void }
+export interface Pad { stick(sx: number, sy: number): void; special(on: boolean): void; button(name: 'attack' | 'shield', on: boolean): void; release(): void }
 export function makeKeyboardPad(): Pad {
   const on = new Set<string>();
   const set = (a: string, v: boolean) => {
@@ -4550,6 +4734,7 @@ export function makeKeyboardPad(): Pad {
       set('up', sy > 0);
     },
     special: (v) => set('special', v),
+    button: (name, v) => set(name, v),
     release: () => {
       for (const a of [...on]) set(a, false);
     },
@@ -4565,6 +4750,7 @@ export function makeTouchPad(): Pad | null {
   if (!stickEl || !specialEl) return null;
   let stickId = -1;
   let specialId = -1;
+  const btnIds: Record<string, number> = {};
   let pid = 200;
   const send = (el: HTMLElement, type: string, x: number, y: number, id: number) =>
     el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: id, isPrimary: id === 201, button: 0, buttons: type === 'pointerup' ? 0 : 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y }));
@@ -4595,7 +4781,27 @@ export function makeTouchPad(): Pad | null {
         specialId = -1;
       }
     },
+    // Attack and Shield are touched at the same moment with two fingers: the grab.
+    button: (name, v) => {
+      const el = root.querySelector<HTMLElement>(`.touch-btn.${name}`);
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      if (v && !(name in btnIds)) {
+        btnIds[name] = ++pid;
+        send(el, 'pointerdown', x, y, btnIds[name]);
+      } else if (!v && name in btnIds) {
+        send(el, 'pointerup', x, y, btnIds[name]);
+        delete btnIds[name];
+      }
+    },
     release: () => {
+      for (const [name, id] of Object.entries(btnIds)) {
+        const el = root.querySelector<HTMLElement>(`.touch-btn.${name}`);
+        if (el) send(el, 'pointerup', 0, 0, id);
+      }
+      for (const k of Object.keys(btnIds)) delete btnIds[k];
       if (specialId >= 0) send(specialEl, 'pointerup', 0, 0, specialId);
       specialId = -1;
       if (stickId >= 0) send(stickEl, 'pointerup', 0, 0, stickId);

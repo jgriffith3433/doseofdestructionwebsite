@@ -859,6 +859,18 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         audio.synth('cheer', 0.7);
         audio.line(`fighter.${CHARACTERS[m.state.fighters[e.victim].char].id}.ko`);
         break;
+      case 'grab':
+        // The grab clasps (a shielded one cracks through the guard too); a held fighter's shield stays whole.
+        audio.synth('grab', 1);
+        if (e.shield) audio.sfx('hit-shield', { vary: true });
+        break;
+      case 'throw':
+        audio.synth('whoosh', 0.7);
+        audio.sfx(e.kind === 2 ? 'hit-heavy' : 'hit-medium', { vary: true });
+        break;
+      case 'grab-break':
+        audio.synth('whoosh', 0.35);
+        break;
       case 'counter':
         // A counter rings out: a shield-bright hit and a sting.
         audio.sfx('hit-shield');

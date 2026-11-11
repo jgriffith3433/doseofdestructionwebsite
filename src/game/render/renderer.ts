@@ -22,7 +22,7 @@ import { FX } from '../sim/fixed.ts';
 import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
-import { activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
+import { GRAB_FIRST, activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
 import { KILL_CUE, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, type HitTier, type TrailKind } from '../hitFeel.ts';
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { cameraFighters, followCamera, frameGoal, punchGoal, type CamBounds, type CamState } from './cameraRig.ts';
@@ -848,6 +848,18 @@ export class Renderer {
         this.burst(x, y, 14, 0.1);
         if (this.views[e.id]) this.views[e.id].flash = 14;
         this.shake = Math.max(this.shake, 0.3);
+      } else if (e.type === 'grab') {
+        // The grab flash: a bright ring and star where the hands close, and both fighters light up.
+        const x = e.x * S;
+        const y = e.y * S;
+        this.sprite(x, y, 0, 0.45, 14, 5);
+        this.sprite(x, y, 0.3, 0.6, 10, 2);
+        this.burst(x, y, 10, 0.08);
+        if (this.views[e.attacker]) this.views[e.attacker].flash = 6;
+        if (this.views[e.victim]) this.views[e.victim].flash = 10;
+        this.shake = Math.max(this.shake, e.shield ? 0.22 : 0.12);
+      } else if (e.type === 'throw') {
+        this.burst(e.x * S, e.y * S, 12, 0.1);
       } else if (e.type === 'shot') {
         this.onSynth?.(e.kind === 1 ? 'thud' : 'whoosh');
         this.burst(e.x * S, e.y * S, 4, 0.04);
@@ -1533,6 +1545,14 @@ function proceduralPose(f: Fighter, stage: StageDef): [number, number, number, n
       const speed = Math.hypot(f.kbx, f.kby) / FX;
       return [1, 1, speed > 8 ? f.facing * t * 0.35 : f.facing * 0.25, 0];
     }
+    case ACT.GRAB:
+      return t < GRAB_FIRST ? [1, 1, 0, 0] : [1.1, 1, -f.facing * 0.2, 0];
+    case ACT.GRAB_HOLD:
+      return [1.04, 0.97, -f.facing * 0.12, 0];
+    case ACT.THROW:
+      return [1.08, 1, f.facing * (f.throwKind === 2 ? -0.2 : 0.2), 0];
+    case ACT.GRABBED:
+      return [0.96, 1.02, f.facing * Math.sin(t * 0.8) * 0.12, 0];
     case ACT.HELPLESS:
       return [1, 1, Math.sin(t * 0.3) * 0.15, 0];
     case ACT.DIZZY:
