@@ -15,6 +15,8 @@ import { STAGES } from './sim/stage.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
 import { GAMEPAD_HELP, KEYBOARD_HELP, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal } from './input/devices.ts';
 import { installPerfMonitor } from './playtest/hawkes-perf.js';
+import { damageColor, damageShake } from './hitFeel.ts';
+import { clearMarkers, markerLog, markerRects, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
@@ -717,6 +719,7 @@ function endMatch(): void {
   phase = 'idle';
   showTouchControls(false);
   $('hud').hidden = true;
+  clearMarkers();
   $('match-top').hidden = true;
   $('pause').hidden = true;
   renderer.debug = false;
@@ -768,7 +771,7 @@ function afterTick(m: Match, events: SimEvent[]): void {
   renderer.onEvents(events);
   analytics.matchEvents(m, events);
   for (const w of matchWatchers) w(m, events);
-  for (const e of events) if (e.type === 'hit' && !e.shield) bumpHud(e.victim);
+  for (const e of events) if (e.type === 'hit' && !e.shield) bumpHud(e.victim, e.dmg, m.state.fighters[e.victim]?.percent ?? 0);
   playEventSounds(m, events);
   updateHud(m);
   if (teacher && phase === 'play') teacher.tick(m, events);
@@ -1261,9 +1264,8 @@ function updateHud(m: Match): void {
       cache.pct = f.percent;
       const pct = card.querySelector('.hud-pct') as HTMLElement;
       pct.innerHTML = `${Math.floor(f.percent / 10)}<small>.${f.percent % 10}%</small>`;
-      // White at 0%, through orange, to deep red past 150%.
-      const k = Math.min(1, f.percent / 1500);
-      pct.style.color = `rgb(255, ${Math.round(244 - k * 200)}, ${Math.round(232 - k * 220)})`;
+      // White at 0%, through orange, to red past 120% and deep red from 160%.
+      pct.style.color = damageColor(f.percent);
     }
     if (cache.stocks !== f.stocks) {
       cache.stocks = f.stocks;
@@ -1276,12 +1278,17 @@ function updateHud(m: Match): void {
   }
 }
 
-function bumpHud(id: number): void {
-  const pct = $('hud').children[id]?.querySelector('.hud-pct');
+/** A landed hit: the victim's damage number shakes (harder as it climbs) and pops on a heavy hit. */
+function bumpHud(id: number, dmg = 0, tenths = 0): void {
+  const pct = $('hud').children[id]?.querySelector<HTMLElement>('.hud-pct');
   if (!pct) return;
-  pct.classList.remove('bump');
-  void (pct as HTMLElement).offsetWidth;
-  pct.classList.add('bump');
+  const { amp, pop } = damageShake(dmg, tenths);
+  pct.style.setProperty('--amp', `${amp.toFixed(1)}px`);
+  pct.classList.remove('bump', 'pop');
+  void pct.offsetWidth;
+  pct.classList.add(pop ? 'pop' : 'bump');
+  pct.dataset.hits = String(Number(pct.dataset.hits ?? 0) + 1);
+  pct.dataset.pop = pop ? '1' : '0';
 }
 
 // ------------------------------------------------------------------ loop
@@ -1330,12 +1337,27 @@ function frame(draw = true): void {
 
   if (draw && match && currentScreen() === 'match') {
     renderer.render(match.state);
+    drawEdgeMarkers(match);
     // The teaching prompt rides above the player's head, and is hidden while paused or in a scene.
     if (teacher) {
       const me = match.state.fighters[match.player];
       teacher.place(me && phase === 'play' ? renderer.fighterScreen(me) : null);
     }
   }
+}
+
+/** Edge bubbles for fighters out of view: the portrait, an arrow at them, bigger the nearer the blast line. */
+function drawEdgeMarkers(m: Match): void {
+  const list: MarkerIn[] = [];
+  if (phase === 'play' || phase === 'pause') {
+    for (const f of m.state.fighters) {
+      const e = renderer.fighterEdge(f);
+      if (!e?.off) continue;
+      const avatar = m.setup.online?.avatars[f.id];
+      list.push({ id: f.id, x: e.x, y: e.y, gap: e.gap, color: slotColor(m, f.id), portrait: headUrl(avatar || CHARACTERS[f.char].id) });
+    }
+  }
+  updateMarkers(list);
 }
 
 wireMenus();
@@ -1437,6 +1459,8 @@ installDodPlaytest({
   fxStats: () => renderer.fxStats(),
   hitFxStats: (reset) => renderer.hitFxStats(reset),
   camFxStats: (reset) => renderer.camFxStats(reset),
+  trailStats: (reset) => renderer.trailStats(reset),
+  markerStats: () => ({ ...markerLog, rects: markerRects() }),
   gfxStats: () => renderer.gfxStats(),
   aliveStats: () => renderer.aliveStats(),
   musicBedStats: () => audio.bedStats(),

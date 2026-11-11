@@ -60,6 +60,54 @@ export const onScreenShake = (l: (on: boolean) => void): (() => boolean) => {
 
 export const SHAKE_STORAGE_KEY = SHAKE_KEY;
 
+// ------------------------------------------------------------------ damage numbers
+
+/** The colour stops of the HUD damage number, by percent in tenths: white at 0, orange by 60%, red by 120%, deep red from 160%. */
+const DAMAGE_STOPS: [number, [number, number, number]][] = [
+  [0, [255, 255, 255]],
+  [600, [255, 150, 40]],
+  [1200, [240, 40, 36]],
+  [1600, [170, 14, 24]],
+];
+
+/** The damage number's colour (CSS rgb) at this damage (tenths of a percent). */
+export const damageColor = (tenths: number): string => {
+  const v = Math.max(0, tenths);
+  let i = 1;
+  while (i < DAMAGE_STOPS.length - 1 && v > DAMAGE_STOPS[i][0]) i++;
+  const [a, ca] = DAMAGE_STOPS[i - 1];
+  const [b, cb] = DAMAGE_STOPS[i];
+  const k = Math.max(0, Math.min(1, (v - a) / (b - a)));
+  return `rgb(${ca.map((c, n) => Math.round(c + (cb[n] - c) * k)).join(', ')})`;
+};
+
+/** How hard the damage number shakes (px) and whether it pops, from the hit's damage and the fighter's damage after it (tenths). */
+export const damageShake = (dmg: number, tenths: number): { amp: number; pop: boolean } => ({
+  amp: Math.min(7, 2 + dmg / 40 + tenths / 400),
+  pop: hitTier(dmg) === 'heavy',
+});
+
+// ------------------------------------------------------------------ launch trail
+
+/** The look of a launch's smoke trail: none for a light hit, grey smoke for a medium one, white for a heavy one, a coloured streak when the launch will KO. */
+export type TrailKind = 'none' | 'grey' | 'white' | 'streak';
+
+export interface Trail {
+  kind: TrailKind;
+  /** Frames between puff batches (1 = every frame), puffs per batch and the puff size in scene units: all grow with the knockback. */
+  every: number;
+  puffs: number;
+  size: number;
+}
+
+/** What smoke trail a launch throws, from the hit's tier and knockback (the same numbers as the impact) and the KO prediction. */
+export const trailFor = (tier: HitTier, kb: number, ko: boolean): Trail => {
+  if (tier === 'light' && !ko) return { kind: 'none', every: 0, puffs: 0, size: 0 };
+  const big = Math.min(1, kb / 90);
+  const kind: TrailKind = ko ? 'streak' : tier === 'heavy' ? 'white' : 'grey';
+  return { kind, every: tier === 'heavy' || ko ? 1 : 2, puffs: 1 + Math.floor(big * 2.4), size: 0.2 + big * 0.4 };
+};
+
 // ------------------------------------------------------------------ kill cue
 
 /** The blast zone, in world units (the stage's `blast`). */
