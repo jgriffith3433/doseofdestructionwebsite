@@ -140,6 +140,16 @@ export class StageLive {
     for (const tg of this.toggles) tg.node.setEnabled(true);
   }
 
+  /** Resolves once every layer's picture has loaded (a layer is a 1x1 plane until then, so the arena would show only the clear colour). */
+  artLoaded(): Promise<void> {
+    const waits: Promise<void>[] = [];
+    for (const pl of this.placed) {
+      const tex = pl.mat.diffuseTexture as Texture | null;
+      if (tex && !tex.isReady()) waits.push(new Promise((r) => { tex.onLoadObservable.addOnce(() => r()); }));
+    }
+    return Promise.all(waits).then(() => undefined);
+  }
+
   /** Number of stage art layers whose textures are ready on the GPU. */
   readyLayers(): { ready: number; total: number } {
     let ready = 0;

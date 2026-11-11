@@ -576,6 +576,12 @@ export class Renderer {
     await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, timeoutMs))]);
   }
 
+  /** Resolves once the stage's painted layers are drawn at size (or after timeoutMs), so a match never opens on an empty arena. */
+  async stageArtReady(timeoutMs = 2500): Promise<void> {
+    if (!this.live) return;
+    await Promise.race([this.live.artLoaded(), new Promise((r) => setTimeout(r, timeoutMs))]);
+  }
+
   /** Resolves once every texture in the scene (stage art, clips) is loaded, or after a while. */
   async ready(timeoutMs = 15000): Promise<void> {
     await Promise.race([this.scene.whenReadyAsync(), new Promise((r) => setTimeout(r, timeoutMs))]);
