@@ -25,6 +25,7 @@ import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
 import { activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
 import { KILL_CUE, hitTier, impactFor, killPunch, killTimeScale, screenShake, type HitTier } from '../hitFeel.ts';
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
+import { cameraFighters, followCamera, frameGoal, punchGoal, type CamBounds, type CamState } from './cameraRig.ts';
 import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
 import { StageLive } from './stageLive.ts';
@@ -139,7 +140,7 @@ export class Renderer {
   private hitStats = { hits: 0, last: null as null | { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number }, tiers: { light: 0, medium: 0, heavy: 0 }, shakeApplied: 0, shakeMax: 0 };
   /** Camera follow state: smoothed distance and the critically damped velocities (pan x, pan y, zoom), and the last frame's time. */
   private camDist = 14;
-  private camVel = { x: 0, y: 0, d: 0 };
+  private camRig: CamState = { x: 0, y: 1.6, d: 14, vx: 0, vy: 0, vd: 0 };
   private camSide = 0;
   private camTilt = 0;
   private camMs = 0;
@@ -1191,49 +1192,12 @@ export class Renderer {
     const now = performance.now();
     const dt = Math.min(0.05, Math.max(0.001, (now - (this.camMs || now - 16.7)) / 1000));
     this.camMs = now;
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
     const b = this.stage.blast;
-    for (const f of state.fighters) {
-      if (f.action === ACT.DEAD) continue;
-      // Up to the blast zone itself, so nobody leaves the frame before they are out.
-      const x = Math.max(b.left, Math.min(b.right, f.x / FX)) * W;
-      const y = Math.max(b.bottom, Math.min(b.top, f.y / FX)) * W;
-      const h = CHARACTERS[f.char].height * W * (f.scale / 100);
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y + h);
-    }
-    if (minX === Infinity) {
-      minX = -3;
-      maxX = 3;
-      minY = 0;
-      maxY = 2;
-    }
-    // Keep some of the stage in frame so players never lose their footing.
+    const { live, soon } = cameraFighters(state, this.stage.respawn);
     const aspect = this.engine.getAspectRatio(this.camera);
-    // Portrait phone: the screen is narrow, so frame tighter (less stage kept in view, smaller padding)
-    // and never stop pulling out before both fighters fit; width is what limits the zoom there.
-    const portrait = aspect < 0.9;
-    minX = Math.min(minX, portrait ? -1.2 : -2.5);
-    maxX = Math.max(maxX, portrait ? 1.2 : 2.5);
-    minY = Math.min(minY, -0.4);
-    const pad = portrait ? 1.0 : 1.6;
-    const width = maxX - minX + pad * 2;
-    const height = maxY - minY + pad * 2;
     const tan = Math.tan(this.camera.fov / 2);
-    // Zoom limits: close enough to read fighters, far enough for the widest stage's ends.
-    const need = Math.max(height / (2 * tan), width / (2 * tan * aspect));
-    const dist = portrait ? Math.max(7, need) : Math.max(10, Math.min(40, need));
-    const clampX = (v: number) => Math.max(b.left * W, Math.min(b.right * W, v));
-    const clampY = (v: number) => Math.max(b.bottom * W, Math.min(b.top * W, v));
-    let cx = clampX((minX + maxX) / 2);
-    // Portrait: sit the fight lower on screen, nearer the thumbs, instead of centred under empty sky.
-    let cy = clampY((minY + maxY) / 2 + 0.3 + (portrait ? dist * tan * 0.2 : 0));
-    let cd = dist;
+    const world: CamBounds = { left: b.left * W, right: b.right * W, bottom: b.bottom * W, top: b.top * W };
+    let { x: cx, y: cy, d: cd } = frameGoal([...live, ...soon], world, aspect, tan);
 
     let smooth = 0.18;
     let smoothZoom = 0.25;
@@ -1257,9 +1221,7 @@ export class Renderer {
       // The kill cue's punch-in: toward the impact, closer, quickly; then back out as the punch fades.
       const t = (now - this.kill.at) / 1000;
       const p = killPunch(t);
-      cx += (this.kill.x - cx) * 0.7 * p;
-      cy += (this.kill.y - cy) * 0.7 * p;
-      cd = Math.max(6, cd * (1 - KILL_CUE.punchIn * p));
+      ({ x: cx, y: cy, d: cd } = punchGoal({ x: cx, y: cy, d: cd }, this.kill, p, KILL_CUE.punchIn));
       smooth = 0.12 + 0.16 * (1 - p);
       smoothZoom = 0.1 + 0.3 * (1 - p);
       if (this.camStats.lastCue && t < 0.3) this.camStats.lastCue.punch = Math.max(this.camStats.lastCue.punch, p);
@@ -1272,27 +1234,18 @@ export class Renderer {
     this.camSide += (sideGoal - this.camSide) * k;
     this.camTilt += (tiltGoal - this.camTilt) * k;
 
-    const px = this.camTarget.x;
-    const py = this.camTarget.y;
-    const pd = this.camDist;
     if (this.camCut) {
-      this.camTarget.x = cx;
-      this.camTarget.y = cy;
-      this.camDist = cd;
-      this.camVel = { x: 0, y: 0, d: 0 };
+      this.camRig = { x: cx, y: cy, d: cd, vx: 0, vy: 0, vd: 0 };
       this.camSide = sideGoal;
       this.camTilt = tiltGoal;
       this.camCut = false;
-    } else {
-      [this.camTarget.x, this.camVel.x] = smoothDamp(this.camTarget.x, cx, this.camVel.x, smooth, dt);
-      [this.camTarget.y, this.camVel.y] = smoothDamp(this.camTarget.y, cy, this.camVel.y, smooth, dt);
-      [this.camDist, this.camVel.d] = smoothDamp(this.camDist, cd, this.camVel.d, smoothZoom, dt);
+    } else if (followCamera(this.camRig, { x: cx, y: cy, d: cd }, { smooth, smoothZoom, dt, tan, side: this.camSide, tilt: this.camTilt, keep: this.shot ? null : { fighters: live, tan, aspect } }) && !this.shot) {
       // A frame that moved or zoomed past the threshold (scaled for a slow frame) is a jump, scenes aside.
-      const frames = Math.max(1, dt * 60);
-      if (!this.shot && (Math.hypot(this.camTarget.x - px, this.camTarget.y - py) > 1.2 * frames || Math.abs(this.camDist - pd) > 1.5 * frames)) {
-        this.camStats.cameraJumps++;
-      }
+      this.camStats.cameraJumps++;
     }
+    this.camTarget.x = this.camRig.x;
+    this.camTarget.y = this.camRig.y;
+    this.camDist = this.camRig.d;
     const d = this.camDist;
     this.camPos.x = this.camTarget.x + this.camSide * d * 0.12;
     this.camPos.y = this.camTarget.y + d * (0.06 + this.camTilt);
@@ -1372,17 +1325,6 @@ export class Renderer {
     this.camera.position.copyFrom(this.camPos);
     this.camera.setTarget(this.camTarget);
   }
-}
-
-/** Critically damped follow (Unity's SmoothDamp): reaches `target` in about `smooth` seconds with no overshoot and no snap. */
-function smoothDamp(cur: number, target: number, vel: number, smooth: number, dt: number): [number, number] {
-  const omega = 2 / Math.max(0.0001, smooth);
-  const x = omega * dt;
-  const e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
-  const change = cur - target;
-  const temp = (vel + omega * change) * dt;
-  const nv = (vel - omega * temp) * e;
-  return [target + (change + temp) * e, nv];
 }
 
 function setTexture(mat: StandardMaterial, tex: Texture | DynamicTexture): void {

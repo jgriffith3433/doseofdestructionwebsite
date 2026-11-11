@@ -47,7 +47,7 @@ const JUMPSQUAT = 3;
 // Launch speed per unit of knockback (percent), and how fast that launch decays.
 const KB_SPEED = 17;
 const KB_DECAY = 300;
-const RESPAWN_DELAY = 70;
+export const RESPAWN_DELAY = 70;
 
 // The stage and frame being stepped. Set at the top of step() and only read
 // below it, so the sim stays a pure function of (state, inputs).
