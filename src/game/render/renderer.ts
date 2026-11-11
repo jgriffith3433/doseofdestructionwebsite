@@ -667,6 +667,12 @@ export class Renderer {
     await Promise.race([this.live.artLoaded(), new Promise((r) => setTimeout(r, timeoutMs))]);
   }
 
+  /** True while some stage picture is still loading (the arena would show only the clear colour). */
+  stageArtPending(): boolean {
+    const l = this.live?.readyLayers();
+    return !!l && l.ready < l.total;
+  }
+
   /** Resolves once every texture in the scene (stage art, clips) is loaded, or after a while. */
   async ready(timeoutMs = 15000): Promise<void> {
     await Promise.race([this.scene.whenReadyAsync(), new Promise((r) => setTimeout(r, timeoutMs))]);

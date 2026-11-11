@@ -66,6 +66,10 @@ let phase: Phase = 'idle';
 /** The online fight running `match`, or null for a local match. */
 let fight: OnlineFight | null = null;
 let readyFrames = 0;
+let readyStart = 0;
+/** How long (ms) the Ready count may wait at its last beat for the stage art to load. */
+const READY_ART_WAIT_MS = 8000;
+const READY_ART_FRAMES = 49;
 let acc = 0;
 let last = performance.now();
 let shownOver = false;
@@ -912,6 +916,7 @@ function beginReady(m: Match): void {
   endPilotBoot();
   phase = 'ready';
   readyFrames = 0;
+  readyStart = performance.now();
   banner('Ready');
   renderer.stageEvent('start');
   audio.line('announcer.ready');
@@ -1622,6 +1627,10 @@ function frame(draw = true): void {
   if (phase !== 'play' && phase !== 'ready') pollMenuPad(now);
 
   if (match && phase === 'ready') {
+    // Offline, Ready waits (up to READY_ART_WAIT_MS) for the stage pictures, so "Go!" never opens on a black arena.
+    if (!fight && readyFrames >= READY_ART_FRAMES && renderer.stageArtPending() && performance.now() - readyStart < READY_ART_WAIT_MS) {
+      acc = 0;
+    }
     while (acc >= TICK_MS) {
       acc -= TICK_MS;
       if (++readyFrames === 50) {
