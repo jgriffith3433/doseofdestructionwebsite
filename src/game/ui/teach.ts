@@ -76,6 +76,7 @@ export class Teacher {
     if (!me || m.state.over) return;
     this.frames++;
     for (const e of events) if (e.type === 'hit' && e.attacker === m.player && !e.shield) this.hits++;
+    if (this.hits > 0 && !this.rewarded) this.reward();
     this.markUsed(m, me, events);
     // Off the edge or below the stage for a moment (not a hop over the middle).
     const away = !me.grounded && (me.action === ACT.AIR || me.action === ACT.HELPLESS || me.action === ACT.HITSTUN);
@@ -103,6 +104,21 @@ export class Teacher {
   }
 
   private shownAt = 0;
+  private rewarded = false;
+  private rewardEl: HTMLElement | null = null;
+
+  /** The first hit the player lands pays off on its own, big and centred (the first success a stranger sees; two words). */
+  private reward(): void {
+    this.rewarded = true;
+    const el = document.createElement('div');
+    el.id = 'teach-reward';
+    el.className = 'teach-reward';
+    el.setAttribute('role', 'status');
+    el.textContent = 'First hit!';
+    document.body.appendChild(el);
+    window.setTimeout(() => el.remove(), 1400);
+    this.rewardEl = el;
+  }
 
   /** Whether the moment for this prompt is now. */
   private cue(step: TeachStep, m: Match, me: Fighter, foe: Fighter | null): boolean {
@@ -258,6 +274,8 @@ export class Teacher {
 
   /** The match is over or left: the prompt goes at once. */
   end(): void {
+    this.rewardEl?.remove();
+    this.rewardEl = null;
     this.el?.remove();
     this.el = null;
     this.current = null;

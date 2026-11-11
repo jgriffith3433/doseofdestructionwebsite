@@ -1520,6 +1520,9 @@ body.pilot-boot .screen { visibility: hidden; }
 .teach-glyph.touch { border-radius: 50%; min-width: 52px; height: 52px; background: rgba(255, 90, 31, 0.9); color: #fff; border-color: #fff; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.45); font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
 .teach-glyph.touch.stick { background: rgba(244, 239, 232, 0.9); color: #14101c; border-color: #14101c; }
 .teach-glyph.touch.stick:empty::after { content: ''; width: 20px; height: 20px; border-radius: 50%; background: #14101c; }
+.teach-reward { position: fixed; left: 50%; top: 30%; z-index: 36; transform: translate(-50%, -50%); padding: 6px 22px; background: #ffd15a; color: #14101c; border: 3px solid #14101c; border-radius: 6px; box-shadow: 0 5px 0 #14101c; font: 800 clamp(28px, 5vw, 56px) Oswald, system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; pointer-events: none; animation: reward-pop 1.4s ease-out both; }
+@keyframes reward-pop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); } 15% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); } 25% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -90%) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .teach-reward { animation: none; } }
 @keyframes teach-in { from { opacity: 0; margin-top: 10px; } }
 @keyframes teach-bob { 50% { transform: translateY(-4px); } }
 /* The real touch button the prompt is about pulses too. */
