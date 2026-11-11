@@ -412,6 +412,12 @@ async function chapterCleared(c: Chapter): Promise<void> {
 // ------------------------------------------------------------------ match
 
 let selectedAt = 0;
+/** The VS card is never on screen longer than this from the wipe into it before the match starts. */
+const VS_HOLD_CAP_MS = 4000;
+const nextFrame = (): Promise<void> => new Promise((r) => { requestAnimationFrame(() => r()); setTimeout(r, 50); });
+/** When the wipe into the VS card began, and how long the last warm-up took (null until it finishes). */
+let vsStart = 0;
+let warmUpMs: number | null = null;
 
 async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { seed: number; found: Found }, scene?: SceneCue): Promise<void> {
   endMatch();
@@ -443,6 +449,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     audio.preloadUrls(chapter ? [...chapter.intro, ...chapter.outro].map((l) => l.audio) : []),
   ]).catch((err) => console.error(err));
 
+  warmUpMs = null;
   let fightersReady: Promise<void> = Promise.resolve();
   let warm: Promise<void> = Promise.resolve();
 
@@ -453,6 +460,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     await renderer.whenFightersIdle();
     if (stale()) return;
     // Wipe into VS with only DOM + audio prefetch on the main thread.
+    vsStart = performance.now();
     await go('versus', () => {
       splash = playVersus(setup);
     });
@@ -460,7 +468,14 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     // After the wipe: reuse pre-built meshes (clipWait 0); sheets finish via warmTick during Ready/Go.
     fightersReady = renderer.setFighters(m.state, false, 0).catch(() => renderer.setFighters(m.state, false, 0));
     const loading = Promise.all([fightersReady, audioReady]);
-    warm = loading.then(() => renderer.warmUp(m.state)).catch((err) => console.error(err));
+    // The warm-up (shader compiles, particle pools) never starts until the VS card has been painted, and runs
+    // one scene render per animation frame (renderer.warmUp yields between them); it carries on behind the match intro.
+    warm = loading.then(() => nextFrame()).then(() => nextFrame()).then(async () => {
+      const w0 = performance.now();
+      await renderer.warmUp(m.state);
+      warmUpMs = Math.round(performance.now() - w0);
+      window.dispatchEvent(new CustomEvent('dod:warm-up', { detail: { warmUpMs } }));
+    }).catch((err) => console.error(err));
     const bar = document.createElement('div');
     bar.className = 'vs-progress';
     bar.innerHTML = '<div class="vs-progress-fill"></div>';
@@ -472,8 +487,10 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     void warm.then(() => set(1));
     // Leave as soon as meshes exist; warm/audio continue under the match wipe and Ready countdown.
     await fightersReady;
-    // The painted stage must be on screen when the wipe opens, not a clear-colour arena while its pictures load.
-    await renderer.stageArtReady();
+    // The painted stage must be on screen when the wipe opens, not a clear-colour arena while its pictures load,
+    // but the VS card is never held past VS_HOLD_CAP_MS from the wipe into it: what is still missing then
+    // (stage pictures, clip sheets) finishes behind the match intro. The meshes themselves are mandatory.
+    await renderer.stageArtReady(Math.max(0, VS_HOLD_CAP_MS - (performance.now() - vsStart)));
     renderer.onLoadProgress = null;
     bar.remove();
     void splash;
@@ -494,10 +511,11 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   const intro = !!scene && scene.which === 'intro' && (scene.chapter.intro.length > 0 || !!scene.chapter.coldOpen?.length);
   for (const ft of m.state.fighters) renderer.holdOffstage(ft.id, intro);
   const vsMs = performance.now() - t0;
+  const vsHoldMs = withVersus ? Math.round(performance.now() - vsStart) : null;
   // Ready ticks during the wipe-out (~280 ms), so vsHoldMs (to first play frame) stays under 3 s.
   const readyUnderWipe = !f && !intro;
   await go('match', () => {
-    window.dispatchEvent(new CustomEvent('dod:scene-timing', { detail: { selectToVs: fromSelect, vsToMatch: vsMs, selectToMatch: pickedAt === null ? null : performance.now() - pickedAt, withVersus } }));
+    window.dispatchEvent(new CustomEvent('dod:scene-timing', { detail: { selectToVs: fromSelect, vsToMatch: vsMs, vsHoldMs, warmUpMs, selectToMatch: pickedAt === null ? null : performance.now() - pickedAt, withVersus } }));
     // The canvas may have changed size while menus were up.
     renderer.engine.resize();
     match = m;
