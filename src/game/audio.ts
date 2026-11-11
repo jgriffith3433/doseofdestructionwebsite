@@ -23,6 +23,12 @@ type LoopVoice = {
   filter?: BiquadFilterNode;
 };
 
+export interface SoundTake {
+  /** Stable id for playtest logs, e.g. hit-light.2. */
+  id: string;
+  file: string;
+}
+
 export interface SoundEntry {
   id: string;
   group: string;
@@ -37,7 +43,43 @@ export interface SoundEntry {
   file: string | null;
   /** What the current file was made from, so devtools can flag stale takes. */
   take: { text: string; loop: boolean; duration: number | null; influence: number } | null;
+  /** Alternate takes in the same family (no-repeat pick + pitch spread). */
+  takes?: SoundTake[];
 }
+
+/** Stage floor material for landing SFX. */
+export type StageSurface = 'metal' | 'wood' | 'stone' | 'soft';
+
+/** Per-stage landing surface (world-bible place tone → footfall family). */
+export const STAGE_SURFACE: Readonly<Record<string, StageSurface>> = {
+  'city-top': 'metal',
+  'humans-in-the-loop': 'metal',
+  'solar-array': 'metal',
+  desert: 'stone',
+  'space-chess': 'stone',
+  'cursed-town': 'wood',
+  'rainbow-full-pipe': 'wood',
+  'yo-house': 'wood',
+  'watercolor-nebula': 'soft',
+};
+
+const LAND_BY_SURFACE: Readonly<Record<StageSurface, string>> = {
+  metal: 'land',
+  wood: 'land-wood',
+  stone: 'land-stone',
+  soft: 'land-soft',
+};
+
+/** ~8 dB under voice: 10^(-8/20). */
+const VOICE_DUCK = 10 ** (-8 / 20);
+const DUCK_RESTORE_S = 0.4;
+
+export type CrowdKind = 'ooh' | 'roar' | 'rising';
+const CROWD_SOUND: Readonly<Record<CrowdKind, string>> = {
+  ooh: 'crowd-ooh',
+  roar: 'crowd-roar',
+  rising: 'crowd-rising',
+};
 
 export interface VoiceLine {
   id: string;
@@ -94,8 +136,19 @@ class AudioSystem {
   private intense: LoopVoice | null = null;
   private bedStop: (() => void) | null = null;
   private musicState: MusicState | null = null;
-  private ducked = false;
+  /** Nested duck depth: scene holds one; the voice-line hold is a second layer. */
+  private duckDepth = 0;
+  /** True while a timed voice-line duck hold is open (announcer / fighter / Blog Man). */
+  private voiceDuckHeld = false;
+  private duckVoiceUntil = 0;
+  private duckTimer: ReturnType<typeof setTimeout> | null = null;
   private stung = false;
+  /** Last take index per sound id (never the same take twice in a row). */
+  private lastTake = new Map<string, number>();
+  /** Last crowd reaction kind (ooh / roar / rising). */
+  private lastCrowd: CrowdKind | null = null;
+  /** Active stage id for surface landings (set by playStageBed). */
+  private landStageId: string | null = null;
   /** Per-fighter bark: busy until the take ends so two lines from one fighter never overlap. */
   private fighterBusyUntil = new Map<string, number>();
   private fighterSrc = new Map<string, AudioBufferSourceNode>();
@@ -156,13 +209,21 @@ class AudioSystem {
     return soundSettings().on;
   }
 
-  private applyVolumes(): void {
+  private applyVolumes(opts: { duckRampS?: number } = {}): void {
     if (!this.buses || !this.ctx) return;
     const t = this.ctx.currentTime;
     // Effects covers the announcer and the fighters' voices too (the studio standard has two levels).
     this.buses.master.gain.setTargetAtTime(soundSettings().on ? 1 : 0, t, 0.02);
-    const music = busLevel('music') * (this.ducked ? 0.35 : 1);
-    this.buses.music.gain.setTargetAtTime(music, t, 0.02);
+    const music = busLevel('music') * (this.duckDepth > 0 ? VOICE_DUCK : 1);
+    const ramp = opts.duckRampS;
+    if (ramp != null && ramp > 0) {
+      const g = this.buses.music.gain;
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(Math.max(0.0001, g.value), t);
+      g.linearRampToValueAtTime(Math.max(0.0001, music), t + ramp);
+    } else {
+      this.buses.music.gain.setTargetAtTime(music, t, 0.02);
+    }
     this.buses.sfx.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
     this.buses.voice.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
   }
@@ -260,10 +321,16 @@ class AudioSystem {
     const musicIds = new Set<string>([bed.music, 'music-results', `music-${stageId}`]);
     if (bed.ambience) musicIds.add(bed.ambience);
     if (bed.intense) musicIds.add(bed.intense);
-    const urls = [
-      ...SOUNDS.filter((s) => s.file && (s.group !== 'music' || musicIds.has(s.id))).map((s) => s.file!),
-      ...VOICE.lines.filter((l) => l.audio && who.has(l.who)).map((l) => l.audio!),
-    ];
+    const urls: string[] = [];
+    for (const s of SOUNDS) {
+      if (!s.file) continue;
+      if (s.group === 'music' && !musicIds.has(s.id)) continue;
+      urls.push(s.file);
+      if (s.takes) for (const t of s.takes) urls.push(t.file);
+    }
+    for (const l of VOICE.lines) {
+      if (l.audio && who.has(l.who)) urls.push(l.audio);
+    }
     const all = Promise.all([...new Set(urls)].map((u) => (this.ctx ? this.buffer(u) : this.download(u))));
     await Promise.race([all, new Promise((r) => setTimeout(r, timeoutMs))]);
   }
@@ -297,12 +364,75 @@ class AudioSystem {
     return src;
   }
 
-  /** Plays a sound effect by id. Small pitch changes keep repeats from sounding canned. */
-  sfx(id: string, opts: { vary?: boolean } = {}): void {
+  /**
+   * Picks a take for `id`: random among its `takes` (or the single `file`), never the same index twice
+   * in a row, with a 5–10% pitch spread when `vary` is set (default true for combat/movement).
+   */
+  private pickTake(id: string): { entry: SoundEntry; take: SoundTake; rate: number } | null {
     const s = this.soundById.get(id);
-    if (!s?.file || !this.buses) return;
-    const rate = opts.vary ? 0.94 + Math.random() * 0.12 : 1;
-    void this.start(s.file, this.buses.sfx, s.volume, rate);
+    if (!s?.file || !this.buses) return null;
+    const pool: SoundTake[] = s.takes?.length
+      ? s.takes
+      : [{ id: `${s.id}.0`, file: s.file }];
+    const last = this.lastTake.get(id);
+    let idx = Math.floor(Math.random() * pool.length);
+    if (pool.length > 1 && last != null && idx === last) idx = (idx + 1 + Math.floor(Math.random() * (pool.length - 1))) % pool.length;
+    this.lastTake.set(id, idx);
+    // 5–10% pitch spread (±), so back-to-back hits never share buffer+rate.
+    const spread = 0.05 + Math.random() * 0.05;
+    const rate = 1 + (Math.random() < 0.5 ? -spread : spread);
+    return { entry: s, take: pool[idx], rate };
+  }
+
+  private emitSoundTake(soundId: string, take: SoundTake, rate: number): void {
+    try {
+      window.dispatchEvent(new CustomEvent('dod:sound-take', {
+        detail: { id: soundId, takeId: take.id, file: take.file, rate },
+      }));
+    } catch {
+      // Node tests have no window.
+    }
+  }
+
+  /** Plays a sound effect by id. Picks among takes without immediate repeats; pitch varies 5–10%. */
+  sfx(id: string, opts: { vary?: boolean } = {}): void {
+    const pick = this.pickTake(id);
+    if (!pick || !this.buses) return;
+    const rate = opts.vary === false ? 1 : pick.rate;
+    this.emitSoundTake(id, pick.take, rate);
+    void this.start(pick.take.file, this.buses.sfx, pick.entry.volume, rate);
+  }
+
+  /** Landing SFX for the current stage's surface (metal / wood / stone / soft). */
+  landSfx(stageId?: string | null): void {
+    const stage = stageId ?? this.landStageId ?? this.bedStageId;
+    const surface = (stage && STAGE_SURFACE[stage]) || 'metal';
+    this.sfx(LAND_BY_SURFACE[surface], { vary: true });
+  }
+
+  /**
+   * Crowd reaction from a match event: ooh (heavy hit), roar (KO), rising (comeback).
+   * Never plays the same reaction kind twice in a row; takes also no-repeat inside the family.
+   */
+  crowd(kind: CrowdKind): void {
+    let use = kind;
+    if (this.lastCrowd === use) {
+      const alts: CrowdKind[] = (['ooh', 'roar', 'rising'] as CrowdKind[]).filter((k) => k !== use);
+      use = alts[Math.floor(Math.random() * alts.length)];
+    }
+    this.lastCrowd = use;
+    const id = CROWD_SOUND[use];
+    const pick = this.pickTake(id);
+    if (!pick || !this.buses) return;
+    this.emitSoundTake(id, pick.take, pick.rate);
+    try {
+      window.dispatchEvent(new CustomEvent('dod:crowd', {
+        detail: { kind: use, takeId: pick.take.id, file: pick.take.file },
+      }));
+    } catch {
+      // Node tests.
+    }
+    void this.start(pick.take.file, this.buses.sfx, pick.entry.volume, pick.rate);
   }
 
   /** Plays a procedural effect (synth.ts): the crowd, a whoosh, a sting, an alarm, a thud. */
@@ -325,10 +455,62 @@ class AudioSystem {
     return b ? b.duration * 1000 : null;
   }
 
-  /** Lowers the music under dialogue (story scenes), and brings it back. */
+  /**
+   * Lowers the music ~8 dB under any voice (announcer, Blog Man, scene, fighter), then restores over 0.4 s.
+   * Nestable: a scene hold and a line hold can stack; music only returns when the last hold ends.
+   * Respects mute and Music volume. Emits `dod:music-duck` for the playtest.
+   */
   duck(on: boolean): void {
-    this.ducked = on;
-    this.applyVolumes();
+    if (on) {
+      const first = this.duckDepth === 0;
+      this.duckDepth++;
+      if (first) {
+        this.applyVolumes({ duckRampS: 0.05 });
+        this.emitDuck(true);
+      }
+    } else {
+      if (this.duckDepth === 0) return;
+      this.duckDepth--;
+      if (this.duckDepth === 0) {
+        // Restore over 0.4 s after the last voice/scene hold ends.
+        this.applyVolumes({ duckRampS: DUCK_RESTORE_S });
+        this.emitDuck(false);
+      }
+    }
+  }
+
+  private emitDuck(on: boolean): void {
+    try {
+      window.dispatchEvent(new CustomEvent('dod:music-duck', {
+        detail: { on, db: on ? -8 : 0, restoreMs: on ? 0 : DUCK_RESTORE_S * 1000 },
+      }));
+    } catch {
+      // Node tests.
+    }
+  }
+
+  /** Duck for the length of a voice take (extends if another line overlaps). */
+  private duckForVoice(ms: number): void {
+    const hold = Math.max(200, ms);
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    this.duckVoiceUntil = Math.max(this.duckVoiceUntil, now + hold);
+    if (!this.voiceDuckHeld) {
+      this.voiceDuckHeld = true;
+      this.duck(true);
+    }
+    if (this.duckTimer) clearTimeout(this.duckTimer);
+    const wait = Math.max(16, this.duckVoiceUntil - now);
+    this.duckTimer = setTimeout(() => {
+      this.duckTimer = null;
+      const t = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      if (t + 16 < this.duckVoiceUntil) {
+        this.duckForVoice(this.duckVoiceUntil - t);
+        return;
+      }
+      this.voiceDuckHeld = false;
+      this.duckVoiceUntil = 0;
+      this.duck(false);
+    }, wait);
   }
 
   /** Plays a catalog voice line by id, like 'announcer.go' or 'fighter.slice.win'. */
@@ -397,6 +579,7 @@ class AudioSystem {
       const started = typeof performance !== 'undefined' ? performance.now() : Date.now();
       this.emitFighterVoice(who, kind, id, text, audioUrl, started);
       const buf = await this.buffer(audioUrl);
+      this.duckForVoice(buf ? buf.duration * 1000 : 800);
       const ms = buf ? buf.duration * 1000 : 800;
       this.fighterBusyUntil.set(who, started + ms);
       src.onended = () => {
@@ -414,12 +597,15 @@ class AudioSystem {
     }
   }
 
-  /** Plays a voice file. Dialogue cuts off the line before it; callouts overlap. */
+  /** Plays a voice file. Dialogue cuts off the line before it; callouts overlap. Ducks music ~8 dB. */
   voice(url: string | null | undefined, interrupt = true): void {
     if (!url || !this.buses) return;
     if (interrupt) this.stopVoice();
-    void this.start(url, this.buses.voice, 1).then((src) => {
-      if (interrupt && src) this.speech = src;
+    void this.start(url, this.buses.voice, 1).then(async (src) => {
+      if (!src) return;
+      if (interrupt) this.speech = src;
+      const buf = await this.buffer(url);
+      this.duckForVoice(buf ? buf.duration * 1000 : 900);
     });
   }
 
@@ -439,6 +625,7 @@ class AudioSystem {
     this.musicState = null;
     this.stung = false;
     this.bedStageId = null;
+    this.landStageId = null;
     this.bedWant = null;
     if (!this.ctx || !this.buses) return;
     if (this.music?.id === id && !this.music.filter) return;
@@ -455,6 +642,7 @@ class AudioSystem {
   playStageBed(stageId: string): void {
     const recipe = stageBedRecipe(stageId);
     this.bedStageId = stageId;
+    this.landStageId = stageId;
     this.bedWant = recipe;
     this.wantMusic = recipe.music;
     this.stung = false;
@@ -483,6 +671,13 @@ class AudioSystem {
     if (!this.bedWant) return false;
     if (this.musicState === next) return false;
     this.musicState = next;
+    try {
+      window.dispatchEvent(new CustomEvent('dod:music-state', {
+        detail: { state: next, stageId: this.bedStageId, intense: this.bedWant.intense },
+      }));
+    } catch {
+      // Node tests.
+    }
     if (!this.ctx || !this.buses) return true;
     if (intense && this.bedWant.intense && !this.intense) {
       this.startIntenseLoop(this.bedWant.intense, this.bedWant.intenseVolume);
