@@ -16,6 +16,7 @@ import { AnimTrace, TRACE_GRACE, type TraceProblem } from '../sim/trace.ts';
 import { ACT } from '../sim/state.ts';
 import { walkFrame, type Clip } from '../render/anims.ts';
 import { runSpecialsTests } from './specials.test.ts';
+import { runRosterTests } from './roster.test.ts';
 
 declare const process: { exit(code: number): never };
 
@@ -625,6 +626,9 @@ runSpecialsTests(check);
       `median ${lat.median} ms, worst ${lat.worst} ms, ${lat.samples} samples`);
   }
 }
+
+// Bot against bot across the 13 Season 1 fighters: own kits, win rates between 35% and 65%.
+runRosterTests(check);
 
 if (failed) {
   console.log(`${failed} failed`);

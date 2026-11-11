@@ -290,9 +290,32 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
   min-height: 0;
   overflow: hidden;
 }
-.preview img { width: 100%; height: clamp(160px, 34vh, 340px); object-fit: contain; object-position: bottom; }
+.preview img { width: 100%; height: clamp(130px, 26vh, 300px); object-fit: contain; object-position: bottom; }
+.preview { overflow-y: auto; }
 .preview h3 { font-size: 26px; color: var(--text); letter-spacing: 0.02em; }
 .preview .blurb { color: var(--muted); font-size: 15px; margin-bottom: 8px; }
+/* The hovered fighter's four specials: a looping clip of the one in focus and a button per special (specialsPreview.ts). */
+.specials { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr); gap: 8px; align-items: start; margin-top: 8px; min-width: 0; }
+.sp-stage { border-radius: 8px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line); overflow: hidden; }
+.sp-clip { display: block; width: 100%; height: auto; aspect-ratio: 176 / 132; }
+.sp-list { display: grid; gap: 4px; min-width: 0; }
+.sp-row {
+  display: grid;
+  gap: 0;
+  text-align: left;
+  min-height: 38px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sp-row.on { border-color: var(--gold); background: rgba(255, 209, 90, 0.12); }
+.sp-name { font-size: 13px; line-height: 1.2; letter-spacing: 0.02em; }
+.sp-kind { font-style: normal; font-size: 11px; line-height: 1.2; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .stat-bars { display: grid; gap: 5px; }
 .stat-bars div { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 8px; font-size: 13px; }
 .stat-bars dt { color: var(--muted); }
@@ -1004,6 +1027,7 @@ body.scene-on .touch { visibility: hidden; }
   .select-body .grid, .select-body .preview { min-height: auto; }
   .preview { grid-template-columns: 110px 1fr; align-items: end; column-gap: 12px; }
   .preview img { grid-row: 1 / 6; height: 150px; }
+  .specials { grid-column: 1 / -1; }
   .grid { overflow: visible; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
   .season-chapters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .howto-body, .results-grid { grid-template-columns: 1fr; }
@@ -1353,6 +1377,30 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
   .results-strip .stat strong { font-size: clamp(16px, 4vw, 22px); }
   .highlights { padding: 6px 10px; gap: 4px; max-height: 28vh; overflow-y: auto; }
   .results-actions { gap: 8px; }
+}
+
+/* A phone on its side (844x390): nothing scrolls the preview away. The preview is a column beside the tiles (which
+   scroll on their own): name and role, then the clip beside the four specials' buttons. The big picture, the blurb
+   and the stat bars give way (they stay on bigger screens and the upright phone). The slot cards go to one row. */
+@media (max-height: 520px) and (min-width: 561px) {
+  .select-screen { grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; gap: 6px; }
+  .select-body { grid-template-columns: minmax(330px, 46%) minmax(0, 1fr); min-height: 0; gap: 10px; }
+  .select-body .grid { overflow-y: auto; min-height: 0; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+  .preview { align-content: start; gap: 2px; padding: 8px 10px; overflow: hidden; }
+  .preview > img, .preview .blurb, .preview .stat-bars { display: none; }
+  .preview h3 { font-size: 20px; line-height: 1.1; }
+  .preview .kicker { font-size: 11px; }
+  .specials { grid-template-columns: 128px minmax(0, 1fr); margin-top: 4px; gap: 8px; }
+  .sp-row { min-height: 34px; padding: 2px 8px; }
+  .slots { gap: 6px; }
+  .slot { display: flex; align-items: center; flex-wrap: nowrap; gap: 6px; min-width: 0; max-width: none; padding: 3px 6px; }
+  .slot-pick img { width: 36px; height: 36px; }
+  .slot-pick { grid-template-columns: 36px 1fr; }
+}
+/* An upright phone (390x844): the clip sits over the list, both inside the width. */
+@media (max-width: 560px) {
+  .specials { grid-template-columns: minmax(0, 1fr); }
+  .sp-stage { max-width: 176px; justify-self: center; width: 100%; }
 }
 
 /* ---------------------------------------------------------- rotate prompt */

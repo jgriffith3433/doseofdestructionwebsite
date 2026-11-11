@@ -4,7 +4,7 @@
 // other player's.
 
 import { FX, rngNext } from '../sim/fixed.ts';
-import { CHARACTERS } from '../sim/characters.ts';
+import { CHARACTERS, MOVE, type SpecialKind } from '../sim/characters.ts';
 import { BTN, packInput } from '../sim/input.ts';
 import { STAGES, ledges, platformOn, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, allies, type Fighter, type GameState } from '../sim/state.ts';
@@ -166,6 +166,30 @@ export class Bot {
     return best;
   }
 
+  /** The stick that picks a special slot (neutral, side, down), facing `side`. */
+  private slotStick(slot: 'neutral' | 'side' | 'down', side: number): [number, number] {
+    return slot === 'neutral' ? [side * 0.2, 0] : slot === 'side' ? [side, 0] : [0, -100];
+  }
+
+  /** The slot of this fighter's kit that holds an archetype, if it has one. Fighters without their own specials have none. */
+  private slotOf(me: Fighter, kind: SpecialKind): 'neutral' | 'side' | 'down' | null {
+    const ch = CHARACTERS[me.char];
+    if (!ch.specials) return null;
+    if (ch.moves[MOVE.NSPECIAL].kind === kind) return 'neutral';
+    if (ch.moves[MOVE.SSPECIAL].kind === kind) return 'side';
+    if (ch.moves[MOVE.DSPECIAL].kind === kind) return 'down';
+    return null;
+  }
+
+  /** Uses a special by its archetype: true when it was pressed. */
+  private special(me: Fighter, kind: SpecialKind, side: number, chance: number, frames = 1): boolean {
+    const slot = this.slotOf(me, kind);
+    if (!slot || this.random() >= chance) return false;
+    const [sx, sy] = this.slotStick(slot, side);
+    this.press(sx, sy, BTN.SPECIAL, frames);
+    return true;
+  }
+
   private fight(me: Fighter, t: Fighter): void {
     const ch = CHARACTERS[me.char];
     const k = me.scale / 100;
@@ -185,6 +209,8 @@ export class Bot {
 
     // Defend against an attack that is about to come out.
     const threat = t.action === ACT.ATTACK && adx < reach + 60 && Math.abs(dy) < 90;
+    // The opponent commits to a swing: a counter special turns it back on them.
+    if (threat && me.grounded && me.facing === Math.sign(dx) && this.special(me, 'counter', side, 0.25 + skill * 0.4)) return;
     if (threat && me.grounded && this.random() < skill * 0.55) {
       if (this.random() < 0.7) {
         this.press(0, 0, BTN.SHIELD, 10 + Math.floor(this.random() * 8));
@@ -213,6 +239,7 @@ export class Bot {
           if (r < 0.35) this.press(0, 0, BTN.ATTACK);
           else if (r < 0.7) this.press(side, 0, BTN.ATTACK);
           else if (r < 0.85) this.press(side * 0.3, -100, BTN.ATTACK);
+          else if (me.facing === Math.sign(dx) && (this.special(me, 'grab', side, 0.5) || this.special(me, 'flurry', side, 0.6))) return;
           else this.press(side, 0, BTN.SPECIAL);
         }
         return;
@@ -240,22 +267,25 @@ export class Bot {
         this.steer(Math.abs(gap) > 20 ? Math.sign(gap) * 70 : 0);
         return;
       }
+      const perch = me.platform >= 0 ? this.stage.platforms[me.platform] : null;
+      if (perch && dy < -120 * k && adx < 420) {
+        // Perched on a high platform with the fight far below: walk off the nearer edge instead of waiting up here.
+        this.steer(mx > (perch.x1 + perch.x2) / 2 ? 100 : -100);
+        return;
+      }
       if (targetHome !== h && nearEdge) {
         // The target is on another island: jump the gap.
         this.press(side, 0, BTN.JUMP, 8);
         this.queue.push({ sx: side, sy: 0, btn: 0, frames: 14 }, { sx: side, sy: 0, btn: BTN.JUMP, frames: 2 });
         return;
       }
-      // A fighter with its own specials uses them at range: a thrown projectile down the lane, a trap on the way in.
+      // A fighter with its own specials uses them by archetype: a thrown projectile down the lane, a trap on the
+      // way in, a dash to close the distance.
       if (ch.specials && me.facing === Math.sign(dx)) {
-        if (adx > 220 && adx < 640 && Math.abs(dy) < 60 && this.random() < 0.06 + skill * 0.08) {
-          this.press(side * 0.2, 0, BTN.SPECIAL);
-          return;
-        }
-        if (adx > 120 && adx < 320 && this.random() < 0.02 + skill * 0.03) {
-          this.press(0, -100, BTN.SPECIAL, 3);
-          return;
-        }
+        const lane = Math.abs(dy) < 60;
+        if (adx > 200 && adx < 640 && lane && this.special(me, 'projectile', side, 0.07 + skill * 0.09)) return;
+        if (adx > 110 && adx < 320 && this.special(me, 'trap', side, 0.02 + skill * 0.03, 3)) return;
+        if (adx > 170 && adx < 460 && lane && this.special(me, 'dash', side, 0.05 + skill * 0.07)) return;
       }
       if (adx > reach * 0.8) {
         // Approach, sometimes with a short hop aerial.
