@@ -120,6 +120,16 @@ call out where the live build is still thin.
 - **Now:** picked from the UTC date (`campaign/daily.ts`), scored, streak in localStorage, board on Hawkes Net.
   **Short:** the intro reuses an existing episode line (no new take); no dedicated scene.
 
+### Tour (the main menu's six-fight run, not a stage)
+- **Mood:** the network's ladder night: six bouts booked for one fighter, the last against their rival.
+- **Look / sound:** the Tour select is a wall of fighter tiles (cleared ones marked with a gold star line); between
+  fights the arena's own lower third and the next foe's recorded line over a wide shot; the ending is the fighter's
+  win line over the final KO with a gold "<Fighter> clears the Tour" card. The finale is always on the Foundry floor.
+- **In / out:** from the main menu into six campaign-style fights on the nine stages, a Continue or Quit panel after a
+  loss, back to the Tour select with the mark.
+- **Now:** `content/tours.json` (32 routes), `campaign/tour.ts`, `ui/tour.ts`. **Short:** the foes' lines are existing
+  takes (no new recorded reaction per fight); no per-Tour music.
+
 ### The rival feed (Season 4 only, cutaway)
 - **Mood:** a second set of lights across town, same hour.
 - **Look / sound:** same stages under a colder grade (cooler grade / second city-light bank in the backdrop or scene
@@ -384,3 +394,6 @@ static cut; Local Affiliate / Red Carpet quiet routines. Do not invent new seaso
     onto a side platform and poses (the Jump beat), takes a few hits, winds up one slow smash (the Shield beat); the
     crowd, the stage's flicker and the booth carry on as in any Open Mic. Prompts are glyphs over Exit Punk, never
     paragraphs. Win: the main menu says "Next episode".
+15. **Tour (every fighter).** Six bouts, the CPU rising, the four twists in the fighter's own order; each foe is heard in
+    the arena before their fight; the rival closes it on the Foundry floor. The fighter's own win line plays over the final
+    KO under "<Fighter> clears the Tour", and the Tour select keeps the mark.

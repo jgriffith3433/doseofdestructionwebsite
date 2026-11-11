@@ -57,7 +57,7 @@ export function feature(name: string, props?: Props): void {
 // ------------------------------------------------------------------ screens and context
 
 /** Screens that are menus: on them no match is on, so the match's context goes. */
-const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'howto', 'leaderboard']);
+const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'tour', 'howto', 'leaderboard']);
 
 /** Every screen the game shows (ui/screens.ts), and overlays (settings, profile) as they open. */
 export function screen(id: string): void {
@@ -254,6 +254,11 @@ export function chapterCleared(c: Chapter, firstTime: boolean, done: Set<string>
  */
 export function daily(value: 'view' | 'listen' | 'play' | 'result' | 'board', props: Props = {}): void {
   feature('daily', { value, ...props });
+}
+
+/** Tour (campaign/tour.ts): feature "tour", `value` = start (a fighter picked), fight (a fight won), lost, continue, quit or clear. */
+export function tour(value: 'start' | 'fight' | 'lost' | 'continue' | 'quit' | 'clear', props: Props = {}): void {
+  feature('tour', { value, ...props });
 }
 
 /** The run ends when the player leaves the campaign for the main menu (or clears it all). */

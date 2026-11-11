@@ -599,6 +599,7 @@ class AudioSystem {
 
   /** Plays a voice file. Dialogue cuts off the line before it; callouts overlap. Ducks music ~8 dB. */
   voice(url: string | null | undefined, interrupt = true): void {
+    if (url) window.dispatchEvent(new CustomEvent('dod:voice', { detail: { url, played: !!this.buses } }));
     if (!url || !this.buses) return;
     if (interrupt) this.stopVoice();
     void this.start(url, this.buses.voice, 1).then(async (src) => {

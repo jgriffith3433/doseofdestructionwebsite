@@ -21,13 +21,13 @@ import { clearMarkers, markerLog, markerRects, updateMarkers, type MarkerIn } fr
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
-import { CHAPTERS, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
+import { CHAPTERS, isUnlocked, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playVersus, showResults, type ResultAction } from './ui/views.ts';
-import { playColdOpen, playScene, skipScene, type SceneLine, type SceneStage } from './ui/scene.ts';
+import { playColdOpen, playScene, skipScene, type SceneCard, type SceneLine, type SceneStage } from './ui/scene.ts';
 import { chunkLine, chunkTimes } from './campaign/sceneText.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
@@ -41,6 +41,9 @@ import { Teacher } from './ui/teach.ts';
 import { DAILY_POOL, dailyEpisode, dailyScore, dailySetup, liveStreak, msToNext, recordClear, type DailyEpisode } from './campaign/daily.ts';
 import { dailyDate, loadDaily, saveDaily } from './campaign/dailyStore.ts';
 import { fillBoard, renderDailyCard, renderDailyResults, setCountdown } from './ui/daily.ts';
+import { TOURS, TOUR_LENGTH, loadTours, tourFor, markTourCleared, tourEnding, tourIntro, tourSetup, type Tour } from './campaign/tour.ts';
+import { renderTourChoice, renderTourSelect, tourBanner } from './ui/tour.ts';
+import { VOICE } from './audio.ts';
 import { PILOT_CHAPTER, PILOT_KAELEN, isFirstVisit, markPilotSeen, pilotState } from './campaign/firstVisit.ts';
 
 const TICK_MS = 1000 / 60;
@@ -136,6 +139,7 @@ function wireMenus(): void {
       const to = b.dataset.go;
       if (to === 'online' || to === 'profile') analytics.feature(to === 'online' ? 'find_match' : 'profile_open');
       if (to === 'campaign') openCampaignScreen();
+      else if (to === 'tour') openTourScreen();
       else if (to === 'versus') openVersus();
       else if (to === 'training') openTraining();
       else if (to === 'howto') startHowToPlay();
@@ -153,6 +157,7 @@ function wireMenus(): void {
   onBack('select', () => go('main', spotlight));
   onBack('stages', () => (lastSelect === 'training' ? openTraining() : openVersus()));
   onBack('campaign', () => go('main', spotlight));
+  onBack('tour', () => go('main', spotlight));
   onBack('howto', () => go('main', spotlight));
   wirePilot();
   onBack('leaderboard', () => go('main', spotlight));
@@ -181,8 +186,12 @@ function wireMenus(): void {
       analytics.quitToMenu(match, chapter ? 'campaign' : 'main');
       analytics.matchEnd(match, 'quit', { reason: 'pause_quit' });
     }
+    const touring = inTour();
     endMatch();
-    if (chapter) openCampaignScreen();
+    if (touring && tourRun) {
+      analytics.tour('quit', { fighter: tourRun.tour.fighter, fight: tourRun.index + 1 });
+      openTourScreen();
+    } else if (chapter) openCampaignScreen();
     else go('main', spotlight);
   });
   onKey('KeyH', () => {
@@ -383,7 +392,9 @@ async function playChapter(c: Chapter): Promise<void> {
 
 /** What a story scene plays: the chapter's intro (before Ready) or outro (after the episode is won). */
 interface SceneCue {
-  chapter: Chapter;
+  /** A campaign chapter's scene, or a Tour's (its own lines and card). */
+  chapter?: Chapter;
+  tour?: { lines: SceneLine[]; card: SceneCard; id: string };
   which: 'intro' | 'outro';
 }
 
@@ -408,7 +419,15 @@ function sceneStage(m: Match): SceneStage {
 
 /** Plays a chapter's intro or outro live in the arena (phase 'scene'), with its story card as the lower third. */
 async function runScene(m: Match, cue: SceneCue): Promise<void> {
-  const c = cue.chapter;
+  if (cue.tour) {
+    phase = 'scene';
+    audio.playStageBed(STAGES[m.setup.stage].id);
+    $('scene-next').focus();
+    const end = await playScene(sceneStage(m), cue.which, cue.tour.lines, cue.tour.card);
+    analytics.scene(`${cue.tour.id}.${cue.which}`, end, cue.tour.lines.length);
+    return;
+  }
+  const c = cue.chapter!;
   const lines: SceneLine[] = cue.which === 'intro' ? c.intro : c.outro;
   if (cue.which === 'intro' && c.coldOpen?.length) {
     phase = 'scene';
@@ -437,6 +456,102 @@ async function chapterCleared(c: Chapter): Promise<void> {
   await openCampaignScreen(unlockFor(c) ?? undefined);
   // Back on the map, the episode over: the stars card.
   if (currentScreen() === 'campaign') analytics.askAfterEpisode(c);
+}
+
+// ------------------------------------------------------------------ tour
+
+/** The Tour being played: the fighter's route, the fight (zero-based) and its setup (the object marks the match). */
+let tourRun: { tour: Tour; index: number; setup: MatchSetup; continues: number } | null = null;
+/** Playtest setup shortcut (hooks.tourSkipTo): after this many fights are won, the run jumps to the fight at index `to`. */
+let tourSkip: { after: number; to: number } | null = null;
+
+/** The match on screen is a Tour fight. */
+const inTour = (): boolean => !!tourRun && !!match && tourRun.setup === match.setup;
+
+function tourEvent(phase: string, detail: Record<string, unknown> = {}): void {
+  window.dispatchEvent(new CustomEvent('dod:tour', { detail: { phase, ...detail } }));
+}
+
+/** An existing recorded line by id (content/voice.json), for scenes. */
+const voiceLine = (id: string): { text: string; audio?: string | null } | undefined => VOICE.lines.find((l) => l.id === id);
+
+const tourAudio = (tour: Tour, index: number): (string | undefined)[] => [
+  ...tourIntro(tour, index, voiceLine).lines.map((l) => l.audio ?? undefined),
+  ...(index === tour.fights.length - 1 ? tourEnding(tour, voiceLine).lines.map((l) => l.audio ?? undefined) : []),
+];
+
+function openTourScreen(): Promise<void> {
+  tourRun = null;
+  chapter = null;
+  return go('tour', () => {
+    renderTourSelect(loadTours(), { open: (id) => isUnlocked(id), onPlay: playTour });
+    tourEvent('select', { cleared: [...loadTours()] });
+  });
+}
+
+function playTour(tour: Tour): void {
+  tourRun = { tour, index: 0, setup: tourSetup(tour, 0), continues: 0 };
+  analytics.setMode('campaign');
+  analytics.tour('start', { fighter: tour.fighter, rival: tour.rival });
+  tourEvent('start', { fighter: tour.fighter });
+  startTourFight(true);
+}
+
+/** Starts the run's current fight: the VS card, the foe's line in the arena, Ready, Go. */
+function startTourFight(withScene: boolean): void {
+  const r = tourRun;
+  if (!r) return;
+  chapter = null;
+  r.setup = tourSetup(r.tour, r.index);
+  void prefetchFighters(r.setup.slots.map((s) => s.char));
+  prefetchStage(r.setup.stage);
+  tourEvent('fight', { fighter: r.tour.fighter, fight: r.index + 1, of: TOUR_LENGTH, twist: r.tour.fights[r.index].twist, foes: r.tour.fights[r.index].foes, stage: r.tour.fights[r.index].stage, cpu: r.tour.fights[r.index].cpu });
+  const intro = tourIntro(r.tour, r.index, voiceLine);
+  void startMatch(r.setup, true, undefined, withScene ? { tour: { ...intro, id: `tour.${r.tour.fighter}.${r.index + 1}` }, which: 'intro' } : undefined);
+}
+
+/** A lost fight's Continue: the same fight again (no VS card, no scene). */
+function tourContinue(): void {
+  const r = tourRun;
+  if (!r) return;
+  r.continues++;
+  analytics.tour('continue', { fighter: r.tour.fighter, fight: r.index + 1, continues: r.continues });
+  tourEvent('continue', { fighter: r.tour.fighter, fight: r.index + 1, continues: r.continues });
+  r.setup = tourSetup(r.tour, r.index);
+  void startMatch(r.setup, false);
+}
+
+/** A Tour fight is over. A win goes straight on to the next fight; the last win plays the ending; a loss offers Continue or Quit. */
+async function tourFinish(m: Match, won: boolean): Promise<void> {
+  const r = tourRun!;
+  const last = r.index >= r.tour.fights.length - 1;
+  if (!won) {
+    analytics.tour('lost', { fighter: r.tour.fighter, fight: r.index + 1 });
+    // The foe gloats over the Continue or Quit choice, in their own recorded win line.
+    const gloat = r.tour.fights[r.index].foes[0];
+    window.setTimeout(() => audio.line(`fighter.${gloat}.win`), 1200);
+    tourEvent('lost', { fighter: r.tour.fighter, fight: r.index + 1 });
+    showFinish(m, false, null);
+    return;
+  }
+  analytics.matchEnd(m, 'complete');
+  analytics.tour('fight', { fighter: r.tour.fighter, fight: r.index + 1 });
+  tourEvent('won', { fighter: r.tour.fighter, fight: r.index + 1 });
+  if (!last) {
+    r.index = tourSkip && r.index + 1 >= tourSkip.after && tourSkip.to > r.index + 1 ? tourSkip.to : r.index + 1;
+    tourSkip = null;
+    startTourFight(true);
+    return;
+  }
+  // The ending: the fighter's own win line over the final KO, the closing card. The Tour is marked cleared as it starts.
+  const first = markTourCleared(r.tour.fighter);
+  analytics.tour('clear', { fighter: r.tour.fighter, first, continues: r.continues });
+  tourEvent('clear', { fighter: r.tour.fighter, first, continues: r.continues });
+  phase = 'scene';
+  await audio.preloadUrls(tourAudio(r.tour, r.index));
+  if (match !== m) return;
+  await runScene(m, { tour: { ...tourEnding(r.tour, voiceLine), id: `tour.${r.tour.fighter}.ending` }, which: 'outro' });
+  if (match === m) showFinish(m, true, null);
 }
 
 // -------------------------------------------------------------- the pilot
@@ -688,7 +803,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   const audioReady = Promise.all([
     audio.preloadMatch(STAGES[setup.stage].id, m.state.fighters.map((f) => CHARACTERS[f.char].id)),
     audio.preloadLines(chapter ? [`blog-man.intro.${chapter.id}`] : dailyRun?.setup === setup ? [`blog-man.intro.${dailyRun.ep.blogChapter}`] : []),
-    audio.preloadUrls(chapter ? [...chapter.intro, ...chapter.outro].map((l) => l.audio) : []),
+    audio.preloadUrls(chapter ? [...chapter.intro, ...chapter.outro].map((l) => l.audio) : tourRun?.setup === setup ? tourAudio(tourRun.tour, tourRun.index) : []),
   ]).catch((err) => console.error(err));
 
   warmUpMs = null;
@@ -750,7 +865,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
 
   if (stale()) return;
   // An intro scene brings the fighters on itself: they wait in the wings from the first frame.
-  const intro = !!scene && scene.which === 'intro' && (scene.chapter.intro.length > 0 || !!scene.chapter.coldOpen?.length);
+  const intro = !!scene && scene.which === 'intro' && (scene.tour ? true : scene.chapter!.intro.length > 0 || !!scene.chapter!.coldOpen?.length);
   for (const ft of m.state.fighters) renderer.holdOffstage(ft.id, intro);
   const vsMs = performance.now() - t0;
   const vsHoldMs = withVersus ? Math.round(performance.now() - vsStart) : null;
@@ -852,7 +967,7 @@ function setPaused(paused: boolean): void {
   $('btn-restart').hidden = !!fight;
   $('pause').querySelector('h2')!.textContent = fight ? 'Menu (the match goes on)' : 'Paused';
   if (paused) {
-    $('btn-quit').textContent = fight ? 'Leave match (you lose)' : chapter ? 'Quit to campaign' : 'Quit to menu';
+    $('btn-quit').textContent = fight ? 'Leave match (you lose)' : inTour() ? 'Quit to Tour' : chapter ? 'Quit to campaign' : 'Quit to menu';
     ($('btn-resume') as HTMLButtonElement).focus();
     syncPad();
   } else {
@@ -1159,7 +1274,7 @@ function wireSettings(): void {
 }
 
 // Menus play the menu loop; matches pick their stage's loop when they start.
-const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'howto', 'leaderboard']);
+const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'tour', 'howto', 'leaderboard']);
 setInterval(() => {
   const s = currentScreen();
   if (s && MENU_SCREENS.has(s)) audio.playMusic('music-menu');
@@ -1170,6 +1285,7 @@ function finish(m: Match): void {
   phase = 'idle';
   const won = m.playerWon();
   const c = chapter;
+  if (tourRun?.setup === m.setup && match === m) return void tourFinish(m, won);
   // A won episode signs off in the arena first: the outro plays live, then the results.
   if (m.setup.mode === 'campaign' && c && won && c.outro.length && match === m) {
     void runScene(m, { chapter: c, which: 'outro' }).then(() => {
@@ -1209,6 +1325,13 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
     if (won) actions.push({ label: 'Continue', primary: true, run: () => pilotCleared(c) });
     else actions.push({ label: 'Retry', primary: true, run: () => startMatch(m.setup, false) });
     actions.push({ label: 'Main menu', run: () => { markPilotSeen('left'); chapter = null; return go('main', spotlight); } });
+  } else if (tourRun?.setup === m.setup) {
+    // A lost fight: Continue plays it again, Quit goes back to the Tour list. The final win: the Tour list, with its mark.
+    const r = tourRun;
+    if (won) actions.push({ label: 'Tour list', primary: true, run: () => openTourScreen() });
+    else actions.push({ label: 'Continue', primary: true, run: () => tourContinue() });
+    if (won) actions.push({ label: 'Main menu', run: () => { tourRun = null; return go('main', spotlight); } });
+    else actions.push({ label: 'Quit', run: () => { analytics.tour('quit', { fighter: r.tour.fighter, fight: r.index + 1 }); return openTourScreen(); } });
   } else if (dailyRun?.setup === m.setup) {
     actions.push({ label: won ? 'Beat your score' : 'Try again', primary: true, run: () => startMatch(m.setup, false) });
     actions.push({ label: 'Main menu', run: () => go('main', spotlight) });
@@ -1223,12 +1346,17 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   }
   void go('results', () => {
     endMatch();
-    showResults(m, actions, undefined, newLooks);
+    if (tourRun?.setup === m.setup && !won) {
+      showResults(m, actions, undefined, newLooks);
+      renderTourChoice({ tour: tourRun.tour, index: tourRun.index, fight: tourRun.tour.fights[tourRun.index], continues: tourRun.continues, onContinue: () => tourContinue(), onQuit: () => { analytics.tour('quit', { fighter: tourRun!.tour.fighter, fight: tourRun!.index + 1 }); void openTourScreen(); } });
+    } else showResults(m, actions, undefined, newLooks);
+    if (tourRun?.setup === m.setup && won) $('results-body').prepend(tourBanner(tourRun.tour, tourRun.continues));
     if (dailyRun?.setup === m.setup && m.setup.mode === 'campaign') dailyFinished(m, dailyRun.ep, won);
     audio.playMusic('music-results');
   }).then(() => askOnResults(m));
   const winner = m.state.fighters[m.state.winner];
-  if (winner) setTimeout(() => audio.line(`fighter.${CHARACTERS[winner.char].id}.win`), 900);
+  // The Tour's closing win line already played over the final KO.
+  if (winner && !(tourRun?.setup === m.setup && won)) setTimeout(() => audio.line(`fighter.${CHARACTERS[winner.char].id}.win`), 900);
   syncPad();
 }
 
@@ -1637,6 +1765,16 @@ installDodPlaytest({
   quitMatch: () => {
     endMatch();
     return go('main', spotlight);
+  },
+  tourSkipTo: (after, to) => {
+    tourSkip = { after, to };
+  },
+  tourChoicePreview: (fighter) => {
+    const tour = tourFor(fighter) ?? TOURS[0];
+    return go('results', () => {
+      endMatch();
+      renderTourChoice({ tour, index: tour.fights.length - 1, fight: tour.fights[tour.fights.length - 1], continues: 0, onContinue: () => {}, onQuit: () => void openTourScreen() });
+    });
   },
   setCampaignProgress: (ids) => {
     const before = [...progress];

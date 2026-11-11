@@ -55,6 +55,7 @@
       </div>
       <section id="daily-card" class="daily-card" aria-label="Tonight's Episode"></section>
       <button class="menu-item" type="button" data-go="campaign" data-autofocus><strong>Campaign</strong><span>Eight chapters. One way off the air.</span></button>
+      <button id="btn-tour" class="menu-item" type="button" data-go="tour"><strong>Tour</strong><span>Pick a fighter. Six fights, one rival, one ending.</span></button>
       <button class="menu-item" type="button" data-go="versus"><strong>Versus</strong><span>Up to four fighters, any mix of you and bots.</span></button>
       <button id="btn-find" class="menu-item online-item" type="button" data-go="online"><strong>Find match</strong><span id="find-sub">Fight another player online. Play on while you wait.</span></button>
       <button id="btn-profile" class="menu-item profile-item" type="button" data-go="profile"><img id="profile-img" alt=""><strong>Profile</strong><span id="profile-sub">Your name and picture.</span></button>
@@ -114,6 +115,16 @@
     </header>
     <p class="lede">A walk-on fighter, a nightly broadcast, and the man who runs it. Clear each chapter to open the next.</p>
     <div id="chapter-path" class="chapter-path"></div>
+  </section>
+
+  <section id="tour" class="screen tour-screen" hidden>
+    <header class="screen-head">
+      <button class="back-btn" type="button" data-back>&larr; Back</button>
+      <h2>Tour</h2>
+      <span id="tour-count" class="tour-count"></span>
+    </header>
+    <p class="lede">Pick a fighter and play their own six fights, ending on their rival. Clear it and the Tour stays marked.</p>
+    <div id="tour-grid" class="tour-grid"></div>
   </section>
 
   <section id="howto" class="screen howto-screen" hidden>

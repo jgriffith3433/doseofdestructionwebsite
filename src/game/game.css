@@ -1609,3 +1609,76 @@ body.pilot-boot .screen { visibility: hidden; }
 .daily-results.new-best .daily-score .stat:first-child { animation: daily-flash 1.2s ease-out 2; }
 @keyframes daily-flash { 0% { background: rgba(255, 209, 90, 0.75); transform: scale(1.06); } 100% { background: rgba(0, 0, 0, 0.35); transform: none; } }
 @media (prefers-reduced-motion: reduce) { .daily-card::after, .daily-results.new-best .daily-score .stat:first-child { animation: none; } }
+
+/* -------------------------------------------------------------- tour */
+
+.tour-screen > .lede { max-width: 1280px; margin: 0 auto 14px; }
+.tour-screen .screen-head { max-width: 1280px; margin-inline: auto; }
+.tour-count { color: var(--gold); font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.08em; font-size: 14px; }
+.tour-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr));
+  gap: 12px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.tour-tile {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  column-gap: 12px;
+  align-items: center;
+  min-height: 84px;
+  text-align: left;
+  background: radial-gradient(ellipse at 20% 50%, rgba(255, 90, 31, 0.18), transparent 70%), var(--card);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: inherit;
+  transition: transform 140ms ease, border-color 140ms ease;
+}
+.tour-tile:hover:not(:disabled), .tour-tile:focus-visible { border-color: var(--hot); transform: translateY(-2px); outline: none; }
+.tour-tile:active:not(:disabled) { transform: scale(0.98); border-color: var(--gold); }
+.tour-tile img { grid-row: 1 / 4; width: 64px; height: 64px; object-fit: contain; object-position: bottom; }
+.tour-tile strong { font-family: Oswald, sans-serif; font-size: 20px; text-transform: uppercase; line-height: 1.1; overflow-wrap: anywhere; }
+.tour-route { color: var(--muted); font-size: 14px; }
+.tour-status { font-style: normal; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); overflow-wrap: anywhere; }
+.tour-tile.cleared { border-color: rgba(92, 224, 138, 0.45); }
+.tour-tile.cleared .tour-status { color: #5ce08a; }
+.tour-tile.locked { cursor: not-allowed; opacity: 0.6; }
+.tour-tile.locked img { filter: brightness(0) drop-shadow(0 0 1px rgba(255, 255, 255, 0.4)); }
+
+.tour-choice { display: grid; justify-items: center; gap: 8px; text-align: center; max-width: 640px; margin: 0 auto; padding: 12px 8px; }
+.tour-choice h2 { margin: 0; font-family: Oswald, sans-serif; font-size: clamp(30px, 8vw, 52px); text-transform: uppercase; }
+.tour-choice-cast { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.tour-choice-cast img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; background: var(--card); }
+.tour-choice-cast i { font-family: Oswald, sans-serif; color: var(--hot); font-style: normal; }
+.tour-choice-line { margin: 0; overflow-wrap: anywhere; }
+.tour-choice-note { margin: 0; color: var(--muted); font-size: 14px; }
+.tour-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 2px solid var(--gold);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: radial-gradient(ellipse at 10% 50%, rgba(255, 200, 60, 0.22), transparent 70%), var(--card);
+  margin-bottom: 8px;
+}
+.tour-banner img { width: 72px; height: 72px; object-fit: contain; flex: none; }
+.tour-banner h2 { margin: 0; font-family: Oswald, sans-serif; font-size: clamp(22px, 5.5vw, 38px); text-transform: uppercase; color: var(--gold); line-height: 1.1; overflow-wrap: anywhere; }
+.tour-banner p { margin: 2px 0 0; overflow-wrap: anywhere; }
+
+@media (max-width: 560px), (max-height: 520px) {
+  .tour-tile { min-height: 72px; }
+  .tour-grid { grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); gap: 8px; }
+  .tour-screen > .lede { margin-bottom: 8px; font-size: 14px; }
+  .tour-choice-cast img { width: 44px; height: 44px; }
+  .tour-choice-note { font-size: 13px; }
+  .tour-banner { padding: 6px 10px; }
+  .tour-banner img { width: 48px; height: 48px; }
+}
+@media (max-width: 560px) {
+  .tour-grid { grid-template-columns: minmax(0, 1fr); }
+}

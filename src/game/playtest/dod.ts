@@ -29,6 +29,7 @@ import { SCENARIOS } from './scenarios.ts';
 import { DAILY_POOL, dailyEpisode, msToNext, objectiveLine, twistLine } from '../campaign/daily.ts';
 import { DAILY_KEY, dailyDate } from '../campaign/dailyStore.ts';
 import { castLine } from '../ui/daily.ts';
+import { TOURS, TOURS_KEY, TOUR_LENGTH, tourEnding, tourFor, tourIntro } from '../campaign/tour.ts';
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
 import { PROMPTS, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
@@ -58,6 +59,10 @@ export interface GameHooks {
   startMatch(setup: MatchSetup): Promise<void>;
   /** Setup shortcut (roster only): leave the match for the main menu. */
   quitMatch(): Promise<void>;
+  /** Setup shortcut (tour only): after `after` fights are won the run jumps to the fight at index `to` (the last one). */
+  tourSkipTo(after: number, to: number): void;
+  /** Setup shortcut (tour only): shows the Continue or Quit panel on the results screen without losing a fight, to measure it. */
+  tourChoicePreview(fighter: string): Promise<void>;
   /** Setup shortcut (campaign `chapter` only): the cleared chapter ids (localStorage dod-campaign); returns the ones before. */
   setCampaignProgress(ids: string[]): string[];
   /** Renderer particle and warm-up diagnostics. */
@@ -97,7 +102,7 @@ const CORE_CLIPS = ['idle', 'walk', 'jump', 'fall', 'land', 'hurt', 'shield'];
 
 const SCREEN_NAMES: Record<ScreenId, string> = {
   title: 'Title', main: 'Main Menu', select: 'Character Select', stages: 'Stage Select', versus: 'VS',
-  campaign: 'Campaign Map', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
+  campaign: 'Campaign Map', tour: 'Tour Select', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
 };
 
 /** The 13 fighters a new player meets in Season 1; the other 20 are the "newer" fighters (also each with its own four specials). */
@@ -153,6 +158,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'campaign') await r.campaign();
         else if (id === 'unlocks') await r.unlocksRun();
         else if (id === 'daily') await r.dailyRun();
+        else if (id === 'tour') await r.tourScenario();
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
@@ -2520,6 +2526,325 @@ class Run {
         else localStorage.setItem(DAILY_KEY, saved);
       }
     }
+  }
+
+  /**
+   * Tour (campaign/tour.ts, content/tours.json): the main menu's Tour opens the select screen (every fighter's tile, none
+   * cleared on a fresh save, fits the window with no sideways scroll, 44 px targets on a phone), the Continue or Quit panel
+   * is measured (setup shortcut: shown without losing a fight, so a portrait phone can see it), the fighter's Tour starts
+   * and the bot plays fights 1 and 2 (each opens with the foe's recorded line in the arena under the fight's card, the twist
+   * and CPU level from the route), then a setup shortcut jumps to the last fight: the rival. The player stands still until
+   * knocked out (the Continue or Quit panel, then Continue replays that fight), then the bot wins: the ending plays the
+   * fighter's own recorded win line over the final KO, the closing card "<Fighter> clears the Tour", the results banner, and
+   * the Tour select shows the mark; the page reloads and the mark is still there. Option `fighter` (default exit-punk). On a
+   * portrait phone (390x844 touch) the select and the panel are checked in the portrait window and the Tour is played in the
+   * turned 844x390 frame, everything by taps. The player's own `dod-tours` is put back at the end.
+   */
+  async tourScenario(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const portrait = touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560;
+    this.logViewport(touch && this.isPhone());
+    const fighterId = typeof this.options.fighter === 'string' ? this.options.fighter : 'exit-punk';
+    const tour = tourFor(fighterId);
+    const name = CHARACTERS.find((c) => c.id === fighterId)?.name ?? fighterId;
+    if (!tour) {
+      t.problem('bug', `no Tour for "${fighterId}" in content/tours.json`);
+      t.finish('error');
+      return;
+    }
+    const RUN_KEY = 'dod.playtest.tour';
+    const carried = (() => {
+      try {
+        return JSON.parse(sessionStorage.getItem(RUN_KEY) ?? 'null') as { original: string | null } | null;
+      } catch {
+        return null;
+      }
+    })();
+    const original = carried ? carried.original : localStorage.getItem(TOURS_KEY);
+    const restore = () => {
+      if (original === null) localStorage.removeItem(TOURS_KEY);
+      else localStorage.setItem(TOURS_KEY, original);
+    };
+    let reloading = false;
+    const phases: { phase: string; [k: string]: unknown }[] = [];
+    const voices: string[] = [];
+    const onTour = (e: Event) => phases.push((e as CustomEvent).detail);
+    const onVoice = (e: Event) => voices.push((e as CustomEvent).detail.url);
+    window.addEventListener('dod:tour', onTour);
+    window.addEventListener('dod:voice', onVoice);
+    const lookup = (id: string) => VOICE.lines.find((l) => l.id === id);
+    const fit = (el: HTMLElement | null, what: string): boolean => {
+      if (!el) {
+        t.problem('bug', `${what} is not on screen`);
+        return false;
+      }
+      const sideways = document.documentElement.scrollWidth > innerWidth + 1 || document.body.scrollWidth > innerWidth + 1;
+      const bad = [...el.querySelectorAll<HTMLElement>('button')].filter((b) => {
+        const r = b.getBoundingClientRect();
+        return r.width > 0 && (r.left < -0.5 || r.right > innerWidth + 0.5);
+      });
+      if (sideways) t.problem('bug', `${what} scrolls sideways at ${innerWidth}x${innerHeight} (page ${document.documentElement.scrollWidth} wide)`);
+      if (bad.length) t.problem('bug', `${what}: ${bad.length} button(s) run off the side of the window`);
+      const small = touch ? this.phoneTargets(el) : [];
+      if (small.length) t.problem('bug', `${what}: ${small.join('; ')}`);
+      return !sideways && !bad.length && !small.length;
+    };
+    const openSelect = async () => {
+      await this.click(() => this.q('#btn-tour'), 'Tour');
+      await this.screen('tour');
+      await t.until(() => document.querySelectorAll('#tour-grid .tour-tile').length > 0, 5000, 'the Tour tiles');
+    };
+    const tile = () => this.q(`#tour-grid [data-tour="${fighterId}"]`);
+    try {
+      await this.toMainMenu();
+      if (touch) {
+        this.useTap = true;
+        forceTouchUi(true);
+      }
+      if (carried) {
+        // The page was reloaded: the mark must still be there.
+        sessionStorage.removeItem(RUN_KEY);
+        await openSelect();
+        const el = tile();
+        const marked = el?.dataset.cleared === '1' && /Tour cleared/.test(el.textContent ?? '');
+        if (!marked) t.problem('bug', `after a reload, ${name}'s Tour is not marked cleared on the Tour select`);
+        t.event('tour-mark-after-reload', `${name}'s tile reads "${el?.querySelector('.tour-status')?.textContent ?? '?'}" after the page reloaded (localStorage ${TOURS_KEY}: ${localStorage.getItem(TOURS_KEY)})`);
+        t.metric('tourMarkedAfterReload', marked ? 1 : 0);
+        restore();
+        t.progress(1);
+        t.finish('done');
+        return;
+      }
+      localStorage.removeItem(TOURS_KEY);
+      t.progress(0.03);
+      // The main menu has Tour; the select screen shows every fighter, none cleared yet.
+      const item = this.q('#btn-tour');
+      if (!item || item.getClientRects().length === 0) t.problem('bug', 'the main menu has no Tour entry');
+      else if (touch && item.getBoundingClientRect().height < 43.5) t.problem('bug', `the main menu's Tour entry is ${Math.round(item.getBoundingClientRect().height)} px tall`);
+      await openSelect();
+      const tiles = [...document.querySelectorAll<HTMLElement>('#tour-grid .tour-tile')];
+      const doneNow = tiles.filter((x) => x.dataset.cleared === '1').length;
+      if (tiles.length !== TOURS.length) t.problem('bug', `the Tour select shows ${tiles.length} tiles, content/tours.json has ${TOURS.length} Tours`);
+      if (doneNow) t.problem('bug', `a fresh save shows ${doneNow} Tours already cleared`);
+      if (!tile() || (tile() as HTMLButtonElement).disabled) t.problem('bug', `${name}'s tile is missing or locked on the Tour select`);
+      const selectFits = fit(this.q('#tour'), 'the Tour select');
+      t.event('tour-select', `${tiles.length} fighters (${tiles.filter((x) => !(x as HTMLButtonElement).disabled).length} open), ${doneNow} cleared, ${selectFits ? 'fits' : 'does not fit'} at ${innerWidth}x${innerHeight}${touch ? ' touch' : ''}`);
+      t.metric('tourSelectFits', selectFits ? 1 : 0);
+      // The Continue or Quit panel, measured without losing a fight (a portrait phone can't play one).
+      await this.game.tourChoicePreview(fighterId);
+      await this.screen('results');
+      const choiceFits = fit(this.q('#results'), 'the Continue or Quit panel');
+      const cont = this.q('#tour-continue');
+      const quit = this.q('#tour-quit');
+      if (!cont || !quit) t.problem('bug', 'the Tour panel has no Continue and Quit buttons');
+      else {
+        for (const b of [cont, quit]) {
+          const r = b.getBoundingClientRect();
+          if (r.top < 0 || r.bottom > innerHeight + 0.5) t.problem('bug', `"${b.textContent}" is not on screen without scrolling (${Math.round(r.top)} to ${Math.round(r.bottom)} of ${innerHeight})`);
+        }
+      }
+      t.event('tour-choice-fit', `${choiceFits ? 'fits' : 'does not fit'} at ${innerWidth}x${innerHeight}${touch ? ' touch' : ''}: ${[cont, quit].map((b) => `${b?.textContent} ${Math.round(b?.getBoundingClientRect().height ?? 0)} px`).join(', ')}`);
+      t.metric('tourChoiceFits', choiceFits ? 1 : 0);
+      await this.click(() => this.q('#tour-quit'), 'Quit');
+      await this.screen('tour');
+      if (portrait) {
+        restore();
+        return this.touchMatchTurned('tour');
+      }
+
+      // Fights 1 and 2, played by the bot.
+      t.progress(0.1);
+      await this.click(() => {
+        const el = tile();
+        el?.scrollIntoView({ block: 'center' });
+        return el;
+      }, `${name}'s Tour`);
+      this.game.tourSkipTo(2, TOUR_LENGTH - 1);
+      let prev: Match | null = null;
+      const intoFight = async (n: number): Promise<Match> => {
+        const f = tour.fights[n];
+        await t.until(() => this.game.match() !== prev && (sceneShowing() || this.game.phase() === 'play'), 120000, `fight ${n + 1}'s opening`);
+        let beats: { card: { tag: string; kicker: string; title: string; line: string }; lines: string[] } | null = null;
+        if (sceneShowing()) beats = await this.passTourScene();
+        const want = tourIntro(tour, n, lookup);
+        if (!beats) t.problem('bug', `fight ${n + 1} has no scene in the arena before it`);
+        else {
+          if (beats.card.tag !== 'Tonight' || beats.card.kicker !== want.card.kicker || beats.card.title !== f.title || beats.card.line !== f.line) {
+            t.problem('bug', `fight ${n + 1}'s card reads "${beats.card.kicker} / ${beats.card.title} / ${beats.card.line}", expected "${want.card.kicker} / ${f.title} / ${f.line}"`);
+          }
+          // A line is shown a sentence at a time (campaign/sceneText.ts), so compare the words in order.
+          const got = beats.lines.join(' ');
+          if (got !== want.lines.map((l) => l.text).join(' ')) t.problem('bug', `fight ${n + 1}'s scene says "${got}", expected "${want.lines.map((l) => l.text).join(' ')}"`);
+          const unvoiced = want.lines.filter((l) => l.audio && !voices.includes(l.audio));
+          if (unvoiced.length) t.problem('bug', `fight ${n + 1}'s scene did not play the recorded line ${unvoiced.map((l) => l.audio).join(', ')}`);
+          t.event('tour-scene', `fight ${n + 1}: ${beats.card.kicker} · ${beats.card.title} · "${beats.card.line}" then ${beats.lines.map((l) => `"${l}"`).join(', ')} (${want.lines.filter((l) => l.audio && voices.includes(l.audio)).length} recorded)`);
+        }
+        await t.until(() => this.game.phase() === 'play', 30000, `fight ${n + 1} to start`);
+        const m = this.game.match()!;
+        prev = m;
+        const s = m.setup;
+        const foes = s.slots.filter((x) => x.team === 1);
+        const twistOk =
+          s.slots[0].cpu === null &&
+          foes.length === f.foes.length &&
+          foes.every((x) => x.cpu === f.cpu) &&
+          (f.twist !== 'giant' || foes[0].scale === f.scale) &&
+          (f.twist !== 'low' || s.rules.gravity === f.gravity) &&
+          (f.twist !== 'race' || (s.objective === 'ko' && s.kos === f.kos));
+        if (!twistOk) t.problem('bug', `fight ${n + 1} (${f.twist}) is not set up as content/tours.json says`);
+        t.event('tour-fight', `fight ${n + 1} of ${TOUR_LENGTH}: ${f.title} (${f.twist}) vs ${f.foes.join(' + ')} on ${f.stage}, CPU ${f.cpu}${f.scale ? `, giant ${f.scale}%` : ''}${f.gravity ? `, gravity ${f.gravity}%` : ''}${f.kos ? `, ${f.kos} KOs before the clock` : ''}`);
+        return m;
+      };
+      const cpus: number[] = [];
+      for (let n = 0; n < 2; n++) {
+        t.progress(0.15 + n * 0.2);
+        const m = await intoFight(n);
+        cpus.push(tour.fights[n].cpu);
+        await this.fight(() => false, 480000);
+        const won = m.playerWon();
+        t.event('tour-fight-result', `fight ${n + 1} ${won ? 'won' : 'lost'}`);
+        if (!won) {
+          // A loss is a Continue: the same fight again.
+          await this.screen('results');
+          await this.click(() => this.q('#tour-continue'), 'Continue');
+          prev = m;
+          n--;
+        }
+      }
+
+      // The last fight, the rival: knocked out once on purpose (the Continue panel), then the bot wins.
+      t.progress(0.55);
+      let m = await intoFight(TOUR_LENGTH - 1);
+      cpus.push(tour.fights[TOUR_LENGTH - 1].cpu);
+      if (!cpus.every((c, i) => i === 0 || c >= cpus[i - 1])) t.problem('bug', `the CPU gets easier through the Tour (${cpus.join(', ')})`);
+      t.metric('tourFinalCpu', tour.fights[TOUR_LENGTH - 1].cpu);
+      this.manual = NO_INPUT;
+      const idleFrom = performance.now();
+      while (currentScreen() !== 'results' && performance.now() - idleFrom < 170000) await this.wait(500);
+      this.manual = null;
+      let continues = 0;
+      if (currentScreen() === 'results' && this.q('#tour-choice')) {
+        const fits = fit(this.q('#results'), 'the Continue or Quit panel after a lost fight');
+        const head = this.q('#tour-choice h2')?.textContent ?? '';
+        if (head !== 'Knocked out') t.problem('bug', `a lost Tour fight's panel is headed "${head}"`);
+        t.event('tour-lost', `fight ${TOUR_LENGTH} lost: the panel offers ${[...document.querySelectorAll('#results-actions button')].map((b) => `${b.textContent} (${Math.round(b.getBoundingClientRect().height)} px)`).join(' or ')}, ${fits ? 'fits' : 'does not fit'}`);
+        await this.click(() => this.q('#tour-continue'), 'Continue');
+        continues++;
+        await this.screen('match', 60000);
+        await t.until(() => this.game.phase() === 'play' && this.game.match() !== m, 30000, 'the same fight to start again');
+        m = this.game.match()!;
+        const again = tour.fights[TOUR_LENGTH - 1];
+        if (m.setup.slots.filter((x) => x.team === 1).length !== again.foes.length || m.setup.stage !== STAGES.findIndex((x) => x.id === again.stage)) t.problem('bug', 'Continue did not restart the same fight');
+        t.event('tour-continue', `Continue replayed fight ${TOUR_LENGTH} (${again.title}) on ${again.stage}`);
+      } else {
+        t.problem('warning', `the rival beat nobody in ${Math.round((performance.now() - idleFrom) / 1000)} s of standing still, so the Continue panel was only measured from the preview`);
+      }
+      t.metric('tourContinues', continues);
+      prev = m;
+      await this.fight(() => false, 480000);
+      let won = m.playerWon();
+      for (let tries = 0; !won && tries < 3; tries++) {
+        await this.screen('results');
+        await this.click(() => this.q('#tour-continue'), 'Continue');
+        continues++;
+        await t.until(() => this.game.phase() === 'play' && this.game.match() !== m, 60000, 'the rival fight to start again');
+        m = this.game.match()!;
+        await this.fight(() => false, 480000);
+        won = m.playerWon();
+      }
+      if (!won) {
+        t.problem('warning', 'the bot did not beat the rival in 4 tries, so the ending was not reached');
+        restore();
+        t.finish('done');
+        return;
+      }
+
+      // The ending: the fighter's own win line over the final KO, the closing card, the banner, the mark.
+      t.progress(0.85);
+      await t.until(() => sceneShowing() || currentScreen() === 'results', 60000, 'the ending');
+      const end = tourEnding(tour, lookup);
+      if (!sceneShowing()) t.problem('bug', 'the last win has no ending in the arena');
+      else {
+        const e = await this.passTourScene();
+        if (e.card.tag !== 'Signing off' || e.card.title !== `${name} clears the Tour` || e.card.line !== tour.ending) {
+          t.problem('bug', `the closing card reads "${e.card.tag} / ${e.card.title} / ${e.card.line}", expected "${name} clears the Tour / ${tour.ending}"`);
+        }
+        const winAudio = end.lines[0]?.audio;
+        if (e.lines.join(' ') !== end.lines.map((l) => l.text).join(' ')) t.problem('bug', `the ending says "${e.lines.join(' ')}", expected the win line "${end.lines[0]?.text}"`);
+        if (!winAudio || !voices.includes(winAudio)) t.problem('bug', `the ending did not play ${name}'s recorded win line (${winAudio})`);
+        t.event('tour-ending', `${e.card.title} · "${e.card.line}" · win line "${e.lines.join(' ')}" ${winAudio && voices.includes(winAudio) ? 'played' : 'NOT played'} over the final KO`);
+      }
+      await this.screen('results', 30000);
+      const banner = this.q('#tour-cleared');
+      if (!banner || !(banner.textContent ?? '').includes(`${name} clears the Tour`)) t.problem('bug', `the results show no "${name} clears the Tour" banner`);
+      if (!this.q('#results-body .highlights')) t.problem('bug', 'the final results show no KO highlights');
+      const stored = (() => {
+        try {
+          return (JSON.parse(localStorage.getItem(TOURS_KEY) ?? '[]') as string[]).includes(fighterId);
+        } catch {
+          return false;
+        }
+      })();
+      if (!stored) t.problem('bug', `localStorage ${TOURS_KEY} does not hold ${fighterId} after the ending`);
+      t.event('tour-cleared', `${banner?.querySelector('h2')?.textContent ?? ''} · ${continues} continue(s) used · ${TOURS_KEY} ${stored ? 'has' : 'lacks'} ${fighterId}`);
+      t.metric('tourCleared', stored ? 1 : 0);
+      await this.click(() => this.button('#results-actions', 'Tour list'), 'Tour list');
+      await this.screen('tour');
+      const el = tile();
+      const marked = el?.dataset.cleared === '1' && /Tour cleared/.test(el.textContent ?? '');
+      if (!marked) t.problem('bug', `the Tour select does not mark ${name}'s Tour cleared after the ending`);
+      t.event('tour-marked', `${name}'s tile reads "${el?.querySelector('.tour-status')?.textContent ?? '?'}" on the Tour select`);
+
+      // Reload: the mark comes back from localStorage.
+      sessionStorage.setItem(RUN_KEY, JSON.stringify({ original }));
+      reloading = true;
+      t.event('reload', 'the page reloads; the run carries on after it');
+      const url = new URL(location.href);
+      url.searchParams.set('playtest', 'tour');
+      url.searchParams.set('seed', String(this.options.seed ?? 1));
+      url.searchParams.set('speed', String(this.options.speed ?? 1));
+      await t.wait(300);
+      location.replace(url.toString());
+      await new Promise(() => {});
+    } finally {
+      window.removeEventListener('dod:tour', onTour);
+      window.removeEventListener('dod:voice', onVoice);
+      if (!reloading && !portrait) restore();
+    }
+  }
+
+  /** A Tour scene (the between-fights line or the ending): the card, then each line, cut through with Next once heard. */
+  private async passTourScene(): Promise<{ card: { tag: string; kicker: string; title: string; line: string }; lines: string[] }> {
+    const t = this.t;
+    const root = this.q('#scene');
+    const text = (id: string) => this.q(id)?.textContent?.trim() ?? '';
+    let card = { tag: '', kicker: '', title: '', line: '' };
+    const lines: string[] = [];
+    const seen = new Set<string>();
+    const t0 = performance.now();
+    while (sceneShowing() && performance.now() - t0 < 120000) {
+      const beat = root?.getAttribute('data-beat') ?? '';
+      if (beat === 'card' && !seen.has('card')) {
+        seen.add('card');
+        card = { tag: text('#scene-card-tag'), kicker: text('#scene-card-kicker'), title: text('#scene-card-title'), line: text('#scene-card-line') };
+        await this.wait(1200);
+        if (root?.getAttribute('data-beat') === 'card') await this.click(() => this.q('#scene-next'), 'Next (card)');
+        continue;
+      }
+      if (beat.startsWith('line-') && !seen.has(beat)) {
+        seen.add(beat);
+        const said = text('#scene-text');
+        const words = said.split(/\s+/).filter(Boolean).length;
+        if (words > MAX_WORDS) t.problem('bug', `a Tour scene shows ${words} words at once ("${said}")`);
+        lines.push(said);
+        await this.wait(900);
+        if (sceneShowing() && root?.getAttribute('data-beat') === beat) await this.click(() => this.q('#scene-next'), 'Next');
+        continue;
+      }
+      await this.wait(150);
+    }
+    return { card, lines };
   }
 
   /** The 'ko' objective, both ways it ends: on the third KO, and on time. */
