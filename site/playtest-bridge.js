@@ -28,11 +28,21 @@
     {
       "id": "match",
       "title": "A full 1v1 versus match against the CPU (2 stocks), to the results screen, its analytics events and the feedback card",
-      "description": "options: stage, fighter (ids) to play specific content. After the results: the \"How was that fight?\" card appears and is dismissed, and the Hawkes Analytics events of the run (screen, fighter_pick, stage_pick, level_start, death, level_end) are shown going out with the build and env (the SDK's debug log).",
+      "description": "options: stage, fighter (ids) to play specific content. After the results: the \"How was that fight?\" card appears and is dismissed, and the Hawkes Analytics events of the run (screen, fighter_pick, stage_pick, level_start, death, level_end) are shown going out with the build and env (the SDK's debug log). Also logs fighter voice barks (effort / hurt / ko / taunt) from dod:fighter-voice when Season 1 fighters are in the match.",
       "seconds": 160,
       "tags": [
         "full",
         "analytics"
+      ]
+    },
+    {
+      "id": "fighter-voice",
+      "title": "Season 1 fighter voice: efforts, hurts, KO cries and taunts from each fighter's own takes, no overlap, T taunt, phone landscape",
+      "description": "Setup shortcut unlocks the Season 1 card. Versus 1v1 with two Season 1 fighters (options fighter / foe, default exit-punk vs break). Listens for dod:fighter-voice: logs effort / hurt / ko / taunt per who with the catalog id and audio path; problems for a missing take, a shared KO text, an overlapping bark from one fighter, or an effort within 1.5 s of the last. Presses T for the player taunt. On a 390x844 touch phone, turns to 844x390 landscape like smoke and checks zero missing-voice / 404 problems. Metrics voiceEfforts, voiceHurts, voiceKos, voiceTaunts.",
+      "seconds": 200,
+      "tags": [
+        "full",
+        "sound"
       ]
     },
     {

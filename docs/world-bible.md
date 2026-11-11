@@ -208,6 +208,14 @@ Stratabots (heavies), Shark Dude (the belt that is not a belt), Pyro Singer (ope
 Yooba / Slow Rider (Syndication), Future Man (guest who will not spoil the next season). **The Mechanic:** Foundry
 parts and a fixed board in the origin short only — candidate, unused on the show.
 
+**Match barks (Season 1).** Each of the thirteen Season 1 fighters has its own cast voice for in-bout sound, not a
+shared scream: 3 short attack efforts (smash / special), 2 hurts (medium and heavy hits), 1 KO cry written for the
+character (Break: "Rule one!", Blog Man: a cut-off headline, Shutup Bot: a static burst), and 1 taunt of four words
+or fewer from the blurb or story (T / gamepad D-pad up; no touch button). Lines live in `content/voice.json`
+(`fighter.<id>.effort.*` / `.hurt.*` / `.ko` / `.taunt`) and play through `audio.fighterVoice` with no two lines from
+one fighter overlapping and a 1.5 s effort cooldown. The other twenty fighters keep the shared KO take until their
+kits ship. Cold opens that mark `taunt` also play the bark with the arrival bounce.
+
 ### Creatures and set life
 - City Top: distant fireworks crews; no named mascot on the roof yet.
 - Dust Devil Mesa: the hunting hawk (circles, then dives).

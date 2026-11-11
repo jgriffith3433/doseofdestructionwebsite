@@ -96,6 +96,13 @@ class AudioSystem {
   private musicState: MusicState | null = null;
   private ducked = false;
   private stung = false;
+  /** Per-fighter bark: busy until the take ends so two lines from one fighter never overlap. */
+  private fighterBusyUntil = new Map<string, number>();
+  private fighterSrc = new Map<string, AudioBufferSourceNode>();
+  /** Last effort start time per fighter (1.5 s cooldown). */
+  private effortAt = new Map<string, number>();
+  /** Round-robin index per fighter per kind (effort / hurt). */
+  private fighterPick = new Map<string, number>();
 
   constructor() {
     onSoundSettings(() => this.applyVolumes());
@@ -328,6 +335,80 @@ class AudioSystem {
   line(id: string): void {
     const l = this.lineById.get(id);
     if (l?.audio) this.voice(l.audio, false);
+  }
+
+  /**
+   * A fighter bark in a match: effort (smash/special), hurt (medium/heavy), KO cry, or taunt.
+   * At most one line per fighter at a time; efforts also wait 1.5 s between starts.
+   * Fires `dod:fighter-voice` when a take starts. Returns false when skipped (busy / cooldown / no take).
+   */
+  fighterVoice(who: string, kind: 'effort' | 'hurt' | 'ko' | 'taunt'): boolean {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if ((this.fighterBusyUntil.get(who) ?? 0) > now) return false;
+    if (kind === 'effort' && now - (this.effortAt.get(who) ?? 0) < 1500) return false;
+
+    let id: string;
+    if (kind === 'effort' || kind === 'hurt') {
+      const n = kind === 'effort' ? 3 : 2;
+      const key = `${who}.${kind}`;
+      const i = (this.fighterPick.get(key) ?? 0) % n;
+      this.fighterPick.set(key, i + 1);
+      id = `fighter.${who}.${kind}.${i}`;
+    } else {
+      id = `fighter.${who}.${kind}`;
+    }
+    const l = this.lineById.get(id);
+    // Season 1 has the full kit; everyone else still has a KO (and win) take.
+    if (!l?.audio) {
+      if (kind === 'ko') {
+        const ko = this.lineById.get(`fighter.${who}.ko`);
+        if (ko?.audio) {
+          this.voice(ko.audio, false);
+          this.emitFighterVoice(who, kind, ko.id, ko.text, ko.audio, now);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    if (!this.buses) return false;
+    // Hold the slot immediately so a second bark in the same frame can't stack.
+    this.fighterBusyUntil.set(who, now + 800);
+    if (kind === 'effort') this.effortAt.set(who, now);
+    const prev = this.fighterSrc.get(who);
+    if (prev) {
+      try {
+        prev.stop();
+      } catch {
+        // Already finished.
+      }
+      this.fighterSrc.delete(who);
+    }
+    const audioUrl = l.audio;
+    const text = l.text;
+    void this.start(audioUrl, this.buses.voice, 1).then(async (src) => {
+      if (!src) {
+        this.fighterBusyUntil.set(who, now);
+        return;
+      }
+      this.fighterSrc.set(who, src);
+      const buf = await this.buffer(audioUrl);
+      const ms = buf ? buf.duration * 1000 : 800;
+      this.fighterBusyUntil.set(who, (typeof performance !== 'undefined' ? performance.now() : Date.now()) + ms);
+      src.onended = () => {
+        if (this.fighterSrc.get(who) === src) this.fighterSrc.delete(who);
+      };
+    });
+    this.emitFighterVoice(who, kind, id, text, audioUrl, now);
+    return true;
+  }
+
+  private emitFighterVoice(who: string, kind: string, id: string, text: string, audio: string, at: number): void {
+    try {
+      window.dispatchEvent(new CustomEvent('dod:fighter-voice', { detail: { who, kind, id, text, audio, at } }));
+    } catch {
+      // Node tests have no window.
+    }
   }
 
   /** Plays a voice file. Dialogue cuts off the line before it; callouts overlap. */

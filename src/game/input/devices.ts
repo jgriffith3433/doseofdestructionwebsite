@@ -31,7 +31,7 @@ export function consumeInputEdge(): InputEdge | null {
 
 const GAME_KEYS = new Set([
   'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyJ', 'KeyK', 'KeyL', 'KeyI', 'KeyU',
+  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyJ', 'KeyK', 'KeyL', 'KeyI', 'KeyU', 'KeyT',
 ]);
 
 export function listenKeyboard(): void {
@@ -60,6 +60,7 @@ export const KEYBOARD_HELP: [string, string][] = [
   ['Down special', 'K + S'],
   ['Shield / dodge', 'L'],
   ['Smash', 'I + direction'],
+  ['Taunt', 'T'],
   ['Pause', 'Esc'],
 ];
 
@@ -73,6 +74,7 @@ export const GAMEPAD_HELP: [string, string][] = [
   ['Down special', 'B + down'],
   ['Shield / dodge', 'Triggers / bumpers'],
   ['Smash', 'Right stick'],
+  ['Taunt', 'D-pad up'],
   ['Pause', 'Start'],
 ];
 
@@ -111,7 +113,7 @@ function gamepadInput(pad: Gamepad): [number, number, number] {
   let sy = -deadzone(pad.axes[1] ?? 0) * 100;
   if (btn(14)) sx = -100;
   if (btn(15)) sx = 100;
-  if (btn(12)) sy = 100;
+  // D-pad up is the taunt (Smash-style); stick still aims up for jumps and recoveries.
   if (btn(13)) sy = -100;
   let b = 0;
   if (btn(0)) b |= BTN.ATTACK;
@@ -191,6 +193,15 @@ export function pausePressed(): boolean {
   const down = held.has('Escape') || pads().some((p) => !!p.buttons[9]?.pressed);
   const edge = down && !pauseWasDown;
   pauseWasDown = down;
+  return edge;
+}
+
+/** True on the frame T or gamepad D-pad up goes down (no touch button: space is tight on phones). */
+let tauntWasDown = false;
+export function tauntPressed(): boolean {
+  const down = held.has('KeyT') || pads().some((p) => !!p.buttons[12]?.pressed);
+  const edge = down && !tauntWasDown;
+  tauntWasDown = down;
   return edge;
 }
 

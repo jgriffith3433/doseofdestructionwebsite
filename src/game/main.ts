@@ -13,7 +13,7 @@ import { onSoundSettings, setSoundSettings, soundSettings } from './soundSetting
 import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
-import { GAMEPAD_HELP, KEYBOARD_HELP, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal } from './input/devices.ts';
+import { GAMEPAD_HELP, KEYBOARD_HELP, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
 import { installPerfMonitor } from './playtest/hawkes-perf.js';
 import { damageColor, damageShake } from './hitFeel.ts';
 import { clearMarkers, markerLog, markerRects, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
@@ -389,6 +389,7 @@ function sceneStage(m: Match): SceneStage {
     holdOffstage: (id, held) => renderer.holdOffstage(id, held),
     arrive: (id) => renderer.arrive(id),
     cue: (id) => renderer.cue(id),
+    taunt: (who) => audio.fighterVoice(who, 'taunt'),
     voice: (url) => audio.voice(url),
     stopVoice: () => audio.stopVoice(),
     voiceMs: (url) => audio.voiceMs(url),
@@ -804,6 +805,7 @@ function afterTick(m: Match, events: SimEvent[]): void {
 }
 
 const SMASHES: ReadonlySet<number> = new Set([MOVE.FSMASH, MOVE.USMASH, MOVE.DSMASH]);
+const VOICE_SPECIALS: ReadonlySet<number> = new Set([MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL]);
 
 /** A broadcast caption over the match. */
 function showBanner(text: string, ms: number): HTMLElement {
@@ -821,11 +823,16 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
     switch (e.type) {
       case 'hit':
         if (e.shield) audio.sfx('hit-shield', { vary: true });
-        else audio.sfx(e.dmg < 70 ? 'hit-light' : e.dmg < 130 ? 'hit-medium' : 'hit-heavy', { vary: true });
+        else {
+          audio.sfx(e.dmg < 70 ? 'hit-light' : e.dmg < 130 ? 'hit-medium' : 'hit-heavy', { vary: true });
+          // Medium and heavy hits: the victim's hurt bark (Season 1 kit; others silent until their lines ship).
+          if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt');
+        }
         break;
       case 'hurt':
         // Stage damage (hazards, damage zones) lands with a hit sound like any other hit.
         audio.sfx(e.dmg < 70 ? 'hit-light' : 'hit-medium', { vary: true });
+        if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt');
         break;
       case 'stage':
         // The stage's events are heard: an alarm on the warning, a rush when it starts, a crowd reaction.
@@ -857,7 +864,7 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
       case 'ko':
         audio.sfx('ko');
         audio.synth('cheer', 0.7);
-        audio.line(`fighter.${CHARACTERS[m.state.fighters[e.victim].char].id}.ko`);
+        audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'ko');
         break;
       case 'counter':
         // A counter rings out: a shield-bright hit and a sting.
@@ -884,8 +891,13 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
   // Swings and dodges start on a change of action, which the sim does not report.
   m.state.fighters.forEach((f, i) => {
     if (f.action !== lastActions[i]) {
-      if (f.action === ACT.ATTACK) audio.sfx(SMASHES.has(f.move) || f.move === MOVE.SSPECIAL || f.move === MOVE.DSPECIAL ? 'swing-heavy' : 'swing-light', { vary: true });
-      else if (f.action === ACT.ROLL || f.action === ACT.SPOTDODGE || f.action === ACT.AIRDODGE) audio.sfx('dodge', { vary: true });
+      if (f.action === ACT.ATTACK) {
+        audio.sfx(SMASHES.has(f.move) || f.move === MOVE.SSPECIAL || f.move === MOVE.DSPECIAL ? 'swing-heavy' : 'swing-light', { vary: true });
+        // Smash and special effort barks (1.5 s cooldown + no overlap, inside audio.fighterVoice).
+        if (SMASHES.has(f.move) || VOICE_SPECIALS.has(f.move)) {
+          audio.fighterVoice(CHARACTERS[f.char].id, 'effort');
+        }
+      } else if (f.action === ACT.ROLL || f.action === ACT.SPOTDODGE || f.action === ACT.AIRDODGE) audio.sfx('dodge', { vary: true });
     }
     lastActions[i] = f.action;
   });
@@ -1302,6 +1314,11 @@ function frame(draw = true): void {
   if (rotateShowing() && !fight) acc = 0;
 
   if (match && phase !== 'idle' && pausePressed()) pauseKey();
+  // Taunt is presentation-only (T / D-pad up): not packed into sim input, so rollback never sees it.
+  if (match && phase === 'play' && tauntPressed()) {
+    const me = match.player >= 0 ? match.state.fighters[match.player] : null;
+    if (me) audio.fighterVoice(CHARACTERS[me.char].id, 'taunt');
+  }
   if (phase !== 'play' && phase !== 'ready') pollMenuPad(now);
 
   if (match && phase === 'ready') {
