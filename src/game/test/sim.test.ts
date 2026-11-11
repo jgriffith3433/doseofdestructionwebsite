@@ -17,6 +17,7 @@ import { ACT } from '../sim/state.ts';
 import { walkFrame, type Clip } from '../render/anims.ts';
 import { runSpecialsTests } from './specials.test.ts';
 import { runRosterTests } from './roster.test.ts';
+import { runGrabTests } from './grab.test.ts';
 
 declare const process: { exit(code: number): never };
 
@@ -122,6 +123,8 @@ STAGES.forEach((stage, si) => {
 
 // Special archetypes: projectile, dash, counter, command grab, trap, flurry, recoveries; hashing and rollback for each.
 runSpecialsTests(check);
+// The shared grab and its four throws.
+runGrabTests(check);
 
 {
   // Two-on-one: allies never damage each other, and a team wins together.

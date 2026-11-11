@@ -100,6 +100,11 @@ export class Bot {
       return;
     }
     if (me.action === ACT.LEDGE) return this.ledge(me);
+    if (me.action === ACT.GRAB_HOLD) return this.throwHeld(s, me);
+    if (me.action === ACT.GRAB || me.action === ACT.THROW) {
+      this.wait = 2;
+      return;
+    }
     if (me.action === ACT.HITSTUN || me.hitlag > 0) {
       // Survival DI: hold up and back toward the nearest ground.
       const h = this.home(me.x / FX);
@@ -117,6 +122,24 @@ export class Bot {
     const target = this.pickTarget(s, me);
     if (!target) return;
     this.fight(me, target);
+  }
+
+  /**
+   * Holding a fighter: throw them toward the nearer blast zone (forward or back, whichever way that is). A
+   * target at kill damage on a high stage floor goes up instead, and one at low damage goes down, close, for a follow-up.
+   */
+  private throwHeld(s: GameState, me: Fighter): void {
+    this.wait = 2;
+    if (me.frame < 8) return;
+    const v = me.holding ? s.fighters[me.holding - 1] : null;
+    const blast = this.stage.blast;
+    const x = me.x / FX;
+    const nearer = x - blast.left < blast.right - x ? -1 : 1;
+    const high = v !== null && v.percent > 1100 - this.level * 30;
+    const low = v !== null && v.percent < 200 && this.random() < 0.5;
+    if (low) this.press(0, -100, BTN.ATTACK, 2);
+    else if (high && this.random() < 0.35) this.press(0, 100, BTN.ATTACK, 2);
+    else this.press(nearer * 100, 0, BTN.ATTACK, 2);
   }
 
   private offstage(me: Fighter): boolean {
@@ -334,6 +357,21 @@ export class Bot {
     const targetHome = this.home(t.x / FX);
 
     if (me.grounded) {
+      // A shielding opponent is grabbed, not hit: grab beats shield. Step in until the jab's reach, then Shield + Attack.
+      const guarding = t.grounded && (t.action === ACT.SHIELD || t.action === ACT.SHIELD_STUN) && Math.abs(dy) < 50 * k;
+      if (guarding && adx < reach * 1.3) {
+        this.wait = 2;
+        const grabReach = ch.grabReach * k;
+        if (me.facing === Math.sign(dx) && adx < grabReach * 0.9) {
+          if (this.random() < 0.6 + skill * 0.4) {
+            this.press(0, 0, BTN.ATTACK | BTN.SHIELD, 2);
+            return;
+          }
+        } else if (!nearEdge || me.facing !== Math.sign(dx)) {
+          this.steer(side * 0.6);
+          return;
+        }
+      }
       if (adx < reach && Math.abs(dy) < 50 * k) {
         if (nearEdge) {
           // Facing out over the edge: the forward smash sends them far.
@@ -342,6 +380,9 @@ export class Bot {
           this.press(side, 0, this.random() < 0.6 ? (side > 0 ? BTN.C_RIGHT : BTN.C_LEFT) : BTN.C_DOWN);
         } else if (me.facing === Math.sign(dx) && this.closeSpecial(me, side, skill)) {
           return;
+        } else if (me.facing === Math.sign(dx) && adx < ch.grabReach * k * 0.9 && t.action !== ACT.ATTACK && this.random() < 0.06 + skill * 0.1) {
+          // Mix in a grab: it opens a defender who is waiting to shield, and costs little against one who is not swinging.
+          this.press(0, 0, BTN.ATTACK | BTN.SHIELD, 2);
         } else {
           const r = this.random();
           if (r < 0.35) this.press(0, 0, BTN.ATTACK);

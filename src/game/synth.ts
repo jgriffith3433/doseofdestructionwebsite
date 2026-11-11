@@ -2,9 +2,9 @@
 // for camera moves and arrivals, a broadcast sting, a stage alarm. Continuous stage beds (crowd murmur, wind,
 // studio hum) live here too so every arena has a place tone without a dedicated file. Nothing to download.
 
-export type SynthKind = 'crowd' | 'cheer' | 'whoosh' | 'sting' | 'alarm' | 'thud' | 'whistle';
+export type SynthKind = 'crowd' | 'cheer' | 'whoosh' | 'sting' | 'alarm' | 'thud' | 'whistle' | 'grab';
 
-export const SYNTH_KINDS: readonly SynthKind[] = ['crowd', 'cheer', 'whoosh', 'sting', 'alarm', 'thud', 'whistle'];
+export const SYNTH_KINDS: readonly SynthKind[] = ['crowd', 'cheer', 'whoosh', 'sting', 'alarm', 'thud', 'whistle', 'grab'];
 
 /** Continuous place tones under a stage's music. */
 export type BedKind = 'arena' | 'city-night' | 'indoor' | 'desert' | 'fog' | 'void' | 'park' | 'nebula' | 'solar';
@@ -156,6 +156,26 @@ export function playSynth(ctx: BaseAudioContext, out: AudioNode, kind: SynthKind
       lfo.start(t);
       o.stop(t + dur + 0.05);
       lfo.stop(t + dur + 0.05);
+      break;
+    }
+    case 'grab': {
+      // The clasp of a grab: a short bright rasp of cloth and a low squeeze underneath.
+      const dur = env(g, t, 0.55 * level, 0.004, 0.03, 0.2);
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(240, t);
+      o.frequency.exponentialRampToValueAtTime(95, t + dur);
+      o.connect(g);
+      o.start(t);
+      o.stop(t + dur + 0.05);
+      const k = ctx.createGain();
+      env(k, t, 0.35 * level, 0.002, 0.02, 0.12);
+      k.connect(out);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 2100;
+      bp.Q.value = 1.2;
+      noiseSource(ctx, t, 0.14).connect(bp).connect(k);
       break;
     }
     case 'thud': {

@@ -59,6 +59,8 @@ export const KEYBOARD_HELP: [string, string][] = [
   ['Up special', 'K + W  (recovery)'],
   ['Down special', 'K + S'],
   ['Shield / dodge', 'L'],
+  ['Grab', 'L + J  (beats shield)'],
+  ['Throw', 'Grab, then A D W S'],
   ['Smash', 'I + direction'],
   ['Taunt', 'T'],
   ['Pause', 'Esc'],
@@ -73,6 +75,8 @@ export const GAMEPAD_HELP: [string, string][] = [
   ['Up special', 'B + up  (recovery)'],
   ['Down special', 'B + down'],
   ['Shield / dodge', 'Triggers / bumpers'],
+  ['Grab', 'Trigger + A  (beats shield)'],
+  ['Throw', 'Grab, then left stick'],
   ['Smash', 'Right stick'],
   ['Taunt', 'D-pad up'],
   ['Pause', 'Start'],
@@ -84,6 +88,8 @@ export const TOUCH_HELP: [string, string][] = [
   ['Special', 'Special button'],
   ['Side / down special', 'Hold the stick left, right or down, then Special'],
   ['Up special', 'Hold the stick up, then Special'],
+  ['Grab', 'Shield + Attack together'],
+  ['Throw', 'Grab, then the stick: forward, back, up or down'],
 ];
 
 function keyboardInput(): [number, number, number] {

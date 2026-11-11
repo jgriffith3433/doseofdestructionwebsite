@@ -297,6 +297,16 @@
       ]
     },
     {
+      "id": "grab",
+      "title": "Grab and throws: Shield + Attack together grabs, the stick picks forward, back, up or down, and the hold lasts longer at 100% than at 0% (touch: both buttons pressed together)",
+      "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus); a second dummy starts at 100%. Played through real input only: keyboard L + J then A/D/W/S on a desktop; at phone size (390x844, turned to 844x390 landscape like touch-match, or 844x390) the on-screen Shield and Attack buttons touched together and the on-screen stick, as touch pointer events. Walks up to the dummy, grabs it (grab: through its shield when it shields; the hold in frames), throws it forward, back, up and down (throw; grab-throws when all four came out; touch-grab on a phone), and the hold on the 100% dummy must be longer than on the 0% one (grab-hold-frames, holds-longer). The versus match scenario also logs every grab and throw the bot makes. Metrics grabs, throws, throwsLanded, holdFrames0, holdFrames1000.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "select-specials",
       "title": "Character select shows how each fighter plays: the hovered or tapped fighter's four specials by name and a looping clip, fitting the screen (phone: 390x844 turned to landscape, touch)",
       "description": "Opens Training's select from the main menu and taps each of the 33 fighters in turn (option fighter: one): the preview lists the four specials (neutral, side, up, down) with the names the sim plays (select-specials), the clip and the four rows sit inside the screen and the preview with no text cut off (select-fit), the clip preview moves (select-clip), and tapping the down special pins it. Played through taps (a phone: touch pointer events; 390x844 is turned to 844x390 like specials). Options: fighter, input (touch forces the touch UI), at (phone). Metric selectFits.",
