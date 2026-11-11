@@ -4,6 +4,7 @@
 // First: analytics (Hawkes Analytics, analytics.ts) marks the load start and stamps the build.
 import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
+import { addWin } from './looks.ts';
 import { audio, tapState } from './audio.ts';
 import { Commentator, introCall, type Call } from './commentary.ts';
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
@@ -317,6 +318,7 @@ function prepStageSelect(stage: number, immediate = false): void {
       slots: cfg.slots.map((s) => ({ ...s, team: cfg.teams ? (s.team ?? 0) : undefined })),
     };
     // keepStage: don't rebuild the arena we just set; clipWait 0: sheets finish later via warmTick.
+    renderer.setLooks(setup.slots.map((s) => s.look ?? 0));
     void renderer.setFighters(new Match(setup, 1).state, true, 0);
   };
   // Focused card on open: run now so smoke finishes prep before the stage click.
@@ -343,6 +345,7 @@ function pickStage(stage: number, entry: ModeStage, random = false): void {
     slots: cfg.slots.map((s) => ({ ...s, team: cfg.teams ? (s.team ?? 0) : undefined })),
   };
   // Build (or no-op reuse) on the stages screen; startMatch drains the lock before the VS wipe.
+  renderer.setLooks(setup.slots.map((s) => s.look ?? 0));
   void renderer.setFighters(new Match(setup, 1).state, true, 0);
   startMatch(setup, lastSelect === 'versus');
 }
@@ -368,6 +371,7 @@ async function playChapter(c: Chapter): Promise<void> {
   void prefetchFighters(c.fight.slots.map((s) => s.char));
   prefetchStage(c.fight.stage);
   renderer.setStage(c.fight.stage);
+  renderer.setLooks(c.fight.slots.map((s) => s.look ?? 0));
   void renderer.setFighters(new Match({ ...c.fight, title: undefined, subtitle: undefined }, 1).state, true, 0);
   // The episode opens in the arena: the VS card, then the intro plays live with the fighters (ui/scene.ts).
   startMatch({ ...c.fight, title: `Chapter ${n} · ${c.title}`, subtitle: c.hint }, true, undefined, { chapter: c, which: 'intro' });
@@ -565,6 +569,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   const stale = () => token !== startToken || (f !== null && f.phase === 'done');
   const seed = online ? online.seed : (playtestSeed ?? (Math.random() * 0x7fffffff) | 0);
   const m = new Match(setup, seed);
+  renderer.setLooks(setup.slots.map((s) => s.look ?? 0));
   const net = online ? onlineApi() : null;
   const f: OnlineFight | null = online && net ? new net.OnlineFight(online.found, m) : null;
   if (f) {
@@ -1045,8 +1050,28 @@ function finish(m: Match): void {
   showFinish(m, won, c);
 }
 
+/** A win with each fighter a person played to victory (any mode): counts toward its colour unlocks. Returns the new colours' names. */
+function creditWins(m: Match, winners: number[]): string[] {
+  const out: string[] = [];
+  for (const i of winners) {
+    const slot = m.setup.slots[i];
+    if (!slot || slot.cpu !== null || slot.remote) continue;
+    out.push(...addWin(CHARACTERS[slot.char].id));
+  }
+  return out;
+}
+
+/** The slots that won a finished match (a team's, or the single winner). */
+function winningSlots(m: Match): number[] {
+  const s = m.state;
+  if (s.winnerTeam >= 0) return s.fighters.filter((f) => f.team === s.winnerTeam).map((f) => f.id);
+  return s.winner >= 0 ? [s.winner] : [];
+}
+
 function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   phase = 'idle';
+  // Training has no winner; a campaign loss or a CPU's win credits nobody.
+  const newLooks = m.setup.mode === 'training' ? [] : creditWins(m, winningSlots(m));
   analytics.matchEnd(m, won ? 'complete' : 'death');
   const actions: ResultAction[] = [];
   if (m.setup.teach === 'pilot' && c) {
@@ -1065,7 +1090,7 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   }
   void go('results', () => {
     endMatch();
-    showResults(m, actions);
+    showResults(m, actions, undefined, newLooks);
     audio.playMusic('music-results');
   }).then(() => askOnResults(m));
   const winner = m.state.fighters[m.state.winner];
@@ -1103,7 +1128,7 @@ async function startOnlineMatch(found: Found): Promise<void> {
     stage: s.stage,
     stocks: s.stocks,
     rules: { ...s.rules, timeLimit: s.timeLimit },
-    slots: s.chars.map((char, i) => ({ char, cpu: null, remote: i !== found.slot })),
+    slots: s.chars.map((char, i) => ({ char, cpu: null, remote: i !== found.slot, look: s.looks?.[i] ?? 0 })),
     title: 'Online match',
     subtitle: `${s.names[0]} vs ${s.names[1]}`,
     online: { matchId: s.matchId, names: s.names, avatars: s.avatars, ids: s.ids },
@@ -1152,9 +1177,10 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
     },
     { label: 'Main menu', run: () => go('main', spotlight) },
   ];
+  const newLooks = won && !voided ? creditWins(m, [f.slot]) : [];
   await go('results', () => {
     endMatch();
-    showResults(m, actions, { ...ending, winner: end.winner >= 0 ? end.winner : undefined });
+    showResults(m, actions, { ...ending, winner: end.winner >= 0 ? end.winner : undefined }, newLooks);
     onlineCall('rating change', (o) => o.showRatingChange(end, f.slot));
     audio.playMusic('music-results');
   });
@@ -1491,6 +1517,7 @@ installDodPlaytest({
   trailStats: (reset) => renderer.trailStats(reset),
   markerStats: () => ({ ...markerLog, rects: markerRects() }),
   gfxStats: () => renderer.gfxStats(),
+  lookStats: () => renderer.lookStats(),
   aliveStats: () => renderer.aliveStats(),
   musicBedStats: () => audio.bedStats(),
 });

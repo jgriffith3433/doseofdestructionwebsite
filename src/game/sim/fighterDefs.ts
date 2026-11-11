@@ -8,6 +8,24 @@
 
 import { FX } from './fixed.ts';
 
+export interface Look {
+  name: string;
+  /** Main colour hue in degrees to turn (outfit looks), or -1 to tint the grey mid-tones (dark fighters). Omitted: unchanged. */
+  from?: number;
+  /** Degrees either side of `from` that are recoloured (soft edge). */
+  range?: number;
+  /** Outfit looks: degrees the hue turns. Neutral looks: the hue the greys take. */
+  hue?: number;
+  sat?: number;
+  val?: number;
+  /** Wins with this fighter needed to use it (0: open). */
+  wins: number;
+}
+
+export const CLASSIC: Look = { name: 'Classic', wins: 0 };
+
+
+
 export interface Hitbox {
   x: number;
   y: number;
@@ -174,6 +192,8 @@ export interface CharacterDef {
   /** One or two words for the select screen. */
   role: string;
   blurb: string;
+  /** Colour looks, Classic first (looks.ts). */
+  looks: Look[];
   width: number;
   height: number;
   weight: number;
@@ -601,6 +621,8 @@ export interface Spec {
   specials?: SpecialsSpec;
   /** Fitted hitbox offsets (tools/fit-hitboxes.mjs). */
   hitboxes?: HitboxFit;
+  /** Colour looks (looks.ts): the first is today's art; the rest are palette shifts of the same sprite sheets. */
+  looks?: Look[];
 }
 
 // Specs are written in world units for readability. Everything the sim reads
@@ -622,6 +644,7 @@ export function fighter(id: string, name: string, role: string, blurb: string, p
     id,
     name,
     art: `${id}.png`,
+    looks: p.looks && p.looks.length ? p.looks : [CLASSIC],
     role,
     blurb,
     width: p.w,

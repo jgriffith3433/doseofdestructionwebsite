@@ -4,6 +4,12 @@
     "name": "Ball Person",
     "role": "Striker",
     "blurb": "Fast feet and kicks that carry.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":215,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":215,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":215,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 50,
     "h": 112,
     "weight": 98,
@@ -38,6 +44,12 @@
     "name": "Blog Man",
     "role": "All-rounder",
     "blurb": "Floats a little, hits a little harder than he looks.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":5,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":5,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":5,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 48,
     "h": 112,
     "weight": 92,
@@ -69,6 +81,12 @@
     "name": "Break",
     "role": "Heavy",
     "blurb": "Slow hands, huge reach, hard to launch.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":345,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":345,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":345,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 70,
     "h": 130,
     "weight": 122,
@@ -101,6 +119,12 @@
     "name": "Cel",
     "role": "Aerial",
     "blurb": "Three extra jumps and the best air speed on the roster.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":255,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":255,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":255,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 54,
     "h": 118,
     "weight": 78,
@@ -135,6 +159,12 @@
     "name": "Chooser",
     "role": "Bouncer",
     "blurb": "Small, round, and very hard to pin down.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":205,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":205,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":205,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 62,
     "h": 90,
     "weight": 82,
@@ -167,6 +197,12 @@
     "name": "Crosser",
     "role": "Counter-puncher",
     "blurb": "Slow to start, but every hit lands heavy.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":215,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":215,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":215,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 46,
     "h": 114,
     "weight": 102,
@@ -199,6 +235,12 @@
     "name": "Crystalline Intelligences",
     "role": "Burner",
     "blurb": "Long, bright swings with real weight behind them.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":35,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":35,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":35,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 52,
     "h": 120,
     "weight": 96,
@@ -232,6 +274,12 @@
     "name": "DJ Won't Read",
     "role": "Combo",
     "blurb": "Quick hits that chain into each other.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 48,
     "h": 112,
     "weight": 90,
@@ -264,6 +312,12 @@
     "name": "Evil Blue Bird",
     "role": "Floaty",
     "blurb": "Two extra jumps and an air game that never lands.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":215,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":215,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":215,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 62,
     "h": 96,
     "weight": 80,
@@ -295,6 +349,12 @@
     "name": "Exit Punk",
     "role": "All-rounder",
     "blurb": "Nothing to learn around, nothing to hide behind.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":35,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":35,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":35,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 46,
     "h": 110,
     "weight": 95,
@@ -325,6 +385,12 @@
     "name": "Future Man",
     "role": "Brawler",
     "blurb": "Fast for his weight, and he does not fall off.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 48,
     "h": 116,
     "weight": 106,
@@ -357,6 +423,12 @@
     "name": "Got Ur Back",
     "role": "Big friend",
     "blurb": "Huge, soft, and launches people anyway.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":215,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":215,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":215,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 68,
     "h": 120,
     "weight": 114,
@@ -390,6 +462,12 @@
     "name": "Kaelen",
     "role": "Fast",
     "blurb": "Quick hits, quick fall, gone before the trade lands.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":65,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":65,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":65,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 44,
     "h": 112,
     "weight": 86,
@@ -422,6 +500,12 @@
     "name": "Lapis Man",
     "role": "Zoner",
     "blurb": "The staff reaches farther than anyone expects.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 44,
     "h": 122,
     "weight": 88,
@@ -454,6 +538,12 @@
     "name": "Not an Old Man Yet",
     "role": "Bruiser",
     "blurb": "Owns the middle of the stage and refuses to leave it.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 50,
     "h": 116,
     "weight": 108,
@@ -485,6 +575,12 @@
     "name": "Orchestrator",
     "role": "Conductor",
     "blurb": "Floats, waits, and punishes everything.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 46,
     "h": 116,
     "weight": 90,
@@ -516,6 +612,12 @@
     "name": "Pyro Singer",
     "role": "Air striker",
     "blurb": "Her aerials burn the hardest.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":215,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":215,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":215,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 46,
     "h": 112,
     "weight": 88,
@@ -548,6 +650,12 @@
     "name": "Shark Dude",
     "role": "Rushdown",
     "blurb": "Runs in, bites, runs in again.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 50,
     "h": 116,
     "weight": 100,
@@ -580,6 +688,12 @@
     "name": "Shutup Bot",
     "role": "Tank",
     "blurb": "Barely jumps. Barely flinches.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 72,
     "h": 106,
     "weight": 128,
@@ -612,6 +726,12 @@
     "name": "Slice",
     "role": "Glass cannon",
     "blurb": "The fastest hands, and the lightest body.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 40,
     "h": 112,
     "weight": 72,
@@ -644,6 +764,12 @@
     "name": "Slow Rider",
     "role": "Drifter",
     "blurb": "Walks slow, flies far, and never hurries a finish.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 48,
     "h": 118,
     "weight": 96,
@@ -676,6 +802,12 @@
     "name": "Small Weather",
     "role": "Storm caller",
     "blurb": "Floaty, with two extra jumps and long swings.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 46,
     "h": 114,
     "weight": 84,
@@ -709,6 +841,12 @@
     "name": "Spider Bot",
     "role": "Walker",
     "blurb": "Wide, low, and very hard to knock over.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":215,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":215,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":215,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 100,
     "h": 92,
     "weight": 120,
@@ -742,6 +880,12 @@
     "name": "SS Boulder",
     "role": "Super heavy",
     "blurb": "The slowest swings in the game. The biggest hits too.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 64,
     "h": 124,
     "weight": 126,
@@ -775,6 +919,12 @@
     "name": "Stratabots",
     "role": "Rock",
     "blurb": "Heavy plates and short, hard hits.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":25,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":25,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":25,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 62,
     "h": 118,
     "weight": 120,
@@ -806,6 +956,12 @@
     "name": "Susan",
     "role": "Shadow",
     "blurb": "Long tendrils and a float that drifts forever.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 46,
     "h": 116,
     "weight": 86,
@@ -838,6 +994,12 @@
     "name": "The Mechanic",
     "role": "Grinder",
     "blurb": "A wrench, a long day, and no quit.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":355,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":355,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":355,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 50,
     "h": 116,
     "weight": 100,
@@ -872,6 +1034,12 @@
     "name": "Try Belt",
     "role": "Switch hitter",
     "blurb": "Even speed, even power, and quick off the ground.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 46,
     "h": 114,
     "weight": 92,
@@ -903,6 +1071,12 @@
     "name": "TT",
     "role": "Shell",
     "blurb": "Short, slow, and much heavier than he looks.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":75,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":75,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":75,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 64,
     "h": 96,
     "weight": 116,
@@ -934,6 +1108,12 @@
     "name": "Uh Me",
     "role": "Floater",
     "blurb": "Light, calm, and almost impossible to catch in the air.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 42,
     "h": 104,
     "weight": 74,
@@ -966,6 +1146,12 @@
     "name": "Wallit",
     "role": "Slugger",
     "blurb": "The bat adds reach. The cash adds attitude.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":25,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":25,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":25,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 58,
     "h": 112,
     "weight": 104,
@@ -999,6 +1185,12 @@
     "name": "Yo Bot",
     "role": "Rig",
     "blurb": "Four legs, two arms, and a laptop that hits back.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Ice","from":-1,"hue":195,"sat":0.55,"val":1.15,"wins":0},
+      {"name":"Ember","from":-1,"hue":12,"sat":0.7,"val":1.1,"wins":3},
+      {"name":"Venom","from":-1,"hue":105,"sat":0.65,"val":1.05,"wins":10}
+    ],
     "w": 84,
     "h": 104,
     "weight": 108,
@@ -1032,6 +1224,12 @@
     "name": "Yooba",
     "role": "Gooey",
     "blurb": "Two extra jumps and a mouth with a long reach.",
+    "looks": [
+      {"name":"Classic","wins":0},
+      {"name":"Flip","from":85,"range":42,"hue":150,"sat":1.05,"val":1,"wins":0},
+      {"name":"Neon","from":85,"range":42,"hue":70,"sat":1.15,"val":1.12,"wins":3},
+      {"name":"Midnight","from":85,"range":42,"hue":-80,"sat":0.95,"val":0.78,"wins":10}
+    ],
     "w": 60,
     "h": 108,
     "weight": 90,

@@ -13,6 +13,7 @@ import { netError, randomId } from './util.ts';
 import { leaderboard } from './board.ts';
 import { IS_LIVE, TEST_ROOM } from './hawkes.ts';
 import { stagesFor } from '../modes.ts';
+import { preferredLook, separateLooks } from '../looks.ts';
 
 const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 
@@ -32,11 +33,16 @@ let mm: Matchmaker | null = null;
 
 function me() {
   const p = profile();
-  return { name: p.name, avatar: p.avatar, char: avatarChar(p.avatar), pid: profileId() };
+  const char = avatarChar(p.avatar);
+  // The online fighter is your picture; it wears the colour you last picked for that fighter (only if you've earned it).
+  return { name: p.name, avatar: p.avatar, char, look: preferredLook(char), pid: profileId() };
 }
 
 function makeSetup(host: ReturnType<typeof me> & { id: string }, guest: ReturnType<typeof me> & { id: string }): OnlineSetup {
   const stages = stagesFor('versus');
+  // The same fighter twice never share a colour: the guest moves to the next (the host's own pick stays).
+  const slots = [{ char: host.char, look: host.look }, { char: guest.char, look: guest.look }];
+  separateLooks(slots);
   const seed = (Math.random() * 0x7fffffff) | 0;
   const entry = stages.length ? stages[Math.abs(seed) % stages.length] : null;
   return {
@@ -51,6 +57,7 @@ function makeSetup(host: ReturnType<typeof me> & { id: string }, guest: ReturnTy
     names: [host.name, guest.name],
     avatars: [host.avatar, guest.avatar],
     chars: [host.char, guest.char],
+    looks: slots.map((x) => x.look ?? 0),
     pids: [host.pid, guest.pid],
     at: Math.floor(Date.now() / 1000),
   };
