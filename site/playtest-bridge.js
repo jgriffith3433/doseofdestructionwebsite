@@ -213,7 +213,7 @@
     {
       "id": "site-links",
       "title": "The website around the game: Powered by HAWKES GEN on every page, Hawkes Biomedical on the landing page, the game screen without them",
-      "description": "Checks the game screen has no site footer marks, then opens the landing page over the game in a full-screen frame and walks the site through its own links (footer Characters, a fighter card picked from the seed, Privacy, What's new), checking on each page that \"Powered by HAWKES GEN\" links to https://hawkesgen.ai (shown, not covered) and on the landing page that Hawkes Biomedical links to https://hawkesbiomedical.com. Every fighter page is also read and checked. The frame is removed at the end and the game checked again.",
+      "description": "Checks the game screen has no site footer marks, then opens the landing page over the game in a full-screen frame and walks the site through its own links (footer Characters, a fighter card picked from the seed, Privacy, What's new), checking on each page that \"Powered by HAWKES GEN\" links to https://hawkesgen.ai (shown, not covered) and on the landing page that Hawkes Biomedical links to https://hawkesbiomedical.com. Every fighter page is also read and checked. On the landing page it first checks the facts and feature cards against the game's own data (fighters, stages, episodes, seasons), that online, ratings and phone are there and no stale claim (Coming, one stage) is left in the page or the share card, and the fit: no sideways scroll, no clipped text, facts and cards in one column and Play above the fold at 390x844 (presses are touch on a touch device). The frame is removed at the end and the game checked again.",
       "seconds": 60,
       "tags": [
         "smoke",

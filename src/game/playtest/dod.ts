@@ -5077,7 +5077,7 @@ class Run {
       const y = r.top + r.height / 2;
       const target = (doc()!.elementFromPoint(x, y) as HTMLElement | null) ?? el;
       if (!el.contains(target)) t.problem('bug', `${what} is covered: a press on it lands on ${target.tagName.toLowerCase()}`);
-      const init = { pointerType: 'mouse', pointerId: 1, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, clientX: x, clientY: y };
+      const init = { pointerType: touchDevice() ? 'touch' : 'mouse', pointerId: 1, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, clientX: x, clientY: y };
       t.log(`press ${what}`);
       target.dispatchEvent(new PointerEvent('pointerdown', init));
       await t.wait(60);
@@ -5112,8 +5112,66 @@ class Run {
     };
     const checkCredit = () => checkLink('.footer-credit a', HAWKES_GEN, 'Powered by HAWKES GEN', 'Powered by HAWKES GEN');
 
+    /** What the landing page tells a new player is true (counts from the game's own data) and fits the window. */
+    const checkLanding = async () => {
+      const d = doc()!;
+      const w = frame.contentWindow!;
+      const text = (sel: string) => [...d.querySelectorAll<HTMLElement>(sel)].map((e) => e.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+      const facts = text('.facts li');
+      const cards = text('.feature');
+      const shown = [...facts, ...cards].join(' | ');
+      const og = d.querySelector<HTMLMetaElement>('meta[property="og:description"]')?.content ?? '';
+      const desc = d.querySelector<HTMLMetaElement>('meta[name="description"]')?.content ?? '';
+      const want = { fighters: CHARACTERS.length, stages: STAGES.length, episodes: CHAPTERS.length, seasons: SEASONS.length };
+      t.event('landing-want', JSON.stringify(want));
+      const has = (hay: string, re: RegExp, what: string) => {
+        if (!re.test(hay)) t.problem('bug', `the landing page does not say ${what}`);
+      };
+      has(facts.join(' | '), new RegExp(`\\b${want.fighters} fighters, ${want.stages} stages`), `${want.fighters} fighters, ${want.stages} stages in the facts`);
+      has(facts.join(' | '), new RegExp(`\\b${want.seasons}-season.*\\b${want.episodes}\\b.*episodes`), `${want.episodes} episodes across ${want.seasons} seasons in the facts`);
+      has(facts.join(' | '), /online/i, 'online with ratings in the facts');
+      has(facts.join(' | '), /phone/i, 'phone / touch in the facts');
+      has(cards.join(' | '), new RegExp(`\\b${want.episodes} episodes across ${want.seasons} seasons`), `${want.episodes} episodes across ${want.seasons} seasons in a feature card`);
+      has(og + ' ' + desc, new RegExp(`\\b${want.fighters} fighters`), `${want.fighters} fighters in the share card and description`);
+      has(og + ' ' + desc, new RegExp(`\\b${want.stages} stages`), `${want.stages} stages in the share card and description`);
+      if (/\bcoming\b|one stage|eight chapters|room codes/i.test(shown + ' ' + og + ' ' + desc)) t.problem('bug', 'the landing page still carries a stale claim (Coming, one stage, eight chapters or room codes)');
+      if (d.querySelector('.soon')) t.problem('bug', 'a Coming tag is still on the landing page');
+      if (/<!--|dod:/.test(og + desc + d.querySelector('picture img')?.getAttribute('alt'))) t.problem('bug', 'a generator marker leaked into a meta tag or alt text');
+      t.event('landing-facts', `${facts.length} facts, ${cards.length} feature cards: ${shown.slice(0, 300)}`);
+
+      // Fit: no sideways scroll, no clipped text, facts and cards in one column on a phone, Play above the fold.
+      d.documentElement.scrollTop = 0;
+      await t.wait(300);
+      const root = d.documentElement;
+      if (root.scrollWidth > root.clientWidth + 1) t.problem('bug', `the landing page scrolls sideways (${root.scrollWidth} wide in ${root.clientWidth})`);
+      const clipped = [...d.querySelectorAll<HTMLElement>('.facts li, .feature, .feature h2, .feature p, .kicker, .logo, .logo span, .tagline, .cta-row a')].filter((e) => {
+        const r = e.getBoundingClientRect();
+        return r.width > 0 && (e.scrollWidth > e.clientWidth + 1 || r.right > w.innerWidth + 1 || r.left < -1);
+      });
+      if (clipped.length) t.problem('bug', `landing text is clipped or runs off the screen (${clipped.map((e) => e.tagName.toLowerCase() + '.' + e.className).slice(0, 3).join(', ')})`);
+      const phone = w.innerWidth <= 520;
+      const col = (sel: string) => new Set([...d.querySelectorAll<HTMLElement>(sel)].map((e) => Math.round(e.getBoundingClientRect().left)));
+      if (phone) {
+        if (col('.facts li').size !== 1) t.problem('bug', `the facts are not in one column at ${w.innerWidth}px`);
+        if (col('.feature').size !== 1) t.problem('bug', `the feature cards are not in one column at ${w.innerWidth}px`);
+      }
+      const playBtn = d.querySelector<HTMLElement>('.landing-copy .play');
+      const pr = playBtn?.getBoundingClientRect();
+      if (!pr) t.problem('bug', 'no Play button in the landing hero');
+      else {
+        if (pr.bottom > w.innerHeight || pr.top < 0) t.problem('bug', `the Play button is below the fold (bottom ${Math.round(pr.bottom)} of ${w.innerHeight})`);
+        if (pr.height < 44 || pr.width < 44) t.problem('bug', `the Play button is ${Math.round(pr.width)}x${Math.round(pr.height)}, under 44x44`);
+      }
+      const factsBottom = d.querySelector('.facts')?.getBoundingClientRect().bottom ?? 0;
+      t.metric('landingFactsBottom', Math.round(factsBottom));
+      t.metric('landingPlayBottom', Math.round(pr?.bottom ?? 0));
+      t.event('landing-fit', `${w.innerWidth}x${w.innerHeight}${touchDevice() ? ' touch' : ''}: Play bottom ${Math.round(pr?.bottom ?? 0)}, facts bottom ${Math.round(factsBottom)}, no sideways scroll, ${phone ? 'one column' : 'wide layout'}`);
+      await t.wait(1500);
+    };
+
     try {
       await loaded('/', 'the landing page');
+      await checkLanding();
       await checkLink('a[data-hawkes-parent]', HAWKES_BIOMEDICAL, 'Hawkes Biomedical', 'Hawkes Biomedical');
       await checkCredit();
       t.progress(0.25);

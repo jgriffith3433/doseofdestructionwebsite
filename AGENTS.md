@@ -182,6 +182,12 @@ static HTML with the same footer copied into each: a new page copies it, includi
 `<p class="footer-credit">` "Powered by HAWKES GEN" mark (→ https://hawkesgen.ai). The landing page's footer also
 links the parent company, Hawkes Biomedical. The game (`Game/index.html`) has no site footer and carries neither.
 
+**The counts** on the landing page, share card and characters page (fighters, stages, episodes, seasons) are never typed:
+`tools/site-facts.mjs` (run first by `npm run build`) reads `content/*.json` and rewrites the `<!--dod:KEY-->…<!--/dod:KEY-->`
+spots in `index.html`, `characters.html` and `whatsnew.html` in place (commit the result; `tools/site-facts.test.mjs`, in
+`npm test`, fails while a page is stale or types a count of its own). A new count is a new KEY there. `site-links` checks the
+landing page's facts against the game's data and its fit at 390x844.
+
 ## Versions and What's new
 
 Every go live is a release, made by Hawkes Studio (`hawkesstudio/src/releases.ts`): a semver version bumped at
