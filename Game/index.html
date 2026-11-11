@@ -14,10 +14,14 @@
     #tap-to-play { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; text-align: center; color: #f4efe8; font-family: Oswald, Impact, 'Arial Narrow', sans-serif; animation: dod-boot-in 0.25s ease both; }
     #tap-to-play .logo { margin: 0; font-weight: 700; font-size: clamp(28px, 7vw, 80px); text-transform: uppercase; letter-spacing: 0.06em; color: #fff3df; }
     #tap-to-play .logo span { color: #ffd15a; text-shadow: 0 3px 0 #5a2410; }
+    /* The Play button is styled here too, in the fallback font, so its label is there on the first paint (Oswald swaps in after). */
+    #tap-to-play .tap-cta { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 160px; min-height: 48px; margin: 18px 0 0; padding: 12px 32px; border: 2px solid #ff6a1f; border-radius: 999px; background: rgba(255, 106, 31, 0.18); color: #ffd15a; font: 600 20px Oswald, Impact, 'Arial Narrow', sans-serif; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer; }
+    #tap-to-play .tap-cta:active { transform: scale(0.97); background: rgba(255, 106, 31, 0.4); }
     @keyframes dod-boot-in { from { opacity: 0; } to { opacity: 1; } }
   </style>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Oswald:wght@500;600&display=swap">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../src/game/game.css">
@@ -310,8 +314,8 @@
         <p class="kicker">Live from the Foundry</p>
         <h1 class="logo">Dose of <span>Destruction</span></h1>
         <p class="tap-pitch">A platform fighter: knock every rival off the stage.</p>
-        <p class="tap-cta">Play as guest</p>
-        <p class="tap-note">No sign-in. Starting&hellip;</p>
+        <button class="tap-cta" type="button" tabindex="-1">Play</button>
+        <p class="tap-note">Play as guest. No sign-in. Starting&hellip;</p>
       </div>
     </div>
   </div>

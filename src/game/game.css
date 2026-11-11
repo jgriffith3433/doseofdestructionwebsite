@@ -650,6 +650,8 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--gold);
+  background: rgba(255, 106, 31, 0.18);
+  background: rgba(255, 106, 31, 0.18);
   animation: tap-pulse 2.4s ease-in-out infinite;
 }
 .tap-card { display: flex; flex-direction: column; align-items: center; gap: 16px; max-width: 100%; }
