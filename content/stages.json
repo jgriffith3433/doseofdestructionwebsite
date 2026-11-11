@@ -13,15 +13,15 @@
         "hidden": true
       },
       {
-        "x1": -700,
-        "x2": -470,
+        "x1": -730,
+        "x2": -440,
         "y": 140,
         "solid": false,
         "hidden": true
       },
       {
-        "x1": 470,
-        "x2": 700,
+        "x1": 440,
+        "x2": 730,
         "y": 140,
         "solid": false,
         "hidden": true
@@ -49,15 +49,15 @@
         "hidden": true
       },
       {
-        "x1": 175,
-        "x2": 405,
+        "x1": 145,
+        "x2": 435,
         "y": 140,
         "solid": false,
         "hidden": true
       },
       {
-        "x1": -405,
-        "x2": -175,
+        "x1": -435,
+        "x2": -145,
         "y": 140,
         "solid": false,
         "hidden": true
