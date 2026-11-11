@@ -5402,6 +5402,8 @@ class Run {
       const bd = prompt.querySelector('.tap-backdrop img')?.getBoundingClientRect();
       if (!bd || bd.width < innerWidth - 1 || bd.height < innerHeight - 1) t.problem('bug', `the Tap to play key-art backdrop does not fill the screen ${where}`);
       else t.event('key-art-backdrop', `roster key art fills ${Math.round(bd.width)}x${Math.round(bd.height)} behind the card ${where}`);
+      const copy = prompt.querySelector('.tap-copy')?.getBoundingClientRect();
+      if (cta && copy && innerWidth < 700 && innerWidth < innerHeight && cta.width < Math.min(copy.width, 420) - 2) t.problem('bug', `the Play button is not full width of the card ${where} (${Math.round(cta.width)} of ${Math.round(copy.width)})`);
       if (document.documentElement.scrollWidth > innerWidth + 1) t.problem('bug', `the Tap to play card scrolls sideways ${where}`);
       t.event('guest-card', `pitch "${pitch}", Play as guest ${cta ? Math.round(cta.width) + 'x' + Math.round(cta.height) : 'missing'}, art ${art ? Math.round(art.width) + 'x' + Math.round(art.height) : 'missing'} ${where}`);
       t.event('prompt-shown', `${where}, ${innerWidth}x${innerHeight} ${innerWidth > innerHeight ? 'landscape' : 'portrait'}`);
