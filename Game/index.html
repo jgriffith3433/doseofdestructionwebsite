@@ -305,6 +305,11 @@
 
   <!-- Studio standard: one tap before the game starts turns sound on (iOS needs a gesture). -->
   <div id="tap-to-play" class="tap-to-play" role="button" tabindex="0" aria-label="Play as guest: tap to play">
+    <!-- Key art: the whole roster, full screen, behind the card (same file as the card's picture, so one download). -->
+    <picture class="tap-backdrop" aria-hidden="true">
+      <source type="image/webp" srcset="/site/img/lineup-900.webp">
+      <img src="/site/img/lineup-1600.jpg" alt="" decoding="async">
+    </picture>
     <div class="tap-card">
       <picture class="tap-art" aria-hidden="true">
         <source type="image/webp" srcset="/site/img/lineup-900.webp">
