@@ -96,6 +96,16 @@
       ]
     },
     {
+      "id": "first-visit",
+      "title": "First visit: empty storage, Tap to play drops into Open Mic (no menu), prompts teach the moves, a KO within 90 s, then the main menu says Next episode",
+      "description": "Clears dod-campaign, dod-versus, dod-pilot and dod-unlocks (put back at the end), taps Play, and times the route: no title or main menu, control within 30 s (secondsToControl), a first hit within 45 s (secondsToFirstHit) and a KO within 90 s (secondsToFirstKO). At most one teaching prompt on screen at a time, each gone once its move is used; on a phone they show touch icons and the prompted control is pressed on the real touch overlay. On a portrait phone (390x844) the Rotate prompt is the only screen until the window is turned to landscape, then it plays in an 844x390 frame. Ends on the main menu with Campaign marked Next episode. Events first-visit-*, teach-shown, teach-used, teach-gone, next-episode.",
+      "starts": [],
+      "seconds": 360,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "unlocks",
       "title": "Hero unlocks: a fresh save shows locked fighter tiles in Versus; clearing Open Mic unlocks Kaelen (message on the map) and the tile becomes pickable",
       "description": "Setup shortcut: a fresh save (no chapters cleared, dod-unlocks empty; the player's own are put back). Opens Versus select and counts the locked tiles (events locked-tiles, locked-click: a click on a locked tile picks nothing), plays chapter 1 through the real campaign (the bot), checks the \"joins the card\" message on the map (unlock-message), then opens Versus select again and picks the unlocked fighter (unlocked-pick). Metric lockedTiles.",

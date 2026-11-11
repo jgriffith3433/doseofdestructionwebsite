@@ -325,3 +325,7 @@ must not flatten into paragraphs alone.
 Beats still thin in the build (keep as targets, do not paper over with text): Season 3+ and booth voice takes (hear
 them, do not replace with longer captions); City Top soft timed beat; rival-feed colder grade and Hostile Takeover
 static cut; Local Affiliate / Red Carpet quiet routines. Do not invent new seasons here — extend `docs/story.md` first.
+14. **The pilot (first visit, City Top).** Tap to play opens on the cold open's first shot under the logo; Kaelen hops up
+    onto a side platform and poses (the Jump beat), takes a few hits, winds up one slow smash (the Shield beat); the
+    crowd, the stage's flicker and the booth carry on as in any Open Mic. Prompts are glyphs over Exit Punk, never
+    paragraphs. Win: the main menu says "Next episode".

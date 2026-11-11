@@ -1266,6 +1266,22 @@ export class Renderer {
     this.camera.setTarget(new Vector3(this.camTarget.x + jx, this.camTarget.y + jy, 0));
   }
 
+  /** Where a fighter's head is on the page in CSS pixels (for on-stage prompts), or null when the fighter is off the stage. */
+  fighterScreen(f: Fighter): { x: number; y: number; scale: number } | null {
+    const canvas = this.engine.getRenderingCanvas();
+    if (!canvas || this.offstage.has(f.id) || f.action === ACT.DEAD) return null;
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const head = (f.y + ((CHARACTERS[f.char]?.height ?? 110) * f.scale * FX) / 100) * S;
+    const foot = f.y * S;
+    const top = Vector3.Project(new Vector3(f.x * S, head, 0), Matrix.IdentityReadOnly, m, vp);
+    const bottom = Vector3.Project(new Vector3(f.x * S, foot, 0), Matrix.IdentityReadOnly, m, vp);
+    const k = canvas.clientWidth / w;
+    return { x: top.x * k, y: top.y * k, scale: Math.abs(bottom.y - top.y) * k };
+  }
+
   /** After a render: counts a living fighter whose body is outside the view (the playtest wants none). */
   private checkFraming(state: GameState): void {
     if (this.shot || this.camCut) return;

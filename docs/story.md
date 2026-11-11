@@ -61,6 +61,26 @@ Season end: *"Dose of Destruction will return. The card is yours now."*
 Fighters Season 1 used (none of them is a Season 2 walk-on): exit-punk, kaelen, break, dj-wont-read,
 shutup-bot, small-weather, blog-man, evil-blue-bird, got-ur-back, slice, ss-boulder, stratabots, orchestrator.
 
+## The pilot: a stranger's first night (as built)
+
+A player with nothing saved (no `dod-campaign`, `dod-versus` or `dod-pilot` in localStorage) never meets the title or the
+main menu. Tap to play is the walk-on: the Foundry's cold open starts at once with the show's logo over its first shot
+("Season one. The lights come up on City Top."), and Open Mic is the first thing the stranger plays. Skip goes to the
+fight; the small "Menu" link opts out (and sets the `dod-pilot` flag, so the next visit is the usual flow).
+
+- **Kaelen is the house's courtesy.** In the pilot only, he is the slow, readable opponent (`pilot: true` on his slot,
+  `ai/bot.ts` `pilotFight`): he starts the night at 60%, hops up onto a side platform and poses there, then fights
+  with a jab or a tilt now and then, and throws one telegraphed forward smash each time the kid has hurt him. He
+  never defends. The story fits: Kaelen "says hello" ("Hi. Bye.") and is not here to win.
+- **The show teaches, one verb at a time** (`ui/teach.ts`), as button glyphs over Exit Punk's head for the device in
+  use (keyboard, gamepad, touch): Move, Attack, Jump (when Kaelen is up on a platform), Smash (after three hits), Shield
+  (when Kaelen's smash winds up), Up special (when the kid is knocked off the stage). One at a time; each fades once
+  used. No key list, no paragraph.
+- **After the result** the usual outro plays, Open Mic is cleared, Kaelen joins the card, and the main menu opens with
+  Campaign marked "Next episode" (House Heavy).
+- **How to play** is the same prompted fight, in Training, against a dummy Kaelen (who never attacks, so Jump and Shield
+  come on a timer). The key list is "All controls" (a menu item, and a button in Pause).
+
 ## Seasons on the map
 
 A chapter's optional `season` in `content/campaign.json` says which season it airs in (left out, it's 1).

@@ -25,12 +25,20 @@ export class Bot {
   private wait = 0;
   private stage: StageDef = STAGES[0];
   private state: GameState | null = null;
+  /** The pilot's gentle Kaelen (docs/story.md "The pilot"): a first-time player's opponent, see pilotFight. */
+  private readonly pilot: boolean;
+  /** Pilot: 0 hops up to a platform (the Jump lesson), 1 waits there, 2 fights. */
+  private pilotStep = 0;
+  private pilotSince = 0;
+  private pilotSmashAt = -9999;
+  private pilotBase = -1;
 
-  /** level runs 1 (easy) to 9 (hard). */
-  constructor(id: number, level: number, seed: number) {
+  /** level runs 1 (easy) to 9 (hard); pilot makes it the slow, readable opponent of the first fight. */
+  constructor(id: number, level: number, seed: number, pilot = false) {
     this.id = id;
     this.level = Math.max(1, Math.min(9, level));
     this.rng = seed;
+    this.pilot = pilot;
   }
 
   think(s: GameState): number {
@@ -190,7 +198,81 @@ export class Bot {
     return true;
   }
 
+  /**
+   * The pilot's Kaelen: hops onto a platform and waits there (so the Jump prompt has its moment), then fights slowly:
+   * a jab or a tilt now and then, never a combo, and one telegraphed forward smash each time the player has hurt him
+   * (so the Shield prompt has its moment). He never defends and never dodges, so a first-time player wins.
+   */
+  private pilotFight(me: Fighter, t: Fighter, s: GameState): void {
+    const mx = me.x / FX;
+    const dx = (t.x - me.x) / FX;
+    const adx = Math.abs(dx);
+    const side = dx >= 0 ? 100 : -100;
+    if (this.pilotBase < 0) {
+      this.pilotBase = me.percent;
+      this.pilotSince = s.frame;
+    }
+    const age = s.frame - this.pilotSince;
+    const perch = this.stage.platforms.findIndex((p) => !p.solid && Math.abs((p.x1 + p.x2) / 2 - mx) < 480);
+    if (this.pilotStep === 0) {
+      const p = this.stage.platforms[perch];
+      if (!p || age > 420 || me.platform === perch) {
+        this.pilotStep = p && me.platform === perch ? 1 : 2;
+        this.pilotSince = s.frame;
+      } else if (age > 90) {
+        const cx = (p.x1 + p.x2) / 2;
+        if (me.grounded && Math.abs(cx - mx) < 70) {
+          this.press(Math.sign(cx - mx) * 40, 0, BTN.JUMP, 8);
+          this.queue.push({ sx: 0, sy: 0, btn: 0, frames: 18 });
+          this.wait = 40;
+        } else this.steer(Math.sign(cx - mx) * 100);
+        return;
+      } else return;
+    }
+    if (this.pilotStep === 1) {
+      // On the platform: a beat for the Jump prompt, then down (or off) to fight.
+      if (s.frame - this.pilotSince < 210) return;
+      this.pilotStep = 2;
+      this.steer(0, -100);
+      this.queue.push({ sx: 0, sy: -100, btn: 0, frames: 6 });
+      return;
+    }
+    const ch = CHARACTERS[me.char];
+    const reach = (50 + ch.width * 0.5 + (ch.height - 110) * 0.4) * ch.tuning.reach * (me.scale / 100);
+    this.wait = 18 + Math.floor(this.random() * 16);
+    if (me.action === ACT.ATTACK || me.action === ACT.LAND || me.action === ACT.JUMPSQUAT) return;
+    // Standing high (a respawn platform, the top deck) with the player below: walk off the nearer end to come down and fight.
+    if (me.grounded && me.platform >= 0 && this.stage.platforms[me.platform].y > 100 && (me.y - t.y) / FX > 90) {
+      const p = this.stage.platforms[me.platform];
+      this.steer(mx - p.x1 < p.x2 - mx ? -100 : 100);
+      return;
+    }
+    if (adx > reach * 0.9 || Math.abs((t.y - me.y) / FX) > 90) {
+      this.steer(adx > 40 ? side : 0);
+      // Never chase over an edge.
+      const h = this.home(mx);
+      if ((side > 0 && h.x2 - mx < 60) || (side < 0 && mx - h.x1 < 60)) this.steer(0);
+      return;
+    }
+    if (!me.grounded || me.facing !== Math.sign(dx)) {
+      this.steer(side);
+      return;
+    }
+    // A smash, slow and obvious, when the player has hurt him: once every ten seconds at most.
+    if (me.percent >= this.pilotBase + 150 && s.frame - this.pilotSmashAt > 600) {
+      this.pilotSmashAt = s.frame;
+      this.press(side, 0, side > 0 ? BTN.C_RIGHT : BTN.C_LEFT);
+      this.wait = 70;
+      return;
+    }
+    if (this.random() < 0.4) {
+      this.press(side * 0.3, 0, BTN.ATTACK);
+      this.wait = 40;
+    }
+  }
+
   private fight(me: Fighter, t: Fighter): void {
+    if (this.pilot && this.state) return this.pilotFight(me, t, this.state);
     const ch = CHARACTERS[me.char];
     const k = me.scale / 100;
     const mx = me.x / FX;

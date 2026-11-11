@@ -26,6 +26,8 @@ import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
 import { MAX_WORDS } from '../campaign/sceneText.ts';
 import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, saveUnlocks, unlocks } from '../campaign/story.ts';
 import { SCENARIOS } from './scenarios.ts';
+import { suppressFirstVisit } from '../campaign/firstVisit.ts';
+import { PROMPTS, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
@@ -126,6 +128,8 @@ export function installDodPlaytest(game: GameHooks): void {
     isReady: () => currentScreen() !== null && !switching(),
     async start(id, options, t) {
       run?.dispose();
+      // Every other scenario clicks through the title and main menu: only first-visit meets the pilot.
+      suppressFirstVisit(id !== 'first-visit');
       const r = new Run(game, t, options, t.spot);
       run = r;
       try {
@@ -138,6 +142,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'story-cards') await r.storyCards();
         else if (id === 'rotate') await r.rotate();
+        else if (id === 'first-visit') await r.firstVisit();
         else if (id === 'presentation') await r.presentation();
         else if (id === 'roster') await r.roster();
         else if (id === 'specials') await r.specialsRun();
@@ -1234,6 +1239,197 @@ class Run {
    * landscape hides it and play goes on. The run judges the window as it is (390x844 upright, 844x390 on its side) and,
    * started upright, waits for the runner to turn the window to landscape. It asks to be treated as a touch device.
    */
+  /**
+   * First visit (docs/story.md "The pilot"): storage cleared, Tap to play, and the clock runs. The fight must open on Open
+   * Mic with no main menu (`first-visit-no-menu`), the player must have control within 30 s (`secondsToControl`), land a hit
+   * within 45 s (`secondsToFirstHit`) and a KO within 90 s (`secondsToFirstKO`) of the tap. One teaching prompt at most is
+   * on screen (`teach-one`), each fades once its move is used (`teach-gone`), and on a phone they show touch icons
+   * (`teach-device`). On a portrait phone the Rotate prompt is the only screen until the window is turned to landscape
+   * (`first-visit-rotate`), then the same route plays in an 844x390 frame. After the result the main menu shows Campaign as
+   * "Next episode" (`next-episode`). On a touch device the prompted move is pressed on the real on-screen control.
+   */
+  async firstVisit(): Promise<void> {
+    const t = this.t;
+    const KEYS = ['dod-campaign', 'dod-versus', 'dod-pilot', 'dod-unlocks'];
+    const saved = KEYS.map((k) => [k, localStorage.getItem(k)] as const);
+    const wipe = () => KEYS.forEach((k) => localStorage.removeItem(k));
+    const portraitPhone = this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560;
+    this.logViewport(this.phoneScenario());
+    try {
+      wipe();
+      if (portraitPhone) {
+        this.useTap = true;
+        forceTouchUi(true);
+        forceTouchPrompt(true);
+        await this.screen('title', 30000);
+        await this.tapToPlay();
+        // Upright: the Rotate prompt covers everything, and nothing else (no menu) shows through to a tap.
+        await t.until(() => rotateShowing(), 60000, 'the Rotate prompt on the upright phone');
+        const p = document.getElementById('rotate-prompt');
+        const covered = !!p && document.elementFromPoint(innerWidth / 2, innerHeight / 2)?.closest('#rotate-prompt') === p;
+        const r = p?.getBoundingClientRect();
+        if (!covered || !r || r.width < innerWidth - 1 || r.height < innerHeight - 1) t.problem('bug', `the Rotate prompt does not cover the first-visit fight at ${innerWidth}x${innerHeight}`);
+        else t.event('first-visit-rotate', `the Rotate prompt is the only screen at ${innerWidth}x${innerHeight} after Tap to play (screen: ${currentScreen()})`);
+        if (currentScreen() === 'main') t.problem('bug', 'the main menu showed on a first visit');
+        await t.wait(1500);
+        forceTouchPrompt(false);
+        // Turn the phone: the first-visit route again, in a landscape frame. This window's own pilot is dropped.
+        await this.game.quitMatch();
+        wipe();
+        this.useTap = false;
+        forceTouchUi(false);
+        return await this.touchMatchTurned('first-visit');
+      }
+
+      const touch = touchDevice() || this.phoneScenario();
+      if (touch) {
+        this.useTap = true;
+        forceTouchUi(true);
+      }
+      await this.screen('title', 30000);
+      await t.until(() => Boolean(document.getElementById('stage')?.classList.contains('ready')), 15000, 'the canvas to fade in');
+      const logoHeld = !!this.q('#pilot-logo') && getComputedStyle(this.q('#pilot-logo')!).display !== 'none';
+      t.event('first-visit-start', `storage cleared; Tap to play next (pilot backdrop up: ${logoHeld})`);
+      let tries = 0;
+      let control = -1;
+      let firstHit = -1;
+      let firstKo = -1;
+      let sawMain = false;
+      let skipped = false;
+      let t0 = 0;
+      const shown: string[] = [];
+      const gone = new Set<string>();
+      const onTeach = (ev: Event) => {
+        const d = (ev as CustomEvent<{ step: TeachStep; state: string }>).detail;
+        const when = Math.round((performance.now() - t0) / 100) / 10;
+        if (d.state === 'shown') {
+          const el = document.querySelector<HTMLElement>('.teach-prompt');
+          const dev = el?.dataset.device ?? '?';
+          shown.push(d.step);
+          t.event('teach-shown', `${d.step} prompt at ${when}s: ${PROMPTS[d.step].word} (${dev}: ${el?.dataset.glyphs ?? ''})`);
+          if (touch && dev !== 'touch') t.problem('bug', `the ${d.step} prompt shows ${dev} glyphs on a touch device (${el?.dataset.glyphs ?? ''})`);
+          if (touch) void this.touchPress(d.step);
+        } else if (d.state === 'used') {
+          t.event('teach-used', `${d.step} used at ${when}s`);
+          window.setTimeout(() => {
+            if (document.querySelector(`.teach-prompt[data-step="${d.step}"]`)) t.problem('bug', `the ${d.step} prompt is still on screen after the move was used`);
+            else if (!gone.has(d.step)) {
+              gone.add(d.step);
+              t.event('teach-gone', `${d.step} prompt gone after use`);
+            }
+          }, 1200);
+        }
+      };
+      window.addEventListener('dod:teach', onTeach);
+      const stopWatch = this.game.watch((m, events) => {
+        for (const e of events) {
+          if (e.type === 'hit' && e.attacker === m.player && !e.shield && firstHit < 0) firstHit = (performance.now() - t0) / 1000;
+          if (e.type === 'ko' && e.by === m.player && e.victim !== m.player && firstKo < 0) firstKo = (performance.now() - t0) / 1000;
+        }
+      });
+      const poll = window.setInterval(() => {
+        if (currentScreen() === 'main' && t0 > 0 && control < 0) sawMain = true;
+        const n = document.querySelectorAll('.teach-prompt:not(.used):not(.gone)').length;
+        if (n > 1) t.problem('bug', `${n} teaching prompts are on screen at once`);
+        const m = this.game.match();
+        if (control < 0 && this.game.phase() === 'play' && m && m.state.frame > 0 && t0 > 0) {
+          control = (performance.now() - t0) / 1000;
+        }
+      }, 50);
+      try {
+        t0 = performance.now();
+        await this.tapToPlay();
+        // The route: Open Mic's cold open over the arena, no title, no main menu.
+        await t.until(() => sceneShowing() || this.game.phase() === 'play', 40000, "Open Mic's cold open");
+        if (sceneShowing()) {
+          const logo = this.q('#pilot-logo');
+          t.event('first-visit-cold-open', `Open Mic's cold open is playing ${(Math.round(performance.now() - t0) / 1000).toFixed(1)} s after the tap, with the title logo ${logo && !logo.hidden ? 'over it' : 'gone'}, no menu: ${currentScreen()}`);
+          await t.wait(2500);
+          skipped = true;
+          await this.click(() => this.q('#scene-skip'), 'Skip the cold open');
+        }
+        t.progress(0.2);
+        for (let attempt = 0; attempt < 2; attempt++) {
+          tries++;
+          await t.until(() => this.game.phase() === 'play' || currentScreen() === 'results', 60000, 'the fight to open');
+          this.progressNow = () => {
+            const m = this.game.match();
+            return m ? 0.2 + 0.6 * Math.min(1, m.state.frame / 5400) : 0.85;
+          };
+          await this.fight(() => false, 5 * 60 * 1000);
+          const won = await this.results();
+          if (won) break;
+          t.event('first-visit-lost', `the pilot was lost (try ${tries}); retrying`);
+          if (attempt === 0) await this.click(() => this.button('#results-actions', 'Retry'), 'Retry');
+        }
+        const result = this.game.match() ?? this.seen;
+        await this.click(() => this.button('#results-actions', 'Continue') ?? this.button('#results-actions', 'Main menu'), 'Continue');
+        await this.screen('main', 20000);
+        const tag = this.q('.menu-item[data-go="campaign"] .next-tag');
+        if (tag && !tag.hidden && /Next episode/i.test(tag.textContent ?? '')) t.event('next-episode', `the main menu marks Campaign "${tag.textContent}" after the pilot (${this.q('.menu-item[data-go="campaign"] span')?.textContent ?? ''})`);
+        else t.problem('bug', 'after the pilot the main menu does not mark Campaign "Next episode"');
+        void result;
+      } finally {
+        clearInterval(poll);
+        stopWatch();
+        window.removeEventListener('dod:teach', onTeach);
+      }
+      if (sawMain) t.problem('bug', 'the main menu showed between Tap to play and the first fight');
+      else t.event('first-visit-no-menu', 'no title or main menu between Tap to play and the fight');
+      const rep = (name: string, v: number, limit: number) => {
+        if (v < 0) {
+          t.problem('bug', `${name}: never happened`);
+          return;
+        }
+        t.metric(name, Math.round(v * 10) / 10);
+        t.event(name, `${v.toFixed(1)} s after Tap to play${skipped ? ' (cold open skipped at 2.5 s)' : ''}`);
+        if (v > limit) t.problem('bug', `${name} was ${v.toFixed(1)} s, over the ${limit} s limit`);
+      };
+      rep('secondsToControl', control, 30);
+      rep('secondsToFirstHit', firstHit, 45);
+      rep('secondsToFirstKO', firstKo, 90);
+      t.metric('teachPromptsShown', new Set(shown).size);
+      if (!shown.length) t.problem('bug', 'no teaching prompt ever showed in the first fight');
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      for (const [k, v] of saved) {
+        if (v === null) localStorage.removeItem(k);
+        else localStorage.setItem(k, v);
+      }
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+  }
+
+  /** On a touch device: presses the real on-screen control the prompt is about (pointer events, like a finger). */
+  private async touchPress(step: TeachStep): Promise<void> {
+    const root = touchOverlay();
+    if (!root) return;
+    await this.t.wait(400);
+    const fire = (el: Element, type: string, x: number, y: number) =>
+      el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: 77, isPrimary: true, bubbles: true, cancelable: true, clientX: x, clientY: y, buttons: type === 'pointerup' ? 0 : 1 }));
+    if (step === 'move') {
+      const stick = root.querySelector('.touch-stick');
+      if (!stick) return;
+      const r = stick.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      fire(stick, 'pointerdown', cx, cy);
+      fire(stick, 'pointermove', cx + r.width * 0.3, cy);
+      await this.t.wait(500);
+      fire(stick, 'pointerup', cx, cy);
+      return;
+    }
+    const cls = PROMPTS[step].touch;
+    const btn = cls ? root.querySelector(`.touch-btn.${cls}`) : null;
+    if (!btn) return;
+    const r = btn.getBoundingClientRect();
+    fire(btn, 'pointerdown', r.left + r.width / 2, r.top + r.height / 2);
+    await this.t.wait(120);
+    fire(btn, 'pointerup', r.left + r.width / 2, r.top + r.height / 2);
+  }
+
   async rotate(): Promise<void> {
     // On a window that is not phone-shaped (the runner's 1280x720) the run makes its own phone: a framed copy of the game
     // at 390x844 that the run then turns to 844x390 (a real resize and orientation media-query change inside the frame).
