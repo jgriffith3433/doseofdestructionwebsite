@@ -153,7 +153,22 @@ is the first, and his kit is the one skateboard he walked on with: **Board throw
 the floor like a bowling lane), **Skate dash** (side, he rides it straight through whoever is in the way),
 **Ollie** (up, the pop that gets him back to the ledge) and **Kickflip trap** (down, he flips a board onto the
 floor and walks away from it; whoever steps on it eats it). Dry as ever: no one on the show says what the moves
-are called. Everyone else keeps the shared Neutral and Up special until their own are written.
+are called.
+
+The other twelve Season 1 fighters each have their own kit, drawn from their blurb and the show, and no two share
+the same four kinds (neutral / side / up / down): Kaelen (Hi, bye · Gone · Bye · Slip: a flurry, a dash, a straight
+jump, a sidestep counter; gone before the trade lands), Break (Rule one · Hammer fists · House jump · Hold the line:
+the command grab, rule one of the house), DJ Won't Read (Sound wave · Scratch · Drop the bass · Rewind: a thrown
+sound, quick hits, a counter that plays the hit back), Shutup Bot (Mute · Tank charge · Thrusters · Hush: a
+counter, a charge, a command grab; says nothing), Small Weather (Gust · Hailstorm · Front rider · Storm cell: a gust
+projectile and a weather trap), Blog Man (Long headline · Scoop · Stop the presses · No comment: a headline that is
+far too long and slow, a counter), Evil Blue Bird (Peck · Dive · Flap · Egg: pecks, a dive, a glide, an egg trap),
+Got Ur Back (Bear hug · Lean in · Big hop · Got ur back: a hug grab, a shoulder, a protective counter), Slice (Ribbon
+cut · Shred · Slice up · Parry: the fastest flurry and a thin fast cutter), SS Boulder (Hurl rock · Crush · Rock climb
+· Landslide: a slow thrown rock, a grab, a trap), Stratabots (Plate down · Plate stack · Stack up · Plates up: a plate
+trap, a stack of hits, a counter) and the Orchestrator (Baton · Crescendo · Cadenza · Downbeat: a baton counter,
+a crescendo orb, a glide, a downbeat trap). Character select lists them by name with a looping clip. Everyone
+else keeps the shared Neutral and Up special until their own are written.
 
 Routines through a broadcast night: walk-ons wait off-camera until their card; the champion stays on between defenses;
 the host reads the sheet; the announcer only speaks once the match is live. Reaction to the player: opponents fight;

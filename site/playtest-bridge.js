@@ -277,6 +277,16 @@
       ]
     },
     {
+      "id": "select-specials",
+      "title": "Character select shows how each Season 1 fighter plays: the hovered or tapped fighter's four specials by name and a looping clip, fitting the screen (phone: 390x844 turned to landscape, touch)",
+      "description": "Opens Training's select from the main menu and taps each of the 13 Season 1 fighters in turn (option fighter: one): the preview lists the four specials (neutral, side, up, down) with the names the sim plays (select-specials), the clip and the four rows sit inside the screen and the preview with no text cut off (select-fit), the clip preview moves (select-clip), and tapping the down special pins it. Played through taps (a phone: touch pointer events; 390x844 is turned to 844x390 like specials). Options: fighter, input (touch forces the touch UI), at (phone). Metric selectFits.",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "roster",
       "title": "Every fighter spawns in training and does each move once (starts matches directly)",
       "seconds": 480,

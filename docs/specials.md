@@ -39,3 +39,29 @@ cloned and hashed with the rest, so rollback and the desync hash hold). The rend
 (`render/renderer.ts` `drawShots`): a spinning board, a trap on the floor, an orb; dashes leave a streak, a counter
 flashes. `src/game/test/specials.test.ts` has a test and a rollback replay for each archetype; the `specials`
 playtest scenario plays Exit Punk's kit with the keyboard or the touch overlay.
+
+## Season 1 kits, hitbox fit and character select
+
+The 13 Season 1 fighters (`exit-punk`, `kaelen`, `break`, `dj-wont-read`, `shutup-bot`, `small-weather`, `blog-man`,
+`evil-blue-bird`, `got-ur-back`, `slice`, `ss-boulder`, `stratabots`, `orchestrator`) each have their own `specials`, and no
+two have the same four archetypes (`roster.test.ts` checks it; the `roster` playtest logs each `kit` and
+`kits-distinct`). Names are in `docs/world-bible.md`.
+
+**`hitboxes`** in a fighter's entry (written by `node tools/fit-hitboxes.mjs`, read by `applyHitboxFit` in
+`fighterDefs.ts`): for each of fsmash, usmash, dsmash, nspecial, sspecial, upb and dspecial, one `{ x, y }` per hitbox in
+the move's order (a projectile's one entry is where it spawns). They replace the authored offsets, in world units for
+that fighter. The tool reads the move's clip sheet (`anims.json`: frame size and feet anchor), the sheet frames that play
+during the move's active frames (the same mapping as `render/anims.ts` `clipFrame`), takes the furthest opaque pixels
+in the direction the box points, and sits the box on them. Counters and traps have nothing drawn to hit with and are
+skipped. A box "misses" when no opaque pixel of the active frames is inside it; the tool reports 0 misses or exits 1.
+`--check` writes nothing and exits 1 on a miss or a stale fit; run it after a clip changes. It needs ffmpeg and the
+sheets (in git when a checkout is sparse). The art stands 1.18x the hurtbox, so drawn fists are higher and nearer than
+the old shared boxes assumed: that is what the fit corrects.
+
+**Character select** (`ui/specialsPreview.ts`): the hovered, focused or tapped fighter's four specials by name with
+their kind, and a looping clip of one of them on a canvas (its own sheet, or the stand-in the game plays); tapping a row
+pins it, otherwise the preview walks through the four. On a phone on its side (844x390) the preview is a column beside
+the tiles and nothing scrolls it away. The `select-specials` playtest taps all 13 and checks names, fit and motion.
+
+**Bot** (`ai/bot.ts`): uses its kit by archetype: a projectile at range down the lane, a trap on the way in, a dash to
+close distance, a counter when the opponent commits to a swing, a grab or flurry up close.

@@ -503,6 +503,31 @@ function withSpecials(moves: Move[], specials: SpecialsSpec | undefined, height:
   return out;
 }
 
+/**
+ * Where a move's hitboxes sit, fitted to the drawn limb or effect by tools/fit-hitboxes.mjs: for each move key
+ * (fsmash, usmash, dsmash, nspecial, sspecial, upb, dspecial) one `{ x, y }` per hitbox in the move's order
+ * (a projectile's one entry is where the shot spawns). World units for this fighter, final: they replace the
+ * authored offsets, so reach and size tuning are already in them.
+ */
+export type HitboxFit = Record<string, { x: number; y: number }[]>;
+
+/** The moves tools/fit-hitboxes.mjs fits and the keys it writes. */
+export const FITTED_MOVES = ['fsmash', 'usmash', 'dsmash', 'nspecial', 'sspecial', 'upb', 'dspecial'] as const;
+
+/** Puts fitted hitbox offsets onto a moveset (a missing or short entry leaves the authored box alone). */
+export function applyHitboxFit(moves: Move[], fit: HitboxFit | undefined): Move[] {
+  if (!fit) return moves;
+  return moves.map((m, i) => {
+    const at = fit[MOVE_KEYS[i]];
+    if (!at?.length) return m;
+    const boxes = m.hits.flatMap((w) => w.boxes);
+    let k = 0;
+    const hits = m.hits.map((w) => ({ ...w, boxes: w.boxes.map((b) => { const o = at[k++]; return o ? { ...b, x: Math.round(o.x), y: Math.round(o.y) } : b; }) }));
+    const shot = m.shot && boxes.length === 0 && at[0] ? { ...m.shot, x: Math.round(at[0].x), y: Math.round(at[0].y) } : m.shot;
+    return { ...m, hits, shot };
+  });
+}
+
 export interface Spec {
   /** Hurtbox size in world units. */
   w: number;
@@ -521,6 +546,8 @@ export interface Spec {
   reach?: number;
   /** Own neutral / side / up / down specials. Without it the fighter keeps the shared Neutral and Up special. */
   specials?: SpecialsSpec;
+  /** Fitted hitbox offsets (tools/fit-hitboxes.mjs). */
+  hitboxes?: HitboxFit;
 }
 
 // Specs are written in world units for readability. Everything the sim reads
@@ -560,7 +587,7 @@ export function fighter(id: string, name: string, role: string, blurb: string, p
     airJumpVel: jump(p.hop * 0.85),
     airJumps: p.jumps,
     tuning,
-    moves: withSpecials(buildMoves(p.h, tuning), p.specials, p.h, tuning),
+    moves: applyHitboxFit(withSpecials(buildMoves(p.h, tuning), p.specials, p.h, tuning), p.hitboxes),
     specials: !!p.specials,
   };
 }
