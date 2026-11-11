@@ -23,7 +23,7 @@ import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
 import { activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
-import { KILL_CUE, hitTier, impactFor, killPunch, killTimeScale, screenShake, type HitTier } from '../hitFeel.ts';
+import { KILL_CUE, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, type HitTier, type TrailKind } from '../hitFeel.ts';
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { cameraFighters, followCamera, frameGoal, punchGoal, type CamBounds, type CamState } from './cameraRig.ts';
 import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
@@ -70,7 +70,13 @@ interface FighterView {
   /** The fighter's silhouette, shown only where stage art in front covers them. */
   ghost: Mesh | null;
   ghostMat: StandardMaterial | null;
+  /** A thin player-colour silhouette just behind the body, so a fighter separates from a busy stage. */
+  rim: Mesh;
+  rimMat: StandardMaterial;
 }
+
+/** One launch's smoke trail, kept for the playtest: what it was and how many puffs it threw. */
+export interface TrailRecord { seq: number; victim: number; tier: HitTier; kb: number; kind: TrailKind; ko: boolean; puffs: number }
 
 interface Spark {
   mesh: Mesh;
@@ -99,6 +105,14 @@ export class Renderer {
   /** Finished spark meshes, reused so a KO burst doesn't build geometry mid-fight. */
   private sparkPool: Mesh[] = [];
   private sparkMat: StandardMaterial;
+  /** Launch-trail looks: grey smoke (medium), white smoke (heavy), a coloured streak (a hit that will KO). */
+  private smokeMats!: { grey: StandardMaterial; white: StandardMaterial; streak: StandardMaterial };
+  /** The last hit on each victim (knockback and tier), read when its launch begins. */
+  private lastHits = new Map<number, { kb: number; tier: HitTier }>();
+  /** Launches in hit-stun that throw a trail until they recover (victim id -> trail). */
+  private trails = new Map<number, TrailRecord>();
+  private trailLog: TrailRecord[] = [];
+  private trailSeq = 0;
   /** Projectile and trap sprites, one plane per shot in play (index = position in state.shots), and their looks. */
   private shotMeshes: Mesh[] = [];
   private shotMats: StandardMaterial[] | null = null;
@@ -183,7 +197,18 @@ export class Renderer {
     this.sparkMat.alphaMode = Constants.ALPHA_ADD;
     this.sparkMat.disableDepthWrite = true;
     // The spark/KO pool exists from the start, so the warm-up (which can finish under the match wipe) never counts an empty one.
-    for (let i = 0; i < 64; i++) {
+    // Smoke for the launch trail: alpha-blended (grey and white) and additive (the KO streak), sharing the soft disc.
+    const smoke = (name: string, hex: string, add: boolean): StandardMaterial => {
+      const m = this.flatMaterial(name, hex);
+      m.diffuseTexture = soft;
+      m.opacityTexture = soft;
+      m.emissiveTexture = soft;
+      m.disableDepthWrite = true;
+      if (add) m.alphaMode = Constants.ALPHA_ADD;
+      return m;
+    };
+    this.smokeMats = { grey: smoke('smoke-grey', '#9a9a9e', false), white: smoke('smoke-white', '#ffffff', false), streak: smoke('smoke-streak', '#ff4a1f', true) };
+    for (let i = 0; i < 96; i++) {
       const m = this.makeSpark();
       m.setEnabled(false);
       this.sparkPool.push(m);
@@ -291,14 +316,15 @@ export class Renderer {
   }
 
   /** One spark plane from the pool (or a new one), soft-glowed and kept out of the glow layer. */
-  private takeSpark(): Mesh {
+  private takeSpark(mat: StandardMaterial = this.sparkMat): Mesh {
     const reused = this.sparkPool.pop();
     if (reused) {
-      reused.material = this.sparkMat;
+      reused.material = mat;
       reused.setEnabled(true);
       return reused;
     }
     const mesh = this.makeSpark();
+    mesh.material = mat;
     mesh.setEnabled(true);
     return mesh;
   }
@@ -550,8 +576,24 @@ export class Renderer {
         root.onDisposeObservable.add(() => ghostMat!.dispose());
       }
 
+      // The rim: the same sprite in the player's colour, a little larger, one step behind the body.
+      const rimMat = new StandardMaterial(`rim-${f.id}`, this.scene);
+      rimMat.disableLighting = true;
+      rimMat.backFaceCulling = false;
+      rimMat.diffuseColor = Color3.Black();
+      rimMat.emissiveColor = Color3.FromHexString(color);
+      rimMat.useAlphaFromDiffuseTexture = true;
+      rimMat.alpha = 0.9;
+      const rim = CreatePlane(`rim-${f.id}`, { size: 1 }, this.scene);
+      rim.material = rimMat;
+      rim.parent = pose;
+      rim.position.z = body.position.z + 0.012;
+      rim.isPickable = false;
+      this.glow.addExcludedMesh(rim);
+      root.onDisposeObservable.add(() => rimMat.dispose());
+
       this.views.push({
-        root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, ghost, ghostMat,
+        root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, ghost, ghostMat, rim, rimMat,
       });
     }
     this.fighterKey = key;
@@ -626,11 +668,19 @@ export class Renderer {
     this.burst(this.camTarget.x, this.camTarget.y, 64, 0);
     // The burst took the pool's meshes: refill it now, so a match that starts while the warm-up is still
     // running (the VS card hands over early) never finds the pool empty.
-    while (this.sparkPool.length < 64) {
+    while (this.sparkPool.length < 96) {
       const m = this.makeSpark();
       m.setEnabled(false);
       this.sparkPool.push(m);
     }
+    // The launch trail's three looks are shown once with the other spark materials, so the first trail never compiles a shader mid-fight.
+    for (const mat of Object.values(this.smokeMats)) {
+      const m = this.takeSpark(mat);
+      m.position.set(this.camTarget.x, this.camTarget.y, -0.4);
+      m.scaling.set(0.2, 0.2, 1);
+      this.sparks.push({ mesh: m, vx: 0, vy: 0, life: 2, max: 2, size: 0.2 });
+    }
+    await breathe();
     // One heavy step per animation frame (each compiles shaders synchronously, seconds on a software renderer),
     // so the match wipe and Ready countdown that run alongside keep painting.
     await breathe();
@@ -755,6 +805,7 @@ export class Renderer {
         if (shield) {
           this.burst(e.x * S, e.y * S, 6, 0.06);
         } else if (e.type === 'hit') {
+          this.lastHits.set(e.victim, { kb: e.kb, tier: hitTier(e.dmg) });
           this.impact(e);
         } else {
           this.burst(e.x * S, e.y * S, 8 + Math.min(16, e.kb >> 3), 0.09 + e.kb * 0.0006);
@@ -774,6 +825,7 @@ export class Renderer {
       } else if (e.type === 'launch') {
         // The launch that will carry the victim out of the blast zone: the kill cue.
         if (e.ko && !this.shot) this.killCue(e.x * S, e.y * S + 0.5);
+        this.startTrail(e.victim, e.ko);
       } else if (e.type === 'ko') {
         const b = this.stage.blast;
         const x = Math.max(b.left + 40, Math.min(b.right - 40, e.x / FX)) * W;
@@ -917,6 +969,61 @@ export class Renderer {
     }
   }
 
+  /** A launch begins: if the hit was medium or heavy (or will KO) the victim throws a smoke trail for the length of its hit-stun. */
+  private startTrail(victim: number, ko: boolean): void {
+    const hit = this.lastHits.get(victim);
+    if (!hit) return;
+    const look = trailFor(hit.tier, hit.kb, ko);
+    const rec: TrailRecord = { seq: ++this.trailSeq, victim, tier: hit.tier, kb: hit.kb, kind: look.kind, ko, puffs: 0 };
+    this.trailLog.push(rec);
+    if (this.trailLog.length > 60) this.trailLog.shift();
+    if (look.kind === 'none') this.trails.delete(victim);
+    else this.trails.set(victim, rec);
+  }
+
+  /** Every frame: a fighter still in hit-stop-free hit-stun from a launch leaves puffs behind it (more and bigger with knockback). */
+  private emitTrails(state: GameState): void {
+    for (const [id, rec] of this.trails) {
+      const f = state.fighters[id];
+      if (!f || f.action !== ACT.HITSTUN) {
+        if (!f || f.hitlag <= 0) this.trails.delete(id);
+        continue;
+      }
+      if (f.hitlag > 0) continue;
+      const look = trailFor(rec.tier, rec.kb, rec.ko);
+      if (look.every === 0 || f.frame % look.every !== 0) continue;
+      const n = Math.max(1, Math.ceil(look.puffs * particleShare(this.gfx.quality)));
+      const ang = Math.atan2(f.kby, f.kbx);
+      const h = CHARACTERS[f.char].height * W * (f.scale / 100) * 0.5;
+      const cx = f.x * S;
+      const cy = f.y * S + h;
+      for (let i = 0; i < n; i++) {
+        const j = (Math.random() - 0.5) * h * 0.5;
+        if (look.kind === 'streak') {
+          const mesh = this.takeSpark(this.smokeMats.streak);
+          mesh.position.set(cx, cy + j * 0.4, -0.38);
+          mesh.rotation.z = ang;
+          this.sparks.push({ mesh, vx: 0, vy: 0, life: 10, max: 10, size: look.size * 1.1, stretch: 3.4, grow: 0 });
+        } else {
+          const mesh = this.takeSpark(look.kind === 'white' ? this.smokeMats.white : this.smokeMats.grey);
+          mesh.position.set(cx + j * Math.cos(ang + 1.57), cy + j * Math.sin(ang + 1.57), -0.36);
+          mesh.rotation.z = Math.random() * 6.28;
+          const life = 22 + Math.floor(Math.random() * 12);
+          // The puff stays where it was dropped (the fighter moves on, so it lines up behind it) and billows as it thins.
+          this.sparks.push({ mesh, vx: 0, vy: 0.003, life, max: life, size: look.size * (0.8 + Math.random() * 0.5), grow: 1.4 });
+        }
+        rec.puffs++;
+      }
+    }
+  }
+
+  /** The launch trails so far (and which are still burning), for the playtest. */
+  trailStats(reset = false) {
+    const out = { log: this.trailLog.map((r) => ({ ...r })), active: this.trails.size, puffs: this.trailLog.reduce((n, r) => n + r.puffs, 0) };
+    if (reset) this.trailLog = [];
+    return out;
+  }
+
   /** A landed hit: sparks, impact sprites and shake that grow with the damage (hitFeel.ts). Heavy hits add a ring and a flash. */
   private impact(e: Extract<SimEvent, { type: 'hit' }>): void {
     const tier = hitTier(e.dmg);
@@ -1027,8 +1134,9 @@ export class Renderer {
       this.rig.setEnabled(true);
       this.rig.position.set(p.x * S, p.y * S, 0);
     } else this.rig?.setEnabled(false);
-    for (const f of state.fighters) this.drawFighter(f, this.views[f.id]);
+    for (const f of state.fighters) this.drawFighter(f, this.views[f.id], state);
     this.drawShots(state);
+    this.emitTrails(state);
     this.updateSparks();
     this.fx?.setClock(state);
     this.fx?.update();
@@ -1046,7 +1154,7 @@ export class Renderer {
     }
   }
 
-  private drawFighter(f: Fighter, v: FighterView | undefined): void {
+  private drawFighter(f: Fighter, v: FighterView | undefined, state: GameState): void {
     if (!v) return;
     const ch = CHARACTERS[f.char];
     const dead = f.action === ACT.DEAD;
@@ -1122,6 +1230,17 @@ export class Renderer {
       v.ghost.position.y = v.body.position.y;
       v.ghost.scaling.copyFrom(v.body.scaling);
       if (v.ghostMat.diffuseTexture !== v.mat.diffuseTexture) v.ghostMat.diffuseTexture = v.mat.diffuseTexture;
+    }
+
+    // The rim follows the body, a touch larger. On Low it is thinner and only drawn in one-on-ones (two fighters), which is cheaper.
+    const rimOn = this.gfx.quality === 'high' || state.fighters.length <= 2;
+    v.rim.setEnabled(rimOn);
+    if (rimOn) {
+      const grow = this.gfx.quality === 'high' ? 1.07 : 1.045;
+      v.rim.position.x = v.body.position.x;
+      v.rim.position.y = v.body.position.y;
+      v.rim.scaling.set(v.body.scaling.x * grow, v.body.scaling.y * grow, 1);
+      if (v.rimMat.diffuseTexture !== v.mat.diffuseTexture) v.rimMat.diffuseTexture = v.mat.diffuseTexture;
     }
 
     const flicker = f.intangible > 0 && f.action !== ACT.LEDGE ? (f.frame & 4 ? 0.45 : 0.8) : 1;
@@ -1280,6 +1399,30 @@ export class Renderer {
     const bottom = Vector3.Project(new Vector3(f.x * S, foot, 0), Matrix.IdentityReadOnly, m, vp);
     const k = canvas.clientWidth / w;
     return { x: top.x * k, y: top.y * k, scale: Math.abs(bottom.y - top.y) * k };
+  }
+
+  /**
+   * Where a living fighter's middle is on the page (CSS px), whether it is out of the view (or cut off by its edge), and how far
+   * it is from the nearest blast line (world units). Null while it is away, dead or in a story scene.
+   */
+  fighterEdge(f: Fighter): { x: number; y: number; off: boolean; gap: number } | null {
+    const canvas = this.engine.getRenderingCanvas();
+    if (!canvas || this.shot || this.camCut || this.offstage.has(f.id) || f.action === ACT.DEAD) return null;
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const mid = f.y * S + (CHARACTERS[f.char].height * W * (f.scale / 100)) / 2;
+    const p = Vector3.Project(new Vector3(f.x * S, mid, 0), Matrix.IdentityReadOnly, m, vp);
+    const k = canvas.clientWidth / w;
+    const cw = w * k;
+    const ch = h * k;
+    const x = p.x * k;
+    const y = p.y * k;
+    const edge = 20;
+    const b = this.stage.blast;
+    const gap = Math.min(f.x / FX - b.left, b.right - f.x / FX, b.top - f.y / FX, f.y / FX - b.bottom);
+    return { x, y, off: x < edge || x > cw - edge || y < edge || y > ch - edge, gap: Math.max(0, gap) };
   }
 
   /** After a render: counts a living fighter whose body is outside the view (the playtest wants none). */

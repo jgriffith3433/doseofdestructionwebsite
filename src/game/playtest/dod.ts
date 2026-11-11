@@ -60,6 +60,8 @@ export interface GameHooks {
   /** Renderer particle and warm-up diagnostics. */
   /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
   camFxStats?(reset?: boolean): { cameraJumps: number; framingMisses: number; killCues: number; slowFpsMin: number; killActive: boolean; lastCue: { zoom: boolean; slow: boolean; whistle: boolean; shake: number; punch: number } | null };
+  trailStats?(reset?: boolean): { log: { seq: number; victim: number; tier: HitTier; kb: number; kind: 'none' | 'grey' | 'white' | 'streak'; ko: boolean; puffs: number }[]; active: number; puffs: number };
+  markerStats?(): { shown: number; frames: number; unclear: number; last: { id: number; size: number; danger: boolean; clear: boolean; rect: { l: number; t: number; r: number; b: number } } | null; events: { id: number; size: number; danger: boolean }[]; rects: { id: number; rect: { l: number; t: number; r: number; b: number }; danger: boolean }[] };
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
@@ -2962,7 +2964,53 @@ class Run {
     const lastHit = new Map<number, { ko: boolean; frame: number }>();
     const cuePending = new Map<number, number>();
     const pending: { victim: number; tier: HitTier; lag: number; dmg: number; frozen: number; fx: string }[] = [];
+    // Launch trails and edge markers: one event per launch (trail kind and puffs) and per fighter that goes off screen.
+    let trailSeq = 0;
+    let markerSeen = 0;
+    let markerProblems = 0;
+    const touchUi = this.isPhone() || touchDevice() || this.options.input === 'touch';
+    type R4 = { l: number; t: number; r: number; b: number };
+    const overlap = (a: R4, b: R4) => a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
+    const sampleScreen = () => {
+      const ms = this.game.markerStats?.();
+      if (!ms) return;
+      if (ms.shown > markerSeen) {
+        for (const e of ms.events.slice(-(ms.shown - markerSeen))) {
+          t.event('marker', `fighter ${e.id} is off screen: edge marker with their portrait and an arrow, ${e.size}px${e.danger ? ', red (near the blast line)' : ''}`);
+        }
+        markerSeen = ms.shown;
+      }
+      // Safe area and touch controls: every bubble stays inside the window (minus the notch insets) and off the buttons.
+      const blockers = [...document.querySelectorAll('.touch-stick, .touch-buttons, .touch-pause, .hud-card')].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0);
+      for (const mk of ms.rects) {
+        const r = mk.rect;
+        const hit = blockers.find((b) => overlap(r, { l: b.left, t: b.top, r: b.right, b: b.bottom }));
+        if (r.l < 0 || r.t < 0 || r.r > innerWidth || r.b > innerHeight || hit) {
+          markerProblems++;
+          if (markerProblems <= 3) t.problem('bug', `an edge marker (${Math.round(r.l)},${Math.round(r.t)} to ${Math.round(r.r)},${Math.round(r.b)}) ${hit ? 'sits under a control or damage card' : 'leaves the window'}${touchUi ? ' on the phone layout' : ''}`);
+        }
+      }
+      // Damage numbers: inside the window and clear of the touch buttons.
+      for (const el of document.querySelectorAll('.hud-pct')) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0) continue;
+        const under = [...document.querySelectorAll('.touch-stick, .touch-buttons, .touch-pause')].some((b) => {
+          const q = b.getBoundingClientRect();
+          return q.width > 0 && overlap({ l: r.left, t: r.top, r: r.right, b: r.bottom }, { l: q.left, t: q.top, r: q.right, b: q.bottom });
+        });
+        if ((r.left < 0 || r.right > innerWidth || r.top < 0 || r.bottom > innerHeight || under) && !this.checked.has('hud-pct-bad')) {
+          this.checked.add('hud-pct-bad');
+          t.problem('bug', `a damage number (${Math.round(r.left)},${Math.round(r.top)} to ${Math.round(r.right)},${Math.round(r.bottom)}) ${under ? 'sits under a touch button' : 'leaves the window'}`);
+        }
+      }
+    };
     const unwatch = this.game.watch((m, events) => {
+      sampleScreen();
+      for (const rec of this.game.trailStats?.()?.log ?? []) {
+        if (rec.seq <= trailSeq) continue;
+        trailSeq = rec.seq;
+        t.event('trail', rec.kind === 'none' ? `launch of fighter ${rec.victim} (${rec.tier} hit, knockback ${rec.kb}): light hit, no smoke trail` : `launch of fighter ${rec.victim} (${rec.tier} hit, knockback ${rec.kb}): ${rec.kind === 'streak' ? 'coloured KO streak' : `${rec.kind} smoke trail`} behind them for the hit-stun`);
+      }
       for (const p of pending.slice()) {
         if (m.state.fighters[p.victim].hitlag > 0) p.frozen++;
         else {
@@ -3036,6 +3084,47 @@ class Run {
       // Fight until a light and a heavy hit were both seen (and counted), or 75 s of game time.
       const ended = await this.fight(() => (!!seen.light && !!seen.heavy) || (m0()?.state.frame ?? 0) > 75 * 60, 4 * 60 * 1000);
       if (ended === 'over') t.problem('warning', 'the match ended before a light and a heavy hit were both seen');
+      // Launch trails: a heavy launch left smoke (more puffs with more knockback), a light hit none.
+      const tlog = this.game.trailStats?.()?.log ?? [];
+      const heavyTrails = tlog.filter((r) => r.tier === 'heavy' && r.kind !== 'none');
+      const lightTrails = tlog.filter((r) => r.tier === 'light' && !r.ko);
+      t.metric('trailLaunches', tlog.length);
+      t.metric('trailPuffsMax', Math.max(0, ...tlog.map((r) => r.puffs)));
+      if (!heavyTrails.length) t.problem('warning', 'no heavy launch landed, so the smoke trail could not be checked');
+      else if (heavyTrails.every((r) => r.puffs === 0)) t.problem('bug', 'a heavy launch threw no smoke puffs');
+      else t.event('trail-heavy', `${heavyTrails.length} heavy launch(es) threw white smoke (most puffs: ${Math.max(...heavyTrails.map((r) => r.puffs))})`);
+      if (lightTrails.some((r) => r.puffs > 0)) t.problem('bug', 'a light hit threw a smoke trail');
+      else if (lightTrails.length) t.event('trail-light', `${lightTrails.length} light hit(s) launched with no smoke trail`);
+      // Damage numbers: white at 0%, red past 120%, and they shake when hit.
+      const pcts = [...document.querySelectorAll<HTMLElement>('.hud-pct')];
+      for (const el of pcts) {
+        if (el.dataset.hits) t.event('damage-shake', `a damage number shook on ${el.dataset.hits} hit(s)${el.dataset.pop === '1' ? ' and popped on a heavy one' : ''}`);
+      }
+      t.event('damage-color', `damage numbers now: ${pcts.map((e) => `${e.textContent} ${e.style.color}`).join(' | ')}`);
+      for (const el of pcts) {
+        const v = parseFloat(el.textContent ?? '');
+        const m = /rgb\((\d+), (\d+), (\d+)\)/.exec(el.style.color);
+        if (!m || Number.isNaN(v)) continue;
+        const [r, g, b] = [Number(m[1]), Number(m[2]), Number(m[3])];
+        if (v === 0 && (r < 250 || g < 250 || b < 250)) t.problem('bug', `a damage number at 0% is not white (${el.style.color})`);
+        if (v > 120 && !(r > 150 && g < 70 && b < 70)) t.problem('bug', `a damage number at ${v}% is not red (${el.style.color})`);
+      }
+      // Setup shortcut when nobody was knocked out of view in the fight: the CPU is put by the stage's side blast line (named, not a
+      // hit), so the camera's edge shows the marker. The bubble must show a portrait and keep inside the window.
+      if (!this.game.markerStats?.()?.shown && m0()) {
+        const mm = m0()!;
+        const foe = mm.state.fighters.find((f) => f.id !== mm.player);
+        const b = STAGES[mm.state.stage].blast;
+        if (foe) {
+          foe.x = (b.right - 20) * FX;
+          foe.y = Math.max(b.bottom + 200, foe.y / FX) * FX;
+          foe.vx = foe.vy = foe.kbx = foe.kby = 0;
+          t.event('marker-setup', `setup shortcut: fighter ${foe.id} placed 20 units inside the right blast line`);
+          await t.wait(900);
+        }
+      }
+      if (!this.game.markerStats?.()?.shown) t.problem('warning', 'no fighter went off screen, so no edge marker was seen (the kill cue usually shows one)');
+      else t.metric('markersShown', this.game.markerStats!()!.shown);
       const stats = this.game.hitFxStats?.();
       t.metric('shakeMaxOn', Number((stats?.shakeMax ?? 0).toFixed(3)));
       for (const k of ['light', 'medium', 'heavy'] as const) if (seen[k]) t.metric(`hitStop${k[0].toUpperCase()}${k.slice(1)}Frames`, seen[k]!.frozen + 1);
