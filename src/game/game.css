@@ -726,7 +726,7 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   font-family: Oswald, sans-serif;
   font-size: 22px;
   color: var(--gold);
-  background: rgba(16, 14, 12, 0.85);
+  background: radial-gradient(ellipse at 50% 45%, #8a3010 0%, #3a1608 45%, #100e0c 80%) #1c0d06; /* brand, never a black frame */
   z-index: 30;
 }
 
@@ -757,7 +757,7 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   color: #0c0a09;
 }
 .wipe i b span { color: var(--gold); text-shadow: 0 3px 0 #5a2410; }
-.wipe i:first-child { background: #0c0a09; }
+.wipe i:first-child { background: #1c0d06; } /* brand dark, not pure black */
 .wipe i:last-child { background: var(--hot); border-left: 6px solid var(--gold); }
 /* If the cover has to stay up for a while it says why, rather than read as an empty orange frame. */
 .wipe.in.slow::after {
