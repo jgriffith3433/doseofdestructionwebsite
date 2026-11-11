@@ -1798,6 +1798,7 @@ installDodPlaytest({
   trailStats: (reset) => renderer.trailStats(reset),
   markerStats: () => ({ ...markerLog, rects: markerRects() }),
   gfxStats: () => renderer.gfxStats(),
+  postStats: () => renderer.postStats(),
   lookStats: () => renderer.lookStats(),
   aliveStats: () => renderer.aliveStats(),
   musicBedStats: () => audio.bedStats(),
