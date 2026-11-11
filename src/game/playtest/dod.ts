@@ -1186,7 +1186,52 @@ class Run {
       voices.push(d);
       t.event(`voice-${d.kind}`, `${d.who}: "${d.text}" (${d.id})`);
     };
+    // Live-show mix logs: take ids (no back-to-back repeats), music calm/intense, crowd, duck under voice.
+    const takeLog: { id: string; takeId: string }[] = [];
+    const lastTakeById = new Map<string, string>();
+    let takeRepeats = 0;
+    const onTake = (e: Event) => {
+      const d = (e as CustomEvent).detail as { id: string; takeId: string; file: string; rate: number };
+      takeLog.push({ id: d.id, takeId: d.takeId });
+      const prev = lastTakeById.get(d.id);
+      if (prev && prev === d.takeId) {
+        takeRepeats++;
+        t.problem('bug', `sound take ${d.takeId} played twice in a row for ${d.id}`);
+      }
+      lastTakeById.set(d.id, d.takeId);
+      if (/^(hit-|swing-|jump|land|dodge)/.test(d.id)) {
+        t.event('sound-take', `${d.id} → ${d.takeId} (rate ${d.rate.toFixed(3)})`);
+      }
+    };
+    let sawIntense = false;
+    let roarCount = 0;
+    let duckDown = 0;
+    let duckUp = 0;
+    const onMusic = (e: Event) => {
+      const d = (e as CustomEvent).detail as { state: string; stageId: string | null };
+      t.event(d.state === 'intense' ? 'music-intense' : 'music-calm', `${d.stageId ?? '?'}: ${d.state}`);
+      if (d.state === 'intense') sawIntense = true;
+    };
+    const onCrowd = (e: Event) => {
+      const d = (e as CustomEvent).detail as { kind: string; takeId: string };
+      t.event(`crowd-${d.kind}`, d.takeId);
+      if (d.kind === 'roar') roarCount++;
+    };
+    const onDuck = (e: Event) => {
+      const d = (e as CustomEvent).detail as { on: boolean; db: number; restoreMs: number };
+      if (d.on) {
+        duckDown++;
+        t.event('music-duck', `down ${d.db} dB`);
+      } else {
+        duckUp++;
+        t.event('music-unduck', `restore ${d.restoreMs} ms`);
+      }
+    };
     window.addEventListener('dod:fighter-voice', onVoice);
+    window.addEventListener('dod:sound-take', onTake);
+    window.addEventListener('dod:music-state', onMusic);
+    window.addEventListener('dod:crowd', onCrowd);
+    window.addEventListener('dod:music-duck', onDuck);
     try {
       await this.toMainMenu();
       t.progress(0.05);
@@ -1208,10 +1253,23 @@ class Run {
       await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
       await this.screen('main');
       t.metric('voiceEvents', voices.length);
+      t.metric('soundTakes', takeLog.length);
+      t.metric('soundTakeRepeats', takeRepeats);
+      t.metric('crowdRoars', roarCount);
+      t.metric('musicDucks', duckDown);
+      if (!sawIntense) t.problem('bug', 'music never lifted to intense (last stock or ≥100%)');
+      if (roarCount < 1) t.problem('bug', 'no crowd roar logged on a KO');
+      if (duckDown < 1) t.problem('bug', 'music never ducked under a voice line');
+      if (duckUp < 1) t.problem('bug', 'music never restored after a voice duck');
+      if (takeLog.length < 8) t.problem('warning', `only ${takeLog.length} sound takes logged in the match`);
       t.progress(1);
       t.finish(won ? 'won' : 'lost');
     } finally {
       window.removeEventListener('dod:fighter-voice', onVoice);
+      window.removeEventListener('dod:sound-take', onTake);
+      window.removeEventListener('dod:music-state', onMusic);
+      window.removeEventListener('dod:crowd', onCrowd);
+      window.removeEventListener('dod:music-duck', onDuck);
     }
   }
 

@@ -707,6 +707,7 @@ function beginReady(m: Match): void {
   audio.playStageBed(STAGES[setup.stage].id);
   audio.setMusicIntensity(audio.shouldBeIntense(m.state.fighters));
   lastActions = m.state.fighters.map((f) => f.action);
+  crowdStocksBefore = m.state.fighters.map((f) => f.stocks);
   canvas.focus();
 }
 
@@ -762,6 +763,8 @@ function setPaused(paused: boolean): void {
 }
 
 let lastActions: number[] = [];
+/** Stocks snapshot before each KO batch, for crowd comeback cheers (mirrors commentary). */
+let crowdStocksBefore: number[] = [];
 let startToken = 0;
 
 function tick(m: Match): void {
@@ -830,7 +833,8 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         if (e.shield) audio.sfx('hit-shield', { vary: true });
         else {
           audio.sfx(e.dmg < 70 ? 'hit-light' : e.dmg < 130 ? 'hit-medium' : 'hit-heavy', { vary: true });
-          // Medium and heavy hits: the victim's hurt bark (Season 1 kit; others silent until their lines ship).
+          // Heavy hits: the studio crowd gasps (ooh). Medium/heavy: the victim's hurt bark.
+          if (e.dmg >= 130) audio.crowd('ooh');
           if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt');
         }
         break;
@@ -866,11 +870,23 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         } else if (e.kind === 'flicker') audio.synth('thud', 0.6);
         else audio.synth('alarm', 0.9);
         break;
-      case 'ko':
+      case 'ko': {
         audio.sfx('ko');
-        audio.synth('cheer', 0.7);
+        // Crowd: roar on every KO; rising cheer when the killer was behind and is now level-or-ahead.
+        const before = crowdStocksBefore.length === m.state.fighters.length
+          ? crowdStocksBefore
+          : m.state.fighters.map((f) => f.stocks);
+        const killer = e.by >= 0 && e.by !== e.victim ? e.by : -1;
+        const stocks = m.state.fighters.map((f) => f.stocks);
+        const rival = (i: number) => i !== killer && (m.state.fighters[i].team < 0 || m.state.fighters[i].team !== m.state.fighters[killer]?.team);
+        const behind = killer >= 0 && before.some((n, i) => rival(i) && n > before[killer]);
+        const level = killer >= 0 && stocks.every((n, i) => !rival(i) || n <= stocks[killer]);
+        if (behind && level) audio.crowd('rising');
+        else audio.crowd('roar');
+        crowdStocksBefore = stocks;
         audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'ko');
         break;
+      }
       case 'grab':
         // The grab clasps (a shielded one cracks through the guard too); a held fighter's shield stays whole.
         audio.synth('grab', 1);
@@ -892,10 +908,10 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         audio.sfx('jump', { vary: true });
         break;
       case 'land':
-        audio.sfx('land', { vary: true });
+        audio.landSfx();
         break;
       case 'ledge':
-        audio.sfx('ledge');
+        audio.sfx('ledge', { vary: true });
         break;
       case 'shieldbreak':
         audio.sfx('shield-break');
