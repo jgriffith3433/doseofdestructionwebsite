@@ -560,6 +560,25 @@ six bouts in a row, ratings rising, and the last slot is always the fighter's **
   fight (the foe reacting to the last result) are the next step, as is a broadcast beat (ratings bump, host call) between
   wins.
 
+## Endings: where each fighter lands (as built)
+
+Winning the sixth fight of a Tour plays the arena win scene (the fighter's own win line, "<Fighter> clears the Tour"), and
+then the show cuts to the **ending**: one painted broadcast-poster picture of that fighter somewhere after the show (the
+exit door, the empty pitch, the vault of cash), a slow push-in over about 13 seconds, two caption lines, the second said
+by **Blog Man** (his usual voice: the host's reporter, who always files the story), the fighter's sting and cheer, then the
+card "Tour complete: <Fighter> clears the Tour" with the colour the Tour earned. A tap, Enter, Space or Esc skips.
+
+- The words are in `tools/endings.data.json` (merged into `content/endings.json` and `voice.json` `endings` by
+  `node tools/endings.mjs`); the pictures are `characters/endings/<id>.webp` (Hawkes Gen image.generate, 1920x1080, the
+  fighter centred so a 844x390 phone crop keeps them); the takes are `audio/voice/ending.<id>.mp3`.
+- Each ending is a short, dry coda in the fighter's own rule: Exit Punk finds the door (it was never locked), Break never
+  fell, Kaelen was gone before the cameras turned, Shutup Bot says nothing (a very loud nothing).
+- **The Mechanic** has no Tour (he is still not on the card, and not used in the campaign). His slot in the gallery is the
+  show's very last scene: the stage after the finale, one bolt left. It opens when every other Tour is cleared.
+- **Extras > Endings** on the main menu shows one slot per fighter (33). A cleared Tour opens its slot (its picture,
+  "Replay ending"); the rest are dark silhouettes saying "Clear <Fighter>'s Tour". A tap replays the ending, with the
+  card reading "Ending".
+
 ## Tonight's Episode: the nightly special (as built)
 
 The Orchestrator's show never goes dark: at midnight UTC the network drops one more episode into the schedule, the same
