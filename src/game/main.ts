@@ -2022,6 +2022,7 @@ installDodPlaytest({
   markerStats: () => ({ ...markerLog, rects: markerRects() }),
   gfxStats: () => renderer.gfxStats(),
   postStats: () => renderer.postStats(),
+  lightStats: () => renderer.lightStats(),
   lookStats: () => renderer.lookStats(),
   aliveStats: () => renderer.aliveStats(),
   musicBedStats: () => audio.bedStats(),

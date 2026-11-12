@@ -20,6 +20,7 @@ import { CHARACTERS, MOVE, MOVE_KEYS } from '../sim/characters.ts';
 import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
+import { SHADOW_RANGE, hexRgb } from '../render/fighterLight.ts';
 import { ACT, ACT_NAMES } from '../sim/state.ts';
 import { AnimTrace } from '../sim/trace.ts';
 import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
@@ -77,6 +78,7 @@ export interface GameHooks {
   lookStats?(): { slot: number; char: number; look: number; shader: boolean }[];
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
+  lightStats?(): { stage: string; quality: 'high' | 'low'; glossy: boolean; fighters: { slot: number; plugin: { full: boolean; key: number[]; keyColor: number[]; rim: number[]; ambient: number[] }; height: number; scale: number; alpha: number; shadow: boolean; reflection: boolean }[] };
   postStats?(): { quality: 'high' | 'low'; lut: string | null; lutReady: boolean; vignette: number; grain: number; punchFrames: number; punches: number; lastPunchDrawn: number };
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
@@ -184,6 +186,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'touch-settings') await r.touchSettingsRun();
         else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'post-chain') await r.postChain();
+        else if (id === 'lighting') await r.lighting();
         else if (id === 'stage-life') await r.stageLife();
         else if (id === 'stage-bed') await r.stageBed();
         else if (id === 'commentary') await r.commentary();
@@ -5600,6 +5603,99 @@ class Run {
       else {
         t.event('post-punch', `a heavy hit or KO punched the screen for 4 frames (chromatic aberration and exposure, ${p.punches} so far)`);
         t.metric('fpsPost', Math.round(fps.length ? fps.reduce((a, b) => a + b, 0) / fps.length : 0));
+      }
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      setGraphics(initial);
+      if (original === null) localStorage.removeItem(GFX_KEY);
+    }
+  }
+
+  /**
+   * Fighter lighting: every stage's own key, rim and ambient colour on both fighters (a different colour look on each
+   * stage, 1 to 4 across the run), a contact shadow under each fighter that shrinks and fades as they jump and is gone
+   * above 300 units, a faint reflection on glossy floors (High). On a phone (touch, Low, turned) only the ambient tint
+   * and the shadow run, and the fight holds 45 fps. Setup shortcut: straight into a match on each stage, no menus; the
+   * option `stage` picks one. Events `stage-light`, `shadow-height`, `light-low`; metrics lightStages, fpsLight.
+   */
+  async lighting(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('lighting');
+    }
+    this.logViewport(touch && this.isPhone());
+    const original = localStorage.getItem(GFX_KEY);
+    const initial = graphics();
+    const low = touch || this.options.quality === 'low';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    setGraphics(low ? { quality: 'low', glow: false } : { quality: 'high', glow: true });
+    try {
+      const want = typeof this.options.stage === 'string' ? STAGES.filter((s) => s.id === this.options.stage) : STAGES;
+      if (!want.length) t.problem('bug', `stage "${String(this.options.stage)}" is not on the list`);
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = (punk + 1) % CHARACTERS.length;
+      const close = (a: number[], b: number[]) => a.every((x, i) => Math.abs(x - b[i]) < 0.01);
+      const fps: number[] = [];
+      const heights: { h: number; scale: number; alpha: number; shadow: boolean }[] = [];
+      let lit = 0;
+      for (const [i, st] of want.entries()) {
+        t.progress(0.05 + (0.85 * i) / want.length);
+        const looks = [i % 4, (i + 1) % 4];
+        void this.game.startMatch({ mode: 'versus', stage: STAGES.indexOf(st), stocks: 1, rules: {}, slots: [{ char: punk, cpu: null, look: looks[0] }, { char: foe, cpu: 5, look: looks[1] }] });
+        await this.matchLive();
+        await this.wait(900);
+        const ls = this.game.lightStats?.();
+        const l = st.light;
+        if (!l) t.problem('bug', `${st.name} has no light in content/stages.json`);
+        else if (!ls || ls.stage !== st.id || ls.fighters.length < 2) t.problem('bug', `${st.name}: the lighting pass reports ${JSON.stringify(ls)}`);
+        else {
+          const amb = hexRgb(l.ambient);
+          const key = hexRgb(l.key.color);
+          const wrong = ls.fighters.filter((f) => !close(f.plugin.ambient, amb) || !close(f.plugin.keyColor, key) || f.plugin.full === low);
+          const looksOn = this.game.lookStats?.() ?? [];
+          if (wrong.length) t.problem('bug', `${st.name}: ${wrong.length} fighter(s) do not carry the stage's light (${JSON.stringify(wrong[0].plugin)})`);
+          else if (!ls.fighters.every((f) => f.shadow)) t.problem('bug', `${st.name}: a fighter on the floor has no contact shadow (${JSON.stringify(ls.fighters)})`);
+          else if (!low && ls.glossy !== !!l.glossy) t.problem('bug', `${st.name}: glossy floor mismatch`);
+          else {
+            lit++;
+            t.event('stage-light', `${st.name}: key ${l.key.color} from ${l.key.dir.join(',')}, rim ${l.rim.color}, ambient ${l.ambient}${l.glossy ? ', glossy floor' : ''} on both fighters (colours ${looksOn.map((x) => x.look + 1).join(' and ')}, ${ls.quality}), shadows under both`);
+          }
+        }
+        // The bot jumps and fights: sample each fighter's shadow against its height over the platform below.
+        const frame0 = this.game.match()?.state.frame ?? 0;
+        let tick = 0;
+        await this.fight(() => {
+          const s = this.game.lightStats?.();
+          if (s) for (const f of s.fighters) if (f.height >= 0 || !f.shadow) heights.push({ h: f.height, scale: f.scale, alpha: f.alpha, shadow: f.shadow });
+          if (++tick % 20 === 0) fps.push(this.game.gfxStats?.()?.fpsNow ?? 0);
+          return (this.game.match()?.state.frame ?? 0) - frame0 > 60 * 8;
+        }, 120000);
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+      t.metric('lightStages', lit);
+      const airborne = heights.filter((x) => x.h > 20 && x.shadow);
+      const grounded = heights.filter((x) => x.h >= 0 && x.h <= 2 && x.shadow);
+      const bad = heights.filter((x) => (x.h >= SHADOW_RANGE && x.shadow) || (x.shadow && (x.scale > 1 || x.alpha > 0.55)));
+      const maxH = Math.max(0, ...heights.map((x) => x.h));
+      const hi = airborne.length ? airborne.reduce((a, b) => (b.h > a.h ? b : a)) : null;
+      const lo = grounded[0];
+      if (bad.length) t.problem('bug', `a contact shadow was drawn wrong (${JSON.stringify(bad[0])})`);
+      else if (!hi || !lo) t.problem('warning', `the bot never left the floor in the sample (${heights.length} samples), so the shadow shrinking could not be seen`);
+      else if (hi.scale >= lo.scale || hi.alpha >= lo.alpha) t.problem('bug', `the shadow does not shrink and fade with height (floor ${lo.scale}/${lo.alpha}, ${hi.h} units up ${hi.scale}/${hi.alpha})`);
+      else t.event('shadow-height', `on the floor scale ${lo.scale}, alpha ${lo.alpha}; ${hi.h} units up scale ${hi.scale}, alpha ${hi.alpha}; highest sample ${maxH} units (${maxH >= SHADOW_RANGE ? 'shadow gone above ' + SHADOW_RANGE : 'under ' + SHADOW_RANGE + ', shadow still shown'})`);
+      const mean = fps.length ? fps.reduce((a, b) => a + b, 0) / fps.length : 0;
+      t.metric('fpsLight', Math.round(mean));
+      if (low) {
+        t.event('light-low', `Low: ambient tint and contact shadows only, no key or rim, no reflection (${Math.round(mean)} fps)`);
+        if (mean > 0 && mean < 45 && innerWidth <= 900) t.problem('warning', `Low at ${innerWidth}x${innerHeight} ran at ${Math.round(mean)} fps (want 45)`);
       }
       t.progress(1);
       t.finish('done');

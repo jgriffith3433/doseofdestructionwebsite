@@ -222,6 +222,16 @@
       ]
     },
     {
+      "id": "lighting",
+      "title": "Fighter lighting: every stage lights both fighters with its own key, rim and ambient colour, each fighter casts a contact shadow that shrinks and fades as they jump (gone above 300 units), colour looks 1 to 4 keep their palettes, Low keeps the ambient tint and shadow and holds 45 fps (phone: 390x844 turned to landscape, touch)",
+      "description": "Setup shortcut: straight into a match on each of the 9 stages (option stage: one) with no menus, a different colour look on each fighter per stage. Per stage checks both fighters carry the stage's light (stage-light: key, rim, ambient from content/stages.json, glossy floors) and a shadow under each; the bot then fights 8 s and the shadow is sampled against height over the platform below (shadow-height: smaller and fainter when up, none at 300 units or more). On a phone (touch, Low) only the ambient tint and shadow run (light-low) and the fight holds 45 fps (metric fpsLight). Metric lightStages. The player's dod.gfx is put back.",
+      "seconds": 220,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "commentary",
       "title": "Commentary: the announcer calls the fight from its events (at least 8 kinds of line, never the same line twice in a row), and Blog Man introduces every season's episodes",
       "description": "Part 1: a versus match against the CPU (3 stocks, the bot on a virtual pad), to its end; each announcer call is an event call-<kind> (first-blood, ko, comeback, last-stock, showdown, self-destruct, big-hit, combo, danger, shield-break, hazard, stage-event, time-low, lull) with its caption shown, plus call-kinds (how many kinds came up) and call-repeat problems. Part 2: setup shortcut marks the campaign cleared (the player's own progress is put back), then plays the first chapter of each season (option `all`: every chapter) from the map through its dialogue, and leaves from Pause once Blog Man has spoken: events blog-intro per episode and blog-intros. Metrics callKinds, calls, blogIntros.",

@@ -406,3 +406,14 @@ static cut; Local Affiliate / Red Carpet quiet routines. Do not invent new seaso
 - **Characters:** no new character; each speaks with their existing Gen voice id (`content/voice.json` `voices`).
 - **What happens:** line, answer, the listener's taunt; crowd ambience and the stage bed play under ducked music.
 - **Story beats:** told by voice and camera, one caption line at a time; never a text screen.
+
+## Stage light (fighters stand inside each set)
+
+Every stage lights its fighters with its own colours (`light` in `content/stages.json`, drawn by `render/lightPlugin.ts`,
+shadows in `render/fighterLight.ts`). The light is the set's own: City Top's rooftop sunset throws an orange key from the
+left with a cold skyline rim on the far side; Space Chess is a cold blue key with a pale rim and a polished floor; Humans
+in the Loop is amber stage light with a cyan rim over a glossy studio floor; Cursed Town is a dim grey-green overcast;
+the Desert, Solar Array and Rainbow Full Pipe are hard daylight; Watercolor Nebula and Yo House are soft and washed.
+Every fighter casts a soft contact shadow on the platform under them that shrinks and fades as they leave it and is gone
+above 300 units; glossy floors (Humans in the Loop, Space Chess) add a faint 15% mirror image on High. Low keeps the
+ambient tint and the shadow only. No stage is underwater yet; the cold stages are Space Chess and Cursed Town.
