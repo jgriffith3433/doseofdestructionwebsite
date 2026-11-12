@@ -156,6 +156,15 @@
       ]
     },
     {
+      "id": "finale-hijack",
+      "title": "The Orchestrator's finale takeover: the feed glitches, he appears in a picture-in-picture and says voiced lines for how the fight is going, and a new rule shows on the HUD within 1 s (phone: 390x844 touch, picture-in-picture clear of the controls at 844x390)",
+      "description": "Plays one season finale (option `chapter`, default encore; the finales are encore, sponsored, walk-on, hostile-takeover, clip-show, global-feed, series-finale, best-in-show, cliffhanger, final-cut) from the Campaign map with the bot: setup shortcut marks the chapters before it cleared. The takeover fires 60 s in or when the player is down to 2 stocks. Events takeover-start (mood ahead/behind, over 100%, the lines), takeover-glitch, takeover-pip (clear of the HUD and the touch controls), takeover-line (each voiced line), takeover-rule (the rule on the HUD, frames after the takeover). Touch: played in the turned 844x390 frame.",
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "hit-feel",
       "title": "Hit feedback: heavy hits freeze 3+ frames, light and heavy hits look different, Settings turns screen shake off, kill cue on stock-ending hits, smooth camera",
       "description": "A versus match against the CPU (the bot on a virtual pad). Counts the hit-stop frames of the first light and heavy hit (events hit-stop-light/-medium/-heavy, heavy-hit-stop), logs each tier's impact effect (impact-light/-medium/-heavy: sparks, stars, ring, shake, flash) and that they differ (impact-differs), then from Pause opens Settings, turns Screen shake off (shake-off), and checks hits keep landing with the camera still (no-shake). Also the match camera and the kill cue (a hit predicted to end a stock: extra hit-stop, red flash, punch-in, slow motion, rising whistle): every stock-ending hit logs kill-cue and no other hit does (kill-cue-exact), with Screen shake off the cue still zooms (kill-cue-no-shake), the camera never jumps (camera-smooth) and every fighter stays on screen (camera-framing). Metrics hitStopLightFrames, hitStopHeavyFrames, shakeMaxOn, shakeMaxOff, cameraJumps, killCues, framingMisses, killSlowMinFps. The player's dod.shake is put back.",

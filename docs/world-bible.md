@@ -384,7 +384,13 @@ must not flatten into paragraphs alone.
 12. **Finale (Season 10).** First Cut: host Orchestrator giant on the home set; lights cut to the next shot, not to
     black. Final Cut: walk-on Orchestrator on City Top, champ starts hurt; baton and the exit line spoken. Narrator
     series close: the card is yours, and the show is over.
-13. **Booth through every bout.** Announcer calls from real sim events; Blog Man's campaign intro after Go; story cards
+13. **The finale hijack (every season finale).** Sixty seconds in, or at the player's second-to-last stock, the Orchestrator
+    seizes the broadcast: a one-second RGB-split glitch and a cut sound, his face on the stage's screens and in a
+    picture-in-picture (top left, clear of Pause and the touch controls), three voiced lines (a seize or hot call, a reaction
+    for ahead or behind, the finale's own rule line) and one rule rewritten on the spot (gravity, giant, rig light or start
+    percent) with a NEW RULE chip and sting on the HUD. Season 5 to 9 finales play it as his standing order on the finale
+    feed: he is still not on the card. See `docs/story.md` "The finale hijack".
+14. **Booth through every bout.** Announcer calls from real sim events; Blog Man's campaign intro after Go; story cards
     as lower thirds during live arrivals — never a wall of text.
 
 Beats still thin in the build (keep as targets, do not paper over with text): Season 3+ and booth voice takes (hear

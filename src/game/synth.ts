@@ -2,9 +2,9 @@
 // for camera moves and arrivals, a broadcast sting, a stage alarm. Continuous stage beds (crowd murmur, wind,
 // studio hum) live here too so every arena has a place tone without a dedicated file. Nothing to download.
 
-export type SynthKind = 'crowd' | 'cheer' | 'whoosh' | 'sting' | 'alarm' | 'thud' | 'whistle' | 'grab';
+export type SynthKind = 'crowd' | 'cheer' | 'whoosh' | 'sting' | 'alarm' | 'thud' | 'whistle' | 'grab' | 'cut';
 
-export const SYNTH_KINDS: readonly SynthKind[] = ['crowd', 'cheer', 'whoosh', 'sting', 'alarm', 'thud', 'whistle', 'grab'];
+export const SYNTH_KINDS: readonly SynthKind[] = ['crowd', 'cheer', 'whoosh', 'sting', 'alarm', 'thud', 'whistle', 'grab', 'cut'];
 
 /** Continuous place tones under a stage's music. */
 export type BedKind = 'arena' | 'city-night' | 'indoor' | 'desert' | 'fog' | 'void' | 'park' | 'nebula' | 'solar';
@@ -176,6 +176,28 @@ export function playSynth(ctx: BaseAudioContext, out: AudioNode, kind: SynthKind
       bp.frequency.value = 2100;
       bp.Q.value = 1.2;
       noiseSource(ctx, t, 0.14).connect(bp).connect(k);
+      break;
+    }
+    case 'cut': {
+      // A broadcast cut: a burst of static with a 1 kHz carrier tone dropping out, like a feed seized mid-frame.
+      const dur = env(g, t, 0.5 * level, 0.003, 0.5, 0.35);
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 1800;
+      noiseSource(ctx, t, dur).connect(hp).connect(g);
+      const tone = ctx.createGain();
+      tone.gain.setValueAtTime(0.22 * level, t);
+      tone.gain.setValueAtTime(0.22 * level, t + 0.55);
+      tone.gain.exponentialRampToValueAtTime(0.0001, t + 0.62);
+      tone.connect(out);
+      const o = ctx.createOscillator();
+      o.type = 'square';
+      o.frequency.setValueAtTime(1000, t);
+      o.frequency.setValueAtTime(1000, t + 0.1);
+      o.frequency.setValueAtTime(700, t + 0.3);
+      o.connect(tone);
+      o.start(t);
+      o.stop(t + 0.7);
       break;
     }
     case 'thud': {

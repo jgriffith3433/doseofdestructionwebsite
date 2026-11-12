@@ -28,6 +28,8 @@ uniform float grain;
 uniform float seed;
 uniform float aberration;
 uniform float punch;
+uniform float glitch;
+uniform float gtime;
 const float N = ${LUT_SIZE}.0;
 
 vec3 lut(vec3 c) {
@@ -45,7 +47,15 @@ vec3 lut(vec3 c) {
 void main(void) {
   vec2 d = vUV - 0.5;
   vec2 off = d * aberration * (0.4 + dot(d, d) * 4.0);
-  vec3 c = vec3(texture2D(textureSampler, vUV + off).r, texture2D(textureSampler, vUV).g, texture2D(textureSampler, vUV - off).b);
+  // The takeover glitch: bands of rows tear sideways and the red and blue channels split far apart.
+  vec2 uv = vUV;
+  float band = floor(vUV.y * 24.0 + gtime * 18.0);
+  float tear = step(0.72, fract(sin(band * 91.7 + floor(gtime * 14.0) * 13.3) * 4375.5)) * (fract(sin(band * 12.9 + gtime) * 437.5) - 0.5);
+  uv.x += tear * 0.12 * glitch;
+  float split = glitch * (0.014 + 0.02 * fract(sin(floor(gtime * 20.0) * 7.7) * 1000.0));
+  off += vec2(split, 0.0);
+  vec3 c = vec3(texture2D(textureSampler, uv + off).r, texture2D(textureSampler, uv).g, texture2D(textureSampler, uv - off).b);
+  c += glitch * 0.06 * step(0.5, fract(vUV.y * 90.0 + gtime * 6.0));
   c *= 1.0 + punch * 0.45;
   c = mix(c, c * c * (3.0 - 2.0 * min(c, vec3(1.0))), punch * 0.35);
   if (lutOn > 0.5) c = lut(c);
@@ -67,6 +77,9 @@ export interface PostStats {
   punches: number;
   /** Frames the aberration actually drew on the last punch. */
   lastPunchDrawn: number;
+  /** Takeover glitches started, and rendered frames the last one drew. */
+  glitches: number;
+  glitchDrawn: number;
 }
 
 export class PostChain {
@@ -77,6 +90,9 @@ export class PostChain {
   private quality: Quality = 'high';
   private frames = 0;
   private drawn = 0;
+  private glitchUntil = 0;
+  private glitchDrawn = 0;
+  private glitches = 0;
   private stats = { punches: 0, lastPunchDrawn: 0 };
 
   private scene: Scene;
@@ -86,7 +102,7 @@ export class PostChain {
     this.pp = new PostProcess(
       NAME,
       NAME,
-      ['lutOn', 'vignette', 'grain', 'seed', 'aberration', 'punch'],
+      ['lutOn', 'vignette', 'grain', 'seed', 'aberration', 'punch', 'glitch', 'gtime'],
       ['lutSampler'],
       1.0,
       camera,
@@ -106,6 +122,12 @@ export class PostChain {
       effect.setFloat('seed', (performance.now() % 997) * 0.37);
       effect.setFloat('aberration', punching ? 0.012 : 0);
       effect.setFloat('punch', punching ? 1 : 0);
+      // The takeover glitch runs on Low too (one extra texture read, no grain): it is the story beat, not polish.
+      const now = performance.now();
+      const gl = now < this.glitchUntil ? Math.min(1, (this.glitchUntil - now) / 250) : 0;
+      if (gl > 0) this.glitchDrawn++;
+      effect.setFloat('glitch', gl);
+      effect.setFloat('gtime', (now % 100000) / 1000);
       if (this.lutTex) effect.setTexture('lutSampler', this.lutTex);
     };
   }
@@ -137,6 +159,13 @@ export class PostChain {
     this.frames = PUNCH_FRAMES;
   }
 
+  /** The takeover glitch: an RGB split with torn rows for `ms` (it eases out over the last quarter second). */
+  glitch(ms = 1000): void {
+    this.glitchUntil = performance.now() + ms;
+    this.glitchDrawn = 0;
+    this.glitches++;
+  }
+
   /** Call once per rendered frame, after scene.render(). */
   endFrame(): void {
     if (this.frames > 0) {
@@ -155,6 +184,8 @@ export class PostChain {
       punchFrames: this.frames,
       punches: this.stats.punches,
       lastPunchDrawn: this.stats.lastPunchDrawn,
+      glitches: this.glitches,
+      glitchDrawn: this.glitchDrawn,
     };
   }
 }
