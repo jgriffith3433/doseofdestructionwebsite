@@ -69,6 +69,7 @@ export interface GameHooks {
   /** Renderer particle and warm-up diagnostics. */
   /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
   camFxStats?(reset?: boolean): { cameraJumps: number; framingMisses: number; killCues: number; slowFpsMin: number; killActive: boolean; lastCue: { zoom: boolean; slow: boolean; whistle: boolean; shake: number; punch: number } | null };
+  reactFxStats?(reset?: boolean): { squashes: number; maxSquash: number; squashFrames: number; tumbleFrames: number; bounces: number; dustBursts: number; smears: number; smearFrames: number; smashSmears: number; charges: number; quality: string };
   trailStats?(reset?: boolean): { log: { seq: number; victim: number; tier: HitTier; kb: number; kind: 'none' | 'grey' | 'white' | 'streak'; ko: boolean; puffs: number }[]; active: number; puffs: number };
   markerStats?(): { shown: number; frames: number; unclear: number; last: { id: number; size: number; danger: boolean; clear: boolean; rect: { l: number; t: number; r: number; b: number } } | null; events: { id: number; size: number; danger: boolean }[]; rects: { id: number; rect: { l: number; t: number; r: number; b: number }; danger: boolean }[] };
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
@@ -4574,6 +4575,17 @@ class Run {
       if (!off || off.hits === 0) t.problem('warning', 'no hit landed with Screen shake off, so the camera could not be checked');
       else if (off.shakeMax > 0) t.problem('bug', `the camera still shook (${off.shakeMax.toFixed(2)}) with Screen shake off`);
       else t.event('no-shake', `${off.hits} hits landed with Screen shake off and the camera stayed still (hit-stop and impact effects still play)`);
+      const rx = this.game.reactFxStats?.();
+      if (rx) {
+        t.metric('squashFrames', rx.squashFrames);
+        t.metric('tumbleFrames', rx.tumbleFrames);
+        if (rx.squashes > 0 && rx.squashFrames >= 2) t.event('squash', `${rx.squashes} hits squashed the victim (up to ${(rx.maxSquash * 100).toFixed(0)}%) for ${rx.squashFrames} frames`);
+        else t.problem('bug', 'hits landed but the victim never squashed');
+        if (rx.tumbleFrames > 0) t.event('tumble', `launches spun the victim for ${rx.tumbleFrames} frames of hit-stun`);
+        if (rx.bounces > 0) t.event('bounce', `${rx.bounces} ground bounces with ${rx.dustBursts} dust bursts`);
+        if (rx.smashSmears > 0) t.event('smear', `${rx.smears} smears, ${rx.smearFrames} streak frames (${rx.smashSmears} on smashes), ${rx.charges} smash charges (${rx.quality} quality)`);
+        else if (rx.quality === 'low') t.event('smear-low', 'Low drops smears, keeps squash and tumble');
+      }
       const cam = this.game.camFxStats?.();
       if (cam) {
         t.metric('cameraJumps', cam.cameraJumps);
