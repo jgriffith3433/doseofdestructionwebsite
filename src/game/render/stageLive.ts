@@ -30,6 +30,7 @@ import {
   type StageLayer,
 } from '../sim/stageMath.ts';
 import { layerPlacement } from './stageArt.ts';
+import type { AlphaMask } from './foreground.ts';
 
 const W = 1 / 100;
 
@@ -45,6 +46,11 @@ export interface Placed {
   k: number;
   /** Size once the image has loaded, scene units. */
   size: { w: number; h: number };
+  /** A foreground element (layer.foreground): its picture's alpha once read, and its opacity now (FADE_TO while a fighter is behind it). */
+  mask?: AlphaMask;
+  fade?: number;
+  /** A haze sheet, not a stage layer: it never moves or reacts. */
+  haze?: boolean;
 }
 
 interface Playing {
@@ -140,6 +146,16 @@ export class StageLive {
     for (const tg of this.toggles) tg.node.setEnabled(true);
   }
 
+  /** The foreground elements (they fade while a fighter is behind them). */
+  foregrounds(): Placed[] {
+    return this.placed.filter((p) => p.layer.foreground && p.layer.z < 0);
+  }
+
+  /** Every layer and haze sheet built. */
+  allPlaced(): Placed[] {
+    return this.placed;
+  }
+
   /** Resolves once every layer's picture has loaded (a layer is a 1x1 plane until then, so the arena would show only the clear colour). */
   artLoaded(): Promise<void> {
     const waits: Promise<void>[] = [];
@@ -206,6 +222,7 @@ export class StageLive {
   }
 
   private place(pl: Placed, c: StageClock, t: number, now: number): void {
+    if (pl.haze) return;
     const l = pl.layer;
     let visible = true;
     if (l.showDuring) visible = eventOn(this.stage, c, l.showDuring);
