@@ -47,6 +47,16 @@
       ]
     },
     {
+      "id": "victory",
+      "title": "Victory stage: the results open on the winner on a lit podium with their group fanfare, the loser sulking in an inset, Rematch tappable within 3 s, phone landscape fit",
+      "description": "Versus 1v1 (options fighter / foe, default exit-punk vs kaelen), played twice. The results open on the winner playing a clip on a lit podium (victory-stage), the group's fanfare from content/fighters.json plays from a file that exists (victory-fanfare), the beaten fighter sulks dim in an inset (victory-loser), the camera pushes in (victory-push) with confetti in the winner's colour (victory-confetti), Rematch is on screen, 44 px and not covered within 3 s (victory-rematch), the panel slides in with the podium left of it at 844x390 and every button 44 px or taller (victory-fit, victory-panel), and in round 2 a tap on the stage skips the pose (victory-skip). On a 390x844 touch phone every tap is a touch pointer event and the run plays turned to 844x390. Metric victoryMs.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "sound"
+      ]
+    },
+    {
       "id": "win-quote",
       "title": "Win quotes: the winner says a voiced, typed-on quote on the results screen, the matchup quote against a story rival, never the same quote twice in a row, phone landscape fit",
       "description": "Versus 1v1 between two story rivals (options fighter / foe, default exit-punk vs kaelen), played twice with Rematch. Each results screen must play the winner's recorded quote (quote-voice) with a typed-on caption of the same words (quote-caption), the matchup quote when the loser is the winner's rival (quote-matchup), never the quote that fighter played last (quote-repeat), and at 844x390 (a 390x844 touch phone turned to landscape, every tap a touch pointer event) the caption fits in two lines inside the screen with the Rematch button visible and uncovered (quote-fit, quote-rematch). Metric winQuotes.",

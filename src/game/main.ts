@@ -29,6 +29,7 @@ import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playVersus, showResults, type ResultAction } from './ui/views.ts';
+import { startResultsMusic } from './ui/victory.ts';
 import { playColdOpen, playExchange, playScene, skipScene, type SceneCard, type SceneLine, type SceneStage } from './ui/scene.ts';
 import { chunkLine, chunkTimes } from './campaign/sceneText.ts';
 import { exchangeFor, markExchangeSeen, seenExchanges, type Exchange } from './campaign/intros.ts';
@@ -1709,7 +1710,7 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
     } else showResults(m, actions, undefined, newLooks);
     if (tourRun?.setup === m.setup && won) $('results-body').prepend(tourBanner(tourRun.tour, tourRun.continues));
     if (dailyRun?.setup === m.setup && m.setup.mode === 'campaign') dailyFinished(m, dailyRun.ep, won);
-    audio.playMusic('music-results');
+    startResultsMusic();
   }).then(() => askOnResults(m));
   // The Tour's closing win line already played over the final KO.
   if (quote && !(tourRun?.setup === m.setup && won)) playWinQuote(quote);
@@ -1802,7 +1803,7 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
     endMatch();
     showResults(m, actions, { ...ending, winner: end.winner >= 0 ? end.winner : undefined }, newLooks);
     onlineCall('rating change', (o) => o.showRatingChange(end, f.slot));
-    audio.playMusic('music-results');
+    startResultsMusic();
   });
   if (!voided) askOnResults(m);
   if (quote) playWinQuote(quote);

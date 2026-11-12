@@ -700,7 +700,6 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   overflow: visible;
   animation: fade-up 500ms ease-out both;
 }
-.results-hero img { height: clamp(120px, 24vh, 240px); object-fit: contain; object-position: bottom; animation: slide-left 600ms cubic-bezier(0.2, 0.9, 0.2, 1.1) both; }
 .results-hero div { padding-bottom: 14px; min-width: 0; }
 .results-hero h2 { font-size: clamp(34px, 6vw, 64px); line-height: 1.08; padding-top: 0.06em; overflow-wrap: anywhere; }
 .results-hero p { color: var(--muted); }
@@ -1405,6 +1404,64 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
   .results-strip .stat { padding: 6px 14px; }
   .highlights { padding: 8px 14px; gap: 6px; }
 }
+
+
+/* ---- Victory stage (ui/victory.ts): the winner on a lit podium, the loser in an inset, then the panel slides in ---- */
+.results-row { display: grid; grid-template-columns: minmax(260px, 38%) minmax(0, 1fr); gap: 14px; align-items: start; }
+.results-row.no-stage { grid-template-columns: minmax(0, 1fr); }
+.results-panel { display: grid; gap: 14px; min-width: 0; transition: opacity 380ms ease-out, transform 380ms cubic-bezier(0.2, 0.9, 0.2, 1.05); }
+.results-row[data-phase="pose"] .results-panel { opacity: 0; transform: translateX(48px); pointer-events: none; }
+.victory {
+  position: relative; overflow: hidden; height: clamp(280px, 56vh, 500px); border-radius: 10px; border: 1px solid var(--line);
+  background: radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--slot) 38%, #1b1410), #0b0908 72%);
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.6);
+}
+.vic-beam { position: absolute; left: 50%; top: -10%; width: 70%; height: 112%; transform: translateX(-50%); pointer-events: none;
+  background: conic-gradient(from 180deg at 50% 0%, transparent 156deg, rgba(255, 244, 214, 0.22) 172deg, rgba(255, 244, 214, 0.34) 180deg, rgba(255, 244, 214, 0.22) 188deg, transparent 204deg);
+  animation: beam-in 700ms ease-out both; }
+@keyframes beam-in { from { opacity: 0; } }
+.vic-cam { position: absolute; inset: 0; transform-origin: 50% 85%; will-change: transform; }
+.vic-podium { position: absolute; left: 50%; bottom: 17%; transform: translateX(-50%); display: grid; justify-items: center; align-items: end; width: 70%; }
+.vic-fighter { display: grid; justify-items: center; align-items: end; will-change: transform; animation: vic-drop 520ms cubic-bezier(0.2, 0.9, 0.2, 1.15) both; }
+.vic-fighter .vic-sprite { height: clamp(120px, 34vh, 280px); max-width: 100%; background-repeat: no-repeat; filter: drop-shadow(0 0 22px color-mix(in srgb, var(--slot) 70%, transparent)); }
+.vic-fighter .vic-still { height: clamp(120px, 34vh, 280px); max-width: 100%; object-fit: contain; object-position: bottom; }
+@keyframes vic-drop { from { opacity: 0; transform: translateY(-40px) scale(1.15); } }
+.vic-plinth {
+  width: 78%; height: clamp(26px, 6vh, 46px); margin-top: -4px; display: grid; place-items: center; border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--slot) 85%, #fff 15%), color-mix(in srgb, var(--slot) 45%, #000));
+  box-shadow: 0 0 34px color-mix(in srgb, var(--slot) 55%, transparent), 0 6px 0 rgba(0, 0, 0, 0.5);
+  animation: fade-up 420ms ease-out both;
+}
+.vic-plinth b { font-family: Oswald, sans-serif; font-size: clamp(18px, 4vh, 30px); color: #1b1410; line-height: 1; }
+.vic-confetti { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.vic-inset {
+  position: absolute; right: 8px; top: 8px; width: clamp(84px, 24%, 130px); display: grid; justify-items: center; gap: 2px; padding: 6px 6px 4px;
+  background: rgba(8, 6, 5, 0.78); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px; animation: fade-up 500ms 400ms ease-out both;
+}
+.vic-inset .vic-fighter { filter: brightness(0.5) saturate(0.55); animation: none; transform-origin: 50% 100%; transform: rotate(4deg) scaleY(0.96); }
+.vic-inset .vic-sprite, .vic-inset .vic-still { height: clamp(56px, 14vh, 100px); }
+.vic-inset span { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); text-align: center; line-height: 1.15; overflow-wrap: anywhere; }
+.vic-caption { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px 12px 8px; background: linear-gradient(transparent, rgba(8, 6, 5, 0.92) 55%); min-width: 0; }
+.vic-name { font-family: Oswald, sans-serif; text-transform: uppercase; font-size: clamp(20px, 3.4vh, 30px); line-height: 1.1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; overflow-wrap: anywhere; }
+.vic-name small { font-family: Barlow, sans-serif; font-size: 11px; letter-spacing: 0.1em; color: var(--gold); }
+.vic-caption .win-quote { margin: 2px 0 0; font-size: clamp(13px, 2.2vh, 18px); max-width: none; }
+.results-actions { position: sticky; bottom: 0; z-index: 5; padding-top: 8px; background: linear-gradient(transparent, var(--bg) 30%); }
+
+/* Phone upright: the stage on top, the panel under it. */
+@media (max-width: 560px) {
+  .results-row { grid-template-columns: minmax(0, 1fr); }
+  .victory { height: clamp(260px, 36vh, 340px); }
+}
+/* Phone on its side (844x390): podium left, panel right, both inside the window above the buttons. */
+@media (max-height: 520px) and (min-width: 561px) {
+  .results-row { grid-template-columns: minmax(230px, 40%) minmax(0, 1fr); gap: 10px; }
+  .victory { height: max(200px, calc(100vh - 96px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); }
+  .results-panel { max-height: max(200px, calc(100vh - 96px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); overflow-y: auto; gap: 8px; }
+  .vic-fighter .vic-sprite, .vic-fighter .vic-still { height: clamp(100px, 36vh, 170px); }
+  .vic-caption { padding-top: 14px; }
+  .vic-name { font-size: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { .results-panel { transition: none; } .vic-fighter, .vic-plinth, .vic-inset { animation: none; } }
 
 /* ------------------------------------------------------------------ phone */
 

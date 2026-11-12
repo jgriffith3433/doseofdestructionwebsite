@@ -690,3 +690,23 @@ He is a showman: every line is about ratings, the card or the next show, never a
   is the one exception to "never seen or heard" in Season 9 (the Cliffhanger).
 - Data: `content/campaign.json` `events` (kind `takeover`, `when`, `rule`), lines `orchestrator.takeover.*` in
   `content/voice.json` (words in `tools/takeover-lines.data.json`), pickers `src/game/campaign/takeover.ts`. Scenario `finale-hijack`.
+
+## Victory fanfares (as built)
+
+A win ends on the show's victory stage, not a table: the results screen opens on the winner on a lit podium playing their pose
+clip in their colour look, the camera pushing in slowly, confetti and sparks in their colour, the winner's quote over the pose,
+and the beaten fighter dim in an inset, sulking. A 5 s fanfare plays per **group**, assigned per fighter in
+`content/fighters.json` (`fanfare`), and the results loop starts when it ends. Then the panel (winner, time, damage, highlights)
+slides in at about 2 s; any press skips the pose and cuts the fanfare. Code `src/game/ui/victory.ts`, maths and groups
+`src/game/victory.ts`, sounds `fanfare-<group>` in `content/sounds.json`. Scenario `victory`.
+
+- **Open Mic** (Season 1's first night): Exit Punk, Kaelen, Break, DJ Won't Read, Small Weather. Brass and a snare roll.
+- **The Booth** (the commentary desk): Blog Man, Slice, SS Boulder, Got Ur Back. A late-night band sting.
+- **The Host** (the house): the Orchestrator, The Mechanic, TT. Strings and timpani, a baton-drop chord.
+- **The Champion's Card** (Season 2): Shark Dude, Pyro Singer, Susan, Wallit. A title-fight theme.
+- **The Rival Broadcast** (Season 4): Cel, Try Belt, Crosser, Crystalline Intelligences. Synth brass, glitchy.
+- **Sweeps Week** (Season 5): Uh Me, Yo Bot, Spider Bot, Lapis Man. Pop arena, a rising sweep.
+- **Syndication** (Season 6): Ball Person, Chooser, Not An Old Man Yet, Yooba, Slow Rider. Global percussion.
+- **The Reboot** (Season 7): Evil Blue Bird, Shutup Bot, Stratabots, Future Man. Trailer brass, a heavy hit.
+
+Season 3 has no group (it is the Orchestrator's, The Host). Fighters with no `unlock` chapter sit with the cast they fight beside.
