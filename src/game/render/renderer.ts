@@ -16,6 +16,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js'
 import { LookPlugin } from './lookPlugin.ts';
 import { LightPlugin } from './lightPlugin.ts';
 import { REFLECTION_ALPHA, floorBelow, lightOf, shadowAt } from './fighterLight.ts';
+import { COUNTER_TINT, Flipbooks, FLIPBOOK_KINDS, fighterTint, type FlipStats } from './flipbook.ts';
 import { lookOf } from '../looks.ts';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture.js';
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture.js';
@@ -142,6 +143,13 @@ export class Renderer {
   private shotMeshes: Mesh[] = [];
   private shotMats: StandardMaterial[] | null = null;
   private lastTrail = -1;
+  /** Painted special-effect flipbooks (render/flipbook.ts): a pre-warmed pool, tinted per fighter. */
+  private flip: Flipbooks;
+  private flipTints = new Map<number, Color3>();
+  /** Sim frame the special effects last ran for (a pause or a paused render draws none twice). */
+  private flipFrame = -1;
+  private flipLast = new Map<number, { move: number; frame: number }>();
+  private lastState: GameState | null = null;
   private debugMeshes: Mesh[] = [];
   private debugMat: StandardMaterial;
   private hurtMat: StandardMaterial;
@@ -240,6 +248,8 @@ export class Renderer {
       m.setEnabled(false);
       this.sparkPool.push(m);
     }
+    this.flip = new Flipbooks(this.scene, (m) => this.glow.addExcludedMesh(m));
+    this.flip.setQuality(this.gfx.quality);
     this.debugMat = this.flatMaterial('dbg-hit', '#ff2a2a', 0.45);
     this.hurtMat = this.flatMaterial('dbg-hurt', '#ffd15a', 0.22);
 
@@ -282,6 +292,7 @@ export class Renderer {
       for (const v of this.views) v.clipTex.clear();
       void this.preloadClips(0);
     }
+    if (qualityChanged) this.flip.setQuality(g.quality);
     this.glow.isEnabled = g.glow;
     this.post.setQuality(g.quality);
     this.applyLight();
@@ -777,6 +788,9 @@ export class Renderer {
       m.setEnabled(false);
       this.sparkPool.push(m);
     }
+    // Every special's flipbook texture is uploaded and shown once, tiny, so the first special never compiles or uploads mid-fight.
+    this.flip.prepare();
+    for (const k of FLIPBOOK_KINDS) this.flip.play(k, this.camTarget.x, this.camTarget.y, -0.4, 0.01, COUNTER_TINT, { hold: 1 });
     // The launch trail's three looks are shown once with the other spark materials, so the first trail never compiles a shader mid-fight.
     for (const mat of Object.values(this.smokeMats)) {
       const m = this.takeSpark(mat);
@@ -826,6 +840,7 @@ export class Renderer {
       else s.mesh.dispose();
     }
     this.sparks = [];
+    this.flip.clear();
     this.flashMat.alpha = 0;
     this.flashPlane.setEnabled(false);
     // Two more presented frames in normal state; the timeout covers a hidden page, where rAF never fires.
@@ -961,6 +976,12 @@ export class Renderer {
         this.burst(x, y, 14, 0.1);
         if (this.views[e.id]) this.views[e.id].flash = 14;
         this.shake = Math.max(this.shake, 0.3);
+        // The painted parry: a white-blue flash and ring, with the sim's 6-frame freeze (step.ts COUNTER_FREEZE).
+        this.flip.play('counter', x, y, -0.5, 2.1, COUNTER_TINT);
+        this.flashMat.emissiveColor = new Color3(0.7, 0.88, 1);
+        this.flashMat.alpha = Math.max(this.flashMat.alpha, 0.45);
+        this.flashPlane.setEnabled(true);
+        this.post.punch();
       } else if (e.type === 'grab') {
         // The grab flash: a bright ring and star where the hands close, and both fighters light up.
         const x = e.x * S;
@@ -973,9 +994,16 @@ export class Renderer {
         this.shake = Math.max(this.shake, e.shield ? 0.22 : 0.12);
       } else if (e.type === 'throw') {
         this.burst(e.x * S, e.y * S, 12, 0.1);
+        // The slam: a painted shockwave ring where the victim lands.
+        this.flip.play('grab', e.x * S, e.y * S, -0.4, 2.3, this.tintOf(e.attacker));
+        this.shake = Math.max(this.shake, 0.25);
       } else if (e.type === 'shot') {
         this.onSynth?.(e.kind === 1 ? 'thud' : 'whoosh');
         this.burst(e.x * S, e.y * S, 4, 0.04);
+        // Muzzle flash on a projectile's release, a glyph on a placed trap.
+        const dir = this.lastState?.fighters[e.id]?.facing ?? 1;
+        if (e.kind === 1) this.flip.play('trap', e.x * S, e.y * S + 0.12, -0.28, 1.9, this.tintOf(e.id));
+        else this.flip.play('projectile', e.x * S, e.y * S, -0.4, 1.5, this.tintOf(e.id), { flip: dir });
       }
     }
   }
@@ -1082,6 +1110,7 @@ export class Renderer {
     // A dash leaves a streak behind each frame it drives (once per sim frame, so a pause leaves none).
     if (state.frame === this.lastTrail) return;
     this.lastTrail = state.frame;
+    this.specialFx(state);
     for (const f of state.fighters) {
       if (f.action !== ACT.ATTACK) continue;
       const m = CHARACTERS[f.char].moves[f.move];
@@ -1091,6 +1120,57 @@ export class Renderer {
       mesh.position.set((f.x - f.facing * 24 * FX * (f.scale / 100)) * S, (f.y + 40 * FX) * S, -0.35);
       mesh.rotation.z = m.kind === 'dash' ? 0 : Math.atan2(f.vy, f.vx * f.facing) * f.facing;
       this.sparks.push({ mesh, vx: 0, vy: 0, life: 9, max: 9, size: 0.32, stretch: m.kind === 'dash' ? 3.2 : 2, grow: 0 });
+    }
+  }
+
+  /** A fighter's own colour for its special effects (content/fighters.json: the hue of its main outfit colour). */
+  private tintOf(id: number): Color3 {
+    const f = this.lastState?.fighters[id];
+    const char = f ? f.char : id;
+    let t = this.flipTints.get(char);
+    if (!t) {
+      const c = CHARACTERS[char];
+      t = fighterTint(c?.looks, c?.id ?? String(char));
+      this.flipTints.set(char, t);
+    }
+    return t;
+  }
+
+  /**
+   * The painted flipbooks that follow the state (the events do the rest: muzzle flash and trap glyph on 'shot', slam on
+   * 'throw', the parry flash on 'counter'): a dash lunges, a recovery climbs, each flurry hit slashes, and a shot
+   * leaves a trail. Runs once per sim frame; each effect is keyed to the frame it starts on.
+   */
+  private specialFx(state: GameState): void {
+    for (const f of state.fighters) {
+      const prev = this.flipLast.get(f.id);
+      this.flipLast.set(f.id, { move: f.move, frame: f.action === ACT.ATTACK ? f.frame : -1 });
+      if (f.action !== ACT.ATTACK || f.hitlag > 0) continue;
+      const fresh = !prev || prev.move !== f.move || prev.frame !== f.frame;
+      if (!fresh) continue;
+      const ch = CHARACTERS[f.char];
+      const m = ch.moves[f.move];
+      if (!m.kind) continue;
+      const k = f.scale / 100;
+      const cy = ch.height * W * k * 0.5;
+      const x = f.x * S;
+      const y = f.y * S;
+      const tint = this.tintOf(f.id);
+      const from = m.drive?.[0]?.from ?? m.hits[0]?.start ?? 1;
+      if (m.kind === 'dash' && f.frame === from) {
+        this.flip.play('dash', x + f.facing * 0.25, y + cy, -0.36, 2.2 * k, tint, { flip: f.facing });
+      } else if (m.kind === 'recovery' && f.frame === from) {
+        this.flip.play('recovery', x, y + cy * 0.9, -0.36, 2.4 * k, tint);
+      } else if (m.kind === 'flurry') {
+        const i = m.hits.findIndex((h) => h.start === f.frame || (h.rehit !== undefined && h.rehit > 0 && f.frame === h.start));
+        if (i >= 0) this.flip.play('flurry', x + f.facing * 0.45 * k, y + cy, -0.38, 1.5 * k, tint, { flip: f.facing, rot: ((i % 3) - 1) * 0.4 });
+      }
+    }
+    // A shot in flight leaves a short trail behind it every few frames.
+    for (const o of state.shots) {
+      if (o.style === 1 || o.age % 4 !== 2) continue;
+      const dir = o.vx >= 0 ? 1 : -1;
+      this.flip.play('dash', o.x * S - dir * 0.2, o.y * S, -0.34, 0.95, this.tintOf(o.owner), { flip: dir, hold: 1 });
     }
   }
 
@@ -1215,6 +1295,11 @@ export class Renderer {
     this.sparks.push({ mesh, vx: 0, vy: 0, life, max: life, size, grow });
   }
 
+  /** The special-effect flipbooks' counters, for the playtest. */
+  flipStats(reset = false): FlipStats {
+    return this.flip.stats(reset);
+  }
+
   /** What the last hits did, for the playtest. */
   hitFxStats(reset = false) {
     const out = { ...this.hitStats, tiers: { ...this.hitStats.tiers }, shakeOn: screenShake() };
@@ -1240,6 +1325,7 @@ export class Renderer {
 
   /** Draws one frame. */
   render(state: GameState): void {
+    this.lastState = state;
     for (const m of this.movers) {
       const p = platformAt(m.platform, state.frame);
       m.node.position.set(((p.x1 + p.x2) / 2) * S, p.y * S, 0);
@@ -1545,6 +1631,7 @@ export class Renderer {
   }
 
   private updateSparks(): void {
+    this.flip.update();
     for (let i = this.sparks.length - 1; i >= 0; i--) {
       const s = this.sparks[i];
       s.mesh.position.x += s.vx;

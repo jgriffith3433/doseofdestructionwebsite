@@ -2016,6 +2016,7 @@ installDodPlaytest({
   },
   fxStats: () => renderer.fxStats(),
   hitFxStats: (reset) => renderer.hitFxStats(reset),
+  flipStats: (reset) => renderer.flipStats(reset),
   camFxStats: (reset) => renderer.camFxStats(reset),
   trailStats: (reset) => renderer.trailStats(reset),
   reactFxStats: (reset) => renderer.reactFxStats(reset),

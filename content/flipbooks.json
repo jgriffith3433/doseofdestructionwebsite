@@ -1,0 +1,7 @@
+{
+  "format": "atlas-v1",
+  "note": "Painted flipbook sheets for the seven special archetypes (docs/specials.md). A sheet is a grid atlas (cols x rows, frames left to right, top to bottom) of white-on-transparent art: the game tints it per fighter and draws it additive. High: 16 frames of 256 px cells (4x4, 1024x1024). Low: 8 frames of 128 px cells (4x2, 512x256). A kind with no entry under `sheets` plays the procedural STAND-IN made in code (render/flipbook.ts). To ship real art, put the PNGs in Game/fx/flipbook/ and add { \"high\": { \"file\": \"fx/flipbook/<kind>.png\" }, \"low\": { \"file\": \"fx/flipbook/<kind>-low.png\" } } here: nothing else changes.",
+  "high": { "frames": 16, "cell": 256, "cols": 4, "rows": 4 },
+  "low": { "frames": 8, "cell": 128, "cols": 4, "rows": 2 },
+  "sheets": {}
+}

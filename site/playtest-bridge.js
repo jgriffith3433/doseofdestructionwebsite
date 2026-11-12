@@ -378,6 +378,16 @@
       ]
     },
     {
+      "id": "special-fx",
+      "title": "Special effects: each of the seven special archetypes starts its own painted flipbook in the fighter's colour, a counter flashes and freezes 6+ frames, Low plays the half-size 8-frame sheets (phone: 390x844 touch, turned to 844x390)",
+      "description": "STAND-IN art (drawn in code, same atlas format as the Gen sheets). Setup shortcut: straight into Training with the fighter for each archetype (Versus for the counter), no menus. Played through real input: keyboard K + stick, or on a phone the on-screen stick and Special button as touch pointer events. Logs fx-pool (the flipbook pool is full before the first special), fx-projectile / fx-dash / fx-recovery / fx-grab / fx-trap / fx-flurry (each from its special, with atlas size and quality), fx-tint and fx-tints-differ (two projectile fighters, two colours), fx-counter (the white-blue flash and the 6+ frame freeze on the parry), fx-low (Low: 8 frames of 128 px) and fx-fps (lowest fps while the effects played; want 40 on desktop, 45 on Low). Metrics fxShown, fxFpsMin, counterFreezeFrames.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "select-specials",
       "title": "Character select shows how each fighter plays: the hovered or tapped fighter's four specials by name and a looping clip, fitting the screen (phone: 390x844 turned to landscape, touch)",
       "description": "Opens Training's select from the main menu and taps each of the 33 fighters in turn (option fighter: one): the preview lists the four specials (neutral, side, up, down) with the names the sim plays (select-specials), the clip and the four rows sit inside the screen and the preview with no text cut off (select-fit), the clip preview moves (select-clip), and tapping the down special pins it. Played through taps (a phone: touch pointer events; 390x844 is turned to 844x390 like specials). Options: fighter, input (touch forces the touch UI), at (phone). Metric selectFits.",

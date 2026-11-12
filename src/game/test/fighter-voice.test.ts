@@ -56,7 +56,8 @@ for (const id of SEASON_ONE) {
 }
 
 // Roster-wide lint: all 33 fighters (Season 1 plus the 20 others): own KO cry, efforts, hurts and taunt.
-const fs = await import('node:fs');
+const fsMod = 'node:fs';
+const fs = (await import(fsMod)) as { readFileSync(p: URL, enc: string): string; existsSync(p: URL): boolean };
 const fightersJson = JSON.parse(fs.readFileSync(new URL('../../../content/fighters.json', import.meta.url), 'utf8')) as { id: string }[];
 const roster = fightersJson.map((f) => f.id);
 check('roster is 33 fighters', roster.length === 33, String(roster.length));
