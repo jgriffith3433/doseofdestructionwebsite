@@ -94,6 +94,8 @@ export function runSpecialsTests(check: Check): void {
     check('projectile: the thrown board appears, crosses the stage, hits the dummy and is gone',
       ev.some((e) => e.type === 'shot' && e.kind === 0) && hits(ev).length === 1 && g.shots.length === 0 && g.fighters[1].percent > 0 && g.fighters[1].lastHitBy === 0,
       `${hits(ev).length} hit, dummy ${g.fighters[1].percent / 10}%`);
+    check('sound: the board\'s hit event names its archetype (projectile) for the impact sound',
+      ev.some((e) => e.type === 'hit' && e.special === 'projectile'));
 
     const miss = duel(punk, plain, -300);
     let far = 0;
@@ -133,6 +135,8 @@ export function runSpecialsTests(check: Check): void {
     const x0 = g.fighters[0].x;
     const ev = play(g, 40, press(RIGHT, 0, BTN.SPECIAL));
     check('dash strike: the skate dash covers ground and hits the dummy on the way', hits(ev).length === 1 && g.fighters[1].percent > 0, `moved ${units(g.fighters[0].x - x0)} units`);
+    check('sound: the dash\'s hit event names its archetype (dash); a jab\'s names none',
+      ev.some((e) => e.type === 'hit' && e.special === 'dash') && !play(duel(punk, plain, 40), 30, press(0, 0, BTN.ATTACK)).some((e) => e.type === 'hit' && e.special));
     const free = duel(punk, plain, -600);
     const f0 = free.fighters[0].x;
     play(free, 40, press(RIGHT, 0, BTN.SPECIAL));

@@ -1286,6 +1286,8 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         if (e.shield) audio.sfx('hit-shield', { vary: true, at: at(e.x) });
         else {
           audio.sfx(e.dmg < 70 ? 'hit-light' : e.dmg < 130 ? 'hit-medium' : 'hit-heavy', { vary: true, at: at(e.x) });
+          // A special's own impact (its archetype's crack) and the attacker's signature accent on top.
+          if (e.special) audio.special('impact', e.special, CHARACTERS[m.state.fighters[e.attacker].char].id, at(e.x));
           // Heavy hits: the studio crowd gasps (ooh). Medium/heavy: the victim's hurt bark.
           if (e.dmg >= 130) audio.crowd('ooh');
           if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt', at(m.state.fighters[e.victim].x));
@@ -1378,7 +1380,11 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
   m.state.fighters.forEach((f, i) => {
     if (f.action !== lastActions[i]) {
       if (f.action === ACT.ATTACK) {
-        audio.sfx(SMASHES.has(f.move) || f.move === MOVE.SSPECIAL || f.move === MOVE.DSPECIAL ? 'swing-heavy' : 'swing-light', { vary: true, at: at(f.x) });
+        // A special plays its archetype's release (plus the fighter's accent) on its first frame, in place of the generic swing.
+        const kind = VOICE_SPECIALS.has(f.move) ? CHARACTERS[f.char].moves[f.move].kind : undefined;
+        if (!(kind && audio.special('release', kind, CHARACTERS[f.char].id, at(f.x)))) {
+          audio.sfx(SMASHES.has(f.move) || f.move === MOVE.SSPECIAL || f.move === MOVE.DSPECIAL ? 'swing-heavy' : 'swing-light', { vary: true, at: at(f.x) });
+        }
         // Smash and special effort barks (1.5 s cooldown + no overlap, inside audio.fighterVoice).
         if (SMASHES.has(f.move) || VOICE_SPECIALS.has(f.move)) {
           audio.fighterVoice(CHARACTERS[f.char].id, 'effort', at(f.x));

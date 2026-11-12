@@ -106,3 +106,18 @@ The held fighter plays hurt, pinned in front. The hold lasts `holdFrames(percent
 own damage, angle, base and growth knockback, scaled by the fighter's `dmg`/`kb` tuning). Up is the kill throw off
 the top, back sends them behind, down is weak and leaves them close for a follow-up. Throws reuse the clips ftilt,
 bair, utilt and dtilt. Events: `grab`, `throw`, `grab-break`; sound `grab` (synth) and the grab flash in the renderer.
+
+## Sound
+
+Each of the seven archetypes has its own **release** (the move's first frame) and **impact** (the frame it lands)
+sound, a pool of three takes (`content/sounds.json`: `special-<archetype>-release`, `special-<archetype>-impact`), and
+each Season 1 fighter has one signature **accent** layered on top of both (`special-accent-<fighter id>`). Prompts are
+in `tools/special-sounds.prompts.mjs` (Gen `audio.sfx` variants, normalised by Gen's own pass, 3 takes per pool).
+`main.ts` calls `audio.special(phase, kind, fighterId, at)` from the action change into a special (the move's
+`kind`) and from the `hit` event (`special`, set by `applyHit` for a special's own hit or its shot); it plays
+through `pickTake` (no take twice in a row, 5-10% pitch) and emits `dod:sound-take` with the pool name. A pool with
+no file yet is skipped (the generic swing and hit still play). Scenario `special-sounds`.
+Accents: Exit Punk skateboard grind, Kaelen teleport blip, Break table slap and door slam, DJ Won't Read record
+scratch, Shutup Bot static burst and mute click, Small Weather thunder crack and hail, Blog Man typing and send ping,
+Evil Blue Bird screech and peck, Got Ur Back bear-hug thump, Slice razor ribbon zing, SS Boulder rock grind,
+Stratabots stacked plates, Orchestrator baton tap and brass sting.
