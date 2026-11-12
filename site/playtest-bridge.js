@@ -232,6 +232,17 @@
       ]
     },
     {
+      "id": "mix-room",
+      "title": "The match mix: fighter sounds panned to where they stand, each of the 9 stages its own room (reverb on effects and voices only), a blast-zone KO fades the leaver, and a 2-minute match levelled to -14 LUFS under a limiter (phone 844x390: 45 fps with the reverb on)",
+      "description": "Setup shortcut: straight into a short match on each of the 9 stages (option stage: one), no menus. Each logs mix-room (dod:mix-room: the room name, its length, the wet share; Low sends half), then a 2-minute match on option stage (default humans-in-the-loop, option seconds to shorten) plays a heavy hit at the left and right screen edges (pan-left, pan-right: 6+ dB louder in the near channel in the capture), then the real fight (pan-fight: every fighter sound panned -0.8 to 0.8 by screen x) and logs the in-game loudness meter and sample peak (mix-level; the capture is checked by Hawkes Gen audio.analyze: -14 LUFS plus or minus 1, true peak under -1 dBTP). On a 390x844 touch phone it turns to 844x390 and plays on Low (mix-fps, metric fpsMix, want 45). Metrics mixRooms, mixLufs, mixPeakDbfs, fpsMix. The player's dod.gfx is put back.",
+      "seconds": 330,
+      "tags": [
+        "full",
+        "sound",
+        "touch"
+      ]
+    },
+    {
       "id": "art-style",
       "title": "Art bible: every fighter is drawn with a coloured outline (2 px at 1080p, never under 1 px: 1 px at 844x390) and a saturation/value remap that lands it inside the bible's ranges (0 of 33 outside), colour looks 1 to 4 keep both (phone: 390x844 turned to landscape, touch)",
       "description": "Setup shortcut: straight into a versus match per colour look 1 to 4 (option fighter picks the pair; stage), no menus. Checks the style report first (style-report: 0 of 33 fighters outside the saturation and value ranges of docs/art-bible.md), then on both fighters of each match that the remap and the outline pass are on the material, the outline is a dark coloured line (never black) at the width the bible gives for the render height (outline) and, on a phone, at least 1 px at 844x390 (outline-phone); outline-looks closes it. Metrics outlinePx, fightersOutside. The player's dod.gfx is put back.",

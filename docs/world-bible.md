@@ -417,3 +417,14 @@ the Desert, Solar Array and Rainbow Full Pipe are hard daylight; Watercolor Nebu
 Every fighter casts a soft contact shadow on the platform under them that shrinks and fades as they leave it and is gone
 above 300 units; glossy floors (Humans in the Loop, Space Chess) add a faint 15% mirror image on High. Low keeps the
 ambient tint and the shadow only. No stage is underwater yet; the cold stages are Space Chess and Cursed Town.
+
+## Room sound (every stage is its own room)
+
+Each stage sounds like the place it is (`room` in `content/stages.json`; the impulse is made in code by `roomAudio.ts`,
+played by `audio.ts`). Effects and voices go 10-25% into the room, never the music or the menus. Humans in the Loop is a
+TV studio (short, bright, 0.6 s); City Top a rooftop (open, a 0.2 s slap); Yo House the fish tank, underwater (long,
+dark, 1.8 s, with a low-pass over everything); Dust Devil Mesa a canyon (a late slap, 0.45 s); Cursed Town a foggy street
+(damp, dark, 0.95 s); Rainbow Full Pipe a half-pipe (bright, metallic, 1.1 s); Solar Array an open field (dry, 0.3 s);
+Space Chess a hollow void (cold, 1.4 s); Watercolor Nebula a dream (soft, 1.5 s). Fighters' hits, swings, jumps, landings
+and barks sit where the fighter stands on screen (left to right, -0.8 to 0.8); a fighter blasted out of the zone loses
+highs and level as they leave, the crowd's roar stays put. The whole match is levelled to -14 LUFS under a limiter.

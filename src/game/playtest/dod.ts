@@ -84,6 +84,10 @@ export interface GameHooks {
   styleStats?(): { quality: 'high' | 'low'; renderHeight: number; fighters: { slot: number; char: number; look: number; outline: { color: number[]; px: number; perPx: number[]; on: number }; remap: boolean; outlinePass: boolean }[] };
   lightStats?(): { stage: string; quality: 'high' | 'low'; glossy: boolean; fighters: { slot: number; plugin: { full: boolean; key: number[]; keyColor: number[]; rim: number[]; ambient: number[] }; height: number; scale: number; alpha: number; shadow: boolean; reflection: boolean }[] };
   postStats?(): { quality: 'high' | 'low'; lut: string | null; lutReady: boolean; vignette: number; grain: number; punchFrames: number; punches: number; lastPunchDrawn: number };
+  /** The mix: the stage's room, the wet send, the measured loudness (LUFS), makeup gain and the sample peak (audio.mixStats). */
+  mixStats?(): { stage: string | null; room: string; seconds: number; wet: number; low: boolean; lufs: number; makeupDb: number; peakDbfs: number; chain: boolean };
+  /** Plays a heavy hit panned to `pan` (-0.8 left edge .. 0.8 right edge) so a capture can measure the channels. */
+  probeHit?(pan: number): void;
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
   /** Layered stage bed: calm/intense, ambience under the theme, intensity stem. */
@@ -192,6 +196,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'post-chain') await r.postChain();
         else if (id === 'lighting') await r.lighting();
+        else if (id === 'mix-room') await r.mixRoom();
         else if (id === 'art-style') await r.artStyle();
         else if (id === 'stage-life') await r.stageLife();
         else if (id === 'stage-bed') await r.stageBed();
@@ -5904,6 +5909,129 @@ class Run {
       t.progress(1);
       t.finish('done');
     } finally {
+      setGraphics(initial);
+      if (original === null) localStorage.removeItem(GFX_KEY);
+    }
+  }
+
+  /**
+   * The match mix (audio.ts, roomAudio.ts): every stage is its own room (`dod:mix-room` with the room's name, its
+   * length and wet share; Low sends half), fighter sounds are panned by where the fighter stands (a hit played at the
+   * left edge is 6+ dB louder in the left channel, one at the right edge in the right), and the mix is levelled to
+   * -14 LUFS under a limiter (the in-game meter and sample peak are logged; the capture is judged by Hawkes Gen
+   * audio.analyze). Setup shortcut: straight into a match on each of the 9 stages (option stage: one), then a
+   * 2-minute match on `stage` (default humans-in-the-loop). Events `mix-room`, `pan-left`, `pan-right`, `pan-fight`,
+   * `mix-level`; metrics `mixRooms`, `mixLufs`, `mixPeakDbfs`, `fpsMix`.
+   */
+  async mixRoom(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('mix-room');
+    }
+    this.logViewport(touch && this.isPhone());
+    const original = localStorage.getItem(GFX_KEY);
+    const initial = graphics();
+    const low = touch || this.options.quality === 'low';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    setGraphics(low ? { quality: 'low', glow: false } : { quality: 'high', glow: true });
+    type Room = { stage: string | null; room: string; seconds: number; wet: number; low: boolean };
+    const rooms: Room[] = [];
+    const onRoom = (e: Event) => rooms.push((e as CustomEvent).detail as Room);
+    const pans: number[] = [];
+    const onTake = (e: Event) => {
+      const d = (e as CustomEvent).detail as { id: string; pan: number | null };
+      if (d.pan != null) pans.push(d.pan);
+    };
+    window.addEventListener('dod:mix-room', onRoom);
+    window.addEventListener('dod:sound-take', onTake);
+    try {
+      const want = typeof this.options.stage === 'string' ? STAGES.filter((s) => s.id === this.options.stage) : STAGES;
+      if (!want.length) t.problem('bug', `stage "${String(this.options.stage)}" is not on the list`);
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = (punk + 1) % CHARACTERS.length;
+      const slots = [{ char: punk, cpu: null, look: 0 }, { char: foe, cpu: 5, look: 1 }];
+      const seen = new Set<string>();
+      const fps: number[] = [];
+      for (const [i, st] of want.entries()) {
+        t.progress(0.05 + (0.45 * i) / want.length);
+        const before = rooms.length;
+        void this.game.startMatch({ mode: 'versus', stage: STAGES.indexOf(st), stocks: 1, rules: {}, slots });
+        await this.matchLive();
+        await this.wait(600);
+        const r = rooms.slice(before).find((x) => x.stage === st.id);
+        const def = st.room;
+        if (!def) t.problem('bug', `${st.name} has no room in content/stages.json`);
+        else if (!r) t.problem('bug', `${st.name}: no dod:mix-room came out when the match started`);
+        else if (r.room !== def.name) t.problem('bug', `${st.name}: mix-room says "${r.room}", the stage's room is "${def.name}"`);
+        else if (seen.has(r.room)) t.problem('bug', `${st.name}: the room "${r.room}" is another stage's too`);
+        else {
+          seen.add(r.room);
+          t.event('mix-room', `${st.name}: room "${r.room}", ${r.seconds} s, ${Math.round(r.wet * 100)}% wet on effects and voices${r.low ? ' (Low: half the send)' : ''}, none on music or menus`);
+        }
+        const frame0 = this.game.match()?.state.frame ?? 0;
+        let tick = 0;
+        await this.fight(() => {
+          if (++tick % 20 === 0) fps.push(this.game.gfxStats?.()?.fpsNow ?? 0);
+          return (this.game.match()?.state.frame ?? 0) - frame0 > 60 * 3;
+        }, 60000);
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+      t.metric('mixRooms', seen.size);
+
+      // The long match on one stage: pans from real fighters, then the measured level.
+      const stage = typeof this.options.stage === 'string' ? Math.max(0, STAGES.findIndex((s) => s.id === this.options.stage)) : Math.max(0, STAGES.findIndex((s) => s.id === 'humans-in-the-loop'));
+      pans.length = 0;
+      void this.game.startMatch({ mode: 'versus', stage, stocks: 9, rules: {}, slots });
+      await this.matchLive();
+      await this.wait(800);
+      // A hit at each edge, then the real fight (the capture measures the channels of these two).
+      this.game.probeHit?.(-0.8);
+      t.event('pan-left', 'a heavy hit played at the left screen edge (pan -0.8): the left channel should be 6+ dB over the right (equal-power pan: about 16 dB)');
+      await this.wait(1400);
+      this.game.probeHit?.(0.8);
+      t.event('pan-right', 'a heavy hit played at the right screen edge (pan 0.8)');
+      await this.wait(1400);
+      const frame0 = this.game.match()?.state.frame ?? 0;
+      const total = Math.max(5, Number(this.options.seconds) || 120);
+      let tick = 0;
+      await this.fight(() => {
+        if (++tick % 20 === 0) fps.push(this.game.gfxStats?.()?.fpsNow ?? 0);
+        if (tick % 600 === 0) t.progress(0.5 + 0.45 * Math.min(1, ((this.game.match()?.state.frame ?? 0) - frame0) / (60 * total)));
+        return (this.game.match()?.state.frame ?? 0) - frame0 > 60 * total;
+      }, (total + 90) * 1000);
+      const fightPans = pans.filter((p) => Math.abs(p) !== 0.8 || pans.length > 2);
+      if (fightPans.length < 5) t.problem('bug', `only ${fightPans.length} panned fighter sounds in the ${total} s match`);
+      else {
+        const lo = Math.min(...fightPans), hi = Math.max(...fightPans);
+        t.event('pan-fight', `${fightPans.length} fighter sounds panned across ${lo.toFixed(2)} to ${hi.toFixed(2)} by where the fighters stood`);
+        if (hi - lo < 0.2) t.problem('warning', `the fighter pans only span ${(hi - lo).toFixed(2)}`);
+      }
+      const mix = this.game.mixStats?.();
+      if (!mix?.chain) t.problem('bug', 'the master chain (compressor, limiter) is not running');
+      else {
+        t.metric('mixLufs', mix.lufs);
+        t.metric('mixPeakDbfs', mix.peakDbfs);
+        t.event('mix-level', `${total} s match: about ${mix.lufs} LUFS short-term (target -14), sample peak ${mix.peakDbfs} dBFS (ceiling -1.4), makeup ${mix.makeupDb} dB`);
+        if (mix.peakDbfs > -1) t.problem('bug', `the mix peaked at ${mix.peakDbfs} dBFS: over the -1 dBTP ceiling`);
+        if (mix.lufs < -17 || mix.lufs > -11) t.problem('warning', `the in-game meter reads ${mix.lufs} LUFS, target -14`);
+      }
+      await this.game.quitMatch();
+      const mean = fps.length ? fps.reduce((a, b) => a + b, 0) / fps.length : 0;
+      t.metric('fpsMix', Math.round(mean));
+      if (low && mean > 0 && mean < 45 && innerWidth <= 900) t.problem('warning', `with the reverb on, Low at ${innerWidth}x${innerHeight} ran at ${Math.round(mean)} fps (want 45)`);
+      else t.event('mix-fps', `${Math.round(mean)} fps with panning and the room reverb on (${low ? 'Low' : 'High'})`);
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      window.removeEventListener('dod:mix-room', onRoom);
+      window.removeEventListener('dod:sound-take', onTake);
       setGraphics(initial);
       if (original === null) localStorage.removeItem(GFX_KEY);
     }

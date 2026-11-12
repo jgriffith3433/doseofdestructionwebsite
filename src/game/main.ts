@@ -5,7 +5,8 @@
 import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
 import { addWin } from './looks.ts';
-import { audio, tapState } from './audio.ts';
+import { audio, tapState, type Spatial } from './audio.ts';
+import { panFromScreen } from './roomAudio.ts';
 import { Commentator, introCall, type Call } from './commentary.ts';
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
 import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
@@ -1257,6 +1258,13 @@ function afterTick(m: Match, events: SimEvent[]): void {
 }
 
 const SMASHES: ReadonlySet<number> = new Set([MOVE.FSMASH, MOVE.USMASH, MOVE.DSMASH]);
+/** A sound made where a fighter stands: panned by its screen x (-0.8 to 0.8); `away` for a KO leaving the view. */
+function at(simX: number, ko = false): Spatial {
+  const x01 = renderer.screenX01(simX);
+  const pan = panFromScreen(x01);
+  return ko ? { pan, away: Math.min(1, Math.max(0, (Math.abs(x01 * 2 - 1) - 0.8) / 1.2)) } : { pan };
+}
+
 const VOICE_SPECIALS: ReadonlySet<number> = new Set([MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL]);
 
 /** A broadcast caption over the match. */
@@ -1274,18 +1282,18 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
   for (const e of events) {
     switch (e.type) {
       case 'hit':
-        if (e.shield) audio.sfx('hit-shield', { vary: true });
+        if (e.shield) audio.sfx('hit-shield', { vary: true, at: at(e.x) });
         else {
-          audio.sfx(e.dmg < 70 ? 'hit-light' : e.dmg < 130 ? 'hit-medium' : 'hit-heavy', { vary: true });
+          audio.sfx(e.dmg < 70 ? 'hit-light' : e.dmg < 130 ? 'hit-medium' : 'hit-heavy', { vary: true, at: at(e.x) });
           // Heavy hits: the studio crowd gasps (ooh). Medium/heavy: the victim's hurt bark.
           if (e.dmg >= 130) audio.crowd('ooh');
-          if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt');
+          if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt', at(m.state.fighters[e.victim].x));
         }
         break;
       case 'hurt':
         // Stage damage (hazards, damage zones) lands with a hit sound like any other hit.
-        audio.sfx(e.dmg < 70 ? 'hit-light' : 'hit-medium', { vary: true });
-        if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt');
+        audio.sfx(e.dmg < 70 ? 'hit-light' : 'hit-medium', { vary: true, at: at(m.state.fighters[e.victim].x) });
+        if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt', at(m.state.fighters[e.victim].x));
         break;
       case 'stage':
         // The stage's events are heard: an alarm on the warning, a rush when it starts, a crowd reaction.
@@ -1315,7 +1323,7 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         else audio.synth('alarm', 0.9);
         break;
       case 'ko': {
-        audio.sfx('ko');
+        audio.sfx('ko', { at: at(e.x, true) });
         // Crowd: roar on every KO; rising cheer when the killer was behind and is now level-or-ahead.
         const before = crowdStocksBefore.length === m.state.fighters.length
           ? crowdStocksBefore
@@ -1328,40 +1336,40 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         if (behind && level) audio.crowd('rising');
         else audio.crowd('roar');
         crowdStocksBefore = stocks;
-        audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'ko');
+        audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'ko', at(e.x, true));
         break;
       }
       case 'grab':
         // The grab clasps (a shielded one cracks through the guard too); a held fighter's shield stays whole.
         audio.synth('grab', 1);
-        if (e.shield) audio.sfx('hit-shield', { vary: true });
+        if (e.shield) audio.sfx('hit-shield', { vary: true, at: at(m.state.fighters[e.victim].x) });
         break;
       case 'throw':
         audio.synth('whoosh', 0.7);
-        audio.sfx(e.kind === 2 ? 'hit-heavy' : 'hit-medium', { vary: true });
+        audio.sfx(e.kind === 2 ? 'hit-heavy' : 'hit-medium', { vary: true, at: at(m.state.fighters[e.victim].x) });
         break;
       case 'grab-break':
         audio.synth('whoosh', 0.35);
         break;
       case 'counter':
         // A counter rings out: a shield-bright hit and a sting.
-        audio.sfx('hit-shield');
+        audio.sfx('hit-shield', { at: at(e.x) });
         audio.synth('sting', 0.5);
         break;
       case 'jump':
-        audio.sfx('jump', { vary: true });
+        audio.sfx('jump', { vary: true, at: at(e.x) });
         break;
       case 'land':
-        audio.landSfx();
+        audio.landSfx(null, at(e.x));
         break;
       case 'ledge':
-        audio.sfx('ledge', { vary: true });
+        audio.sfx('ledge', { vary: true, at: at(e.x) });
         break;
       case 'shieldbreak':
-        audio.sfx('shield-break');
+        audio.sfx('shield-break', { at: at(e.x) });
         break;
       case 'respawn':
-        audio.sfx('respawn');
+        audio.sfx('respawn', { at: at(e.x) });
         break;
     }
   }
@@ -1369,12 +1377,12 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
   m.state.fighters.forEach((f, i) => {
     if (f.action !== lastActions[i]) {
       if (f.action === ACT.ATTACK) {
-        audio.sfx(SMASHES.has(f.move) || f.move === MOVE.SSPECIAL || f.move === MOVE.DSPECIAL ? 'swing-heavy' : 'swing-light', { vary: true });
+        audio.sfx(SMASHES.has(f.move) || f.move === MOVE.SSPECIAL || f.move === MOVE.DSPECIAL ? 'swing-heavy' : 'swing-light', { vary: true, at: at(f.x) });
         // Smash and special effort barks (1.5 s cooldown + no overlap, inside audio.fighterVoice).
         if (SMASHES.has(f.move) || VOICE_SPECIALS.has(f.move)) {
-          audio.fighterVoice(CHARACTERS[f.char].id, 'effort');
+          audio.fighterVoice(CHARACTERS[f.char].id, 'effort', at(f.x));
         }
-      } else if (f.action === ACT.ROLL || f.action === ACT.SPOTDODGE || f.action === ACT.AIRDODGE) audio.sfx('dodge', { vary: true });
+      } else if (f.action === ACT.ROLL || f.action === ACT.SPOTDODGE || f.action === ACT.AIRDODGE) audio.sfx('dodge', { vary: true, at: at(f.x) });
     }
     lastActions[i] = f.action;
   });
@@ -2022,6 +2030,8 @@ installDodPlaytest({
   reactFxStats: (reset) => renderer.reactFxStats(reset),
   markerStats: () => ({ ...markerLog, rects: markerRects() }),
   gfxStats: () => renderer.gfxStats(),
+  mixStats: () => audio.mixStats(),
+  probeHit: (pan) => audio.sfx('hit-heavy', { vary: false, at: { pan } }),
   postStats: () => renderer.postStats(),
   lightStats: () => renderer.lightStats(),
   styleStats: () => renderer.styleStats(),
