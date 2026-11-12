@@ -1845,3 +1845,49 @@ body.pilot-boot .screen { visibility: hidden; }
   .ending-grid { grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr)); gap: 8px; }
 }
 @media (prefers-reduced-motion: reduce) { .ending-art { animation-name: ending-fade; animation-duration: 0.9s; } }
+
+/* ------------------------------------------------- finale takeover (campaign/takeover.ts, main.ts startTakeover) */
+/* The Orchestrator's picture-in-picture: top left, so it stays clear of Pause (top right), the timer and caption
+   (top centre) and the stick and buttons (bottom). Small on a phone. */
+.takeover-pip {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  width: clamp(120px, 14vw, 188px);
+  z-index: 7;
+  background: #0a0a14;
+  border: 3px solid #ff3b6b;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.7), 0 6px 18px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  overflow: hidden;
+  animation: pip-in 260ms steps(5, end), pip-jitter 2.6s steps(1, end) infinite;
+}
+.takeover-pip.off { opacity: 0; transition: opacity 500ms; }
+.takeover-pip img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: top; filter: contrast(1.15) saturate(1.2); }
+.takeover-pip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22) 0 2px, transparent 2px 4px);
+  mix-blend-mode: multiply;
+}
+.takeover-live { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 6px; background: rgba(255, 59, 107, 0.92); color: #fff; font: 700 11px/1.3 Oswald, sans-serif; letter-spacing: 0.1em; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+@keyframes pip-in { from { transform: translateX(-12px) skewX(8deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes pip-jitter { 0%, 88% { transform: none; } 90% { transform: translateX(3px); } 93% { transform: translateX(-2px) skewX(3deg); } 96% { transform: none; } }
+/* The Orchestrator on the stage's screens: a ghost of him across the picture for the glitch second. */
+.takeover-ghost { position: fixed; left: 50%; top: 4%; height: 70vh; max-width: 90vw; object-fit: contain; transform: translateX(-50%); opacity: 0; z-index: 1; pointer-events: none; mix-blend-mode: screen; animation: ghost-flash 1400ms ease-out forwards; }
+@keyframes ghost-flash { 0% { opacity: 0; } 12% { opacity: 0.42; } 40% { opacity: 0.18; } 55% { opacity: 0.34; } 100% { opacity: 0; } }
+/* The HUD and the DOM next to the canvas tear with the picture for the glitch second. */
+body.takeover-glitch #hud, body.takeover-glitch #match-top { animation: hud-glitch 1000ms steps(10, end); }
+@keyframes hud-glitch { 0%, 100% { transform: none; filter: none; } 20% { transform: translateX(-6px); filter: drop-shadow(4px 0 #f0f) drop-shadow(-4px 0 #0ff); } 45% { transform: translateX(8px) skewX(-6deg); filter: drop-shadow(6px 0 #f0f) drop-shadow(-6px 0 #0ff); } 70% { transform: translateX(-3px); filter: drop-shadow(3px 0 #f0f) drop-shadow(-3px 0 #0ff); } }
+.booth-orchestrator { border-left-color: #ff3b6b; }
+.booth-orchestrator .booth-who { color: #ff3b6b; }
+/* The new rule on the HUD: under the picture-in-picture, left, until the match ends. */
+.rule-chip { position: fixed; top: calc(max(12px, env(safe-area-inset-top)) + clamp(96px, 11vw, 156px)); left: max(12px, env(safe-area-inset-left)); z-index: 7; padding: 3px 10px; background: #ff3b6b; color: #fff; font: 700 13px/1.25 Oswald, sans-serif; letter-spacing: 0.08em; border-radius: 4px; pointer-events: none; animation: pip-in 260ms steps(5, end); }
+.rule-chip small { display: block; font-size: 9px; letter-spacing: 0.16em; opacity: 0.85; }
+@media (max-height: 460px) {
+  .takeover-pip { width: 108px; border-width: 2px; }
+  .takeover-live { font-size: 9px; padding: 1px 4px; }
+  .rule-chip { top: calc(max(12px, env(safe-area-inset-top)) + 92px); font-size: 11px; padding: 2px 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .takeover-pip, .rule-chip { animation: none; } .takeover-ghost { animation-duration: 1ms; } body.takeover-glitch #hud, body.takeover-glitch #match-top { animation: none; } }

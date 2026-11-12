@@ -22,6 +22,7 @@ import { clearMarkers, markerLog, markerRects, updateMarkers, type MarkerIn } fr
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
+import { ruleLabel, takeoverLines } from './campaign/takeover.ts';
 import { CHAPTERS, isUnlocked, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
@@ -1143,6 +1144,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
 function beginReady(m: Match): void {
   const setup = m.setup;
   analytics.matchStart(m, chapter);
+  clearTakeover();
   endPilotBoot();
   phase = 'ready';
   readyFrames = 0;
@@ -1176,6 +1178,7 @@ function endMatch(): void {
   $('hud').hidden = true;
   clearMarkers();
   $('match-top').hidden = true;
+  clearTakeover();
   $('pause').hidden = true;
   renderer.debug = false;
 }
@@ -1287,6 +1290,75 @@ function at(simX: number, ko = false): Spatial {
 
 const VOICE_SPECIALS: ReadonlySet<number> = new Set([MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL]);
 
+// ------------------------------------------------------------- the finale takeover
+// The sim fires a 'takeover' broadcast (sim/step.ts) with the player's mood, and 45 frames later 'takeover-rule' when the
+// rule has landed. This is what the player sees and hears: a 1 s RGB-split glitch and a cut sound, the Orchestrator's feed in
+// a picture-in-picture (top left, clear of Pause and the touch controls) with his ghost on the stage screens, his lines for
+// the state of the fight (campaign/takeover.ts), and the rule chip on the HUD with a sting.
+const TAKEOVER_GLITCH_MS = 1000;
+let takeoverTimers: number[] = [];
+let takeoverSeq = 0;
+
+function clearTakeover(): void {
+  for (const t of takeoverTimers) clearTimeout(t);
+  takeoverTimers = [];
+  takeoverSeq++;
+  document.querySelectorAll('.takeover-pip, .takeover-ghost, .rule-chip, .booth-orchestrator').forEach((el) => el.remove());
+  document.body.classList.remove('takeover-glitch');
+}
+
+function endTakeover(): void {
+  document.querySelector('.takeover-pip')?.classList.add('off');
+  document.querySelector('.takeover-ghost')?.remove();
+  takeoverTimers.push(window.setTimeout(() => document.querySelector('.takeover-pip')?.remove(), 600));
+}
+
+function startTakeover(m: Match, e: { index: number; mood?: number; hot?: number }): void {
+  clearTakeover();
+  const seq = takeoverSeq;
+  const def = m.state.bc[e.index];
+  const lines = takeoverLines(chapter?.season ?? 1, chapter?.id ?? 'encore', e.mood ?? 1, !!e.hot, !!def?.rule);
+  renderer.glitch(TAKEOVER_GLITCH_MS);
+  audio.synth('cut');
+  audio.synth('alarm', 0.4);
+  document.body.classList.add('takeover-glitch');
+  takeoverTimers.push(window.setTimeout(() => document.body.classList.remove('takeover-glitch'), TAKEOVER_GLITCH_MS));
+  const pip = h('div', { class: 'takeover-pip', 'data-takeover': 'on', 'data-mood': e.mood && e.mood < 0 ? 'behind' : 'ahead', 'data-hot': e.hot ? '1' : '0' },
+    h('img', { src: headUrl('orchestrator'), alt: '' }),
+    h('span', { class: 'takeover-live' }, 'LIVE · THE ORCHESTRATOR'));
+  document.body.appendChild(pip);
+  document.body.appendChild(h('img', { class: 'takeover-ghost', src: headUrl('orchestrator'), alt: '' }));
+  const said: string[] = [];
+  // His lines come one after another, each when the last has finished (a take's own length, else reading time).
+  const next = (i: number): void => {
+    if (seq !== takeoverSeq || i >= lines.ids.length) return;
+    const id = lines.ids[i];
+    const text = VOICE.lines.find((l) => l.id === id)?.text ?? '';
+    audio.line(id);
+    said.push(id);
+    document.querySelector('.booth')?.remove();
+    document.querySelector('.booth-orchestrator')?.remove();
+    document.body.appendChild(h('div', { class: 'booth booth-orchestrator', 'data-line': id }, h('span', { class: 'booth-who' }, 'The Orchestrator'), h('span', { class: 'booth-text' }, text)));
+    window.dispatchEvent(new CustomEvent('dod:takeover', { detail: { phase: 'line', id, text, index: i, mood: e.mood && e.mood < 0 ? 'behind' : 'ahead', hot: !!e.hot, chapter: chapter?.id ?? null, frame: m.state.frame } }));
+    takeoverTimers.push(window.setTimeout(() => next(i + 1), Math.max(2600, text.split(/\s+/).length * 380 + 900)));
+  };
+  window.dispatchEvent(new CustomEvent('dod:takeover', { detail: { phase: 'start', mood: e.mood && e.mood < 0 ? 'behind' : 'ahead', hot: !!e.hot, chapter: chapter?.id ?? null, frame: m.state.frame, lines: lines.ids, rule: def?.rule ? ruleLabel(def.rule) : null } }));
+  takeoverTimers.push(window.setTimeout(() => next(0), 450));
+}
+
+function showTakeoverRule(m: Match, index: number): void {
+  const rule = m.state.bc[index]?.rule;
+  if (!rule) return;
+  const label = ruleLabel(rule);
+  audio.synth('sting');
+  audio.synth('thud', 0.7);
+  document.querySelector('.rule-chip')?.remove();
+  const chip = h('div', { class: 'rule-chip', 'data-rule': label }, h('small', {}, 'NEW RULE'), label);
+  document.body.appendChild(chip);
+  showBanner(`NEW RULE · ${label}`, 2600).className = 'bc-banner bc-hijack';
+  window.dispatchEvent(new CustomEvent('dod:takeover', { detail: { phase: 'rule', rule: label, frame: m.state.frame, chapter: chapter?.id ?? null } }));
+}
+
 /** A broadcast caption over the match. */
 function showBanner(text: string, ms: number): HTMLElement {
   const el = document.createElement('div');
@@ -1328,6 +1400,7 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
       case 'broadcast':
         if (e.phase === 'end') {
           if (e.kind === 'break') document.getElementById('brb')?.remove();
+          if (e.kind === 'takeover') endTakeover();
           break;
         }
         if (e.kind === 'chant') {
@@ -1341,7 +1414,9 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         } else if (e.kind === 'hijack') {
           audio.synth('alarm', 0.6);
           showBanner('RIVAL NETWORK · NOW BROADCASTING', 10000).className = 'bc-banner bc-hijack';
-        } else if (e.kind === 'flicker') audio.synth('thud', 0.6);
+        } else if (e.kind === 'takeover') startTakeover(m, e);
+        else if (e.kind === 'takeover-rule') showTakeoverRule(m, e.index);
+        else if (e.kind === 'flicker') audio.synth('thud', 0.6);
         else audio.synth('alarm', 0.9);
         break;
       case 'ko': {

@@ -304,6 +304,12 @@ export class Renderer {
     if (this.fpsEl) this.fpsEl.hidden = !g.fps;
   }
 
+  /** The Orchestrator seizes the feed: a 1 s RGB-split glitch over the whole picture (the HUD and screens are DOM, so they get a CSS glitch of their own). */
+  glitch(ms = 1000): void {
+    this.post.glitch(ms);
+    this.shake = Math.max(this.shake, 0.25);
+  }
+
   /** The post chain's state (grade, vignette, grain, hit punches), for the playtest. */
   postStats() {
     return this.post.report();
