@@ -1732,3 +1732,12 @@ body.pilot-boot .screen { visibility: hidden; }
   .scene-bug { font-size: 11px; }
   .scene-sub.segment { bottom: calc(max(9vh, 56px) + 8px + 62px); padding: 5px 12px; }
 }
+
+/* The winner's quote on the results screen: typed on beside the portrait, two lines at most. */
+.win-quote { margin: 4px 0 6px; padding: 0 0 0 10px; border-left: 3px solid var(--slot, var(--gold)); color: var(--text); font-size: clamp(16px, 2.2vw, 24px); font-style: italic; line-height: 1.25; max-width: 34em; overflow-wrap: anywhere; }
+.win-quote.rival { border-left-color: var(--gold); }
+.win-quote .wq-rest { visibility: hidden; }
+@media (max-height: 520px) {
+  .win-quote { font-size: clamp(14px, 2.6vw, 18px); margin: 2px 0 4px; line-height: 1.2; }
+  .win-quote .wq-typed, .win-quote .wq-rest { display: inline; }
+}

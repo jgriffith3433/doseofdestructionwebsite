@@ -632,3 +632,19 @@ Destruction"**: the saved KO replayed on its own stage under Blog Man's voiced r
   tease signs the show off ("Nothing. That's a wrap."); its recap plays if a run starts over from Open Mic.
 - Every segment is skippable by any key, click, tap or pad button (`ui/segment.ts`); the pilot, the daily episode and
   the Tour have none of it. Scenario `bookends` plays it.
+
+## Win quotes (as built)
+
+Every win ends with the winner talking to the loser, in the style of a fighting game's win screen: the results screen shows
+the winner's portrait with the quote typed on beneath the headline while the recorded take plays (`winQuote.ts`,
+`ui/quoteCaption.ts`; data `content/voice.json` `winQuotes`, made by `tools/win-quotes.mjs` from `tools/win-quotes.data.json`).
+
+- Each fighter has two general quotes (the older `fighter.<id>.win` line stays one of them, and the Tour's ending still
+  plays it) and one matchup quote against each story rival, the pairs in `content/intros.json` in both directions:
+  33 new general quotes and 64 matchup quotes, ten words or fewer, recorded in the fighter's own voice
+  (`winquote.<id>.1`, `winquote.<id>.vs.<rival>`).
+- Beating a rival plays the matchup quote, which answers the square-up before the fight (Exit Punk to Kaelen: "Told you.
+  Stand still."). Otherwise a general quote. A fighter never plays the same quote twice in a row: a repeated rival win
+  falls back to a general quote.
+- Versus, online, campaign, Tour (a lost fight's foe gloats on the choice screen) and the daily episode all use it; the
+  Tour's last win keeps the win line already heard over the final KO. Scenario `win-quote`.
