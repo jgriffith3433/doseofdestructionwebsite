@@ -215,6 +215,16 @@ export interface StageTheme {
   props: 'frame' | 'skyline' | 'clouds' | 'embers' | 'pipes';
 }
 
+/** A stage's light on its fighters. Colours are hex. `key` points to where the light comes from, in screen x/y. */
+export interface StageLight {
+  key: { dir: [number, number]; color: string; strength: number };
+  rim: { color: string; strength: number };
+  /** What the whole fighter is multiplied by (the set's ambient colour). */
+  ambient: string;
+  /** A polished studio floor: a faint mirror image under the fighter. */
+  glossy?: boolean;
+}
+
 export interface StageDef {
   id: string;
   name: string;
@@ -242,6 +252,8 @@ export interface StageDef {
   /** Art direction for painting the stage, and the concept image it is styled on. */
   art?: { style?: string; reference?: string };
   /** The stage's colour grade (render only): baked into stages/<id>/lut.png by tools/make-luts.mjs. */
+  /** The light the stage puts on its fighters (render only): key, rim, ambient, glossy floor. */
+  light?: StageLight;
   grade?: { lift: number; gamma: number; gain: number; saturation: number; tint: string; tintAmount: number };
 }
 

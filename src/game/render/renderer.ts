@@ -14,6 +14,8 @@ import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder.js';
 import { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder.js';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
 import { LookPlugin } from './lookPlugin.ts';
+import { LightPlugin } from './lightPlugin.ts';
+import { REFLECTION_ALPHA, floorBelow, lightOf, shadowAt } from './fighterLight.ts';
 import { COUNTER_TINT, Flipbooks, FLIPBOOK_KINDS, fighterTint, type FlipStats } from './flipbook.ts';
 import { lookOf } from '../looks.ts';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture.js';
@@ -81,6 +83,18 @@ interface FighterView {
   charIdx: number;
   lookIdx: number;
   tumble?: number;
+  /** The stage's key, rim and ambient on the sprite (lightPlugin.ts). */
+  light: LightPlugin;
+  /** The soft contact shadow under the feet, and its material (alpha follows the height). */
+  shadow: Mesh;
+  shadowMat: StandardMaterial;
+  /** The faint mirror image on a glossy floor (High only): a pivot flipped under the floor, its plane and material. */
+  reflRoot: TransformNode;
+  reflPose: TransformNode;
+  refl: Mesh;
+  reflMat: StandardMaterial;
+  /** What the last frame drew, for the playtest. */
+  lit: { height: number; scale: number; alpha: number; shadow: boolean; reflection: boolean };
 }
 
 /** One launch's smoke trail, kept for the playtest: what it was and how many puffs it threw. */
@@ -281,6 +295,7 @@ export class Renderer {
     if (qualityChanged) this.flip.setQuality(g.quality);
     this.glow.isEnabled = g.glow;
     this.post.setQuality(g.quality);
+    this.applyLight();
     if (this.fpsEl) this.fpsEl.hidden = !g.fps;
   }
 
@@ -392,6 +407,7 @@ export class Renderer {
     this.movers = [];
     this.stage = stage;
     this.post.setStage(stage.id);
+    this.applyLight();
     this.camCut = true;
     this.kill = null;
     const root = new TransformNode('stage', this.scene);
@@ -585,6 +601,8 @@ export class Renderer {
       // A colour look other than Classic recolours the sprite in the shader; Classic keeps the plain material.
       const look = lookOf(f.char, this.looks[f.id] ?? 0);
       if (look.from !== undefined) new LookPlugin(mat, look);
+      // The stage's light comes after the look: the palette is recoloured first, then lit.
+      const lightPlugin = new LightPlugin(mat, lightOf(this.stage), this.gfx.quality === 'high');
 
       const body = CreatePlane(`body-${f.id}`, { size: 1 }, this.scene);
       body.position.z = -0.05 * f.id;
@@ -644,7 +662,44 @@ export class Renderer {
       this.glow.addExcludedMesh(rim);
       root.onDisposeObservable.add(() => rimMat.dispose());
 
+      // The contact shadow: a soft ellipse on the platform below, parented to the root so it hides and goes with it.
+      const shadowMat = new StandardMaterial(`shadow-${f.id}`, this.scene);
+      shadowMat.disableLighting = true;
+      shadowMat.backFaceCulling = false;
+      shadowMat.diffuseColor = Color3.Black();
+      shadowMat.emissiveColor = Color3.Black();
+      shadowMat.diffuseTexture = this.shadowTexture();
+      shadowMat.useAlphaFromDiffuseTexture = true;
+      const shadow = CreatePlane(`shadow-${f.id}`, { size: 1 }, this.scene);
+      shadow.material = shadowMat;
+      shadow.parent = root;
+      shadow.position.z = 0.02;
+      shadow.isPickable = false;
+      this.glow.addExcludedMesh(shadow);
+      root.onDisposeObservable.add(() => shadowMat.dispose());
+
+      // The mirror image for glossy floors: rotated half a turn about x (no negative scale), under the floor line.
+      const reflRoot = new TransformNode(`refl-root-${f.id}`, this.scene);
+      reflRoot.parent = root;
+      reflRoot.rotation.x = Math.PI;
+      const reflPose = new TransformNode(`refl-pose-${f.id}`, this.scene);
+      reflPose.parent = reflRoot;
+      const reflMat = new StandardMaterial(`refl-${f.id}`, this.scene);
+      reflMat.disableLighting = true;
+      reflMat.backFaceCulling = false;
+      reflMat.emissiveColor = Color3.White();
+      reflMat.useAlphaFromDiffuseTexture = true;
+      reflMat.alpha = REFLECTION_ALPHA;
+      const refl = CreatePlane(`refl-${f.id}`, { size: 1 }, this.scene);
+      refl.material = reflMat;
+      refl.parent = reflPose;
+      refl.isPickable = false;
+      refl.setEnabled(false);
+      this.glow.addExcludedMesh(refl);
+      root.onDisposeObservable.add(() => reflMat.dispose());
+
       this.views.push({
+        light: lightPlugin, shadow, shadowMat, reflRoot, reflPose, refl, reflMat, lit: { height: -1, scale: 0, alpha: 0, shadow: false, reflection: false },
         root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, ghost, ghostMat, rim, rimMat, charIdx: f.char, lookIdx: this.looks[f.id] ?? 0,
       });
     }
@@ -1311,6 +1366,42 @@ export class Renderer {
     }
   }
 
+  private shadowTex: DynamicTexture | null = null;
+
+  /** One soft radial blob shared by every contact shadow (black, opaque in the middle, clear at the rim). */
+  private shadowTexture(): DynamicTexture {
+    if (this.shadowTex) return this.shadowTex;
+    const tex = new DynamicTexture('shadow-blob', { width: 128, height: 128 }, this.scene, true);
+    const ctx = tex.getContext() as CanvasRenderingContext2D;
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(0,0,0,1)');
+    g.addColorStop(0.45, 'rgba(0,0,0,0.7)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+    tex.hasAlpha = true;
+    tex.update();
+    this.shadowTex = tex;
+    return tex;
+  }
+
+  /** Every fighter's light and shadow as last drawn, for the playtest. */
+  lightStats() {
+    const st = this.stage;
+    return {
+      stage: st.id,
+      quality: this.gfx.quality,
+      glossy: !!st.light?.glossy,
+      fighters: this.views.map((v, slot) => ({ slot, plugin: v.light.state(), ...v.lit })),
+    };
+  }
+
+  /** The stage's light goes onto every fighter's material (a new stage, or a quality change). */
+  private applyLight(): void {
+    const light = lightOf(this.stage);
+    for (const v of this.views) v.light.set(light, this.gfx.quality === 'high');
+  }
+
   private drawFighter(f: Fighter, v: FighterView | undefined, state: GameState): void {
     if (!v) return;
     const ch = CHARACTERS[f.char];
@@ -1418,6 +1509,35 @@ export class Renderer {
     } else {
       v.mat.emissiveColor.set(1, 1, 1);
     }
+
+    // The contact shadow on the platform below: smaller and fainter with height, gone above 300 units.
+    const floor = floorBelow(this.stage, state.frame, f.x, f.y);
+    const sh = shadowAt(floor === null ? null : f.y / FX - floor);
+    const floorLocal = floor === null ? 0 : floor / 100 - v.root.position.y;
+    const wide = ch.width * W * k * 1.7 * sh.scale;
+    v.shadow.setEnabled(sh.on);
+    if (sh.on) {
+      v.shadow.scaling.set(wide, wide * 0.24, 1);
+      v.shadow.position.y = floorLocal - 0.005;
+      v.shadowMat.alpha = sh.alpha;
+    }
+    // On a glossy floor (High only) a faint mirror of the fighter shows under the platform, fading with the same height.
+    const mirror = sh.on && this.gfx.quality === 'high' && !!this.stage.light?.glossy;
+    v.refl.setEnabled(mirror);
+    if (mirror) {
+      v.reflRoot.position.y = 2 * floorLocal;
+      v.reflPose.position.y = v.pose.position.y;
+      v.reflPose.scaling.copyFrom(v.pose.scaling);
+      v.reflPose.rotation.z = v.pose.rotation.z;
+      v.refl.position.copyFrom(v.body.position);
+      v.refl.scaling.copyFrom(v.body.scaling);
+      v.reflMat.alpha = REFLECTION_ALPHA * (1 - Math.max(0, sh.height) / 300);
+      if (v.reflMat.diffuseTexture !== v.mat.diffuseTexture) {
+        v.reflMat.diffuseTexture = v.mat.diffuseTexture;
+        v.reflMat.emissiveTexture = v.mat.diffuseTexture;
+      }
+    }
+    v.lit = { height: Number(sh.height.toFixed(1)), scale: Number(sh.scale.toFixed(3)), alpha: Number(sh.alpha.toFixed(3)), shadow: sh.on, reflection: mirror };
 
     v.ring.setEnabled(f.grounded === 1 || f.action === ACT.RESPAWN);
     const shielding = f.action === ACT.SHIELD || f.action === ACT.SHIELD_STUN;
