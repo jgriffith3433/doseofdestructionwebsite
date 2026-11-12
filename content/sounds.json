@@ -1450,5 +1450,125 @@
     "volume": 0.5,
     "file": "/audio/sfx/special-accent-orchestrator.mp3",
     "take": null
+  },
+  {
+    "id": "fanfare-open-mic",
+    "group": "victory",
+    "text": "5 s victory fanfare for the open-mic group (Hawkes Gen audio.music, trimmed)",
+    "loop": false,
+    "duration": 5,
+    "volume": 0.9,
+    "file": "/audio/sfx/fanfare-open-mic.mp3",
+    "takes": [
+      {
+        "id": "fanfare-open-mic.0",
+        "file": "/audio/sfx/fanfare-open-mic.mp3"
+      }
+    ]
+  },
+  {
+    "id": "fanfare-the-booth",
+    "group": "victory",
+    "text": "5 s victory fanfare for the the-booth group (Hawkes Gen audio.music, trimmed)",
+    "loop": false,
+    "duration": 5,
+    "volume": 0.9,
+    "file": "/audio/sfx/fanfare-the-booth.mp3",
+    "takes": [
+      {
+        "id": "fanfare-the-booth.0",
+        "file": "/audio/sfx/fanfare-the-booth.mp3"
+      }
+    ]
+  },
+  {
+    "id": "fanfare-the-host",
+    "group": "victory",
+    "text": "5 s victory fanfare for the the-host group (Hawkes Gen audio.music, trimmed)",
+    "loop": false,
+    "duration": 5,
+    "volume": 0.9,
+    "file": "/audio/sfx/fanfare-the-host.mp3",
+    "takes": [
+      {
+        "id": "fanfare-the-host.0",
+        "file": "/audio/sfx/fanfare-the-host.mp3"
+      }
+    ]
+  },
+  {
+    "id": "fanfare-champions-card",
+    "group": "victory",
+    "text": "5 s victory fanfare for the champions-card group (Hawkes Gen audio.music, trimmed)",
+    "loop": false,
+    "duration": 5,
+    "volume": 0.9,
+    "file": "/audio/sfx/fanfare-champions-card.mp3",
+    "takes": [
+      {
+        "id": "fanfare-champions-card.0",
+        "file": "/audio/sfx/fanfare-champions-card.mp3"
+      }
+    ]
+  },
+  {
+    "id": "fanfare-rival-broadcast",
+    "group": "victory",
+    "text": "5 s victory fanfare for the rival-broadcast group (Hawkes Gen audio.music, trimmed)",
+    "loop": false,
+    "duration": 5,
+    "volume": 0.9,
+    "file": "/audio/sfx/fanfare-rival-broadcast.mp3",
+    "takes": [
+      {
+        "id": "fanfare-rival-broadcast.0",
+        "file": "/audio/sfx/fanfare-rival-broadcast.mp3"
+      }
+    ]
+  },
+  {
+    "id": "fanfare-sweeps-week",
+    "group": "victory",
+    "text": "5 s victory fanfare for the sweeps-week group (Hawkes Gen audio.music, trimmed)",
+    "loop": false,
+    "duration": 5,
+    "volume": 0.9,
+    "file": "/audio/sfx/fanfare-sweeps-week.mp3",
+    "takes": [
+      {
+        "id": "fanfare-sweeps-week.0",
+        "file": "/audio/sfx/fanfare-sweeps-week.mp3"
+      }
+    ]
+  },
+  {
+    "id": "fanfare-syndication",
+    "group": "victory",
+    "text": "5 s victory fanfare for the syndication group (Hawkes Gen audio.music, trimmed)",
+    "loop": false,
+    "duration": 5,
+    "volume": 0.9,
+    "file": "/audio/sfx/fanfare-syndication.mp3",
+    "takes": [
+      {
+        "id": "fanfare-syndication.0",
+        "file": "/audio/sfx/fanfare-syndication.mp3"
+      }
+    ]
+  },
+  {
+    "id": "fanfare-the-reboot",
+    "group": "victory",
+    "text": "5 s victory fanfare for the the-reboot group (Hawkes Gen audio.music, trimmed)",
+    "loop": false,
+    "duration": 5,
+    "volume": 0.9,
+    "file": "/audio/sfx/fanfare-the-reboot.mp3",
+    "takes": [
+      {
+        "id": "fanfare-the-reboot.0",
+        "file": "/audio/sfx/fanfare-the-reboot.mp3"
+      }
+    ]
   }
 ]
