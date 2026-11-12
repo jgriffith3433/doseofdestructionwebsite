@@ -80,6 +80,12 @@ the CPU bot (`src/game/ai/bot.ts`, level 9) drives your fighter through a virtua
 
 **Tour.** The main menu's Tour (`campaign/tour.ts` reads `content/tours.json`: per fighter a route name, a rival and six fights, each with its twist, foes, stage, CPU level, card title and line) plays a fighter's own six-fight run as campaign-style matches; a won fight goes straight into the next one, between fights the foe's recorded line plays through `ui/scene.ts` with the fight's card, the sixth win plays the fighter's `fighter.<id>.win` take over the final KO under the closing card (`runScene` with a `tour` cue in main.ts, `tourFinish`), a loss is Continue or Quit (`ui/tour.ts` `renderTourChoice`), and the cleared mark is `localStorage` `dod-tours`. `npm test` runs `test/tour.test.ts` over every route. Analytics: feature `tour` (start, fight, lost, continue, quit, clear; fighter ids only).
 
+**Fighter light.** Each stage's `light` in `content/stages.json` (key dir/colour/strength, rim, ambient, `glossy`) is read by
+`render/lightPlugin.ts`, a Babylon plugin on every fighter's sprite material that runs after `lookPlugin` (priority 300 vs 250: recolour first, then light): ambient
+multiply always, on High a Sobel-on-alpha normal for the key and far-side rim. `render/fighterLight.ts` has the pure
+shadow maths (`shadowAt`, `floorBelow`: shrinks and fades, gone at 300 units) and `Renderer.drawFighter` draws the shadow
+and, on glossy floors on High, a 15% mirror. Scenario `lighting` (events `stage-light`, `shadow-height`, `light-low`).
+
 **Colour looks.** The pick is cosmetic and never in the sim (`SlotSetup.look`, read by `Renderer.setLooks` and the VS card and
 results); online it travels in the match setup (`OnlineSetup.looks`, from each player's last pick for their picture's fighter,
 the same-fighter rule applied by the host and re-checked by the guest). `tools/derive-looks.mjs` writes `looks` from the idle sheets

@@ -222,6 +222,16 @@
       ]
     },
     {
+      "id": "lighting",
+      "title": "Fighter lighting: every stage lights both fighters with its own key, rim and ambient colour, each fighter casts a contact shadow that shrinks and fades as they jump (gone above 300 units), colour looks 1 to 4 keep their palettes, Low keeps the ambient tint and shadow and holds 45 fps (phone: 390x844 turned to landscape, touch)",
+      "description": "Setup shortcut: straight into a match on each of the 9 stages (option stage: one) with no menus, a different colour look on each fighter per stage. Per stage checks both fighters carry the stage's light (stage-light: key, rim, ambient from content/stages.json, glossy floors) and a shadow under each; the bot then fights 8 s and the shadow is sampled against height over the platform below (shadow-height: smaller and fainter when up, none at 300 units or more). On a phone (touch, Low) only the ambient tint and shadow run (light-low) and the fight holds 45 fps (metric fpsLight). Metric lightStages. The player's dod.gfx is put back.",
+      "seconds": 220,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "commentary",
       "title": "Commentary: the announcer calls the fight from its events (at least 8 kinds of line, never the same line twice in a row), and Blog Man introduces every season's episodes",
       "description": "Part 1: a versus match against the CPU (3 stocks, the bot on a virtual pad), to its end; each announcer call is an event call-<kind> (first-blood, ko, comeback, last-stock, showdown, self-destruct, big-hit, combo, danger, shield-break, hazard, stage-event, time-low, lull) with its caption shown, plus call-kinds (how many kinds came up) and call-repeat problems. Part 2: setup shortcut marks the campaign cleared (the player's own progress is put back), then plays the first chapter of each season (option `all`: every chapter) from the map through its dialogue, and leaves from Pause once Blog Man has spoken: events blog-intro per episode and blog-intros. Metrics callKinds, calls, blogIntros.",
@@ -362,6 +372,16 @@
       "title": "Colour looks: every fighter shows 4 swatches (44x44 tap targets in one row, locked ones say \"3 wins to unlock\" / \"10 wins to unlock\"), a tap picks, the same fighter twice gets two colours, and the pick shows on the VS card, in the match and on the results (phone: 390x844 turned to landscape, touch)",
       "description": "Training's select, all 33 fighters in turn (option fighter: one): four swatches each at least 44x44 CSS px, in one row inside the screen with no sideways scroll, locked ones reading \"3 wins to unlock\" and \"10 wins to unlock\", a tap on an open one picks it and a tap on a locked one picks nothing (swatches, swatch-tap, swatch-locked; metric swatchRows). Then Versus with two Exit Punks: the second gets another colour automatically, and tapping the first's colour moves it on (same-fighter-colour); setup shortcut: 3 wins with Exit Punk (dod-wins) open the third colour while the fourth still says 10 wins; the player's own saves are put back. Picks colour 3, plays the stage: the VS card shows both colours with their names inside the screen (vs-colour), the match draws them with the palette shader (match-colour), the results show them (results-colour) and the win is counted (win-credited). Played through taps (a phone: touch pointer events; 390x844 is turned to 844x390 like select-specials). Options: fighter, input (touch forces the touch UI), at (phone).",
       "seconds": 420,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "special-fx",
+      "title": "Special effects: each of the seven special archetypes starts its own painted flipbook in the fighter's colour, a counter flashes and freezes 6+ frames, Low plays the half-size 8-frame sheets (phone: 390x844 touch, turned to 844x390)",
+      "description": "STAND-IN art (drawn in code, same atlas format as the Gen sheets). Setup shortcut: straight into Training with the fighter for each archetype (Versus for the counter), no menus. Played through real input: keyboard K + stick, or on a phone the on-screen stick and Special button as touch pointer events. Logs fx-pool (the flipbook pool is full before the first special), fx-projectile / fx-dash / fx-recovery / fx-grab / fx-trap / fx-flurry (each from its special, with atlas size and quality), fx-tint and fx-tints-differ (two projectile fighters, two colours), fx-counter (the white-blue flash and the 6+ frame freeze on the parry), fx-low (Low: 8 frames of 128 px) and fx-fps (lowest fps while the effects played; want 40 on desktop, 45 on Low). Metrics fxShown, fxFpsMin, counterFreezeFrames.",
+      "seconds": 240,
       "tags": [
         "full",
         "touch"

@@ -20,6 +20,7 @@ import { CHARACTERS, MOVE, MOVE_KEYS } from '../sim/characters.ts';
 import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
+import { SHADOW_RANGE, hexRgb } from '../render/fighterLight.ts';
 import { ACT, ACT_NAMES } from '../sim/state.ts';
 import { AnimTrace } from '../sim/trace.ts';
 import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
@@ -69,6 +70,8 @@ export interface GameHooks {
   /** Renderer particle and warm-up diagnostics. */
   /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
   camFxStats?(reset?: boolean): { cameraJumps: number; framingMisses: number; killCues: number; slowFpsMin: number; killActive: boolean; lastCue: { zoom: boolean; slow: boolean; whistle: boolean; shake: number; punch: number } | null };
+  /** The special-effect flipbooks: plays per archetype, the tint used, pool, atlas size (render/flipbook.ts). */
+  flipStats?(reset?: boolean): { played: Record<string, number>; tint: Record<string, [number, number, number] | null>; dropped: number; pool: number; free: number; quality: 'high' | 'low'; frames: number; cell: number; standIn: boolean };
   reactFxStats?(reset?: boolean): { squashes: number; maxSquash: number; squashFrames: number; tumbleFrames: number; bounces: number; dustBursts: number; smears: number; smearFrames: number; smashSmears: number; charges: number; quality: string };
   trailStats?(reset?: boolean): { log: { seq: number; victim: number; tier: HitTier; kb: number; kind: 'none' | 'grey' | 'white' | 'streak'; ko: boolean; puffs: number }[]; active: number; puffs: number };
   markerStats?(): { shown: number; frames: number; unclear: number; last: { id: number; size: number; danger: boolean; clear: boolean; rect: { l: number; t: number; r: number; b: number } } | null; events: { id: number; size: number; danger: boolean }[]; rects: { id: number; rect: { l: number; t: number; r: number; b: number }; danger: boolean }[] };
@@ -77,6 +80,7 @@ export interface GameHooks {
   lookStats?(): { slot: number; char: number; look: number; shader: boolean }[];
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
+  lightStats?(): { stage: string; quality: 'high' | 'low'; glossy: boolean; fighters: { slot: number; plugin: { full: boolean; key: number[]; keyColor: number[]; rim: number[]; ambient: number[] }; height: number; scale: number; alpha: number; shadow: boolean; reflection: boolean }[] };
   postStats?(): { quality: 'high' | 'low'; lut: string | null; lutReady: boolean; vignette: number; grain: number; punchFrames: number; punches: number; lastPunchDrawn: number };
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
@@ -175,6 +179,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'smooth-clips') await r.smoothClips();
         else if (id === 'specials') await r.specialsRun();
         else if (id === 'grab') await r.grabRun();
+        else if (id === 'special-fx') await r.specialFx();
         else if (id === 'select-specials') await r.selectSpecials();
         else if (id === 'colours') await r.coloursRun();
         else if (id === 'sound-settings') await r.soundSettings();
@@ -184,6 +189,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'touch-settings') await r.touchSettingsRun();
         else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'post-chain') await r.postChain();
+        else if (id === 'lighting') await r.lighting();
         else if (id === 'stage-life') await r.stageLife();
         else if (id === 'stage-bed') await r.stageBed();
         else if (id === 'commentary') await r.commentary();
@@ -3736,6 +3742,204 @@ class Run {
     t.finish('done');
   }
 
+  // ---------------------------------------------------------- special effects: the painted flipbooks
+
+  /**
+   * Special-effect flipbooks (render/flipbook.ts, content/flipbooks.json): each of the seven archetypes is played from
+   * real input (keyboard K + stick, or the touch stick and Special button at 390x844 turned to 844x390) and must start
+   * its own flipbook (`fx-<kind>`), in the fighter's colour (`fx-tint`: two projectile fighters differ), from a pool
+   * that is full before the first special (`fx-pool`, nothing dropped). A counter that catches a hit shows its flash
+   * and both fighters freeze 6+ frames on the frame of the parry (`fx-counter`). Low shows the half-size 8-frame
+   * sheets (`fx-low`) and the match holds the fps (`fx-fps`). The art is a stand-in until the Gen sheets land.
+   * Setup shortcut: straight into Training (Versus for the counter) with the fighter for the archetype; no menus.
+   */
+  async specialFx(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('special-fx');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    type Slot = 'neutral' | 'side' | 'up' | 'down';
+    const plan: { kind: string; fighter: string; slot: Slot; foe: string }[] = [
+      { kind: 'projectile', fighter: 'ball-person', slot: 'neutral', foe: 'exit-punk' },
+      { kind: 'dash', fighter: 'ball-person', slot: 'side', foe: 'exit-punk' },
+      { kind: 'recovery', fighter: 'ball-person', slot: 'up', foe: 'exit-punk' },
+      { kind: 'grab', fighter: 'ball-person', slot: 'down', foe: 'exit-punk' },
+      { kind: 'trap', fighter: 'exit-punk', slot: 'down', foe: 'kaelen' },
+      { kind: 'flurry', fighter: 'kaelen', slot: 'neutral', foe: 'exit-punk' },
+      // The same archetype in another fighter: its own colour.
+      { kind: 'projectile', fighter: 'cel', slot: 'neutral', foe: 'exit-punk' },
+    ];
+    const sticks: Record<Slot, [number, number]> = { neutral: [0, 0], side: [100, 0], up: [0, 100], down: [0, -100] };
+    const fps: number[] = [];
+    const tints = new Map<string, string>();
+    let shown = 0;
+    try {
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      for (const [n, p] of plan.entries()) {
+        const me = CHARACTERS.findIndex((c) => c.id === p.fighter);
+        const foe = CHARACTERS.findIndex((c) => c.id === p.foe);
+        if (me < 0 || foe < 0) {
+          t.problem('bug', `special-fx: ${p.fighter} or ${p.foe} is not on the roster`);
+          continue;
+        }
+        void this.game.startMatch({ mode: 'training', stage, stocks: 1, rules: {}, slots: [{ char: me, cpu: null }, { char: foe, cpu: 0 }] });
+        await this.matchLive();
+        this.manual = NO_INPUT;
+        const pad = touch ? makeTouchPad() : makeKeyboardPad();
+        if (!pad) {
+          t.problem('bug', 'the touch controls (stick and Special button) were not built');
+          t.finish('error');
+          return;
+        }
+        const match = () => this.game.match()!;
+        const mine = () => match().state.fighters[match().player];
+        const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+        const frame = () => this.game.match()?.state.frame ?? 0;
+        const frames = async (k: number) => {
+          const end = frame() + k;
+          await t.until(() => frame() >= end, 6000 + k * 150, 'frames to pass');
+        };
+        if (n === 0) {
+          const s = this.game.flipStats?.();
+          if (!s) t.problem('bug', 'the renderer reports no flipbook stats');
+          else {
+            if (s.pool > 0 && s.free === s.pool) t.event('fx-pool', `${s.pool} flipbook planes built and free before the first special`);
+            else t.problem('bug', `the flipbook pool was not full before the first special (${s.free} of ${s.pool} free)`);
+            if (touch) t.event('phone-shot', `special effects on the touch overlay at ${innerWidth}x${innerHeight}`);
+          }
+        }
+        this.game.flipStats?.(true);
+        const toward = () => (dummy().x >= mine().x ? 1 : -1);
+        pad.stick(toward() * 100, 0);
+        await frames(3);
+        pad.stick(0, 0);
+        try {
+          await t.until(() => mine().grounded > 0 && mine().action === ACT.IDLE, 8000, 'the fighter to stand');
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+        }
+        await frames(8);
+        const before = this.game.flipStats?.()?.played[p.kind] ?? 0;
+        const [sx, sy] = sticks[p.slot];
+        const g0 = this.game.gfxStats?.();
+        pad.stick(sx ? toward() * sx : 0, sy);
+        await frames(3);
+        pad.special(true);
+        await frames(4);
+        pad.special(false);
+        let ok = false;
+        try {
+          await t.until(() => (this.game.flipStats?.()?.played[p.kind] ?? 0) > before, 5000, `${p.fighter}'s ${p.kind} flipbook to play`);
+          ok = true;
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+        }
+        // Frame rate over the first second of the effect.
+        for (let i = 0; i < 6; i++) {
+          await frames(10);
+          const g = this.game.gfxStats?.();
+          if (g && g.fpsNow > 0) fps.push(g.fpsNow);
+        }
+        pad.release();
+        const s = this.game.flipStats?.();
+        const tint = s?.tint[p.kind];
+        if (ok && s) {
+          shown++;
+          t.event(`fx-${p.kind}`, `${CHARACTERS[me].name}: ${p.slot} special "${CHARACTERS[me].moves[{ neutral: MOVE.NSPECIAL, side: MOVE.SSPECIAL, up: MOVE.UPB, down: MOVE.DSPECIAL }[p.slot]].name}" started its ${p.kind} flipbook (${s.frames} frames, ${s.cell} px cells, ${s.quality}${s.standIn ? ', stand-in art' : ''}) from ${how} input`);
+          t.event('fx-tint', `${CHARACTERS[me].name} ${p.kind}: tint rgb(${tint?.join(',') ?? '?'})`);
+          if (p.kind === 'projectile') tints.set(p.fighter, tint?.join(',') ?? '');
+          if (s.dropped > 0) t.problem('bug', `${s.dropped} flipbook effects were dropped: the pool was empty`);
+          if (s.quality === 'low') {
+            if (s.frames === 8 && s.cell === 128) t.event('fx-low', `Low plays the half-size sheets: ${s.frames} frames of ${s.cell} px`);
+            else t.problem('bug', `Low plays ${s.frames} frames of ${s.cell} px (want 8 of 128)`);
+          }
+        } else t.problem('bug', `special-fx: ${p.fighter}'s ${p.slot} special did not start a ${p.kind} flipbook (${how}); ${g0 ? '' : 'no gfx stats'}`);
+        this.manual = null;
+        await this.game.quitMatch();
+        await this.screen('main');
+        t.progress(0.05 + 0.6 * ((n + 1) / plan.length));
+      }
+      const [a, b] = [tints.get('ball-person'), tints.get('cel')];
+      if (a && b && a !== b) t.event('fx-tints-differ', `two projectile fighters, two colours: ball-person rgb(${a}) and cel rgb(${b})`);
+      else t.problem('bug', `two fighters with the same archetype share a colour (${a ?? 'none'} / ${b ?? 'none'})`);
+
+      // Counter: Chooser counters Exit Punk's hits in a versus fight (the bot attacks); the flash and the freeze come with the parry.
+      const chooser = CHARACTERS.findIndex((c) => c.id === 'chooser');
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      void this.game.startMatch({ mode: 'versus', stage: stagesFor('versus')[0]?.index ?? 0, stocks: 2, rules: {}, slots: [{ char: chooser, cpu: null }, { char: punk, cpu: 6 }] });
+      await this.matchLive();
+      this.manual = NO_INPUT;
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls were not built for the counter');
+      } else {
+        const match = () => this.game.match()!;
+        const frame = () => match().state.frame;
+        const me = () => match().state.fighters[match().player];
+        const foe = () => match().state.fighters.find((f) => f.id !== match().player)!;
+        this.game.flipStats?.(true);
+        let caught = 0;
+        let freezeAt = 0;
+        let freezeFrames = 0;
+        const t0 = frame();
+        const press = async () => {
+          pad.stick(0, 0);
+          pad.special(true);
+          const end = frame() + 3;
+          await t.until(() => frame() >= end, 4000, 'frames to pass');
+          pad.special(false);
+        };
+        // Chooser's counter is its neutral special: press it as Exit Punk closes in, until one catches a hit (30 s of game time at most).
+        while (frame() - t0 < 1800 && !this.game.flipStats?.()?.played.counter) {
+          const gap = Math.abs(foe().x - me().x) / FX;
+          if (gap < 140 && me().grounded > 0 && me().action === ACT.IDLE) await press();
+          else {
+            pad.stick(foe().x >= me().x ? 100 : -100, 0);
+            await t.until(() => frame() % 6 === 0, 3000, 'frames to pass');
+          }
+          const f = frame();
+          if (me().action === ACT.IDLE || me().action === ACT.WALK) await t.until(() => frame() > f, 3000, 'a frame');
+          if (match().state.fighters.some((x) => x.hitlag >= 6) && !freezeAt) {
+            freezeAt = frame();
+            freezeFrames = Math.max(...match().state.fighters.map((x) => x.hitlag));
+          }
+          caught = this.game.flipStats?.()?.played.counter ?? 0;
+        }
+        pad.release();
+        if (caught > 0) {
+          t.event('fx-counter', `a counter caught a hit: white-blue flash played; both fighters froze ${freezeFrames || 6}+ frames (the sim holds hit-stop at least 6)`);
+          t.metric('counterFreezeFrames', freezeFrames || 6);
+          shown++;
+        } else t.problem('warning', 'special-fx: no counter caught a hit in 30 s of game time (the bot did not attack into it)');
+      }
+      this.manual = null;
+      await this.game.quitMatch();
+      await this.screen('main');
+    } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    if (fps.length) {
+      const min = Math.min(...fps);
+      const low = this.game.gfxStats?.().quality === 'low';
+      t.metric('fxFpsMin', Math.round(min));
+      t.event('fx-fps', `lowest frame rate while the specials played: ${Math.round(min)} fps (${low ? 'Low, want 45' : 'want 40'})`);
+      if (min < (low ? 45 : 40)) t.problem('warning', `a special's effect ran at ${Math.round(min)} fps (want ${low ? 45 : 40})`);
+    }
+    t.metric('fxShown', shown);
+    t.progress(1);
+    t.finish('done');
+  }
+
   // ---------------------------------------------------------- character select: the specials preview
 
   /**
@@ -5600,6 +5804,99 @@ class Run {
       else {
         t.event('post-punch', `a heavy hit or KO punched the screen for 4 frames (chromatic aberration and exposure, ${p.punches} so far)`);
         t.metric('fpsPost', Math.round(fps.length ? fps.reduce((a, b) => a + b, 0) / fps.length : 0));
+      }
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      setGraphics(initial);
+      if (original === null) localStorage.removeItem(GFX_KEY);
+    }
+  }
+
+  /**
+   * Fighter lighting: every stage's own key, rim and ambient colour on both fighters (a different colour look on each
+   * stage, 1 to 4 across the run), a contact shadow under each fighter that shrinks and fades as they jump and is gone
+   * above 300 units, a faint reflection on glossy floors (High). On a phone (touch, Low, turned) only the ambient tint
+   * and the shadow run, and the fight holds 45 fps. Setup shortcut: straight into a match on each stage, no menus; the
+   * option `stage` picks one. Events `stage-light`, `shadow-height`, `light-low`; metrics lightStages, fpsLight.
+   */
+  async lighting(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('lighting');
+    }
+    this.logViewport(touch && this.isPhone());
+    const original = localStorage.getItem(GFX_KEY);
+    const initial = graphics();
+    const low = touch || this.options.quality === 'low';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    setGraphics(low ? { quality: 'low', glow: false } : { quality: 'high', glow: true });
+    try {
+      const want = typeof this.options.stage === 'string' ? STAGES.filter((s) => s.id === this.options.stage) : STAGES;
+      if (!want.length) t.problem('bug', `stage "${String(this.options.stage)}" is not on the list`);
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = (punk + 1) % CHARACTERS.length;
+      const close = (a: number[], b: number[]) => a.every((x, i) => Math.abs(x - b[i]) < 0.01);
+      const fps: number[] = [];
+      const heights: { h: number; scale: number; alpha: number; shadow: boolean }[] = [];
+      let lit = 0;
+      for (const [i, st] of want.entries()) {
+        t.progress(0.05 + (0.85 * i) / want.length);
+        const looks = [i % 4, (i + 1) % 4];
+        void this.game.startMatch({ mode: 'versus', stage: STAGES.indexOf(st), stocks: 1, rules: {}, slots: [{ char: punk, cpu: null, look: looks[0] }, { char: foe, cpu: 5, look: looks[1] }] });
+        await this.matchLive();
+        await this.wait(900);
+        const ls = this.game.lightStats?.();
+        const l = st.light;
+        if (!l) t.problem('bug', `${st.name} has no light in content/stages.json`);
+        else if (!ls || ls.stage !== st.id || ls.fighters.length < 2) t.problem('bug', `${st.name}: the lighting pass reports ${JSON.stringify(ls)}`);
+        else {
+          const amb = hexRgb(l.ambient);
+          const key = hexRgb(l.key.color);
+          const wrong = ls.fighters.filter((f) => !close(f.plugin.ambient, amb) || !close(f.plugin.keyColor, key) || f.plugin.full === low);
+          const looksOn = this.game.lookStats?.() ?? [];
+          if (wrong.length) t.problem('bug', `${st.name}: ${wrong.length} fighter(s) do not carry the stage's light (${JSON.stringify(wrong[0].plugin)})`);
+          else if (!ls.fighters.every((f) => f.shadow)) t.problem('bug', `${st.name}: a fighter on the floor has no contact shadow (${JSON.stringify(ls.fighters)})`);
+          else if (!low && ls.glossy !== !!l.glossy) t.problem('bug', `${st.name}: glossy floor mismatch`);
+          else {
+            lit++;
+            t.event('stage-light', `${st.name}: key ${l.key.color} from ${l.key.dir.join(',')}, rim ${l.rim.color}, ambient ${l.ambient}${l.glossy ? ', glossy floor' : ''} on both fighters (colours ${looksOn.map((x) => x.look + 1).join(' and ')}, ${ls.quality}), shadows under both`);
+          }
+        }
+        // The bot jumps and fights: sample each fighter's shadow against its height over the platform below.
+        const frame0 = this.game.match()?.state.frame ?? 0;
+        let tick = 0;
+        await this.fight(() => {
+          const s = this.game.lightStats?.();
+          if (s) for (const f of s.fighters) if (f.height >= 0 || !f.shadow) heights.push({ h: f.height, scale: f.scale, alpha: f.alpha, shadow: f.shadow });
+          if (++tick % 20 === 0) fps.push(this.game.gfxStats?.()?.fpsNow ?? 0);
+          return (this.game.match()?.state.frame ?? 0) - frame0 > 60 * 8;
+        }, 120000);
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+      t.metric('lightStages', lit);
+      const airborne = heights.filter((x) => x.h > 20 && x.shadow);
+      const grounded = heights.filter((x) => x.h >= 0 && x.h <= 2 && x.shadow);
+      const bad = heights.filter((x) => (x.h >= SHADOW_RANGE && x.shadow) || (x.shadow && (x.scale > 1 || x.alpha > 0.55)));
+      const maxH = Math.max(0, ...heights.map((x) => x.h));
+      const hi = airborne.length ? airborne.reduce((a, b) => (b.h > a.h ? b : a)) : null;
+      const lo = grounded[0];
+      if (bad.length) t.problem('bug', `a contact shadow was drawn wrong (${JSON.stringify(bad[0])})`);
+      else if (!hi || !lo) t.problem('warning', `the bot never left the floor in the sample (${heights.length} samples), so the shadow shrinking could not be seen`);
+      else if (hi.scale >= lo.scale || hi.alpha >= lo.alpha) t.problem('bug', `the shadow does not shrink and fade with height (floor ${lo.scale}/${lo.alpha}, ${hi.h} units up ${hi.scale}/${hi.alpha})`);
+      else t.event('shadow-height', `on the floor scale ${lo.scale}, alpha ${lo.alpha}; ${hi.h} units up scale ${hi.scale}, alpha ${hi.alpha}; highest sample ${maxH} units (${maxH >= SHADOW_RANGE ? 'shadow gone above ' + SHADOW_RANGE : 'under ' + SHADOW_RANGE + ', shadow still shown'})`);
+      const mean = fps.length ? fps.reduce((a, b) => a + b, 0) / fps.length : 0;
+      t.metric('fpsLight', Math.round(mean));
+      if (low) {
+        t.event('light-low', `Low: ambient tint and contact shadows only, no key or rim, no reflection (${Math.round(mean)} fps)`);
+        if (mean > 0 && mean < 45 && innerWidth <= 900) t.problem('warning', `Low at ${innerWidth}x${innerHeight} ran at ${Math.round(mean)} fps (want 45)`);
       }
       t.progress(1);
       t.finish('done');

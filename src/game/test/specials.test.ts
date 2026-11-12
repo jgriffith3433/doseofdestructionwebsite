@@ -155,6 +155,17 @@ export function runSpecialsTests(check: Check): void {
     check('counter: a hit during the window is turned back on the attacker, and the counterer takes nothing',
       ev.some((e) => e.type === 'counter' && e.id === 0) && dummy.percent > 0 && g.fighters[0].percent === 0 && dummy.lastHitBy === 0,
       `attacker ${dummy.percent / 10}%`);
+    // The parry freezes both fighters for at least 6 frames, on the frame it happens (the flash plays with it).
+    {
+      const f = duel(kitA, plain, 60);
+      f.fighters[1].facing = -1;
+      let frozen = -1;
+      for (let i = 0; i < 70 && frozen < 0; i++) {
+        const ev = step(f, [press(RIGHT, 0, BTN.SPECIAL)(i), i === 10 ? packInput(0, 0, BTN.ATTACK) : NO_INPUT]);
+        if (ev.some((e) => e.type === 'counter')) frozen = Math.min(f.fighters[0].hitlag, f.fighters[1].hitlag);
+      }
+      check('counter: both fighters are frozen 6+ frames on the frame of the parry', frozen >= 6, `${frozen}`);
+    }
     const late = duel(kitA, plain, 60);
     play(late, 90, press(RIGHT, 0, BTN.SPECIAL), (i) => (i === 50 ? packInput(0, 0, BTN.ATTACK) : NO_INPUT));
     check('counter: a hit after the window opens is a normal hit', late.fighters[0].percent > 0 && late.fighters[1].percent === 0);
