@@ -430,7 +430,7 @@ the stage veils the far layers. The code is `render/stageArt.ts` (layers, haze, 
   three depths on Low (layers marked `high` are the extras and are not built there), plus one foreground element.
 - **Foreground element** (`foreground: true`, z below 0, at the main floor's end): turns to 30% opacity while a fighter is
   behind one of its solid pixels, read from the picture's own alpha along the camera's ray (so the parallax counts), and
-  eases back when they walk out. It stays on Low. The fog layers of Cursed Town stay silhouette occluders (a fighter in
+  eases back when they walk out, and shivers on every KO (a `ko` shake react). It stays on Low. The fog layers of Cursed Town stay silhouette occluders (a fighter in
   the fog shows as a coloured outline), not foreground elements.
 - **Haze** (`haze: { color, strength, z }`, High only, dropped on Low): 2 gradient sheets at depths between the layers, clear
   at the top and thickest low where the set meets the floor; the nearer one is lighter.
@@ -454,5 +454,5 @@ the stage veils the far layers. The code is `render/stageArt.ts` (layers, haze, 
 Space Chess nebula and galaxy, Yo House kitchen) and Cursed Town's tentacle are cut from each stage's own backdrop by
 `tools/depth-bands.mjs`: identical pixels at rest, sliding at their own depth under a pan. The finished art is Hawkes Gen's
 `image.layers` split of each backdrop plus `image.repaint` for the gaps each cut reveals (not yet made: Gen was out of
-credits). **Short:** no stage has crowd heads, cables or kelp painted just for the foreground yet; they use art already on
+credits). **Short:** the foregrounds only shake on KOs (and sway where the art already did), and the cut bands add parallax, not new things to see: crowd heads, a bird, traffic lights crawling are the next layer of life. No stage has crowd heads, cables or kelp painted just for the foreground yet; they use art already on
 the stage, moved to the edge.

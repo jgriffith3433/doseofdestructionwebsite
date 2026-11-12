@@ -449,7 +449,15 @@
             "y2": 90
           }
         ],
-        "foreground": true
+        "foreground": true,
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
+          }
+        ]
       },
       {
         "id": "stage-art",
@@ -1038,6 +1046,12 @@
             "on": "event:dust-gust",
             "kind": "tilt",
             "amount": -12
+          },
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
           }
         ],
         "foreground": true
@@ -1893,7 +1907,15 @@
           "kind": "sway",
           "amount": 3,
           "speed": 3
-        }
+        },
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
+          }
+        ]
       },
       {
         "id": "stage-art",
@@ -2632,7 +2654,15 @@
             "y2": 30
           }
         ],
-        "foreground": true
+        "foreground": true,
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
+          }
+        ]
       },
       {
         "id": "front-cables",
@@ -3396,7 +3426,15 @@
           "amount": 2,
           "speed": 3
         },
-        "foreground": true
+        "foreground": true,
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
+          }
+        ]
       },
       {
         "id": "stage-art",
@@ -3998,7 +4036,15 @@
             "y2": 165
           }
         ],
-        "foreground": true
+        "foreground": true,
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
+          }
+        ]
       },
       {
         "id": "stage-art",
@@ -4548,7 +4594,15 @@
           "amount": 10,
           "speed": 3
         },
-        "foreground": true
+        "foreground": true,
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
+          }
+        ]
       },
       {
         "id": "stage-art",
@@ -5278,7 +5332,15 @@
           "amount": 20,
           "speed": 5
         },
-        "foreground": true
+        "foreground": true,
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
+          }
+        ]
       },
       {
         "id": "stage-art",
@@ -6071,6 +6133,12 @@
             "kind": "shake",
             "amount": 2,
             "seconds": 0.2
+          },
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
           }
         ],
         "foreground": true
