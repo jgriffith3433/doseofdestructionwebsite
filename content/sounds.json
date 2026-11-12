@@ -1312,7 +1312,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-exit-punk.mp3",
     "take": null
   },
   {
@@ -1323,7 +1323,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-kaelen.mp3",
     "take": null
   },
   {
@@ -1334,7 +1334,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-break.mp3",
     "take": null
   },
   {
@@ -1345,7 +1345,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-dj-wont-read.mp3",
     "take": null
   },
   {
@@ -1356,7 +1356,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-shutup-bot.mp3",
     "take": null
   },
   {
@@ -1367,7 +1367,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-small-weather.mp3",
     "take": null
   },
   {
@@ -1378,7 +1378,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-blog-man.mp3",
     "take": null
   },
   {
@@ -1389,7 +1389,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-evil-blue-bird.mp3",
     "take": null
   },
   {
@@ -1400,7 +1400,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-got-ur-back.mp3",
     "take": null
   },
   {
@@ -1411,7 +1411,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-slice.mp3",
     "take": null
   },
   {
@@ -1422,7 +1422,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-ss-boulder.mp3",
     "take": null
   },
   {
@@ -1433,7 +1433,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-stratabots.mp3",
     "take": null
   },
   {
@@ -1444,7 +1444,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-orchestrator.mp3",
     "take": null
   }
 ]
