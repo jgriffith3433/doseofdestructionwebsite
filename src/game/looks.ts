@@ -7,6 +7,7 @@
 
 import { CHARACTERS } from './sim/characters.ts';
 import { CLASSIC, type Look } from './sim/fighterDefs.ts';
+import { ART, hexToRgb } from './artStyle.ts';
 
 export { CLASSIC, type Look } from './sim/fighterDefs.ts';
 export const MIN_LOOKS = 4;
@@ -144,6 +145,18 @@ export function recolor(r: number, g: number, b: number, look: Look): [number, n
   }
   const [nr, ng, nb] = fromHsv(nh, ns, clamp(v * (look.val ?? 1)));
   return [r + (nr - r) * w, g + (ng - g) * w, b + (nb - b) * w];
+}
+
+/**
+ * The art bible's outline colour (a dark main hue) through a colour look: the hue is turned the way the look turns the
+ * outfit, then brought back down to the bible's outline value, so a recoloured fighter keeps a matching, never black line.
+ */
+export function recolorHex(hex: string, look: Look): string {
+  if (look.from === undefined) return hex;
+  const [h, s] = toHsv(...hexToRgb(hex));
+  const [r, g, b] = recolor(...fromHsv(h, s, 0.8), look);
+  const [nh, ns] = toHsv(r, g, b);
+  return '#' + fromHsv(nh, Math.min(Math.max(s, ns * 0.7), ART.outline.sat[1]), ART.outline.value).map((c) => Math.round(c * 255).toString(16).padStart(2, '0')).join('');
 }
 
 /** The uniforms the shader reads: [from, range, hueTurn, mode] and [sat, val]. mode: 0 off, 1 outfit, 2 neutral. */
