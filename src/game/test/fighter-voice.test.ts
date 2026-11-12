@@ -55,6 +55,37 @@ for (const id of SEASON_ONE) {
   }
 }
 
+// Roster-wide lint: all 33 fighters (Season 1 plus the 20 others): own KO cry, efforts, hurts and taunt.
+const fs = await import('node:fs');
+const fightersJson = JSON.parse(fs.readFileSync(new URL('../../../content/fighters.json', import.meta.url), 'utf8')) as { id: string }[];
+const roster = fightersJson.map((f) => f.id);
+check('roster is 33 fighters', roster.length === 33, String(roster.length));
+const rest = roster.filter((id) => !(SEASON_ONE as readonly string[]).includes(id));
+check('20 fighters outside Season 1', rest.length === 20, String(rest.length));
+const byId = new Map(lines.map((l) => [l.id, l]));
+const allKo = roster.map((id) => byId.get(`fighter.${id}.ko`));
+check('every fighter has a KO line', allKo.every((l) => !!l?.audio));
+check('no KO is the shared "Aaaaagh!"', allKo.every((l) => l?.text !== 'Aaaaagh!'));
+check('33 unique KO lines', new Set(allKo.map((l) => l?.text)).size === 33);
+for (const id of rest) {
+  for (const slot of ['effort.0', 'effort.1', 'hurt.0', 'hurt.1', 'ko', 'taunt']) {
+    const l = byId.get(`fighter.${id}.${slot}`);
+    check(`${id}.${slot}: line and take file`, !!l && l.audio === `/audio/voice/${l.id}.mp3` && fs.existsSync(new URL(`../../..${l.audio}`, import.meta.url)));
+    if (l && !slot.startsWith('hurt.1')) {
+      const w = l.text.trim().split(/\s+/).length;
+      check(`${l.id}: ≤4 words`, w <= 4, l.text);
+    }
+  }
+  check(`${id}: voice is its win-line voice`, byId.get(`fighter.${id}.ko`)?.take?.voice === byId.get(`fighter.${id}.win`)?.take?.voice);
+}
+const fighterLines = lines.filter((l) => /^fighter\.[^.]+\.(effort|hurt|ko|taunt)/.test(l.id));
+const files = fighterLines.map((l) => l.audio);
+check('no two fighter lines share a take file', new Set(files).size === files.length);
+for (const g of ['ko', 'taunt']) {
+  const t = fighterLines.filter((l) => l.group === g).map((l) => l.text);
+  check(`no two fighters share a ${g} line`, new Set(t).size === t.length);
+}
+
 if (failed) {
   console.error(`${failed} checks failed`);
   process.exit(1);

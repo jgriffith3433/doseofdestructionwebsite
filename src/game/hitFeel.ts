@@ -217,3 +217,10 @@ export const killPunch = (t: number): number => {
   const k = Math.min(1, (t - hold) / KILL_CUE.easeBack);
   return 1 - k * k * (3 - 2 * k);
 };
+
+/** Launch speed (world units per frame) above which a hit-stunned fighter tumbles. */
+export const TUMBLE_SPEED = 8;
+
+/** Squash on a hit, visual only: 8-15% for 2-4 frames by damage, and a 6 px-ish push back on light hits. */
+export const reactionFor = (tier: HitTier, _kb: number): { frames: number; squash: number; push: number } =>
+  tier === 'light' ? { frames: 2, squash: 0.08, push: 0.06 } : tier === 'medium' ? { frames: 3, squash: 0.115, push: 0 } : { frames: 4, squash: 0.15, push: 0 };

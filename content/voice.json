@@ -681,10 +681,10 @@
       "id": "fighter.ball-person.ko",
       "group": "ko",
       "who": "ball-person",
-      "text": "Aaaaagh!",
+      "text": "Offside…",
       "audio": "/audio/voice/fighter.ball-person.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Offside…",
         "voice": "TX3LPaxmHKxFdv7VOQHJ"
       }
     },
@@ -714,10 +714,10 @@
       "id": "fighter.cel.ko",
       "group": "ko",
       "who": "cel",
-      "text": "Aaaaagh!",
+      "text": "Falling… frame by frame!",
       "audio": "/audio/voice/fighter.cel.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Falling… frame by frame!",
         "voice": "Xb7hH8MSUJpSbSDYk0k2"
       }
     },
@@ -725,10 +725,10 @@
       "id": "fighter.chooser.ko",
       "group": "ko",
       "who": "chooser",
-      "text": "Aaaaagh!",
+      "text": "Bounced out!",
       "audio": "/audio/voice/fighter.chooser.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Bounced out!",
         "voice": "FGY2WhTYpPnrIDTdsKH5"
       }
     },
@@ -736,10 +736,10 @@
       "id": "fighter.crosser.ko",
       "group": "ko",
       "who": "crosser",
-      "text": "Aaaaagh!",
+      "text": "Too… soon.",
       "audio": "/audio/voice/fighter.crosser.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Too… soon.",
         "voice": "JBFqnCBsd6RMkjVDRZzb"
       }
     },
@@ -747,10 +747,10 @@
       "id": "fighter.crystalline-intelligences.ko",
       "group": "ko",
       "who": "crystalline-intelligences",
-      "text": "Aaaaagh!",
+      "text": "Resolution… lost.",
       "audio": "/audio/voice/fighter.crystalline-intelligences.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Resolution… lost.",
         "voice": "pFZP5JQG7iQjIQuC4Bku"
       }
     },
@@ -791,10 +791,10 @@
       "id": "fighter.future-man.ko",
       "group": "ko",
       "who": "future-man",
-      "text": "Aaaaagh!",
+      "text": "I didn't see—",
       "audio": "/audio/voice/fighter.future-man.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "I didn't see—",
         "voice": "CwhRBWXzGAHq8TQ4Fs17"
       }
     },
@@ -824,10 +824,10 @@
       "id": "fighter.lapis-man.ko",
       "group": "ko",
       "who": "lapis-man",
-      "text": "Aaaaagh!",
+      "text": "My staff!",
       "audio": "/audio/voice/fighter.lapis-man.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "My staff!",
         "voice": "pqHfZKP75CvOlQylNhV4"
       }
     },
@@ -835,10 +835,10 @@
       "id": "fighter.not-an-old-man-yet.ko",
       "group": "ko",
       "who": "not-an-old-man-yet",
-      "text": "Aaaaagh!",
+      "text": "Not… yet!",
       "audio": "/audio/voice/fighter.not-an-old-man-yet.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Not… yet!",
         "voice": "onwK4e9ZLuTAKqWW03F9"
       }
     },
@@ -857,10 +857,10 @@
       "id": "fighter.pyro-singer.ko",
       "group": "ko",
       "who": "pyro-singer",
-      "text": "Aaaaagh!",
+      "text": "No encore!",
       "audio": "/audio/voice/fighter.pyro-singer.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "No encore!",
         "voice": "9BWtsMINqrJLrRacOk9x"
       }
     },
@@ -868,10 +868,10 @@
       "id": "fighter.shark-dude.ko",
       "group": "ko",
       "who": "shark-dude",
-      "text": "Aaaaagh!",
+      "text": "Back to sea!",
       "audio": "/audio/voice/fighter.shark-dude.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Back to sea!",
         "voice": "N2lVS1w4EtoT3dr4eOWO"
       }
     },
@@ -901,10 +901,10 @@
       "id": "fighter.slow-rider.ko",
       "group": "ko",
       "who": "slow-rider",
-      "text": "Aaaaagh!",
+      "text": "Too fast…",
       "audio": "/audio/voice/fighter.slow-rider.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Too fast…",
         "voice": "nPczCjzI2devNBz1zQrb"
       }
     },
@@ -923,10 +923,10 @@
       "id": "fighter.spider-bot.ko",
       "group": "ko",
       "who": "spider-bot",
-      "text": "Aaaaagh!",
+      "text": "Legs… folding…",
       "audio": "/audio/voice/fighter.spider-bot.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Legs… folding…",
         "voice": "cjVigY5qzO86Huf0OWal"
       }
     },
@@ -956,10 +956,10 @@
       "id": "fighter.susan.ko",
       "group": "ko",
       "who": "susan",
-      "text": "Aaaaagh!",
+      "text": "Back to dark…",
       "audio": "/audio/voice/fighter.susan.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Back to dark…",
         "voice": "EXAVITQu4vr4xnSDxMaL"
       }
     },
@@ -967,10 +967,10 @@
       "id": "fighter.the-mechanic.ko",
       "group": "ko",
       "who": "the-mechanic",
-      "text": "Aaaaagh!",
+      "text": "Clocking out…",
       "audio": "/audio/voice/fighter.the-mechanic.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Clocking out…",
         "voice": "iP95p4xoKVk53GoZ742B"
       }
     },
@@ -978,10 +978,10 @@
       "id": "fighter.try-belt.ko",
       "group": "ko",
       "who": "try-belt",
-      "text": "Aaaaagh!",
+      "text": "Tried… my best.",
       "audio": "/audio/voice/fighter.try-belt.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Tried… my best.",
         "voice": "IKne3meq5aSn9XLyUdCD"
       }
     },
@@ -989,10 +989,10 @@
       "id": "fighter.tt.ko",
       "group": "ko",
       "who": "tt",
-      "text": "Aaaaagh!",
+      "text": "Shell cracked!",
       "audio": "/audio/voice/fighter.tt.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Shell cracked!",
         "voice": "bIHbv24MWmeRgasZH58o"
       }
     },
@@ -1000,10 +1000,10 @@
       "id": "fighter.uh-me.ko",
       "group": "ko",
       "who": "uh-me",
-      "text": "Aaaaagh!",
+      "text": "Uh-oh-me!",
       "audio": "/audio/voice/fighter.uh-me.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Uh-oh-me!",
         "voice": "SAz9YHcvj6GT2YYXdXww"
       }
     },
@@ -1011,10 +1011,10 @@
       "id": "fighter.wallit.ko",
       "group": "ko",
       "who": "wallit",
-      "text": "Aaaaagh!",
+      "text": "Refund!",
       "audio": "/audio/voice/fighter.wallit.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Refund!",
         "voice": "CwhRBWXzGAHq8TQ4Fs17"
       }
     },
@@ -1022,10 +1022,10 @@
       "id": "fighter.yo-bot.ko",
       "group": "ko",
       "who": "yo-bot",
-      "text": "Aaaaagh!",
+      "text": "Fatal error!",
       "audio": "/audio/voice/fighter.yo-bot.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Fatal error!",
         "voice": "TX3LPaxmHKxFdv7VOQHJ"
       }
     },
@@ -1033,10 +1033,10 @@
       "id": "fighter.yooba.ko",
       "group": "ko",
       "who": "yooba",
-      "text": "Aaaaagh!",
+      "text": "Yoobaaaah!",
       "audio": "/audio/voice/fighter.yooba.ko.mp3",
       "take": {
-        "text": "Aaaaagh!",
+        "text": "Yoobaaaah!",
         "voice": "FGY2WhTYpPnrIDTdsKH5"
       }
     },
@@ -3172,6 +3172,1984 @@
       "take": {
         "text": "Part two, back to back, on the roof where it all started. Headline: Series Finale, No Headline Long Enough.",
         "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.open-mic",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Next: Break. Very large. The floor has concerns.",
+      "audio": "/audio/voice/blog-man.tease.open-mic.mp3",
+      "take": {
+        "text": "Next: Break. Very large. The floor has concerns.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.open-mic",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "One skateboard. One win.",
+      "audio": "/audio/voice/blog-man.recap.open-mic.mp3",
+      "take": {
+        "text": "One skateboard. One win.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.house-heavy",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Two on one. Platforms won't sit still.",
+      "audio": "/audio/voice/blog-man.tease.house-heavy.mp3",
+      "take": {
+        "text": "Two on one. Platforms won't sit still.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.house-heavy",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Break fell off his own stage. Ratings up.",
+      "audio": "/audio/voice/blog-man.recap.house-heavy.mp3",
+      "take": {
+        "text": "Break fell off his own stage. Ratings up.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.bad-signal",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Someone brought the weather.",
+      "audio": "/audio/voice/blog-man.tease.bad-signal.mp3",
+      "take": {
+        "text": "Someone brought the weather.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.bad-signal",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Shutup Bot said one word. It was Fine.",
+      "audio": "/audio/voice/blog-man.recap.bad-signal.mp3",
+      "take": {
+        "text": "Shutup Bot said one word. It was Fine.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.low-pressure",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The reporter joins the card.",
+      "audio": "/audio/voice/blog-man.tease.low-pressure.mp3",
+      "take": {
+        "text": "The reporter joins the card.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.low-pressure",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Clear skies. For about a minute.",
+      "audio": "/audio/voice/blog-man.recap.low-pressure.mp3",
+      "take": {
+        "text": "Clear skies. For about a minute.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.turn-the-page",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "One stock each. One clean hit. Blink.",
+      "audio": "/audio/voice/blog-man.tease.turn-the-page.mp3",
+      "take": {
+        "text": "One stock each. One clean hit. Blink.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.turn-the-page",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The headline ran long. So did the fight.",
+      "audio": "/audio/voice/blog-man.recap.turn-the-page.mp3",
+      "take": {
+        "text": "The headline ran long. So did the fight.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.sudden-death",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Heavy hitters. The kid stays.",
+      "audio": "/audio/voice/blog-man.tease.sudden-death.mp3",
+      "take": {
+        "text": "Heavy hitters. The kid stays.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.sudden-death",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "One clean hit. He ducked.",
+      "audio": "/audio/voice/blog-man.recap.sudden-death.mp3",
+      "take": {
+        "text": "One clean hit. He ducked.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.dead-weight",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The man who runs the show steps on.",
+      "audio": "/audio/voice/blog-man.tease.dead-weight.mp3",
+      "take": {
+        "text": "The man who runs the show steps on.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.dead-weight",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Still standing at the bell.",
+      "audio": "/audio/voice/blog-man.recap.dead-weight.mp3",
+      "take": {
+        "text": "Still standing at the bell.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.encore",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "New season. The champion defends City Top.",
+      "audio": "/audio/voice/blog-man.tease.encore.mp3",
+      "take": {
+        "text": "New season. The champion defends City Top.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.encore",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The broadcast went quiet. The host fell.",
+      "audio": "/audio/voice/blog-man.recap.encore.mp3",
+      "take": {
+        "text": "The broadcast went quiet. The host fell.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.title-defense",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "She wants the ratings. So does everyone.",
+      "audio": "/audio/voice/blog-man.tease.title-defense.mp3",
+      "take": {
+        "text": "She wants the ratings. So does everyone.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.title-defense",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Shark Dude lost a defense. The belt stays.",
+      "audio": "/audio/voice/blog-man.recap.title-defense.mp3",
+      "take": {
+        "text": "Shark Dude lost a defense. The belt stays.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.drop-in",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The champion pays to fight.",
+      "audio": "/audio/voice/blog-man.tease.drop-in.mp3",
+      "take": {
+        "text": "The champion pays to fight.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.drop-in",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Pyro Singer dropped in. Dropped out.",
+      "audio": "/audio/voice/blog-man.recap.drop-in.mp3",
+      "take": {
+        "text": "Pyro Singer dropped in. Dropped out.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.champions-tax",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Someone bought a bigger fighter.",
+      "audio": "/audio/voice/blog-man.tease.champions-tax.mp3",
+      "take": {
+        "text": "Someone bought a bigger fighter.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.champions-tax",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Tax paid in full, in the fog.",
+      "audio": "/audio/voice/blog-man.recap.champions-tax.mp3",
+      "take": {
+        "text": "Tax paid in full, in the fog.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.sponsored",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "One name on the sheet. One baton.",
+      "audio": "/audio/voice/blog-man.tease.sponsored.mp3",
+      "take": {
+        "text": "One name on the sheet. One baton.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.sponsored",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The champion kept the receipt.",
+      "audio": "/audio/voice/blog-man.recap.sponsored.mp3",
+      "take": {
+        "text": "The champion kept the receipt.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.walk-on",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "A rival broadcast, same time slot.",
+      "audio": "/audio/voice/blog-man.tease.walk-on.mp3",
+      "take": {
+        "text": "A rival broadcast, same time slot.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.walk-on",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "He signed the sheet. Took the baton.",
+      "audio": "/audio/voice/blog-man.recap.walk-on.mp3",
+      "take": {
+        "text": "He signed the sheet. Took the baton.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.simulcast",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Reruns of the champion. New endings.",
+      "audio": "/audio/voice/blog-man.tease.simulcast.mp3",
+      "take": {
+        "text": "Reruns of the champion. New endings.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.simulcast",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Two feeds. One winner. Switch back.",
+      "audio": "/audio/voice/blog-man.recap.simulcast.mp3",
+      "take": {
+        "text": "Two feeds. One winner. Switch back.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.rerun",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Budget cuts. Starting with you.",
+      "audio": "/audio/voice/blog-man.tease.rerun.mp3",
+      "take": {
+        "text": "Budget cuts. Starting with you.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.rerun",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Same night. Same ending.",
+      "audio": "/audio/voice/blog-man.recap.rerun.mp3",
+      "take": {
+        "text": "Same night. Same ending.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.cut-to-size",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Two networks, one card. Backup arrives.",
+      "audio": "/audio/voice/blog-man.tease.cut-to-size.mp3",
+      "take": {
+        "text": "Two networks, one card. Backup arrives.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.cut-to-size",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Cut to size. Back to full length.",
+      "audio": "/audio/voice/blog-man.recap.cut-to-size.mp3",
+      "take": {
+        "text": "Cut to size. Back to full length.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.hostile-takeover",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Sweeps Week. No warning, no mercy.",
+      "audio": "/audio/voice/blog-man.tease.hostile-takeover.mp3",
+      "take": {
+        "text": "Sweeps Week. No warning, no mercy.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.hostile-takeover",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "No merger. The card stays independent.",
+      "audio": "/audio/voice/blog-man.recap.hostile-takeover.mp3",
+      "take": {
+        "text": "No merger. The card stays independent.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.cold-open",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The sponsor pays by the percent.",
+      "audio": "/audio/voice/blog-man.tease.cold-open.mp3",
+      "take": {
+        "text": "The sponsor pays by the percent.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.cold-open",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The cold open's over. Roll the titles.",
+      "audio": "/audio/voice/blog-man.recap.cold-open.mp3",
+      "take": {
+        "text": "The cold open's over. Roll the titles.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.product-placement",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The signal drops. The walk-on doesn't.",
+      "audio": "/audio/voice/blog-man.tease.product-placement.mp3",
+      "take": {
+        "text": "The signal drops. The walk-on doesn't.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.product-placement",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Quota filled. The sponsor sent a hat.",
+      "audio": "/audio/voice/blog-man.recap.product-placement.mp3",
+      "take": {
+        "text": "Quota filled. The sponsor sent a hat.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.dead-air",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Every highlight. One tag team.",
+      "audio": "/audio/voice/blog-man.tease.dead-air.mp3",
+      "take": {
+        "text": "Every highlight. One tag team.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.dead-air",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Signal's back. So is the champion.",
+      "audio": "/audio/voice/blog-man.recap.dead-air.mp3",
+      "take": {
+        "text": "Signal's back. So is the champion.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.clip-show",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "A new city that can't afford effects.",
+      "audio": "/audio/voice/blog-man.tease.clip-show.mp3",
+      "take": {
+        "text": "A new city that can't afford effects.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.clip-show",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "A clip show with a new clip.",
+      "audio": "/audio/voice/blog-man.recap.clip-show.mp3",
+      "take": {
+        "text": "A clip show with a new clip.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.local-affiliate",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "New market. New rules about what airs.",
+      "audio": "/audio/voice/blog-man.tease.local-affiliate.mp3",
+      "take": {
+        "text": "New market. New rules about what airs.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.local-affiliate",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "No effects needed. The city approved.",
+      "audio": "/audio/voice/blog-man.recap.local-affiliate.mp3",
+      "take": {
+        "text": "No effects needed. The city approved.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.standards-and-practices",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The best hour wants a number.",
+      "audio": "/audio/voice/blog-man.tease.standards-and-practices.mp3",
+      "take": {
+        "text": "The best hour wants a number.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.standards-and-practices",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Nothing cleared. Everything aired.",
+      "audio": "/audio/voice/blog-man.recap.standards-and-practices.mp3",
+      "take": {
+        "text": "Nothing cleared. Everything aired.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.prime-time",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Every city, live, at once.",
+      "audio": "/audio/voice/blog-man.tease.prime-time.mp3",
+      "take": {
+        "text": "Every city, live, at once.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.prime-time",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The number came in. Prime time approves.",
+      "audio": "/audio/voice/blog-man.recap.prime-time.mp3",
+      "take": {
+        "text": "The number came in. Prime time approves.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.global-feed",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The first night, remade. Again.",
+      "audio": "/audio/voice/blog-man.tease.global-feed.mp3",
+      "take": {
+        "text": "The first night, remade. Again.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.global-feed",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Seen in every city. Remembered in most.",
+      "audio": "/audio/voice/blog-man.recap.global-feed.mp3",
+      "take": {
+        "text": "Seen in every city. Remembered in most.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.pilot-remake",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The network added a laugh track.",
+      "audio": "/audio/voice/blog-man.tease.pilot-remake.mp3",
+      "take": {
+        "text": "The network added a laugh track.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.pilot-remake",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The remake lost to the original. Again.",
+      "audio": "/audio/voice/blog-man.recap.pilot-remake.mp3",
+      "take": {
+        "text": "The remake lost to the original. Again.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.laugh-track",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Two shows, one night, supposedly friends.",
+      "audio": "/audio/voice/blog-man.tease.laugh-track.mp3",
+      "take": {
+        "text": "Two shows, one night, supposedly friends.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.laugh-track",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The track laughed. The walk-on didn't.",
+      "audio": "/audio/voice/blog-man.recap.laugh-track.mp3",
+      "take": {
+        "text": "The track laughed. The walk-on didn't.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.crossover-event",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Clean footage only. Don't get hit.",
+      "audio": "/audio/voice/blog-man.tease.crossover-event.mp3",
+      "take": {
+        "text": "Clean footage only. Don't get hit.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.crossover-event",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "They weren't friends. The ratings were.",
+      "audio": "/audio/voice/blog-man.recap.crossover-event.mp3",
+      "take": {
+        "text": "They weren't friends. The ratings were.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.series-finale",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Awards season. Nobody scuffs the carpet.",
+      "audio": "/audio/voice/blog-man.tease.series-finale.mp3",
+      "take": {
+        "text": "Awards season. Nobody scuffs the carpet.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.series-finale",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Clean footage. Ship it to editing.",
+      "audio": "/audio/voice/blog-man.recap.series-finale.mp3",
+      "take": {
+        "text": "Clean footage. Ship it to editing.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.red-carpet",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Two nominees. One supporting role.",
+      "audio": "/audio/voice/blog-man.tease.red-carpet.mp3",
+      "take": {
+        "text": "Two nominees. One supporting role.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.red-carpet",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "One scuff. The carpet survived.",
+      "audio": "/audio/voice/blog-man.recap.red-carpet.mp3",
+      "take": {
+        "text": "One scuff. The carpet survived.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.best-supporting",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "A lifetime award, and a quota to earn it.",
+      "audio": "/audio/voice/blog-man.tease.best-supporting.mp3",
+      "take": {
+        "text": "A lifetime award, and a quota to earn it.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.best-supporting",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The category went to the champion.",
+      "audio": "/audio/voice/blog-man.recap.best-supporting.mp3",
+      "take": {
+        "text": "The category went to the champion.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.lifetime-achievement",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The big envelope. Keep it clean.",
+      "audio": "/audio/voice/blog-man.tease.lifetime-achievement.mp3",
+      "take": {
+        "text": "The big envelope. Keep it clean.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.lifetime-achievement",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Earned. The statuette is heavy.",
+      "audio": "/audio/voice/blog-man.recap.lifetime-achievement.mp3",
+      "take": {
+        "text": "Earned. The statuette is heavy.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.best-in-show",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Thirty seconds of footage. No explanation.",
+      "audio": "/audio/voice/blog-man.tease.best-in-show.mp3",
+      "take": {
+        "text": "Thirty seconds of footage. No explanation.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.best-in-show",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The envelope opened. Four-word speech.",
+      "audio": "/audio/voice/blog-man.recap.best-in-show.mp3",
+      "take": {
+        "text": "The envelope opened. Four-word speech.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.teaser",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Two walk-ons. One trailer. One voiceover.",
+      "audio": "/audio/voice/blog-man.tease.teaser.mp3",
+      "take": {
+        "text": "Two walk-ons. One trailer. One voiceover.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.teaser",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Teaser over. Nobody explained anything.",
+      "audio": "/audio/voice/blog-man.recap.teaser.mp3",
+      "take": {
+        "text": "Teaser over. Nobody explained anything.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.trailer",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The finale script. Every page has a hole.",
+      "audio": "/audio/voice/blog-man.tease.trailer.mp3",
+      "take": {
+        "text": "The finale script. Every page has a hole.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.trailer",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The trailer ran. The voiceover's disputed.",
+      "audio": "/audio/voice/blog-man.recap.trailer.mp3",
+      "take": {
+        "text": "The trailer ran. The voiceover's disputed.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.table-read",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The season ends mid-sentence.",
+      "audio": "/audio/voice/blog-man.tease.table-read.mp3",
+      "take": {
+        "text": "The season ends mid-sentence.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.table-read",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The holes got filled in. By fists.",
+      "audio": "/audio/voice/blog-man.recap.table-read.mp3",
+      "take": {
+        "text": "The holes got filled in. By fists.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.cliffhanger",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The finale. The host is on the card.",
+      "audio": "/audio/voice/blog-man.tease.cliffhanger.mp3",
+      "take": {
+        "text": "The finale. The host is on the card.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.cliffhanger",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "To be continued. It always is.",
+      "audio": "/audio/voice/blog-man.recap.cliffhanger.mp3",
+      "take": {
+        "text": "To be continued. It always is.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.first-cut",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The last fight of the last season.",
+      "audio": "/audio/voice/blog-man.tease.first-cut.mp3",
+      "take": {
+        "text": "The last fight of the last season.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.first-cut",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "One fight down. The second sheet is next.",
+      "audio": "/audio/voice/blog-man.recap.first-cut.mp3",
+      "take": {
+        "text": "One fight down. The second sheet is next.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.final-cut",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Nothing. That's a wrap. Thank you.",
+      "audio": "/audio/voice/blog-man.tease.final-cut.mp3",
+      "take": {
+        "text": "Nothing. That's a wrap. Thank you.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.final-cut",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The card is yours, and the show is over.",
+      "audio": "/audio/voice/blog-man.recap.final-cut.mp3",
+      "take": {
+        "text": "The card is yours, and the show is over.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.ball-person.effort.0",
+      "group": "effort",
+      "who": "ball-person",
+      "text": "Kick!",
+      "audio": "/audio/voice/fighter.ball-person.effort.0.mp3",
+      "take": {
+        "text": "Kick!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
+    },
+    {
+      "id": "fighter.ball-person.effort.1",
+      "group": "effort",
+      "who": "ball-person",
+      "text": "Top corner!",
+      "audio": "/audio/voice/fighter.ball-person.effort.1.mp3",
+      "take": {
+        "text": "Top corner!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
+    },
+    {
+      "id": "fighter.ball-person.hurt.0",
+      "group": "hurt",
+      "who": "ball-person",
+      "text": "Yellow card!",
+      "audio": "/audio/voice/fighter.ball-person.hurt.0.mp3",
+      "take": {
+        "text": "Yellow card!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
+    },
+    {
+      "id": "fighter.ball-person.hurt.1",
+      "group": "hurt",
+      "who": "ball-person",
+      "text": "Yellow card!",
+      "audio": "/audio/voice/fighter.ball-person.hurt.1.mp3",
+      "take": {
+        "text": "Yellow card!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.ball-person.taunt",
+      "group": "taunt",
+      "who": "ball-person",
+      "text": "Take your shot.",
+      "audio": "/audio/voice/fighter.ball-person.taunt.mp3",
+      "take": {
+        "text": "Take your shot.",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
+    },
+    {
+      "id": "fighter.cel.effort.0",
+      "group": "effort",
+      "who": "cel",
+      "text": "Up!",
+      "audio": "/audio/voice/fighter.cel.effort.0.mp3",
+      "take": {
+        "text": "Up!",
+        "voice": "Xb7hH8MSUJpSbSDYk0k2"
+      }
+    },
+    {
+      "id": "fighter.cel.effort.1",
+      "group": "effort",
+      "who": "cel",
+      "text": "Sky's mine!",
+      "audio": "/audio/voice/fighter.cel.effort.1.mp3",
+      "take": {
+        "text": "Sky's mine!",
+        "voice": "Xb7hH8MSUJpSbSDYk0k2"
+      }
+    },
+    {
+      "id": "fighter.cel.hurt.0",
+      "group": "hurt",
+      "who": "cel",
+      "text": "Grounded?!",
+      "audio": "/audio/voice/fighter.cel.hurt.0.mp3",
+      "take": {
+        "text": "Grounded?!",
+        "voice": "Xb7hH8MSUJpSbSDYk0k2"
+      }
+    },
+    {
+      "id": "fighter.cel.hurt.1",
+      "group": "hurt",
+      "who": "cel",
+      "text": "Grounded?!",
+      "audio": "/audio/voice/fighter.cel.hurt.1.mp3",
+      "take": {
+        "text": "Grounded?!",
+        "voice": "Xb7hH8MSUJpSbSDYk0k2",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.cel.taunt",
+      "group": "taunt",
+      "who": "cel",
+      "text": "Catch me, then.",
+      "audio": "/audio/voice/fighter.cel.taunt.mp3",
+      "take": {
+        "text": "Catch me, then.",
+        "voice": "Xb7hH8MSUJpSbSDYk0k2"
+      }
+    },
+    {
+      "id": "fighter.chooser.effort.0",
+      "group": "effort",
+      "who": "chooser",
+      "text": "Boing!",
+      "audio": "/audio/voice/fighter.chooser.effort.0.mp3",
+      "take": {
+        "text": "Boing!",
+        "voice": "FGY2WhTYpPnrIDTdsKH5"
+      }
+    },
+    {
+      "id": "fighter.chooser.effort.1",
+      "group": "effort",
+      "who": "chooser",
+      "text": "Chose you!",
+      "audio": "/audio/voice/fighter.chooser.effort.1.mp3",
+      "take": {
+        "text": "Chose you!",
+        "voice": "FGY2WhTYpPnrIDTdsKH5"
+      }
+    },
+    {
+      "id": "fighter.chooser.hurt.0",
+      "group": "hurt",
+      "who": "chooser",
+      "text": "Hey, rude!",
+      "audio": "/audio/voice/fighter.chooser.hurt.0.mp3",
+      "take": {
+        "text": "Hey, rude!",
+        "voice": "FGY2WhTYpPnrIDTdsKH5"
+      }
+    },
+    {
+      "id": "fighter.chooser.hurt.1",
+      "group": "hurt",
+      "who": "chooser",
+      "text": "Hey, rude!",
+      "audio": "/audio/voice/fighter.chooser.hurt.1.mp3",
+      "take": {
+        "text": "Hey, rude!",
+        "voice": "FGY2WhTYpPnrIDTdsKH5",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.chooser.taunt",
+      "group": "taunt",
+      "who": "chooser",
+      "text": "Try to pin me.",
+      "audio": "/audio/voice/fighter.chooser.taunt.mp3",
+      "take": {
+        "text": "Try to pin me.",
+        "voice": "FGY2WhTYpPnrIDTdsKH5"
+      }
+    },
+    {
+      "id": "fighter.crosser.effort.0",
+      "group": "effort",
+      "who": "crosser",
+      "text": "Hm.",
+      "audio": "/audio/voice/fighter.crosser.effort.0.mp3",
+      "take": {
+        "text": "Hm.",
+        "voice": "JBFqnCBsd6RMkjVDRZzb"
+      }
+    },
+    {
+      "id": "fighter.crosser.effort.1",
+      "group": "effort",
+      "who": "crosser",
+      "text": "Now.",
+      "audio": "/audio/voice/fighter.crosser.effort.1.mp3",
+      "take": {
+        "text": "Now.",
+        "voice": "JBFqnCBsd6RMkjVDRZzb"
+      }
+    },
+    {
+      "id": "fighter.crosser.hurt.0",
+      "group": "hurt",
+      "who": "crosser",
+      "text": "Hrk.",
+      "audio": "/audio/voice/fighter.crosser.hurt.0.mp3",
+      "take": {
+        "text": "Hrk.",
+        "voice": "JBFqnCBsd6RMkjVDRZzb"
+      }
+    },
+    {
+      "id": "fighter.crosser.hurt.1",
+      "group": "hurt",
+      "who": "crosser",
+      "text": "Hrk.",
+      "audio": "/audio/voice/fighter.crosser.hurt.1.mp3",
+      "take": {
+        "text": "Hrk.",
+        "voice": "JBFqnCBsd6RMkjVDRZzb",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.crosser.taunt",
+      "group": "taunt",
+      "who": "crosser",
+      "text": "I can wait.",
+      "audio": "/audio/voice/fighter.crosser.taunt.mp3",
+      "take": {
+        "text": "I can wait.",
+        "voice": "JBFqnCBsd6RMkjVDRZzb"
+      }
+    },
+    {
+      "id": "fighter.crystalline-intelligences.effort.0",
+      "group": "effort",
+      "who": "crystalline-intelligences",
+      "text": "Ignite!",
+      "audio": "/audio/voice/fighter.crystalline-intelligences.effort.0.mp3",
+      "take": {
+        "text": "Ignite!",
+        "voice": "pFZP5JQG7iQjIQuC4Bku"
+      }
+    },
+    {
+      "id": "fighter.crystalline-intelligences.effort.1",
+      "group": "effort",
+      "who": "crystalline-intelligences",
+      "text": "Radiate!",
+      "audio": "/audio/voice/fighter.crystalline-intelligences.effort.1.mp3",
+      "take": {
+        "text": "Radiate!",
+        "voice": "pFZP5JQG7iQjIQuC4Bku"
+      }
+    },
+    {
+      "id": "fighter.crystalline-intelligences.hurt.0",
+      "group": "hurt",
+      "who": "crystalline-intelligences",
+      "text": "Fracture!",
+      "audio": "/audio/voice/fighter.crystalline-intelligences.hurt.0.mp3",
+      "take": {
+        "text": "Fracture!",
+        "voice": "pFZP5JQG7iQjIQuC4Bku"
+      }
+    },
+    {
+      "id": "fighter.crystalline-intelligences.hurt.1",
+      "group": "hurt",
+      "who": "crystalline-intelligences",
+      "text": "Fracture!",
+      "audio": "/audio/voice/fighter.crystalline-intelligences.hurt.1.mp3",
+      "take": {
+        "text": "Fracture!",
+        "voice": "pFZP5JQG7iQjIQuC4Bku",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.crystalline-intelligences.taunt",
+      "group": "taunt",
+      "who": "crystalline-intelligences",
+      "text": "Compute your end.",
+      "audio": "/audio/voice/fighter.crystalline-intelligences.taunt.mp3",
+      "take": {
+        "text": "Compute your end.",
+        "voice": "pFZP5JQG7iQjIQuC4Bku"
+      }
+    },
+    {
+      "id": "fighter.future-man.effort.0",
+      "group": "effort",
+      "who": "future-man",
+      "text": "Called it!",
+      "audio": "/audio/voice/fighter.future-man.effort.0.mp3",
+      "take": {
+        "text": "Called it!",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.future-man.effort.1",
+      "group": "effort",
+      "who": "future-man",
+      "text": "Again!",
+      "audio": "/audio/voice/fighter.future-man.effort.1.mp3",
+      "take": {
+        "text": "Again!",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.future-man.hurt.0",
+      "group": "hurt",
+      "who": "future-man",
+      "text": "Unexpected.",
+      "audio": "/audio/voice/fighter.future-man.hurt.0.mp3",
+      "take": {
+        "text": "Unexpected.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.future-man.hurt.1",
+      "group": "hurt",
+      "who": "future-man",
+      "text": "Unexpected.",
+      "audio": "/audio/voice/fighter.future-man.hurt.1.mp3",
+      "take": {
+        "text": "Unexpected.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.future-man.taunt",
+      "group": "taunt",
+      "who": "future-man",
+      "text": "Seen it. Boring.",
+      "audio": "/audio/voice/fighter.future-man.taunt.mp3",
+      "take": {
+        "text": "Seen it. Boring.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.lapis-man.effort.0",
+      "group": "effort",
+      "who": "lapis-man",
+      "text": "Hyah!",
+      "audio": "/audio/voice/fighter.lapis-man.effort.0.mp3",
+      "take": {
+        "text": "Hyah!",
+        "voice": "pqHfZKP75CvOlQylNhV4"
+      }
+    },
+    {
+      "id": "fighter.lapis-man.effort.1",
+      "group": "effort",
+      "who": "lapis-man",
+      "text": "Reach!",
+      "audio": "/audio/voice/fighter.lapis-man.effort.1.mp3",
+      "take": {
+        "text": "Reach!",
+        "voice": "pqHfZKP75CvOlQylNhV4"
+      }
+    },
+    {
+      "id": "fighter.lapis-man.hurt.0",
+      "group": "hurt",
+      "who": "lapis-man",
+      "text": "Oof, elders!",
+      "audio": "/audio/voice/fighter.lapis-man.hurt.0.mp3",
+      "take": {
+        "text": "Oof, elders!",
+        "voice": "pqHfZKP75CvOlQylNhV4"
+      }
+    },
+    {
+      "id": "fighter.lapis-man.hurt.1",
+      "group": "hurt",
+      "who": "lapis-man",
+      "text": "Oof, elders!",
+      "audio": "/audio/voice/fighter.lapis-man.hurt.1.mp3",
+      "take": {
+        "text": "Oof, elders!",
+        "voice": "pqHfZKP75CvOlQylNhV4",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.lapis-man.taunt",
+      "group": "taunt",
+      "who": "lapis-man",
+      "text": "Mind your elders.",
+      "audio": "/audio/voice/fighter.lapis-man.taunt.mp3",
+      "take": {
+        "text": "Mind your elders.",
+        "voice": "pqHfZKP75CvOlQylNhV4"
+      }
+    },
+    {
+      "id": "fighter.not-an-old-man-yet.effort.0",
+      "group": "effort",
+      "who": "not-an-old-man-yet",
+      "text": "Hup!",
+      "audio": "/audio/voice/fighter.not-an-old-man-yet.effort.0.mp3",
+      "take": {
+        "text": "Hup!",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "fighter.not-an-old-man-yet.effort.1",
+      "group": "effort",
+      "who": "not-an-old-man-yet",
+      "text": "Middle's mine!",
+      "audio": "/audio/voice/fighter.not-an-old-man-yet.effort.1.mp3",
+      "take": {
+        "text": "Middle's mine!",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "fighter.not-an-old-man-yet.hurt.0",
+      "group": "hurt",
+      "who": "not-an-old-man-yet",
+      "text": "Ahh, my back!",
+      "audio": "/audio/voice/fighter.not-an-old-man-yet.hurt.0.mp3",
+      "take": {
+        "text": "Ahh, my back!",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "fighter.not-an-old-man-yet.hurt.1",
+      "group": "hurt",
+      "who": "not-an-old-man-yet",
+      "text": "Ahh, my back!",
+      "audio": "/audio/voice/fighter.not-an-old-man-yet.hurt.1.mp3",
+      "take": {
+        "text": "Ahh, my back!",
+        "voice": "onwK4e9ZLuTAKqWW03F9",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.not-an-old-man-yet.taunt",
+      "group": "taunt",
+      "who": "not-an-old-man-yet",
+      "text": "Come get me.",
+      "audio": "/audio/voice/fighter.not-an-old-man-yet.taunt.mp3",
+      "take": {
+        "text": "Come get me.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "fighter.pyro-singer.effort.0",
+      "group": "effort",
+      "who": "pyro-singer",
+      "text": "Burn!",
+      "audio": "/audio/voice/fighter.pyro-singer.effort.0.mp3",
+      "take": {
+        "text": "Burn!",
+        "voice": "9BWtsMINqrJLrRacOk9x"
+      }
+    },
+    {
+      "id": "fighter.pyro-singer.effort.1",
+      "group": "effort",
+      "who": "pyro-singer",
+      "text": "Sing it!",
+      "audio": "/audio/voice/fighter.pyro-singer.effort.1.mp3",
+      "take": {
+        "text": "Sing it!",
+        "voice": "9BWtsMINqrJLrRacOk9x"
+      }
+    },
+    {
+      "id": "fighter.pyro-singer.hurt.0",
+      "group": "hurt",
+      "who": "pyro-singer",
+      "text": "Ow, hot!",
+      "audio": "/audio/voice/fighter.pyro-singer.hurt.0.mp3",
+      "take": {
+        "text": "Ow, hot!",
+        "voice": "9BWtsMINqrJLrRacOk9x"
+      }
+    },
+    {
+      "id": "fighter.pyro-singer.hurt.1",
+      "group": "hurt",
+      "who": "pyro-singer",
+      "text": "Ow, hot!",
+      "audio": "/audio/voice/fighter.pyro-singer.hurt.1.mp3",
+      "take": {
+        "text": "Ow, hot!",
+        "voice": "9BWtsMINqrJLrRacOk9x",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.pyro-singer.taunt",
+      "group": "taunt",
+      "who": "pyro-singer",
+      "text": "Louder. I'm warming up.",
+      "audio": "/audio/voice/fighter.pyro-singer.taunt.mp3",
+      "take": {
+        "text": "Louder. I'm warming up.",
+        "voice": "9BWtsMINqrJLrRacOk9x"
+      }
+    },
+    {
+      "id": "fighter.shark-dude.effort.0",
+      "group": "effort",
+      "who": "shark-dude",
+      "text": "Chomp!",
+      "audio": "/audio/voice/fighter.shark-dude.effort.0.mp3",
+      "take": {
+        "text": "Chomp!",
+        "voice": "N2lVS1w4EtoT3dr4eOWO"
+      }
+    },
+    {
+      "id": "fighter.shark-dude.effort.1",
+      "group": "effort",
+      "who": "shark-dude",
+      "text": "Bite!",
+      "audio": "/audio/voice/fighter.shark-dude.effort.1.mp3",
+      "take": {
+        "text": "Bite!",
+        "voice": "N2lVS1w4EtoT3dr4eOWO"
+      }
+    },
+    {
+      "id": "fighter.shark-dude.hurt.0",
+      "group": "hurt",
+      "who": "shark-dude",
+      "text": "Gah, fin!",
+      "audio": "/audio/voice/fighter.shark-dude.hurt.0.mp3",
+      "take": {
+        "text": "Gah, fin!",
+        "voice": "N2lVS1w4EtoT3dr4eOWO"
+      }
+    },
+    {
+      "id": "fighter.shark-dude.hurt.1",
+      "group": "hurt",
+      "who": "shark-dude",
+      "text": "Gah, fin!",
+      "audio": "/audio/voice/fighter.shark-dude.hurt.1.mp3",
+      "take": {
+        "text": "Gah, fin!",
+        "voice": "N2lVS1w4EtoT3dr4eOWO",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.shark-dude.taunt",
+      "group": "taunt",
+      "who": "shark-dude",
+      "text": "Smell blood yet?",
+      "audio": "/audio/voice/fighter.shark-dude.taunt.mp3",
+      "take": {
+        "text": "Smell blood yet?",
+        "voice": "N2lVS1w4EtoT3dr4eOWO"
+      }
+    },
+    {
+      "id": "fighter.slow-rider.effort.0",
+      "group": "effort",
+      "who": "slow-rider",
+      "text": "Easy.",
+      "audio": "/audio/voice/fighter.slow-rider.effort.0.mp3",
+      "take": {
+        "text": "Easy.",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "fighter.slow-rider.effort.1",
+      "group": "effort",
+      "who": "slow-rider",
+      "text": "Drift.",
+      "audio": "/audio/voice/fighter.slow-rider.effort.1.mp3",
+      "take": {
+        "text": "Drift.",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "fighter.slow-rider.hurt.0",
+      "group": "hurt",
+      "who": "slow-rider",
+      "text": "Whoa, slow.",
+      "audio": "/audio/voice/fighter.slow-rider.hurt.0.mp3",
+      "take": {
+        "text": "Whoa, slow.",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "fighter.slow-rider.hurt.1",
+      "group": "hurt",
+      "who": "slow-rider",
+      "text": "Whoa, slow.",
+      "audio": "/audio/voice/fighter.slow-rider.hurt.1.mp3",
+      "take": {
+        "text": "Whoa, slow.",
+        "voice": "nPczCjzI2devNBz1zQrb",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.slow-rider.taunt",
+      "group": "taunt",
+      "who": "slow-rider",
+      "text": "No rush, friend.",
+      "audio": "/audio/voice/fighter.slow-rider.taunt.mp3",
+      "take": {
+        "text": "No rush, friend.",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "fighter.spider-bot.effort.0",
+      "group": "effort",
+      "who": "spider-bot",
+      "text": "Skitter!",
+      "audio": "/audio/voice/fighter.spider-bot.effort.0.mp3",
+      "take": {
+        "text": "Skitter!",
+        "voice": "cjVigY5qzO86Huf0OWal"
+      }
+    },
+    {
+      "id": "fighter.spider-bot.effort.1",
+      "group": "effort",
+      "who": "spider-bot",
+      "text": "Eight legs!",
+      "audio": "/audio/voice/fighter.spider-bot.effort.1.mp3",
+      "take": {
+        "text": "Eight legs!",
+        "voice": "cjVigY5qzO86Huf0OWal"
+      }
+    },
+    {
+      "id": "fighter.spider-bot.hurt.0",
+      "group": "hurt",
+      "who": "spider-bot",
+      "text": "Error, leg!",
+      "audio": "/audio/voice/fighter.spider-bot.hurt.0.mp3",
+      "take": {
+        "text": "Error, leg!",
+        "voice": "cjVigY5qzO86Huf0OWal"
+      }
+    },
+    {
+      "id": "fighter.spider-bot.hurt.1",
+      "group": "hurt",
+      "who": "spider-bot",
+      "text": "Error, leg!",
+      "audio": "/audio/voice/fighter.spider-bot.hurt.1.mp3",
+      "take": {
+        "text": "Error, leg!",
+        "voice": "cjVigY5qzO86Huf0OWal",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.spider-bot.taunt",
+      "group": "taunt",
+      "who": "spider-bot",
+      "text": "Web's ready.",
+      "audio": "/audio/voice/fighter.spider-bot.taunt.mp3",
+      "take": {
+        "text": "Web's ready.",
+        "voice": "cjVigY5qzO86Huf0OWal"
+      }
+    },
+    {
+      "id": "fighter.susan.effort.0",
+      "group": "effort",
+      "who": "susan",
+      "text": "Hss!",
+      "audio": "/audio/voice/fighter.susan.effort.0.mp3",
+      "take": {
+        "text": "Hss!",
+        "voice": "EXAVITQu4vr4xnSDxMaL"
+      }
+    },
+    {
+      "id": "fighter.susan.effort.1",
+      "group": "effort",
+      "who": "susan",
+      "text": "Fog, rise.",
+      "audio": "/audio/voice/fighter.susan.effort.1.mp3",
+      "take": {
+        "text": "Fog, rise.",
+        "voice": "EXAVITQu4vr4xnSDxMaL"
+      }
+    },
+    {
+      "id": "fighter.susan.hurt.0",
+      "group": "hurt",
+      "who": "susan",
+      "text": "Ahh—",
+      "audio": "/audio/voice/fighter.susan.hurt.0.mp3",
+      "take": {
+        "text": "Ahh—",
+        "voice": "EXAVITQu4vr4xnSDxMaL"
+      }
+    },
+    {
+      "id": "fighter.susan.hurt.1",
+      "group": "hurt",
+      "who": "susan",
+      "text": "Ahh—",
+      "audio": "/audio/voice/fighter.susan.hurt.1.mp3",
+      "take": {
+        "text": "Ahh—",
+        "voice": "EXAVITQu4vr4xnSDxMaL",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.susan.taunt",
+      "group": "taunt",
+      "who": "susan",
+      "text": "Come into the fog.",
+      "audio": "/audio/voice/fighter.susan.taunt.mp3",
+      "take": {
+        "text": "Come into the fog.",
+        "voice": "EXAVITQu4vr4xnSDxMaL"
+      }
+    },
+    {
+      "id": "fighter.the-mechanic.effort.0",
+      "group": "effort",
+      "who": "the-mechanic",
+      "text": "Tighten!",
+      "audio": "/audio/voice/fighter.the-mechanic.effort.0.mp3",
+      "take": {
+        "text": "Tighten!",
+        "voice": "iP95p4xoKVk53GoZ742B"
+      }
+    },
+    {
+      "id": "fighter.the-mechanic.effort.1",
+      "group": "effort",
+      "who": "the-mechanic",
+      "text": "Wrench time!",
+      "audio": "/audio/voice/fighter.the-mechanic.effort.1.mp3",
+      "take": {
+        "text": "Wrench time!",
+        "voice": "iP95p4xoKVk53GoZ742B"
+      }
+    },
+    {
+      "id": "fighter.the-mechanic.hurt.0",
+      "group": "hurt",
+      "who": "the-mechanic",
+      "text": "Ow, knuckles!",
+      "audio": "/audio/voice/fighter.the-mechanic.hurt.0.mp3",
+      "take": {
+        "text": "Ow, knuckles!",
+        "voice": "iP95p4xoKVk53GoZ742B"
+      }
+    },
+    {
+      "id": "fighter.the-mechanic.hurt.1",
+      "group": "hurt",
+      "who": "the-mechanic",
+      "text": "Ow, knuckles!",
+      "audio": "/audio/voice/fighter.the-mechanic.hurt.1.mp3",
+      "take": {
+        "text": "Ow, knuckles!",
+        "voice": "iP95p4xoKVk53GoZ742B",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.the-mechanic.taunt",
+      "group": "taunt",
+      "who": "the-mechanic",
+      "text": "Long day, kid.",
+      "audio": "/audio/voice/fighter.the-mechanic.taunt.mp3",
+      "take": {
+        "text": "Long day, kid.",
+        "voice": "iP95p4xoKVk53GoZ742B"
+      }
+    },
+    {
+      "id": "fighter.try-belt.effort.0",
+      "group": "effort",
+      "who": "try-belt",
+      "text": "Trying!",
+      "audio": "/audio/voice/fighter.try-belt.effort.0.mp3",
+      "take": {
+        "text": "Trying!",
+        "voice": "IKne3meq5aSn9XLyUdCD"
+      }
+    },
+    {
+      "id": "fighter.try-belt.effort.1",
+      "group": "effort",
+      "who": "try-belt",
+      "text": "Again!",
+      "audio": "/audio/voice/fighter.try-belt.effort.1.mp3",
+      "take": {
+        "text": "Again!",
+        "voice": "IKne3meq5aSn9XLyUdCD"
+      }
+    },
+    {
+      "id": "fighter.try-belt.hurt.0",
+      "group": "hurt",
+      "who": "try-belt",
+      "text": "Oof, okay!",
+      "audio": "/audio/voice/fighter.try-belt.hurt.0.mp3",
+      "take": {
+        "text": "Oof, okay!",
+        "voice": "IKne3meq5aSn9XLyUdCD"
+      }
+    },
+    {
+      "id": "fighter.try-belt.hurt.1",
+      "group": "hurt",
+      "who": "try-belt",
+      "text": "Oof, okay!",
+      "audio": "/audio/voice/fighter.try-belt.hurt.1.mp3",
+      "take": {
+        "text": "Oof, okay!",
+        "voice": "IKne3meq5aSn9XLyUdCD",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.try-belt.taunt",
+      "group": "taunt",
+      "who": "try-belt",
+      "text": "Go on, try.",
+      "audio": "/audio/voice/fighter.try-belt.taunt.mp3",
+      "take": {
+        "text": "Go on, try.",
+        "voice": "IKne3meq5aSn9XLyUdCD"
+      }
+    },
+    {
+      "id": "fighter.tt.effort.0",
+      "group": "effort",
+      "who": "tt",
+      "text": "Hrmph!",
+      "audio": "/audio/voice/fighter.tt.effort.0.mp3",
+      "take": {
+        "text": "Hrmph!",
+        "voice": "bIHbv24MWmeRgasZH58o"
+      }
+    },
+    {
+      "id": "fighter.tt.effort.1",
+      "group": "effort",
+      "who": "tt",
+      "text": "Shell!",
+      "audio": "/audio/voice/fighter.tt.effort.1.mp3",
+      "take": {
+        "text": "Shell!",
+        "voice": "bIHbv24MWmeRgasZH58o"
+      }
+    },
+    {
+      "id": "fighter.tt.hurt.0",
+      "group": "hurt",
+      "who": "tt",
+      "text": "Ow, shell!",
+      "audio": "/audio/voice/fighter.tt.hurt.0.mp3",
+      "take": {
+        "text": "Ow, shell!",
+        "voice": "bIHbv24MWmeRgasZH58o"
+      }
+    },
+    {
+      "id": "fighter.tt.hurt.1",
+      "group": "hurt",
+      "who": "tt",
+      "text": "Ow, shell!",
+      "audio": "/audio/voice/fighter.tt.hurt.1.mp3",
+      "take": {
+        "text": "Ow, shell!",
+        "voice": "bIHbv24MWmeRgasZH58o",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.tt.taunt",
+      "group": "taunt",
+      "who": "tt",
+      "text": "Slow. Steady. Obviously.",
+      "audio": "/audio/voice/fighter.tt.taunt.mp3",
+      "take": {
+        "text": "Slow. Steady. Obviously.",
+        "voice": "bIHbv24MWmeRgasZH58o"
+      }
+    },
+    {
+      "id": "fighter.uh-me.effort.0",
+      "group": "effort",
+      "who": "uh-me",
+      "text": "Uh!",
+      "audio": "/audio/voice/fighter.uh-me.effort.0.mp3",
+      "take": {
+        "text": "Uh!",
+        "voice": "SAz9YHcvj6GT2YYXdXww"
+      }
+    },
+    {
+      "id": "fighter.uh-me.effort.1",
+      "group": "effort",
+      "who": "uh-me",
+      "text": "Hm, me.",
+      "audio": "/audio/voice/fighter.uh-me.effort.1.mp3",
+      "take": {
+        "text": "Hm, me.",
+        "voice": "SAz9YHcvj6GT2YYXdXww"
+      }
+    },
+    {
+      "id": "fighter.uh-me.hurt.0",
+      "group": "hurt",
+      "who": "uh-me",
+      "text": "Uh… ow.",
+      "audio": "/audio/voice/fighter.uh-me.hurt.0.mp3",
+      "take": {
+        "text": "Uh… ow.",
+        "voice": "SAz9YHcvj6GT2YYXdXww"
+      }
+    },
+    {
+      "id": "fighter.uh-me.hurt.1",
+      "group": "hurt",
+      "who": "uh-me",
+      "text": "Uh… ow.",
+      "audio": "/audio/voice/fighter.uh-me.hurt.1.mp3",
+      "take": {
+        "text": "Uh… ow.",
+        "voice": "SAz9YHcvj6GT2YYXdXww",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.uh-me.taunt",
+      "group": "taunt",
+      "who": "uh-me",
+      "text": "Uh. Me. Float.",
+      "audio": "/audio/voice/fighter.uh-me.taunt.mp3",
+      "take": {
+        "text": "Uh. Me. Float.",
+        "voice": "SAz9YHcvj6GT2YYXdXww"
+      }
+    },
+    {
+      "id": "fighter.wallit.effort.0",
+      "group": "effort",
+      "who": "wallit",
+      "text": "Swing!",
+      "audio": "/audio/voice/fighter.wallit.effort.0.mp3",
+      "take": {
+        "text": "Swing!",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.wallit.effort.1",
+      "group": "effort",
+      "who": "wallit",
+      "text": "Pay up!",
+      "audio": "/audio/voice/fighter.wallit.effort.1.mp3",
+      "take": {
+        "text": "Pay up!",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.wallit.hurt.0",
+      "group": "hurt",
+      "who": "wallit",
+      "text": "My cash!",
+      "audio": "/audio/voice/fighter.wallit.hurt.0.mp3",
+      "take": {
+        "text": "My cash!",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.wallit.hurt.1",
+      "group": "hurt",
+      "who": "wallit",
+      "text": "My cash!",
+      "audio": "/audio/voice/fighter.wallit.hurt.1.mp3",
+      "take": {
+        "text": "My cash!",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.wallit.taunt",
+      "group": "taunt",
+      "who": "wallit",
+      "text": "Show me money.",
+      "audio": "/audio/voice/fighter.wallit.taunt.mp3",
+      "take": {
+        "text": "Show me money.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "fighter.yo-bot.effort.0",
+      "group": "effort",
+      "who": "yo-bot",
+      "text": "Executing!",
+      "audio": "/audio/voice/fighter.yo-bot.effort.0.mp3",
+      "take": {
+        "text": "Executing!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
+    },
+    {
+      "id": "fighter.yo-bot.effort.1",
+      "group": "effort",
+      "who": "yo-bot",
+      "text": "Hit confirmed!",
+      "audio": "/audio/voice/fighter.yo-bot.effort.1.mp3",
+      "take": {
+        "text": "Hit confirmed!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
+    },
+    {
+      "id": "fighter.yo-bot.hurt.0",
+      "group": "hurt",
+      "who": "yo-bot",
+      "text": "Packet loss!",
+      "audio": "/audio/voice/fighter.yo-bot.hurt.0.mp3",
+      "take": {
+        "text": "Packet loss!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
+    },
+    {
+      "id": "fighter.yo-bot.hurt.1",
+      "group": "hurt",
+      "who": "yo-bot",
+      "text": "Packet loss!",
+      "audio": "/audio/voice/fighter.yo-bot.hurt.1.mp3",
+      "take": {
+        "text": "Packet loss!",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.yo-bot.taunt",
+      "group": "taunt",
+      "who": "yo-bot",
+      "text": "Ping me, loser.",
+      "audio": "/audio/voice/fighter.yo-bot.taunt.mp3",
+      "take": {
+        "text": "Ping me, loser.",
+        "voice": "TX3LPaxmHKxFdv7VOQHJ"
+      }
+    },
+    {
+      "id": "fighter.yooba.effort.0",
+      "group": "effort",
+      "who": "yooba",
+      "text": "Yooba!",
+      "audio": "/audio/voice/fighter.yooba.effort.0.mp3",
+      "take": {
+        "text": "Yooba!",
+        "voice": "FGY2WhTYpPnrIDTdsKH5"
+      }
+    },
+    {
+      "id": "fighter.yooba.effort.1",
+      "group": "effort",
+      "who": "yooba",
+      "text": "Yoo-ba!",
+      "audio": "/audio/voice/fighter.yooba.effort.1.mp3",
+      "take": {
+        "text": "Yoo-ba!",
+        "voice": "FGY2WhTYpPnrIDTdsKH5"
+      }
+    },
+    {
+      "id": "fighter.yooba.hurt.0",
+      "group": "hurt",
+      "who": "yooba",
+      "text": "Yooba, ow!",
+      "audio": "/audio/voice/fighter.yooba.hurt.0.mp3",
+      "take": {
+        "text": "Yooba, ow!",
+        "voice": "FGY2WhTYpPnrIDTdsKH5"
+      }
+    },
+    {
+      "id": "fighter.yooba.hurt.1",
+      "group": "hurt",
+      "who": "yooba",
+      "text": "Yooba, ow!",
+      "audio": "/audio/voice/fighter.yooba.hurt.1.mp3",
+      "take": {
+        "text": "Yooba, ow!",
+        "voice": "FGY2WhTYpPnrIDTdsKH5",
+        "pitch": 1.06
+      }
+    },
+    {
+      "id": "fighter.yooba.taunt",
+      "group": "taunt",
+      "who": "yooba",
+      "text": "Yooba yooba yooba.",
+      "audio": "/audio/voice/fighter.yooba.taunt.mp3",
+      "take": {
+        "text": "Yooba yooba yooba.",
+        "voice": "FGY2WhTYpPnrIDTdsKH5"
       }
     }
   ]

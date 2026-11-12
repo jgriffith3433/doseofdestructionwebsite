@@ -397,3 +397,12 @@ static cut; Local Affiliate / Red Carpet quiet routines. Do not invent new seaso
 15. **Tour (every fighter).** Six bouts, the CPU rising, the four twists in the fighter's own order; each foe is heard in
     the arena before their fight; the rival closes it on the Foundry floor. The fighter's own win line plays over the final
     KO under "<Fighter> clears the Tour", and the Tour select keeps the mark.
+
+## Square-ups (added with the pre-fight exchanges)
+
+- **Areas:** the match stage itself, in the seconds between the VS card and Ready. No new area.
+- **Landmarks:** the camera push onto each speaker and the lower-third caption (name, one line).
+- **Who lives here:** the 32 rival pairs in `content/intros.json`, plus the announcer and Blog Man for the generic six.
+- **Characters:** no new character; each speaks with their existing Gen voice id (`content/voice.json` `voices`).
+- **What happens:** line, answer, the listener's taunt; crowd ambience and the stage bed play under ducked music.
+- **Story beats:** told by voice and camera, one caption line at a time; never a text screen.

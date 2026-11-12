@@ -1708,3 +1708,27 @@ body.pilot-boot .screen { visibility: hidden; }
 @media (max-width: 560px) {
   .tour-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Pre-fight exchange: the caption stays inside two lines, even on a phone turned to 844x390. */
+.scene-sub.exchange { max-width: min(760px, 88vw); }
+.scene-sub.exchange .scene-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.15; }
+
+/* The episode's bookends (ui/segment.ts): the replay of the final KO, "Previously on" and "Next time on". The lower third
+   sits low on the left with the caption above it, both clear of the bottom bar (whose buttons are 44 px tall here), so
+   a short landscape phone (844x390) shows the whole picture. A tap anywhere skips; the Skip button is the visible way. */
+.scene[data-scene="highlight"] .scene-bar.bottom, .scene[data-scene="recap"] .scene-bar.bottom, .scene[data-scene="tease"] .scene-bar.bottom { height: max(9vh, 56px); }
+.scene[data-scene="highlight"] .scene-bar.bottom button, .scene[data-scene="recap"] .scene-bar.bottom button, .scene[data-scene="tease"] .scene-bar.bottom button { min-width: 96px; min-height: 44px; font-size: 16px; }
+.scene[data-scene="highlight"] .scene-card, .scene[data-scene="recap"] .scene-card, .scene[data-scene="tease"] .scene-card { bottom: calc(max(9vh, 56px) + 8px); padding: 6px 14px 8px; max-width: min(520px, 62vw); }
+.scene[data-scene="highlight"] .scene-card-kicker, .scene[data-scene="recap"] .scene-card-kicker, .scene[data-scene="tease"] .scene-card-kicker { margin: 0; font-size: 11px; }
+.scene[data-scene="highlight"] .scene-card-title, .scene[data-scene="recap"] .scene-card-title, .scene[data-scene="tease"] .scene-card-title { margin: 0; font-size: clamp(20px, 3.4vw, 32px); }
+.scene[data-scene="highlight"] .scene-card-line, .scene[data-scene="recap"] .scene-card-line, .scene[data-scene="tease"] .scene-card-line { display: none; }
+.scene-sub.segment { bottom: calc(max(9vh, 56px) + 8px + 78px); max-width: min(760px, 92vw); font-size: clamp(16px, 2.4vw, 24px); }
+.scene-bug { position: absolute; top: calc(9vh + 10px); right: max(16px, env(safe-area-inset-right)); display: flex; align-items: center; gap: 8px; font: 700 13px Oswald, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #fff3df; text-shadow: 0 1px 4px #000; }
+.scene-bug[hidden] { display: none; }
+.scene-bug-logo b { color: var(--gold); font-weight: 700; }
+.scene-bug-tag { background: #c8201a; color: #fff; padding: 3px 10px; border-radius: 3px; box-shadow: 0 0 14px rgba(200, 32, 26, 0.6); }
+.scene.slowmo::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.45)); }
+@media (max-height: 460px) {
+  .scene-bug { font-size: 11px; }
+  .scene-sub.segment { bottom: calc(max(9vh, 56px) + 8px + 62px); padding: 5px 12px; }
+}

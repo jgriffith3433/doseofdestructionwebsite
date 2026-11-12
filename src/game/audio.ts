@@ -531,7 +531,10 @@ class AudioSystem {
 
     let id: string;
     if (kind === 'effort' || kind === 'hurt') {
-      const n = kind === 'effort' ? 3 : 2;
+      // Season 1 has 3 efforts, everyone else 2: count the takes this fighter really has.
+      let n = 0;
+      while (this.lineById.get(`fighter.${who}.${kind}.${n}`)?.audio) n++;
+      n = Math.max(1, n);
       const key = `${who}.${kind}`;
       const i = (this.fighterPick.get(key) ?? 0) % n;
       this.fighterPick.set(key, i + 1);

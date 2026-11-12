@@ -7,6 +7,8 @@ import { ACT, type Fighter } from '../sim/state.ts';
 
 export interface Clip {
   file: string;
+  /** Optional half-resolution sheet for Low quality (same UV layout; tools/smooth-clips.mjs). */
+  halfFile?: string;
   frames: number;
   cols: number;
   rows: number;
@@ -20,6 +22,17 @@ export interface Clip {
   loop: boolean;
   /** Moves: the strike frame (full extension). Played on the move's first active frame. */
   hit?: number | null;
+  /** Per frame, how far the sole sits below the anchor row, in sheet pixels (tools/fit-feet.mjs). */
+  feet?: number[];
+  /** Walk and run: the sheet pixels the planted foot travels over one cycle, and per frame (tools/fit-feet.mjs). */
+  stride?: number;
+  travel?: number[];
+  slip?: number;
+}
+
+/** Sheet file to load for a clip at the current quality (half-size on Low when present). */
+export function clipSheetFile(clip: Clip, quality: 'high' | 'low'): string {
+  return quality === 'low' && clip.halfFile ? clip.halfFile : clip.file;
 }
 
 export interface AnimSet {
@@ -117,6 +130,8 @@ export interface Pick {
   clip: Clip;
   /** False when a stand-in clip is used; the renderer then adds procedural motion. */
   exact: boolean;
+  /** The set's standing height in sheet pixels. */
+  refHeight: number;
 }
 
 export function pickClip(f: Fighter, set: AnimSet | null): Pick | null {
@@ -124,7 +139,7 @@ export function pickClip(f: Fighter, set: AnimSet | null): Pick | null {
   const keys = wanted(f);
   for (let i = 0; i < keys.length; i++) {
     const clip = set.clips[keys[i]];
-    if (clip) return { key: keys[i], clip, exact: i === 0 };
+    if (clip) return { key: keys[i], clip, exact: i === 0, refHeight: set.refHeight };
   }
   return null;
 }
@@ -154,26 +169,62 @@ export function clipFrame(f: Fighter, pick: Pick): number {
   }
   else if (pick.exact && f.length > 0 && !clip.loop) span = f.length;
   if (span > 0) return Math.min(n - 1, Math.floor((f.frame / span) * n));
-  if (f.action === ACT.WALK && pick.key === 'walk' && clip.loop) return walkFrame(f, clip);
+  if (f.action === ACT.WALK && pick.key === 'walk' && clip.loop) return walkFrame(f, clip, pick.refHeight);
   const i = Math.floor((f.frame * clip.fps) / 60);
   return clip.loop ? i % n : Math.min(n - 1, i);
 }
 
+/** The art stands this much taller than the hurtbox (render/renderer.ts ART_SCALE). */
+const ART_SCALE = 1.18;
+const FX = 1000;
+
 /**
- * The ground one walk cycle covers (sim units). The clip's natural travel speed is the
- * fighter's full walking speed at the clip's own frame rate.
+ * The ground one walk cycle covers (sim units). A measured stride (the planted foot's travel over the cycle, from
+ * tools/fit-feet.mjs) is turned into sim units with the fighter's art scale, so playback follows the fighter's own
+ * ground speed; without one the clip's natural travel speed is the fighter's full walking speed at the clip's
+ * own frame rate.
  */
-export function walkStride(char: number, clip: Clip): number {
+export function walkStride(char: number, clip: Clip, refHeight = 0): number {
+  if (clip.stride && refHeight > 0) return Math.max(1, clip.stride * ((CHARACTERS[char].height * ART_SCALE) / refHeight) * FX);
   return Math.max(1, (CHARACTERS[char].walkSpeed * clip.frames * 60) / clip.fps);
 }
 
 /**
  * Walk frames follow the ground covered, not the clock (studio rule 5, no foot sliding):
  * playback is actual speed / clip speed, so a light tilt of the stick walks slowly
- * instead of skating, and stopping freezes the stride where the feet are.
+ * instead of skating, and stopping freezes the stride where the feet are. With the measured per-frame
+ * travel the frame is the one whose stretch of ground the fighter is on, so a foot that moves fast early in
+ * its stance is shown moving fast and stays on the floor.
  */
-export function walkFrame(f: Fighter, clip: Clip): number {
-  const stride = walkStride(f.char, clip);
+export function walkFrame(f: Fighter, clip: Clip, refHeight = 0): number {
+  const stride = walkStride(f.char, clip, refHeight);
   const d = (((f.x * f.facing) % stride) + stride) % stride;
+  const t = clip.travel;
+  if (t && clip.stride && t.length === clip.frames && refHeight > 0) {
+    let at = 0;
+    for (let i = 0; i < t.length; i++) {
+      at += (t[i] / clip.stride) * stride;
+      if (d < at) return i;
+    }
+    return clip.frames - 1;
+  }
   return Math.min(clip.frames - 1, Math.floor((d / stride) * clip.frames));
+}
+
+/** Clips whose feet are on the floor while the fighter stands, walks, crouches, lands or shields. */
+const FEET_CLIPS = new Set(['idle', 'walk', 'run', 'crouch', 'jumpsquat', 'land', 'shield', 'dodge', 'roll', 'dizzy']);
+
+/**
+ * How far to lift the sprite (sheet pixels) so the frame's lowest solid row meets the platform: the clip's
+ * per-frame `feet`. Only for a grounded fighter on a floor clip (a stand-in clip or a launched fighter keeps its
+ * anchor). Cap at 20% of height so a bad measurement can't throw a fighter, but idle soles that sit ~12% off
+ * the anchor (spider-bot, evil-blue-bird) still correct fully.
+ */
+export function feetLift(f: Fighter, pick: Pick, frame: number): number {
+  const feet = pick.clip.feet;
+  if (!feet || !f.grounded || !pick.exact || !FEET_CLIPS.has(pick.key)) return 0;
+  const v = feet[frame];
+  if (v == null) return 0;
+  const max = pick.refHeight * 0.2;
+  return Math.max(-max, Math.min(max, v));
 }

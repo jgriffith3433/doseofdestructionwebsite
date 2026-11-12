@@ -25,13 +25,14 @@ import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
 import { GRAB_FIRST, activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
-import { KILL_CUE, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, type HitTier, type TrailKind } from '../hitFeel.ts';
+import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, type HitTier, type TrailKind } from '../hitFeel.ts';
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { cameraFighters, followCamera, frameGoal, punchGoal, type CamBounds, type CamState } from './cameraRig.ts';
-import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
+import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
 import { StageLive } from './stageLive.ts';
 import { StageAlive } from './stageAlive.ts';
+import { PostChain } from './post.ts';
 import { Constants } from '@babylonjs/core/Engines/constants.js';
 
 /** Sim units to scene units: 100 world units per scene unit. */
@@ -78,6 +79,7 @@ interface FighterView {
   /** Roster index and colour look this view was built for (playtest). */
   charIdx: number;
   lookIdx: number;
+  tumble?: number;
 }
 
 /** One launch's smoke trail, kept for the playtest: what it was and how many puffs it threw. */
@@ -110,6 +112,10 @@ export class Renderer {
   /** Finished spark meshes, reused so a KO burst doesn't build geometry mid-fight. */
   private sparkPool: Mesh[] = [];
   private sparkMat: StandardMaterial;
+  /** Visual-only reactions per fighter (squash, push, bounce); render reads sim state and never writes it. */
+  private react = new Map<number, { age: number; frames: number; squash: number; push: number; dir: number; hop: number }>();
+  private prevGround = new Map<number, number>();
+  private reactStats = { squashes: 0, maxSquash: 0, squashFrames: 0, tumbleFrames: 0, bounces: 0, dustBursts: 0, smears: 0, smearFrames: 0, smashSmears: 0, charges: 0 };
   /** Launch-trail looks: grey smoke (medium), white smoke (heavy), a coloured streak (a hit that will KO). */
   private smokeMats!: { grey: StandardMaterial; white: StandardMaterial; streak: StandardMaterial };
   /** The last hit on each victim (knockback and tier), read when its launch begins. */
@@ -126,6 +132,7 @@ export class Renderer {
   private debugMat: StandardMaterial;
   private hurtMat: StandardMaterial;
   private glow: GlowLayer;
+  private post: PostChain;
   private stageRoot: TransformNode | null = null;
   private movers: { platform: Platform; node: TransformNode }[] = [];
   private stage: StageDef = STAGES[0];
@@ -187,6 +194,7 @@ export class Renderer {
     light.intensity = 0.95;
     light.groundColor = new Color3(0.18, 0.1, 0.08);
 
+    this.post = new PostChain(this.scene, this.camera);
     this.glow = new GlowLayer('glow', this.scene, { mainTextureSamples: 2 });
     this.glow.intensity = 0.6;
     // Silhouettes draw in group 1 against the depth group 0 left behind.
@@ -253,8 +261,21 @@ export class Renderer {
     this.engine.setHardwareScalingLevel(scalingLevel(g.quality, window.devicePixelRatio));
     if (qualityChanged && this.alive) this.showStage(this.stage);
     if (qualityChanged) this.engine.resize();
+    // Low loads half-resolution clip sheets when present; drop cached textures so the next preload picks the right file.
+    if (qualityChanged) {
+      for (const tex of this.clipCache.values()) tex.dispose();
+      this.clipCache.clear();
+      for (const v of this.views) v.clipTex.clear();
+      void this.preloadClips(0);
+    }
     this.glow.isEnabled = g.glow;
+    this.post.setQuality(g.quality);
     if (this.fpsEl) this.fpsEl.hidden = !g.fps;
+  }
+
+  /** The post chain's state (grade, vignette, grain, hit punches), for the playtest. */
+  postStats() {
+    return this.post.report();
   }
 
   /** Stage life pieces and the screen mode, for the playtest. */
@@ -359,6 +380,7 @@ export class Renderer {
     this.alive?.dispose();
     this.movers = [];
     this.stage = stage;
+    this.post.setStage(stage.id);
     this.camCut = true;
     this.kill = null;
     const root = new TransformNode('stage', this.scene);
@@ -367,7 +389,7 @@ export class Renderer {
     this.sparkMat.emissiveColor = Color3.FromHexString(t.thinEdge);
 
     this.buildBackdrop(root);
-    const built = buildLayers(this.scene, root, this.stage, this.glow);
+    const built = buildLayers(this.scene, root, this.stage, this.glow, this.gfx.quality === 'high');
     this.occluders = built.occluders;
     this.live = new StageLive(this.scene, root, this.stage, built.placed, this.glow);
     this.alive = new StageAlive(this.scene, root, this.stage, this.glow, this.gfx.quality, () => this.views.map((v) => v.body), this.camera);
@@ -630,10 +652,12 @@ export class Renderer {
     const waits: Promise<void>[] = [];
     let total = 0;
     let loaded = 0;
+    const quality = this.gfx.quality;
     this.views.forEach((v, slot) => {
       if (!v.anims) return;
       for (const key of Object.keys(v.anims.clips)) {
-        const url = `${v.anims.base}${v.anims.clips[key].file}?v=${v.anims.version}`;
+        const file = clipSheetFile(v.anims.clips[key], quality);
+        const url = `${v.anims.base}${file}?v=${v.anims.version}`;
         const id = `${slot}|${url}`;
         keep.add(id);
         let tex = this.clipCache.get(id);
@@ -814,7 +838,8 @@ export class Renderer {
     // Normally preloaded (preloadClips); made here only if a clip appears mid-match.
     let tex = v.clipTex.get(key);
     if (!tex) {
-      const url = `${v.anims.base}${v.anims.clips[key].file}?v=${v.anims.version}`;
+      const file = clipSheetFile(v.anims.clips[key], this.gfx.quality);
+      const url = `${v.anims.base}${file}?v=${v.anims.version}`;
       tex = new Texture(url, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE);
       tex.hasAlpha = true;
       v.clipTex.set(key, tex);
@@ -832,9 +857,16 @@ export class Renderer {
         } else if (e.type === 'hit') {
           this.lastHits.set(e.victim, { kb: e.kb, tier: hitTier(e.dmg) });
           this.impact(e);
+          if (hitTier(e.dmg) === 'heavy') this.post.punch();
         } else {
           this.burst(e.x * S, e.y * S, 8 + Math.min(16, e.kb >> 3), 0.09 + e.kb * 0.0006);
           this.shake = Math.max(this.shake, Math.min(0.5, e.kb * 0.003));
+        }
+        if (!shield && e.type === 'hit') {
+          const r = reactionFor(hitTier(e.dmg), e.kb);
+          this.react.set(e.victim, { age: 0, frames: r.frames, squash: r.squash, push: r.push, dir: 0, hop: 0 });
+          this.reactStats.squashes++;
+          this.reactStats.maxSquash = Math.max(this.reactStats.maxSquash, r.squash);
         }
         if (!shield && this.views[e.victim]) this.views[e.victim].flash = 10;
         if (!shield) {
@@ -849,6 +881,7 @@ export class Renderer {
         this.live?.trigger(on);
       } else if (e.type === 'launch') {
         // The launch that will carry the victim out of the blast zone: the kill cue.
+        if (e.ko) this.post.punch();
         if (e.ko && !this.shot) this.killCue(e.x * S, e.y * S + 0.5);
         this.startTrail(e.victim, e.ko);
       } else if (e.type === 'ko') {
@@ -1184,6 +1217,7 @@ export class Renderer {
     this.drawDebug(state);
     this.updateCamera(state);
     this.scene.render();
+    this.post.endFrame();
     this.checkFraming(state);
     if (this.kill && (performance.now() - this.kill.at) / 1000 > 0.15 && (performance.now() - this.kill.at) / 1000 < KILL_CUE.slowSeconds) {
       const fps = this.engine.getFps();
@@ -1233,7 +1267,7 @@ export class Renderer {
       const px = height / v.anims.refHeight;
       v.body.scaling.set(c.fw * px, c.fh * px, 1);
       v.body.position.x = (c.fw / 2 - c.ax) * px;
-      v.body.position.y = (c.ay - c.fh / 2) * px;
+      v.body.position.y = (c.ay - c.fh / 2 + feetLift(f, pick, i)) * px;
       // Clips line up on the feet, but a hang is about the hands: put the top of the
       // sprite (the gripping hands) on the ledge's top edge instead.
       if (pick.key === 'ledge' && pick.exact && f.ledge > 0) {
@@ -1258,9 +1292,15 @@ export class Renderer {
         sy *= 1 + b;
       }
     }
+    const rx = this.reaction(f, v, state);
+    sx *= rx.sx;
+    sy *= rx.sy;
+    if (rx.rot !== null) rot = rx.rot;
+    x += rx.dx;
+    v.root.position.x = x;
     v.pose.scaling.set(f.facing * sx, sy, 1);
     v.pose.rotation.z = rot;
-    v.pose.position.y = lift;
+    v.pose.position.y = lift + rx.lift;
 
     if (v.ghost && v.ghostMat) {
       v.ghost.position.x = v.body.position.x;
@@ -1300,6 +1340,88 @@ export class Renderer {
       const s = 0.45 + 0.55 * (f.shield / SHIELD_MAX);
       v.shield.scaling.set(s, s, 1);
     }
+  }
+
+  /** Procedural reaction on top of the clips: hit squash and push, tumble in hit-stun, ground bounce with dust, smash charge glow, smears. */
+  private reaction(f: Fighter, v: FighterView, state: GameState): { sx: number; sy: number; rot: number | null; dx: number; lift: number } {
+    const out = { sx: 1, sy: 1, rot: null as number | null, dx: 0, lift: 0 };
+    const st = this.reactStats;
+    const r = this.react.get(f.id);
+    const hurt = f.action === ACT.HITSTUN;
+    if (r) {
+      if (f.hitlag <= 0 || r.age > 0) r.age++;
+      const k = r.age <= r.frames ? 1 : 0;
+      if (k) {
+        out.sx = 1 + r.squash;
+        out.sy = 1 - r.squash;
+        st.squashFrames++;
+      }
+      if (r.push > 0 && r.age < 8) out.dx = -f.facing * r.push * (1 - r.age / 8);
+      if (r.hop > 0) {
+        r.hop--;
+        out.lift = Math.sin((r.hop / 14) * Math.PI) * 0.18;
+      }
+      if (r.age > 40 && r.hop <= 0 && !hurt) this.react.delete(f.id);
+    }
+    const speed = Math.hypot(f.kbx, f.kby) / FX;
+    if (hurt && speed > TUMBLE_SPEED) {
+      v.tumble = (v.tumble ?? 0) + 1;
+      out.rot = f.facing * v.tumble * 0.35;
+      st.tumbleFrames++;
+    } else v.tumble = 0;
+    const was = this.prevGround.get(f.id) ?? 1;
+    this.prevGround.set(f.id, f.grounded);
+    if (hurt && !was && f.grounded && f.kby <= 0 && r) {
+      r.hop = 14;
+      st.bounces++;
+      st.dustBursts++;
+      this.burst(f.x * S, f.y * S + 0.02, 14, 0.07);
+      this.onSynth?.('thud');
+    }
+    if (f.action === ACT.ATTACK) {
+      const ch = CHARACTERS[f.char];
+      const m = ch.moves[f.move];
+      const w = m.hits[0];
+      const big = f.move === MOVE.FSMASH || f.move === MOVE.USMASH || f.move === MOVE.DSMASH;
+      if (w && (big || f.move >= MOVE.UPB)) {
+        if (big && f.frame < w.start) {
+          const g = f.frame / w.start;
+          const e = 1 + g * 0.5;
+          v.mat.emissiveColor.set(e, e, 1 + g);
+          out.dx += (f.frame & 1 ? 1 : -1) * 0.012 * g;
+          if (f.frame === 1) st.charges++;
+        }
+        if (this.gfx.quality === 'high' && f.frame >= w.start && f.frame < w.start + 3) {
+          this.smear(f, w.boxes[0], f.frame - w.start, big);
+          if (f.frame === w.start) st.smears++;
+          st.smearFrames++;
+          if (big) st.smashSmears++;
+        }
+      }
+    }
+    return out;
+  }
+
+  /** One of three streak frames along the swing, from the body to the active hitbox. */
+  private smear(f: Fighter, b: { x: number; y: number }, i: number, big: boolean): void {
+    const ch = CHARACTERS[f.char];
+    const k = f.scale / 100;
+    const hw = ch.height * W * k;
+    const bx = f.facing * b.x * W * k;
+    const by = b.y * W * k;
+    const cy = hw * 0.5;
+    const t = (i + 1) / 3;
+    const mesh = this.takeSpark(this.smokeMats.streak);
+    mesh.position.set(f.x * S + bx * t * 0.9, f.y * S + cy + (by - cy) * t, -0.37);
+    mesh.rotation.z = Math.atan2(by - cy, bx || f.facing);
+    this.sparks.push({ mesh, vx: 0, vy: 0, life: 3, max: 3, size: (big ? 0.55 : 0.4) * (0.6 + t * 0.6), stretch: 3, grow: 0 });
+  }
+
+  /** What the reaction layer has done, for the playtest. */
+  reactFxStats(reset = false) {
+    const out = { ...this.reactStats, quality: this.gfx.quality };
+    if (reset) for (const k of Object.keys(this.reactStats) as (keyof typeof this.reactStats)[]) this.reactStats[k] = 0;
+    return out;
   }
 
   private updateSparks(): void {
@@ -1685,10 +1807,11 @@ export function prefetchFighters(chars: number[]): Promise<void> {
       p = (async () => {
         const [, anims] = await Promise.all([loadArt(`/characters/large/${id}.webp`).catch(() => null), loadAnimSet(id)]);
         if (!anims) return;
+        const quality = graphics().quality;
         await Promise.all(Object.values(anims.clips).map((clip) => new Promise<void>((done) => {
           const img = new Image();
           img.onload = img.onerror = () => done();
-          img.src = `${anims.base}${clip.file}?v=${anims.version}`;
+          img.src = `${anims.base}${clipSheetFile(clip, quality)}?v=${anims.version}`;
         })));
       })();
       prefetched.set(id, p);

@@ -31,13 +31,14 @@ import { DAILY_KEY, dailyDate } from '../campaign/dailyStore.ts';
 import { castLine } from '../ui/daily.ts';
 import { TOURS, TOURS_KEY, TOUR_LENGTH, tourEnding, tourFor, tourIntro } from '../campaign/tour.ts';
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
+import { PAIRS, pairFor } from '../campaign/intros.ts';
 import { PROMPTS, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
 import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
-import { loadAnimSet } from '../render/anims.ts';
+import { clipFrame, feetLift, loadAnimSet, pickClip, type AnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import { BUFFER_FRAMES, COYOTE_FRAMES, type SimEvent } from '../sim/step.ts';
 import { onlineReady } from '../net/loader.ts';
@@ -68,6 +69,7 @@ export interface GameHooks {
   /** Renderer particle and warm-up diagnostics. */
   /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
   camFxStats?(reset?: boolean): { cameraJumps: number; framingMisses: number; killCues: number; slowFpsMin: number; killActive: boolean; lastCue: { zoom: boolean; slow: boolean; whistle: boolean; shake: number; punch: number } | null };
+  reactFxStats?(reset?: boolean): { squashes: number; maxSquash: number; squashFrames: number; tumbleFrames: number; bounces: number; dustBursts: number; smears: number; smearFrames: number; smashSmears: number; charges: number; quality: string };
   trailStats?(reset?: boolean): { log: { seq: number; victim: number; tier: HitTier; kb: number; kind: 'none' | 'grey' | 'white' | 'streak'; ko: boolean; puffs: number }[]; active: number; puffs: number };
   markerStats?(): { shown: number; frames: number; unclear: number; last: { id: number; size: number; danger: boolean; clear: boolean; rect: { l: number; t: number; r: number; b: number } } | null; events: { id: number; size: number; danger: boolean }[]; rects: { id: number; rect: { l: number; t: number; r: number; b: number }; danger: boolean }[] };
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
@@ -75,6 +77,7 @@ export interface GameHooks {
   lookStats?(): { slot: number; char: number; look: number; shader: boolean }[];
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
+  postStats?(): { quality: 'high' | 'low'; lut: string | null; lutReady: boolean; vignette: number; grain: number; punchFrames: number; punches: number; lastPunchDrawn: number };
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
   /** Layered stage bed: calm/intense, ambience under the theme, intensity stem. */
@@ -163,10 +166,13 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'story-cards') await r.storyCards();
+        else if (id === 'bookends') await r.bookends();
         else if (id === 'rotate') await r.rotate();
         else if (id === 'first-visit') await r.firstVisit();
         else if (id === 'presentation') await r.presentation();
         else if (id === 'roster') await r.roster();
+        else if (id === 'feet') await r.feetRun();
+        else if (id === 'smooth-clips') await r.smoothClips();
         else if (id === 'specials') await r.specialsRun();
         else if (id === 'grab') await r.grabRun();
         else if (id === 'select-specials') await r.selectSpecials();
@@ -177,10 +183,12 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'touch-match') await r.touchMatch();
         else if (id === 'touch-settings') await r.touchSettingsRun();
         else if (id === 'graphics') await r.graphicsRun();
+        else if (id === 'post-chain') await r.postChain();
         else if (id === 'stage-life') await r.stageLife();
         else if (id === 'stage-bed') await r.stageBed();
         else if (id === 'commentary') await r.commentary();
         else if (id === 'fighter-voice') await r.fighterVoice();
+        else if (id === 'intro-exchange') await r.introExchange();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
       } finally {
@@ -269,12 +277,57 @@ class Run {
   /** Animation over time (studio rule 5): each match's per-frame state is checked against the motion. */
   private trace = new AnimTrace();
   private traceFrames = 0;
+  /** Clip sets of the fighters seen (filled by checkFighter), for the feet check. */
+  private readonly feetSets = new Map<string, AnimSet>();
+  /** Per fighter this match: the worst sole-to-floor gap in sheet pixels as drawn (after the lift), and without it. */
+  private feetGap = new Map<string, { worst: number; idle: number; raw: number; clip: string }>();
+
+  /** Feet on the floor (studio rule 4): each grounded fighter's sole gap in the frame the renderer draws. */
+  private sampleFeet(m: Match): void {
+    for (const f of m.state.fighters) {
+      if (!f.grounded || f.hitlag > 0) continue;
+      const id = CHARACTERS[f.char].id;
+      const set = this.feetSets.get(id);
+      if (!set) continue;
+      const pick = pickClip(f, set);
+      if (!pick || !pick.exact || !pick.clip.feet) continue;
+      const i = clipFrame(f, pick);
+      const raw = pick.clip.feet[i];
+      if (raw == null) continue;
+      const lift = feetLift(f, pick, i);
+      // Only floor clips are corrected; a grounded attack or hurt frame has its own pose.
+      if (lift === 0 && raw !== 0 && pick.key !== 'idle' && pick.key !== 'walk' && pick.key !== 'land' && pick.key !== 'crouch') continue;
+      const gap = Math.abs(raw - lift);
+      const g = this.feetGap.get(id) ?? { worst: 0, idle: 0, raw: 0, clip: '' };
+      g.raw = Math.max(g.raw, Math.abs(raw));
+      if (gap > g.worst) { g.worst = gap; g.clip = pick.key; }
+      if (pick.key === 'idle') g.idle = Math.max(g.idle, gap);
+      this.feetGap.set(id, g);
+    }
+  }
+
+  private reportFeet(): void {
+    if (!this.feetGap.size) return;
+    for (const [id, g] of this.feetGap) {
+      const detail = { fighter: id, worst: g.worst, idle: g.idle, withoutFit: g.raw, clip: g.clip };
+      this.t.event('feet-gap', `${id}: worst ${g.worst}px (idle ${g.idle}px, ${g.raw}px before the fit) in ${g.clip || 'no floor clip'}`);
+      window.dispatchEvent(new CustomEvent('dod:feet-gap', { detail }));
+      if (g.idle > 2) this.t.problem('bug', `${id}: idle feet ${g.idle}px off the floor (over 2px)`);
+      if (g.worst > 6) this.t.problem('polish', `${id}: feet ${g.worst}px off the floor in ${g.clip}`);
+    }
+    this.feetGap.clear();
+  }
 
   private onTick(m: Match, events: SimEvent[]): void {
     const s = m.state;
     const me = m.player;
-    if (m !== this.seen) this.onMatchStart(m);
+    // Training matches are quit without `over`, so report the previous bout's feet before the next starts.
+    if (m !== this.seen) {
+      this.reportFeet();
+      this.onMatchStart(m);
+    }
     this.traceFrames++;
+    this.sampleFeet(m);
     for (const p of this.trace.check(s)) {
       this.t.problem('bug', `animation over time on ${STAGES[s.stage].name}: ${p.text}`);
     }
@@ -380,6 +433,7 @@ class Run {
       const used = [...this.specialsUsed].map((x) => CHARACTERS[m.state.fighters[me].char].moves[x].name);
       this.t.event('specials-used', `${CHARACTERS[m.state.fighters[me].char].name} used ${used.length} different specials this match: ${used.join(', ') || 'none'}`);
       this.t.metric('specialsUsed', used.length);
+      this.reportFeet();
       this.t.event('anim-trace', `${this.traceFrames} frames traced, ${this.trace.problems.length} state/motion mismatches`);
     }
     this.t.progress(this.progressNow());
@@ -396,6 +450,7 @@ class Run {
     this.seen = m;
     this.trace = new AnimTrace();
     this.traceFrames = 0;
+    this.feetGap = new Map();
     this.lastHitFrame = m.state.frame;
     this.quietWarned = false;
     this.overSeen = false;
@@ -505,6 +560,7 @@ class Run {
       if (!(await exists(url))) this.t.problem('bug', `${c.name}: missing image ${url}`);
     }
     const set = await loadAnimSet(id);
+    if (set) this.feetSets.set(id, set);
     if (!set) {
       this.t.problem('warning', `${c.name}: no animation clips (shows the still image only)`);
     } else {
@@ -874,8 +930,12 @@ class Run {
     const m = this.game.match() ?? this.seen;
     const won = m?.playerWon() ?? false;
     // A won campaign episode signs off in the arena first (the outro scene), then the results come.
-    await this.t.until(() => sceneShowing() || currentScreen() === 'results', 30000, 'the outro or the results');
-    if (sceneShowing()) await this.passScene();
+    // The episode's ending is a chain: the replay of the final KO, the outro scene, the "Next time" tease (ui/segment.ts).
+    const t0 = performance.now();
+    while (currentScreen() !== 'results' && performance.now() - t0 < 90000) {
+      if (sceneShowing()) await this.passScene();
+      else await this.t.wait(200);
+    }
     await this.screen('results', 30000);
     return won;
   }
@@ -1881,6 +1941,172 @@ class Run {
     }
     t.metric('cardsSeen', this.cardsSeen);
     if (this.cardsSeen < 2) t.problem('bug', `only ${this.cardsSeen} story card(s) shown for the episode (a before and an after card are expected)`);
+  }
+
+  /**
+   * The episode's bookends (ui/segment.ts): a won episode replays its final KO within 1 s with the last hit slowed, then the
+   * outro, then Blog Man's "Next time on" tease over the next episode's stage; the next episode opens on "Previously on" with
+   * the saved highlight and a voiced recap. A press skips each segment within 0.3 s and the results still come. Option
+   * `chapter` (default open-mic; the next chapter is played too). Touch: the skips are pointer taps, played in 844x390.
+   */
+  async bookends(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('bookends');
+    }
+    this.logViewport(touch && this.isPhone());
+    const asked = this.options.chapter ?? 'open-mic';
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    if (from < 0 || from + 1 >= CHAPTERS.length) {
+      t.problem('bug', `chapter "${String(asked)}" is not an episode with a next one (content/campaign.json ids: ${CHAPTERS.map((c) => c.id).join(', ')})`);
+      t.finish('error');
+      return;
+    }
+    const c = CHAPTERS[from];
+    const next = CHAPTERS[from + 1];
+    type Seg = { kind: string; phase: string; at: number; abs: number; [k: string]: unknown };
+    const segs: Seg[] = [];
+    const onSeg = (e: Event) => segs.push({ ...(e as CustomEvent).detail, abs: performance.now() });
+    const voices: string[] = [];
+    const onVoice = (e: Event) => voices.push(String((e as CustomEvent).detail?.url ?? ''));
+    window.addEventListener('dod:segment', onSeg);
+    window.addEventListener('dod:voice', onVoice);
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((x) => x.id));
+    const savedHl = localStorage.getItem('dod-highlight');
+    localStorage.removeItem('dod-highlight');
+    t.log(`setup shortcut: chapters 1-${from} marked cleared, no saved highlight, starting at ${c.id}`);
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      await this.toMainMenu();
+      await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+      await this.screen('campaign');
+      await this.click(() => this.q(`#chapter-path .chapter[data-chapter="${c.id}"]`), `Chapter ${from + 1} · ${c.title}`);
+      await this.playDialogue();
+      await this.matchLive();
+      if (segs.some((s) => s.kind === 'recap')) t.problem('bug', 'the first episode of a run opened on a recap with nothing to recap');
+      // The match: the bot to the end; the moment of the KO is the moment the match is over.
+      let tOver = 0;
+      await this.fight(() => {
+        const m = this.game.match();
+        if (m?.state.over && !tOver) tOver = performance.now();
+        return false;
+      }, 8 * 60 * 1000);
+      if (!(this.game.match() ?? this.seen)?.playerWon()) {
+        t.problem('bug', 'the bot lost the episode, so there is no final KO to replay: try another seed');
+        t.finish('lost');
+        return;
+      }
+      // 1. The replay of the final KO.
+      await t.until(() => segs.some((s) => s.kind === 'replay' && s.phase === 'start'), 8000, 'the replay of the final KO');
+      const rs = segs.find((s) => s.kind === 'replay' && s.phase === 'start')!;
+      const lag = tOver ? rs.abs - tOver : 0;
+      t.event('replay-start', `the replay of ${c.title}'s final KO started ${Math.round(lag)} ms after the KO (${rs.inputs} ticks of inputs stored, final hit tick ${rs.hit}, KO tick ${rs.ko})`);
+      if (lag > 1000) t.problem('bug', `the replay started ${Math.round(lag)} ms after the KO (more than 1 s)`);
+      t.metric('replayStartMs', Math.round(lag));
+      await t.until(() => this.q('#scene')?.getAttribute('data-scene') === 'highlight' && !!this.q('#scene-card-title')?.textContent, 3000, 'the lower third');
+      const tag = this.q('#scene-card-tag')?.textContent ?? '';
+      const title = this.q('#scene-card-title')?.textContent ?? '';
+      const bugShown = !!this.q('#scene-bug') && !this.q('#scene-bug')!.hidden;
+      if (title !== c.title) t.problem('bug', `the replay's lower third says "${title}", not the episode title "${c.title}"`);
+      if (!bugShown) t.problem('bug', 'the show logo bug is not on the replay');
+      t.event('replay-lower-third', `${tag} · ${title}, logo bug shown: ${bugShown}`);
+      await t.until(() => segs.some((s) => s.kind === 'replay' && s.phase === 'slow'), 5000, 'the final hit in slow motion');
+      t.event('replay-slow', 'the final hit plays at 25%');
+      await this.fitCheck('replay');
+      // A press ends it within 0.3 s; the outro and tease follow.
+      await this.skipSegment('replay');
+      // 2. The outro scene is the story's own; let it play through, then the tease.
+      await t.until(() => segs.some((s) => s.kind === 'tease' && s.phase === 'start') || currentScreen() === 'results', 90000, 'the Next time tease');
+      const ts = segs.find((s) => s.kind === 'tease' && s.phase === 'start');
+      if (!ts) t.problem('bug', 'no "Next time on" tease played before the results');
+      else {
+        await this.t.wait(900);
+        const tvoice = voices.some((u) => u.includes(`blog-man.tease.${c.id}`));
+        if (!tvoice) t.problem('bug', `Blog Man's tease line (blog-man.tease.${c.id}) did not play`);
+        if (ts.next !== next.id) t.problem('bug', `the tease is for ${String(ts.next)}, not the next episode ${next.id}`);
+        t.event('tease', `"${this.q('#scene-card-tag')?.textContent ?? ''}" · ${this.q('#scene-card-title')?.textContent ?? ''}, stage ${String(ts.stage)}, voiced: ${tvoice}, caption "${this.q('#scene-text')?.textContent ?? ''}"`);
+        await this.fitCheck('tease');
+        await this.skipSegment('tease');
+      }
+      await this.screen('results', 30000);
+      t.event('results-after-skips', 'the results still came after the skipped segments');
+      await this.click(() => this.button('#results-actions', 'Continue'), 'Continue');
+      await this.screen('campaign');
+      // 3. The next episode opens on "Previously on".
+      segs.length = 0;
+      voices.length = 0;
+      await this.click(() => this.q(`#chapter-path .chapter[data-chapter="${next.id}"]`), `Chapter ${from + 2} · ${next.title}`);
+      await t.until(() => segs.some((s) => s.kind === 'recap' && s.phase === 'start'), 30000, 'the Previously on recap');
+      await t.wait(900);
+      const rc = segs.find((s) => s.kind === 'recap' && s.phase === 'start')!;
+      const rvoice = voices.some((u) => u.includes(`blog-man.recap.${c.id}`));
+      if (!rvoice) t.problem('bug', `Blog Man's recap line (blog-man.recap.${c.id}) did not play`);
+      if (rc.chapter !== c.id) t.problem('bug', `the recap replays ${String(rc.chapter)}, not the episode before (${c.id})`);
+      if (!segs.some((s) => s.kind === 'recap' && s.phase === 'slow')) await t.until(() => segs.some((s) => s.kind === 'recap' && s.phase === 'slow'), 4000, 'the saved KO in slow motion').catch(() => {});
+      t.event('recap', `"${this.q('#scene-card-tag')?.textContent ?? ''}" · ${this.q('#scene-card-title')?.textContent ?? ''}, saved highlight replayed on ${String(rc.stage)}, voiced: ${rvoice}, caption "${this.q('#scene-text')?.textContent ?? ''}"`);
+      await this.fitCheck('recap');
+      await this.skipSegment('recap');
+      await this.playDialogue();
+      await this.matchLive();
+      t.event('next-episode-live', `${next.title} went on to its own fight after the recap`);
+      await this.quitFromPause('campaign');
+      t.finish('won');
+    } finally {
+      window.removeEventListener('dod:segment', onSeg);
+      window.removeEventListener('dod:voice', onVoice);
+      this.game.setCampaignProgress(before);
+      if (savedHl === null) localStorage.removeItem('dod-highlight');
+      else localStorage.setItem('dod-highlight', savedHl);
+    }
+  }
+
+  /** A segment's picture fills the screen: its caption and lower third inside the window, above the bottom bar, no sideways scroll. */
+  private async fitCheck(what: string): Promise<void> {
+    const t = this.t;
+    const w = innerWidth;
+    const h = innerHeight;
+    const inside = (sel: string) => {
+      const el = this.q(sel);
+      if (!el || el.hidden) return true;
+      const r = el.getBoundingClientRect();
+      return r.left >= -1 && r.right <= w + 1 && r.top >= -1 && r.bottom <= h + 1;
+    };
+    for (const sel of ['#scene-card', '#scene-sub', '#scene-bug', '#scene-skip']) {
+      if (!inside(sel)) t.problem('bug', `the ${what} segment's ${sel} runs off the ${w}x${h} window`);
+    }
+    const bar = this.q('.scene-bar.bottom')?.getBoundingClientRect();
+    const card = this.q('#scene-card')?.getBoundingClientRect();
+    if (bar && card && !this.q('#scene-card')!.hidden && card.bottom > bar.top + 1) t.problem('bug', `the ${what} lower third overlaps the bottom bar`);
+    const skip = this.q('#scene-skip')?.getBoundingClientRect();
+    if (skip && (skip.width < 44 || skip.height < 44)) t.problem('bug', `the ${what} Skip button is ${Math.round(skip.width)}x${Math.round(skip.height)}, under 44 px`);
+    if (document.documentElement.scrollWidth > w + 1) t.problem('bug', `the ${what} segment scrolls sideways`);
+    t.event(`${what}-fit`, `${w}x${h}: lower third, caption, logo bug and Skip inside the window`);
+  }
+
+  /** Presses (a tap on a phone, a key on a desktop) and times how long the segment takes to end. */
+  private async skipSegment(kind: string): Promise<void> {
+    const t = this.t;
+    const touch = matchMedia('(pointer: coarse)').matches;
+    const t0 = performance.now();
+    if (touch) {
+      const x = innerWidth / 2;
+      const y = innerHeight / 2;
+      const target = (document.elementFromPoint(x, y) as HTMLElement | null) ?? document.body;
+      const init = { pointerType: 'touch', pointerId: 52, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y };
+      target.dispatchEvent(new PointerEvent('pointerdown', init));
+      await t.wait(40);
+      target.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }));
+    } else await tapKey('Space');
+    await t.until(() => this.q('#scene')?.hidden !== false || this.q('#scene')?.getAttribute('data-scene') !== (kind === 'replay' ? 'highlight' : kind), 3000, `the ${kind} to be skipped`);
+    const ms = Math.round(performance.now() - t0);
+    t.event(`${kind}-skipped`, `${touch ? 'a tap' : 'a key'} ended the ${kind} in ${ms} ms`);
+    if (ms > 300) t.problem('bug', `the ${kind} took ${ms} ms to skip (more than 0.3 s)`);
+    t.metric(`${kind}SkipMs`, ms);
   }
 
   /** The 'quota' objective's chapter alone (`chapter` option, default the first one that uses it), played from the map. */
@@ -2913,6 +3139,279 @@ class Run {
    * button only (`touch-special`, `touch-grab`), and the run counts any special that needed a button the touch layout
    * doesn't have (`specialsOutsideTouch`, must stay 0). Options: `fighter` (one id), `input: "touch"`, `at`.
    */
+  /**
+   * Feet on the floor: every fighter idles and walks on the main platform (events feet-gap / dod:feet-gap),
+   * then The Mechanic stands on a City Top scaffold deck. Phone 390x844 turns to 844x390 and plays by touch.
+   */
+  /**
+   * Season 1 idle / walk / jab / fsmash at 30 fps with fringe-clean half sheets on Low,
+   * hitboxes shown on jab and side smash, phone Low fps ≥45.
+   */
+  async smoothClips(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('smooth-clips');
+    }
+    if (touch) {
+      this.logViewport(this.isPhone());
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const gfxWas = localStorage.getItem(GFX_KEY);
+    const want = ['idle', 'walk', 'jab', 'fsmash'] as const;
+    let fps30 = 0;
+    let halfSheets = 0;
+    const fpsSamples: number[] = [];
+    try {
+      await this.toMainMenu();
+      setGraphics({ quality: 'low', glow: false });
+      const train = stagesFor('training')[0]?.index ?? 0;
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : [...SEASON_ONE];
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the stick controls were not built');
+        t.finish('error');
+        return;
+      }
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+      };
+      const me = () => {
+        const m = this.game.match()!;
+        return m.state.fighters[m.player];
+      };
+
+      for (const [n, id] of ids.entries()) {
+        const i = CHARACTERS.findIndex((c) => c.id === id);
+        if (i < 0) {
+          t.problem('bug', `fighter "${id}" is not in the roster`);
+          continue;
+        }
+        this.progressNow = () => n / ids.length;
+        t.progress(n / ids.length);
+        t.event('fighter', CHARACTERS[i].name);
+        void this.game.startMatch({
+          mode: 'training', stage: train, stocks: 1, rules: {},
+          slots: [{ char: i, cpu: null }, { char: (i + 1) % CHARACTERS.length, cpu: 0 }],
+        });
+        await this.matchLive();
+        await this.checkFighter(id);
+        const set = await loadAnimSet(id);
+        if (!set) {
+          t.problem('bug', `${CHARACTERS[i].name}: no animation clips`);
+          await this.game.quitMatch();
+          await this.screen('main');
+          continue;
+        }
+        for (const key of want) {
+          const clip = set.clips[key];
+          if (!clip) {
+            t.problem('bug', `${CHARACTERS[i].name}: missing ${key} clip`);
+            continue;
+          }
+          const label = key === 'walk' ? 'run/walk' : key;
+          if (clip.fps === 30) {
+            fps30++;
+            t.event('clip-fps', `${CHARACTERS[i].name} ${label} ${clip.fps} fps (${clip.frames} frames)`);
+          } else {
+            t.problem('bug', `${CHARACTERS[i].name} ${label} plays at ${clip.fps} fps (want 30)`);
+          }
+          if (clip.halfFile) {
+            halfSheets++;
+            const ok = await exists(`${set.base}${clip.halfFile}`);
+            if (!ok) t.problem('bug', `${CHARACTERS[i].name} ${label}: half sheet 404 ${clip.halfFile}`);
+            else t.event('half-sheet', `${CHARACTERS[i].name} ${label} → ${clip.halfFile}`);
+          } else t.problem('polish', `${CHARACTERS[i].name} ${label}: no halfFile for Low quality`);
+        }
+
+        // Hitbox view and the two most-seen attacks on screen for the footage.
+        if (!touch) pressAction('KeyH', true);
+        this.manual = NO_INPUT;
+        pad.release();
+        await t.until(() => me().grounded > 0 && (me().action === ACT.IDLE || me().action === ACT.WALK), 8000, `${CHARACTERS[i].name} standing`).catch(() => undefined);
+        await frames(20);
+        t.event('clip-zoom', `${CHARACTERS[i].name} idle (fringe check at 2x)`);
+        // Jab.
+        this.manual = packInput(0, 0, BTN.ATTACK);
+        await frames(4);
+        this.manual = NO_INPUT;
+        await frames(24);
+        t.event('hitbox-jab', `${CHARACTERS[i].name} jab with hitboxes`);
+        await frames(12);
+        // Side smash via the C-stick (same path as roster / keyboard I).
+        this.manual = packInput(0, 0, me().facing > 0 ? BTN.C_RIGHT : BTN.C_LEFT);
+        await frames(8);
+        this.manual = NO_INPUT;
+        await frames(40);
+        t.event('hitbox-fsmash', `${CHARACTERS[i].name} side smash with hitboxes`);
+
+        if (touch || this.isPhone()) {
+          const g = this.game.gfxStats?.();
+          if (g && g.quality === 'low' && g.fpsNow > 0) fpsSamples.push(g.fpsNow);
+        }
+        await this.game.quitMatch();
+        await this.screen('main');
+        t.add('fightersTested');
+      }
+
+      t.metric('clipFps30', fps30);
+      t.metric('halfSheets', halfSheets);
+      if (fpsSamples.length) {
+        const avg = fpsSamples.reduce((a, b) => a + b, 0) / fpsSamples.length;
+        t.metric('fpsMatchLow', Math.round(avg));
+        if (avg < 45) t.problem('warning', `phone-size Low ran at ${Math.round(avg)} fps (want 45)`);
+        else t.event('phone-fps', `Low quality averaged ${Math.round(avg)} fps`);
+      }
+    } finally {
+      this.manual = null;
+      if (gfxWas == null) localStorage.removeItem(GFX_KEY);
+      else localStorage.setItem(GFX_KEY, gfxWas);
+      setGraphics(graphics());
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  async feetRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('feet');
+    }
+    if (touch) {
+      this.logViewport(this.isPhone());
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      await this.toMainMenu();
+      const train = stagesFor('training')[0]?.index ?? 0;
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : CHARACTERS.map((c) => c.id);
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the stick controls were not built');
+        t.finish('error');
+        return;
+      }
+      if (touch) t.event('phone-shot', `feet check at ${innerWidth}x${innerHeight}`);
+
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+      };
+      const me = () => {
+        const m = this.game.match()!;
+        return m.state.fighters[m.player];
+      };
+
+      for (const [n, id] of ids.entries()) {
+        const i = CHARACTERS.findIndex((c) => c.id === id);
+        if (i < 0) {
+          t.problem('bug', `fighter "${id}" is not in the roster`);
+          continue;
+        }
+        this.progressNow = () => (n / (ids.length + 1)) * 0.85;
+        t.progress(this.progressNow());
+        t.event('fighter', CHARACTERS[i].name);
+        void this.game.startMatch({
+          mode: 'training', stage: train, stocks: 1, rules: {},
+          slots: [{ char: i, cpu: null }, { char: (i + 1) % CHARACTERS.length, cpu: 0 }],
+        });
+        await this.matchLive();
+        await this.checkFighter(id);
+        // Idle on the main platform so sampleFeet records the sole gap. Bot off: only the pad moves them.
+        this.manual = NO_INPUT;
+        pad.release();
+        await t.until(() => me().grounded > 0 && me().action === ACT.IDLE, 8000, `${CHARACTERS[i].name} idle on the platform`).catch(() => {
+          t.problem('bug', `${CHARACTERS[i].name}: never idled on the platform`);
+        });
+        await frames(45);
+        // Walk so stride-based playback is on screen (planted foot vs floor).
+        pad.stick(100, 0);
+        await frames(90);
+        pad.release();
+        await frames(12);
+        // Jump and land so soles meet the platform after landing (phone criterion).
+        this.manual = packInput(0, 0, BTN.JUMP);
+        await frames(6);
+        this.manual = NO_INPUT;
+        await t.until(() => me().action === ACT.LAND || (me().grounded > 0 && me().action === ACT.IDLE), 8000, `${CHARACTERS[i].name} to land`).catch(() => {
+          t.problem('bug', `${CHARACTERS[i].name}: never landed after the jump`);
+        });
+        await frames(20);
+        if (me().grounded > 0) t.event('feet-land', `${CHARACTERS[i].name} grounded after landing`);
+        this.reportFeet();
+        await this.game.quitMatch();
+        await this.screen('main');
+        t.add('fightersTested');
+      }
+
+      // City Top: The Mechanic on a scaffold deck (finding f_7e0b4fd55a29).
+      const mech = CHARACTERS.findIndex((c) => c.id === 'the-mechanic');
+      const city = STAGES.findIndex((s) => s.id === 'city-top');
+      if (mech < 0 || city < 0) {
+        t.problem('bug', 'City Top or The Mechanic is missing');
+      } else {
+        this.progressNow = () => 0.9;
+        t.progress(0.9);
+        t.event('stage', 'City Top');
+        void this.game.startMatch({
+          mode: 'versus', stage: city, stocks: 1, rules: { timeLimit: 60 },
+          slots: [{ char: mech, cpu: null }, { char: CHARACTERS.findIndex((c) => c.id === 'exit-punk'), cpu: 1 }],
+        });
+        await this.matchLive();
+        await this.checkFighter('the-mechanic');
+        // Soft scaffolds sit at y=140; run and jump onto the right-of-centre deck from the main roof.
+        const onDeck = () => {
+          const f = me();
+          if (f.grounded <= 0) return false;
+          const x = f.x / FX;
+          const y = f.y / FX;
+          return y > 100 && y < 160 && ((x > 145 && x < 435) || (x > 440 && x < 730) || (x < -145 && x > -435) || (x < -440 && x > -730));
+        };
+        pad.release();
+        await frames(20);
+        for (let attempt = 0; attempt < 5 && !onDeck(); attempt++) {
+          this.manual = packInput(100, 0, 0);
+          await frames(18);
+          this.manual = packInput(100, 0, BTN.JUMP);
+          await frames(6);
+          this.manual = packInput(80, 0, 0);
+          await frames(45);
+          this.manual = NO_INPUT;
+          await frames(15);
+        }
+        await t.until(onDeck, 8000, 'The Mechanic on a City Top scaffold').catch(() => {
+          t.problem('bug', 'The Mechanic never stood on a City Top scaffold deck');
+        });
+        this.manual = NO_INPUT;
+        await frames(60);
+        if (onDeck()) t.event('city-top-deck', 'The Mechanic idle on a City Top scaffold deck');
+        this.reportFeet();
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+    } finally {
+      this.manual = null;
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   async roster(): Promise<void> {
     const t = this.t;
     const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
@@ -4076,6 +4575,17 @@ class Run {
       if (!off || off.hits === 0) t.problem('warning', 'no hit landed with Screen shake off, so the camera could not be checked');
       else if (off.shakeMax > 0) t.problem('bug', `the camera still shook (${off.shakeMax.toFixed(2)}) with Screen shake off`);
       else t.event('no-shake', `${off.hits} hits landed with Screen shake off and the camera stayed still (hit-stop and impact effects still play)`);
+      const rx = this.game.reactFxStats?.();
+      if (rx) {
+        t.metric('squashFrames', rx.squashFrames);
+        t.metric('tumbleFrames', rx.tumbleFrames);
+        if (rx.squashes > 0 && rx.squashFrames >= 2) t.event('squash', `${rx.squashes} hits squashed the victim (up to ${(rx.maxSquash * 100).toFixed(0)}%) for ${rx.squashFrames} frames`);
+        else t.problem('bug', 'hits landed but the victim never squashed');
+        if (rx.tumbleFrames > 0) t.event('tumble', `launches spun the victim for ${rx.tumbleFrames} frames of hit-stun`);
+        if (rx.bounces > 0) t.event('bounce', `${rx.bounces} ground bounces with ${rx.dustBursts} dust bursts`);
+        if (rx.smashSmears > 0) t.event('smear', `${rx.smears} smears, ${rx.smearFrames} streak frames (${rx.smashSmears} on smashes), ${rx.charges} smash charges (${rx.quality} quality)`);
+        else if (rx.quality === 'low') t.event('smear-low', 'Low drops smears, keeps squash and tumble');
+      }
       const cam = this.game.camFxStats?.();
       if (cam) {
         t.metric('cameraJumps', cam.cameraJumps);
@@ -5018,6 +5528,87 @@ class Run {
     }
   }
 
+  /**
+   * The post chain: each stage's own colour grade (3D LUT), vignette and, on High, film grain and the 4-frame hit
+   * punch. Setup shortcut: straight into a match on each stage (no menus); the options `stage` picks one. On a phone
+   * (touch, 844x390) it plays Low, where only the grade and vignette run, and checks the frame rate holds 45.
+   * Events `stage-grade` (per stage: LUT loaded, vignette, grain), `post-low`, `post-punch`; metrics fpsPost, postStages.
+   */
+  async postChain(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('post-chain');
+    }
+    this.logViewport(touch && this.isPhone());
+    const original = localStorage.getItem(GFX_KEY);
+    const initial = graphics();
+    const low = touch || this.options.quality === 'low';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    setGraphics(low ? { quality: 'low', glow: false } : { quality: 'high', glow: true });
+    try {
+      const want = typeof this.options.stage === 'string' ? STAGES.filter((s) => s.id === this.options.stage) : STAGES;
+      if (!want.length) t.problem('bug', `stage "${String(this.options.stage)}" is not on the list`);
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = (punk + 1) % CHARACTERS.length;
+      const post = () => this.game.postStats?.();
+      let graded = 0;
+      for (const [i, st] of want.entries()) {
+        t.progress(0.05 + (0.7 * i) / want.length);
+        void this.game.startMatch({ mode: 'versus', stage: STAGES.indexOf(st), stocks: 1, rules: {}, slots: [{ char: punk, cpu: null }, { char: foe, cpu: 5 }] });
+        await this.matchLive();
+        await this.t.until(() => !!post()?.lutReady, 8000, `${st.name}'s LUT to load`).catch((e) => {
+          if (String(e).includes('stopped')) throw e;
+        });
+        await this.wait(1800);
+        const p = post();
+        if (!st.grade) t.problem('bug', `${st.name} has no grade in content/stages.json`);
+        else if (!p || p.lut !== st.id || !p.lutReady) t.problem('bug', `${st.name}: the colour grade (stages/${st.id}/lut.png) is not applied (${JSON.stringify(p)})`);
+        else if (p.vignette <= 0) t.problem('bug', `${st.name}: no vignette`);
+        else if ((p.quality === 'low') !== (p.grain === 0)) t.problem('bug', `${st.name}: film grain ${p.grain} on ${p.quality} (Low runs the grade and vignette only)`);
+        else {
+          graded++;
+          t.event('stage-grade', `${st.name}: LUT ${p.lut} loaded, tint ${st.grade.tint}, saturation ${st.grade.saturation}, vignette ${p.vignette}, grain ${p.grain} (${p.quality})`);
+        }
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+      t.metric('postStages', graded);
+      // One full fight on the last stage: the bot hits, the punch is 4 frames; Low holds the frame rate.
+      t.progress(0.8);
+      void this.game.startMatch({ mode: 'versus', stage: STAGES.indexOf(want[want.length - 1] ?? STAGES[0]), stocks: 1, rules: {}, slots: [{ char: punk, cpu: null }, { char: foe, cpu: 5 }] });
+      await this.matchLive();
+      const fps: number[] = [];
+      let sampled = 0;
+      await this.fight(() => {
+        if (++sampled % 20 === 0) fps.push(this.game.gfxStats?.()?.fpsNow ?? 0);
+        return !low && (post()?.punches ?? 0) >= 1 && post()?.punchFrames === 0;
+      }, 240000);
+      const p = post();
+      if (low) {
+        t.event('post-low', `Low: grade and vignette only (grain ${p?.grain}, punches ${p?.punches}, LUT ${p?.lutReady ? 'on' : 'off'})`);
+        const mean = fps.length ? fps.reduce((a, b) => a + b, 0) / fps.length : 0;
+        t.metric('fpsPost', Math.round(mean));
+        if (mean > 0 && mean < 45 && innerWidth <= 900) t.problem('warning', `Low at ${innerWidth}x${innerHeight} ran at ${Math.round(mean)} fps (want 45)`);
+      } else if (!p?.punches) t.problem('bug', 'no heavy hit or KO landed, so the hit punch could not be checked');
+      else if (p.lastPunchDrawn !== 4) t.problem('bug', `the hit punch drew ${p.lastPunchDrawn} frames (want 4)`);
+      else {
+        t.event('post-punch', `a heavy hit or KO punched the screen for 4 frames (chromatic aberration and exposure, ${p.punches} so far)`);
+        t.metric('fpsPost', Math.round(fps.length ? fps.reduce((a, b) => a + b, 0) / fps.length : 0));
+      }
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      setGraphics(initial);
+      if (original === null) localStorage.removeItem(GFX_KEY);
+    }
+  }
+
   async graphicsRun(): Promise<void> {
     const t = this.t;
     const original = localStorage.getItem(GFX_KEY);
@@ -5206,13 +5797,13 @@ class Run {
     };
     window.addEventListener('dod:fighter-voice', onVoice);
 
-    const koTexts = SEASON_ONE.map((id) => {
+    const koTexts = CHARACTERS.map(({ id }) => {
       const l = VOICE.lines.find((x) => x.id === `fighter.${id}.ko`);
       return { id, text: l?.text ?? '' };
     });
-    const shared = koTexts.filter((a, i) => koTexts.findIndex((b) => b.text === a.text) !== i);
-    if (shared.length) t.problem('bug', `Season 1 fighters share KO text: ${shared.map((s) => `${s.id}="${s.text}"`).join(', ')}`);
-    else t.event('ko-texts-unique', '13 Season 1 KO cries, all different');
+    const shared = koTexts.filter((a, i) => a.text === 'Aaaaagh!' || koTexts.findIndex((b) => b.text === a.text) !== i);
+    if (shared.length) t.problem('bug', `fighters share a KO text: ${shared.map((s) => `${s.id}="${s.text}"`).join(', ')}`);
+    else t.event('ko-texts-unique', `${koTexts.length} fighter KO cries, all different`);
 
     const meId = typeof this.options.fighter === 'string' ? this.options.fighter : 'exit-punk';
     const taunt = VOICE.lines.find((l) => l.id === `fighter.${meId}.taunt`);
@@ -5223,7 +5814,7 @@ class Run {
     }
 
     const savedUnlocks = [...unlocks()];
-    for (const id of SEASON_ONE) if (LOCKABLE.has(id)) unlocks().add(id);
+    for (const id of [...SEASON_ONE, String(this.options.fighter || ''), String(this.options.foe || '')]) if (LOCKABLE.has(id)) unlocks().add(id);
     saveUnlocks(unlocks());
 
     try {
@@ -5269,11 +5860,12 @@ class Run {
           else t.event(`has-${need}`, `${who} played a ${need}`);
         }
         // Preflight: every Season 1 take file for this fighter must exist (404s fail even if no bark fired).
-        if (SEASON_ONE.includes(who)) {
+        {
+          const nEffort = SEASON_ONE.includes(who) ? 3 : 2;
           const ids = [
             `fighter.${who}.ko`,
             `fighter.${who}.taunt`,
-            ...[0, 1, 2].map((i) => `fighter.${who}.effort.${i}`),
+            ...Array.from({ length: nEffort }, (_, i) => `fighter.${who}.effort.${i}`),
             ...[0, 1].map((i) => `fighter.${who}.hurt.${i}`),
           ];
           for (const lid of ids) {
@@ -5296,6 +5888,113 @@ class Run {
     }
     t.progress(1);
     t.finish('done');
+  }
+
+  /**
+   * Pre-fight exchange (content/intros.json, ui/scene.ts playExchange): a Versus match between a listed rival pair
+   * (options fighter / foe, default Exit Punk vs Kaelen). Round 1: a tap skips the exchange once its first line shows
+   * (must end within 300 ms) and the caption fits in two lines inside the screen. Round 2 (the same match again) plays
+   * out: both voiced lines, the camera on each speaker, the listener's taunt, 6 s at most. On a 390x844 phone it is
+   * turned to 844x390 and every press is a touch pointer event.
+   */
+  async introExchange(): Promise<void> {
+    const t = this.t;
+    if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      return this.touchMatchTurned('intro-exchange');
+    }
+    this.logViewport(this.phoneScenario());
+    type X = { id: string; phase: string; at: number; index?: number; who?: string; text?: string; audio?: string; focus?: number; skipped?: boolean; ms?: number };
+    const seen: X[] = [];
+    const onX = (e: Event) => {
+      const d = (e as CustomEvent).detail as X;
+      seen.push(d);
+      t.event(`exchange-${d.phase}`, `${d.id} ${d.who ? `${d.who}: "${d.text}" ` : ''}at ${d.at} ms${d.focus !== undefined ? ` camera on ${d.focus}` : ''}${d.ms !== undefined ? ` (${d.ms} ms${d.skipped ? ', skipped' : ''})` : ''}`);
+    };
+    window.addEventListener('dod:exchange', onX);
+    const savedUnlocks = [...unlocks()];
+    for (const id of [...SEASON_ONE, String(this.options.fighter || ''), String(this.options.foe || '')]) if (LOCKABLE.has(id)) unlocks().add(id);
+    saveUnlocks(unlocks());
+    try {
+      if (!this.options.fighter) this.options.fighter = 'exit-punk';
+      if (!this.options.foe) this.options.foe = 'kaelen';
+      const a = String(this.options.fighter);
+      const b = String(this.options.foe);
+      const pair = pairFor(a, b);
+      if (!pair) t.problem('bug', `${a} and ${b} are not a listed rival pair in content/intros.json`);
+      t.metric('exchangePairs', PAIRS.length);
+      t.event('exchange-data', `${PAIRS.length} rival pairs, each two voiced lines`);
+      if (PAIRS.length < 32 || PAIRS.some((p) => p.lines.length !== 2 || p.lines.some((l) => !l.audio))) t.problem('bug', 'content/intros.json needs 32 pairs with two voiced lines each');
+      for (const l of pair?.lines ?? []) if (!(await exists(l.audio))) t.problem('bug', `exchange voice file missing (404): ${l.audio}`);
+
+      await this.toMainMenu();
+      await this.startVersus(2);
+      // Round 1: skip it with a tap.
+      await t.until(() => seen.some((x) => x.phase === 'line'), 60000, 'the first exchange line');
+      await t.wait(600);
+      this.checkExchangeCaption();
+      const touch = matchMedia('(pointer: coarse)').matches;
+      const x = innerWidth / 2;
+      const y = innerHeight * 0.35;
+      const target = (document.elementFromPoint(x, y) as HTMLElement | null) ?? document.body;
+      const sentAt = performance.now();
+      const init = { pointerType: touch ? 'touch' : 'mouse', pointerId: touch ? 61 : 1, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y };
+      t.log('tap anywhere to skip the exchange');
+      target.dispatchEvent(new PointerEvent('pointerdown', init));
+      await t.until(() => seen.some((q) => q.phase === 'end'), 2000, 'the exchange to end after the tap').catch(() => null);
+      const skipMs = performance.now() - sentAt;
+      const end1 = seen.find((q) => q.phase === 'end');
+      target.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }));
+      t.metric('exchangeSkipMs', Math.round(skipMs));
+      if (!end1) t.problem('bug', 'a tap did not skip the exchange');
+      else if (!end1.skipped) t.problem('bug', 'the exchange ended by itself instead of by the tap');
+      else if (skipMs > 300) t.problem('bug', `a tap took ${Math.round(skipMs)} ms to skip the exchange (max 300)`);
+      else t.event('exchange-skip', `skipped ${Math.round(skipMs)} ms after the tap`);
+      await this.matchLive();
+
+      // Round 2: the same fight again, played out.
+      seen.length = 0;
+      const setup = this.game.match()!.setup;
+      void this.game.startMatch(setup);
+      await t.until(() => seen.some((q) => q.phase === 'start'), 30000, 'the exchange to start again');
+      await t.until(() => seen.some((q) => q.phase === 'end'), 9000, 'the exchange to end');
+      const lines = seen.filter((q) => q.phase === 'line');
+      const end = seen.find((q) => q.phase === 'end')!;
+      const taunt = seen.find((q) => q.phase === 'taunt');
+      if (lines.length !== 2) t.problem('bug', `the exchange played ${lines.length} lines, not 2`);
+      else {
+        if (lines[0].focus === lines[1].focus) t.problem('bug', 'the camera stayed on one fighter for both lines');
+        if (lines.some((l) => !l.audio?.includes('/audio/voice/intro.'))) t.problem('bug', 'an exchange line has no voice take');
+        t.event('exchange-lines', `${lines.map((l) => `${l.who}: "${l.text}"`).join(' / ')}`);
+      }
+      if (!taunt) t.problem('bug', 'the listener did not play their taunt');
+      t.metric('exchangeMs', end.ms ?? 0);
+      if ((end.ms ?? 0) > 6000) t.problem('bug', `the exchange lasted ${end.ms} ms (max 6000)`);
+      if (end.skipped) t.problem('bug', 'the exchange was cut short with no input');
+      await this.matchLive();
+      await this.quitFromPause('main');
+    } finally {
+      window.removeEventListener('dod:exchange', onX);
+      unlocks().clear();
+      for (const id of savedUnlocks) unlocks().add(id);
+      saveUnlocks(unlocks());
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  /** The exchange caption is on screen, inside the window, in at most two lines. */
+  private checkExchangeCaption(): void {
+    const sub = this.q('#scene-sub');
+    const text = this.q('#scene-text');
+    if (!sub || sub.hidden || !text) return this.t.problem('bug', 'no exchange caption on screen');
+    const r = sub.getBoundingClientRect();
+    const lh = parseFloat(getComputedStyle(text).lineHeight) || parseFloat(getComputedStyle(text).fontSize) * 1.2;
+    const lines = Math.round(text.getBoundingClientRect().height / lh);
+    const inside = r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
+    this.t.metric('exchangeCaptionLines', lines);
+    if (lines > 2) this.t.problem('bug', `the exchange caption runs to ${lines} lines (max 2)`);
+    if (!inside) this.t.problem('bug', `the exchange caption is off screen (${Math.round(r.left)},${Math.round(r.top)} to ${Math.round(r.right)},${Math.round(r.bottom)} in ${innerWidth}x${innerHeight})`);
+    else this.t.event('exchange-caption', `"${text.textContent}" in ${lines} line(s) at ${innerWidth}x${innerHeight}`);
   }
 
   async commentary(): Promise<void> {

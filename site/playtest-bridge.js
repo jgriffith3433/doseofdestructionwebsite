@@ -47,6 +47,16 @@
       ]
     },
     {
+      "id": "intro-exchange",
+      "title": "Pre-fight exchange: two rivals trade a voiced jab before the fight, the camera on each speaker, 6 s at most, any tap skips it (phone 844x390: caption in two lines)",
+      "description": "Options fighter / foe (default exit-punk vs kaelen, a listed pair in content/intros.json). Checks the data (32 pairs, two voiced lines each, files present), then a Versus match: a tap skips the exchange once its first line shows (exchange-skip, within 300 ms), the caption fits the window in at most two lines (exchange-caption), then the same fight again plays out: both lines voiced with the camera on each speaker, the listener's taunt, at most 6 s (exchange-lines, exchangeMs). On a 390x844 touch phone it turns to 844x390 and presses by touch. Events exchange-start / -line / -taunt / -end; metrics exchangeMs, exchangeSkipMs, exchangeCaptionLines, exchangePairs.",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "sound"
+      ]
+    },
+    {
       "id": "campaign",
       "title": "The campaign from chapter 1 (or the chapter asked for), as far as the bot gets in 10 minutes",
       "description": "options: season (a number: that season's first chapter, e.g. 3), chapter (a chapter id from content/campaign.json: open-mic, house-heavy, bad-signal, low-pressure, turn-the-page, sudden-death, dead-weight, encore, title-defense, drop-in, champions-tax, sponsored, walk-on, simulcast, rerun, cut-to-size, hostile-takeover, cold-open, product-placement, dead-air, clip-show, local-affiliate, standards-and-practices, prime-time, global-feed, pilot-remake, laugh-track, crossover-event, series-finale, red-carpet, best-supporting, lifetime-achievement, best-in-show, teaser, trailer, table-read, cliffhanger, first-cut, final-cut), or the contract's at with the same ids. Setup shortcut: every chapter before it is marked cleared (localStorage dod-campaign), then the bot opens it from the Campaign map and plays on from there. The player's own progress is put back at the end. An unknown id is reported as a problem.",
@@ -202,6 +212,16 @@
       ]
     },
     {
+      "id": "post-chain",
+      "title": "Post chain: every stage has its own colour grade (3D LUT), vignette and grain, heavy hits and KOs punch the screen for 4 frames, Low runs the grade and vignette only and holds 45 fps (phone: 390x844 turned to landscape, touch)",
+      "description": "Setup shortcut: straight into a match on each of the 9 stages (option stage: one) with no menus; per stage checks its LUT (stages/<id>/lut.png, built by tools/make-luts.mjs from the stage's grade numbers) is applied (stage-grade: tint, saturation, vignette, grain), then a full fight on the last stage on High: the first heavy hit or KO draws the chromatic aberration and exposure punch for exactly 4 frames (post-punch). On a phone (touch, Low) only the grade and vignette run (post-low; grain 0, no punch) and the fight holds 45 fps (metric fpsPost). Metric postStages. The player's dod.gfx is put back.",
+      "seconds": 200,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "commentary",
       "title": "Commentary: the announcer calls the fight from its events (at least 8 kinds of line, never the same line twice in a row), and Blog Man introduces every season's episodes",
       "description": "Part 1: a versus match against the CPU (3 stocks, the bot on a virtual pad), to its end; each announcer call is an event call-<kind> (first-blood, ko, comeback, last-stock, showdown, self-destruct, big-hit, combo, danger, shield-break, hazard, stage-event, time-low, lull) with its caption shown, plus call-kinds (how many kinds came up) and call-repeat problems. Part 2: setup shortcut marks the campaign cleared (the player's own progress is put back), then plays the first chapter of each season (option `all`: every chapter) from the map through its dialogue, and leaves from Pause once Blog Man has spoken: events blog-intro per episode and blog-intros. Metrics callKinds, calls, blogIntros.",
@@ -287,6 +307,16 @@
       ]
     },
     {
+      "id": "bookends",
+      "title": "Episode bookends: a won episode replays its final KO (last hit at 25%) within 1 s, plays Blog Man's voiced \"Next time on\" tease over the next episode's stage, and the next episode opens on \"Previously on\" with the saved KO and a voiced recap; any press skips each segment within 0.3 s (phone 844x390: taps)",
+      "description": "Option chapter (default open-mic; the episode after it is played too). Setup shortcut: the chapters before it are marked cleared and any saved highlight is set aside (both put back). Plays the episode from the Campaign map with the bot: replay-start (within 1 s of the KO: metric replayStartMs), replay-lower-third (logo bug, episode title), replay-slow, replay-fit; a press skips it (replay-skipped, replaySkipMs under 300); the outro scene; the tease (tease: Blog Man's tease line voiced, the next episode's stage and title, tease-fit; tease-skipped); results-after-skips; then the next episode from the map opens on the recap (recap: the saved KO replayed, Blog Man's recap line voiced; recap-fit, recap-skipped) and goes on to its fight (next-episode-live). On a 390x844 touch phone it plays in the turned 844x390 frame, the skips are pointer taps and every segment is checked inside the window with a 44 px Skip button.",
+      "seconds": 420,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "presentation",
       "title": "Menu, VS screen and results presentation: the broadcast menu, a name card animating in for each VS fighter, results with winner, time, damage dealt and highlights, no text clipped",
       "description": "Main menu: the ON AIR bug and Tonight ticker are shown (menu-broadcast). Versus 1v1 (1 stock): on the VS screen each fighter lands and its name card animates in (vs-start, vs-name-card per fighter). The match is played by the bot to its end; the results must show the winner, the time and the damage dealt in the summary strip (results-summary, checked against the match) and list the knockouts as highlights (results-highlights). Each screen is checked for text cut off or pushed off the sides at the window's shape (no-clipping, with the size and 16:9 / 20:9 / phone). The character and stage select screens are checked too. At phone size (390x844, 844x390) every button must be at least 44 px tall and none overlap (phone-targets). Options: stage, fighter. Metric highlights.",
@@ -354,6 +384,26 @@
       "tags": [
         "full",
         "roster"
+      ]
+    },
+    {
+      "id": "feet",
+      "title": "Feet on the floor: every fighter idles and walks with soles within 2 px (dod:feet-gap), The Mechanic stands on a City Top scaffold, phone 844x390 by touch",
+      "description": "Setup shortcut: each of the 33 fighters into training (option fighter: one). Idles on the main platform, walks so stride playback is on screen, logs feet-gap / dod:feet-gap (idle residual over 2 px is a bug). Then versus on City Top as The Mechanic: jumps onto a soft scaffold deck (city-top-deck) and checks the sole gap there. On a 390x844 phone turns to 844x390 and plays by touch. Metrics fightersTested.",
+      "seconds": 600,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "smooth-clips",
+      "title": "Season 1 idle/walk/jab/fsmash at 30 fps with fringe-clean sheets, hitboxes on jab and side smash, phone Low ≥45 fps",
+      "description": "Setup shortcut: each of the 13 Season 1 fighters into training (option fighter: one). Logs clip-fps for idle, walk (run), jab and fsmash (want 30) and half-sheet when Quality is Low. Hitbox view (H) on; jab and side smash (fsmash) so active frames are on screen (hitbox-jab, hitbox-fsmash). 2x zoom screenshot beats (clip-zoom) for fringe review. On a 390x844 phone turns to 844x390, forces Low, and samples fpsMatchLow (want ≥45). Metrics clipFps30, halfSheets, fpsMatchLow.",
+      "seconds": 480,
+      "tags": [
+        "full",
+        "touch"
       ]
     }
   ];

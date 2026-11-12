@@ -27,10 +27,16 @@ import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playVersus, showResults, type ResultAction } from './ui/views.ts';
-import { playColdOpen, playScene, skipScene, type SceneCard, type SceneLine, type SceneStage } from './ui/scene.ts';
+import { playColdOpen, playExchange, playScene, skipScene, type SceneCard, type SceneLine, type SceneStage } from './ui/scene.ts';
 import { chunkLine, chunkTimes } from './campaign/sceneText.ts';
+import { exchangeFor, markExchangeSeen, seenExchanges, type Exchange } from './campaign/intros.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
+import { step } from './sim/step.ts';
+import { stageIndex } from './sim/stage.ts';
+import type { GameState } from './sim/state.ts';
+import { HighlightPlayer, loadHighlight, nextChapterId, recapApplies, recapId, saveHighlight, teaseId } from './campaign/highlight.ts';
+import { playSegment, type SegmentEnv, type Showcase } from './ui/segment.ts';
 // Online code is never imported here: it loads after boot through the loader (a failure there can't stop the game).
 import type { OnlineFight, FightEnd } from './net/fight.ts';
 import type { Found } from './net/matchmaker.ts';
@@ -383,6 +389,9 @@ function openCampaignScreen(unlocked?: string): Promise<void> {
 async function playChapter(c: Chapter): Promise<void> {
   chapter = c;
   analytics.chapterPlayed(c);
+  // The episode opens on "Previously on Dose of Destruction": the last episode's final KO, replayed under Blog Man's recap.
+  await playRecap(c);
+  if (chapter !== c) return;
   const n = CHAPTERS.indexOf(c) + 1;
   // The story card and scene take a while to read: the fight's fighters and arena load meanwhile.
   void prefetchFighters(c.fight.slots.map((s) => s.char));
@@ -421,6 +430,28 @@ function sceneStage(m: Match): SceneStage {
   };
 }
 
+/**
+ * The pre-fight exchange for a match (content/intros.json): two fighters, in Versus every time and in the campaign the
+ * first time their listed pair meets (`firstTimeOnly`). Not Training, online, a Tour or the daily episode.
+ */
+function exchangeFor2(m: Match, firstTimeOnly: boolean): Exchange | null {
+  if (m.setup.slots.length !== 2 || m.setup.mode === 'training' || m.setup.mode === 'online') return null;
+  const [a, b] = m.setup.slots.map((s) => CHARACTERS[s.char]);
+  const ex = exchangeFor(a.id, b.id, a.role);
+  if (firstTimeOnly && (ex.generic || seenExchanges().has(ex.id))) return null;
+  return ex;
+}
+
+/** Plays a pre-fight exchange on the stage (phase 'scene'); the fighters are already standing there. */
+async function runExchange(m: Match, ex: Exchange): Promise<void> {
+  phase = 'scene';
+  audio.playStageBed(STAGES[m.setup.stage].id);
+  $('scene-next').focus();
+  const end = await playExchange(sceneStage(m), ex.id, ex.lines);
+  if (!ex.generic) markExchangeSeen(ex.id);
+  analytics.scene(ex.id, { skipped: end.skipped, line: Math.max(0, end.lines - 1) }, ex.lines.length);
+}
+
 /** Plays a chapter's intro or outro live in the arena (phase 'scene'), with its story card as the lower third. */
 async function runScene(m: Match, cue: SceneCue): Promise<void> {
   if (cue.tour) {
@@ -448,6 +479,173 @@ async function runScene(m: Match, cue: SceneCue): Promise<void> {
   const end = await playScene(sceneStage(m), cue.which, lines, card);
   analytics.scene(`${c.id}.card-${cue.which === 'intro' ? 'before' : 'after'}`, { skipped: end.cardSkipped, line: 0 }, 1);
   analytics.scene(`${c.id}.${cue.which}`, end, lines.length);
+}
+
+// ------------------------------------------------ the episode's bookends
+
+/** The arena draws and advances this instead of the match while a replay, recap or tease plays (ui/segment.ts). */
+let showcase: Showcase | null = null;
+/** The tick (match frame) the replay of a won episode starts at, or -1. */
+let bookendAt = -1;
+/** A beat after Game! (the KO is on screen, the crowd has reacted) the replay cuts in: well inside a second of the KO. */
+const BOOKEND_DELAY_TICKS = 40;
+
+/** The chapter whose won match gets a replay, a tease and (next time) a recap: a campaign episode, not the pilot or the daily. */
+function bookendChapter(m: Match): Chapter | null {
+  if (m.setup.mode !== 'campaign' || m.setup.teach === 'pilot' || dailyRun?.setup === m.setup || !chapter) return null;
+  return m.playerWon() ? chapter : null;
+}
+
+function segmentEnv(): SegmentEnv {
+  return {
+    showcase: (sc) => {
+      showcase = sc;
+    },
+    events: (events) => {
+      renderer.onEvents(events);
+      replaySounds(events);
+    },
+    direct: (shot) => renderer.direct(shot),
+    voice: (url) => audio.voice(url),
+    stopVoice: () => audio.stopVoice(),
+    voiceMs: (url) => audio.voiceMs(url),
+    synth: (kind, level) => audio.synth(kind, level),
+    duck: (on) => audio.duck(on),
+  };
+}
+
+/** The sounds of a replayed hit and KO (no barks: Blog Man is talking over it). */
+function replaySounds(events: SimEvent[]): void {
+  for (const e of events) {
+    if (e.type === 'hit' && !e.shield) {
+      audio.sfx(e.dmg < 70 ? 'hit-light' : e.dmg < 130 ? 'hit-medium' : 'hit-heavy', { vary: true });
+      if (e.dmg >= 130) audio.crowd('ooh');
+    } else if (e.type === 'ko') {
+      audio.sfx('ko');
+      audio.crowd('roar');
+    }
+  }
+}
+
+/** A fight's cast standing on their stage, idling: what the tease cuts to. */
+function idleShowcase(setup: MatchSetup): Showcase {
+  const state = new Match({ ...setup, title: undefined, subtitle: undefined }, 1).state;
+  const idle = state.fighters.map(() => NO_INPUT);
+  for (let i = 0; i < 150; i++) step(state, idle);
+  let acc = 0;
+  return {
+    state,
+    advance: (dt) => {
+      acc += dt / TICK_MS;
+      while (acc >= 1) {
+        acc -= 1;
+        step(state, idle);
+      }
+      return [];
+    },
+  };
+}
+
+const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+/** Puts a stage and its fighters on the arena for a segment (ready within `limitMs`, whatever is still loading finishes behind it). */
+async function arenaFor(stage: number, looks: number[], state: GameState, limitMs: number): Promise<void> {
+  prefetchStage(stage);
+  void prefetchFighters(state.fighters.map((f) => f.char));
+  renderer.setStage(stage);
+  renderer.setLooks(looks);
+  await Promise.race([renderer.setFighters(state, true, 1500).catch(() => undefined), wait(limitMs)]);
+}
+
+/** Blog Man's line by id, as a segment caption (text always, voice when it is recorded). */
+const blogLine = (id: string): { id: string; text: string; audio?: string | null } | undefined => {
+  const l = voiceLine(id);
+  return l ? { id, text: l.text, audio: l.audio } : undefined;
+};
+
+/**
+ * A won episode's ending, from the moment of the KO: the replay of the final KO (the last hit at 25%, the lower third,
+ * the logo bug), the outro scene, then "Next time on Dose of Destruction" with Blog Man's tease over two cuts of the
+ * next episode, then the results. Every segment is skippable and the results always come.
+ */
+async function episodeEnd(m: Match, c: Chapter): Promise<void> {
+  phase = 'scene';
+  clearMarkers();
+  const hl = m.highlight;
+  if (hl) {
+    hl.chapter = c.id;
+    hl.looks = m.setup.slots.map((x) => x.look ?? 0);
+    saveHighlight(hl);
+    // The save keeps it for the next episode's recap. The replay itself runs through the same sim.
+    await playSegment(segmentEnv(), {
+      kind: 'replay',
+      tag: 'Replay',
+      kicker: `${storyCard(c, 'after').kicker} \u00b7 final KO`,
+      title: c.title,
+      showcase: new HighlightPlayer(hl),
+      info: { chapter: c.id, stage: hl.stage, hit: hl.hit, ko: hl.ko, inputs: hl.inputs.length },
+    });
+  }
+  if (match !== m) return;
+  if (c.outro.length) await runScene(m, { chapter: c, which: 'outro' });
+  if (match !== m) return;
+  await playTease(m, c);
+  if (match === m) showFinish(m, true, c);
+}
+
+/** "Next time on Dose of Destruction": Blog Man's tease over two quick cuts of the next episode's stage and fighters. */
+async function playTease(m: Match, c: Chapter): Promise<void> {
+  const nextId = nextChapterId(c.id);
+  const next = nextId ? CHAPTERS.find((x) => x.id === nextId) ?? null : null;
+  const id = teaseId(c.id);
+  const here = next ?? c;
+  const show = idleShowcase(here.fight);
+  await Promise.all([audio.preloadLines([id], 2500), arenaFor(here.fight.stage, here.fight.slots.map((x) => x.look ?? 0), show.state, 3500)]);
+  if (match !== m) return;
+  const line = blogLine(id);
+  // The last episode has no next one: it signs off on its own stage.
+  await playSegment(segmentEnv(), {
+    kind: 'tease',
+    tag: 'Next time on Dose of Destruction',
+    kicker: next ? storyCard(next, 'before').kicker : 'The end of the series',
+    title: next ? next.title : "That's a wrap",
+    line,
+    showcase: show,
+    cuts: [null, show.state.fighters.length > 1 ? 1 : 0],
+    holdMs: 3000,
+    info: { chapter: c.id, next: next?.id ?? null, stage: STAGES[here.fight.stage].id, voiced: !!line?.audio },
+  });
+}
+
+/**
+ * "Previously on Dose of Destruction": the saved highlight of the last episode's final KO, replayed on its own stage
+ * under Blog Man's recap, before the next episode's VS card. Skippable; nothing happens when there is no saved KO.
+ */
+async function playRecap(c: Chapter): Promise<void> {
+  const hl = loadHighlight();
+  if (!recapApplies(hl, c.id)) return;
+  const prev = CHAPTERS.find((x) => x.id === hl.chapter);
+  if (!prev) return;
+  const id = recapId(prev.id);
+  const player = new HighlightPlayer(hl);
+  await go('match', async () => {
+    endMatch();
+    chapter = c;
+    $('hud').hidden = true;
+    await Promise.all([audio.preloadLines([id], 2500), arenaFor(stageIndex(hl.stage), hl.looks, hl.start, 4000)]);
+    audio.playStageBed(hl.stage);
+    renderer.render(player.state);
+  });
+  if (chapter !== c) return;
+  await playSegment(segmentEnv(), {
+    kind: 'recap',
+    tag: 'Previously on Dose of Destruction',
+    kicker: storyCard(prev, 'after').kicker,
+    title: prev.title,
+    line: blogLine(id),
+    showcase: player,
+    info: { chapter: prev.id, opens: c.id, stage: hl.stage, voiced: !!blogLine(id)?.audio },
+  });
 }
 
 async function chapterCleared(c: Chapter): Promise<void> {
@@ -874,7 +1072,8 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   const vsMs = performance.now() - t0;
   const vsHoldMs = withVersus ? Math.round(performance.now() - vsStart) : null;
   // Ready ticks during the wipe-out (~280 ms), so vsHoldMs (to first play frame) stays under 3 s.
-  const readyUnderWipe = !f && !intro;
+  const versusExchange = !f && !scene && setup.mode === 'versus' ? exchangeFor2(m, false) : null;
+  const readyUnderWipe = !f && !intro && !versusExchange;
   await go('match', () => {
     window.dispatchEvent(new CustomEvent('dod:scene-timing', { detail: { selectToVs: fromSelect, vsToMatch: vsMs, vsHoldMs, warmUpMs, selectToMatch: pickedAt === null ? null : performance.now() - pickedAt, withVersus } }));
     // The canvas may have changed size while menus were up.
@@ -903,6 +1102,18 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   if (intro && scene) {
     await runScene(m, scene);
     // Something else (an online match found, Quit) took over during the scene.
+    if (match !== m) return;
+    // A campaign episode between a listed rival pair: the two trade a jab the first time.
+    const jab = scene.chapter && scene.which === 'intro' && !scene.chapter.coldOpen?.length ? exchangeFor2(m, true) : null;
+    if (jab) {
+      await runExchange(m, jab);
+      if (match !== m) return;
+    }
+    beginReady(m);
+    return;
+  }
+  if (versusExchange) {
+    await runExchange(m, versusExchange);
     if (match !== m) return;
     beginReady(m);
     return;
@@ -1034,6 +1245,12 @@ function afterTick(m: Match, events: SimEvent[]): void {
     const teamsLeft = new Set(s.fighters.filter((f) => f.stocks > 0).map((f) => f.team));
     if (!s.timedOut && teamsLeft.size <= 1) audio.finalKoSting();
     else audio.synth('cheer');
+    // A won episode goes on to the replay of its final KO a moment after Game! (episodeEnd).
+    if (!fight && bookendChapter(m)) bookendAt = s.frame + BOOKEND_DELAY_TICKS;
+  }
+  if (bookendAt >= 0 && s.frame >= bookendAt && phase === 'play') {
+    bookendAt = -1;
+    if (chapter) void episodeEnd(m, chapter);
   }
   // Online, the fight decides when it's over (on a frame both sides agree on): onlineEnded.
   if (s.over && s.endTimer === 0 && !fight) finish(m);
@@ -1612,6 +1829,7 @@ function bumpHud(id: number, dmg = 0, tenths = 0): void {
 
 function frame(draw = true): void {
   const now = performance.now();
+  const dtReal = Math.min(100, now - last);
   // The kill cue's beat of slow motion (renderer.timeScale); online the sim must stay at 60 Hz, so only the camera and sound play there.
   acc += Math.min(100, now - last) * (fight ? 1 : simSpeed * (phase === 'play' ? renderer.timeScale() : 1));
   last = now;
@@ -1624,7 +1842,7 @@ function frame(draw = true): void {
     const me = match.player >= 0 ? match.state.fighters[match.player] : null;
     if (me) audio.fighterVoice(CHARACTERS[me.char].id, 'taunt');
   }
-  if (phase !== 'play' && phase !== 'ready') pollMenuPad(now);
+  if (phase !== 'play' && phase !== 'ready' && !showcase) pollMenuPad(now);
 
   if (match && phase === 'ready') {
     // Offline, Ready waits (up to READY_ART_WAIT_MS) for the stage pictures, so "Go!" never opens on a black arena.
@@ -1661,7 +1879,11 @@ function frame(draw = true): void {
   }
   if (fight) showNetStatus(fight);
 
-  if (draw && match && currentScreen() === 'match') {
+  if (showcase && currentScreen() === 'match') {
+    // A replay, recap or tease (ui/segment.ts) is on the arena: it advances itself and is drawn instead of the match.
+    showcase.advance(dtReal);
+    if (showcase && draw) renderer.render(showcase.state);
+  } else if (draw && match && currentScreen() === 'match') {
     renderer.render(match.state);
     drawEdgeMarkers(match);
     // The teaching prompt rides above the player's head, and is hidden while paused or in a scene.
@@ -1796,8 +2018,10 @@ installDodPlaytest({
   hitFxStats: (reset) => renderer.hitFxStats(reset),
   camFxStats: (reset) => renderer.camFxStats(reset),
   trailStats: (reset) => renderer.trailStats(reset),
+  reactFxStats: (reset) => renderer.reactFxStats(reset),
   markerStats: () => ({ ...markerLog, rects: markerRects() }),
   gfxStats: () => renderer.gfxStats(),
+  postStats: () => renderer.postStats(),
   lookStats: () => renderer.lookStats(),
   aliveStats: () => renderer.aliveStats(),
   musicBedStats: () => audio.bedStats(),

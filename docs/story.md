@@ -602,3 +602,33 @@ episode number, title, one line) and "Signing off" after a win, before the outro
 `content/campaign.json` as `card: { "before": "...", "after": "..." }` (the before card falls back to the `tagline`).
 Write them as the show would: one sentence, present or past tense, no jokes about jobs or "the game". The card holds for
 about 5 seconds and can be skipped (Skip, Enter or Space).
+
+## Square-ups (pre-fight exchanges)
+
+Before the bell, the show lets rivals trade a jab. `content/intros.json` holds 32 pairs of two lines each (10 words or
+fewer, each said in that fighter's own recorded voice) and 6 generic exchanges. Pairs are the story's rivals: the Tour
+rivals (Kaelen and Slice, Break and SS Boulder, DJ Won't Read and Shutup Bot, Small Weather and Pyro Singer, Evil Blue
+Bird and Got Ur Back, Blog Man and Future Man, ...) and the champion against the card's walk-ons and the Orchestrator.
+Shutup Bot's only word is still "Fine." (here it is a shrug, not a loss). The Mechanic stays off the list until he is
+on the card. Any other two fighters get a generic exchange by the first fighter's type (heavy, fast, air, zone, brawl,
+all-round): the announcer sets the matchup and Blog Man writes the headline.
+It plays after the VS card, with the fighters already standing: the camera cuts to the first speaker (name and one line
+as a lower third), the other answers, the listener of that answer taunts. 6 s at most; any key, click, tap or button
+skips it. In Versus it plays every time; in the campaign an episode between a listed pair plays it once, after the
+intro scene. Not in Training, online, Tour or Tonight's Episode.
+
+## Previously and Next time (as built)
+
+Every won episode ends the way television does. A moment after Game! the show **replays the knockout you just landed**
+(about 3 s, the final hit slowed to 25%, a "Replay" lower third with the episode title, the show logo bug), then the
+outro plays, then **"Next time on Dose of Destruction"**: Blog Man's voiced tease over two quick cuts of the next
+episode's stage and fighters, then the results (unchanged). The next episode opens on **"Previously on Dose of
+Destruction"**: the saved KO replayed on its own stage under Blog Man's voiced recap, then the usual VS card.
+
+- Nothing is video: the sim is deterministic, so the last 4 s of inputs plus a start snapshot are stored
+  (`campaign/highlight.ts`) and the last one is kept in the save (`localStorage` `dod-highlight`).
+- Blog Man's lines are `blog-man.tease.<episode>` (about the episode that follows it) and `blog-man.recap.<episode>`
+  (about the episode itself), 39 of each in `content/voice.json`, ten words or fewer, one caption at a time. The finale's
+  tease signs the show off ("Nothing. That's a wrap."); its recap plays if a run starts over from Open Mic.
+- Every segment is skippable by any key, click, tap or pad button (`ui/segment.ts`); the pilot, the daily episode and
+  the Tour have none of it. Scenario `bookends` plays it.

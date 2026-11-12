@@ -558,7 +558,15 @@
       "style": "Moody nighttime cityscape painting with photographic realism softened into painterly strokes. Near-black sky, dark charcoal and brown building masses punctuated by thousands of warm amber window lights, with occasional cool blue accents. Lighting comes from below and from windows, rims of warm gold on edges, deep shadows elsewhere.",
       "reference": "stages/city-top/reference.webp"
     },
-    "notes": "Plays like a standard three-platform stage on a wide rooftop: billboard catwalk and skylight canopy at 140, water tower lid at 280 for vertical play. The right side has a two-landing fire escape below roof level that catches fighters knocked off that side, giving them a climb-back route (lower landing reaches the ledge with a full jump plus air jump); the left side is an open drop, so the stage is mildly asymmetric by design. Every KO launches a firework into the sky; the match end fires a big multicolor finale. Art priority: main-building, water-tower, fire-escape, billboard-catwalk, skylight-canopy, backdrop, escape-building, front-antenna, left-building."
+    "notes": "Plays like a standard three-platform stage on a wide rooftop: billboard catwalk and skylight canopy at 140, water tower lid at 280 for vertical play. The right side has a two-landing fire escape below roof level that catches fighters knocked off that side, giving them a climb-back route (lower landing reaches the ledge with a full jump plus air jump); the left side is an open drop, so the stage is mildly asymmetric by design. Every KO launches a firework into the sky; the match end fires a big multicolor finale. Art priority: main-building, water-tower, fire-escape, billboard-catwalk, skylight-canopy, backdrop, escape-building, front-antenna, left-building.",
+    "grade": {
+      "lift": 0.02,
+      "gamma": 1.0,
+      "gain": 1.05,
+      "saturation": 1.15,
+      "tint": "#ffb070",
+      "tintAmount": 0.18
+    }
   },
   {
     "id": "desert",
@@ -1182,7 +1190,15 @@
       "style": "Sun-bleached painterly realism with soft edges and heat haze: pale tan playa, warm ochre and rust sandstone, and a deep blue sky washing to near-white around a blazing sun. Hard midday light from the upper right, short cool blue-grey shadows, everything a little dusty.",
       "reference": "stages/desert/reference.webp"
     },
-    "notes": "Vertical take: four levels stacked 130-140 apart (floor 0, boulders 130, arch shoulders 270, arch crown 410) so every step is one easy jump, but the crown sits high enough to make a strong king-of-the-hill perch and big blast top (1250) keeps vertical KOs fair. Dust Storm (every 25-40 s, 2.5 s warning with rising dust): strong leftward wind for 7 s, pushes recoveries and makes the left edge dangerous; dust veil and sagebrush lean sell it. Hawk Dive (every 20-32 s): the circling hawk shakes as a 2 s warning, then swoops down from the upper left through the middle tier (about y 150) and climbs off right, hitting anyone on the boulders or jumping. Art priority: 1) lakebed-mesa, 2) rock-arch (draws three platforms; keep ledge tops exact), 3) left/right boulders, 4) hawk-diver and hawk-circling, 5) dust-wall, 6) far-buttes, 7) sagebrush occluder. Curved arch underside is approximated with rectangles; the painter should round it."
+    "notes": "Vertical take: four levels stacked 130-140 apart (floor 0, boulders 130, arch shoulders 270, arch crown 410) so every step is one easy jump, but the crown sits high enough to make a strong king-of-the-hill perch and big blast top (1250) keeps vertical KOs fair. Dust Storm (every 25-40 s, 2.5 s warning with rising dust): strong leftward wind for 7 s, pushes recoveries and makes the left edge dangerous; dust veil and sagebrush lean sell it. Hawk Dive (every 20-32 s): the circling hawk shakes as a 2 s warning, then swoops down from the upper left through the middle tier (about y 150) and climbs off right, hitting anyone on the boulders or jumping. Art priority: 1) lakebed-mesa, 2) rock-arch (draws three platforms; keep ledge tops exact), 3) left/right boulders, 4) hawk-diver and hawk-circling, 5) dust-wall, 6) far-buttes, 7) sagebrush occluder. Curved arch underside is approximated with rectangles; the painter should round it.",
+    "grade": {
+      "lift": 0,
+      "gamma": 0.96,
+      "gain": 1.0,
+      "saturation": 1.1,
+      "tint": "#ffe2b0",
+      "tintAmount": 0.2
+    }
   },
   {
     "id": "cursed-town",
@@ -2005,7 +2021,15 @@
       "style": "Muted, painterly gothic realism in cold fog: weathered grey clapboard, mossy slate shingles, wet cobbles, everything desaturated toward grey-green. Flat diffuse overcast light with no bright accents; the only contrast is the inky, glossy black of the shadow tentacles. Mood is quiet dread, soft edges dissolving into mist.",
       "reference": "stages/cursed-town/reference.webp"
     },
-    "notes": "Play: two house rooftops (the eaves walks) are the safe main floor, split by a 340-wide sunken street that is permanently full of cursed fog (1% per half second). The fog also fills everything below roof level off the outer sides, so recovering from low costs damage. A broken porch beam just above the fog line is a risky foothold back up; the houses' inner ledges are grabbable for escape. Widow's walks (y140) and a tentacle-held plank (y210) give vertical play over the gap. Fog Surge (every 25-35s, 3s warning of rolling fog): fog rises almost to the roofs, the street zone throws fighters upward, and ledge-hangers get hurt. The Presence (every 30-45s, 2.5s warning: tentacles rise and the stage shakes): the plank is pulled away and a huge tentacle lashes across the rooftops once; jump or shield. Art priority: left-house and right-house (they draw the main floors), street-and-beam, tentacle-plank, backdrop, front-fog, shadow-limb-art, surge-fog, gables, tentacles. Wanted but not buildable: sloped gable roofs to stand on (approximated by flat eaves walks and widow's walks)."
+    "notes": "Play: two house rooftops (the eaves walks) are the safe main floor, split by a 340-wide sunken street that is permanently full of cursed fog (1% per half second). The fog also fills everything below roof level off the outer sides, so recovering from low costs damage. A broken porch beam just above the fog line is a risky foothold back up; the houses' inner ledges are grabbable for escape. Widow's walks (y140) and a tentacle-held plank (y210) give vertical play over the gap. Fog Surge (every 25-35s, 3s warning of rolling fog): fog rises almost to the roofs, the street zone throws fighters upward, and ledge-hangers get hurt. The Presence (every 30-45s, 2.5s warning: tentacles rise and the stage shakes): the plank is pulled away and a huge tentacle lashes across the rooftops once; jump or shield. Art priority: left-house and right-house (they draw the main floors), street-and-beam, tentacle-plank, backdrop, front-fog, shadow-limb-art, surge-fog, gables, tentacles. Wanted but not buildable: sloped gable roofs to stand on (approximated by flat eaves walks and widow's walks).",
+    "grade": {
+      "lift": 0.03,
+      "gamma": 1.05,
+      "gain": 0.95,
+      "saturation": 0.7,
+      "tint": "#9ab8a8",
+      "tintAmount": 0.25
+    }
   },
   {
     "id": "humans-in-the-loop",
@@ -2671,7 +2695,15 @@
       "style": "Cinematic photoreal-leaning painted concert arena, deep near-black shadows with crisp highlights on metal and road case trim. Palette of charcoal and gunmetal greys lit by warm gold-amber and cool steel-blue stage lights through drifting haze. Electric, anticipatory live-show mood.",
       "reference": "stages/humans-in-the-loop/reference.webp"
     },
-    "notes": "Plays like a classic three-platform layout: a wide 1200 solid stage with grabbable ledges, two road case stacks at 130 and a hanging truss at 270 in the middle (reachable from the cases). Blast zones are standard so KOs feel fair. The crowd art bobs constantly in sync; every KO triggers the 'go-wild' event: flash, sparks at the KO, camera shake, the crowd hops and shakes, strobe beams appear and confetti falls for 3 seconds. Art priority: 1) stage-deck, 2) crowd (key to the concept and animation), 3) road case stacks, 4) light-truss, 5) backdrop arena, 6) spot-beams and strobe-beams, 7) truss-towers, 8) floor-wedges and front-cables."
+    "notes": "Plays like a classic three-platform layout: a wide 1200 solid stage with grabbable ledges, two road case stacks at 130 and a hanging truss at 270 in the middle (reachable from the cases). Blast zones are standard so KOs feel fair. The crowd art bobs constantly in sync; every KO triggers the 'go-wild' event: flash, sparks at the KO, camera shake, the crowd hops and shakes, strobe beams appear and confetti falls for 3 seconds. Art priority: 1) stage-deck, 2) crowd (key to the concept and animation), 3) road case stacks, 4) light-truss, 5) backdrop arena, 6) spot-beams and strobe-beams, 7) truss-towers, 8) floor-wedges and front-cables.",
+    "grade": {
+      "lift": 0.02,
+      "gamma": 1.0,
+      "gain": 1.08,
+      "saturation": 1.2,
+      "tint": "#ffc27a",
+      "tintAmount": 0.15
+    }
   },
   {
     "id": "rainbow-full-pipe",
@@ -3376,7 +3408,15 @@
       "style": "Bright, soft 3D cartoon render like a cheerful animated film: rounded chunky shapes, clean saturated colors, gentle ambient occlusion. Royal blue ramp wood, pastel rainbow stripes, orange steel trim, lush green park and a clear sunny blue sky with puffy white clouds. Warm sunny afternoon light from the upper left, playful and upbeat.",
       "reference": "stages/rainbow-full-pipe/reference.webp"
     },
-    "notes": "Vertical take: the half-pipe is a bowl. The flat bottom (1160 wide between the towers) is the main fighting floor; the curved rainbow walls are approximated by two one-way lips per side at 140 and 270, stair-stepping up to solid tower decks at 400 (130 per step, easy hops). Towers are solid with grabbable ledges on both sides, so the outer faces are recoverable walls and the decks are king-of-the-hill perches. A center grind rail at 190 and a cloud drifting at 380 between the towers let players cross high without touching the floor. Event 'Drop In!' every 25-40 s: a sign pops on the left tower for 2.5 s, then a skater rips off the left deck, down the ramp, along the floor and out off the right deck, hitting anyone on the path; dodge by jumping onto the rail or cloud. Slopes can't be built yet, so the curved ramp is stepped; ideally the ramp would be a real curve fighters slide along. Art priority: 1 full-pipe (main structure), 2 backdrop, 3 grind-rail and drift-cloud, 4 skater and drop-in-sign, 5 railings, ladder, park-trees, sky-clouds, front-shrub."
+    "notes": "Vertical take: the half-pipe is a bowl. The flat bottom (1160 wide between the towers) is the main fighting floor; the curved rainbow walls are approximated by two one-way lips per side at 140 and 270, stair-stepping up to solid tower decks at 400 (130 per step, easy hops). Towers are solid with grabbable ledges on both sides, so the outer faces are recoverable walls and the decks are king-of-the-hill perches. A center grind rail at 190 and a cloud drifting at 380 between the towers let players cross high without touching the floor. Event 'Drop In!' every 25-40 s: a sign pops on the left tower for 2.5 s, then a skater rips off the left deck, down the ramp, along the floor and out off the right deck, hitting anyone on the path; dodge by jumping onto the rail or cloud. Slopes can't be built yet, so the curved ramp is stepped; ideally the ramp would be a real curve fighters slide along. Art priority: 1 full-pipe (main structure), 2 backdrop, 3 grind-rail and drift-cloud, 4 skater and drop-in-sign, 5 railings, ladder, park-trees, sky-clouds, front-shrub.",
+    "grade": {
+      "lift": 0,
+      "gamma": 0.98,
+      "gain": 1.0,
+      "saturation": 1.3,
+      "tint": "#fff0c0",
+      "tintAmount": 0.1
+    }
   },
   {
     "id": "solar-array",
@@ -3943,7 +3983,15 @@
       "style": "Bold cartoon illustration with thick ink outlines and flat cel shading, like a sunny animated adventure. Warm desert palette of ochre sand, red-orange sandstone and brown shadows against a clear cyan sky, with cool blue solar panels and grey steel as the accent. Bright midday-afternoon sun from the upper left, crisp hard shadows, cheerful and hot.",
       "reference": "stages/solar-array/reference.webp"
     },
-    "notes": "Plays like a classic three-platform layout: a 1200-wide solid mesa with two low side panels at 150 and a high center panel at 280. Every 20-32 s the sun-tracking event warns for 2.5 s (side panels rattle, dust drifts in), then the two side panels tilt to 70 degrees and stop being platforms for 6 s while a sun-glint flash fires; anyone standing on them drops to the mesa. The high center panel and the mesa never change, and all spawns are on the mesa. Art priority: 1) desert-mesa (main stage), 2) panel-left / panel-right / panel-top (paint level; the game tilts them), 3) panel-pylons, 4) backdrop, 5) back-panels, 6) foreground-rocks occluder. The jeep from the concept could be a later scenery prop or a driving hazard in another take."
+    "notes": "Plays like a classic three-platform layout: a 1200-wide solid mesa with two low side panels at 150 and a high center panel at 280. Every 20-32 s the sun-tracking event warns for 2.5 s (side panels rattle, dust drifts in), then the two side panels tilt to 70 degrees and stop being platforms for 6 s while a sun-glint flash fires; anyone standing on them drops to the mesa. The high center panel and the mesa never change, and all spawns are on the mesa. Art priority: 1) desert-mesa (main stage), 2) panel-left / panel-right / panel-top (paint level; the game tilts them), 3) panel-pylons, 4) backdrop, 5) back-panels, 6) foreground-rocks occluder. The jeep from the concept could be a later scenery prop or a driving hazard in another take.",
+    "grade": {
+      "lift": 0,
+      "gamma": 0.97,
+      "gain": 1.05,
+      "saturation": 1.15,
+      "tint": "#ffd890",
+      "tintAmount": 0.22
+    }
   },
   {
     "id": "space-chess",
@@ -4369,7 +4417,15 @@
       "style": "Polished, cinematic 3D-rendered look: glossy lacquered wood and ivory chess pieces lit by cool blue starlight against deep black space. Palette of near-black navy, midnight blue and bright cobalt nebula accents, with cream-white squares as the brightest values. Quiet, grand and mysterious, like a cosmic game frozen mid-move.",
       "reference": "stages/space-chess/reference.webp"
     },
-    "notes": "Plays like a classic three-platform stage: a wide 1240-unit solid chessboard with grabbable corners, two floating square pairs at 140 and one at 270 for the center. Open space all around the board for recoveries. The concept's two kings stand behind the fighters at each end of the board; whenever a fighter is KO'd the 'king-falls' event (KO-triggered, 4 s) tips both kings over (white outward to the left, black outward to the right; flip the signs if the tip direction convention is reversed) with a camera shake, and they stand back up when it ends. Art priority: 1) chessboard slab (draws main stage), 2) the two kings (the signature reaction), 3) backdrop space nebula, 4) floating squares, 5) drifting pawn foreground silhouette."
+    "notes": "Plays like a classic three-platform stage: a wide 1240-unit solid chessboard with grabbable corners, two floating square pairs at 140 and one at 270 for the center. Open space all around the board for recoveries. The concept's two kings stand behind the fighters at each end of the board; whenever a fighter is KO'd the 'king-falls' event (KO-triggered, 4 s) tips both kings over (white outward to the left, black outward to the right; flip the signs if the tip direction convention is reversed) with a camera shake, and they stand back up when it ends. Art priority: 1) chessboard slab (draws main stage), 2) the two kings (the signature reaction), 3) backdrop space nebula, 4) floating squares, 5) drifting pawn foreground silhouette.",
+    "grade": {
+      "lift": 0.03,
+      "gamma": 1.05,
+      "gain": 1.0,
+      "saturation": 1.1,
+      "tint": "#6c8cff",
+      "tintAmount": 0.25
+    }
   },
   {
     "id": "watercolor-nebula",
@@ -5208,7 +5264,15 @@
       "style": "Soft painterly watercolor with a subtle stepped, mosaic-pixel quality to every cloud edge, visible paper grain and wet pigment blooms. Palette of deep slate blue, dusty teal, mauve, ochre, honey gold and warm cream, lit by a glowing golden heart at the center of the nebula. Dreamy, calm and luminous, with glossy amber and blue paint beads floating everywhere.",
       "reference": "stages/watercolor-nebula/reference.webp"
     },
-    "notes": "Vertical take: five tiers spaced 130 apart (floor 0, puddles 130, drifting bead 260, wisps 390, crown droplet 520) so every step is one easy jump, while the full climb is a big height difference; blast top raised to 1350 so high fights don't end too early. The center bead sways 60 each way and the crown droplet bobs gently to sell the 'slightly fluid' floor; those two use default blocks (theme colors blend in) since static art can't follow them. Paint gets everywhere: splats on every hit and big ones on KOs. Events: Pigment Rain (2 s flash + warning, two huge paint globs fall through the stage on fixed columns x -260 and 300, rain streaks), Nebula Drift (2.5 s warning, rightward wind over the whole stage with a brush-streak swirl and dust). Persistent paint stains on the floor and a truly sloshing/curved fluid floor aren't buildable yet. Art priority: 1 main-island, 2 backdrop, 3 the four puddle/wisp platforms, 4 drop-left/drop-right hazards, 5 cloud banks, 6 drift-swirl, 7 underwash and front-wisp."
+    "notes": "Vertical take: five tiers spaced 130 apart (floor 0, puddles 130, drifting bead 260, wisps 390, crown droplet 520) so every step is one easy jump, while the full climb is a big height difference; blast top raised to 1350 so high fights don't end too early. The center bead sways 60 each way and the crown droplet bobs gently to sell the 'slightly fluid' floor; those two use default blocks (theme colors blend in) since static art can't follow them. Paint gets everywhere: splats on every hit and big ones on KOs. Events: Pigment Rain (2 s flash + warning, two huge paint globs fall through the stage on fixed columns x -260 and 300, rain streaks), Nebula Drift (2.5 s warning, rightward wind over the whole stage with a brush-streak swirl and dust). Persistent paint stains on the floor and a truly sloshing/curved fluid floor aren't buildable yet. Art priority: 1 main-island, 2 backdrop, 3 the four puddle/wisp platforms, 4 drop-left/drop-right hazards, 5 cloud banks, 6 drift-swirl, 7 underwash and front-wisp.",
+    "grade": {
+      "lift": 0.04,
+      "gamma": 1.0,
+      "gain": 1.0,
+      "saturation": 1.05,
+      "tint": "#ffd0a0",
+      "tintAmount": 0.2
+    }
   },
   {
     "id": "yo-house",
@@ -5869,6 +5933,14 @@
       "style": "Soft photoreal-meets-diorama interior rendering, like a dollhouse cutaway of a modern open-plan home. Cool blue-grey walls and daylight, dark glossy walnut floors, crisp white cabinetry, with the aquarium as the one glowing green jewel. Calm, airy and a little cheeky, as if the fighters are scrapping in someone's spotless living room.",
       "reference": "stages/yo-house/reference.webp"
     },
-    "notes": "Play: a flat 1400-wide hardwood floor with the fish tank as a raised centerpiece. The cabinet stand (y120) is a solid block with ledges; above it the tank is a water zone where fighters swim slowly and stroke upward to the thin lid at y390, the stage's high ground. Left side is the yoga room (mat stack y130, shelf y260) and right side the sofa (seat y110, back y230), so the stage is deliberately asymmetric: tight vertical climbing on the left, a softer two-step on the right. Robo Vacuum (every 25-40 s, 2.5 s warning with blinking dock light and a beep): a hazard trundles in from off-screen left across the yoga room, bonks the tank stand and retreats, hitting anyone on the left floor. Bubbler Burst (every 20-35 s, 2 s warning with tank shake): an upward wind blasts through the tank, launching swimmers out the top for a lid scramble or edgeguard surprise. Art priority: 1 fish-tank (sets the whole look, keep water luminous), 2 hardwood-floor, 3 backdrop kitchen, 4 sofa and yoga-corner, 5 robo-vacuum-bot and bubble-column, 6 front-fern, exercise-ball, doorway, fish, dock. Not buildable yet: fighters breaking the tank glass, or a rolling exercise ball physics prop."
+    "notes": "Play: a flat 1400-wide hardwood floor with the fish tank as a raised centerpiece. The cabinet stand (y120) is a solid block with ledges; above it the tank is a water zone where fighters swim slowly and stroke upward to the thin lid at y390, the stage's high ground. Left side is the yoga room (mat stack y130, shelf y260) and right side the sofa (seat y110, back y230), so the stage is deliberately asymmetric: tight vertical climbing on the left, a softer two-step on the right. Robo Vacuum (every 25-40 s, 2.5 s warning with blinking dock light and a beep): a hazard trundles in from off-screen left across the yoga room, bonks the tank stand and retreats, hitting anyone on the left floor. Bubbler Burst (every 20-35 s, 2 s warning with tank shake): an upward wind blasts through the tank, launching swimmers out the top for a lid scramble or edgeguard surprise. Art priority: 1 fish-tank (sets the whole look, keep water luminous), 2 hardwood-floor, 3 backdrop kitchen, 4 sofa and yoga-corner, 5 robo-vacuum-bot and bubble-column, 6 front-fern, exercise-ball, doorway, fish, dock. Not buildable yet: fighters breaking the tank glass, or a rolling exercise ball physics prop.",
+    "grade": {
+      "lift": 0.02,
+      "gamma": 1.0,
+      "gain": 1.0,
+      "saturation": 0.95,
+      "tint": "#c8e0a0",
+      "tintAmount": 0.18
+    }
   }
 ]

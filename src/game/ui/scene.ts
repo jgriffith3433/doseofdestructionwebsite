@@ -60,6 +60,11 @@ export function sceneShowing(): boolean {
   return active !== null;
 }
 
+/** Lets another presentation (ui/segment.ts) answer Esc and Start like a scene does; null when it ends. */
+export function registerSceneSkip(skip: (() => void) | null): void {
+  active = skip ? { skip } : null;
+}
+
 /** Ends the scene that is playing, as Skip does (Esc or Start in main.ts). */
 export function skipScene(): void {
   active?.skip();
@@ -350,6 +355,148 @@ export function playColdOpen(stage: SceneStage, beats: ColdOpenBeat[]): Promise<
     textEl.textContent = '';
     for (const c of stage.cast) stage.holdOffstage(c.id, true);
     stage.duck(true);
+    play();
+  });
+}
+
+/** Longest a pre-fight exchange plays, ms (campaign/intros.ts EXCHANGE_MAX_MS). */
+const EXCHANGE_MAX_MS = 6000;
+const EXCHANGE_LINE_MIN_MS = 1100;
+const EXCHANGE_LINE_MAX_MS = 2300;
+const EXCHANGE_TAUNT_MS = 900;
+
+export interface ExchangeEnd {
+  skipped: boolean;
+  /** How long it played, ms. */
+  ms: number;
+  /** Lines started (0 to 2). */
+  lines: number;
+}
+
+/**
+ * A pre-fight exchange (content/intros.json): the fighters are already on the stage. The camera eases onto the first
+ * speaker with a lower-third caption (name and one short line), the other fighter answers, then the listener of the
+ * answer plays their taunt (bounce and bark). 6 s at most; any key, click, tap or gamepad button skips it at once
+ * (Esc and Start too, in main.ts). Resolves when it ends. The playtest reads `dod:exchange` events.
+ */
+export function playExchange(stage: SceneStage, id: string, lines: SceneLine[]): Promise<ExchangeEnd> {
+  const root = $('scene');
+  const sub = $('scene-sub');
+  const head = $<HTMLImageElement>('scene-head');
+  const whoEl = $('scene-who');
+  const textEl = $('scene-text');
+  const next = $<HTMLButtonElement>('scene-next');
+  const skip = $<HTMLButtonElement>('scene-skip');
+  $('scene-card').hidden = true;
+  const t0 = performance.now();
+  const emit = (phase: string, detail: Record<string, unknown> = {}) =>
+    window.dispatchEvent(new CustomEvent('dod:exchange', { detail: { id, phase, at: Math.round(performance.now() - t0), ...detail } }));
+
+  return new Promise((resolve) => {
+    let timer = 0;
+    let cap = 0;
+    let pad = 0;
+    let i = -1;
+    let ended = false;
+    const finish = (skipped: boolean) => {
+      if (ended) return;
+      ended = true;
+      clearTimeout(timer);
+      clearTimeout(cap);
+      cancelAnimationFrame(pad);
+      stage.stopVoice();
+      stage.duck(false);
+      stage.direct(null);
+      next.hidden = false;
+      skip.onclick = null;
+      window.removeEventListener('keydown', onAny, true);
+      window.removeEventListener('pointerdown', onAny, true);
+      document.body.classList.remove('scene-on');
+      sub.hidden = true;
+      sub.classList.remove('exchange');
+      root.classList.remove('scene-in');
+      root.hidden = true;
+      root.removeAttribute('data-scene');
+      root.removeAttribute('data-beat');
+      active = null;
+      const ms = Math.round(performance.now() - t0);
+      emit('end', { skipped, ms });
+      resolve({ skipped, ms, lines: Math.max(0, Math.min(i + 1, lines.length)) });
+    };
+    const onAny = (e: Event) => {
+      e.stopPropagation();
+      if (e instanceof KeyboardEvent) e.preventDefault();
+      finish(true);
+    };
+    const listenPad = () => {
+      if (ended) return;
+      for (const g of navigator.getGamepads?.() ?? []) if (g?.buttons.some((b) => b.pressed)) return finish(true);
+      pad = requestAnimationFrame(listenPad);
+    };
+    /** The fighter a line's camera is on: its speaker if in the fight, else the first or second fighter by line. */
+    const castFor = (n: number) => stage.cast.find((c) => c.who === lines[n].who) ?? stage.cast[Math.min(n, stage.cast.length - 1)];
+
+    const taunt = () => {
+      if (ended) return;
+      // The listener of the answer: the other fighter than the one the camera was just on.
+      const speaker = castFor(lines.length - 1);
+      const listener = stage.cast.find((c) => c.id !== speaker?.id) ?? stage.cast[0];
+      stage.direct({ focus: listener.id });
+      stage.cue(listener.id);
+      stage.taunt?.(listener.who);
+      sub.hidden = true;
+      root.dataset.beat = 'exchange-taunt';
+      emit('taunt', { who: listener.who, focus: listener.id });
+      timer = window.setTimeout(() => finish(false), EXCHANGE_TAUNT_MS);
+    };
+    const play = () => {
+      if (ended) return;
+      if (++i >= lines.length) return taunt();
+      const l = lines[i];
+      const speaker = castFor(i);
+      const ch = CHARACTERS.find((c) => c.id === l.who);
+      stage.direct({ focus: speaker.id });
+      stage.cue(speaker.id);
+      whoEl.textContent = ch?.name ?? (l.who === 'announcer' ? 'Announcer' : l.who);
+      whoEl.hidden = false;
+      head.hidden = true;
+      sub.classList.remove('narration', 'sub-in');
+      sub.classList.add('exchange');
+      textEl.textContent = l.text;
+      sub.hidden = false;
+      void sub.offsetWidth;
+      sub.classList.add('sub-in');
+      sub.dataset.who = l.who;
+      root.dataset.beat = `exchange-${i}`;
+      stage.voice(l.audio);
+      emit('line', { index: i, who: l.who, text: l.text, audio: l.audio, focus: speaker.id });
+      const shown = i;
+      const hold = (ms: number | null) => Math.min(EXCHANGE_LINE_MAX_MS, Math.max(EXCHANGE_LINE_MIN_MS, ms ? ms + 250 : 1500));
+      timer = window.setTimeout(play, hold(null));
+      void stage.voiceMs(l.audio).then((ms) => {
+        if (ms && shown === i && !ended) {
+          clearTimeout(timer);
+          timer = window.setTimeout(play, hold(ms));
+        }
+      });
+    };
+
+    active = { skip: () => finish(true) };
+    skip.onclick = () => finish(true);
+    next.hidden = true;
+    window.addEventListener('keydown', onAny, true);
+    window.addEventListener('pointerdown', onAny, true);
+    document.body.classList.add('scene-on');
+    root.dataset.scene = 'exchange';
+    root.hidden = false;
+    void root.offsetWidth;
+    root.classList.add('scene-in');
+    sub.hidden = true;
+    textEl.textContent = '';
+    stage.duck(true);
+    cap = window.setTimeout(() => finish(false), EXCHANGE_MAX_MS);
+    pad = requestAnimationFrame(listenPad);
+    emit('start', { lines: lines.length });
     play();
   });
 }
