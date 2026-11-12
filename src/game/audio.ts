@@ -3,6 +3,7 @@
 // devtools.html); an entry with no file yet is simply silent.
 
 import { playSynth, startBed, type BedKind, type SynthKind } from './synth.ts';
+import type { SpecialKind } from './sim/fighterDefs.ts';
 import soundsJson from '../../content/sounds.json' with { type: 'json' };
 import voiceJson from '../../content/voice.json' with { type: 'json' };
 import { winQuoteLines, type FighterQuotes } from './winQuote.ts';
@@ -596,7 +597,7 @@ class AudioSystem {
   private emitSoundTake(soundId: string, take: SoundTake, rate: number, at?: Spatial): void {
     try {
       window.dispatchEvent(new CustomEvent('dod:sound-take', {
-        detail: { id: soundId, takeId: take.id, file: take.file, rate, pan: at?.pan ?? null },
+        detail: { id: soundId, takeId: take.id, file: take.file, rate, pan: at?.pan ?? null, t: typeof performance !== 'undefined' ? performance.now() : 0 },
       }));
     } catch {
       // Node tests have no window.
@@ -612,6 +613,27 @@ class AudioSystem {
     // Menu feedback goes round the room and the pan.
     const ui = UI_SOUNDS.has(id);
     void this.start(pick.take.file, ui ? this.buses.ui : this.buses.sfx, pick.entry.volume, rate, false, ui ? undefined : opts.at);
+  }
+
+  /** Whether a sound has a file to play yet (a pool with no take made returns false). */
+  hasSound(id: string): boolean {
+    const s = this.soundById.get(id);
+    return !!s && (!!s.takes?.length || !!s.file);
+  }
+
+  /**
+   * A special's sound: its archetype's release (at the move's first frame) or impact (on the hit), then the
+   * fighter's signature accent on top when it has one (`special-accent-<fighter id>`, Season 1 kits). Every layer
+   * goes through pickTake (no take twice in a row, 5-10% pitch) and emits `dod:sound-take` with its pool name.
+   * Returns whether the archetype layer played, so a caller can leave the generic swing out.
+   */
+  special(phase: 'release' | 'impact', kind: SpecialKind, fighterId: string, at?: Spatial): boolean {
+    const id = `special-${kind}-${phase}`;
+    const played = this.hasSound(id);
+    if (played) this.sfx(id, { vary: true, at });
+    const accent = `special-accent-${fighterId}`;
+    if (this.hasSound(accent)) this.sfx(accent, { vary: true, at });
+    return played;
   }
 
   /** Landing SFX for the current stage's surface (metal / wood / stone / soft). */

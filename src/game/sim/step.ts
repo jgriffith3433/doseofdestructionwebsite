@@ -4,6 +4,7 @@
 
 import { FX, TRIG_ONE, approach, clamp, iatan2, icos, idiv, isin, isqrt, normDeg, rngNext, sign } from './fixed.ts';
 import { AERIALS, CHARACTERS, MOVE, THROW, type CharacterDef, type CounterDef, type Hitbox, type ShotDef } from './characters.ts';
+import type { SpecialKind } from './fighterDefs.ts';
 import { BTN, C_ANY, NO_INPUT, stickX, stickY } from './input.ts';
 import {
   EV_IDLE,
@@ -24,7 +25,8 @@ import { predictLaunchKo } from '../hitFeel.ts';
 import { ACT, SHIELD_MAX, allies, bodySize, newShot, type Fighter, type GameState, type Shot } from './state.ts';
 
 export type SimEvent =
-  | { type: 'hit'; attacker: number; victim: number; x: number; y: number; dmg: number; kb: number; shield: boolean; lag: number }
+  /** special: the archetype of the special that landed it (a shot is projectile or trap), for the impact sound. Presentation only. */
+  | { type: 'hit'; attacker: number; victim: number; x: number; y: number; dmg: number; kb: number; shield: boolean; lag: number; special?: SpecialKind }
   /** A launch begins as hit-stop ends. ko: the launch carries the victim out of the blast zone, so the kill cue plays (hitFeel.ts). Presentation only. */
   | { type: 'launch'; victim: number; by: number; x: number; y: number; ko: boolean }
   | { type: 'ko'; victim: number; by: number; x: number; y: number }
@@ -45,6 +47,9 @@ export type SimEvent =
   | { type: 'stage'; event: number; phase: 'warn' | 'start' | 'end' }
   /** A broadcast event (state.bc[index]) started or ended; who is the fighter a chant is for. */
   | { type: 'broadcast'; index: number; kind: string; phase: 'start' | 'end'; who: number };
+
+/** The four special moves: only these carry an archetype into a hit event. */
+const SPECIAL_SLOTS: ReadonlySet<number> = new Set([MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL]);
 
 const BUTTONS = BTN.ATTACK | BTN.SPECIAL | BTN.JUMP | BTN.SHIELD | C_ANY;
 export const BUFFER_FRAMES = 6;
@@ -924,7 +929,7 @@ function shotHit(s: GameState, o: Shot, ev: SimEvent[]): boolean {
     const dy = o.y - py;
     if (dx * dx + dy * dy > o.r * o.r) continue;
     const box: Hitbox = { x: 0, y: 0, r: 0, dmg: o.dmg, angle: o.angle, bkb: o.bkb, kbg: o.kbg };
-    applyHit(s, owner, v, box, (o.x + px) >> 1, (o.y + py) >> 1, ev, { facing: o.facing, shot: true });
+    applyHit(s, owner, v, box, (o.x + px) >> 1, (o.y + py) >> 1, ev, { facing: o.facing, shot: true, shotKind: o.kind === 1 ? 'trap' : 'projectile' });
     return true;
   }
   return false;
@@ -942,6 +947,8 @@ export function knockback(percent: number, dmg: number, weight: number, bkb: num
 interface Via {
   facing: number;
   shot?: boolean;
+  /** Archetype of the shot (projectile or trap). */
+  shotKind?: SpecialKind;
   counter?: boolean;
 }
 
@@ -968,6 +975,7 @@ function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, 
     return;
   }
   const dmg = idiv(box.dmg * s.rules.damage, 100);
+  const special = via?.shot ? via.shotKind : a.action === ACT.ATTACK && SPECIAL_SLOTS.has(a.move) ? CHARACTERS[a.char].moves[a.move].kind : undefined;
   // Hit-stop scales with damage: a jab freezes 3 frames, a smash 8 or more (at most 14).
   const lag = Math.min(14, 3 + idiv(dmg, 25));
   if (!via?.shot) a.hitlag = lag;
@@ -975,7 +983,7 @@ function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, 
 
   if (!box.grab && (v.action === ACT.SHIELD || v.action === ACT.SHIELD_STUN)) {
     v.shield -= dmg;
-    ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: 0, shield: true, lag });
+    ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: 0, shield: true, lag, special });
     if (v.shield <= 0) {
       breakShield(v, ev);
     } else {
@@ -1006,7 +1014,7 @@ function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, 
   v.facing = via?.shot ? -facing : a.x < v.x ? -1 : 1;
   if (box.grab) v.x = a.x + facing * idiv((box.pull ?? 0) * a.scale * FX, 100);
   v.lastHitBy = a.id;
-  ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: idiv(kb, 1000), shield: false, lag });
+  ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: idiv(kb, 1000), shield: false, lag, special });
 }
 
 /** Applies a stored launch once hitlag ends, bent by the victim's stick (DI). */

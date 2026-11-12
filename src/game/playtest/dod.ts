@@ -185,6 +185,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'feet') await r.feetRun();
         else if (id === 'smooth-clips') await r.smoothClips();
         else if (id === 'specials') await r.specialsRun();
+        else if (id === 'special-sounds') await r.specialSounds();
         else if (id === 'grab') await r.grabRun();
         else if (id === 'special-fx') await r.specialFx();
         else if (id === 'select-specials') await r.selectSpecials();
@@ -237,6 +238,8 @@ class Run {
   private matches = 0;
   /** Moves the playing fighter started this match (roster). */
   readonly movesSeen = new Set<number>();
+  /** When (performance.now) each special move was first seen playing, for the release-sound latency check. */
+  readonly moveStartMs = new Map<number, number>();
   /** Which of the playing fighter's four specials it used this match (the bot drives it in `match`). */
   private readonly specialsUsed = new Set<number>();
   private readonly checked = new Set<string>();
@@ -378,6 +381,7 @@ class Run {
     for (const f of s.fighters) {
       if (f.action === ACT.ATTACK && f.id === me) {
         this.movesSeen.add(f.move);
+        if (SPECIAL_MOVES.includes(f.move) && !this.moveStartMs.has(f.move)) this.moveStartMs.set(f.move, performance.now());
         if (SPECIAL_MOVES.includes(f.move)) this.specialsUsed.add(f.move);
       }
       if (![f.x, f.y, f.vx, f.vy, f.percent].every(Number.isFinite)) {
@@ -1335,7 +1339,7 @@ class Run {
         t.problem('bug', `sound take ${d.takeId} played twice in a row for ${d.id}`);
       }
       lastTakeById.set(d.id, d.takeId);
-      if (/^(hit-|swing-|jump|land|dodge)/.test(d.id)) {
+      if (/^(hit-|swing-|jump|land|dodge|special-)/.test(d.id)) {
         t.event('sound-take', `${d.id} → ${d.takeId} (rate ${d.rate.toFixed(3)})`);
       }
     };
@@ -4461,6 +4465,173 @@ class Run {
       await this.game.quitMatch();
       await this.screen('main');
     } finally {
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- special sounds
+
+  /**
+   * Special sounds (docs/specials.md "Sound"): each Season 1 fighter in Training fires its four specials from real
+   * input (the keyboard, or with `input: "touch"` / a phone the on-screen stick and Special button at 844x390). Every
+   * special must play its archetype's release (`special-<kind>-release`, logged as `dod:sound-take`) within 50 ms of the
+   * move starting (`special-release`, metric `releaseLatencyMs`), with the fighter's accent on top
+   * (`special-accent-<id>`, `special-accent`); impacts (`special-impact`) are logged when the dummy is hit. The run ends
+   * by reporting which of the seven archetypes played a release and an impact (`archetype-pools`) and fails on a take
+   * played twice in a row. Options: `fighter` (one id), `input`, `at`.
+   */
+  async specialSounds(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('special-sounds');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    const takes: { id: string; takeId: string; t: number }[] = [];
+    const last = new Map<string, string>();
+    const onTake = (e: Event) => {
+      const d = (e as CustomEvent).detail as { id: string; takeId: string; t: number };
+      if (!d.id.startsWith('special-')) return;
+      takes.push({ id: d.id, takeId: d.takeId, t: d.t });
+      if (last.get(d.id) === d.takeId) t.problem('bug', `special sound take ${d.takeId} played twice in a row for ${d.id}`);
+      last.set(d.id, d.takeId);
+    };
+    window.addEventListener('dod:sound-take', onTake);
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const release = new Set<string>();
+    const impact = new Set<string>();
+    const latencies: number[] = [];
+    try {
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : SEASON_ONE;
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      for (const [n, id] of ids.entries()) {
+        const ci = CHARACTERS.findIndex((c) => c.id === id);
+        if (ci < 0) {
+          t.problem('bug', `special-sounds: ${id} is not on the roster`);
+          continue;
+        }
+        const c = CHARACTERS[ci];
+        void this.game.startMatch({
+          mode: 'training', stage, stocks: 1, rules: {},
+          slots: [{ char: ci, cpu: null }, { char: (ci + 1) % CHARACTERS.length, cpu: 0 }],
+        });
+        await this.matchLive();
+        this.manual = NO_INPUT;
+        const pad = touch ? makeTouchPad() : makeKeyboardPad();
+        if (!pad) {
+          t.problem('bug', 'the touch controls (stick and Special button) were not built');
+          break;
+        }
+        const match = () => this.game.match()!;
+        const me = () => match().state.fighters[match().player];
+        const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+        const frame = () => this.game.match()?.state.frame ?? 0;
+        const frames = async (k: number) => {
+          const end = frame() + k;
+          await t.until(() => frame() >= end, 6000 + k * 150, 'frames to pass');
+        };
+        const standing = () => {
+          const f = me();
+          return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+        };
+        const settle = async () => {
+          pad.release();
+          try {
+            await t.until(standing, 10000, 'the fighter to stand');
+          } catch (e) {
+            if (String(e).includes('stopped')) throw e;
+          }
+          await frames(8);
+        };
+        const slots = [
+          { slot: 'neutral', sx: 0, sy: 0, move: MOVE.NSPECIAL },
+          { slot: 'side', sx: 100, sy: 0, move: MOVE.SSPECIAL },
+          { slot: 'up', sx: 0, sy: 100, move: MOVE.UPB },
+          { slot: 'down', sx: 0, sy: -100, move: MOVE.DSPECIAL },
+        ];
+        for (const sl of slots) {
+          await settle();
+          // Close up on the dummy, facing it, so a melee special can land.
+          const toward = () => (dummy().x >= me().x ? 1 : -1);
+          pad.stick(toward() * 100, 0);
+          try {
+            await t.until(() => Math.abs(dummy().x - me().x) / FX < 70, 3000, 'the fighter to reach the dummy');
+          } catch (e) {
+            if (String(e).includes('stopped')) throw e;
+          }
+          pad.stick(0, 0);
+          await frames(3);
+          this.movesSeen.clear();
+          this.moveStartMs.clear();
+          const from = takes.length;
+          pad.stick(sl.sx, sl.sy);
+          await frames(3);
+          pad.special(true);
+          await frames(4);
+          pad.special(false);
+          try {
+            await t.until(() => this.movesSeen.has(sl.move), 4000, `${id}'s ${sl.slot} special to come out`);
+          } catch (e) {
+            if (String(e).includes('stopped')) throw e;
+          }
+          pad.stick(0, 0);
+          const mv = c.moves[sl.move];
+          const kind = mv.kind ?? 'shared';
+          if (!this.movesSeen.has(sl.move)) {
+            t.problem('bug', `${how}: ${id}'s ${sl.slot} special "${mv.name}" did not come out`);
+            continue;
+          }
+          // Let the hit land and the take play out.
+          await frames(30);
+          const got = takes.slice(from);
+          const rel = got.find((x) => x.id === `special-${kind}-release`);
+          const acc = got.find((x) => x.id === `special-accent-${id}`);
+          const imp = got.find((x) => x.id === `special-${kind}-impact`);
+          const start = this.moveStartMs.get(sl.move);
+          if (!rel) t.problem('bug', `${how}: ${id}'s ${sl.slot} special "${mv.name}" (${kind}) played no release sound (pool special-${kind}-release)`);
+          else {
+            release.add(kind);
+            const ms = start == null ? 0 : Math.round(Math.abs(rel.t - start));
+            latencies.push(ms);
+            t.event('special-release', `${how}: ${id} ${sl.slot} "${mv.name}" -> ${rel.id} / ${rel.takeId}, ${ms} ms after the move started`);
+            if (ms > 50) t.problem('bug', `${how}: ${id}'s ${sl.slot} special release sound came ${ms} ms after the move started (want 50 ms)`);
+          }
+          if (!acc) t.problem('bug', `${how}: ${id}'s ${sl.slot} special played no signature accent (special-accent-${id})`);
+          else t.event('special-accent', `${id} ${sl.slot}: ${acc.id} / ${acc.takeId} on top of the ${kind} release`);
+          if (imp) {
+            impact.add(kind);
+            t.event('special-impact', `${id} ${sl.slot} "${mv.name}": ${imp.id} / ${imp.takeId}`);
+          }
+        }
+        pad.release();
+        this.manual = null;
+        await this.game.quitMatch();
+        await this.screen('main');
+        t.progress((n + 1) / ids.length);
+      }
+      const kinds = ['projectile', 'dash', 'counter', 'grab', 'trap', 'flurry', 'recovery'];
+      if (typeof this.options.fighter !== 'string') {
+        t.event('archetype-pools', `release: ${kinds.filter((k) => release.has(k)).join(', ') || 'none'}; impact: ${kinds.filter((k) => impact.has(k)).join(', ') || 'none'}`);
+        for (const k of kinds) {
+          if (!release.has(k)) t.problem('bug', `no ${k} special played its own release sound`);
+          if (!impact.has(k)) t.problem('warning', `no ${k} special landed on the dummy with its own impact sound (a counter needs a hit to turn back)`);
+        }
+      }
+      if (latencies.length) t.metric('releaseLatencyMs', Math.max(...latencies));
+      t.metric('specialTakes', takes.length);
+    } finally {
+      window.removeEventListener('dod:sound-take', onTake);
       if (touch) {
         this.useTap = false;
         forceTouchUi(false);

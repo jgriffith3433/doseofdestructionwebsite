@@ -399,6 +399,17 @@
       ]
     },
     {
+      "id": "special-sounds",
+      "title": "Special sounds: each Season 1 fighter's four specials play their archetype's release sound (within 50 ms of the move starting) with the fighter's accent on top, impacts on a hit, no take twice in a row",
+      "description": "Setup shortcut: straight into Training with each of the 13 Season 1 fighters and a dummy. Real input only: the keyboard, or (input: \"touch\" or a phone, 390x844 turned to 844x390) the on-screen stick and Special button as touch pointer events. Each fighter fires neutral, side, up and down at the dummy; the run reads dod:sound-take: special-release (pool special-<archetype>-release, take id and ms after the move started, metric releaseLatencyMs, bug over 50), special-accent (special-accent-<fighter>), special-impact (special-<archetype>-impact when the special lands), archetype-pools (which of the seven archetypes played a release and an impact), a bug for a take twice in a row. Options: fighter (one id), input, at. Metric specialTakes.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "touch",
+        "sound"
+      ]
+    },
+    {
       "id": "grab",
       "title": "Grab and throws: Shield + Attack together grabs, the stick picks forward, back, up or down, and the hold lasts longer at 100% than at 0% (touch: both buttons pressed together)",
       "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus); a second dummy starts at 100%. Played through real input only: keyboard L + J then A/D/W/S on a desktop; at phone size (390x844, turned to 844x390 landscape like touch-match, or 844x390) the on-screen Shield and Attack buttons touched together and the on-screen stick, as touch pointer events. Walks up to the dummy, grabs it (grab: through its shield when it shields; the hold in frames), throws it forward, back, up and down (throw; grab-throws when all four came out; touch-grab on a phone), and the hold on the 100% dummy must be longer than on the 0% one (grab-hold-frames, holds-longer). The versus match scenario also logs every grab and throw the bot makes. Metrics grabs, throws, throwsLanded, holdFrames0, holdFrames1000.",
