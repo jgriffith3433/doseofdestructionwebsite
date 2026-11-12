@@ -2024,6 +2024,7 @@ installDodPlaytest({
   gfxStats: () => renderer.gfxStats(),
   postStats: () => renderer.postStats(),
   lightStats: () => renderer.lightStats(),
+  depthStats: () => renderer.depthStats(),
   lookStats: () => renderer.lookStats(),
   aliveStats: () => renderer.aliveStats(),
   musicBedStats: () => audio.bedStats(),

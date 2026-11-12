@@ -417,3 +417,42 @@ the Desert, Solar Array and Rainbow Full Pipe are hard daylight; Watercolor Nebu
 Every fighter casts a soft contact shadow on the platform under them that shrinks and fades as they leave it and is gone
 above 300 units; glossy floors (Humans in the Loop, Space Chess) add a faint 15% mirror image on High. Low keeps the
 ambient tint and the shadow only. No stage is underwater yet; the cold stages are Space Chess and Cursed Town.
+
+## Stage depth (every set opens up as the camera moves)
+
+The broadcast camera pans and zooms with the fight, and every stage is built to show it: pictures sit at their own depths
+behind the fighters (`z` in `content/stages.json`, authored as seen from the default camera, so the real perspective gives
+the parallax), a **foreground element** stands at the play area's edge in front of them, and a **distance haze** tinted to
+the stage veils the far layers. The code is `render/stageArt.ts` (layers, haze, the High-only extras), `render/foreground.ts`
+(the fade) and `render/stageLive.ts`; scenario `stage-depth`; test `src/game/test/foreground.test.ts`.
+
+- **Rule:** at least four layers at different depths behind the fighters on High (far sky, far set, mid set, near set),
+  three depths on Low (layers marked `high` are the extras and are not built there), plus one foreground element.
+- **Foreground element** (`foreground: true`, z below 0, at the main floor's end): turns to 30% opacity while a fighter is
+  behind one of its solid pixels, read from the picture's own alpha along the camera's ray (so the parallax counts), and
+  eases back when they walk out. It stays on Low. The fog layers of Cursed Town stay silhouette occluders (a fighter in
+  the fog shows as a coloured outline), not foreground elements.
+- **Haze** (`haze: { color, strength, z }`, High only, dropped on Low): 2 gradient sheets at depths between the layers, clear
+  at the top and thickest low where the set meets the floor; the nearer one is lighter.
+- **Decks:** every painted platform top lies within 2 units of its collision. `node tools/deck-align.mjs` measures it
+  (and `--fix` slides the art; it moved a few units on every stage); the dome of City Top's skylight is curved and stays
+  about 8 units proud of its flat platform.
+
+| Stage | Depths behind the fighters (z) | Foreground element (at the edge) | Haze |
+|---|---|---|---|
+| City Top | backdrop 20, skyline 12, left building 5, escape building 3 | rooftop antenna and vent stack, left | night smog violet |
+| Dust Devil Mesa | backdrop 22, buttes 8, hawk 6, dust wall 4 | sagebrush clump, right | dusty ochre |
+| Cursed Town | backdrop 20, street 13, tentacles 9, gables and tentacles 4 | a tentacle column rising at the left street edge; fog stays in front | grey-green |
+| Humans In The Loop | backdrop 20, crowd 8, spot beams 6, strobes 5, truss 4 | the floor wedges, right | stage-smoke magenta |
+| Rainbow Full Pipe | backdrop 20, park 14, clouds 10, trees 6 | the round bush, right | sky blue |
+| Solar Array | backdrop 20, canyon 14, plain 10, back panels 6 | foreground rock outcrop, right | sand |
+| Space Chess | backdrop 20, nebula 14, galaxy 9, the two kings 3 | the lost pawn drifting, left | nebula blue |
+| Watercolor Nebula | backdrop 20, underwash 8, clouds 6, swirl 4 | the front cloud wisp, right | pigment cream |
+| Yo House | backdrop 18, kitchen 11, doorway 5, ball and dock light 3 | potted snake plant and monstera, right | morning blue-white |
+
+**Stand-ins to replace:** the extra bands (City Top skyline, Cursed Town street, Rainbow park, Solar canyon and plain,
+Space Chess nebula and galaxy, Yo House kitchen) and Cursed Town's tentacle are cut from each stage's own backdrop by
+`tools/depth-bands.mjs`: identical pixels at rest, sliding at their own depth under a pan. The finished art is Hawkes Gen's
+`image.layers` split of each backdrop plus `image.repaint` for the gaps each cut reveals (not yet made: Gen was out of
+credits). **Short:** no stage has crowd heads, cables or kelp painted just for the foreground yet; they use art already on
+the stage, moved to the edge.
