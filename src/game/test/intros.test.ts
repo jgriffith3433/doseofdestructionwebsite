@@ -30,7 +30,9 @@ check('pairs are of known fighters, never The Mechanic', pairs.every((p) => ids.
 check('6 generic exchanges', Object.keys(generic).length === 6);
 const long = all.filter((l) => words(l.text) > 10);
 check('every line is 10 words or fewer', long.length === 0, long.map((l) => l.text).join(' | '));
-const unvoiced = all.filter((l) => !l.audio || !fs.existsSync(`audio/voice/${l.audio.split('/').pop()}`));
+// A sparse checkout (agents' worktrees) leaves audio/voice out: then only the paths are checked.
+const haveAudio = fs.existsSync('audio/voice');
+const unvoiced = all.filter((l) => !l.audio || (haveAudio && !fs.existsSync(`audio/voice/${l.audio.split('/').pop()}`)));
 check(`every line (${all.length}) has its recorded take`, unvoiced.length === 0, unvoiced.map((l) => l.audio).join(', '));
 const wrong = all.filter((l) => l.take.voice !== voices[l.who] || l.take.text !== l.text);
 check("every take is in the speaker's own voice and says the line", wrong.length === 0, wrong.map((l) => l.audio).join(', '));

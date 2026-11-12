@@ -31,6 +31,7 @@ import { DAILY_KEY, dailyDate } from '../campaign/dailyStore.ts';
 import { castLine } from '../ui/daily.ts';
 import { TOURS, TOURS_KEY, TOUR_LENGTH, tourEnding, tourFor, tourIntro } from '../campaign/tour.ts';
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
+import { PAIRS, pairFor } from '../campaign/intros.ts';
 import { PROMPTS, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
@@ -185,6 +186,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'stage-bed') await r.stageBed();
         else if (id === 'commentary') await r.commentary();
         else if (id === 'fighter-voice') await r.fighterVoice();
+        else if (id === 'intro-exchange') await r.introExchange();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
       } finally {
@@ -5703,6 +5705,113 @@ class Run {
     }
     t.progress(1);
     t.finish('done');
+  }
+
+  /**
+   * Pre-fight exchange (content/intros.json, ui/scene.ts playExchange): a Versus match between a listed rival pair
+   * (options fighter / foe, default Exit Punk vs Kaelen). Round 1: a tap skips the exchange once its first line shows
+   * (must end within 300 ms) and the caption fits in two lines inside the screen. Round 2 (the same match again) plays
+   * out: both voiced lines, the camera on each speaker, the listener's taunt, 6 s at most. On a 390x844 phone it is
+   * turned to 844x390 and every press is a touch pointer event.
+   */
+  async introExchange(): Promise<void> {
+    const t = this.t;
+    if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      return this.touchMatchTurned('intro-exchange');
+    }
+    this.logViewport(this.phoneScenario());
+    type X = { id: string; phase: string; at: number; index?: number; who?: string; text?: string; audio?: string; focus?: number; skipped?: boolean; ms?: number };
+    const seen: X[] = [];
+    const onX = (e: Event) => {
+      const d = (e as CustomEvent).detail as X;
+      seen.push(d);
+      t.event(`exchange-${d.phase}`, `${d.id} ${d.who ? `${d.who}: "${d.text}" ` : ''}at ${d.at} ms${d.focus !== undefined ? ` camera on ${d.focus}` : ''}${d.ms !== undefined ? ` (${d.ms} ms${d.skipped ? ', skipped' : ''})` : ''}`);
+    };
+    window.addEventListener('dod:exchange', onX);
+    const savedUnlocks = [...unlocks()];
+    for (const id of [...SEASON_ONE, String(this.options.fighter || ''), String(this.options.foe || '')]) if (LOCKABLE.has(id)) unlocks().add(id);
+    saveUnlocks(unlocks());
+    try {
+      if (!this.options.fighter) this.options.fighter = 'exit-punk';
+      if (!this.options.foe) this.options.foe = 'kaelen';
+      const a = String(this.options.fighter);
+      const b = String(this.options.foe);
+      const pair = pairFor(a, b);
+      if (!pair) t.problem('bug', `${a} and ${b} are not a listed rival pair in content/intros.json`);
+      t.metric('exchangePairs', PAIRS.length);
+      t.event('exchange-data', `${PAIRS.length} rival pairs, each two voiced lines`);
+      if (PAIRS.length < 32 || PAIRS.some((p) => p.lines.length !== 2 || p.lines.some((l) => !l.audio))) t.problem('bug', 'content/intros.json needs 32 pairs with two voiced lines each');
+      for (const l of pair?.lines ?? []) if (!(await exists(l.audio))) t.problem('bug', `exchange voice file missing (404): ${l.audio}`);
+
+      await this.toMainMenu();
+      await this.startVersus(2);
+      // Round 1: skip it with a tap.
+      await t.until(() => seen.some((x) => x.phase === 'line'), 60000, 'the first exchange line');
+      await t.wait(600);
+      this.checkExchangeCaption();
+      const touch = matchMedia('(pointer: coarse)').matches;
+      const x = innerWidth / 2;
+      const y = innerHeight * 0.35;
+      const target = (document.elementFromPoint(x, y) as HTMLElement | null) ?? document.body;
+      const sentAt = performance.now();
+      const init = { pointerType: touch ? 'touch' : 'mouse', pointerId: touch ? 61 : 1, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y };
+      t.log('tap anywhere to skip the exchange');
+      target.dispatchEvent(new PointerEvent('pointerdown', init));
+      await t.until(() => seen.some((q) => q.phase === 'end'), 2000, 'the exchange to end after the tap').catch(() => null);
+      const skipMs = performance.now() - sentAt;
+      const end1 = seen.find((q) => q.phase === 'end');
+      target.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }));
+      t.metric('exchangeSkipMs', Math.round(skipMs));
+      if (!end1) t.problem('bug', 'a tap did not skip the exchange');
+      else if (!end1.skipped) t.problem('bug', 'the exchange ended by itself instead of by the tap');
+      else if (skipMs > 300) t.problem('bug', `a tap took ${Math.round(skipMs)} ms to skip the exchange (max 300)`);
+      else t.event('exchange-skip', `skipped ${Math.round(skipMs)} ms after the tap`);
+      await this.matchLive();
+
+      // Round 2: the same fight again, played out.
+      seen.length = 0;
+      const setup = this.game.match()!.setup;
+      void this.game.startMatch(setup);
+      await t.until(() => seen.some((q) => q.phase === 'start'), 30000, 'the exchange to start again');
+      await t.until(() => seen.some((q) => q.phase === 'end'), 9000, 'the exchange to end');
+      const lines = seen.filter((q) => q.phase === 'line');
+      const end = seen.find((q) => q.phase === 'end')!;
+      const taunt = seen.find((q) => q.phase === 'taunt');
+      if (lines.length !== 2) t.problem('bug', `the exchange played ${lines.length} lines, not 2`);
+      else {
+        if (lines[0].focus === lines[1].focus) t.problem('bug', 'the camera stayed on one fighter for both lines');
+        if (lines.some((l) => !l.audio?.includes('/audio/voice/intro.'))) t.problem('bug', 'an exchange line has no voice take');
+        t.event('exchange-lines', `${lines.map((l) => `${l.who}: "${l.text}"`).join(' / ')}`);
+      }
+      if (!taunt) t.problem('bug', 'the listener did not play their taunt');
+      t.metric('exchangeMs', end.ms ?? 0);
+      if ((end.ms ?? 0) > 6000) t.problem('bug', `the exchange lasted ${end.ms} ms (max 6000)`);
+      if (end.skipped) t.problem('bug', 'the exchange was cut short with no input');
+      await this.matchLive();
+      await this.quitFromPause('main');
+    } finally {
+      window.removeEventListener('dod:exchange', onX);
+      unlocks().clear();
+      for (const id of savedUnlocks) unlocks().add(id);
+      saveUnlocks(unlocks());
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  /** The exchange caption is on screen, inside the window, in at most two lines. */
+  private checkExchangeCaption(): void {
+    const sub = this.q('#scene-sub');
+    const text = this.q('#scene-text');
+    if (!sub || sub.hidden || !text) return this.t.problem('bug', 'no exchange caption on screen');
+    const r = sub.getBoundingClientRect();
+    const lh = parseFloat(getComputedStyle(text).lineHeight) || parseFloat(getComputedStyle(text).fontSize) * 1.2;
+    const lines = Math.round(text.getBoundingClientRect().height / lh);
+    const inside = r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
+    this.t.metric('exchangeCaptionLines', lines);
+    if (lines > 2) this.t.problem('bug', `the exchange caption runs to ${lines} lines (max 2)`);
+    if (!inside) this.t.problem('bug', `the exchange caption is off screen (${Math.round(r.left)},${Math.round(r.top)} to ${Math.round(r.right)},${Math.round(r.bottom)} in ${innerWidth}x${innerHeight})`);
+    else this.t.event('exchange-caption', `"${text.textContent}" in ${lines} line(s) at ${innerWidth}x${innerHeight}`);
   }
 
   async commentary(): Promise<void> {
