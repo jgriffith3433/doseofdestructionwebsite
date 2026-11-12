@@ -2018,6 +2018,7 @@ installDodPlaytest({
   hitFxStats: (reset) => renderer.hitFxStats(reset),
   camFxStats: (reset) => renderer.camFxStats(reset),
   trailStats: (reset) => renderer.trailStats(reset),
+  reactFxStats: (reset) => renderer.reactFxStats(reset),
   markerStats: () => ({ ...markerLog, rects: markerRects() }),
   gfxStats: () => renderer.gfxStats(),
   postStats: () => renderer.postStats(),

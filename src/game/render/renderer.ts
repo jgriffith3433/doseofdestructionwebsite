@@ -25,7 +25,7 @@ import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
 import { GRAB_FIRST, activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
-import { KILL_CUE, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, type HitTier, type TrailKind } from '../hitFeel.ts';
+import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, type HitTier, type TrailKind } from '../hitFeel.ts';
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { cameraFighters, followCamera, frameGoal, punchGoal, type CamBounds, type CamState } from './cameraRig.ts';
 import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
@@ -79,6 +79,7 @@ interface FighterView {
   /** Roster index and colour look this view was built for (playtest). */
   charIdx: number;
   lookIdx: number;
+  tumble?: number;
 }
 
 /** One launch's smoke trail, kept for the playtest: what it was and how many puffs it threw. */
@@ -111,6 +112,10 @@ export class Renderer {
   /** Finished spark meshes, reused so a KO burst doesn't build geometry mid-fight. */
   private sparkPool: Mesh[] = [];
   private sparkMat: StandardMaterial;
+  /** Visual-only reactions per fighter (squash, push, bounce); render reads sim state and never writes it. */
+  private react = new Map<number, { age: number; frames: number; squash: number; push: number; dir: number; hop: number }>();
+  private prevGround = new Map<number, number>();
+  private reactStats = { squashes: 0, maxSquash: 0, squashFrames: 0, tumbleFrames: 0, bounces: 0, dustBursts: 0, smears: 0, smearFrames: 0, smashSmears: 0, charges: 0 };
   /** Launch-trail looks: grey smoke (medium), white smoke (heavy), a coloured streak (a hit that will KO). */
   private smokeMats!: { grey: StandardMaterial; white: StandardMaterial; streak: StandardMaterial };
   /** The last hit on each victim (knockback and tier), read when its launch begins. */
@@ -857,6 +862,12 @@ export class Renderer {
           this.burst(e.x * S, e.y * S, 8 + Math.min(16, e.kb >> 3), 0.09 + e.kb * 0.0006);
           this.shake = Math.max(this.shake, Math.min(0.5, e.kb * 0.003));
         }
+        if (!shield && e.type === 'hit') {
+          const r = reactionFor(hitTier(e.dmg), e.kb);
+          this.react.set(e.victim, { age: 0, frames: r.frames, squash: r.squash, push: r.push, dir: 0, hop: 0 });
+          this.reactStats.squashes++;
+          this.reactStats.maxSquash = Math.max(this.reactStats.maxSquash, r.squash);
+        }
         if (!shield && this.views[e.victim]) this.views[e.victim].flash = 10;
         if (!shield) {
           this.fx?.trigger('hit', { x: e.x * S, y: e.y * S });
@@ -1281,9 +1292,15 @@ export class Renderer {
         sy *= 1 + b;
       }
     }
+    const rx = this.reaction(f, v, state);
+    sx *= rx.sx;
+    sy *= rx.sy;
+    if (rx.rot !== null) rot = rx.rot;
+    x += rx.dx;
+    v.root.position.x = x;
     v.pose.scaling.set(f.facing * sx, sy, 1);
     v.pose.rotation.z = rot;
-    v.pose.position.y = lift;
+    v.pose.position.y = lift + rx.lift;
 
     if (v.ghost && v.ghostMat) {
       v.ghost.position.x = v.body.position.x;
@@ -1323,6 +1340,88 @@ export class Renderer {
       const s = 0.45 + 0.55 * (f.shield / SHIELD_MAX);
       v.shield.scaling.set(s, s, 1);
     }
+  }
+
+  /** Procedural reaction on top of the clips: hit squash and push, tumble in hit-stun, ground bounce with dust, smash charge glow, smears. */
+  private reaction(f: Fighter, v: FighterView, state: GameState): { sx: number; sy: number; rot: number | null; dx: number; lift: number } {
+    const out = { sx: 1, sy: 1, rot: null as number | null, dx: 0, lift: 0 };
+    const st = this.reactStats;
+    const r = this.react.get(f.id);
+    const hurt = f.action === ACT.HITSTUN;
+    if (r) {
+      if (f.hitlag <= 0 || r.age > 0) r.age++;
+      const k = r.age <= r.frames ? 1 : 0;
+      if (k) {
+        out.sx = 1 + r.squash;
+        out.sy = 1 - r.squash;
+        st.squashFrames++;
+      }
+      if (r.push > 0 && r.age < 8) out.dx = -f.facing * r.push * (1 - r.age / 8);
+      if (r.hop > 0) {
+        r.hop--;
+        out.lift = Math.sin((r.hop / 14) * Math.PI) * 0.18;
+      }
+      if (r.age > 40 && r.hop <= 0 && !hurt) this.react.delete(f.id);
+    }
+    const speed = Math.hypot(f.kbx, f.kby) / FX;
+    if (hurt && speed > TUMBLE_SPEED) {
+      v.tumble = (v.tumble ?? 0) + 1;
+      out.rot = f.facing * v.tumble * 0.35;
+      st.tumbleFrames++;
+    } else v.tumble = 0;
+    const was = this.prevGround.get(f.id) ?? 1;
+    this.prevGround.set(f.id, f.grounded);
+    if (hurt && !was && f.grounded && f.kby <= 0 && r) {
+      r.hop = 14;
+      st.bounces++;
+      st.dustBursts++;
+      this.burst(f.x * S, f.y * S + 0.02, 14, 0.07);
+      this.onSynth?.('thud');
+    }
+    if (f.action === ACT.ATTACK) {
+      const ch = CHARACTERS[f.char];
+      const m = ch.moves[f.move];
+      const w = m.hits[0];
+      const big = f.move === MOVE.FSMASH || f.move === MOVE.USMASH || f.move === MOVE.DSMASH;
+      if (w && (big || f.move >= MOVE.UPB)) {
+        if (big && f.frame < w.start) {
+          const g = f.frame / w.start;
+          const e = 1 + g * 0.5;
+          v.mat.emissiveColor.set(e, e, 1 + g);
+          out.dx += (f.frame & 1 ? 1 : -1) * 0.012 * g;
+          if (f.frame === 1) st.charges++;
+        }
+        if (this.gfx.quality === 'high' && f.frame >= w.start && f.frame < w.start + 3) {
+          this.smear(f, w.boxes[0], f.frame - w.start, big);
+          if (f.frame === w.start) st.smears++;
+          st.smearFrames++;
+          if (big) st.smashSmears++;
+        }
+      }
+    }
+    return out;
+  }
+
+  /** One of three streak frames along the swing, from the body to the active hitbox. */
+  private smear(f: Fighter, b: { x: number; y: number }, i: number, big: boolean): void {
+    const ch = CHARACTERS[f.char];
+    const k = f.scale / 100;
+    const hw = ch.height * W * k;
+    const bx = f.facing * b.x * W * k;
+    const by = b.y * W * k;
+    const cy = hw * 0.5;
+    const t = (i + 1) / 3;
+    const mesh = this.takeSpark(this.smokeMats.streak);
+    mesh.position.set(f.x * S + bx * t * 0.9, f.y * S + cy + (by - cy) * t, -0.37);
+    mesh.rotation.z = Math.atan2(by - cy, bx || f.facing);
+    this.sparks.push({ mesh, vx: 0, vy: 0, life: 3, max: 3, size: (big ? 0.55 : 0.4) * (0.6 + t * 0.6), stretch: 3, grow: 0 });
+  }
+
+  /** What the reaction layer has done, for the playtest. */
+  reactFxStats(reset = false) {
+    const out = { ...this.reactStats, quality: this.gfx.quality };
+    if (reset) for (const k of Object.keys(this.reactStats) as (keyof typeof this.reactStats)[]) this.reactStats[k] = 0;
+    return out;
   }
 
   private updateSparks(): void {
