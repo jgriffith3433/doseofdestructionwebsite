@@ -9,7 +9,7 @@ import { screen as trackScreen } from '../analytics.ts';
 import { startStinger } from './stinger.ts';
 
 export type ScreenId =
-  | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'tour' | 'howto' | 'results' | 'match' | 'leaderboard';
+  | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'tour' | 'extras' | 'howto' | 'results' | 'match' | 'leaderboard';
 
 const backHandlers = new Map<ScreenId, () => void>();
 /** A panel over the screen (Settings): Back closes it first. */

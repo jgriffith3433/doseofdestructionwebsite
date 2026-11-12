@@ -320,6 +320,16 @@
       ]
     },
     {
+      "id": "endings",
+      "title": "Endings: Extras shows 33 ending slots (open for cleared Tours), a tap replays a fighter's painted ending with its narrated line, sting and Tour complete card (phone: 844x390, the art fills the screen, captions fit, a tap skips)",
+      "description": "Setup shortcut: three Tours marked cleared in localStorage dod-tours (put back at the end). Main menu to Extras: one slot per fighter (endings-gallery: 33 slots, the open ones match the cleared Tours, no sideways scroll, 44 px targets on a phone), then a tap on the chosen fighter's slot replays the ending (ending): the 1920x1080 picture fills the window, caption one then caption two inside it and above the bottom edge, the narration take plays, the sting, the Tour complete card with the colour earned; a tap skips (ending-skip). Options: fighter (default exit-punk), all (replay every cleared one), input (touch), at (phone). Metrics endingSlots, endingsOpen, endingFits. The tour scenario checks the same ending after a cleared Tour.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "tour",
       "title": "Tour: pick a fighter, play their six-fight run (fights 1 and 2, then the rival), a Continue after a loss, the voiced ending with the closing card, the Tour marked cleared and still marked after a reload (phone: 390x844 touch)",
       "description": "Option fighter (default exit-punk). Main menu → Tour (tour-select: every fighter's tile, none cleared on a fresh save, no sideways scroll, 44 px targets and no overlap on a phone; metric tourSelectFits). Setup shortcut: the Continue or Quit panel is shown without losing a fight so a portrait phone can measure it (tour-choice-fit; metric tourChoiceFits). Picks the fighter's tile and plays fights 1 and 2 with the bot on the pad: each opens in the arena with the fight's card and the foe's recorded line (tour-scene) and checks the twist, stage and CPU level from content/tours.json (tour-fight), the CPU never easier. Setup shortcut: after fight 2 the run jumps to the last fight, the rival; the player stands still until knocked out (tour-lost: Continue or Quit, both ≥44 px and on screen), Continue replays that fight (tour-continue), then the bot wins. The ending plays the fighter's own recorded win line over the final KO under the closing card \"<Fighter> clears the Tour\" (tour-ending), the results show the banner and the KO highlights (tour-cleared; metric tourCleared), the Tour select marks the Tour cleared (tour-marked), and after a page reload the mark is still there (tour-mark-after-reload; metric tourMarkedAfterReload). On a portrait phone it checks the select and the panel in the portrait window and plays in the turned 844x390 frame, all by taps. The player's own dod-tours is put back.",

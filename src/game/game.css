@@ -1788,6 +1788,64 @@ body.pilot-boot .screen { visibility: hidden; }
   .win-quote .wq-typed, .win-quote .wq-rest { display: inline; }
 }
 
+/* -------------------------------------------------------------- endings (Tour ending overlay, Extras gallery) */
+.ending { position: fixed; inset: 0; z-index: 9000; background: #05060a; overflow: hidden; touch-action: manipulation; cursor: pointer; }
+.ending[hidden] { display: none; }
+.ending-art {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%;
+  transform-origin: 50% 50%; animation: ending-push linear forwards; opacity: 0; animation-name: ending-push, ending-fade;
+  animation-duration: var(--ending-ms, 13.6s), 0.9s; animation-timing-function: linear, ease-out; animation-fill-mode: forwards, forwards;
+}
+@keyframes ending-push { from { transform: scale(1); } to { transform: scale(1.13); } }
+@keyframes ending-fade { from { opacity: 0; } to { opacity: 1; } }
+.ending-shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.35) 28%, transparent 52%); pointer-events: none; }
+.ending-caption {
+  position: absolute; left: 50%; transform: translateX(-50%); width: min(92%, 900px); margin: 0; text-align: center;
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 34px); font-family: Oswald, sans-serif; text-transform: uppercase;
+  font-size: clamp(18px, 3.4vw, 34px); line-height: 1.15; letter-spacing: 0.04em; color: #fff; text-shadow: 0 2px 8px #000, 0 0 2px #000;
+  opacity: 0; pointer-events: none; overflow-wrap: anywhere;
+}
+.ending-caption.in { animation: ending-cap 0.5s ease-out forwards; }
+@keyframes ending-cap { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.ending-card {
+  position: absolute; left: 50%; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 34px); transform: translate(-50%, 10px); width: min(92%, 760px);
+  text-align: center; opacity: 0; pointer-events: none; transition: opacity 0.5s, transform 0.5s; display: grid; gap: 4px; justify-items: center;
+  padding: 10px 14px; background: rgba(8, 8, 14, 0.72); border: 2px solid var(--gold); border-radius: 10px;
+}
+.ending.carded .ending-card { opacity: 1; transform: translate(-50%, 0); }
+.ending-card .kicker { margin: 0; color: var(--gold); font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.14em; font-size: 14px; }
+.ending-card h2 { margin: 0; font-family: Oswald, sans-serif; text-transform: uppercase; font-size: clamp(22px, 4.6vw, 42px); line-height: 1.05; overflow-wrap: anywhere; }
+.ending-look { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.ending-swatch { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #fff; display: inline-block; }
+.ending-skip {
+  position: absolute; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); min-width: 64px; min-height: 44px; padding: 0 14px;
+  background: rgba(0, 0, 0, 0.55); color: #fff; border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 8px; font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.08em;
+}
+.extras-screen > .lede { max-width: 1280px; margin: 0 auto 14px; }
+.extras-screen .screen-head { max-width: 1280px; margin-inline: auto; }
+.ending-grid { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 12px; padding-bottom: 24px; }
+.ending-tile {
+  display: grid; gap: 6px; padding: 8px; text-align: left; color: inherit; font: inherit; background: var(--card); border: 2px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px; cursor: pointer; min-height: 44px; transition: transform 0.12s, border-color 0.12s;
+}
+.ending-tile.open { border-color: rgba(255, 207, 74, 0.5); }
+.ending-tile:hover:not(:disabled), .ending-tile:focus-visible { border-color: var(--hot); transform: translateY(-2px); outline: none; }
+.ending-tile:active:not(:disabled) { transform: scale(0.98); border-color: var(--gold); }
+.ending-tile.locked { cursor: not-allowed; opacity: 0.65; }
+.ending-thumb { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; background: #0b0c12; display: grid; place-items: center; }
+.locked-thumb img { height: 70%; width: auto; filter: brightness(0) drop-shadow(0 0 1px rgba(255, 255, 255, 0.4)); }
+.ending-tile strong { font-family: Oswald, sans-serif; font-size: 18px; text-transform: uppercase; overflow-wrap: anywhere; }
+.ending-status { font-style: normal; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); overflow-wrap: anywhere; }
+.ending-tile.locked .ending-status { color: var(--muted); }
+@media (max-height: 560px) {
+  .ending-caption, .ending-card { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 22px); }
+  .ending-caption { font-size: clamp(15px, 3vw, 22px); }
+  .ending-card { padding: 6px 12px; gap: 2px; }
+  .ending-card h2 { font-size: clamp(18px, 3.6vw, 26px); }
+  .ending-grid { grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr)); gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .ending-art { animation-name: ending-fade; animation-duration: 0.9s; } }
+
 /* ------------------------------------------------- finale takeover (campaign/takeover.ts, main.ts startTakeover) */
 /* The Orchestrator's picture-in-picture: top left, so it stays clear of Pause (top right), the timer and caption
    (top centre) and the stick and buttons (bottom). Small on a phone. */

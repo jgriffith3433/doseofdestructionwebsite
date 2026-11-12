@@ -32,6 +32,8 @@ import { DAILY_POOL, dailyEpisode, msToNext, objectiveLine, twistLine } from '..
 import { DAILY_KEY, dailyDate } from '../campaign/dailyStore.ts';
 import { castLine } from '../ui/daily.ts';
 import { TOURS, TOURS_KEY, TOUR_LENGTH, tourEnding, tourFor, tourIntro } from '../campaign/tour.ts';
+import { ENDINGS, ENDING_BEATS, endingFor, endingUnlocked } from '../campaign/endings.ts';
+import { endingShowing } from '../ui/ending.ts';
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
 import { PAIRS, pairFor } from '../campaign/intros.ts';
 import { PROMPTS, type TeachStep } from '../ui/teach.ts';
@@ -116,7 +118,7 @@ const CORE_CLIPS = ['idle', 'walk', 'jump', 'fall', 'land', 'hurt', 'shield'];
 
 const SCREEN_NAMES: Record<ScreenId, string> = {
   title: 'Title', main: 'Main Menu', select: 'Character Select', stages: 'Stage Select', versus: 'VS',
-  campaign: 'Campaign Map', tour: 'Tour Select', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
+  campaign: 'Campaign Map', tour: 'Tour Select', extras: 'Extras', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
 };
 
 /** The 13 fighters a new player meets in Season 1; the other 20 are the "newer" fighters (also each with its own four specials). */
@@ -173,6 +175,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'unlocks') await r.unlocksRun();
         else if (id === 'daily') await r.dailyRun();
         else if (id === 'tour') await r.tourScenario();
+        else if (id === 'endings') await r.endingsScenario();
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
@@ -3149,6 +3152,7 @@ class Run {
         if (!winAudio || !voices.includes(winAudio)) t.problem('bug', `the ending did not play ${name}'s recorded win line (${winAudio})`);
         t.event('tour-ending', `${e.card.title} · "${e.card.line}" · win line "${e.lines.join(' ')}" ${winAudio && voices.includes(winAudio) ? 'played' : 'NOT played'} over the final KO`);
       }
+      await this.watchEnding(fighterId, name, voices, true);
       await this.screen('results', 30000);
       const banner = this.q('#tour-cleared');
       if (!banner || !(banner.textContent ?? '').includes(`${name} clears the Tour`)) t.problem('bug', `the results show no "${name} clears the Tour" banner`);
@@ -3185,6 +3189,127 @@ class Run {
       window.removeEventListener('dod:tour', onTour);
       window.removeEventListener('dod:voice', onVoice);
       if (!reloading && !portrait) restore();
+    }
+  }
+
+  /**
+   * A Tour's painted ending (ui/ending.ts) on screen: the picture loaded at 1920x1080 and filling the window (cropped, not
+   * squeezed), caption one then caption two inside the window and clear of the bottom edge, the narration take played, the
+   * fighter's sting, the "Tour complete" card with the colour earned; then a tap (or the end) closes it.
+   */
+  private async watchEnding(fighterId: string, name: string, voices: string[], afterTour: boolean): Promise<void> {
+    const t = this.t;
+    const e = endingFor(fighterId);
+    if (!e) {
+      t.problem('bug', `no ending in content/endings.json for ${fighterId}`);
+      return;
+    }
+    const sting: string[] = [];
+    const onEnding = (ev: Event) => sting.push((ev as CustomEvent).detail.phase);
+    window.addEventListener('dod:ending', onEnding);
+    try {
+      await t.until(() => endingShowing(), 30000, 'the painted ending');
+      const t0 = performance.now();
+      const img = this.q('#ending-art') as HTMLImageElement | null;
+      if (!img) return void t.problem('bug', 'the ending has no picture');
+      await t.until(() => img.complete, 15000, 'the ending picture to load');
+      const loaded = img.naturalWidth >= 1900 && img.naturalHeight >= 1060;
+      if (!loaded) t.problem('bug', `${name}'s ending picture is ${img.naturalWidth}x${img.naturalHeight}, not 1920x1080 (${e.art})`);
+      const r = img.getBoundingClientRect();
+      const fills = r.width >= innerWidth - 1 && r.height >= innerHeight - 1 && getComputedStyle(img).objectFit === 'cover';
+      if (!fills) t.problem('bug', `the ending picture does not fill the window (${Math.round(r.width)}x${Math.round(r.height)} in ${innerWidth}x${innerHeight}, ${getComputedStyle(img).objectFit})`);
+      const seen: string[] = [];
+      let captionFits = true;
+      const skip = this.q('#ending-skip');
+      const card = () => this.q('#ending');
+      const until = performance.now() + 25000;
+      while (performance.now() < until && endingShowing() && !card()?.classList.contains('carded')) {
+        const cap = this.q('#ending-caption');
+        const text = cap?.textContent ?? '';
+        if (cap && text && getComputedStyle(cap).opacity !== '0') {
+          if (!seen.includes(text)) seen.push(text);
+          const c = cap.getBoundingClientRect();
+          if (c.left < 0 || c.right > innerWidth || c.top < 0 || c.bottom > innerHeight - 8) captionFits = false;
+          const s = skip?.getBoundingClientRect();
+          if (s && c.right > s.left && c.left < s.right && c.bottom > s.top && c.top < s.bottom) captionFits = false;
+        }
+        await this.wait(100);
+      }
+      if (!captionFits) t.problem('bug', `the ending's caption runs outside the window or under the Skip button at ${innerWidth}x${innerHeight}`);
+      if (seen.length < 2 || seen[0] !== e.lines[0] || seen[1] !== e.lines[1]) t.problem('bug', `the ending showed captions ${JSON.stringify(seen)}, expected ${JSON.stringify(e.lines)}`);
+      const voiced = !!e.audio && voices.includes(e.audio);
+      if (!voiced) t.problem('bug', `${name}'s ending did not play the narration take (${e.audio})`);
+      const cardEl = this.q('#ending-card');
+      const cardText = cardEl?.textContent ?? '';
+      const cardOk = !!cardEl && cardText.includes(afterTour ? 'Tour complete' : 'Ending') && cardText.includes(name) && cardText.includes('Colour earned') && !!cardEl.querySelector('.ending-swatch');
+      if (!cardOk) t.problem('bug', `the ending's closing card reads "${cardText}"`);
+      const cr = cardEl?.getBoundingClientRect();
+      if (cr && (cr.left < 0 || cr.right > innerWidth || cr.bottom > innerHeight - 8 || cr.top < 0)) t.problem('bug', `the ending's closing card runs outside the window at ${innerWidth}x${innerHeight}`);
+      const ms = performance.now() - t0;
+      const wantMs = ENDING_BEATS.card - ENDING_BEATS.caption1;
+      t.event('ending', `${name}: ${loaded ? '1920x1080' : 'bad'} picture ${fills ? 'fills' : 'does not fill'} ${innerWidth}x${innerHeight}; captions ${JSON.stringify(seen)} ${captionFits ? 'fit' : 'DO NOT fit'}; narration ${voiced ? 'played' : 'NOT played'}; ${sting.includes('sting') ? 'sting' : 'no sting'}; card "${cardText.replace(/\\s+/g, ' ').trim()}" after ${Math.round(ms)} ms (beats ${wantMs} ms)`);
+      t.metric('endingFits', loaded && fills && captionFits && cardOk ? 1 : 0);
+      // A tap skips (a finger on a phone).
+      await this.tap(() => this.q('#ending'), 'the ending (a tap skips)');
+      await t.until(() => !endingShowing(), 3000, 'the ending to close on a tap');
+      t.event('ending-skip', `a tap closed ${name}'s ending after ${Math.round(performance.now() - t0)} ms`);
+    } finally {
+      window.removeEventListener('dod:ending', onEnding);
+    }
+  }
+
+  /**
+   * Endings (campaign/endings.ts, ui/extras.ts, ui/ending.ts): setup shortcut marks Tours cleared (`dod-tours`, put back at the
+   * end); Extras from the main menu shows one slot per fighter (33), open ones for the cleared Tours and locked the rest
+   * (`endings-gallery`); a tap on an open slot replays that fighter's ending (`ending`). On a phone everything is a tap.
+   */
+  async endingsScenario(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    this.logViewport(touch && this.isPhone());
+    const ids = ['exit-punk', 'blog-man', 'kaelen'];
+    const fighterId = typeof this.options.fighter === 'string' ? this.options.fighter : 'exit-punk';
+    if (!ids.includes(fighterId)) ids.push(fighterId);
+    const original = localStorage.getItem(TOURS_KEY);
+    const voices: string[] = [];
+    const onVoice = (e: Event) => voices.push((e as CustomEvent).detail.url);
+    window.addEventListener('dod:voice', onVoice);
+    try {
+      localStorage.setItem(TOURS_KEY, JSON.stringify(ids));
+      this.useTap = touch;
+      await this.tapToPlay();
+      await this.click(() => this.q('#btn-extras'), 'Extras');
+      await this.screen('extras');
+      await t.until(() => document.querySelectorAll('#ending-grid .ending-tile').length > 0, 5000, 'the ending slots');
+      const tiles = [...document.querySelectorAll<HTMLButtonElement>('#ending-grid .ending-tile')];
+      const open = tiles.filter((x) => x.dataset.unlocked === '1');
+      const cleared = new Set(ids);
+      const want = ENDINGS.filter((e) => endingUnlocked(e.fighter, cleared)).length;
+      const sideways = document.documentElement.scrollWidth > innerWidth + 1;
+      const small = touch ? this.phoneTargets(this.q('#extras')!) : [];
+      if (tiles.length !== 33) t.problem('bug', `the Endings gallery shows ${tiles.length} slots, not 33`);
+      if (open.length !== want) t.problem('bug', `${open.length} endings are open, expected ${want} for ${ids.length} cleared Tours`);
+      if (sideways) t.problem('bug', `Extras scrolls sideways at ${innerWidth}x${innerHeight}`);
+      if (small.length) t.problem('bug', `Extras: ${small.join('; ')}`);
+      t.event('endings-gallery', `${tiles.length} slots, ${open.length} open (${ids.join(', ')} cleared), ${sideways ? 'scrolls sideways' : 'fits'} at ${innerWidth}x${innerHeight}`);
+      t.metric('endingSlots', tiles.length);
+      t.metric('endingsOpen', open.length);
+      const broken = open.filter((x) => { const im = x.querySelector('img'); return im && im.complete && im.naturalWidth === 0; });
+      if (broken.length) t.problem('bug', `${broken.length} open slot picture(s) did not load`);
+      for (const id of [fighterId, ...(this.options.all ? ids.filter((x) => x !== fighterId) : [])]) {
+        const name = CHARACTERS.find((c) => c.id === id)?.name ?? id;
+        voices.length = 0;
+        await this.click(() => this.q(`#ending-grid [data-ending="${id}"]`), `${name}'s ending`);
+        await this.watchEnding(id, name, voices, false);
+      }
+      const locked = this.q('#ending-grid .ending-tile.locked') as HTMLButtonElement | null;
+      if (locked && !locked.disabled) t.problem('bug', 'a locked ending slot can be pressed');
+      t.finish('done');
+    } finally {
+      window.removeEventListener('dod:voice', onVoice);
+      this.useTap = false;
+      if (original === null) localStorage.removeItem(TOURS_KEY);
+      else localStorage.setItem(TOURS_KEY, original);
     }
   }
 

@@ -50,6 +50,9 @@ import { DAILY_POOL, dailyEpisode, dailyScore, dailySetup, liveStreak, msToNext,
 import { dailyDate, loadDaily, saveDaily } from './campaign/dailyStore.ts';
 import { fillBoard, renderDailyCard, renderDailyResults, setCountdown } from './ui/daily.ts';
 import { TOURS, TOUR_LENGTH, loadTours, tourFor, markTourCleared, tourEnding, tourIntro, tourSetup, type Tour } from './campaign/tour.ts';
+import { ENDINGS as TOUR_ENDINGS, endingFor, type Ending } from './campaign/endings.ts';
+import { playEnding } from './ui/ending.ts';
+import { renderEndings } from './ui/extras.ts';
 import { renderTourChoice, renderTourSelect, tourBanner } from './ui/tour.ts';
 import { VOICE } from './audio.ts';
 import { clearWinQuote, pickWinQuote, type WinQuote } from './winQuote.ts';
@@ -153,6 +156,7 @@ function wireMenus(): void {
       if (to === 'online' || to === 'profile') analytics.feature(to === 'online' ? 'find_match' : 'profile_open');
       if (to === 'campaign') openCampaignScreen();
       else if (to === 'tour') openTourScreen();
+      else if (to === 'extras') openExtras();
       else if (to === 'versus') openVersus();
       else if (to === 'training') openTraining();
       else if (to === 'howto') startHowToPlay();
@@ -171,6 +175,7 @@ function wireMenus(): void {
   onBack('stages', () => (lastSelect === 'training' ? openTraining() : openVersus()));
   onBack('campaign', () => go('main', spotlight));
   onBack('tour', () => go('main', spotlight));
+  onBack('extras', () => go('main', spotlight));
   onBack('howto', () => go('main', spotlight));
   wirePilot();
   onBack('leaderboard', () => go('main', spotlight));
@@ -694,6 +699,14 @@ function openTourScreen(): Promise<void> {
   });
 }
 
+/** Extras: the Endings gallery; a tap on an open slot replays that ending. */
+function openExtras(): Promise<void> {
+  return go('extras', () => {
+    renderEndings(loadTours(), (e: Ending) => void playEnding(e, { replay: true }));
+    window.dispatchEvent(new CustomEvent('dod:ending', { detail: { phase: 'gallery', slots: TOUR_ENDINGS.length, cleared: [...loadTours()] } }));
+  });
+}
+
 function playTour(tour: Tour): void {
   tourRun = { tour, index: 0, setup: tourSetup(tour, 0), continues: 0 };
   analytics.setMode('campaign');
@@ -754,6 +767,12 @@ async function tourFinish(m: Match, won: boolean): Promise<void> {
   await audio.preloadUrls(tourAudio(r.tour, r.index));
   if (match !== m) return;
   await runScene(m, { tour: { ...tourEnding(r.tour, voiceLine), id: `tour.${r.tour.fighter}.ending` }, which: 'outro' });
+  // Then the fighter's own painted ending: the picture, the narrated line, the sting and "Tour complete".
+  const ending = endingFor(r.tour.fighter);
+  if (match === m && ending) {
+    await audio.preloadUrls([ending.audio]);
+    await playEnding(ending);
+  }
   if (match === m) showFinish(m, true, null);
 }
 
@@ -1586,7 +1605,7 @@ function wireSettings(): void {
 }
 
 // Menus play the menu loop; matches pick their stage's loop when they start.
-const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'tour', 'howto', 'leaderboard']);
+const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'tour', 'extras', 'howto', 'leaderboard']);
 setInterval(() => {
   const s = currentScreen();
   if (s && MENU_SCREENS.has(s)) audio.playMusic('music-menu');

@@ -6554,5 +6554,337 @@
         }
       }
     }
+  },
+  "endings": {
+    "ball-person": {
+      "id": "ending.ball-person",
+      "text": "Ball Person scores once more, in an empty net.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.ball-person.mp3",
+      "take": {
+        "text": "Ball Person scores once more, in an empty net.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "blog-man": {
+      "id": "ending.blog-man",
+      "text": "Blog Man writes the headline. It is about him.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.blog-man.mp3",
+      "take": {
+        "text": "Blog Man writes the headline. It is about him.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "break": {
+      "id": "ending.break",
+      "text": "Break never fell. Rule one still holds.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.break.mp3",
+      "take": {
+        "text": "Break never fell. Rule one still holds.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "cel": {
+      "id": "ending.cel",
+      "text": "Cel lands last, and drawn best.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.cel.mp3",
+      "take": {
+        "text": "Cel lands last, and drawn best.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "chooser": {
+      "id": "ending.chooser",
+      "text": "Chooser picks the seventh. Nobody saw it.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.chooser.mp3",
+      "take": {
+        "text": "Chooser picks the seventh. Nobody saw it.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "crosser": {
+      "id": "ending.crosser",
+      "text": "Crosser remembers every one who crossed him.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.crosser.mp3",
+      "take": {
+        "text": "Crosser remembers every one who crossed him.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "crystalline-intelligences": {
+      "id": "ending.crystalline-intelligences",
+      "text": "Probability of another fight: zero point zero.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.crystalline-intelligences.mp3",
+      "take": {
+        "text": "Probability of another fight: zero point zero.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "dj-wont-read": {
+      "id": "ending.dj-wont-read",
+      "text": "DJ Won't Read drops it. Won't read the reviews.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.dj-wont-read.mp3",
+      "take": {
+        "text": "DJ Won't Read drops it. Won't read the reviews.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "evil-blue-bird": {
+      "id": "ending.evil-blue-bird",
+      "text": "Evil Blue Bird tweets. The network listens.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.evil-blue-bird.mp3",
+      "take": {
+        "text": "Evil Blue Bird tweets. The network listens.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "exit-punk": {
+      "id": "ending.exit-punk",
+      "text": "Exit Punk finds the door. It was never locked.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.exit-punk.mp3",
+      "take": {
+        "text": "Exit Punk finds the door. It was never locked.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "future-man": {
+      "id": "ending.future-man",
+      "text": "Future Man was right again. Spoilers withheld.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.future-man.mp3",
+      "take": {
+        "text": "Future Man was right again. Spoilers withheld.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "got-ur-back": {
+      "id": "ending.got-ur-back",
+      "text": "Got Ur Back keeps his word. Nobody got past.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.got-ur-back.mp3",
+      "take": {
+        "text": "Got Ur Back keeps his word. Nobody got past.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "kaelen": {
+      "id": "ending.kaelen",
+      "text": "Kaelen was gone before the cameras turned.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.kaelen.mp3",
+      "take": {
+        "text": "Kaelen was gone before the cameras turned.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "lapis-man": {
+      "id": "ending.lapis-man",
+      "text": "Lapis Man walks it slowly. Respect, earned.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.lapis-man.mp3",
+      "take": {
+        "text": "Lapis Man walks it slowly. Respect, earned.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "not-an-old-man-yet": {
+      "id": "ending.not-an-old-man-yet",
+      "text": "Not an Old Man Yet. Still not yet.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.not-an-old-man-yet.mp3",
+      "take": {
+        "text": "Not an Old Man Yet. Still not yet.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "orchestrator": {
+      "id": "ending.orchestrator",
+      "text": "The Orchestrator raises the baton. The show goes on.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.orchestrator.mp3",
+      "take": {
+        "text": "The Orchestrator raises the baton. The show goes on.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "pyro-singer": {
+      "id": "ending.pyro-singer",
+      "text": "Pyro Singer opens and closes the night.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.pyro-singer.mp3",
+      "take": {
+        "text": "Pyro Singer opens and closes the night.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "shark-dude": {
+      "id": "ending.shark-dude",
+      "text": "Shark Dude bites. The belt isn't a belt.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.shark-dude.mp3",
+      "take": {
+        "text": "Shark Dude bites. The belt isn't a belt.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "shutup-bot": {
+      "id": "ending.shutup-bot",
+      "text": "Shutup Bot says nothing. It is a very loud nothing.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.shutup-bot.mp3",
+      "take": {
+        "text": "Shutup Bot says nothing. It is a very loud nothing.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "slice": {
+      "id": "ending.slice",
+      "text": "Slice sheathes the blade. Clean, as promised.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.slice.mp3",
+      "take": {
+        "text": "Slice sheathes the blade. Clean, as promised.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "slow-rider": {
+      "id": "ending.slow-rider",
+      "text": "Slow Rider takes the long way. No rush.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.slow-rider.mp3",
+      "take": {
+        "text": "Slow Rider takes the long way. No rush.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "small-weather": {
+      "id": "ending.small-weather",
+      "text": "Small Weather's forecast: clear skies, for a minute.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.small-weather.mp3",
+      "take": {
+        "text": "Small Weather's forecast: clear skies, for a minute.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "spider-bot": {
+      "id": "ending.spider-bot",
+      "text": "Spider Bot spins the finale. The net holds.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.spider-bot.mp3",
+      "take": {
+        "text": "Spider Bot spins the finale. The net holds.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "ss-boulder": {
+      "id": "ending.ss-boulder",
+      "text": "SS Boulder wins. The boulder always wins.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.ss-boulder.mp3",
+      "take": {
+        "text": "SS Boulder wins. The boulder always wins.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "stratabots": {
+      "id": "ending.stratabots",
+      "text": "Stratabots stands. Opponents cracked.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.stratabots.mp3",
+      "take": {
+        "text": "Stratabots stands. Opponents cracked.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "susan": {
+      "id": "ending.susan",
+      "text": "Susan prefers the dark. Stay in it.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.susan.mp3",
+      "take": {
+        "text": "Susan prefers the dark. Stay in it.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "the-mechanic": {
+      "id": "ending.the-mechanic",
+      "text": "The Mechanic tightens the last bolt. Show's over.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.the-mechanic.mp3",
+      "take": {
+        "text": "The Mechanic tightens the last bolt. Show's over.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "try-belt": {
+      "id": "ending.try-belt",
+      "text": "Try Belt tried. Twice. It counted.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.try-belt.mp3",
+      "take": {
+        "text": "Try Belt tried. Twice. It counted.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "tt": {
+      "id": "ending.tt",
+      "text": "TT finishes the match, then the chapter.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.tt.mp3",
+      "take": {
+        "text": "TT finishes the match, then the chapter.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "uh-me": {
+      "id": "ending.uh-me",
+      "text": "Uh Me. Done. Home by midnight.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.uh-me.mp3",
+      "take": {
+        "text": "Uh Me. Done. Home by midnight.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "wallit": {
+      "id": "ending.wallit",
+      "text": "Wallit clears the card, and the bill.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.wallit.mp3",
+      "take": {
+        "text": "Wallit clears the card, and the bill.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "yo-bot": {
+      "id": "ending.yo-bot",
+      "text": "Yo Bot: upload complete. Please clap.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.yo-bot.mp3",
+      "take": {
+        "text": "Yo Bot: upload complete. Please clap.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    "yooba": {
+      "id": "ending.yooba",
+      "text": "Yooba yooba. The mouth has the last word.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17",
+      "audio": "/audio/voice/ending.yooba.mp3",
+      "take": {
+        "text": "Yooba yooba. The mouth has the last word.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    }
   }
 }
