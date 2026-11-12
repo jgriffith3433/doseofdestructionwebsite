@@ -5,6 +5,7 @@
 import { playSynth, startBed, type BedKind, type SynthKind } from './synth.ts';
 import soundsJson from '../../content/sounds.json' with { type: 'json' };
 import voiceJson from '../../content/voice.json' with { type: 'json' };
+import { winQuoteLines, type FighterQuotes } from './winQuote.ts';
 import {
   fightersNeedIntense,
   stageBedGaps,
@@ -114,6 +115,8 @@ export interface VoiceCatalog {
   /** Who each speaker is cast as, and why, for devtools. */
   cast?: Record<string, { voice: string; about: string; why: string }>;
   lines: VoiceLine[];
+  /** Win quotes per fighter (winQuote.ts, tools/win-quotes.mjs). */
+  winQuotes?: Record<string, FighterQuotes>;
 }
 
 export const SOUNDS = soundsJson as SoundEntry[];
@@ -157,7 +160,7 @@ class AudioSystem {
   /** Downloaded but not yet decoded (decoding needs the AudioContext, which waits for a click). */
   private raw = new Map<string, Promise<ArrayBuffer | null>>();
   private soundById = new Map(SOUNDS.map((s) => [s.id, s]));
-  private lineById = new Map(VOICE.lines.map((l) => [l.id, l]));
+  private lineById = new Map([...VOICE.lines, ...winQuoteLines(VOICE)].map((l) => [l.id, l]));
   private music: LoopVoice | null = null;
   private wantMusic: string | null = null;
   private speech: AudioBufferSourceNode | null = null;
@@ -511,7 +514,7 @@ class AudioSystem {
       urls.push(s.file);
       if (s.takes) for (const t of s.takes) urls.push(t.file);
     }
-    for (const l of VOICE.lines) {
+    for (const l of this.lineById.values()) {
       if (l.audio && who.has(l.who)) urls.push(l.audio);
     }
     const all = Promise.all([...new Set(urls)].map((u) => (this.ctx ? this.buffer(u) : this.download(u))));

@@ -47,6 +47,16 @@
       ]
     },
     {
+      "id": "win-quote",
+      "title": "Win quotes: the winner says a voiced, typed-on quote on the results screen, the matchup quote against a story rival, never the same quote twice in a row, phone landscape fit",
+      "description": "Versus 1v1 between two story rivals (options fighter / foe, default exit-punk vs kaelen), played twice with Rematch. Each results screen must play the winner's recorded quote (quote-voice) with a typed-on caption of the same words (quote-caption), the matchup quote when the loser is the winner's rival (quote-matchup), never the quote that fighter played last (quote-repeat), and at 844x390 (a 390x844 touch phone turned to landscape, every tap a touch pointer event) the caption fits in two lines inside the screen with the Rematch button visible and uncovered (quote-fit, quote-rematch). Metric winQuotes.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "sound"
+      ]
+    },
+    {
       "id": "intro-exchange",
       "title": "Pre-fight exchange: two rivals trade a voiced jab before the fight, the camera on each speaker, 6 s at most, any tap skips it (phone 844x390: caption in two lines)",
       "description": "Options fighter / foe (default exit-punk vs kaelen, a listed pair in content/intros.json). Checks the data (32 pairs, two voiced lines each, files present), then a Versus match: a tap skips the exchange once its first line shows (exchange-skip, within 300 ms), the caption fits the window in at most two lines (exchange-caption), then the same fight again plays out: both lines voiced with the camera on each speaker, the listener's taunt, at most 6 s (exchange-lines, exchangeMs). On a 390x844 touch phone it turns to 844x390 and presses by touch. Events exchange-start / -line / -taunt / -end; metrics exchangeMs, exchangeSkipMs, exchangeCaptionLines, exchangePairs.",

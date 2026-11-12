@@ -51,6 +51,7 @@ import { fillBoard, renderDailyCard, renderDailyResults, setCountdown } from './
 import { TOURS, TOUR_LENGTH, loadTours, tourFor, markTourCleared, tourEnding, tourIntro, tourSetup, type Tour } from './campaign/tour.ts';
 import { renderTourChoice, renderTourSelect, tourBanner } from './ui/tour.ts';
 import { VOICE } from './audio.ts';
+import { clearWinQuote, pickWinQuote, type WinQuote } from './winQuote.ts';
 import { PILOT_CHAPTER, PILOT_KAELEN, isFirstVisit, markPilotSeen, pilotState } from './campaign/firstVisit.ts';
 
 const TICK_MS = 1000 / 60;
@@ -730,9 +731,7 @@ async function tourFinish(m: Match, won: boolean): Promise<void> {
   const last = r.index >= r.tour.fights.length - 1;
   if (!won) {
     analytics.tour('lost', { fighter: r.tour.fighter, fight: r.index + 1 });
-    // The foe gloats over the Continue or Quit choice, in their own recorded win line.
-    const gloat = r.tour.fights[r.index].foes[0];
-    window.setTimeout(() => audio.line(`fighter.${gloat}.win`), 1200);
+    // The foe gloats over the Continue or Quit choice: the results' win quote (showFinish) is their line.
     tourEvent('lost', { fighter: r.tour.fighter, fight: r.index + 1 });
     showFinish(m, false, null);
     return;
@@ -1537,6 +1536,30 @@ function creditWins(m: Match, winners: number[]): string[] {
   return out;
 }
 
+/**
+ * Picks the winner's quote for this match (winQuote.ts) and tells the playtest (`dod:win-quote`). `ending` is a Tour's last win,
+ * whose own win line already played over the final KO: that line is the quote.
+ */
+function announceWinQuote(m: Match, winnerSlot: number, ending: boolean): WinQuote | null {
+  const w = m.state.fighters[winnerSlot];
+  clearWinQuote();
+  if (!w) return null;
+  const winner = CHARACTERS[w.char].id;
+  const team = m.state.winnerTeam >= 0 ? m.state.fighters.filter((f) => f.team === m.state.winnerTeam).map((f) => f.id) : [winnerSlot];
+  const losers = m.state.fighters.filter((f) => !team.includes(f.id)).map((f) => CHARACTERS[f.char].id);
+  const q = pickWinQuote(VOICE, winner, losers, Math.random, ending ? `fighter.${winner}.win` : undefined);
+  window.dispatchEvent(new CustomEvent('dod:win-quote', { detail: { id: q.id, text: q.text, audio: q.audio, kind: q.kind, winner: q.winner, loser: q.loser, losers } }));
+  return q;
+}
+
+/** Plays the quote's take as the results settle in (900 ms after the screen); a quote with no take is only the caption. */
+function playWinQuote(q: WinQuote): void {
+  setTimeout(() => {
+    audio.line(q.id);
+    window.dispatchEvent(new CustomEvent('dod:win-quote-play', { detail: { id: q.id, audio: q.audio } }));
+  }, 900);
+}
+
 /** The slots that won a finished match (a team's, or the single winner). */
 function winningSlots(m: Match): number[] {
   const s = m.state;
@@ -1574,6 +1597,8 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
     actions.push({ label: 'Change fighters', run: () => openVersus() });
     actions.push({ label: 'Main menu', run: () => go('main', spotlight) });
   }
+  // The winner's quote, picked before the screen opens so the caption and the voice are the same line.
+  const quote = announceWinQuote(m, m.state.winner, tourRun?.setup === m.setup && won);
   void go('results', () => {
     endMatch();
     if (tourRun?.setup === m.setup && !won) {
@@ -1584,9 +1609,8 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
     if (dailyRun?.setup === m.setup && m.setup.mode === 'campaign') dailyFinished(m, dailyRun.ep, won);
     audio.playMusic('music-results');
   }).then(() => askOnResults(m));
-  const winner = m.state.fighters[m.state.winner];
   // The Tour's closing win line already played over the final KO.
-  if (winner && !(tourRun?.setup === m.setup && won)) setTimeout(() => audio.line(`fighter.${CHARACTERS[winner.char].id}.win`), 900);
+  if (quote && !(tourRun?.setup === m.setup && won)) playWinQuote(quote);
   syncPad();
 }
 
@@ -1670,6 +1694,8 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
     { label: 'Main menu', run: () => go('main', spotlight) },
   ];
   const newLooks = won && !voided ? creditWins(m, [f.slot]) : [];
+  clearWinQuote();
+  const quote = voided ? null : announceWinQuote(m, end.winner, false);
   await go('results', () => {
     endMatch();
     showResults(m, actions, { ...ending, winner: end.winner >= 0 ? end.winner : undefined }, newLooks);
@@ -1677,8 +1703,7 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
     audio.playMusic('music-results');
   });
   if (!voided) askOnResults(m);
-  const winner = m.state.fighters[end.winner];
-  if (winner) setTimeout(() => audio.line(`fighter.${CHARACTERS[winner.char].id}.win`), 900);
+  if (quote) playWinQuote(quote);
   syncPad();
 }
 

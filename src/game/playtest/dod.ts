@@ -204,6 +204,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'stage-bed') await r.stageBed();
         else if (id === 'commentary') await r.commentary();
         else if (id === 'fighter-voice') await r.fighterVoice();
+        else if (id === 'win-quote') await r.winQuoteRun();
         else if (id === 'intro-exchange') await r.introExchange();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
@@ -6547,6 +6548,105 @@ class Run {
       unlocks().clear();
       for (const id of savedUnlocks) unlocks().add(id);
       saveUnlocks(unlocks());
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  /**
+   * Win quotes (content/voice.json winQuotes, winQuote.ts, ui/quoteCaption.ts): a Versus 1v1 between two story rivals
+   * (options fighter / foe, default Exit Punk vs Kaelen), played twice (Rematch). On each results screen the winner's quote
+   * must play as a recorded take (`dod:win-quote-play`) with a typed-on caption of the same words (`quote-caption`), the
+   * matchup quote when the loser is the winner's rival (`quote-matchup`), never the quote the same fighter played last
+   * (`quote-repeat`), and at 844x390 the caption fits in two lines inside the screen with Rematch visible and uncovered
+   * (`quote-fit`, `quote-rematch`). On a phone every tap is a touch pointer event. Events `quote-voice`, `quote-caption`,
+   * `quote-matchup`, `quote-repeat`, `quote-fit`, `quote-rematch`; metric `winQuotes`.
+   */
+  async winQuoteRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('win-quote');
+    }
+    this.logViewport(touch && this.isPhone());
+    if (typeof this.options.fighter !== 'string') this.options.fighter = 'exit-punk';
+    if (typeof this.options.foe !== 'string') this.options.foe = 'kaelen';
+    type Q = { id: string; text: string; audio: string | null; kind: string; winner: string; loser: string | null; losers: string[] };
+    const picks: Q[] = [];
+    const played: string[] = [];
+    const typed: string[] = [];
+    const onPick = (e: Event) => picks.push((e as CustomEvent).detail as Q);
+    const onPlay = (e: Event) => played.push(String((e as CustomEvent).detail?.id));
+    const onTyped = (e: Event) => typed.push(String((e as CustomEvent).detail?.id));
+    window.addEventListener('dod:win-quote', onPick);
+    window.addEventListener('dod:win-quote-play', onPlay);
+    window.addEventListener('dod:win-quote-typed', onTyped);
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const lastBy = new Map<string, string>();
+    try {
+      await this.toMainMenu();
+      await this.startVersus(1);
+      for (let round = 1; round <= 2; round++) {
+        t.progress(0.1 + 0.4 * (round - 1));
+        await this.fight(() => false, 6 * 60 * 1000);
+        await this.screen('results', 30000);
+        const q = picks[picks.length - 1];
+        if (!q) {
+          t.problem('bug', `round ${round}: the results screen had no win quote`);
+          break;
+        }
+        // The caption: typed on, then the whole line.
+        await t.until(() => typed.includes(q.id) || !!this.q('#results-body .win-quote[data-state="done"]'), 8000, 'the quote caption to finish typing').catch(() => null);
+        const cap = this.q('#results-body .win-quote');
+        const words = cap?.getAttribute('aria-label') ?? '';
+        if (!cap || words !== q.text || !cap.textContent?.includes(q.text)) t.problem('bug', `round ${round}: the results caption "${cap?.textContent ?? ''}" is not the quote "${q.text}"`);
+        else t.event('quote-caption', `round ${round}: ${q.winner} says "${q.text}" (${q.kind}, ${q.id}), caption typed on`);
+        // Voiced: a played take whose file is there.
+        await t.until(() => played.includes(q.id), 3000, 'the quote to play').catch(() => null);
+        if (!q.audio) t.problem('bug', `round ${round}: "${q.id}" has no recorded take (voice file not made yet)`);
+        else if (!played.includes(q.id)) t.problem('bug', `round ${round}: "${q.id}" did not play on the results screen`);
+        else if (!(await exists(q.audio))) t.problem('bug', `round ${round}: voice file missing (404): ${q.audio}`);
+        else t.event('quote-voice', `round ${round}: ${q.id} played from ${q.audio}`);
+        // The matchup quote when the loser is the winner's rival; never the previous quote.
+        const rivalQuote = VOICE.winQuotes?.[q.winner]?.vs[q.losers[0]];
+        const prev = lastBy.get(q.winner);
+        if (rivalQuote && rivalQuote.id !== prev) {
+          if (q.kind !== 'rival' || q.id !== rivalQuote.id) t.problem('bug', `round ${round}: ${q.winner} beat their rival ${q.losers[0]} but said ${q.id}, not ${rivalQuote.id}`);
+          else t.event('quote-matchup', `round ${round}: ${q.winner} beat rival ${q.losers[0]} with the matchup quote`);
+        }
+        if (prev === q.id) t.problem('bug', `round ${round}: ${q.winner} said ${q.id} twice in a row`);
+        else if (prev) t.event('quote-repeat', `round ${round}: ${q.winner} said ${q.id}, last time ${prev}: no repeat`);
+        lastBy.set(q.winner, q.id);
+        // Fit: two lines at most, inside the screen, Rematch visible and not under the caption.
+        const lh = parseFloat(getComputedStyle(cap!).lineHeight) || parseFloat(getComputedStyle(cap!).fontSize) * 1.25;
+        const box = cap!.getBoundingClientRect();
+        const lines = Math.round(box.height / lh);
+        const rematch = this.button('#results-actions', 'Rematch') ?? this.button('#results-actions', 'Main menu');
+        const rb = rematch?.getBoundingClientRect();
+        const inside = box.left >= 0 && box.right <= innerWidth + 1 && box.top >= 0 && box.bottom <= innerHeight + 1;
+        if (lines > 2) t.problem('bug', `round ${round}: the quote caption runs ${lines} lines at ${innerWidth}x${innerHeight} (two at most)`);
+        else if (!inside) t.problem('bug', `round ${round}: the quote caption is not inside the screen at ${innerWidth}x${innerHeight}`);
+        else t.event('quote-fit', `round ${round}: caption ${lines} line(s), ${Math.round(box.width)}x${Math.round(box.height)} px at ${innerWidth}x${innerHeight}`);
+        if (!rb || rb.width < 44 || rb.height < 44 || rb.bottom > innerHeight + 1 || rb.right > innerWidth + 1 || rb.top < 0) t.problem('bug', `round ${round}: Rematch is not fully on screen at ${innerWidth}x${innerHeight}`);
+        else if (rb.top < box.bottom && rb.bottom > box.top && rb.left < box.right && rb.right > box.left) t.problem('bug', `round ${round}: the quote caption covers Rematch`);
+        else t.event('quote-rematch', `round ${round}: Rematch visible at ${Math.round(rb.left)},${Math.round(rb.top)} ${Math.round(rb.width)}x${Math.round(rb.height)}, clear of the caption`);
+        this.checkClipping('results with quote', this.q('#results'));
+        if (round < 2) await this.click(() => this.button('#results-actions', 'Rematch'), 'Rematch');
+      }
+      t.metric('winQuotes', picks.length);
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu').catch(() => null);
+    } finally {
+      window.removeEventListener('dod:win-quote', onPick);
+      window.removeEventListener('dod:win-quote-play', onPlay);
+      window.removeEventListener('dod:win-quote-typed', onTyped);
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
     }
     t.progress(1);
     t.finish('done');

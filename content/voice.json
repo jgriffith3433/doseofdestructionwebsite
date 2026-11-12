@@ -5152,5 +5152,592 @@
         "voice": "FGY2WhTYpPnrIDTdsKH5"
       }
     }
-  ]
+  ],
+  "winQuotes": {
+    "ball-person": {
+      "general": [
+        {
+          "id": "winquote.ball-person.1",
+          "text": "Game, set, match. Fetch your own ball."
+        }
+      ],
+      "vs": {
+        "chooser": {
+          "id": "winquote.ball-person.vs.chooser",
+          "text": "Round, small, bouncy. Still kicked."
+        }
+      }
+    },
+    "blog-man": {
+      "general": [
+        {
+          "id": "winquote.blog-man.1",
+          "text": "Read all about it. Spoiler: you lose."
+        }
+      ],
+      "vs": {
+        "future-man": {
+          "id": "winquote.blog-man.vs.future-man",
+          "text": "Headline: Spoiler Loses To Blog Man."
+        },
+        "yo-bot": {
+          "id": "winquote.blog-man.vs.yo-bot",
+          "text": "Laptop Loses To Man With Better Headlines."
+        },
+        "orchestrator": {
+          "id": "winquote.blog-man.vs.orchestrator",
+          "text": "Front page: Maestro Misses The Finale."
+        }
+      }
+    },
+    "break": {
+      "general": [
+        {
+          "id": "winquote.break.1",
+          "text": "I don't fall. You did."
+        }
+      ],
+      "vs": {
+        "exit-punk": {
+          "id": "winquote.break.vs.exit-punk",
+          "text": "Rule one, kid. I don't fall."
+        },
+        "ss-boulder": {
+          "id": "winquote.break.vs.ss-boulder",
+          "text": "Everyone's on the floor. Not me."
+        }
+      }
+    },
+    "cel": {
+      "general": [
+        {
+          "id": "winquote.cel.1",
+          "text": "Gravity's for people who stop jumping."
+        }
+      ],
+      "vs": {
+        "exit-punk": {
+          "id": "winquote.cel.vs.exit-punk",
+          "text": "Four jumps. Zero floors. Still winning."
+        }
+      }
+    },
+    "chooser": {
+      "general": [
+        {
+          "id": "winquote.chooser.1",
+          "text": "You had options. You chose wrong."
+        }
+      ],
+      "vs": {
+        "ball-person": {
+          "id": "winquote.chooser.vs.ball-person",
+          "text": "I chose not to be kicked."
+        }
+      }
+    },
+    "crosser": {
+      "general": [
+        {
+          "id": "winquote.crosser.1",
+          "text": "Cross me again. I'll remember."
+        }
+      ],
+      "vs": {
+        "try-belt": {
+          "id": "winquote.crosser.vs.try-belt",
+          "text": "Waited. You lost slowly."
+        }
+      }
+    },
+    "crystalline-intelligences": {
+      "general": [
+        {
+          "id": "winquote.crystalline-intelligences.1",
+          "text": "Probability of your victory: zero point zero."
+        }
+      ],
+      "vs": {
+        "wallit": {
+          "id": "winquote.crystalline-intelligences.vs.wallit",
+          "text": "Computed. Your price: everything."
+        }
+      }
+    },
+    "dj-wont-read": {
+      "general": [
+        {
+          "id": "winquote.dj-wont-read.1",
+          "text": "That's the drop. You're the bass."
+        }
+      ],
+      "vs": {
+        "shutup-bot": {
+          "id": "winquote.dj-wont-read.vs.shutup-bot",
+          "text": "I did the talking. You lost."
+        }
+      }
+    },
+    "evil-blue-bird": {
+      "general": [
+        {
+          "id": "winquote.evil-blue-bird.1",
+          "text": "Tweet. That's what losing sounds like."
+        }
+      ],
+      "vs": {
+        "got-ur-back": {
+          "id": "winquote.evil-blue-bird.vs.got-ur-back",
+          "text": "I carried us. Cute, right?"
+        }
+      }
+    },
+    "exit-punk": {
+      "general": [
+        {
+          "id": "winquote.exit-punk.1",
+          "text": "Door's that way. Don't come back."
+        }
+      ],
+      "vs": {
+        "orchestrator": {
+          "id": "winquote.exit-punk.vs.orchestrator",
+          "text": "Told you. I'd knock."
+        },
+        "kaelen": {
+          "id": "winquote.exit-punk.vs.kaelen",
+          "text": "Told you. Stand still."
+        },
+        "break": {
+          "id": "winquote.exit-punk.vs.break",
+          "text": "Rule two. Stages end."
+        },
+        "small-weather": {
+          "id": "winquote.exit-punk.vs.small-weather",
+          "text": "Umbrella works. So does the board."
+        },
+        "slice": {
+          "id": "winquote.exit-punk.vs.slice",
+          "text": "One clean hit. Mine."
+        },
+        "future-man": {
+          "id": "winquote.exit-punk.vs.future-man",
+          "text": "Surprise. You didn't see that."
+        },
+        "shark-dude": {
+          "id": "winquote.exit-punk.vs.shark-dude",
+          "text": "Told you. Just the skateboard."
+        },
+        "pyro-singer": {
+          "id": "winquote.exit-punk.vs.pyro-singer",
+          "text": "Sing all you want. I'm still standing."
+        },
+        "susan": {
+          "id": "winquote.exit-punk.vs.susan",
+          "text": "Found the exit. Told you."
+        },
+        "wallit": {
+          "id": "winquote.exit-punk.vs.wallit",
+          "text": "No sponsor. Still won."
+        },
+        "cel": {
+          "id": "winquote.exit-punk.vs.cel",
+          "text": "One jump. One floor. Still enough."
+        },
+        "try-belt": {
+          "id": "winquote.exit-punk.vs.try-belt",
+          "text": "The tape was wrong. Told you."
+        },
+        "uh-me": {
+          "id": "winquote.exit-punk.vs.uh-me",
+          "text": "Float's nice. Floor's nicer."
+        },
+        "yo-bot": {
+          "id": "winquote.exit-punk.vs.yo-bot",
+          "text": "Unplugged. Like I said."
+        },
+        "spider-bot": {
+          "id": "winquote.exit-punk.vs.spider-bot",
+          "text": "One exit. Found it."
+        },
+        "stratabots": {
+          "id": "winquote.exit-punk.vs.stratabots",
+          "text": "Plates rust. Skateboards don't."
+        }
+      }
+    },
+    "future-man": {
+      "general": [
+        {
+          "id": "winquote.future-man.1",
+          "text": "I saw it coming. You didn't."
+        }
+      ],
+      "vs": {
+        "blog-man": {
+          "id": "winquote.future-man.vs.blog-man",
+          "text": "Seen it. Boring headline. You lose."
+        },
+        "exit-punk": {
+          "id": "winquote.future-man.vs.exit-punk",
+          "text": "Ending changed. Huh. Noted."
+        }
+      }
+    },
+    "got-ur-back": {
+      "general": [
+        {
+          "id": "winquote.got-ur-back.1",
+          "text": "Aw, don't cry. Okay, cry a little."
+        }
+      ],
+      "vs": {
+        "evil-blue-bird": {
+          "id": "winquote.got-ur-back.vs.evil-blue-bird",
+          "text": "Old tag team. Still got your back."
+        }
+      }
+    },
+    "kaelen": {
+      "general": [
+        {
+          "id": "winquote.kaelen.1",
+          "text": "Nice try. Hi again. Bye."
+        }
+      ],
+      "vs": {
+        "exit-punk": {
+          "id": "winquote.kaelen.vs.exit-punk",
+          "text": "Stood still. Once. Hi. Bye."
+        },
+        "slice": {
+          "id": "winquote.kaelen.vs.slice",
+          "text": "Said bye. Meant it."
+        }
+      }
+    },
+    "lapis-man": {
+      "general": [
+        {
+          "id": "winquote.lapis-man.1",
+          "text": "Patience beats youth. Every time."
+        }
+      ],
+      "vs": {
+        "spider-bot": {
+          "id": "winquote.lapis-man.vs.spider-bot",
+          "text": "Mind your elders, little crawler."
+        }
+      }
+    },
+    "not-an-old-man-yet": {
+      "general": [
+        {
+          "id": "winquote.not-an-old-man-yet.1",
+          "text": "Still got it. Whatever it is."
+        }
+      ],
+      "vs": {
+        "slow-rider": {
+          "id": "winquote.not-an-old-man-yet.vs.slow-rider",
+          "text": "Middle of the stage. Still mine."
+        }
+      }
+    },
+    "orchestrator": {
+      "general": [
+        {
+          "id": "winquote.orchestrator.1",
+          "text": "Take a bow. It's the only applause."
+        }
+      ],
+      "vs": {
+        "exit-punk": {
+          "id": "winquote.orchestrator.vs.exit-punk",
+          "text": "Still closed, kid. Still closed."
+        },
+        "blog-man": {
+          "id": "winquote.orchestrator.vs.blog-man",
+          "text": "Footnote. As promised."
+        }
+      }
+    },
+    "pyro-singer": {
+      "general": [
+        {
+          "id": "winquote.pyro-singer.1",
+          "text": "That was the opener. You're done."
+        }
+      ],
+      "vs": {
+        "small-weather": {
+          "id": "winquote.pyro-singer.vs.small-weather",
+          "text": "Hail melts. Louder, honey."
+        },
+        "exit-punk": {
+          "id": "winquote.pyro-singer.vs.exit-punk",
+          "text": "Earplugs, skater. Told you."
+        }
+      }
+    },
+    "shark-dude": {
+      "general": [
+        {
+          "id": "winquote.shark-dude.1",
+          "text": "Fresh blood. Lovely."
+        }
+      ],
+      "vs": {
+        "exit-punk": {
+          "id": "winquote.shark-dude.vs.exit-punk",
+          "text": "Smell that? That's your skateboard."
+        },
+        "yooba": {
+          "id": "winquote.shark-dude.vs.yooba",
+          "text": "Family dinner. You're the main course."
+        }
+      }
+    },
+    "shutup-bot": {
+      "general": [
+        {
+          "id": "winquote.shutup-bot.1",
+          "text": "Quiet now."
+        }
+      ],
+      "vs": {
+        "dj-wont-read": {
+          "id": "winquote.shutup-bot.vs.dj-wont-read",
+          "text": "Fine. Told you."
+        }
+      }
+    },
+    "slice": {
+      "general": [
+        {
+          "id": "winquote.slice.1",
+          "text": "Cut. Print. Next."
+        }
+      ],
+      "vs": {
+        "exit-punk": {
+          "id": "winquote.slice.vs.exit-punk",
+          "text": "One clean hit. That's all it took."
+        },
+        "kaelen": {
+          "id": "winquote.slice.vs.kaelen",
+          "text": "Already done. Told you."
+        }
+      }
+    },
+    "slow-rider": {
+      "general": [
+        {
+          "id": "winquote.slow-rider.1",
+          "text": "Easy does it. It did."
+        }
+      ],
+      "vs": {
+        "not-an-old-man-yet": {
+          "id": "winquote.slow-rider.vs.not-an-old-man-yet",
+          "text": "No rush, friend. I drifted over."
+        }
+      }
+    },
+    "small-weather": {
+      "general": [
+        {
+          "id": "winquote.small-weather.1",
+          "text": "Clear skies for me. Rain for you."
+        }
+      ],
+      "vs": {
+        "exit-punk": {
+          "id": "winquote.small-weather.vs.exit-punk",
+          "text": "Forecast was right. Flat by midnight."
+        },
+        "pyro-singer": {
+          "id": "winquote.small-weather.vs.pyro-singer",
+          "text": "Hail doesn't melt. Not tonight."
+        }
+      }
+    },
+    "spider-bot": {
+      "general": [
+        {
+          "id": "winquote.spider-bot.1",
+          "text": "Caught. Eight legs, no hurry."
+        }
+      ],
+      "vs": {
+        "exit-punk": {
+          "id": "winquote.spider-bot.vs.exit-punk",
+          "text": "Zero ways out. Told you."
+        },
+        "lapis-man": {
+          "id": "winquote.spider-bot.vs.lapis-man",
+          "text": "Elders, meet the web."
+        }
+      }
+    },
+    "ss-boulder": {
+      "general": [
+        {
+          "id": "winquote.ss-boulder.1",
+          "text": "Rolled right over you. Nothing personal."
+        }
+      ],
+      "vs": {
+        "break": {
+          "id": "winquote.ss-boulder.vs.break",
+          "text": "Biggest hit on the card. Ask anyone."
+        }
+      }
+    },
+    "stratabots": {
+      "general": [
+        {
+          "id": "winquote.stratabots.1",
+          "text": "Layers hold. You didn't."
+        }
+      ],
+      "vs": {
+        "tt": {
+          "id": "winquote.stratabots.vs.tt",
+          "text": "Plates locked. Shell cracked."
+        },
+        "exit-punk": {
+          "id": "winquote.stratabots.vs.exit-punk",
+          "text": "Plates hold. Skateboard cracked."
+        }
+      }
+    },
+    "susan": {
+      "general": [
+        {
+          "id": "winquote.susan.1",
+          "text": "Sleep tight. The dark has you."
+        }
+      ],
+      "vs": {
+        "exit-punk": {
+          "id": "winquote.susan.vs.exit-punk",
+          "text": "Even exits close, skater."
+        },
+        "uh-me": {
+          "id": "winquote.susan.vs.uh-me",
+          "text": "Stay awhile. The fog insists."
+        }
+      }
+    },
+    "the-mechanic": {
+      "general": [
+        {
+          "id": "winquote.the-mechanic.1",
+          "text": "Needed a tune-up. Now you need two."
+        }
+      ],
+      "vs": {}
+    },
+    "try-belt": {
+      "general": [
+        {
+          "id": "winquote.try-belt.1",
+          "text": "Hey, look. I tried. It worked."
+        }
+      ],
+      "vs": {
+        "exit-punk": {
+          "id": "winquote.try-belt.vs.exit-punk",
+          "text": "Watched every tape. You got slower."
+        },
+        "crosser": {
+          "id": "winquote.try-belt.vs.crosser",
+          "text": "I tried. Patiently."
+        }
+      }
+    },
+    "tt": {
+      "general": [
+        {
+          "id": "winquote.tt.1",
+          "text": "Small? Say that from the floor."
+        }
+      ],
+      "vs": {
+        "stratabots": {
+          "id": "winquote.tt.vs.stratabots",
+          "text": "Slow. Steady. Obviously. Shell's yours."
+        }
+      }
+    },
+    "uh-me": {
+      "general": [
+        {
+          "id": "winquote.uh-me.1",
+          "text": "Uh. Sorry? Not really."
+        }
+      ],
+      "vs": {
+        "exit-punk": {
+          "id": "winquote.uh-me.vs.exit-punk",
+          "text": "Uh. Me. Floated. Won."
+        },
+        "susan": {
+          "id": "winquote.uh-me.vs.susan",
+          "text": "Uh. Me. Fog okay. You not."
+        }
+      }
+    },
+    "wallit": {
+      "general": [
+        {
+          "id": "winquote.wallit.1",
+          "text": "Good fight. Invoice is in the mail."
+        }
+      ],
+      "vs": {
+        "exit-punk": {
+          "id": "winquote.wallit.vs.exit-punk",
+          "text": "No sponsor? Now you owe me."
+        },
+        "crystalline-intelligences": {
+          "id": "winquote.wallit.vs.crystalline-intelligences",
+          "text": "Price calculated. Pay up."
+        }
+      }
+    },
+    "yo-bot": {
+      "general": [
+        {
+          "id": "winquote.yo-bot.1",
+          "text": "Yo. Reboot and try again."
+        }
+      ],
+      "vs": {
+        "exit-punk": {
+          "id": "winquote.yo-bot.vs.exit-punk",
+          "text": "Ping. Pong. You're offline."
+        },
+        "blog-man": {
+          "id": "winquote.yo-bot.vs.blog-man",
+          "text": "Latency wins. Ping me later."
+        }
+      }
+    },
+    "yooba": {
+      "general": [
+        {
+          "id": "winquote.yooba.1",
+          "text": "Yooba yooba. Good game!"
+        }
+      ],
+      "vs": {
+        "shark-dude": {
+          "id": "winquote.yooba.vs.shark-dude",
+          "text": "Yooba yooba. Yooba! Family wins."
+        }
+      }
+    }
+  }
 }

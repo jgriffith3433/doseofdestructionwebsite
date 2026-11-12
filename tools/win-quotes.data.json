@@ -1,0 +1,167 @@
+{
+  "general": {
+    "ball-person": "Game, set, match. Fetch your own ball.",
+    "blog-man": "Read all about it. Spoiler: you lose.",
+    "break": "I don't fall. You did.",
+    "cel": "Gravity's for people who stop jumping.",
+    "chooser": "You had options. You chose wrong.",
+    "crosser": "Cross me again. I'll remember.",
+    "crystalline-intelligences": "Probability of your victory: zero point zero.",
+    "dj-wont-read": "That's the drop. You're the bass.",
+    "evil-blue-bird": "Tweet. That's what losing sounds like.",
+    "exit-punk": "Door's that way. Don't come back.",
+    "future-man": "I saw it coming. You didn't.",
+    "got-ur-back": "Aw, don't cry. Okay, cry a little.",
+    "kaelen": "Nice try. Hi again. Bye.",
+    "lapis-man": "Patience beats youth. Every time.",
+    "not-an-old-man-yet": "Still got it. Whatever it is.",
+    "orchestrator": "Take a bow. It's the only applause.",
+    "pyro-singer": "That was the opener. You're done.",
+    "shark-dude": "Fresh blood. Lovely.",
+    "shutup-bot": "Quiet now.",
+    "slice": "Cut. Print. Next.",
+    "slow-rider": "Easy does it. It did.",
+    "small-weather": "Clear skies for me. Rain for you.",
+    "spider-bot": "Caught. Eight legs, no hurry.",
+    "ss-boulder": "Rolled right over you. Nothing personal.",
+    "stratabots": "Layers hold. You didn't.",
+    "susan": "Sleep tight. The dark has you.",
+    "the-mechanic": "Needed a tune-up. Now you need two.",
+    "try-belt": "Hey, look. I tried. It worked.",
+    "tt": "Small? Say that from the floor.",
+    "uh-me": "Uh. Sorry? Not really.",
+    "wallit": "Good fight. Invoice is in the mail.",
+    "yo-bot": "Yo. Reboot and try again.",
+    "yooba": "Yooba yooba. Good game!"
+  },
+  "vs": {
+    "exit-punk": {
+      "orchestrator": "Told you. I'd knock.",
+      "kaelen": "Told you. Stand still.",
+      "break": "Rule two. Stages end.",
+      "small-weather": "Umbrella works. So does the board.",
+      "slice": "One clean hit. Mine.",
+      "future-man": "Surprise. You didn't see that.",
+      "shark-dude": "Told you. Just the skateboard.",
+      "pyro-singer": "Sing all you want. I'm still standing.",
+      "susan": "Found the exit. Told you.",
+      "wallit": "No sponsor. Still won.",
+      "cel": "One jump. One floor. Still enough.",
+      "try-belt": "The tape was wrong. Told you.",
+      "uh-me": "Float's nice. Floor's nicer.",
+      "yo-bot": "Unplugged. Like I said.",
+      "spider-bot": "One exit. Found it.",
+      "stratabots": "Plates rust. Skateboards don't."
+    },
+    "orchestrator": {
+      "exit-punk": "Still closed, kid. Still closed.",
+      "blog-man": "Footnote. As promised."
+    },
+    "kaelen": {
+      "exit-punk": "Stood still. Once. Hi. Bye.",
+      "slice": "Said bye. Meant it."
+    },
+    "break": {
+      "exit-punk": "Rule one, kid. I don't fall.",
+      "ss-boulder": "Everyone's on the floor. Not me."
+    },
+    "small-weather": {
+      "exit-punk": "Forecast was right. Flat by midnight.",
+      "pyro-singer": "Hail doesn't melt. Not tonight."
+    },
+    "slice": {
+      "exit-punk": "One clean hit. That's all it took.",
+      "kaelen": "Already done. Told you."
+    },
+    "ss-boulder": {
+      "break": "Biggest hit on the card. Ask anyone."
+    },
+    "dj-wont-read": {
+      "shutup-bot": "I did the talking. You lost."
+    },
+    "shutup-bot": {
+      "dj-wont-read": "Fine. Told you."
+    },
+    "pyro-singer": {
+      "small-weather": "Hail melts. Louder, honey.",
+      "exit-punk": "Earplugs, skater. Told you."
+    },
+    "evil-blue-bird": {
+      "got-ur-back": "I carried us. Cute, right?"
+    },
+    "got-ur-back": {
+      "evil-blue-bird": "Old tag team. Still got your back."
+    },
+    "blog-man": {
+      "future-man": "Headline: Spoiler Loses To Blog Man.",
+      "yo-bot": "Laptop Loses To Man With Better Headlines.",
+      "orchestrator": "Front page: Maestro Misses The Finale."
+    },
+    "future-man": {
+      "blog-man": "Seen it. Boring headline. You lose.",
+      "exit-punk": "Ending changed. Huh. Noted."
+    },
+    "shark-dude": {
+      "exit-punk": "Smell that? That's your skateboard.",
+      "yooba": "Family dinner. You're the main course."
+    },
+    "yooba": {
+      "shark-dude": "Yooba yooba. Yooba! Family wins."
+    },
+    "susan": {
+      "exit-punk": "Even exits close, skater.",
+      "uh-me": "Stay awhile. The fog insists."
+    },
+    "wallit": {
+      "exit-punk": "No sponsor? Now you owe me.",
+      "crystalline-intelligences": "Price calculated. Pay up."
+    },
+    "cel": {
+      "exit-punk": "Four jumps. Zero floors. Still winning."
+    },
+    "try-belt": {
+      "exit-punk": "Watched every tape. You got slower.",
+      "crosser": "I tried. Patiently."
+    },
+    "uh-me": {
+      "exit-punk": "Uh. Me. Floated. Won.",
+      "susan": "Uh. Me. Fog okay. You not."
+    },
+    "yo-bot": {
+      "exit-punk": "Ping. Pong. You're offline.",
+      "blog-man": "Latency wins. Ping me later."
+    },
+    "spider-bot": {
+      "exit-punk": "Zero ways out. Told you.",
+      "lapis-man": "Elders, meet the web."
+    },
+    "crosser": {
+      "try-belt": "Waited. You lost slowly."
+    },
+    "ball-person": {
+      "chooser": "Round, small, bouncy. Still kicked."
+    },
+    "chooser": {
+      "ball-person": "I chose not to be kicked."
+    },
+    "lapis-man": {
+      "spider-bot": "Mind your elders, little crawler."
+    },
+    "not-an-old-man-yet": {
+      "slow-rider": "Middle of the stage. Still mine."
+    },
+    "slow-rider": {
+      "not-an-old-man-yet": "No rush, friend. I drifted over."
+    },
+    "stratabots": {
+      "tt": "Plates locked. Shell cracked.",
+      "exit-punk": "Plates hold. Skateboard cracked."
+    },
+    "tt": {
+      "stratabots": "Slow. Steady. Obviously. Shell's yours."
+    },
+    "crystalline-intelligences": {
+      "wallit": "Computed. Your price: everything."
+    }
+  }
+}
