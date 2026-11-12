@@ -1059,6 +1059,10 @@
         "file": "/audio/sfx/special-counter-impact.mp3"
       },
       {
+        "id": "special-counter-impact.1",
+        "file": "/audio/sfx/special-counter-impact-1.mp3"
+      },
+      {
         "id": "special-counter-impact.2",
         "file": "/audio/sfx/special-counter-impact-2.mp3"
       }
