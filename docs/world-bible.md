@@ -477,3 +477,5 @@ highs and level as they leave, the crowd's roar stays put. The whole match is le
 ## The show's stinger
 
 Every screen change is the show cutting between segments: three slanted panels (brand dark, the four player colours, the hot logo panel) sweep across with a light streak and the "Dose of Destruction" logo, a whoosh going in and an impact as the panels meet (0.58 s; if the next screen is still loading the logo holds and pulses, never black). A bout opens on a ROUND START slam (type punches in, camera kicks, hit sound) and ends on a GAME! slam with a half-second freeze on the final KO, just before the announcer's line. Reduced motion gets a 120 ms crossfade and no shake. Code: `src/game/ui/stinger.ts`, `main.ts` `slam()`.
+
+**The announcer's show calls.** The booth's voice also opens and closes the bout: "Choose your fighter!", each fighter's and stage's name on select / pick / VS, "Ready... FIGHT!", "GAME!", "The winner is..." and the winner's name (docs/story.md "The announcer calls the show").
