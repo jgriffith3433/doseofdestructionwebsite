@@ -84,7 +84,7 @@ export interface GameHooks {
   depthStats?(): { quality: string; camX: number; camDist: number; layers: { id: string; z: number; kind: 'far' | 'foreground' | 'haze' | 'stage'; screenX: number; alpha: number; fade: number | null; behind: boolean }[] };
   styleStats?(): { quality: 'high' | 'low'; renderHeight: number; fighters: { slot: number; char: number; look: number; outline: { color: number[]; px: number; perPx: number[]; on: number }; remap: boolean; outlinePass: boolean }[] };
   lightStats?(): { stage: string; quality: 'high' | 'low'; glossy: boolean; fighters: { slot: number; plugin: { full: boolean; key: number[]; keyColor: number[]; rim: number[]; ambient: number[] }; height: number; scale: number; alpha: number; shadow: boolean; reflection: boolean }[] };
-  postStats?(): { quality: 'high' | 'low'; lut: string | null; lutReady: boolean; vignette: number; grain: number; punchFrames: number; punches: number; lastPunchDrawn: number };
+  postStats?(): { quality: 'high' | 'low'; lut: string | null; lutReady: boolean; vignette: number; grain: number; punchFrames: number; punches: number; lastPunchDrawn: number; glitches: number; glitchDrawn: number };
   /** The mix: the stage's room, the wet send, the measured loudness (LUFS), makeup gain and the sample peak (audio.mixStats). */
   mixStats?(): { stage: string | null; room: string; seconds: number; wet: number; low: boolean; lufs: number; makeupDb: number; peakDbfs: number; chain: boolean };
   /** Plays a heavy hit panned to `pan` (-0.8 left edge .. 0.8 right edge) so a capture can measure the channels. */
@@ -176,6 +176,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
+        else if (id === 'finale-hijack') await r.finaleHijack();
         else if (id === 'story-cards') await r.storyCards();
         else if (id === 'bookends') await r.bookends();
         else if (id === 'rotate') await r.rotate();
@@ -2259,6 +2260,87 @@ class Run {
     } finally {
       this.game.setCampaignProgress(before);
     }
+  }
+
+  /**
+   * The Orchestrator's finale takeover (campaign/takeover.ts, sim/step.ts): one finale (option `chapter`, default encore; season
+   * finales are encore, sponsored, walk-on, hostile-takeover, clip-show, global-feed, series-finale, best-in-show, cliffhanger,
+   * final-cut) played from the Campaign map with the bot. Logs the takeover (`takeover-start`: mood ahead/behind, over 100%, the
+   * lines), the glitch, the picture-in-picture clear of the HUD and (touch) the controls (`takeover-pip`), each line spoken
+   * (`takeover-line`) and the rule on the HUD within 1 s (`takeover-rule`). Touch: played in the turned 844x390 frame.
+   */
+  async finaleHijack(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('finale-hijack');
+    }
+    const asked = this.options.chapter ?? 'encore';
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    const def = CHAPTERS[from]?.fight.events?.find((e) => e.kind === 'takeover');
+    if (!def) {
+      t.problem('bug', `chapter "${String(asked)}" has no takeover event (content/campaign.json: the ten season finales do)`);
+      t.finish('error');
+      return;
+    }
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((c) => c.id));
+    t.log(`setup shortcut: chapters 1-${from} marked cleared, starting at ${CHAPTERS[from].id}`);
+    let started = 0;
+    let startFrame = -1;
+    let ruled = 0;
+    const rect = (el: Element | null) => (el && (el as HTMLElement).getClientRects().length ? el.getBoundingClientRect() : null);
+    const hit = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    const onTakeover = (ev: Event) => {
+      const d = (ev as CustomEvent).detail as { phase: string; mood?: string; hot?: boolean; lines?: string[]; rule?: string; id?: string; text?: string; frame: number; index?: number };
+      if (d.phase === 'start') {
+        started++;
+        startFrame = d.frame;
+        t.metric('takeoverAtSeconds', Math.round(d.frame / 6) / 10);
+        t.event('takeover-start', `${asked}: the Orchestrator seizes the feed at ${Math.round(d.frame / 60)} s, player ${d.mood}${d.hot ? ' and over 100%' : ''}; lines ${d.lines?.join(', ')}; rule ${d.rule ?? 'none'}`);
+        const post = this.game.postStats?.();
+        window.setTimeout(() => {
+          const pip = this.q('.takeover-pip');
+          const pr = rect(pip);
+          if (!pr) return t.problem('bug', 'the Orchestrator\'s picture-in-picture is not on screen after the takeover');
+          const clashes: string[] = [];
+          const others = [...document.querySelectorAll<HTMLElement>('.touch-btn, .touch-pause, .touch-stick, #match-top, #hud .hud-card, #pause')];
+          for (const o of others) {
+            const r = rect(o);
+            if (r && hit(pr, r)) clashes.push(o.className || o.id);
+          }
+          const inside = pr.left >= 0 && pr.top >= 0 && pr.right <= innerWidth && pr.bottom <= innerHeight;
+          if (clashes.length || !inside) t.problem('bug', `the picture-in-picture (${Math.round(pr.left)},${Math.round(pr.top)} ${Math.round(pr.width)}x${Math.round(pr.height)}) ${inside ? 'covers' : 'runs off the screen and may cover'} ${clashes.join(', ')} at ${innerWidth}x${innerHeight}`);
+          else t.event('takeover-pip', `picture-in-picture at ${Math.round(pr.left)},${Math.round(pr.top)} ${Math.round(pr.width)}x${Math.round(pr.height)} is clear of the ${others.filter((o) => rect(o)).length} HUD and touch controls at ${innerWidth}x${innerHeight}`);
+          if (post) t.event('takeover-glitch', `RGB-split glitch started (post chain glitches: ${post.glitches}, ${post.quality} quality)`);
+        }, 450);
+      } else if (d.phase === 'line') {
+        t.event('takeover-line', `${d.index! + 1}. ${d.id}: "${d.text}"`);
+      } else if (d.phase === 'rule') {
+        ruled++;
+        const chip = this.q('.rule-chip')?.textContent ?? '';
+        const lag = d.frame - startFrame;
+        if (!chip.includes(d.rule ?? '?')) t.problem('bug', `the rule "${d.rule}" is not on the HUD chip ("${chip}")`);
+        else if (lag > 60) t.problem('bug', `the rule took ${lag} frames to land after the takeover (more than 1 s)`);
+        else t.event('takeover-rule', `"${d.rule}" on the HUD ${lag} frames (${(lag / 60).toFixed(2)} s) after the takeover`);
+      }
+    };
+    window.addEventListener('dod:takeover', onTakeover);
+    const t0 = performance.now();
+    try {
+      await this.campaignFrom(from, () => performance.now() - t0 > CAMPAIGN_BUDGET_MS, from);
+    } finally {
+      window.removeEventListener('dod:takeover', onTakeover);
+      this.game.setCampaignProgress(before);
+    }
+    t.metric('takeovers', started);
+    t.metric('takeoverRules', ruled);
+    if (!started) t.problem('bug', `the ${asked} fight ended without the Orchestrator's takeover (60 s in, or the player down to 2 stocks)`);
+    else if (def.rule && !ruled) t.problem('bug', 'the takeover never changed a rule');
   }
 
   /** A chapter with a clean streak: the HUD chip must show it from the start and follow the sim's streak (up on a hit landed, back to 0 on a hit taken). Call it every poll. */

@@ -5151,6 +5151,336 @@
         "text": "Yooba yooba yooba.",
         "voice": "FGY2WhTYpPnrIDTdsKH5"
       }
+    },
+    {
+      "id": "orchestrator.takeover.seize.0",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Stay tuned. I'm taking this broadcast.",
+      "audio": "/audio/voice/orchestrator.takeover.seize.0.mp3",
+      "take": {
+        "text": "Stay tuned. I'm taking this broadcast.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.seize.1",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Don't touch that dial. It's mine now.",
+      "audio": "/audio/voice/orchestrator.takeover.seize.1.mp3",
+      "take": {
+        "text": "Don't touch that dial. It's mine now.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.seize.2",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Cut the feed. Roll mine.",
+      "audio": "/audio/voice/orchestrator.takeover.seize.2.mp3",
+      "take": {
+        "text": "Cut the feed. Roll mine.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.seize.3",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Hello, champ. You're live on my channel.",
+      "audio": "/audio/voice/orchestrator.takeover.seize.3.mp3",
+      "take": {
+        "text": "Hello, champ. You're live on my channel.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.seize.4",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Quiet, please. The host is speaking.",
+      "audio": "/audio/voice/orchestrator.takeover.seize.4.mp3",
+      "take": {
+        "text": "Quiet, please. The host is speaking.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.seize.5",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Technical difficulties. Mine, specifically.",
+      "audio": "/audio/voice/orchestrator.takeover.seize.5.mp3",
+      "take": {
+        "text": "Technical difficulties. Mine, specifically.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.seize.6",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Every screen in the house. All mine.",
+      "audio": "/audio/voice/orchestrator.takeover.seize.6.mp3",
+      "take": {
+        "text": "Every screen in the house. All mine.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.ahead.0",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "You're ahead. How boring for the ratings.",
+      "audio": "/audio/voice/orchestrator.takeover.ahead.0.mp3",
+      "take": {
+        "text": "You're ahead. How boring for the ratings.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.ahead.1",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Winning? Careful. Winners get cancelled first.",
+      "audio": "/audio/voice/orchestrator.takeover.ahead.1.mp3",
+      "take": {
+        "text": "Winning? Careful. Winners get cancelled first.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.ahead.2",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Look at you, in front. The audience hates that.",
+      "audio": "/audio/voice/orchestrator.takeover.ahead.2.mp3",
+      "take": {
+        "text": "Look at you, in front. The audience hates that.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.ahead.3",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Ahead on points. Behind on plot.",
+      "audio": "/audio/voice/orchestrator.takeover.ahead.3.mp3",
+      "take": {
+        "text": "Ahead on points. Behind on plot.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.ahead.4",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "A lead is just a setup. I write the punchline.",
+      "audio": "/audio/voice/orchestrator.takeover.ahead.4.mp3",
+      "take": {
+        "text": "A lead is just a setup. I write the punchline.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.behind.0",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Down already? The ratings thank you.",
+      "audio": "/audio/voice/orchestrator.takeover.behind.0.mp3",
+      "take": {
+        "text": "Down already? The ratings thank you.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.behind.1",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "You're losing, kid. Do try to make it dramatic.",
+      "audio": "/audio/voice/orchestrator.takeover.behind.1.mp3",
+      "take": {
+        "text": "You're losing, kid. Do try to make it dramatic.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.behind.2",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Wonderful trailer. Terrible episode.",
+      "audio": "/audio/voice/orchestrator.takeover.behind.2.mp3",
+      "take": {
+        "text": "Wonderful trailer. Terrible episode.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.behind.3",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Falling behind. Finally, some tension.",
+      "audio": "/audio/voice/orchestrator.takeover.behind.3.mp3",
+      "take": {
+        "text": "Falling behind. Finally, some tension.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.behind.4",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "I'd say it's close, but this is live.",
+      "audio": "/audio/voice/orchestrator.takeover.behind.4.mp3",
+      "take": {
+        "text": "I'd say it's close, but this is live.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.hot.0",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Over a hundred percent. The crowd can smell it.",
+      "audio": "/audio/voice/orchestrator.takeover.hot.0.mp3",
+      "take": {
+        "text": "Over a hundred percent. The crowd can smell it.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.hot.1",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "That percentage looks expensive. One more hit.",
+      "audio": "/audio/voice/orchestrator.takeover.hot.1.mp3",
+      "take": {
+        "text": "That percentage looks expensive. One more hit.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.hot.2",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "A hundred and counting. You're nearly a clip.",
+      "audio": "/audio/voice/orchestrator.takeover.hot.2.mp3",
+      "take": {
+        "text": "A hundred and counting. You're nearly a clip.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.rule.encore",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Gravity, sixty percent. Let's give the audience some air.",
+      "audio": "/audio/voice/orchestrator.takeover.rule.encore.mp3",
+      "take": {
+        "text": "Gravity, sixty percent. Let's give the audience some air.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.rule.sponsored",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "A sponsor's cut. Everyone starts forty percent in the red.",
+      "audio": "/audio/voice/orchestrator.takeover.rule.sponsored.mp3",
+      "take": {
+        "text": "A sponsor's cut. Everyone starts forty percent in the red.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.rule.walk-on",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Top billing means size. I'll take the giant's share.",
+      "audio": "/audio/voice/orchestrator.takeover.rule.walk-on.mp3",
+      "take": {
+        "text": "Top billing means size. I'll take the giant's share.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.rule.hostile-takeover",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Hostile takeover. Tonight's guest: a rig light.",
+      "audio": "/audio/voice/orchestrator.takeover.rule.hostile-takeover.mp3",
+      "take": {
+        "text": "Hostile takeover. Tonight's guest: a rig light.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.rule.clip-show",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Gravity, one-forty. Every hit is a highlight now.",
+      "audio": "/audio/voice/orchestrator.takeover.rule.clip-show.mp3",
+      "take": {
+        "text": "Gravity, one-forty. Every hit is a highlight now.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.rule.global-feed",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Going global means going big. You, a hundred and fifty percent.",
+      "audio": "/audio/voice/orchestrator.takeover.rule.global-feed.mp3",
+      "take": {
+        "text": "Going global means going big. You, a hundred and fifty percent.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.rule.series-finale",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Series finale rules: everyone starts at thirty percent. No slow openings.",
+      "audio": "/audio/voice/orchestrator.takeover.rule.series-finale.mp3",
+      "take": {
+        "text": "Series finale rules: everyone starts at thirty percent. No slow openings.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.rule.best-in-show",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Best in show. The judges send a light from the rig.",
+      "audio": "/audio/voice/orchestrator.takeover.rule.best-in-show.mp3",
+      "take": {
+        "text": "Best in show. The judges send a light from the rig.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.rule.cliffhanger",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Cliffhanger. Gravity, forty percent. Hold on to something.",
+      "audio": "/audio/voice/orchestrator.takeover.rule.cliffhanger.mp3",
+      "take": {
+        "text": "Cliffhanger. Gravity, forty percent. Hold on to something.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
+    },
+    {
+      "id": "orchestrator.takeover.rule.final-cut",
+      "group": "orchestrator-takeover",
+      "who": "orchestrator",
+      "text": "Final cut. One giant host. Two would have cost extra.",
+      "audio": "/audio/voice/orchestrator.takeover.rule.final-cut.mp3",
+      "take": {
+        "text": "Final cut. One giant host. Two would have cost extra.",
+        "voice": "onwK4e9ZLuTAKqWW03F9"
+      }
     }
   ],
   "winQuotes": {
