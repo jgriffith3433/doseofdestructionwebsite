@@ -42,7 +42,8 @@ const N = W * H;
 // ---------------------------------------------------------------------------------------------------- the plans
 // Layers far -> near. src: 'B' (the backdrop) or 'gN' (Gen layer N). mask: 'alpha' (the source's own alpha), 'opaque', or a
 // band { t, b, ft, fb } (top and bottom as fractions of the height, feather at each edge as a fraction of the slice) or an
-// ellipse { cx, cy, rx, ry }. holes: ids of nearer layers cut from this same source, filled by diffusion. low: this layer
+// ellipse { cx, cy, rx, ry } or a colour cut { warm: { lo, hi, blur, keep: [ellipses] } } (a painting with no separate objects). erase: boxes [x0, y0, x1, y1]
+// (fractions) zeroed in the layer's alpha, for a piece Gen cut into two layers (a wall lamp). holes: ids of nearer layers cut from this same source, filled by diffusion. low: this layer
 // is the full backdrop Low keeps (it is not built on High, where the layers below replace it).
 const PLANS = {
   'city-top': {
@@ -85,12 +86,24 @@ const PLANS = {
     jobs: 'j_eea1055faada',
     dir: 'humans-in-the-loop-2',
     layers: [
-      { id: 'arena', z: 20, src: 'g0', mask: 'opaque', holes: ['road-cases'], note: 'Far sky: the dark arena bowl, its seating tiers and the stage floor running to the back.' },
-      { id: 'far-stage', z: 16, src: 'g1', mask: 'alpha', note: 'Far set: the lit far stage at the end of the floor, its row of footlights in smoke.' },
-      { id: 'light-rig', z: 12, src: 'g2', mask: 'alpha', note: 'Mid set: the lighting rig with the gold and blue beams fanning down through the haze.' },
-      { id: 'road-cases', z: 7.5, src: 'g5', mask: 'alpha', note: 'Near set: the black road cases stacked at the left and the speaker stacks hung at the top corners.' },
+      { id: 'arena', z: 20, src: 'g0', mask: 'opaque', note: 'Far sky: the dark arena bowl, its seating tiers, the stage floor running to the back and the far road cases.' },
+      // erase: the wall lamps (at 0.22/0.44 and 0.81/0.43) and the barrier hairlines are in Gen's plate too; they stay there only.
+      { id: 'far-stage', z: 16, src: 'g1', mask: 'alpha', erase: [[0, 0, 0.25, 1], [0.73, 0.585, 1, 1]], note: 'Far set: the lit far stage at the end of the floor, its row of footlights in smoke.' },
+      { id: 'light-rig', z: 12, src: 'g2', mask: 'alpha', erase: [[0.78, 0.38, 0.85, 0.49]], note: 'Mid set: the lighting rig with the gold and blue beams fanning down through the haze.' },
+      { id: 'road-cases', z: 5.5, src: 'g5', mask: 'alpha', note: 'Near set: the black road cases stacked at the left and the speaker stacks hung at the top corners.' },
     ],
     haze: [14, 6.5],
+  },
+  'watercolor-nebula': {
+    // Gen's two splits (j_ee4414382a78, j_568d743c1e78) did not separate this painting (the whole painting stays in one layer, the
+    // clouds are invented), so it is cut by colour on the CPU: the warm masses (amber, pink) come forward, the cool ones stay behind.
+    jobs: 'j_568d743c1e78',
+    how: 'cut from the backdrop by colour with tools/depth-layers.mjs (Hawkes Gen image.layers, j_ee4414382a78 and j_568d743c1e78, did not separate the painting)',
+    layers: [
+      { id: 'cool-wash', z: 20, src: 'B', mask: 'opaque', holes: ['warm-clouds'], note: 'Far sky: the cool teal and navy washes and the heart light.' },
+      { id: 'warm-clouds', z: 13, src: 'B', mask: { warm: { lo: 0.06, hi: 0.26, blur: 10, keep: [{ cx: 0.5, cy: 0.42, rx: 0.1, ry: 0.2 }] } }, note: 'Mid set: the warm amber and pink pigment clouds around the heart.' },
+    ],
+    haze: [14, 7],
   },
   'rainbow-full-pipe': {
     jobs: 'j_7ec99117dab6',
@@ -172,6 +185,64 @@ function bandMask(b) {
     m.fill(smooth(Math.min(up, dn)), y * W, (y + 1) * W);
   }
   return m;
+}
+
+/** Zeroes a layer's alpha inside a box [x0, y0, x1, y1] (fractions of the picture), with a soft edge: for a piece of the plate that Gen also cut into this layer (a wall lamp), so a pan never shows it twice. */
+function eraseRect(a, [x0, y0, x1, y1]) {
+  const f = 0.012;
+  for (let y = Math.max(0, Math.floor((y0 - f) * H)); y < Math.min(H, Math.ceil((y1 + f) * H)); y++)
+    for (let x = Math.max(0, Math.floor((x0 - f) * W)); x < Math.min(W, Math.ceil((x1 + f) * W)); x++) {
+      const dx = Math.max(x0 - x / W, x / W - x1, 0);
+      const dy = Math.max(y0 - y / H, y / H - y1, 0);
+      a[y * W + x] *= smooth(Math.max(dx, dy) / f);
+    }
+}
+
+/** Separable box blur of a one-channel float image (radius in pixels), to turn a speckled colour test into coherent masses. */
+function boxBlur(src, r) {
+  const tmp = new Float32Array(N);
+  const out = new Float32Array(N);
+  const k = 2 * r + 1;
+  for (let y = 0; y < H; y++) {
+    let acc = 0;
+    for (let x = -r; x <= r; x++) acc += src[y * W + Math.min(W - 1, Math.max(0, x))];
+    for (let x = 0; x < W; x++) {
+      tmp[y * W + x] = acc / k;
+      acc += src[y * W + Math.min(W - 1, x + r + 1)] - src[y * W + Math.max(0, x - r)];
+    }
+  }
+  for (let x = 0; x < W; x++) {
+    let acc = 0;
+    for (let y = -r; y <= r; y++) acc += tmp[Math.min(H - 1, Math.max(0, y)) * W + x];
+    for (let y = 0; y < H; y++) {
+      out[y * W + x] = acc / k;
+      acc += tmp[Math.min(H - 1, y + r + 1) * W + x] - tmp[Math.max(0, y - r) * W + x];
+    }
+  }
+  return out;
+}
+
+/**
+ * A colour cut of a painting that has no separate objects (a watercolor): the warm masses (amber, pink: red over blue)
+ * become the nearer layer, the cool ones stay behind. warm = (R - B) / 255, blurred, then a smooth step between lo and hi;
+ * `keep` ellipses (fractions of the picture) stay in the far layer (the heart light).
+ */
+function warmMask(back, m) {
+  const w = new Float32Array(N);
+  for (let i = 0; i < N; i++) w[i] = (back[i * 3] - back[i * 3 + 2]) / 255;
+  const b = boxBlur(w, m.blur ?? 10);
+  const a = new Float32Array(N);
+  for (let i = 0; i < N; i++) a[i] = smooth((b[i] - m.lo) / (m.hi - m.lo));
+  for (const e of m.keep ?? []) {
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        const dx = (x / W - e.cx) / e.rx;
+        const dy = (y / H - e.cy) / e.ry;
+        const r = Math.sqrt(dx * dx + dy * dy);
+        a[y * W + x] *= smooth((r - 0.8) / 0.4);
+      }
+  }
+  return a;
 }
 
 function ellipseMask(e) {
@@ -279,8 +350,10 @@ async function build(id, plan, opts) {
         }
         src = { rgb, a: null };
       }
-    } else if (spec.mask.ellipse) a = ellipseMask(spec.mask.ellipse);
+    } else if (spec.mask.warm) a = warmMask(back, spec.mask.warm);
+    else if (spec.mask.ellipse) a = ellipseMask(spec.mask.ellipse);
     else a = bandMask(spec.mask);
+    if (spec.erase) for (const r of spec.erase) eraseRect(a, r);
     L.push({ spec, src, a, rgb: src.rgb });
   }
   // Holes: the zones a nearer cut from the same source leaves empty are filled by diffusion.
@@ -375,7 +448,7 @@ for (const [id, plan] of Object.entries(PLANS)) {
       width: Math.round(backLayer.width * (w / W) * 10) / 10,
       z: l.spec.z,
       high: true,
-      note: `${l.spec.note} High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (${plan.jobs}).`,
+      note: `${l.spec.note} High only; ${plan.how ?? `cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (${plan.jobs})`}.`,
       aspect: Math.round((h / w) * 1000) / 1000,
     });
     console.log(`${id}/${l.spec.id}: ${w}x${h} z${l.spec.z} ${(fs.statSync(file).size / 1024).toFixed(0)} KB`);

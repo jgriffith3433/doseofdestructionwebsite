@@ -2383,19 +2383,19 @@
         "width": 3800,
         "z": 20,
         "high": true,
-        "note": "Far sky: the dark arena bowl, its seating tiers and the stage floor running to the back. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_eea1055faada).",
+        "note": "Far sky: the dark arena bowl, its seating tiers, the stage floor running to the back and the far road cases. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_eea1055faada).",
         "aspect": 0.429
       },
       {
         "id": "far-stage",
         "image": "stages/humans-in-the-loop/depth/far-stage.webp",
-        "x": -94.5,
-        "y": 201.5,
-        "width": 2510.7,
+        "x": 14.5,
+        "y": 179.7,
+        "width": 1933.9,
         "z": 16,
         "high": true,
         "note": "Far set: the lit far stage at the end of the floor, its row of footlights in smoke. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_eea1055faada).",
-        "aspect": 0.17
+        "aspect": 0.185
       },
       {
         "id": "light-rig",
@@ -2414,7 +2414,7 @@
         "x": -147.8,
         "y": 250,
         "width": 3504.3,
-        "z": 7.5,
+        "z": 5.5,
         "high": true,
         "note": "Near set: the black road cases stacked at the left and the speaker stacks hung at the top corners. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_eea1055faada).",
         "aspect": 0.465
@@ -5161,7 +5161,30 @@
         "z": 20,
         "note": "The far background, painted fresh from the concept.",
         "prompt": "A vast watercolor nebula seen face-on: a radiant cream-and-gold light at the center, framed by great rolling cloud bands of deep navy and teal sweeping in from the left and honey-gold, orange and mauve billows curling down from the upper right, a lower layer of ochre and violet haze, stepped mosaic-pixel cloud edges, scattered glossy amber droplets with thin trailing tails and small blue paint beads drifting through, soft paper texture throughout.",
+        "aspect": 0.429,
+        "low": true
+      },
+      {
+        "id": "cool-wash",
+        "image": "stages/watercolor-nebula/depth/cool-wash.webp",
+        "x": 0,
+        "y": 200,
+        "width": 3800,
+        "z": 20,
+        "high": true,
+        "note": "Far sky: the cool teal and navy washes and the heart light. High only; cut from the backdrop by colour with tools/depth-layers.mjs (Hawkes Gen image.layers, j_ee4414382a78 and j_568d743c1e78, did not separate the painting).",
         "aspect": 0.429
+      },
+      {
+        "id": "warm-clouds",
+        "image": "stages/watercolor-nebula/depth/warm-clouds.webp",
+        "x": 0,
+        "y": 294.5,
+        "width": 3800,
+        "z": 13,
+        "high": true,
+        "note": "Mid set: the warm amber and pink pigment clouds around the heart. High only; cut from the backdrop by colour with tools/depth-layers.mjs (Hawkes Gen image.layers, j_ee4414382a78 and j_568d743c1e78, did not separate the painting).",
+        "aspect": 0.379
       },
       {
         "id": "underwash",
