@@ -1,7 +1,7 @@
 // Checks the hit-readability pieces that need no browser: the damage number's colour ramp and shake, the launch trail's
 // look by tier and knockback, and where an off-screen marker goes on a phone (inside the safe area, off the touch buttons).
 
-import { damageColor, damageShake, trailFor } from '../hitFeel.ts';
+import { damageColor, damageShake, isTumbleKb, squashFor, trailFor, LIGHT_PUSHBACK, SMASH_SMEAR_FRAMES, TUMBLE_KB } from '../hitFeel.ts';
 import { markerSize, placeMarker, type Rect } from '../ui/offscreen.ts';
 
 declare const process: { exit(code: number): never };
@@ -13,6 +13,15 @@ const check = (ok: boolean, what: string): void => {
   }
 };
 const rgb = (c: string): number[] => (/rgb\((\d+), (\d+), (\d+)\)/.exec(c) ?? []).slice(1).map(Number);
+
+// Procedural reaction layer: squash scales with damage; tumble threshold; smear is 3 frames.
+const jab = squashFor(40);
+const smash = squashFor(160);
+check(jab.amount >= 0.08 && jab.amount <= 0.15 && jab.frames >= 2 && jab.frames <= 4, `jab squash ${jab.amount}/${jab.frames}`);
+check(smash.amount > jab.amount && smash.frames >= jab.frames, `smash squash bigger (${smash.amount}/${smash.frames} vs ${jab.amount}/${jab.frames})`);
+check(smash.amount <= 0.15 && smash.frames <= 4, 'squash stays in the 8-15% / 2-4 frame band');
+check(!isTumbleKb(TUMBLE_KB - 1) && isTumbleKb(TUMBLE_KB), `tumble at kb ${TUMBLE_KB}`);
+check(LIGHT_PUSHBACK > 0 && SMASH_SMEAR_FRAMES === 3, 'light pushback and 3-frame smear');
 
 // Damage numbers: white at 0%, orange in between, red above 120%, deep red at 160%+.
 check(damageColor(0) === 'rgb(255, 255, 255)', 'white at 0%');

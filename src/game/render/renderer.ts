@@ -20,12 +20,27 @@ import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTextur
 import { GlowLayer } from '@babylonjs/core/Layers/glowLayer.js';
 import '@babylonjs/core/Layers/effectLayerSceneComponent.js';
 
-import { FX } from '../sim/fixed.ts';
+import { FX, isin } from '../sim/fixed.ts';
 import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
 import { GRAB_FIRST, activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
-import { KILL_CUE, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, type HitTier, type TrailKind } from '../hitFeel.ts';
+import {
+  KILL_CUE,
+  LIGHT_PUSHBACK,
+  SMASH_SMEAR_FRAMES,
+  TUMBLE_SPEED,
+  hitTier,
+  impactFor,
+  isTumbleKb,
+  killPunch,
+  killTimeScale,
+  screenShake,
+  squashFor,
+  trailFor,
+  type HitTier,
+  type TrailKind,
+} from '../hitFeel.ts';
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { cameraFighters, followCamera, frameGoal, punchGoal, type CamBounds, type CamState } from './cameraRig.ts';
 import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
@@ -84,6 +99,33 @@ interface FighterView {
 /** One launch's smoke trail, kept for the playtest: what it was and how many puffs it threw. */
 export interface TrailRecord { seq: number; victim: number; tier: HitTier; kb: number; kind: TrailKind; ko: boolean; puffs: number }
 
+/** Presentation-only hit reaction on one fighter (never written back to the sim). */
+interface FighterReaction {
+  squashLeft: number;
+  squashAmt: number;
+  push: number;
+  pushDir: number;
+  tumble: boolean;
+  bounceLeft: number;
+  techFlash: number;
+  spikePending: boolean;
+  smearLogged: boolean;
+  chargeLogged: boolean;
+  lastAction: number;
+  lastSimFrame: number;
+  /** Last frame's knockback y (FX), to spot an air spike slamming into the floor. */
+  prevKby: number;
+}
+
+interface ReactionLog {
+  seq: number;
+  kind: 'squash' | 'tumble' | 'bounce' | 'tech' | 'smear' | 'charge';
+  id: number;
+  detail: string;
+  frames?: number;
+  amount?: number;
+}
+
 interface Spark {
   mesh: Mesh;
   /** Impact sprites (stars, rings) grow as they fade; plain sparks don't. */
@@ -119,6 +161,12 @@ export class Renderer {
   private trails = new Map<number, TrailRecord>();
   private trailLog: TrailRecord[] = [];
   private trailSeq = 0;
+  /** Procedural reactions layered on top of clips (squash, tumble, bounce, smear, charge). */
+  private reactions = new Map<number, FighterReaction>();
+  private reactionLog: ReactionLog[] = [];
+  private reactionSeq = 0;
+  private reactionCounts = { squash: 0, tumble: 0, bounce: 0, tech: 0, smear: 0, charge: 0, smearDropped: 0 };
+  private lastSmearFrame = -1;
   /** Projectile and trap sprites, one plane per shot in play (index = position in state.shots), and their looks. */
   private shotMeshes: Mesh[] = [];
   private shotMats: StandardMaterial[] | null = null;
@@ -543,6 +591,10 @@ export class Renderer {
     }
     this.views = [];
     this.fighterKey = '';
+    this.reactions.clear();
+    this.reactionLog = [];
+    this.lastHits.clear();
+    this.trails.clear();
     // Load every fighter's still + anim set together (was sequential: two fighters nearly doubled VS wait).
     const loaded = await Promise.all(state.fighters.map(async (f) => {
       const ch = CHARACTERS[f.char];
@@ -842,6 +894,36 @@ export class Renderer {
     return tex;
   }
 
+  private reactionOf(id: number): FighterReaction {
+    let r = this.reactions.get(id);
+    if (!r) {
+      r = {
+        squashLeft: 0,
+        squashAmt: 0,
+        push: 0,
+        pushDir: 1,
+        tumble: false,
+        bounceLeft: 0,
+        techFlash: 0,
+        spikePending: false,
+        smearLogged: false,
+        chargeLogged: false,
+        lastAction: ACT.IDLE,
+        lastSimFrame: -1,
+        prevKby: 0,
+      };
+      this.reactions.set(id, r);
+    }
+    return r;
+  }
+
+  private logReaction(kind: ReactionLog['kind'], id: number, detail: string, extra?: { frames?: number; amount?: number }): void {
+    this.reactionCounts[kind]++;
+    const rec: ReactionLog = { seq: ++this.reactionSeq, kind, id, detail, ...extra };
+    this.reactionLog.push(rec);
+    if (this.reactionLog.length > 80) this.reactionLog.shift();
+  }
+
   /** Reacts to sim events with sparks and camera shake. */
   onEvents(events: SimEvent[]): void {
     for (const e of events) {
@@ -853,6 +935,27 @@ export class Renderer {
           this.lastHits.set(e.victim, { kb: e.kb, tier: hitTier(e.dmg) });
           this.impact(e);
           if (hitTier(e.dmg) === 'heavy') this.post.punch();
+          // Procedural reaction layer: squash every hit; light hits also nudge the sprite back.
+          const sq = squashFor(e.dmg);
+          const r = this.reactionOf(e.victim);
+          r.squashLeft = Math.max(r.squashLeft, sq.frames);
+          r.squashAmt = Math.max(r.squashAmt, sq.amount);
+          r.tumble = false;
+          r.smearLogged = false;
+          if (hitTier(e.dmg) === 'light') {
+            r.push = LIGHT_PUSHBACK;
+            r.pushDir = e.x >= 0 ? 1 : -1;
+            // Prefer away from the attacker when we know them.
+            const atk = this.views[e.attacker];
+            if (atk) r.pushDir = e.x * S >= atk.root.position.x ? 1 : -1;
+          } else {
+            r.push = 0;
+          }
+          this.logReaction('squash', e.victim, `${hitTier(e.dmg)} hit (${e.dmg / 10}%): squash ${(sq.amount * 100).toFixed(0)}% for ${sq.frames} frames`, {
+            frames: sq.frames,
+            amount: sq.amount,
+          });
+          if (isTumbleKb(e.kb)) r.tumble = true;
         } else {
           this.burst(e.x * S, e.y * S, 8 + Math.min(16, e.kb >> 3), 0.09 + e.kb * 0.0006);
           this.shake = Math.max(this.shake, Math.min(0.5, e.kb * 0.003));
@@ -873,6 +976,19 @@ export class Renderer {
         if (e.ko) this.post.punch();
         if (e.ko && !this.shot) this.killCue(e.x * S, e.y * S + 0.5);
         this.startTrail(e.victim, e.ko);
+        const hit = this.lastHits.get(e.victim);
+        const r = this.reactionOf(e.victim);
+        if (hit && isTumbleKb(hit.kb)) {
+          r.tumble = true;
+          this.logReaction('tumble', e.victim, `launch of fighter ${e.victim} (kb ${hit.kb}): tumble spin until hit-stun ends`);
+        }
+        // Grounded spike: the sim flipped kby up; dust from the spark pool marks the bounce.
+        if (r.spikePending) {
+          r.spikePending = false;
+          r.bounceLeft = 4;
+          this.burst(e.x * S, e.y * S + 0.02, 14, 0.08);
+          this.logReaction('bounce', e.victim, `fighter ${e.victim} spiked into the floor: bounce + dust burst`);
+        }
       } else if (e.type === 'ko') {
         const b = this.stage.blast;
         const x = Math.max(b.left + 40, Math.min(b.right - 40, e.x / FX)) * W;
@@ -886,6 +1002,22 @@ export class Renderer {
         this.shake = 0.5;
       } else if (e.type === 'land' || e.type === 'jump') {
         this.burst(e.x * S, e.y * S + 0.02, 3, 0.03);
+        if (e.type === 'land') {
+          const r = this.reactionOf(e.id);
+          // Landing out of hit-stun (a tech): brief roll flash on top of the land dust.
+          if (r.lastAction === ACT.HITSTUN) {
+            r.techFlash = 6;
+            if (this.views[e.id]) this.views[e.id].flash = Math.max(this.views[e.id].flash, 8);
+            this.burst(e.x * S, e.y * S + 0.02, 8, 0.05);
+            this.logReaction('tech', e.id, `fighter ${e.id} teched the landing: roll flash`);
+            // Air spike into the floor: dust burst + bounce squash (sim lands; the bounce is visual).
+            if (r.prevKby < -4 * FX) {
+              r.bounceLeft = 4;
+              this.burst(e.x * S, e.y * S + 0.02, 16, 0.09);
+              this.logReaction('bounce', e.id, `fighter ${e.id} spiked into the floor: bounce + dust burst`);
+            }
+          }
+        }
       } else if (e.type === 'counter') {
         // The counter flash: a bright ring and star where the hit was caught, and the fighter lights up.
         const x = e.x * S;
@@ -1193,9 +1325,11 @@ export class Renderer {
       this.rig.setEnabled(true);
       this.rig.position.set(p.x * S, p.y * S, 0);
     } else this.rig?.setEnabled(false);
+    this.tickReactions(state);
     for (const f of state.fighters) this.drawFighter(f, this.views[f.id], state);
     this.drawShots(state);
     this.emitTrails(state);
+    this.emitSmears(state);
     this.updateSparks();
     this.fx?.setClock(state);
     this.fx?.update();
@@ -1214,6 +1348,126 @@ export class Renderer {
     }
   }
 
+  /** Advance presentation-only reaction timers once per sim frame; flag grounded spikes for the bounce dust. */
+  private tickReactions(state: GameState): void {
+    for (const f of state.fighters) {
+      const r = this.reactionOf(f.id);
+      if (r.lastSimFrame === state.frame) continue;
+      const stepped = r.lastSimFrame >= 0 && state.frame > r.lastSimFrame;
+      r.lastSimFrame = state.frame;
+      // During hit-stop after a downward hit on the ground, the launch will bounce — mark it for dust.
+      if (f.action === ACT.HITSTUN && f.hitlag > 0 && f.grounded && f.launchSpeed > 0 && isin(f.launchAngle) < 0) {
+        r.spikePending = true;
+      }
+      if (!stepped) {
+        r.lastAction = f.action;
+        continue;
+      }
+      if (r.squashLeft > 0) r.squashLeft--;
+      if (r.bounceLeft > 0) r.bounceLeft--;
+      if (r.techFlash > 0) r.techFlash--;
+      if (r.push > 0) r.push = Math.max(0, r.push - LIGHT_PUSHBACK / 4);
+      if (f.action !== ACT.HITSTUN) {
+        r.tumble = false;
+        r.spikePending = false;
+      }
+      if (f.action !== ACT.ATTACK) {
+        r.smearLogged = false;
+        r.chargeLogged = false;
+      }
+      r.prevKby = f.kby;
+      r.lastAction = f.action;
+    }
+  }
+
+  private isSmashMove(move: number): boolean {
+    return move === MOVE.FSMASH || move === MOVE.USMASH || move === MOVE.DSMASH;
+  }
+
+  private isSmearMove(move: number): boolean {
+    return (
+      this.isSmashMove(move) ||
+      move === MOVE.NSPECIAL ||
+      move === MOVE.SSPECIAL ||
+      move === MOVE.UPB ||
+      move === MOVE.DSPECIAL
+    );
+  }
+
+  /** High only: a 3-frame motion streak along the active smash/special hitbox path (Low drops smears). */
+  private emitSmears(state: GameState): void {
+    if (state.frame === this.lastSmearFrame) return;
+    this.lastSmearFrame = state.frame;
+    const low = this.gfx.quality === 'low';
+    for (const f of state.fighters) {
+      if (f.action !== ACT.ATTACK || !this.isSmearMove(f.move) || f.hitlag > 0) continue;
+      const move = CHARACTERS[f.char].moves[f.move];
+      if (!move.hits.length) continue;
+      const start = Math.min(...move.hits.map((h) => h.start));
+      const boxes = activeHitboxes(f);
+      if (!boxes.length || f.frame < start || f.frame > start + SMASH_SMEAR_FRAMES - 1) continue;
+      const r = this.reactionOf(f.id);
+      if (low) {
+        if (!r.smearLogged) {
+          r.smearLogged = true;
+          this.reactionCounts.smearDropped++;
+        }
+        continue;
+      }
+      const midY = f.y * S + CHARACTERS[f.char].height * W * (f.scale / 100) * 0.45;
+      const fromX = f.x * S;
+      for (const hb of boxes) {
+        const toX = hb.x * S;
+        const toY = hb.y * S;
+        const dx = toX - fromX;
+        const dy = toY - midY;
+        const len = Math.hypot(dx, dy) || 0.25;
+        const mesh = this.takeSpark();
+        mesh.position.set(fromX + dx * 0.55, midY + dy * 0.55, -0.42);
+        mesh.rotation.z = Math.atan2(dy, dx);
+        this.sparks.push({
+          mesh,
+          vx: 0,
+          vy: 0,
+          life: SMASH_SMEAR_FRAMES,
+          max: SMASH_SMEAR_FRAMES,
+          size: 0.16 + Math.min(0.12, hb.r * S),
+          stretch: Math.max(2.2, len / 0.11),
+          grow: 0,
+        });
+      }
+      if (!r.smearLogged) {
+        r.smearLogged = true;
+        const kind = this.isSmashMove(f.move) ? 'smash' : 'special';
+        this.logReaction('smear', f.id, `${kind} smear for ${SMASH_SMEAR_FRAMES} frames along the hitbox path`, {
+          frames: SMASH_SMEAR_FRAMES,
+        });
+      }
+    }
+  }
+
+  /** What the procedural reaction layer did, for the playtest. */
+  reactionStats(reset = false) {
+    const out = {
+      log: this.reactionLog.map((r) => ({ ...r })),
+      counts: { ...this.reactionCounts },
+      active: [...this.reactions.entries()].map(([id, r]) => ({
+        id,
+        squashLeft: r.squashLeft,
+        squashAmt: r.squashAmt,
+        tumble: r.tumble,
+        bounceLeft: r.bounceLeft,
+        techFlash: r.techFlash,
+        push: r.push,
+      })),
+    };
+    if (reset) {
+      this.reactionLog = [];
+      this.reactionCounts = { squash: 0, tumble: 0, bounce: 0, tech: 0, smear: 0, charge: 0, smearDropped: 0 };
+    }
+    return out;
+  }
+
   private drawFighter(f: Fighter, v: FighterView | undefined, state: GameState): void {
     if (!v) return;
     const ch = CHARACTERS[f.char];
@@ -1226,6 +1480,8 @@ export class Renderer {
     const height = ch.height * W * ART_SCALE * k;
     let x = f.x * S;
     if (f.hitlag > 0 && f.action === ACT.HITSTUN) x += (f.hitlag & 1 ? 1 : -1) * 0.04;
+    const react = this.reactionOf(f.id);
+    if (react.push > 0) x += react.pushDir * react.push;
     let drop = 0;
     const came = this.arriving.get(f.id);
     if (came !== undefined) {
@@ -1281,6 +1537,43 @@ export class Renderer {
         sy *= 1 + b;
       }
     }
+    // Reaction layer on top of clips and procedural pose (Low keeps squash / tumble / bounce).
+    if (react.squashLeft > 0 && react.squashAmt > 0) {
+      const a = react.squashAmt;
+      sx *= 1 + a * 0.55;
+      sy *= 1 - a;
+    }
+    if (react.bounceLeft > 0) {
+      const b = react.bounceLeft / 4;
+      sx *= 1 + 0.1 * b;
+      sy *= 1 - 0.12 * b;
+      lift += 0.04 * b;
+    }
+    if (react.tumble && f.action === ACT.HITSTUN && f.hitlag <= 0) {
+      const speed = Math.hypot(f.kbx, f.kby) / FX;
+      if (speed > TUMBLE_SPEED * 0.35 || isTumbleKb(this.lastHits.get(f.id)?.kb ?? 0)) {
+        rot += f.facing * f.frame * 0.35;
+      }
+    }
+    // Smash charge: shake and growing glow through the wind-up (DoD has no hold charge; startup is the hold).
+    let chargeGlow = 0;
+    if (f.action === ACT.ATTACK && this.isSmashMove(f.move)) {
+      const move = CHARACTERS[f.char].moves[f.move];
+      const wind = move.hits.length ? Math.min(...move.hits.map((h) => h.start)) : 0;
+      if (wind > 0 && f.frame < wind) {
+        chargeGlow = f.frame / wind;
+        x += Math.sin(f.frame * 2.8) * 0.018 * chargeGlow;
+        if (!react.chargeLogged && chargeGlow > 0.2) {
+          react.chargeLogged = true;
+          this.logReaction('charge', f.id, `smash charge glow ${(chargeGlow * 100).toFixed(0)}% through wind-up`);
+        }
+      }
+    }
+    if (react.techFlash > 0) {
+      rot += -f.facing * (6 - react.techFlash) * 0.12;
+      sx *= 0.92;
+    }
+    v.root.position.x = x;
     v.pose.scaling.set(f.facing * sx, sy, 1);
     v.pose.rotation.z = rot;
     v.pose.position.y = lift;
@@ -1308,6 +1601,11 @@ export class Renderer {
     if (v.flash > 0) {
       v.flash--;
       v.mat.emissiveColor.set(1, 0.55 + (10 - v.flash) * 0.045, 0.45 + (10 - v.flash) * 0.055);
+    } else if (chargeGlow > 0) {
+      const g = 0.25 + chargeGlow * 0.75;
+      v.mat.emissiveColor.set(1, 0.55 + g * 0.35, 0.2 + g * 0.2);
+    } else if (react.techFlash > 0) {
+      v.mat.emissiveColor.set(0.95, 0.95, 1);
     } else if (f.action === ACT.ATTACK && CHARACTERS[f.char].moves[f.move].counter && f.frame >= CHARACTERS[f.char].moves[f.move].counter!.from && f.frame <= CHARACTERS[f.char].moves[f.move].counter!.to) {
       // Counter stance: a cold pulse on the fighter while the window is open.
       const pulse = f.frame & 4 ? 0.55 : 0.8;
@@ -1591,7 +1889,8 @@ function proceduralPose(f: Fighter, stage: StageDef): [number, number, number, n
     }
     case ACT.HITSTUN: {
       const speed = Math.hypot(f.kbx, f.kby) / FX;
-      return [1, 1, speed > 8 ? f.facing * t * 0.35 : f.facing * 0.25, 0];
+      // Stand-in hurt (no clip): tumble spin above TUMBLE_SPEED; the reaction layer also spins exact clips.
+      return [1, 1, speed > TUMBLE_SPEED ? f.facing * t * 0.35 : f.facing * 0.25, 0];
     }
     case ACT.GRAB:
       return t < GRAB_FIRST ? [1, 1, 0, 0] : [1.1, 1, -f.facing * 0.2, 0];

@@ -11,6 +11,26 @@ export type HitTier = 'light' | 'medium' | 'heavy';
 /** Damage is in tenths of a percent (the same cut-offs pick hit-light / hit-medium / hit-heavy in main.ts). */
 export const hitTier = (dmg: number): HitTier => (dmg < 70 ? 'light' : dmg < 130 ? 'medium' : 'heavy');
 
+// ------------------------------------------------------------------ procedural reaction layer (visual only)
+
+/** Knockback from a hit event (already /1000) above which the victim tumbles until hit-stun ends. */
+export const TUMBLE_KB = 12;
+/** World-speed (hypot(kbx,kby)/FX) that keeps a tumble spinning once launched. */
+export const TUMBLE_SPEED = 8;
+/** Scene-unit push on a light hit (~6 CSS px at a typical match zoom). */
+export const LIGHT_PUSHBACK = 0.06;
+/** Smash / special smear length in sim frames. */
+export const SMASH_SMEAR_FRAMES = 3;
+
+/** How hard and how long the victim squashes on hit (8–15% for 2–4 frames), scaled by damage. */
+export const squashFor = (dmg: number): { amount: number; frames: number } => {
+  const t = Math.max(0, Math.min(1, (dmg - 20) / 220));
+  return { amount: 0.08 + t * 0.07, frames: Math.round(2 + t * 2) };
+};
+
+/** Whether this knockback (hit-event units) is a tumble launch. */
+export const isTumbleKb = (kb: number): boolean => kb >= TUMBLE_KB;
+
 export interface Impact {
   /** Sparks thrown. */
   sparks: number;

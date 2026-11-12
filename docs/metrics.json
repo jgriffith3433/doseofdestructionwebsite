@@ -1,0 +1,9 @@
+{
+  "unit": "world",
+  "jumpHeight": 150,
+  "jumpDistance": 286,
+  "runSpeed": 6.5,
+  "corridorWidths": { "min": 80, "comfortable": 200, "combat": 400 },
+  "feel": { "coyoteMs": 100, "jumpBufferMs": 100, "hitStopMs": 133, "shakeMs": 120, "shakeAmplitude": 0.15 },
+  "notes": "Exit Punk baseline (content/fighters.json hop/walk/gravity). Coyote and buffer are 6 frames at 60 Hz (sim/step.ts). Heavy hit-stop floor: 8 frames (~133 ms) for a ~130-damage smash (3 + dmg/25)."
+}

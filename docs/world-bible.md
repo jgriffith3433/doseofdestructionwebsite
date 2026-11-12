@@ -338,6 +338,13 @@ calls are the others.
   crowd ooh on heavy hits, roar on KOs, rising cheer on comebacks (never the same reaction twice in a row); layered
   stage beds already lift to intense on last stock / ≥100% with a final-KO sting. Procedural sting/alarm/thud when a
   file is missing.
+- **Hit reaction layer (broadcast feel):** every landed hit squashes the victim sprite 8–15% for 2–4 frames (scaled by
+  damage) and light hits nudge them back ~6 px; a launch above tumble knockback spins the sprite until hit-stun ends;
+  a fighter spiked into the floor ground-bounces with a dust burst from the spark pool; a tech on landing flashes a
+  quick roll. Smash attacks and specials throw a 3-frame smear along the active hitbox path (High only; Low keeps
+  squash / tumble / bounce and drops smears). Smash wind-up shakes and grows a charge glow (DoD has no hold-charge —
+  startup is the hold). Visual only: the renderer reads sim state and never writes it, so rollback and the state hash
+  stay clean (`src/game/hitFeel.ts`, `render/renderer.ts`).
 - **Over time:** Orchestrator hosts S1; Blog Man from S2; rival booth in S4; commentary still needs recorded takes for
   many lines. Dedicated ambience loops (not reused music) remain a gap listed in `content/stage-beds.json`.
 

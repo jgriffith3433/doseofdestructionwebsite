@@ -72,6 +72,12 @@ export interface GameHooks {
   trailStats?(reset?: boolean): { log: { seq: number; victim: number; tier: HitTier; kb: number; kind: 'none' | 'grey' | 'white' | 'streak'; ko: boolean; puffs: number }[]; active: number; puffs: number };
   markerStats?(): { shown: number; frames: number; unclear: number; last: { id: number; size: number; danger: boolean; clear: boolean; rect: { l: number; t: number; r: number; b: number } } | null; events: { id: number; size: number; danger: boolean }[]; rects: { id: number; rect: { l: number; t: number; r: number; b: number }; danger: boolean }[] };
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
+  /** Procedural reaction layer (squash, tumble, bounce, smear, charge); visual only. */
+  reactionStats?(reset?: boolean): {
+    log: { seq: number; kind: 'squash' | 'tumble' | 'bounce' | 'tech' | 'smear' | 'charge'; id: number; detail: string; frames?: number; amount?: number }[];
+    counts: { squash: number; tumble: number; bounce: number; tech: number; smear: number; charge: number; smearDropped: number };
+    active: { id: number; squashLeft: number; squashAmt: number; tumble: boolean; bounceLeft: number; techFlash: number; push: number }[];
+  };
   /** The colour look each built fighter wears and whether its material runs the palette shader (renderer.lookStats). */
   lookStats?(): { slot: number; char: number; look: number; shader: boolean }[];
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
@@ -4357,12 +4363,25 @@ class Run {
    */
   async hitFeel(): Promise<void> {
     const t = this.t;
+    // Phone (390x844): turn to 844x390 landscape, Low quality, and check squash/tumble hold 45 fps.
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('hit-feel');
+    }
+    if (touch) {
+      this.logViewport(this.isPhone());
+      this.useTap = true;
+      forceTouchUi(true);
+    }
     const original = localStorage.getItem(SHAKE_STORAGE_KEY);
+    const gfxWas = localStorage.getItem(GFX_KEY);
     try {
       localStorage.removeItem(SHAKE_STORAGE_KEY);
     } catch {
       // Storage blocked.
     }
+    if (touch) setGraphics({ quality: 'low', glow: false });
     const seen: Record<HitTier, { lag: number; frozen: number; dmg: number; fx: string } | null> = { light: null, medium: null, heavy: null };
     const fxLine = (l: NonNullable<ReturnType<NonNullable<GameHooks['hitFxStats']>>['last']>) =>
       `${l.sparks} sparks, ${l.stars} impact stars, ${l.ring ? 'shockwave ring' : 'no ring'}, shake ${l.shake.toFixed(2)}, flash ${l.flash}`;
@@ -4375,9 +4394,11 @@ class Run {
     const pending: { victim: number; tier: HitTier; lag: number; dmg: number; frozen: number; fx: string }[] = [];
     // Launch trails and edge markers: one event per launch (trail kind and puffs) and per fighter that goes off screen.
     let trailSeq = 0;
+    let reactionSeq = 0;
     let markerSeen = 0;
     let markerProblems = 0;
-    const touchUi = this.isPhone() || touchDevice() || this.options.input === 'touch';
+    const fpsSamples: number[] = [];
+    const touchUi = touch || this.isPhone() || touchDevice() || this.options.input === 'touch';
     type R4 = { l: number; t: number; r: number; b: number };
     const overlap = (a: R4, b: R4) => a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
     const sampleScreen = () => {
@@ -4415,10 +4436,20 @@ class Run {
     };
     const unwatch = this.game.watch((m, events) => {
       sampleScreen();
+      const g = this.game.gfxStats?.();
+      if (g && g.quality === 'low' && g.fpsNow > 0) fpsSamples.push(g.fpsNow);
       for (const rec of this.game.trailStats?.()?.log ?? []) {
         if (rec.seq <= trailSeq) continue;
         trailSeq = rec.seq;
         t.event('trail', rec.kind === 'none' ? `launch of fighter ${rec.victim} (${rec.tier} hit, knockback ${rec.kb}): light hit, no smoke trail` : `launch of fighter ${rec.victim} (${rec.tier} hit, knockback ${rec.kb}): ${rec.kind === 'streak' ? 'coloured KO streak' : `${rec.kind} smoke trail`} behind them for the hit-stun`);
+      }
+      for (const rec of this.game.reactionStats?.()?.log ?? []) {
+        if (rec.seq <= reactionSeq) continue;
+        reactionSeq = rec.seq;
+        if (!this.checked.has(`reaction-${rec.kind}`)) {
+          this.checked.add(`reaction-${rec.kind}`);
+          t.event(rec.kind === 'squash' ? 'reaction-squash' : rec.kind === 'tumble' ? 'reaction-tumble' : rec.kind === 'bounce' ? 'reaction-bounce' : rec.kind === 'smear' ? 'reaction-smear' : rec.kind === 'charge' ? 'reaction-charge' : 'reaction-tech', rec.detail);
+        }
       }
       for (const p of pending.slice()) {
         if (m.state.fighters[p.victim].hitlag > 0) p.frozen++;
@@ -4487,12 +4518,49 @@ class Run {
       t.progress(0.15);
       this.game.hitFxStats?.(true);
       this.game.camFxStats?.(true);
+      this.game.reactionStats?.(true);
+      reactionSeq = 0;
       cuesPrev = this.game.camFxStats?.()?.killCues ?? 0;
       const m0 = () => this.game.match();
       this.progressNow = () => 0.15 + 0.5 * Math.min(1, ((m0()?.state.frame ?? 0) / (75 * 60)));
       // Fight until a light and a heavy hit were both seen (and counted), or 75 s of game time.
-      const ended = await this.fight(() => (!!seen.light && !!seen.heavy) || (m0()?.state.frame ?? 0) > 75 * 60, 4 * 60 * 1000);
+      // Also wait for squash + tumble when the reaction layer is hooked (playtest criteria).
+      const reactionsReady = () => {
+        const c = this.game.reactionStats?.()?.counts;
+        return !!c && c.squash > 0 && c.tumble > 0;
+      };
+      const ended = await this.fight(
+        () => (!!seen.light && !!seen.heavy && reactionsReady()) || (m0()?.state.frame ?? 0) > 75 * 60,
+        4 * 60 * 1000,
+      );
       if (ended === 'over') t.problem('warning', 'the match ended before a light and a heavy hit were both seen');
+      // Procedural reaction layer: squash on hit, tumble on launch, smear on smash (High), bounce on floor spike.
+      const react = this.game.reactionStats?.();
+      t.metric('reactionSquash', react?.counts.squash ?? 0);
+      t.metric('reactionTumble', react?.counts.tumble ?? 0);
+      t.metric('reactionBounce', react?.counts.bounce ?? 0);
+      t.metric('reactionSmear', react?.counts.smear ?? 0);
+      t.metric('reactionCharge', react?.counts.charge ?? 0);
+      const heavySquash = react?.log.find((r) => r.kind === 'squash' && (r.frames ?? 0) >= 2 && (r.amount ?? 0) >= 0.08);
+      if (!react?.counts.squash) t.problem('bug', 'no hit squash reaction was seen');
+      else if (!heavySquash) t.problem('bug', 'a hit squash was under 8% or under 2 frames');
+      else t.event('reaction-squash-ok', `squash seen (${react.counts.squash}x), e.g. ${heavySquash.detail}`);
+      if (!react?.counts.tumble) t.problem('bug', 'no tumble spin on a launch above tumble knockback');
+      else t.event('reaction-tumble-ok', `${react.counts.tumble} tumble launch(es)`);
+      if (!react?.counts.bounce) t.problem('warning', 'no floor-spike bounce with dust was seen in this run');
+      else t.event('reaction-bounce-ok', `${react.counts.bounce} floor bounce(s) with dust`);
+      const low = this.game.gfxStats?.()?.quality === 'low';
+      if (low) {
+        if ((react?.counts.smear ?? 0) > 0) t.problem('bug', 'Low quality drew smash smears (they should drop)');
+        else t.event('reaction-smear-low', `Low dropped smears (${react?.counts.smearDropped ?? 0} smash/special active windows)`);
+      } else if (!(react?.counts.smear ?? 0)) t.problem('warning', 'no smash/special smear streak was seen (bot may not have used a smash)');
+      else t.event('reaction-smear-ok', `${react!.counts.smear} smear(s) of 3 frames along the hitbox path`);
+      if (touch || low) {
+        const avg = fpsSamples.length ? fpsSamples.reduce((a, b) => a + b, 0) / fpsSamples.length : this.game.gfxStats?.()?.fpsNow ?? 0;
+        t.metric('fpsMatchLow', Math.round(avg));
+        if (avg > 0 && avg < 45) t.problem('warning', `phone Low ran at ${Math.round(avg)} fps (want 45)`);
+        else if (avg > 0) t.event('reaction-phone-fps', `Low at ${Math.round(avg)} fps with squash/tumble on`);
+      }
       // Launch trails: a heavy launch left smoke (more puffs with more knockback), a light hit none.
       const tlog = this.game.trailStats?.()?.log ?? [];
       const heavyTrails = tlog.filter((r) => r.tier === 'heavy' && r.kind !== 'none');
@@ -4613,6 +4681,17 @@ class Run {
       } catch {
         // Storage blocked.
       }
+      try {
+        if (gfxWas == null) localStorage.removeItem(GFX_KEY);
+        else localStorage.setItem(GFX_KEY, gfxWas);
+        if (gfxWas) {
+          const g = JSON.parse(gfxWas) as { quality?: 'high' | 'low'; glow?: boolean; fps?: boolean };
+          setGraphics({ quality: g.quality === 'low' ? 'low' : 'high', glow: g.glow !== false, fps: !!g.fps });
+        } else if (touch) setGraphics({ quality: isTouchDevice() ? 'low' : 'high', glow: !isTouchDevice() });
+      } catch {
+        // Storage blocked.
+      }
+      if (touch) forceTouchUi(false);
     }
     t.progress(1);
     t.finish('done');
