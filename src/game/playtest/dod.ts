@@ -75,6 +75,7 @@ export interface GameHooks {
   lookStats?(): { slot: number; char: number; look: number; shader: boolean }[];
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
+  postStats?(): { quality: 'high' | 'low'; lut: string | null; lutReady: boolean; vignette: number; grain: number; punchFrames: number; punches: number; lastPunchDrawn: number };
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
   /** Layered stage bed: calm/intense, ambience under the theme, intensity stem. */
@@ -178,6 +179,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'touch-match') await r.touchMatch();
         else if (id === 'touch-settings') await r.touchSettingsRun();
         else if (id === 'graphics') await r.graphicsRun();
+        else if (id === 'post-chain') await r.postChain();
         else if (id === 'stage-life') await r.stageLife();
         else if (id === 'stage-bed') await r.stageBed();
         else if (id === 'commentary') await r.commentary();
@@ -5200,6 +5202,87 @@ class Run {
       } catch {
         // Storage blocked.
       }
+    }
+  }
+
+  /**
+   * The post chain: each stage's own colour grade (3D LUT), vignette and, on High, film grain and the 4-frame hit
+   * punch. Setup shortcut: straight into a match on each stage (no menus); the options `stage` picks one. On a phone
+   * (touch, 844x390) it plays Low, where only the grade and vignette run, and checks the frame rate holds 45.
+   * Events `stage-grade` (per stage: LUT loaded, vignette, grain), `post-low`, `post-punch`; metrics fpsPost, postStages.
+   */
+  async postChain(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('post-chain');
+    }
+    this.logViewport(touch && this.isPhone());
+    const original = localStorage.getItem(GFX_KEY);
+    const initial = graphics();
+    const low = touch || this.options.quality === 'low';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    setGraphics(low ? { quality: 'low', glow: false } : { quality: 'high', glow: true });
+    try {
+      const want = typeof this.options.stage === 'string' ? STAGES.filter((s) => s.id === this.options.stage) : STAGES;
+      if (!want.length) t.problem('bug', `stage "${String(this.options.stage)}" is not on the list`);
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = (punk + 1) % CHARACTERS.length;
+      const post = () => this.game.postStats?.();
+      let graded = 0;
+      for (const [i, st] of want.entries()) {
+        t.progress(0.05 + (0.7 * i) / want.length);
+        void this.game.startMatch({ mode: 'versus', stage: STAGES.indexOf(st), stocks: 1, rules: {}, slots: [{ char: punk, cpu: null }, { char: foe, cpu: 5 }] });
+        await this.matchLive();
+        await this.t.until(() => !!post()?.lutReady, 8000, `${st.name}'s LUT to load`).catch((e) => {
+          if (String(e).includes('stopped')) throw e;
+        });
+        await this.wait(1800);
+        const p = post();
+        if (!st.grade) t.problem('bug', `${st.name} has no grade in content/stages.json`);
+        else if (!p || p.lut !== st.id || !p.lutReady) t.problem('bug', `${st.name}: the colour grade (stages/${st.id}/lut.png) is not applied (${JSON.stringify(p)})`);
+        else if (p.vignette <= 0) t.problem('bug', `${st.name}: no vignette`);
+        else if ((p.quality === 'low') !== (p.grain === 0)) t.problem('bug', `${st.name}: film grain ${p.grain} on ${p.quality} (Low runs the grade and vignette only)`);
+        else {
+          graded++;
+          t.event('stage-grade', `${st.name}: LUT ${p.lut} loaded, tint ${st.grade.tint}, saturation ${st.grade.saturation}, vignette ${p.vignette}, grain ${p.grain} (${p.quality})`);
+        }
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+      t.metric('postStages', graded);
+      // One full fight on the last stage: the bot hits, the punch is 4 frames; Low holds the frame rate.
+      t.progress(0.8);
+      void this.game.startMatch({ mode: 'versus', stage: STAGES.indexOf(want[want.length - 1] ?? STAGES[0]), stocks: 1, rules: {}, slots: [{ char: punk, cpu: null }, { char: foe, cpu: 5 }] });
+      await this.matchLive();
+      const fps: number[] = [];
+      let sampled = 0;
+      await this.fight(() => {
+        if (++sampled % 20 === 0) fps.push(this.game.gfxStats?.()?.fpsNow ?? 0);
+        return !low && (post()?.punches ?? 0) >= 1 && post()?.punchFrames === 0;
+      }, 240000);
+      const p = post();
+      if (low) {
+        t.event('post-low', `Low: grade and vignette only (grain ${p?.grain}, punches ${p?.punches}, LUT ${p?.lutReady ? 'on' : 'off'})`);
+        const mean = fps.length ? fps.reduce((a, b) => a + b, 0) / fps.length : 0;
+        t.metric('fpsPost', Math.round(mean));
+        if (mean > 0 && mean < 45 && innerWidth <= 900) t.problem('warning', `Low at ${innerWidth}x${innerHeight} ran at ${Math.round(mean)} fps (want 45)`);
+      } else if (!p?.punches) t.problem('bug', 'no heavy hit or KO landed, so the hit punch could not be checked');
+      else if (p.lastPunchDrawn !== 4) t.problem('bug', `the hit punch drew ${p.lastPunchDrawn} frames (want 4)`);
+      else {
+        t.event('post-punch', `a heavy hit or KO punched the screen for 4 frames (chromatic aberration and exposure, ${p.punches} so far)`);
+        t.metric('fpsPost', Math.round(fps.length ? fps.reduce((a, b) => a + b, 0) / fps.length : 0));
+      }
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      setGraphics(initial);
+      if (original === null) localStorage.removeItem(GFX_KEY);
     }
   }
 

@@ -241,6 +241,8 @@ export interface StageDef {
   notes?: string;
   /** Art direction for painting the stage, and the concept image it is styled on. */
   art?: { style?: string; reference?: string };
+  /** The stage's colour grade (render only): baked into stages/<id>/lut.png by tools/make-luts.mjs. */
+  grade?: { lift: number; gamma: number; gain: number; saturation: number; tint: string; tintAmount: number };
 }
 
 export interface Ledge {

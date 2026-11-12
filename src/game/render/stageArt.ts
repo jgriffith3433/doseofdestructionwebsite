@@ -14,6 +14,7 @@ import { Constants } from '@babylonjs/core/Engines/constants.js';
 import { Material } from '@babylonjs/core/Materials/material.js';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture.js';
+import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture.js';
 import type { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder.js';
@@ -45,12 +46,14 @@ export function drawnPlatforms(stage: StageDef): Set<number> {
  * Builds a stage's picture layers under root. Returns whether any is an
  * occluder, and every layer built (StageLive moves them each frame).
  */
-export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, glow: GlowLayer): { occluders: boolean; placed: Placed[] } {
+export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, glow: GlowLayer, softFar = false): { occluders: boolean; placed: Placed[] } {
   let occluders = false;
   const placed: Placed[] = [];
   // Layers behind the fighters draw far to near; at the same depth, in list order.
   const behind = (stage.layers ?? []).map((l, i) => ({ l, i })).filter(({ l }) => l.z > 0).sort((a, b) => b.l.z - a.l.z || a.i - b.i);
   const rank = new Map(behind.map(({ l }, n) => [l, n]));
+  // Only the farthest picture behind the fighters is softened (High): depth of field for the backdrop, never the play space.
+  const farthest = softFar && behind.length ? behind[0].l : null;
   for (const l of stage.layers ?? []) {
     if (l.hidden || !l.image) continue;
     const at = layerPlacement(l);
@@ -75,6 +78,7 @@ export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, 
     mat.useAlphaFromDiffuseTexture = true;
     mat.diffuseColor = Color3.Black();
     mat.emissiveColor = Color3.White();
+    if (l === farthest) softenFar(l.image, mat, scene);
     if (l.glow) mat.alphaMode = Constants.ALPHA_ADD;
     if (l.occluder && l.z < 0) {
       // Alpha tested so its solid pixels write depth (silhouettes test against it).
@@ -90,6 +94,30 @@ export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, 
     glow.addExcludedMesh(plane);
   }
   return { occluders, placed };
+}
+
+/**
+ * Swaps the layer's picture for a soft copy: drawn at a fifth of its size and stretched back by the GPU's bilinear
+ * filter, which reads as a gentle blur on every browser. The sharp texture shows until the copy is ready.
+ */
+function softenFar(image: string, mat: StandardMaterial, scene: Scene): void {
+  const img = new Image();
+  img.onload = () => {
+    if (scene.isDisposed || !img.naturalWidth) return;
+    const w = Math.max(64, Math.round(img.naturalWidth / 5));
+    const h = Math.max(64, Math.round(img.naturalHeight / 5));
+    const soft = new DynamicTexture(`soft-${image}`, { width: w, height: h }, scene, false, Texture.BILINEAR_SAMPLINGMODE);
+    const ctx = soft.getContext() as CanvasRenderingContext2D;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, w, h);
+    soft.update(false);
+    soft.hasAlpha = true;
+    const old = mat.diffuseTexture;
+    if (old?.isReady()) old.dispose();
+    mat.emissiveTexture = soft;
+    mat.diffuseTexture = soft;
+  };
+  img.src = `/${image}`;
 }
 
 // ------------------------------------------------------------------ effects
