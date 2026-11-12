@@ -602,3 +602,17 @@ episode number, title, one line) and "Signing off" after a win, before the outro
 `content/campaign.json` as `card: { "before": "...", "after": "..." }` (the before card falls back to the `tagline`).
 Write them as the show would: one sentence, present or past tense, no jokes about jobs or "the game". The card holds for
 about 5 seconds and can be skipped (Skip, Enter or Space).
+
+## Square-ups (pre-fight exchanges)
+
+Before the bell, the show lets rivals trade a jab. `content/intros.json` holds 32 pairs of two lines each (10 words or
+fewer, each said in that fighter's own recorded voice) and 6 generic exchanges. Pairs are the story's rivals: the Tour
+rivals (Kaelen and Slice, Break and SS Boulder, DJ Won't Read and Shutup Bot, Small Weather and Pyro Singer, Evil Blue
+Bird and Got Ur Back, Blog Man and Future Man, ...) and the champion against the card's walk-ons and the Orchestrator.
+Shutup Bot's only word is still "Fine." (here it is a shrug, not a loss). The Mechanic stays off the list until he is
+on the card. Any other two fighters get a generic exchange by the first fighter's type (heavy, fast, air, zone, brawl,
+all-round): the announcer sets the matchup and Blog Man writes the headline.
+It plays after the VS card, with the fighters already standing: the camera cuts to the first speaker (name and one line
+as a lower third), the other answers, the listener of that answer taunts. 6 s at most; any key, click, tap or button
+skips it. In Versus it plays every time; in the campaign an episode between a listed pair plays it once, after the
+intro scene. Not in Training, online, Tour or Tonight's Episode.

@@ -27,8 +27,9 @@ import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playVersus, showResults, type ResultAction } from './ui/views.ts';
-import { playColdOpen, playScene, skipScene, type SceneCard, type SceneLine, type SceneStage } from './ui/scene.ts';
+import { playColdOpen, playExchange, playScene, skipScene, type SceneCard, type SceneLine, type SceneStage } from './ui/scene.ts';
 import { chunkLine, chunkTimes } from './campaign/sceneText.ts';
+import { exchangeFor, markExchangeSeen, seenExchanges, type Exchange } from './campaign/intros.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
 // Online code is never imported here: it loads after boot through the loader (a failure there can't stop the game).
@@ -419,6 +420,28 @@ function sceneStage(m: Match): SceneStage {
     synth: (kind, level) => audio.synth(kind, level),
     duck: (on) => audio.duck(on),
   };
+}
+
+/**
+ * The pre-fight exchange for a match (content/intros.json): two fighters, in Versus every time and in the campaign the
+ * first time their listed pair meets (`firstTimeOnly`). Not Training, online, a Tour or the daily episode.
+ */
+function exchangeFor2(m: Match, firstTimeOnly: boolean): Exchange | null {
+  if (m.setup.slots.length !== 2 || m.setup.mode === 'training' || m.setup.mode === 'online') return null;
+  const [a, b] = m.setup.slots.map((s) => CHARACTERS[s.char]);
+  const ex = exchangeFor(a.id, b.id, a.role);
+  if (firstTimeOnly && (ex.generic || seenExchanges().has(ex.id))) return null;
+  return ex;
+}
+
+/** Plays a pre-fight exchange on the stage (phase 'scene'); the fighters are already standing there. */
+async function runExchange(m: Match, ex: Exchange): Promise<void> {
+  phase = 'scene';
+  audio.playStageBed(STAGES[m.setup.stage].id);
+  $('scene-next').focus();
+  const end = await playExchange(sceneStage(m), ex.id, ex.lines);
+  if (!ex.generic) markExchangeSeen(ex.id);
+  analytics.scene(ex.id, { skipped: end.skipped, line: Math.max(0, end.lines - 1) }, ex.lines.length);
 }
 
 /** Plays a chapter's intro or outro live in the arena (phase 'scene'), with its story card as the lower third. */
@@ -874,7 +897,8 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   const vsMs = performance.now() - t0;
   const vsHoldMs = withVersus ? Math.round(performance.now() - vsStart) : null;
   // Ready ticks during the wipe-out (~280 ms), so vsHoldMs (to first play frame) stays under 3 s.
-  const readyUnderWipe = !f && !intro;
+  const versusExchange = !f && !scene && setup.mode === 'versus' ? exchangeFor2(m, false) : null;
+  const readyUnderWipe = !f && !intro && !versusExchange;
   await go('match', () => {
     window.dispatchEvent(new CustomEvent('dod:scene-timing', { detail: { selectToVs: fromSelect, vsToMatch: vsMs, vsHoldMs, warmUpMs, selectToMatch: pickedAt === null ? null : performance.now() - pickedAt, withVersus } }));
     // The canvas may have changed size while menus were up.
@@ -903,6 +927,18 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   if (intro && scene) {
     await runScene(m, scene);
     // Something else (an online match found, Quit) took over during the scene.
+    if (match !== m) return;
+    // A campaign episode between a listed rival pair: the two trade a jab the first time.
+    const jab = scene.chapter && scene.which === 'intro' && !scene.chapter.coldOpen?.length ? exchangeFor2(m, true) : null;
+    if (jab) {
+      await runExchange(m, jab);
+      if (match !== m) return;
+    }
+    beginReady(m);
+    return;
+  }
+  if (versusExchange) {
+    await runExchange(m, versusExchange);
     if (match !== m) return;
     beginReady(m);
     return;

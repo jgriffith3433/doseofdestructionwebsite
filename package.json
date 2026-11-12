@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "node tools/site-facts.mjs && vite build",
     "typecheck": "tsc -p .",
-    "test": "node src/game/test/sim.test.ts && node src/game/test/daily.test.ts && node src/game/test/tour.test.ts && node src/game/test/net.test.ts && node src/game/test/ratings.test.ts && node src/game/test/unlocks.test.ts && node src/game/test/looks.test.ts && node src/game/test/analytics.test.ts && node src/game/test/commentary.test.ts && node src/game/test/fighter-voice.test.ts && node src/game/test/cards.test.ts && node src/game/test/scene.test.ts && node src/game/test/stageBed.test.ts && node src/game/test/camera.test.ts && node src/game/test/pilot.test.ts && node src/game/test/feedback.test.ts && node tools/make-luts.mjs --check && node tools/feet.test.mjs && node tools/heads.test.mjs && node tools/site-facts.test.mjs && node tools/playtest-bridge.test.mjs"
+    "test": "node src/game/test/sim.test.ts && node src/game/test/daily.test.ts && node src/game/test/tour.test.ts && node src/game/test/net.test.ts && node src/game/test/ratings.test.ts && node src/game/test/unlocks.test.ts && node src/game/test/looks.test.ts && node src/game/test/analytics.test.ts && node src/game/test/commentary.test.ts && node src/game/test/fighter-voice.test.ts && node src/game/test/cards.test.ts && node src/game/test/scene.test.ts && node src/game/test/intros.test.ts && node src/game/test/stageBed.test.ts && node src/game/test/camera.test.ts && node src/game/test/pilot.test.ts && node src/game/test/feedback.test.ts && node tools/make-luts.mjs --check && node tools/feet.test.mjs && node tools/heads.test.mjs && node tools/site-facts.test.mjs && node tools/playtest-bridge.test.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.0",

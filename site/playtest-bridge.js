@@ -47,6 +47,16 @@
       ]
     },
     {
+      "id": "intro-exchange",
+      "title": "Pre-fight exchange: two rivals trade a voiced jab before the fight, the camera on each speaker, 6 s at most, any tap skips it (phone 844x390: caption in two lines)",
+      "description": "Options fighter / foe (default exit-punk vs kaelen, a listed pair in content/intros.json). Checks the data (32 pairs, two voiced lines each, files present), then a Versus match: a tap skips the exchange once its first line shows (exchange-skip, within 300 ms), the caption fits the window in at most two lines (exchange-caption), then the same fight again plays out: both lines voiced with the camera on each speaker, the listener's taunt, at most 6 s (exchange-lines, exchangeMs). On a 390x844 touch phone it turns to 844x390 and presses by touch. Events exchange-start / -line / -taunt / -end; metrics exchangeMs, exchangeSkipMs, exchangeCaptionLines, exchangePairs.",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "sound"
+      ]
+    },
+    {
       "id": "campaign",
       "title": "The campaign from chapter 1 (or the chapter asked for), as far as the bot gets in 10 minutes",
       "description": "options: season (a number: that season's first chapter, e.g. 3), chapter (a chapter id from content/campaign.json: open-mic, house-heavy, bad-signal, low-pressure, turn-the-page, sudden-death, dead-weight, encore, title-defense, drop-in, champions-tax, sponsored, walk-on, simulcast, rerun, cut-to-size, hostile-takeover, cold-open, product-placement, dead-air, clip-show, local-affiliate, standards-and-practices, prime-time, global-feed, pilot-remake, laugh-track, crossover-event, series-finale, red-carpet, best-supporting, lifetime-achievement, best-in-show, teaser, trailer, table-read, cliffhanger, first-cut, final-cut), or the contract's at with the same ids. Setup shortcut: every chapter before it is marked cleared (localStorage dod-campaign), then the bot opens it from the Campaign map and plays on from there. The player's own progress is put back at the end. An unknown id is reported as a problem.",
