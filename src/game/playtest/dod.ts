@@ -16,7 +16,7 @@ import { readTouch, touchDevice, touchOverlay } from '../input/touch.ts';
 import { TOUCH_KEY, forceTouchUi, touchSettings } from '../touchSettings.ts';
 import { forceTouchPrompt, lockLandscape, rotateShowing } from '../ui/rotate.ts';
 import { currentScreen, switching, type ScreenId } from '../ui/screens.ts';
-import { CHARACTERS, MOVE, MOVE_KEYS } from '../sim/characters.ts';
+import { CHARACTERS, FIGHTERS as FIGHTERS_DATA, MOVE, MOVE_KEYS } from '../sim/characters.ts';
 import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
@@ -211,6 +211,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'fighter-voice') await r.fighterVoice();
         else if (id === 'announcer') await r.announcerRun();
         else if (id === 'win-quote') await r.winQuoteRun();
+        else if (id === 'victory') await r.victoryRun();
         else if (id === 'intro-exchange') await r.introExchange();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
@@ -7174,6 +7175,149 @@ class Run {
       unlocks().clear();
       for (const id of savedUnlocks) unlocks().add(id);
       saveUnlocks(unlocks());
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  /**
+   * The victory stage (ui/victory.ts, victory.ts): a Versus 1v1 (options fighter / foe, default Exit Punk vs Kaelen) played twice.
+   * Round 1: the results open on the winner on a lit podium playing a clip (`victory-stage`), the group's fanfare plays
+   * (`victory-fanfare`: the group of content/fighters.json `fanfare`, its file on disk), the loser shows in a dim inset
+   * (`victory-loser`), the camera pushes in (`victory-push`) with confetti (`victory-confetti`), Rematch is on screen and
+   * tappable within 3 s (`victory-rematch`), the panel slides in (`victory-panel`) with the podium beside it on a landscape
+   * phone and every button 44 px tall (`victory-fit`). Round 2: a tap on the stage skips the pose (`victory-skip`).
+   * On a phone every tap is a touch pointer event (390x844 turned to 844x390). Metric `victoryMs` (results open to Rematch).
+   */
+  async victoryRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('victory');
+    }
+    this.logViewport(touch && this.isPhone());
+    if (typeof this.options.fighter !== 'string') this.options.fighter = 'exit-punk';
+    if (typeof this.options.foe !== 'string') this.options.foe = 'kaelen';
+    type V = { group: string; fanfare: string; hasFanfare: boolean; winner: string; loser: string | null };
+    const opened: { v: V; at: number }[] = [];
+    const fanfares: { id: string; file: string | null; played: boolean }[] = [];
+    const clips: { role: string; clip: string | null }[] = [];
+    const panels: { why: string; ms: number }[] = [];
+    const on = (type: string, fn: (d: any) => void) => {
+      const f = (e: Event) => fn((e as CustomEvent).detail);
+      window.addEventListener(type, f);
+      return () => window.removeEventListener(type, f);
+    };
+    const offs = [
+      on('dod:victory', (d) => opened.push({ v: d, at: performance.now() })),
+      on('dod:fanfare', (d) => fanfares.push(d)),
+      on('dod:victory-clip', (d) => clips.push(d)),
+      on('dod:victory-panel', (d) => panels.push(d)),
+    ];
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const rect = (el: Element | null) => (el ? el.getBoundingClientRect() : null);
+    const onScreen = (r: DOMRect | null) => !!r && r.width > 0 && r.height > 0 && r.left >= -1 && r.top >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1;
+    try {
+      await this.toMainMenu();
+      await this.startVersus(1);
+      for (let round = 1; round <= 2; round++) {
+        t.progress(0.1 + 0.4 * (round - 1));
+        const before = opened.length;
+        await this.fight(() => false, 6 * 60 * 1000);
+        await this.screen('results', 30000);
+        await t.until(() => opened.length > before, 5000, 'the victory stage to open').catch(() => null);
+        const o = opened[opened.length - 1];
+        const stage = this.q('#results-body .victory');
+        if (!o || opened.length <= before || !stage) {
+          t.problem('bug', `round ${round}: the results screen opened with no victory stage`);
+          break;
+        }
+        const t0 = o.at;
+        // The podium: a lit stage, the winner playing a clip on the plinth.
+        await t.until(() => clips.some((c) => c.role === 'winner'), 6000, 'the winner clip').catch(() => null);
+        const winClip = clips.filter((c) => c.role === 'winner').pop();
+        const sprite = this.q('#results-body .vic-winner .vic-sprite');
+        const sr = rect(this.q('#results-body .vic-winner'));
+        if (!this.q('#results-body .vic-plinth') || !this.q('#results-body .vic-beam')) t.problem('bug', `round ${round}: the podium has no plinth or no light`);
+        else if (!winClip?.clip || !sprite || !onScreen(sr)) t.problem('bug', `round ${round}: the winner is not playing a clip on the podium (${winClip?.clip ?? 'no clip'}, ${sr ? `${Math.round(sr.width)}x${Math.round(sr.height)}` : 'no box'})`);
+        else t.event('victory-stage', `round ${round}: ${o.v.winner} on the lit podium playing "${winClip.clip}" (${o.v.group}), ${Math.round(sr!.width)}x${Math.round(sr!.height)} px`);
+        // The fanfare: the fighter's group, a file that exists.
+        const f = fanfares[fanfares.length - 1];
+        const group = FIGHTERS_DATA.find((x) => x.id === o.v.winner)?.fanfare ?? '';
+        const file = SOUNDS.find((x) => x.id === o.v.fanfare)?.file;
+        if (o.v.group !== group) t.problem('bug', `round ${round}: ${o.v.winner} won with group "${o.v.group}", content/fighters.json says "${group}"`);
+        else if (!f || f.id !== o.v.fanfare || !f.played || !file) t.problem('bug', `round ${round}: the ${o.v.group} fanfare (${o.v.fanfare}) did not play${file ? '' : ' (no sound made yet)'}`);
+        else if (!(await exists(file))) t.problem('bug', `round ${round}: fanfare file missing (404): ${file}`);
+        else t.event('victory-fanfare', `round ${round}: ${o.v.group} fanfare ${o.v.fanfare} from ${file}`);
+        // The loser: dim, in an inset, sulking.
+        const inset = this.q('#results-body .vic-inset');
+        const ir = rect(inset);
+        if (!inset || !onScreen(ir) || inset.dataset.mood !== 'sulking') t.problem('bug', `round ${round}: no loser inset sulking on screen`);
+        else t.event('victory-loser', `round ${round}: ${o.v.loser} in the inset (${clips.filter((c) => c.role === 'loser').pop()?.clip ?? 'still'}), ${Math.round(ir!.width)}x${Math.round(ir!.height)} px, mood ${inset.dataset.mood}`);
+        // The push-in and the confetti.
+        const cam = this.q('#results-body .vic-cam');
+        const scaleOf = () => new DOMMatrixReadOnly(getComputedStyle(cam!).transform).a;
+        const s1 = scaleOf();
+        await t.wait(700);
+        const s2 = scaleOf();
+        const confetti = Number(stage.dataset.confetti ?? 0);
+        if (!(s2 > s1)) t.problem('bug', `round ${round}: the camera is not pushing in (scale ${s1.toFixed(3)} -> ${s2.toFixed(3)})`);
+        else t.event('victory-push', `round ${round}: camera push-in ${s1.toFixed(3)} -> ${s2.toFixed(3)}`);
+        if (confetti < 1) t.problem('bug', `round ${round}: no confetti on the stage`);
+        else t.event('victory-confetti', `round ${round}: ${confetti} pieces in the air, colour ${getComputedStyle(stage).getPropertyValue('--slot').trim()}`);
+        if (round === 1) {
+          // Rematch within 3 s of the results opening: on screen, 44 px, nothing over it.
+          const rematch = this.button('#results-actions', 'Rematch');
+          const rb = rect(rematch ?? null);
+          const ms = Math.round(performance.now() - t0);
+          const mid = rb ? document.elementFromPoint(rb.left + rb.width / 2, rb.top + rb.height / 2) : null;
+          if (!rematch || !onScreen(rb) || rb!.height < 44 || (rematch as HTMLButtonElement).disabled || !mid || !rematch.contains(mid)) t.problem('bug', `round ${round}: Rematch is not tappable ${ms} ms after the results opened`);
+          else if (ms > 3000) t.problem('bug', `round ${round}: Rematch took ${ms} ms to be tappable`);
+          else {
+            t.event('victory-rematch', `round ${round}: Rematch tappable ${ms} ms after the results opened (${Math.round(rb!.width)}x${Math.round(rb!.height)} px)`);
+            t.metric('victoryMs', ms);
+          }
+          // The panel slides in; the podium and the panel side by side on a landscape phone; every button 44 px.
+          await t.until(() => panels.length > 0 && this.q('#results-body .results-row')?.dataset.phase === 'panel', 5000, 'the results panel').catch(() => null);
+          await t.wait(500);
+          const pr = rect(this.q('#results-body .results-panel'));
+          const vr = rect(stage);
+          const landscape = innerWidth > innerHeight;
+          const small = Math.min(innerWidth, innerHeight) <= 560;
+          const btns = [...document.querySelectorAll<HTMLElement>('#results-actions button')].map((b) => b.getBoundingClientRect());
+          const short = btns.filter((b) => b.height < 44 || b.width < 44);
+          if (!pr || !vr || !onScreen(vr) || pr.right > innerWidth + 1 || pr.width < 100) t.problem('bug', `round ${round}: the panel did not slide in beside the podium at ${innerWidth}x${innerHeight}`);
+          else if (small && landscape && vr.right > pr.left + 1) t.problem('bug', `round ${round}: at ${innerWidth}x${innerHeight} the podium is not left of the panel`);
+          else if (short.length || !btns.length || btns.some((b) => b.bottom > innerHeight + 1 || b.right > innerWidth + 1)) t.problem('bug', `round ${round}: result buttons are under 44 px or off screen at ${innerWidth}x${innerHeight}`);
+          else t.event('victory-fit', `round ${round}: podium ${Math.round(vr.width)}x${Math.round(vr.height)} left, panel ${Math.round(pr.width)}x${Math.round(pr.height)} right, ${btns.length} buttons all >= 44 px, at ${innerWidth}x${innerHeight}`);
+          t.event('victory-panel', `round ${round}: panel in ${panels[panels.length - 1]?.ms} ms (${panels[panels.length - 1]?.why})`);
+          this.checkClipping('results with victory stage', this.q('#results'));
+          await this.click(() => this.button('#results-actions', 'Rematch'), 'Rematch');
+        } else {
+          // Any input skips the pose: a tap on the stage brings the panel at once.
+          const row = this.q('#results-body .results-row');
+          if (row?.dataset.phase !== 'pose') {
+            t.event('victory-skip', `round ${round}: panel was already in (${panels[panels.length - 1]?.why})`);
+          } else {
+            const n = panels.length;
+            await this.tap(() => this.q('#results-body .victory'), 'the victory stage');
+            await t.until(() => panels.length > n, 1000, 'the pose to skip').catch(() => null);
+            if (panels[panels.length - 1]?.why !== 'input') t.problem('bug', `round ${round}: a tap on the stage did not skip the pose`);
+            else t.event('victory-skip', `round ${round}: a tap skipped the pose after ${panels[panels.length - 1].ms} ms`);
+          }
+        }
+      }
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu').catch(() => null);
+    } finally {
+      for (const off of offs) off();
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
     }
     t.progress(1);
     t.finish('done');

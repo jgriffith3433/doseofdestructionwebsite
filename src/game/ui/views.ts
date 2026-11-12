@@ -15,6 +15,7 @@ import { lookOf, recolorUrl } from '../looks.ts';
 import { lookChip, paintImage } from './lookUi.ts';
 import { currentWinQuote } from '../winQuote.ts';
 import { quoteCaption } from './quoteCaption.ts';
+import { victoryStage } from './victory.ts';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -398,17 +399,17 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
   const winnerName = !winner && !online ? 'No contest' : s.winnerTeam >= 0 && !campaign ? `${s.winnerTeam === 0 ? 'Red' : 'Blue'} team` : m.label(hero.id).split(' · ')[1] ?? CHARACTERS[hero.char].name;
   const stat = (key: string, label: string, value: string, slot?: string) =>
     h('div', { class: 'stat', 'data-stat': key, style: slot ? `--slot:${slot}` : undefined }, h('span', {}, label), h('strong', {}, value));
-  $('results-body').replaceChildren(
+  const panel = h(
+    'div',
+    { class: 'results-panel' },
     h(
       'header',
       { class: 'results-hero', style: `--slot:${colors[hero.id]}` },
-      paintedImg(largeUrl(CHARACTERS[hero.char].id), hero.char, look(hero.id)),
       h(
         'div',
         {},
         h('p', { class: 'kicker' }, s.timedOut ? 'Time' : 'Game', ' · ', formatTime(s.frame)),
         h('h2', {}, headline),
-        quote && quoteCaption(quote),
         h('p', { class: 'results-look' }, lookChip(hero.char, look(hero.id)), unlocked.length ? h('em', { class: 'look-new' }, `New colour: ${unlocked.join(', ')}`) : null),
         campaign && m.setup.objective === 'survive' && h('p', {}, won ? 'You lasted the whole minute.' : 'They took you off the air.'),
         m.setup.objective === 'ko' && h('p', { class: 'results-objective' }, koLine(m, won)),
@@ -493,6 +494,25 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
       ),
     ),
   );
+  // The victory stage (ui/victory.ts) opens first, with the winner on the podium and the beaten fighter in an inset; the panel
+  // slides in after it (or on any input). A match with no winner has no stage.
+  const loser = order.find((f) => !side.some((w) => w.id === f.id));
+  const stage =
+    winner || online?.winner !== undefined
+      ? victoryStage({
+          winnerChar: hero.char,
+          winnerLook: look(hero.id),
+          winnerColor: colors[hero.id],
+          winnerName,
+          loserChar: loser?.char,
+          loserLook: loser ? look(loser.id) : 0,
+          loserName: loser ? CHARACTERS[loser.char].name : undefined,
+          caption: quote ? quoteCaption(quote) : null,
+        })
+      : null;
+  const row = h('div', { class: `results-row${stage ? '' : ' no-stage'}`, 'data-phase': stage ? 'pose' : 'panel' }, stage?.el, panel);
+  $('results-body').replaceChildren(row);
+  stage?.start(row);
   $('results-actions').replaceChildren(
     ...actions.map((a, i) =>
       h('button', { type: 'button', class: a.primary ? 'primary' : 'secondary', 'data-autofocus': i === 0 || undefined, onclick: a.run }, a.label),

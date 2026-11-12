@@ -620,6 +620,49 @@ class AudioSystem {
     void this.start(pick.take.file, ui ? this.buses.ui : this.buses.sfx, pick.entry.volume, rate, false, ui ? undefined : opts.at);
   }
 
+  /**
+   * A victory fanfare (victory.ts, content/sounds.json `fanfare-<group>`, 5 s) on the music bus, so the win quote ducks it like music.
+   * Fires `dod:fanfare` when it starts and `dod:fanfare-end` when it ends or is stopped. Returns stop() (a short fade).
+   */
+  fanfare(id: string): () => void {
+    const s = this.soundById.get(id);
+    let stopped = false;
+    let src: AudioBufferSourceNode | null = null;
+    let gain: GainNode | null = null;
+    const end = (why: string) => {
+      try { window.dispatchEvent(new CustomEvent('dod:fanfare-end', { detail: { id, why } })); } catch { /* Node tests */ }
+    };
+    if (!s?.file || !this.buses || !this.ctx) {
+      try { window.dispatchEvent(new CustomEvent('dod:fanfare', { detail: { id, file: s?.file ?? null, played: false } })); } catch { /* Node tests */ }
+      return () => undefined;
+    }
+    const ctx = this.ctx;
+    const bus = this.buses.music;
+    try { window.dispatchEvent(new CustomEvent('dod:fanfare', { detail: { id, file: s.file, played: true, t: performance.now() } })); } catch { /* Node tests */ }
+    void this.buffer(s.file).then((buf) => {
+      if (!buf || stopped) return;
+      src = ctx.createBufferSource();
+      src.buffer = buf;
+      // A rematch inside a minute never replays the same buffer at the same rate.
+      src.playbackRate.value = 1 + (Math.random() < 0.5 ? -1 : 1) * (0.03 + Math.random() * 0.03);
+      gain = ctx.createGain();
+      gain.gain.value = s.volume;
+      src.connect(gain).connect(bus);
+      src.onended = () => { if (!stopped) end('done'); };
+      src.start();
+    });
+    return () => {
+      if (stopped) return;
+      stopped = true;
+      if (gain && src) {
+        gain.gain.setTargetAtTime(0, ctx.currentTime, 0.08);
+        const g = src;
+        window.setTimeout(() => { try { g.stop(); } catch { /* already stopped */ } }, 400);
+      }
+      end('skipped');
+    };
+  }
+
   /** Whether a sound has a file to play yet (a pool with no take made returns false). */
   hasSound(id: string): boolean {
     const s = this.soundById.get(id);
