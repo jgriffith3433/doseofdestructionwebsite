@@ -456,3 +456,14 @@ Space Chess nebula and galaxy, Yo House kitchen) and Cursed Town's tentacle are 
 `image.layers` split of each backdrop plus `image.repaint` for the gaps each cut reveals (not yet made: Gen was out of
 credits). **Short:** the foregrounds only shake on KOs (and sway where the art already did), and the cut bands add parallax, not new things to see: crowd heads, a bird, traffic lights crawling are the next layer of life. No stage has crowd heads, cables or kelp painted just for the foreground yet; they use art already on
 the stage, moved to the edge.
+
+## Room sound (every stage is its own room)
+
+Each stage sounds like the place it is (`room` in `content/stages.json`; the impulse is made in code by `roomAudio.ts`,
+played by `audio.ts`). Effects and voices go 10-25% into the room, never the music or the menus. Humans in the Loop is a
+TV studio (short, bright, 0.6 s); City Top a rooftop (open, a 0.2 s slap); Yo House the fish tank, underwater (long,
+dark, 1.8 s, with a low-pass over everything); Dust Devil Mesa a canyon (a late slap, 0.45 s); Cursed Town a foggy street
+(damp, dark, 0.95 s); Rainbow Full Pipe a half-pipe (bright, metallic, 1.1 s); Solar Array an open field (dry, 0.3 s);
+Space Chess a hollow void (cold, 1.4 s); Watercolor Nebula a dream (soft, 1.5 s). Fighters' hits, swings, jumps, landings
+and barks sit where the fighter stands on screen (left to right, -0.8 to 0.8); a fighter blasted out of the zone loses
+highs and level as they leave, the crowd's roar stays put. The whole match is levelled to -14 LUFS under a limiter.

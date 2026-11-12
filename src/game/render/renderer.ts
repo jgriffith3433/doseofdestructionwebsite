@@ -1856,6 +1856,19 @@ export class Renderer {
   }
 
   /**
+   * Where a sim x is across the view: 0 at the left edge, 1 at the right, beyond that off screen (the stereo pan of a
+   * sound made there, see roomAudio.panFromScreen). 0.5 when there is no view to ask.
+   */
+  screenX01(simX: number): number {
+    const w = this.engine.getRenderWidth();
+    if (!w) return 0.5;
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const p = Vector3.Project(new Vector3(simX * S, 0, 0), Matrix.IdentityReadOnly, this.scene.getTransformMatrix(), vp);
+    return Number.isFinite(p.x) ? p.x / w : 0.5;
+  }
+
+  /**
    * Where a living fighter's middle is on the page (CSS px), whether it is out of the view (or cut off by its edge), and how far
    * it is from the nearest blast line (world units). Null while it is away, dead or in a story scene.
    */

@@ -241,6 +241,25 @@ export interface StageHaze {
   z: number[];
 }
 
+/** Per-stage room numbers: a reverb impulse is generated from them in code. */
+export interface StageRoom {
+  /** The room's name, logged as `dod:mix-room`. */
+  name: string;
+  /** Reverb length (RT60-ish), seconds. */
+  seconds: number;
+  /** Where the tail has darkened to by its end (Hz); it starts bright and falls to this. */
+  brightnessHz: number;
+  /** Share of the sound sent to the room, 0.10 to 0.25. */
+  wet: number;
+  preDelayMs: number;
+  /** Echo density 0..1 (low = a few slaps, high = a smooth wash). */
+  density: number;
+  /** Low-pass on the room's return (Hz). */
+  lowpassHz: number;
+  /** Low-pass on the dry effects too (Hz), for underwater. */
+  dryLowpassHz?: number;
+}
+
 export interface StageDef {
   id: string;
   name: string;
@@ -272,6 +291,8 @@ export interface StageDef {
   /** The stage's colour grade (render only): baked into stages/<id>/lut.png by tools/make-luts.mjs. */
   /** The light the stage puts on its fighters (render only): key, rim, ambient, glossy floor. */
   light?: StageLight;
+  /** The stage's acoustics (roomAudio.ts builds the impulse from these numbers; audio only, never the sim). */
+  room?: StageRoom;
   grade?: { lift: number; gamma: number; gain: number; saturation: number; tint: string; tintAmount: number };
 }
 
