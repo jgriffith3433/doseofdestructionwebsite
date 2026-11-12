@@ -1708,3 +1708,7 @@ body.pilot-boot .screen { visibility: hidden; }
 @media (max-width: 560px) {
   .tour-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Pre-fight exchange: the caption stays inside two lines, even on a phone turned to 844x390. */
+.scene-sub.exchange { max-width: min(760px, 88vw); }
+.scene-sub.exchange .scene-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.15; }
