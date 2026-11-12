@@ -232,6 +232,16 @@
       ]
     },
     {
+      "id": "stage-depth",
+      "title": "Stage depth: every stage shows 4 or more layers moving at different speeds as the camera pans, one foreground element at the play area's edge that turns see-through (30%) while a fighter walks behind it, a distance haze tinted to the stage; Low (phone 844x390, touch) keeps three depths and the foreground, drops the haze and holds 45 fps",
+      "description": "Setup shortcut: straight into a match on each of the 9 stages (option stage: one), bot off. The player walks to the stage's foreground element by the pad (keys, or the touch stick on a phone) until it fades (foreground-fade: opacity 30% with the fighter behind it), then back across the stage so it clears (foreground-clear) and the camera pans; every ~100 ms the camera and each layer's place on the page are sampled and the layers must move at 4 or more different speeds (parallax: Low needs 3). Also logs the depths built (stage-depth), the haze sheets and their tint (haze, High: 2 or more) and, on Low, that the haze is gone and the foreground stays (depth-low). Metrics depthLayers (fewest depths on any stage), depthFades (stages where it faded), fpsDepth (Low: want 45). The player's dod.gfx is put back.",
+      "seconds": 330,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "lighting",
       "title": "Fighter lighting: every stage lights both fighters with its own key, rim and ambient colour, each fighter casts a contact shadow that shrinks and fades as they jump (gone above 300 units), colour looks 1 to 4 keep their palettes, Low keeps the ambient tint and shadow and holds 45 fps (phone: 390x844 turned to landscape, touch)",
       "description": "Setup shortcut: straight into a match on each of the 9 stages (option stage: one) with no menus, a different colour look on each fighter per stage. Per stage checks both fighters carry the stage's light (stage-light: key, rim, ambient from content/stages.json, glossy floors) and a shadow under each; the bot then fights 8 s and the shadow is sampled against height over the platform below (shadow-height: smaller and fainter when up, none at 300 units or more). On a phone (touch, Low) only the ambient tint and shadow run (light-low) and the fight holds 45 fps (metric fpsLight). Metric lightStages. The player's dod.gfx is put back.",

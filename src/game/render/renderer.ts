@@ -35,6 +35,7 @@ import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from
 import { cameraFighters, followCamera, frameGoal, punchGoal, type CamBounds, type CamState } from './cameraRig.ts';
 import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
+import { behindForeground, bodyPoints, fadeToward } from './foreground.ts';
 import { StageLive } from './stageLive.ts';
 import { StageAlive } from './stageAlive.ts';
 import { PostChain } from './post.ts';
@@ -421,6 +422,7 @@ export class Renderer {
 
     this.buildBackdrop(root);
     const built = buildLayers(this.scene, root, this.stage, this.glow, this.gfx.quality === 'high');
+    this.fgMs = 0;
     this.occluders = built.occluders;
     this.live = new StageLive(this.scene, root, this.stage, built.placed, this.glow);
     this.alive = new StageAlive(this.scene, root, this.stage, this.glow, this.gfx.quality, () => this.views.map((v) => v.body), this.camera);
@@ -1367,6 +1369,7 @@ export class Renderer {
     }
     this.drawDebug(state);
     this.updateCamera(state);
+    this.updateForeground(state);
     this.scene.render();
     this.post.endFrame();
     this.checkFraming(state);
@@ -1374,6 +1377,54 @@ export class Renderer {
       const fps = this.engine.getFps();
       this.camStats.slowFpsMin = this.camStats.slowFpsMin === 0 ? fps : Math.min(this.camStats.slowFpsMin, fps);
     }
+  }
+
+  private fgMs = 0;
+
+  /**
+   * Foreground elements at the play area's edge fade to 30% while a fighter is behind one of their solid pixels (seen from
+   * the camera, so the parallax counts) and come back when they walk out. Runs after the camera has moved.
+   */
+  private updateForeground(state: GameState): void {
+    const fgs = this.live?.foregrounds();
+    if (!fgs?.length) return;
+    const now = performance.now();
+    const dt = this.fgMs ? Math.min(0.1, (now - this.fgMs) / 1000) : 0.1;
+    this.fgMs = now;
+    const cam = { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z };
+    const bodies = [];
+    for (const f of state.fighters) {
+      const v = this.views[f.id];
+      if (!v || f.action === ACT.DEAD || this.offstage.has(f.id)) continue;
+      const ch = CHARACTERS[f.char];
+      const k = f.scale / 100;
+      bodies.push(bodyPoints(v.root.position.x, v.root.position.y, ch.height * W * ART_SCALE * k, ch.width * W * ART_SCALE * k * 0.35, v.body.position.z));
+    }
+    for (const pl of fgs) {
+      let behind = false;
+      if (pl.mask && pl.size.w && pl.mesh.isEnabled()) {
+        const plane = { x: pl.mesh.position.x, y: pl.mesh.position.y, z: pl.mesh.position.z, w: pl.size.w, h: pl.size.h };
+        behind = bodies.some((pts) => behindForeground(pl.mask!, plane, cam, pts));
+      }
+      pl.fade = fadeToward(pl.fade ?? 1, behind, dt);
+      pl.mat.alpha = (pl.layer.opacity ?? 1) * pl.fade;
+    }
+  }
+
+  /** Every layer's depth and where its picture sits on the page (CSS px, from the last render), for the playtest's parallax check. */
+  depthStats(): { quality: string; camX: number; camDist: number; layers: { id: string; z: number; kind: 'far' | 'foreground' | 'haze' | 'stage'; screenX: number; alpha: number; fade: number | null; behind: boolean }[] } {
+    const canvas = this.engine.getRenderingCanvas();
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const k = canvas ? canvas.clientWidth / w : 1;
+    const layers = (this.live?.allPlaced() ?? []).map((pl) => {
+      const p = Vector3.Project(new Vector3(pl.mesh.position.x, pl.mesh.position.y, pl.mesh.position.z), Matrix.IdentityReadOnly, m, vp);
+      const kind: 'far' | 'foreground' | 'haze' | 'stage' = pl.haze ? 'haze' : pl.layer.foreground ? 'foreground' : pl.layer.z > 0.5 ? 'far' : 'stage';
+      return { id: pl.layer.id, z: pl.layer.z, kind, screenX: p.x * k, alpha: pl.mat.alpha, fade: pl.fade ?? null, behind: pl.fade !== undefined && pl.fade < 0.99 };
+    });
+    return { quality: this.gfx.quality, camX: this.camera.position.x, camDist: this.camDist, layers };
   }
 
   private shadowTex: DynamicTexture | null = null;

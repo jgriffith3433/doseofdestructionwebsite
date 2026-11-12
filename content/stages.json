@@ -53,7 +53,7 @@
       {
         "x1": 900,
         "x2": 1080,
-        "y": -280,
+        "y": -283,
         "solid": false,
         "hidden": true
       },
@@ -124,6 +124,17 @@
         "note": "The far background, painted fresh from the concept.",
         "prompt": "Aerial night view of a downtown Los Angeles skyline from rooftop height: a cluster of glowing glass skyscrapers in the middle distance, one tall spire tower slightly off center, a sprawling grid of amber city lights stretching to a low horizon, near-black sky with faint smoke trails from distant fireworks, a few golden firework streaks rising.",
         "aspect": 0.429
+      },
+      {
+        "id": "skyline",
+        "image": "stages/city-top/depth/skyline.webp",
+        "x": 0,
+        "y": -26.3,
+        "width": 3800,
+        "z": 12,
+        "high": true,
+        "note": "Far set: the downtown blocks and the tower, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
+        "aspect": 0.145
       },
       {
         "id": "left-building",
@@ -420,12 +431,11 @@
       {
         "id": "front-antenna",
         "image": "stages/city-top/_takes/front-antenna-1701492486.webp",
-        "x": -780,
-        "y": 80,
-        "width": 139,
+        "x": -770,
+        "y": 95,
+        "width": 170,
         "z": -2,
-        "occluder": true,
-        "note": "Foreground rooftop antenna mast and vent stack at the front left corner of the roof; fighters pass behind it.",
+        "note": "Foreground rooftop antenna mast and vent stack at the front left edge of the roof; fades to 30% when a fighter stands behind it.",
         "prompt": "Silhouetted steel antenna mast with dish and a squat sheet-metal vent stack, rim-lit in amber from the city below, a tiny blinking red light.",
         "aspect": 2.233,
         "shape": [
@@ -447,13 +457,22 @@
             "y1": 70,
             "y2": 90
           }
+        ],
+        "foreground": true,
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
+          }
         ]
       },
       {
         "id": "stage-art",
         "image": "stages/city-top/wide/stage-art.webp",
         "x": 115,
-        "y": -255,
+        "y": -262.5,
         "width": 2063,
         "z": 0.3,
         "note": "The painted stage: every piece that draws platforms.",
@@ -481,7 +500,7 @@
         "id": "platform-copy-right",
         "image": "stages/city-top/wide/copy-right.webp",
         "x": 290,
-        "y": 143,
+        "y": 136,
         "width": 280,
         "z": 0.3,
         "note": "A copy of platform 2 and its art, for the widened stage.",
@@ -570,7 +589,7 @@
     "notes": "Plays like a standard three-platform stage on a wide rooftop: billboard catwalk and skylight canopy at 140, water tower lid at 280 for vertical play. The right side has a two-landing fire escape below roof level that catches fighters knocked off that side, giving them a climb-back route (lower landing reaches the ledge with a full jump plus air jump); the left side is an open drop, so the stage is mildly asymmetric by design. Every KO launches a firework into the sky; the match end fires a big multicolor finale. Art priority: main-building, water-tower, fire-escape, billboard-catwalk, skylight-canopy, backdrop, escape-building, front-antenna, left-building.",
     "grade": {
       "lift": 0.02,
-      "gamma": 1.0,
+      "gamma": 1,
       "gain": 1.05,
       "saturation": 1.15,
       "tint": "#ffb070",
@@ -590,6 +609,14 @@
         "strength": 0.6
       },
       "ambient": "#f4d2b4"
+    },
+    "haze": {
+      "color": "#3d2b52",
+      "strength": 0.32,
+      "z": [
+        14,
+        7
+      ]
     }
   },
   {
@@ -631,21 +658,21 @@
       {
         "x1": -300,
         "x2": -110,
-        "y": 270,
+        "y": 267,
         "solid": false,
         "hidden": true
       },
       {
         "x1": 110,
         "x2": 300,
-        "y": 270,
+        "y": 267,
         "solid": false,
         "hidden": true
       },
       {
         "x1": -130,
         "x2": 130,
-        "y": 410,
+        "y": 406,
         "solid": false,
         "hidden": true
       }
@@ -1006,12 +1033,11 @@
       {
         "id": "sagebrush",
         "image": "stages/desert/_takes/sagebrush-1922274045.webp",
-        "x": 480,
-        "y": 0,
-        "width": 176,
+        "x": 730,
+        "y": 25,
+        "width": 240,
         "z": -2.5,
-        "occluder": true,
-        "note": "Dry sagebrush clump at the front right edge of the mesa; fighters pass behind it.",
+        "note": "Dry sagebrush clump at the front right edge of the mesa; fades to 30% when a fighter stands behind it.",
         "prompt": "Scraggly silver-green sagebrush with dry twiggy stems and a bleached cattle skull at its base, strong sun from the upper right.",
         "aspect": 0.767,
         "shape": [
@@ -1038,14 +1064,21 @@
             "on": "event:dust-gust",
             "kind": "tilt",
             "amount": -12
+          },
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
           }
-        ]
+        ],
+        "foreground": true
       },
       {
         "id": "stage-art",
         "image": "stages/desert/wide/stage-art.webp",
         "x": 0,
-        "y": 80,
+        "y": 75,
         "width": 1832,
         "z": 0.3,
         "note": "The painted stage: every piece that draws platforms.",
@@ -1227,7 +1260,7 @@
     "grade": {
       "lift": 0,
       "gamma": 0.96,
-      "gain": 1.0,
+      "gain": 1,
       "saturation": 1.1,
       "tint": "#ffe2b0",
       "tintAmount": 0.2
@@ -1246,6 +1279,14 @@
         "strength": 0.45
       },
       "ambient": "#f8e8cc"
+    },
+    "haze": {
+      "color": "#e0a868",
+      "strength": 0.3,
+      "z": [
+        16,
+        7
+      ]
     }
   },
   {
@@ -1368,6 +1409,17 @@
         "note": "The far background, painted fresh from the concept.",
         "prompt": "A long abandoned colonial street receding into thick white fog, rows of steep-roofed wooden houses on both sides fading to pale silhouettes, sagging chimneys, and far down the street enormous black tentacles curling up out of the mist like dead trees; overcast pale grey sky, no sun, desaturated grey-green palette.",
         "aspect": 0.429
+      },
+      {
+        "id": "street",
+        "image": "stages/cursed-town/depth/street.webp",
+        "x": 0,
+        "y": 119.1,
+        "width": 3800,
+        "z": 13,
+        "high": true,
+        "note": "Far set: the houses and the tentacle forest down the street, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
+        "aspect": 0.24
       },
       {
         "id": "distant-tentacles",
@@ -1564,7 +1616,7 @@
         "id": "left-house",
         "image": "stages/cursed-town/wide/left-house.webp",
         "x": -555,
-        "y": -135,
+        "y": -138.5,
         "width": 857,
         "z": 0.3,
         "note": "Left clapboard house seen side-on, its flat eaves walk is the left main floor; a railed widow's walk on two posts sits above",
@@ -1631,7 +1683,7 @@
         "id": "right-house",
         "image": "stages/cursed-town/wide/right-house.webp",
         "x": 555,
-        "y": -135,
+        "y": -133.5,
         "width": 857,
         "z": 0.3,
         "note": "Right clapboard house mirroring the left; eaves walk is the right main floor, widow's walk above",
@@ -1740,7 +1792,7 @@
         "id": "tentacle-plank",
         "image": "stages/cursed-town/_takes/tentacle-plank-1908853987.webp",
         "x": 0,
-        "y": -30,
+        "y": -33.5,
         "width": 270,
         "z": 0.3,
         "note": "A long black tentacle rising from the street, curled under a loose wooden plank it holds up like an offering",
@@ -1869,10 +1921,34 @@
         }
       },
       {
+        "id": "front-tentacle",
+        "image": "stages/cursed-town/depth/front-tentacle.webp",
+        "x": -850,
+        "y": 175,
+        "width": 130,
+        "z": -2,
+        "foreground": true,
+        "note": "Foreground: a tentacle rises at the left street edge in front of the fight; fades to 30% when a fighter stands behind it.",
+        "aspect": 4.906,
+        "anim": {
+          "kind": "sway",
+          "amount": 3,
+          "speed": 3
+        },
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
+          }
+        ]
+      },
+      {
         "id": "stage-art",
         "image": "stages/cursed-town/wide/stage-art.webp",
         "x": 0,
-        "y": -280,
+        "y": -281.5,
         "width": 974,
         "z": 0.3,
         "note": "The painted stage: every piece that draws platforms.",
@@ -2101,6 +2177,14 @@
         "strength": 0.5
       },
       "ambient": "#aebfb8"
+    },
+    "haze": {
+      "color": "#8da39a",
+      "strength": 0.3,
+      "z": [
+        15,
+        8
+      ]
     }
   },
   {
@@ -2128,14 +2212,14 @@
       {
         "x1": -770,
         "x2": -560,
-        "y": 130,
+        "y": 128,
         "solid": false,
         "hidden": true
       },
       {
         "x1": 560,
         "x2": 770,
-        "y": 130,
+        "y": 128,
         "solid": false,
         "hidden": true
       },
@@ -2457,7 +2541,7 @@
         "id": "light-truss",
         "image": "stages/humans-in-the-loop/_takes/light-truss-1224442170.webp",
         "x": 0,
-        "y": 410,
+        "y": 407.5,
         "width": 378,
         "z": 0.3,
         "note": "Silver box truss hung on chains above center stage; its top is the center platform.",
@@ -2585,12 +2669,11 @@
       {
         "id": "floor-wedges",
         "image": "stages/humans-in-the-loop/_takes/floor-wedges-559222070.webp",
-        "x": 0,
-        "y": 20,
-        "width": 770,
+        "x": 690,
+        "y": 35,
+        "width": 520,
         "z": -2,
-        "occluder": true,
-        "note": "Two black floor monitor wedges at the front lip of the stage, in front of fighters.",
+        "note": "Two black floor monitor wedges at the front right lip of the stage, in front of the fighters; fade to 30% when one stands behind them.",
         "prompt": "Angled black floor monitor speakers with metal grilles, a thin amber rim light along their top edges.",
         "aspect": 0.414,
         "shape": [
@@ -2605,6 +2688,15 @@
             "x2": 650,
             "y1": -30,
             "y2": 30
+          }
+        ],
+        "foreground": true,
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
           }
         ]
       },
@@ -2643,7 +2735,7 @@
         "id": "stage-art",
         "image": "stages/humans-in-the-loop/wide/stage-art.webp",
         "x": 0,
-        "y": 10,
+        "y": 6,
         "width": 1942,
         "z": 0.3,
         "note": "The painted stage: every piece that draws platforms.",
@@ -2658,7 +2750,7 @@
         "id": "platform-copy-right",
         "image": "stages/humans-in-the-loop/wide/copy-right.webp",
         "x": 355,
-        "y": 138,
+        "y": 136,
         "width": 260,
         "z": 0.3,
         "note": "A copy of platform 2 and its art, for the widened stage.",
@@ -2670,7 +2762,7 @@
         "id": "platform-copy-left",
         "image": "stages/humans-in-the-loop/wide/copy-left.webp",
         "x": -355,
-        "y": 138,
+        "y": 136,
         "width": 260,
         "z": 0.3,
         "note": "A copy of platform 1 and its art, for the widened stage.",
@@ -2779,7 +2871,7 @@
     "notes": "Plays like a classic three-platform layout: a wide 1200 solid stage with grabbable ledges, two road case stacks at 130 and a hanging truss at 270 in the middle (reachable from the cases). Blast zones are standard so KOs feel fair. The crowd art bobs constantly in sync; every KO triggers the 'go-wild' event: flash, sparks at the KO, camera shake, the crowd hops and shakes, strobe beams appear and confetti falls for 3 seconds. Art priority: 1) stage-deck, 2) crowd (key to the concept and animation), 3) road case stacks, 4) light-truss, 5) backdrop arena, 6) spot-beams and strobe-beams, 7) truss-towers, 8) floor-wedges and front-cables.",
     "grade": {
       "lift": 0.02,
-      "gamma": 1.0,
+      "gamma": 1,
       "gain": 1.08,
       "saturation": 1.2,
       "tint": "#ffc27a",
@@ -2800,6 +2892,14 @@
       },
       "ambient": "#dcd2c6",
       "glossy": true
+    },
+    "haze": {
+      "color": "#6a2f7a",
+      "strength": 0.3,
+      "z": [
+        14,
+        6.5
+      ]
     }
   },
   {
@@ -2827,7 +2927,7 @@
       {
         "x1": -1080,
         "x2": -880,
-        "y": 400,
+        "y": 395,
         "solid": true,
         "depth": 400,
         "hidden": true
@@ -2835,7 +2935,7 @@
       {
         "x1": 880,
         "x2": 1080,
-        "y": 400,
+        "y": 395,
         "solid": true,
         "depth": 400,
         "hidden": true
@@ -2850,7 +2950,7 @@
       {
         "x1": -880,
         "x2": -770,
-        "y": 270,
+        "y": 267,
         "solid": false,
         "hidden": true
       },
@@ -2864,7 +2964,7 @@
       {
         "x1": 770,
         "x2": 880,
-        "y": 270,
+        "y": 267,
         "solid": false,
         "hidden": true
       },
@@ -2940,6 +3040,17 @@
         "note": "The far background, painted fresh from the concept.",
         "prompt": "A sunny cartoon park far in the distance: rolling green hills fading to soft blue mountains, scattered round bushy trees, a winding pale footpath, a small dome-shaped shelter, under a bright gradient blue sky with big fluffy white clouds and a soft sun glow at the upper left. No skate ramp in the backdrop; leave the center open and calm.",
         "aspect": 0.429
+      },
+      {
+        "id": "park",
+        "image": "stages/rainbow-full-pipe/depth/park.webp",
+        "x": 0,
+        "y": -109.7,
+        "width": 4000,
+        "z": 14,
+        "high": true,
+        "note": "Far set: the park, trees and footpath, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
+        "aspect": 0.249
       },
       {
         "id": "sky-clouds",
@@ -3111,7 +3222,7 @@
         "id": "drift-cloud",
         "image": "stages/rainbow-full-pipe/_takes/drift-cloud-1494565440.webp",
         "x": 0,
-        "y": 355,
+        "y": 354.5,
         "width": 264,
         "z": 0.3,
         "note": "Puffy cumulus cloud that drifts side to side between the towers; its flat top is walkable.",
@@ -3334,12 +3445,11 @@
       {
         "id": "front-shrub",
         "image": "stages/rainbow-full-pipe/_takes/front-shrub-773045058.webp",
-        "x": 1250,
-        "y": -120,
-        "width": 352,
+        "x": 930,
+        "y": 20,
+        "width": 360,
         "z": -2.5,
-        "occluder": true,
-        "note": "Big round bush in the foreground at the lower right corner.",
+        "note": "Big round bush in the foreground at the right edge of the deck; fades to 30% when a fighter stands behind it.",
         "prompt": "Large round glossy green shrub, soft cartoon shading, a few lighter leaf clumps on top.",
         "aspect": 0.882,
         "shape": [
@@ -3360,13 +3470,22 @@
           "kind": "sway",
           "amount": 2,
           "speed": 3
-        }
+        },
+        "foreground": true,
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
+          }
+        ]
       },
       {
         "id": "stage-art",
         "image": "stages/rainbow-full-pipe/wide/stage-art.webp",
         "x": 0,
-        "y": 125,
+        "y": 118,
         "width": 2316,
         "z": 0.3,
         "note": "The painted stage: every piece that draws platforms.",
@@ -3518,7 +3637,7 @@
     "grade": {
       "lift": 0,
       "gamma": 0.98,
-      "gain": 1.0,
+      "gain": 1,
       "saturation": 1.3,
       "tint": "#fff0c0",
       "tintAmount": 0.1
@@ -3537,6 +3656,14 @@
         "strength": 0.5
       },
       "ambient": "#f4f0e2"
+    },
+    "haze": {
+      "color": "#a9d4ff",
+      "strength": 0.3,
+      "z": [
+        16,
+        8
+      ]
     }
   },
   {
@@ -3580,7 +3707,7 @@
       {
         "x1": -140,
         "x2": 140,
-        "y": 280,
+        "y": 282,
         "solid": false,
         "hidden": true
       },
@@ -3653,6 +3780,28 @@
         "note": "The far background, painted fresh from the concept.",
         "prompt": "A wide desert valley under a clear cyan sky with a few puffy white clouds: towering red-orange sandstone canyon walls and mesas framing both sides, a flat ochre plain receding to a hazy low horizon of distant purple-brown buttes, and endless tiny rows of blue solar panels glinting on the plain in the middle distance. Cartoon ink outlines, flat cel shading, warm sunlight.",
         "aspect": 0.429
+      },
+      {
+        "id": "plain",
+        "image": "stages/solar-array/depth/plain.webp",
+        "x": 0,
+        "y": -198.3,
+        "width": 3800,
+        "z": 10,
+        "high": true,
+        "note": "Mid set: the solar field and the ochre plain, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
+        "aspect": 0.193
+      },
+      {
+        "id": "canyon",
+        "image": "stages/solar-array/depth/canyon.webp",
+        "x": 0,
+        "y": 396.6,
+        "width": 3800,
+        "z": 14,
+        "high": true,
+        "note": "Far set: the canyon walls, buttes and the horizon, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
+        "aspect": 0.18
       },
       {
         "id": "back-panels",
@@ -3839,7 +3988,7 @@
         "id": "panel-left",
         "image": "stages/solar-array/_takes/panel-left-571704314.webp",
         "x": -650,
-        "y": 142,
+        "y": 141,
         "width": 286,
         "z": 0.3,
         "note": "Left tracking solar panel, its top surface is the walkable platform at y 150. Tilts away during sun tracking.",
@@ -3880,7 +4029,7 @@
         "id": "panel-right",
         "image": "stages/solar-array/_takes/panel-right-78035068.webp",
         "x": 650,
-        "y": 142,
+        "y": 141,
         "width": 286,
         "z": 0.3,
         "note": "Right tracking solar panel, walkable top at y 150. Tilts away during sun tracking.",
@@ -3920,12 +4069,11 @@
       {
         "id": "foreground-rocks",
         "image": "stages/solar-array/_takes/foreground-rocks-1120105259.webp",
-        "x": 1275,
-        "y": -355,
-        "width": 605,
+        "x": 1000,
+        "y": -105,
+        "width": 480,
         "z": -2,
-        "occluder": true,
-        "note": "Foreground red rock outcrop in the bottom right corner, below the stage edge; fighters recovering pass behind it.",
+        "note": "Foreground red rock outcrop at the right lip of the mesa; fades to 30% when a fighter stands behind it.",
         "prompt": "Chunky red-brown sandstone boulder ledge with a sage shrub and a few pebbles on top, deep shadowed cracks, bold ink outlines.",
         "aspect": 0.638,
         "shape": [
@@ -3941,13 +4089,22 @@
             "y1": 95,
             "y2": 165
           }
+        ],
+        "foreground": true,
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
+          }
         ]
       },
       {
         "id": "stage-art",
         "image": "stages/solar-array/wide/stage-art.webp",
         "x": 0,
-        "y": -65,
+        "y": -69,
         "width": 1920,
         "z": 0.3,
         "note": "The painted stage: every piece that draws platforms.",
@@ -3961,7 +4118,7 @@
         "id": "panel-right-copy",
         "image": "stages/solar-array/_takes/panel-right-78035068.webp",
         "x": 325,
-        "y": 142,
+        "y": 141,
         "width": 286,
         "z": 0.3,
         "note": "Right tracking solar panel, walkable top at y 150. Tilts away during sun tracking.",
@@ -4002,7 +4159,7 @@
         "id": "panel-left-copy",
         "image": "stages/solar-array/_takes/panel-left-571704314.webp",
         "x": -325,
-        "y": 142,
+        "y": 141,
         "width": 286,
         "z": 0.3,
         "note": "Left tracking solar panel, its top surface is the walkable platform at y 150. Tilts away during sun tracking.",
@@ -4136,6 +4293,14 @@
         "strength": 0.55
       },
       "ambient": "#f8e6cc"
+    },
+    "haze": {
+      "color": "#f4c987",
+      "strength": 0.3,
+      "z": [
+        17,
+        8
+      ]
     }
   },
   {
@@ -4177,7 +4342,7 @@
       {
         "x1": -115,
         "x2": 115,
-        "y": 270,
+        "y": 268,
         "solid": false,
         "hidden": true
       },
@@ -4248,6 +4413,28 @@
         "note": "The far background, painted fresh from the concept.",
         "prompt": "Deep space filled with dense white starfields, a sweeping band of glowing cobalt and royal-blue nebula clouds running diagonally from lower left to upper right, a bright spiral galaxy with a warm golden core in the upper right, a second small distant galaxy low in the frame, a few bright four-pointed stars; dark navy-black edges, no chessboard or objects in the scene.",
         "aspect": 0.429
+      },
+      {
+        "id": "galaxy",
+        "image": "stages/space-chess/depth/galaxy.webp",
+        "x": 1460.5,
+        "y": 594.1,
+        "width": 798.5,
+        "z": 9,
+        "high": true,
+        "note": "Mid set: the spiral galaxy, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
+        "aspect": 0.559
+      },
+      {
+        "id": "nebula",
+        "image": "stages/space-chess/depth/nebula.webp",
+        "x": 200.3,
+        "y": 585.2,
+        "width": 2721.9,
+        "z": 14,
+        "high": true,
+        "note": "Far set: the cobalt nebula band, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
+        "aspect": 0.347
       },
       {
         "id": "white-king",
@@ -4432,12 +4619,11 @@
       {
         "id": "drifting-pawn",
         "image": "stages/space-chess/_takes/drifting-pawn-2013894306.webp",
-        "x": -1060,
-        "y": -332,
-        "width": 94,
+        "x": -940,
+        "y": 70,
+        "width": 160,
         "z": -2,
-        "occluder": true,
-        "note": "A lost pawn floating in the foreground below the board's left corner; small, slowly bobbing.",
+        "note": "A lost pawn floating in the foreground at the board's left corner; slowly bobbing, fades to 30% when a fighter stands behind it.",
         "prompt": "A single black pawn drifting through space, slightly tilted, glossy dark wood with blue rim light from the nebula, slightly out of focus as it is close to the camera.",
         "aspect": 1.588,
         "shape": [
@@ -4470,13 +4656,22 @@
           "kind": "bob",
           "amount": 10,
           "speed": 3
-        }
+        },
+        "foreground": true,
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
+          }
+        ]
       },
       {
         "id": "stage-art",
         "image": "stages/space-chess/wide/stage-art.webp",
         "x": 0,
-        "y": 110,
+        "y": 113,
         "width": 1964,
         "z": 0.3,
         "note": "The painted stage: every piece that draws platforms.",
@@ -4492,7 +4687,7 @@
         "id": "platform-copy-right",
         "image": "stages/space-chess/wide/copy-right.webp",
         "x": 295,
-        "y": 143,
+        "y": 147,
         "width": 280,
         "z": 0.3,
         "note": "A copy of platform 2 and its art, for the widened stage.",
@@ -4504,7 +4699,7 @@
         "id": "platform-copy-left",
         "image": "stages/space-chess/wide/copy-left.webp",
         "x": -295,
-        "y": 143,
+        "y": 147,
         "width": 280,
         "z": 0.3,
         "note": "A copy of platform 1 and its art, for the widened stage.",
@@ -4575,7 +4770,7 @@
     "grade": {
       "lift": 0.03,
       "gamma": 1.05,
-      "gain": 1.0,
+      "gain": 1,
       "saturation": 1.1,
       "tint": "#6c8cff",
       "tintAmount": 0.25
@@ -4595,6 +4790,14 @@
       },
       "ambient": "#b4c2e6",
       "glossy": true
+    },
+    "haze": {
+      "color": "#2e3f9a",
+      "strength": 0.26,
+      "z": [
+        17,
+        9
+      ]
     }
   },
   {
@@ -5169,12 +5372,11 @@
       {
         "id": "front-wisp",
         "image": "stages/watercolor-nebula/_takes/front-wisp-644737406.webp",
-        "x": 1105,
-        "y": -265,
-        "width": 539,
+        "x": 780,
+        "y": -95,
+        "width": 600,
         "z": -3,
-        "occluder": true,
-        "note": "A foreground cloud wisp low right that fighters can fall behind.",
+        "note": "A foreground cloud wisp at the right edge of the island; fades to 30% when a fighter stands behind it.",
         "prompt": "A soft out-of-focus tendril of dusty blue and cream watercolor cloud, translucent edges, a couple of glossy amber beads clinging to it.",
         "aspect": 0.517,
         "shape": [
@@ -5201,13 +5403,22 @@
           "kind": "wave",
           "amount": 20,
           "speed": 5
-        }
+        },
+        "foreground": true,
+        "reacts": [
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
+          }
+        ]
       },
       {
         "id": "stage-art",
         "image": "stages/watercolor-nebula/wide/stage-art.webp",
         "x": 0,
-        "y": 70,
+        "y": 66,
         "width": 1700,
         "z": 0.3,
         "note": "The painted stage: every piece that draws platforms.",
@@ -5224,7 +5435,7 @@
         "id": "platform-copy-right",
         "image": "stages/watercolor-nebula/wide/copy-right.webp",
         "x": 605,
-        "y": 138,
+        "y": 134.5,
         "width": 280,
         "z": 0.3,
         "note": "A copy of platform 2 and its art, for the widened stage.",
@@ -5236,7 +5447,7 @@
         "id": "platform-copy-left",
         "image": "stages/watercolor-nebula/wide/copy-left.webp",
         "x": -605,
-        "y": 138,
+        "y": 134.5,
         "width": 280,
         "z": 0.3,
         "note": "A copy of platform 1 and its art, for the widened stage.",
@@ -5446,8 +5657,8 @@
     "notes": "Vertical take: five tiers spaced 130 apart (floor 0, puddles 130, drifting bead 260, wisps 390, crown droplet 520) so every step is one easy jump, while the full climb is a big height difference; blast top raised to 1350 so high fights don't end too early. The center bead sways 60 each way and the crown droplet bobs gently to sell the 'slightly fluid' floor; those two use default blocks (theme colors blend in) since static art can't follow them. Paint gets everywhere: splats on every hit and big ones on KOs. Events: Pigment Rain (2 s flash + warning, two huge paint globs fall through the stage on fixed columns x -260 and 300, rain streaks), Nebula Drift (2.5 s warning, rightward wind over the whole stage with a brush-streak swirl and dust). Persistent paint stains on the floor and a truly sloshing/curved fluid floor aren't buildable yet. Art priority: 1 main-island, 2 backdrop, 3 the four puddle/wisp platforms, 4 drop-left/drop-right hazards, 5 cloud banks, 6 drift-swirl, 7 underwash and front-wisp.",
     "grade": {
       "lift": 0.04,
-      "gamma": 1.0,
-      "gain": 1.0,
+      "gamma": 1,
+      "gain": 1,
       "saturation": 1.05,
       "tint": "#ffd0a0",
       "tintAmount": 0.2
@@ -5466,6 +5677,14 @@
         "strength": 0.5
       },
       "ambient": "#ecdcc8"
+    },
+    "haze": {
+      "color": "#f1d3e4",
+      "strength": 0.3,
+      "z": [
+        14,
+        7
+      ]
     }
   },
   {
@@ -5516,21 +5735,21 @@
       {
         "x1": -850,
         "x2": -690,
-        "y": 260,
+        "y": 253,
         "solid": false,
         "hidden": true
       },
       {
         "x1": 640,
         "x2": 920,
-        "y": 110,
+        "y": 114,
         "solid": false,
         "hidden": true
       },
       {
         "x1": 740,
         "x2": 920,
-        "y": 230,
+        "y": 228,
         "solid": false,
         "hidden": true
       }
@@ -5587,6 +5806,17 @@
         "note": "The far background, painted fresh from the concept.",
         "prompt": "A long open-plan kitchen wall in cool morning light: a run of glossy white handleless upper and lower cabinets, a dark charcoal backsplash with under-cabinet strip lights, a sleek tap and a few bottles, tall paned windows at the far right with green garden leaves outside, and on the far left a glimpse through a wide doorway into a bright small yoga room with its own window. Blue-grey walls, white crown molding, recessed ceiling lights, dark wood floor receding into the distance, soft haze, no people.",
         "aspect": 0.429
+      },
+      {
+        "id": "kitchen",
+        "image": "stages/yo-house/depth/kitchen.webp",
+        "x": 0,
+        "y": 158.2,
+        "width": 3600,
+        "z": 11,
+        "high": true,
+        "note": "Far set: the kitchen run with the bright windows, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
+        "aspect": 0.189
       },
       {
         "id": "doorway-frame",
@@ -5722,7 +5952,7 @@
         "id": "fish-tank",
         "image": "stages/yo-house/_takes/fish-tank-2125234462.webp",
         "x": 0,
-        "y": 195,
+        "y": 196,
         "width": 390,
         "z": 0.3,
         "note": "Centerpiece aquarium on its dark cabinet: fighters stand on the cabinet, swim inside the water, and stand on the lid",
@@ -5947,12 +6177,11 @@
       {
         "id": "front-fern",
         "image": "stages/yo-house/_takes/front-fern-474129275.webp",
-        "x": 570,
-        "y": 110,
-        "width": 142,
+        "x": 900,
+        "y": 95,
+        "width": 190,
         "z": -2,
-        "occluder": true,
-        "note": "Potted snake plant and monstera in the foreground near the sofa; fighters pass behind its leaves",
+        "note": "Potted snake plant and monstera at the right end of the room, in front of the fighters; fade to 30% when one stands behind the leaves.",
         "prompt": "Tall striped snake plant leaves and broad monstera leaves in fresh greens from a white ceramic pot, slightly out of focus as if close to the camera",
         "aspect": 1.694,
         "shape": [
@@ -5986,14 +6215,21 @@
             "kind": "shake",
             "amount": 2,
             "seconds": 0.2
+          },
+          {
+            "on": "ko",
+            "kind": "shake",
+            "amount": 8,
+            "seconds": 0.5
           }
-        ]
+        ],
+        "foreground": true
       },
       {
         "id": "stage-art",
         "image": "stages/yo-house/wide/stage-art.webp",
         "x": 0,
-        "y": 65,
+        "y": 60.5,
         "width": 2140,
         "z": 0.3,
         "note": "The painted stage: every piece that draws platforms.",
@@ -6140,8 +6376,8 @@
     "notes": "Play: a flat 1400-wide hardwood floor with the fish tank as a raised centerpiece. The cabinet stand (y120) is a solid block with ledges; above it the tank is a water zone where fighters swim slowly and stroke upward to the thin lid at y390, the stage's high ground. Left side is the yoga room (mat stack y130, shelf y260) and right side the sofa (seat y110, back y230), so the stage is deliberately asymmetric: tight vertical climbing on the left, a softer two-step on the right. Robo Vacuum (every 25-40 s, 2.5 s warning with blinking dock light and a beep): a hazard trundles in from off-screen left across the yoga room, bonks the tank stand and retreats, hitting anyone on the left floor. Bubbler Burst (every 20-35 s, 2 s warning with tank shake): an upward wind blasts through the tank, launching swimmers out the top for a lid scramble or edgeguard surprise. Art priority: 1 fish-tank (sets the whole look, keep water luminous), 2 hardwood-floor, 3 backdrop kitchen, 4 sofa and yoga-corner, 5 robo-vacuum-bot and bubble-column, 6 front-fern, exercise-ball, doorway, fish, dock. Not buildable yet: fighters breaking the tank glass, or a rolling exercise ball physics prop.",
     "grade": {
       "lift": 0.02,
-      "gamma": 1.0,
-      "gain": 1.0,
+      "gamma": 1,
+      "gain": 1,
       "saturation": 0.95,
       "tint": "#c8e0a0",
       "tintAmount": 0.18
@@ -6160,6 +6396,14 @@
         "strength": 0.5
       },
       "ambient": "#dbe4cc"
+    },
+    "haze": {
+      "color": "#d3e3f0",
+      "strength": 0.26,
+      "z": [
+        15,
+        6
+      ]
     }
   }
 ]

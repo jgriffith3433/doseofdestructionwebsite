@@ -81,6 +81,7 @@ export interface GameHooks {
   lookStats?(): { slot: number; char: number; look: number; shader: boolean }[];
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
+  depthStats?(): { quality: string; camX: number; camDist: number; layers: { id: string; z: number; kind: 'far' | 'foreground' | 'haze' | 'stage'; screenX: number; alpha: number; fade: number | null; behind: boolean }[] };
   styleStats?(): { quality: 'high' | 'low'; renderHeight: number; fighters: { slot: number; char: number; look: number; outline: { color: number[]; px: number; perPx: number[]; on: number }; remap: boolean; outlinePass: boolean }[] };
   lightStats?(): { stage: string; quality: 'high' | 'low'; glossy: boolean; fighters: { slot: number; plugin: { full: boolean; key: number[]; keyColor: number[]; rim: number[]; ambient: number[] }; height: number; scale: number; alpha: number; shadow: boolean; reflection: boolean }[] };
   postStats?(): { quality: 'high' | 'low'; lut: string | null; lutReady: boolean; vignette: number; grain: number; punchFrames: number; punches: number; lastPunchDrawn: number };
@@ -196,6 +197,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'post-chain') await r.postChain();
         else if (id === 'lighting') await r.lighting();
+        else if (id === 'stage-depth') await r.stageDepth();
         else if (id === 'mix-room') await r.mixRoom();
         else if (id === 'art-style') await r.artStyle();
         else if (id === 'stage-life') await r.stageLife();
@@ -5910,6 +5912,162 @@ class Run {
       t.progress(1);
       t.finish('done');
     } finally {
+      setGraphics(initial);
+      if (original === null) localStorage.removeItem(GFX_KEY);
+    }
+  }
+
+  /**
+   * Stage depth: every stage's picture layers sit at their own depths and the broadcast camera's pan and zoom slide them past
+   * each other (4 or more depths behind the fighters on High, 3 on Low), one foreground element at the play area's edge fades
+   * to 30% while a fighter walks behind it and comes back when they leave, and a distance haze tinted to the stage (High; Low
+   * drops it). Setup shortcut: straight into a match on each stage (option `stage`: one), the bot off: the player walks to the
+   * foreground element and back across the stage by the pad (keys, or the touch stick on a phone). Events `stage-depth`,
+   * `parallax`, `foreground-fade`, `foreground-clear`, `haze`, `depth-low`; metrics depthLayers (fewest depths), depthFades, fpsDepth.
+   */
+  async stageDepth(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('stage-depth');
+    }
+    this.logViewport(touch && this.isPhone());
+    const original = localStorage.getItem(GFX_KEY);
+    const initial = graphics();
+    const low = touch || this.options.quality === 'low';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    setGraphics(low ? { quality: 'low', glow: false } : { quality: 'high', glow: true });
+    try {
+      const want = typeof this.options.stage === 'string' ? STAGES.filter((s) => s.id === this.options.stage) : STAGES;
+      if (!want.length) t.problem('bug', `stage "${String(this.options.stage)}" is not on the list`);
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the stick controls were not built');
+        t.finish('error');
+        return;
+      }
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = (punk + 1) % CHARACTERS.length;
+      const needDepths = low ? 3 : 4;
+      const fps: number[] = [];
+      let fewest = 99;
+      let fades = 0;
+      for (const [i, st] of want.entries()) {
+        t.progress(0.05 + (0.9 * i) / want.length);
+        void this.game.startMatch({ mode: 'versus', stage: STAGES.indexOf(st), stocks: 3, rules: { timeLimit: 150 }, slots: [{ char: punk, cpu: null }, { char: foe, cpu: 0 }] });
+        await this.matchLive();
+        this.manual = NO_INPUT;
+        pad.release();
+        await this.wait(700);
+        const ds0 = this.game.depthStats?.();
+        if (!ds0) {
+          t.problem('bug', `${st.name}: the renderer reports no depth stats`);
+          await this.game.quitMatch();
+          await this.screen('main');
+          continue;
+        }
+        // 1. What is built: depths behind the fighters, the foreground, the haze sheets.
+        const behind = ds0.layers.filter((l) => l.kind === 'far');
+        const depths = new Set(behind.map((l) => l.z));
+        const fgs = ds0.layers.filter((l) => l.kind === 'foreground');
+        const sheets = ds0.layers.filter((l) => l.kind === 'haze');
+        const depthCount = depths.size + (low && fgs.length ? 1 : 0);
+        fewest = Math.min(fewest, depthCount);
+        if (depthCount < needDepths) t.problem('bug', `${st.name}: ${depthCount} layers at different depths on ${low ? 'Low (counting the foreground)' : 'High'}, want ${needDepths}`);
+        else t.event('stage-depth', `${st.name}: ${depths.size} depths behind the fighters (z ${[...depths].sort((a, b) => b - a).join(', ')}), foreground ${fgs.map((l) => l.id).join(', ') || 'none'}, ${ds0.quality}`);
+        if (low) {
+          if (sheets.length) t.problem('bug', `${st.name}: Low still draws ${sheets.length} haze sheet(s)`);
+          else t.event('depth-low', `${st.name}: Low drops the haze and the extra depth bands, keeps the foreground (${fgs.map((l) => l.id).join(', ')})`);
+        } else if (sheets.length < 2) t.problem('bug', `${st.name}: ${sheets.length} haze sheet(s) on High, want 2 or more`);
+        else t.event('haze', `${st.name}: ${sheets.length} haze sheets at z ${sheets.map((l) => l.z).join(', ')} tinted ${st.haze?.color} (${Math.round((st.haze?.strength ?? 0) * 100)}%)`);
+        if (!fgs.length) {
+          t.problem('bug', `${st.name}: no foreground element is built`);
+          await this.game.quitMatch();
+          await this.screen('main');
+          continue;
+        }
+        // 2. The player walks to the foreground element (real input), then back across the stage; every ~100 ms the camera and
+        // every layer's place on the page are sampled.
+        const samples: { camX: number; camDist: number; at: Map<string, number> }[] = [];
+        let tick = 0;
+        const record = () => {
+          const d = this.game.depthStats?.();
+          if (!d) return;
+          samples.push({ camX: d.camX, camDist: d.camDist, at: new Map(d.layers.map((l) => [l.id, l.screenX])) });
+          if (++tick % 8 === 0) fps.push(this.game.gfxStats?.()?.fpsNow ?? 0);
+        };
+        const fgNow = () => this.game.depthStats?.()?.layers.filter((l) => l.kind === 'foreground') ?? [];
+        const dir = Math.sign(st.layers!.find((l) => l.foreground)!.x) || 1;
+        pad.stick(dir * 100, 0);
+        let sawFade = false;
+        let lowest = 1;
+        await t.until(() => {
+          record();
+          const f = fgNow();
+          lowest = Math.min(lowest, ...f.map((l) => l.alpha));
+          if (f.some((l) => l.alpha <= 0.34)) {
+            sawFade = true;
+            return true;
+          }
+          return false;
+        }, 16000, 'a fighter to walk behind the foreground element').catch(() => undefined);
+        pad.release();
+        if (sawFade) {
+          fades++;
+          t.event('foreground-fade', `${st.name}: ${fgNow().map((l) => `${l.id} ${Math.round(l.alpha * 100)}%`).join(', ')} with the fighter behind it (lowest ${Math.round(lowest * 100)}%)`);
+        } else t.problem('bug', `${st.name}: the foreground element never turned see-through with a fighter behind it (lowest opacity ${Math.round(lowest * 100)}%)`);
+        // Then the other way, across the whole stage: the element comes back and the camera pans.
+        pad.stick(-dir * 100, 0);
+        let cleared = false;
+        await t.until(() => {
+          record();
+          if (fgNow().every((l) => l.alpha >= 0.95)) cleared = true;
+          const m = this.game.match();
+          const me = m?.state.fighters[m.player];
+          return cleared && !!me && Math.abs(me.x / FX) > 300 && Math.sign(me.x) === -dir;
+        }, 16000, 'the fighter to cross the stage').catch(() => undefined);
+        pad.release();
+        if (cleared) t.event('foreground-clear', `${st.name}: back to full opacity once the fighter walked out from behind it`);
+        else t.problem('bug', `${st.name}: the foreground element stayed see-through after the fighter left`);
+        // 3. Parallax: between the two camera positions furthest apart, how far each layer moved on the page.
+        if (samples.length > 4) {
+          let a = samples[0];
+          let b = samples[0];
+          for (const s of samples) {
+            if (s.camX < a.camX) a = s;
+            if (s.camX > b.camX) b = s;
+          }
+          const ds1 = this.game.depthStats?.();
+          const groups = new Map<number, number[]>();
+          for (const l of ds1?.layers ?? []) {
+            if (l.kind === 'haze' || l.kind === 'stage' || !a.at.has(l.id) || !b.at.has(l.id)) continue;
+            groups.set(l.z, [...(groups.get(l.z) ?? []), b.at.get(l.id)! - a.at.get(l.id)!]);
+          }
+          const moves = [...groups.entries()].sort((x, y) => y[0] - x[0]).map(([z, v]) => ({ z, px: v.reduce((p, q) => p + q, 0) / v.length }));
+          const speeds: number[] = [];
+          for (const m of moves) if (!speeds.some((p) => Math.abs(p - m.px) < 0.25)) speeds.push(m.px);
+          const span = Math.abs(b.camX - a.camX);
+          if (span < 0.4) t.problem('warning', `${st.name}: the camera only moved ${span.toFixed(2)} units, the parallax could not be measured`);
+          else if (speeds.length < needDepths) t.problem('bug', `${st.name}: only ${speeds.length} layers moved at different speeds over a ${span.toFixed(1)} unit camera pan (want ${needDepths}): ${moves.map((m) => `z${m.z} ${m.px.toFixed(1)}px`).join(', ')}`);
+          else t.event('parallax', `${st.name}: ${speeds.length} speeds over a ${span.toFixed(1)} unit camera pan: ${moves.map((m) => `z${m.z} ${m.px.toFixed(1)}px`).join(', ')}`);
+        } else t.problem('warning', `${st.name}: too few camera samples (${samples.length}) to measure the parallax`);
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+      t.metric('depthLayers', fewest === 99 ? 0 : fewest);
+      t.metric('depthFades', fades);
+      const mean = fps.length ? fps.reduce((a, b) => a + b, 0) / fps.length : 0;
+      t.metric('fpsDepth', Math.round(mean));
+      if (low && mean > 0 && mean < 45 && innerWidth <= 900) t.problem('warning', `Low at ${innerWidth}x${innerHeight} ran at ${Math.round(mean)} fps (want 45)`);
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      this.manual = null;
       setGraphics(initial);
       if (original === null) localStorage.removeItem(GFX_KEY);
     }
