@@ -1128,7 +1128,7 @@ function beginReady(m: Match): void {
   phase = 'ready';
   readyFrames = 0;
   readyStart = performance.now();
-  banner('Ready');
+  slam('Round start');
   renderer.stageEvent('start');
   audio.line('announcer.ready');
   commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state) : null;
@@ -1239,7 +1239,9 @@ function afterTick(m: Match, events: SimEvent[]): void {
   if (s.over && !shownOver) {
     shownOver = true;
     renderer.stageEvent('end');
-    banner(s.timedOut ? 'Time!' : 'Game!');
+    slam(s.timedOut ? 'Time!' : 'Game!', true);
+    // The final KO holds for half a second (offline; online the rollback keeps ticking) under the slam.
+    if (!fight) freezeUntil = performance.now() + GAME_FREEZE_MS;
     audio.line(s.timedOut ? 'announcer.time' : 'announcer.game');
     // Final-KO sting only when a stock wipe closes the bout (not a quota/streak/ko chip win).
     const teamsLeft = new Set(s.fighters.filter((f) => f.stocks > 0).map((f) => f.team));
@@ -1739,6 +1741,21 @@ function broadcast(c: Call): void {
 }
 let boothTimer = 0;
 
+/** The GAME! freeze on the final KO. */
+const GAME_FREEZE_MS = 500;
+let freezeUntil = 0;
+const slamReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+/** ROUND START / GAME!: big type punches in with a camera shake and a hit sound (the announcer's line follows). */
+function slam(text: string, over = false): void {
+  const el = h('div', { class: over ? 'slam game' : 'slam' }, text);
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
+  audio.sfx('vs-slam');
+  if (!slamReduced.matches) renderer.kick(over ? 0.7 : 0.4);
+  window.dispatchEvent(new CustomEvent('dod:slam', { detail: { text, over, at: Math.round(performance.now()), freezeMs: over && !fight ? GAME_FREEZE_MS : 0 } }));
+}
+
 function banner(text: string): void {
   const el = h('div', { class: 'banner' }, text);
   document.body.appendChild(el);
@@ -1902,6 +1919,7 @@ function frame(draw = true): void {
     }
   } else if (match && phase === 'play') {
     let steps = 0;
+    if (performance.now() < freezeUntil) acc = 0;
     while (acc >= TICK_MS && steps < 5 * simSpeed && phase === 'play' && match) {
       acc -= TICK_MS;
       tick(match);

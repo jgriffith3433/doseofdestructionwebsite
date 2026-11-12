@@ -777,8 +777,10 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   z-index: 30;
 }
 
-/* The transition: two slanted panels sweep across, then off the other side. */
-.wipe { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
+/* The show's stinger (ui/stinger.ts): three slanted panels (brand dark, the four slot colours, the hot logo panel) sweep in,
+   a light streak crosses, the logo holds, then the panels leave the other side. Transform and opacity only, so a phone keeps 50 fps.
+   While the next screen loads the cover stays on a branded loop (.hold), never black. */
+.wipe { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; contain: strict; }
 .wipe i {
   position: absolute;
   top: -10%;
@@ -788,7 +790,14 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   transform: translateX(-110%) skewX(-18deg);
   will-change: transform;
 }
-/* The branded cover: the show's logo on the hot panel. Transform-only animation, so no layout or paint work while it shows. */
+.wipe i:nth-child(1) { background: #1c0d06; } /* brand dark, not pure black */
+.wipe i.stinger-slots { display: flex; left: -36%; width: 172%; }
+.wipe i.stinger-slots u { flex: 1; display: block; }
+.wipe i.stinger-slots u:nth-child(1) { background: #ff5a1f; }
+.wipe i.stinger-slots u:nth-child(2) { background: #3fa7ff; }
+.wipe i.stinger-slots u:nth-child(3) { background: #ffd15a; }
+.wipe i.stinger-slots u:nth-child(4) { background: #5ce08a; }
+.wipe i.stinger-logo { background: var(--hot); border-left: 6px solid var(--gold); left: -32%; width: 164%; }
 .wipe i b {
   position: absolute;
   left: 55%;
@@ -804,34 +813,71 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   color: #0c0a09;
 }
 .wipe i b span { color: var(--gold); text-shadow: 0 3px 0 #5a2410; }
-.wipe i:first-child { background: #1c0d06; } /* brand dark, not pure black */
-.wipe i:last-child { background: var(--hot); border-left: 6px solid var(--gold); }
-/* If the cover has to stay up for a while it says why, rather than read as an empty orange frame. */
-.wipe.in.slow::after {
-  content: 'Loading\2026';
+/* The light streak: one bright slanted bar that crosses the whole frame while the panels close. */
+.wipe .stinger-streak {
   position: absolute;
-  right: 6%;
-  bottom: 8%;
-  font-family: Oswald, sans-serif;
-  font-size: clamp(18px, 2.4vw, 28px);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: #0c0a09;
+  top: -10%;
+  bottom: -10%;
+  left: 0;
+  width: 14%;
   opacity: 0;
-  animation: wipe-label 240ms linear forwards;
+  transform: translateX(-120%) skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 244, 214, 0.95), transparent);
+  will-change: transform, opacity;
 }
-@keyframes wipe-label { to { opacity: 1; } }
-.wipe.in, .wipe.out { pointer-events: all; }
-.wipe.in i { animation: wipe-in 220ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
-.wipe.in i:last-child { animation-delay: 40ms; }
-.wipe.out i { transform: translateX(-5%) skewX(-18deg); animation: wipe-out 240ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
-.wipe.out i:first-child { animation-delay: 40ms; }
+.wipe.in, .wipe.hold, .wipe.out { pointer-events: all; }
+.wipe.in i:nth-child(1) { animation: wipe-in 260ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
+.wipe.in i:nth-child(2) { animation: wipe-in 260ms cubic-bezier(0.7, 0, 0.3, 1) 30ms forwards; }
+.wipe.in i:nth-child(3) { animation: wipe-in 260ms cubic-bezier(0.7, 0, 0.3, 1) 60ms forwards; }
+.wipe.in .stinger-streak { animation: stinger-streak 320ms cubic-bezier(0.5, 0, 0.5, 1) 40ms forwards; }
+.wipe.hold i, .wipe.out i { transform: translateX(-5%) skewX(-18deg); }
+.wipe.hold i b { animation: stinger-pulse 700ms ease-in-out infinite alternate; }
+.wipe.hold .stinger-streak { animation: stinger-loop 900ms linear infinite; }
+.wipe.out i:nth-child(1) { animation: wipe-out 300ms cubic-bezier(0.7, 0, 0.3, 1) 60ms forwards; }
+.wipe.out i:nth-child(2) { animation: wipe-out 300ms cubic-bezier(0.7, 0, 0.3, 1) 30ms forwards; }
+.wipe.out i:nth-child(3) { animation: wipe-out 300ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
 @keyframes wipe-in { to { transform: translateX(-5%) skewX(-18deg); } }
 @keyframes wipe-out { to { transform: translateX(110%) skewX(-18deg); } }
+@keyframes stinger-streak { 0% { opacity: 0; transform: translateX(-120%) skewX(-18deg); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateX(820%) skewX(-18deg); } }
+@keyframes stinger-loop { 0% { opacity: 1; transform: translateX(-120%) skewX(-18deg); } 100% { opacity: 1; transform: translateX(820%) skewX(-18deg); } }
+@keyframes stinger-pulse { to { transform: translate(-50%, -50%) skewX(18deg) scale(1.06); } }
+
+/* ROUND START and GAME!: big type punches in over the arena (main.ts slam). */
+.slam {
+  position: fixed;
+  left: 50%;
+  top: 38%;
+  transform: translate(-50%, -50%);
+  font-family: Oswald, sans-serif;
+  font-weight: 700;
+  font-size: clamp(56px, 15vw, 170px);
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--gold);
+  -webkit-text-stroke: 3px #5a2410;
+  text-shadow: 0 8px 0 #5a2410, 0 0 60px rgba(255, 90, 31, 0.8);
+  pointer-events: none;
+  z-index: 12;
+  animation: slam 900ms cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
+}
+.slam.game { color: #fff; font-size: clamp(64px, 18vw, 210px); }
+@keyframes slam {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(3) skewX(-8deg); }
+  16% { opacity: 1; transform: translate(-50%, -50%) scale(0.92) skewX(-8deg); }
+  26% { transform: translate(-50%, -50%) scale(1.04) skewX(-8deg); }
+  36% { transform: translate(-50%, -50%) scale(1) skewX(-8deg); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.08) skewX(-8deg); }
+}
 @media (prefers-reduced-motion: reduce) {
   .wipe i { transform: none; left: 0; width: 100%; opacity: 0; }
-  .wipe.in i { animation: none; opacity: 1; transition: opacity 120ms; }
+  .wipe .stinger-streak { display: none; }
+  .wipe.in i, .wipe.hold i { animation: none; transform: none; opacity: 1; transition: opacity 120ms; }
   .wipe.out i { animation: none; opacity: 0; transform: none; transition: opacity 120ms; }
+  .wipe i.stinger-slots { display: none; }
+  .slam { animation-name: slam-fade; }
+  @keyframes slam-fade { 0% { opacity: 0; } 15% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
   *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; }
 }
 

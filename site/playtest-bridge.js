@@ -19,7 +19,7 @@
     {
       "id": "smoke",
       "title": "Boot, menus, a quick versus match for 20 s, quit to the menu",
-      "description": "options: stage, fighter (ids) to play specific content. Logs viewport (size + touch). On a portrait phone (390x844) it turns to an 844x390 landscape frame and plays the match there (phone-turned, viewport); a phone run at desktop size is a bug.",
+      "description": "options: stage, fighter (ids) to play specific content. Logs viewport (size + touch). On a portrait phone (390x844) it turns to an 844x390 landscape frame and plays the match there (phone-turned, viewport); a phone run at desktop size is a bug. Also checks the show's stinger (events stinger / slam-round-start / slam-game, metrics stingers, slams, screenSwitches): every screen change plays one, 0.5-0.7 s unless loading holds it.",
       "seconds": 50,
       "tags": [
         "smoke"

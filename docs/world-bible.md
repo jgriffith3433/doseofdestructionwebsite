@@ -467,3 +467,7 @@ dark, 1.8 s, with a low-pass over everything); Dust Devil Mesa a canyon (a late 
 Space Chess a hollow void (cold, 1.4 s); Watercolor Nebula a dream (soft, 1.5 s). Fighters' hits, swings, jumps, landings
 and barks sit where the fighter stands on screen (left to right, -0.8 to 0.8); a fighter blasted out of the zone loses
 highs and level as they leave, the crowd's roar stays put. The whole match is levelled to -14 LUFS under a limiter.
+
+## The show's stinger
+
+Every screen change is the show cutting between segments: three slanted panels (brand dark, the four player colours, the hot logo panel) sweep across with a light streak and the "Dose of Destruction" logo, a whoosh going in and an impact as the panels meet (0.58 s; if the next screen is still loading the logo holds and pulses, never black). A bout opens on a ROUND START slam (type punches in, camera kicks, hit sound) and ends on a GAME! slam with a half-second freeze on the final KO, just before the announcer's line. Reduced motion gets a 120 ms crossfade and no shake. Code: `src/game/ui/stinger.ts`, `main.ts` `slam()`.
