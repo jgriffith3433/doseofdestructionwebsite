@@ -368,6 +368,8 @@ function pickStage(stage: number, entry: ModeStage, random = false): void {
   selectedAt = performance.now();
   const cfg = lastSelect === 'training' ? training : versus;
   analytics.stagePick(lastSelect, stage, random);
+  // The announcer shouts the stage's name (startMatch lets it finish before the VS card).
+  void audio.call(`announcer.stage.${STAGES[stage].id}`);
   const setup: MatchSetup = {
     mode: lastSelect,
     stage,
@@ -1037,7 +1039,9 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     let splash: Promise<void> = Promise.resolve();
     // Finish Stage Select prep on the stages screen so it can't starve the VS wipe (vsWipeFps).
     renderer.setStage(setup.stage);
-    await renderer.whenFightersIdle();
+    // The stage's name (just picked) plays out first, by its real length, so the VS calls don't cut it.
+    const stageCall = new Promise<void>((r) => setTimeout(r, Math.min(1700, audio.callBusyMs())));
+    await Promise.all([renderer.whenFightersIdle(), stageCall]);
     if (stale()) return;
     // Wipe into VS with only DOM + audio prefetch on the main thread.
     vsStart = performance.now();
@@ -1071,9 +1075,11 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     // but the VS card is never held past VS_HOLD_CAP_MS from the wipe into it: what is still missing then
     // (stage pictures, clip sheets) finishes behind the match intro. The meshes themselves are mandatory.
     await renderer.stageArtReady(Math.max(0, VS_HOLD_CAP_MS - (performance.now() - vsStart)));
+    // The VS card also stays up until the announcer has called both names in order (it ends itself, or on a tap), never
+    // past the cap below.
+    await Promise.race([splash, new Promise<void>((r) => setTimeout(r, Math.max(0, VS_HOLD_CAP_MS + 500 - (performance.now() - vsStart))))]);
     renderer.onLoadProgress = null;
     bar.remove();
-    void splash;
     void warm;
     if (stale()) return;
   } else {
@@ -1142,6 +1148,9 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   if (!readyUnderWipe) beginReady(m);
 }
 
+/** The "Ready... FIGHT!" take that opened this Ready phase (its FIGHT is the Go), or null. */
+let readyFightId: string | null = null;
+
 function beginReady(m: Match): void {
   const setup = m.setup;
   analytics.matchStart(m, chapter);
@@ -1152,7 +1161,10 @@ function beginReady(m: Match): void {
   readyStart = performance.now();
   slam('Round start');
   renderer.stageEvent('start');
-  audio.line('announcer.ready');
+  // "Ready... FIGHT!" is one call (2 takes) that lands its FIGHT on the Go frame; without a take it is "Ready?" then "Go!".
+  readyFightId = audio.pickLine('announcer.ready-fight');
+  if (readyFightId) void audio.call(readyFightId);
+  else audio.line('announcer.ready');
   commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state) : null;
   introPending = (commentator && (chapter ? introCall(chapter.id) : dailyRun?.setup === setup ? introCall(dailyRun.ep.blogChapter) : null)) || null;
   audio.playStageBed(STAGES[setup.stage].id);
@@ -1265,7 +1277,9 @@ function afterTick(m: Match, events: SimEvent[]): void {
     slam(s.timedOut ? 'Time!' : 'Game!', true);
     // The final KO holds for half a second (offline; online the rollback keeps ticking) under the slam.
     if (!fight) freezeUntil = performance.now() + GAME_FREEZE_MS;
-    audio.line(s.timedOut ? 'announcer.time' : 'announcer.game');
+    const gameId = s.timedOut ? null : audio.pickLine('announcer.game');
+    if (gameId) void audio.call(gameId);
+    else audio.line(s.timedOut ? 'announcer.time' : 'announcer.game');
     // Final-KO sting only when a stock wipe closes the bout (not a quota/streak/ko chip win).
     const teamsLeft = new Set(s.fighters.filter((f) => f.stocks > 0).map((f) => f.team));
     if (!s.timedOut && teamsLeft.size <= 1) audio.finalKoSting();
@@ -1655,11 +1669,20 @@ function announceWinQuote(m: Match, winnerSlot: number, ending: boolean): WinQuo
   return q;
 }
 
-/** Plays the quote's take as the results settle in (900 ms after the screen); a quote with no take is only the caption. */
-function playWinQuote(q: WinQuote): void {
-  setTimeout(() => {
-    audio.line(q.id);
-    window.dispatchEvent(new CustomEvent('dod:win-quote-play', { detail: { id: q.id, audio: q.audio } }));
+/**
+ * The announcer on the results: "The winner is..." and the winner's name (or "No contest!" with no winner), then the winner's
+ * quote. Starts 900 ms after the screen opens; each call waits for the one before, and leaving the screen cuts them (a quote
+ * with no take is only the caption).
+ */
+function playResultCalls(m: Match, winnerSlot: number, quote: WinQuote | null, voided = false): void {
+  const w = voided ? undefined : m.state.fighters[winnerSlot];
+  const ids = w ? ['announcer.winner-is', `announcer.name.${CHARACTERS[w.char].id}`] : ['announcer.no-contest'];
+  setTimeout(async () => {
+    window.dispatchEvent(new CustomEvent('dod:result-call', { detail: { ids, winner: w ? CHARACTERS[w.char].id : null } }));
+    const finished = await audio.callEach(ids, 150);
+    if (!finished || !quote) return;
+    audio.line(quote.id);
+    window.dispatchEvent(new CustomEvent('dod:win-quote-play', { detail: { id: quote.id, audio: quote.audio } }));
   }, 900);
 }
 
@@ -1713,7 +1736,7 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
     startResultsMusic();
   }).then(() => askOnResults(m));
   // The Tour's closing win line already played over the final KO.
-  if (quote && !(tourRun?.setup === m.setup && won)) playWinQuote(quote);
+  if (!(tourRun?.setup === m.setup && won) && m.setup.mode !== 'training') playResultCalls(m, m.state.winner, quote);
   syncPad();
 }
 
@@ -1806,7 +1829,7 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
     startResultsMusic();
   });
   if (!voided) askOnResults(m);
-  if (quote) playWinQuote(quote);
+  playResultCalls(m, end.winner, quote, voided);
   syncPad();
 }
 
@@ -2004,7 +2027,7 @@ function frame(draw = true): void {
       acc -= TICK_MS;
       if (++readyFrames === 50) {
         banner('Go!');
-        audio.line('announcer.go');
+        if (!readyFightId) audio.line('announcer.go');
         phase = 'play';
         fight?.beginPlay();
         break;

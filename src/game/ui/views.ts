@@ -88,6 +88,7 @@ export function openStages(
     onPrep?.(index, immediate);
   };
   if (focus !== undefined) prep(focus, true);
+  void audio.preloadLines(list.map(({ index }) => `announcer.stage.${STAGES[index].id}`));
   grid.replaceChildren(
     ...list.map(({ index, entry }) => {
       const st = STAGES[index];
@@ -118,6 +119,10 @@ function paintedImg(url: string, char: number, look: number): HTMLImageElement {
   paintImage(img, url, char, look);
   return img;
 }
+
+/** Gap between two announcer calls on the VS card, and the most the calls may take (so the card is never held past its cap). */
+const VS_GAP_MS = 60;
+const VS_CALLS_MAX_MS = 3300;
 
 export function playVersus(setup: MatchSetup): Promise<void> {
   const body = $('versus-body');
@@ -198,24 +203,29 @@ export function playVersus(setup: MatchSetup): Promise<void> {
   const timers: ReturnType<typeof setTimeout>[] = [];
   let cancelled = false;
   const schedule = async () => {
-    // Each call starts when the one before it has finished, by the clip's real length.
+    // Each call starts when the one before has finished, by the clip's real length; one call at a time (audio.call).
     const ids = calls.map((s) => `announcer.name.${CHARACTERS[s.char].id}`);
-    let at = 520;
+    const lens = await Promise.all(ids.map((id) => audio.lineMs(id)));
+    const versusMs = await audio.lineMs('announcer.versus');
+    // "Versus!" between the names only while the whole exchange still fits the VS card's time (two long names skip it).
+    const withVersus = ids.length > 1 && 250 + lens.reduce((a, b) => a + b + VS_GAP_MS, 0) + (ids.length - 1) * (versusMs + VS_GAP_MS) <= VS_CALLS_MAX_MS;
+    let at = 250;
     const cues: [number, string][] = [];
     for (let i = 0; i < ids.length; i++) {
       cues.push([at, ids[i]]);
-      at += (await audio.lineMs(ids[i])) + 150;
-      if (i < ids.length - 1) {
+      at += lens[i] + VS_GAP_MS;
+      if (withVersus && i < ids.length - 1) {
         cues.push([at, 'announcer.versus']);
-        at += (await audio.lineMs('announcer.versus')) + 150;
+        at += versusMs + VS_GAP_MS;
       }
     }
     if (cancelled) return;
     timers.push(
       setTimeout(() => audio.sfx('vs-slam'), 300),
-      ...cues.map(([t, id]) => setTimeout(() => audio.line(id), t)),
-      setTimeout(finish, Math.min(3000, Math.max(2600, at + 500))),
+      ...cues.map(([t, id]) => setTimeout(() => void audio.call(id), t)),
+      setTimeout(finish, Math.min(VS_CALLS_MAX_MS + 400, Math.max(2600, at + 350))),
     );
+    window.dispatchEvent(new CustomEvent('dod:vs-calls', { detail: { ids: cues.map(([, id]) => id), at: cues.map(([t]) => t), withVersus } }));
     // Let the slam land before a key can skip it.
     timers.push(setTimeout(() => {
       window.addEventListener('keydown', finish);
@@ -232,6 +242,8 @@ export function playVersus(setup: MatchSetup): Promise<void> {
     timers.forEach(clearTimeout);
     window.removeEventListener('keydown', finish);
     body.removeEventListener('click', finish);
+    // Skipped or finished: a call still playing (or waiting) is cut with the card.
+    if (audio.callBusyMs() > 0) audio.stopCall();
     resolveSplash();
   }
   // The 3 s VS cap can leave for the match before the splash clock ends: tear down listeners then.

@@ -57,6 +57,17 @@
       ]
     },
     {
+      "id": "announcer",
+      "title": "The announcer calls the show: Choose your fighter, each fighter's name on select (250 ms debounce), the stage, both names on the VS card, Ready FIGHT, GAME, The winner is",
+      "description": "Versus select: \"Choose your fighter!\" as it opens; landing on a fighter plays that name within 300 ms, once (`name-hover`, `name-once`); a new landing cuts the name playing (`name-cancel`); a fast sweep or swipe across the grid plays only the last name (`name-sweep`). Then a 1v1 of one stock: the stage name on the pick (`stage-call`), both fighters' names in order on the VS card (`vs-calls`), \"Ready... FIGHT!\" at the match start (`ready-fight-call`), \"GAME!\" on the final KO (`game-call`), and on the results \"The winner is...\" then the winner's name (`result-calls`); the music ducks under each (`music-duck`) and the announcer never overlaps itself. On a 390x844 touch phone it turns to 844x390 and every landing is a touch tap or drag. Metrics nameDelayMs, announcerCalls, announcerOverlaps.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "sound",
+        "touch"
+      ]
+    },
+    {
       "id": "win-quote",
       "title": "Win quotes: the winner says a voiced, typed-on quote on the results screen, the matchup quote against a story rival, never the same quote twice in a row, phone landscape fit",
       "description": "Versus 1v1 between two story rivals (options fighter / foe, default exit-punk vs kaelen), played twice with Rematch. Each results screen must play the winner's recorded quote (quote-voice) with a typed-on caption of the same words (quote-caption), the matchup quote when the loser is the winner's rival (quote-matchup), never the quote that fighter played last (quote-repeat), and at 844x390 (a 390x844 touch phone turned to landscape, every tap a touch pointer event) the caption fits in two lines inside the screen with the Rematch button visible and uncovered (quote-fit, quote-rematch). Metric winQuotes.",

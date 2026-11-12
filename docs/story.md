@@ -614,6 +614,23 @@ the front row there (in Turn the Page he is in the fight itself). The Mechanic i
 - Every call also shows as a caption (`.booth`) and fires `dod:commentary`. The lines are text only for now: no `audio` or
   `take`, so they are captioned and silent until recorded through Hawkes Gen (cents, no GPU).
 
+### The announcer calls the show (as built)
+
+Besides the fight calls the announcer (Brian, deep, big-room) opens and closes every bout the way the show would, shouting
+and levelled to -16 LUFS (`tools/announcer-calls.mjs` merges the recorded takes into `content/voice.json`; the 33 fighter
+names `announcer.name.<id>` were already there):
+
+- **Select:** "Choose your fighter!" (`announcer.choose`) as the select opens. When the cursor lands on a fighter (mouse,
+  pad, keyboard, a tap, a finger dragged across the grid) that fighter's name plays after 250 ms; a new landing cuts the
+  name playing, so a fast sweep calls only where it stops, and one tap calls once (`ui/nameCall.ts`). Locked fighters stay unnamed.
+- **Stage pick:** the stage's name (`announcer.stage.<id>`, 9), finished before the VS card.
+- **VS card:** both names in slot order, one at a time (the card waits for them), "Versus!" between them only when the whole
+  exchange fits 3.3 s.
+- **Match start:** "Ready... FIGHT!" (`announcer.ready-fight.1/2`; its FIGHT lands on the Go frame, so no separate "Go!").
+  **Final KO:** "GAME!" (`announcer.game.1-3`; a timeout is still "Time!"). "Final stock!" is `announcer.last-stock.4`.
+- **Results:** "The winner is..." then the winner's name, then the winner's quote; with no winner (or a void online match)
+  "No contest!". The music ducks (~8 dB) under every call; one call at a time (`audio.call`, `dod:announcer`).
+
 ## Story cards
 
 Every episode opens and closes on a title card, like the show's own bumpers: "Tonight" before the intro scene (season,
