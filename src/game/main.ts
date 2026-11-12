@@ -2034,6 +2034,7 @@ installDodPlaytest({
   probeHit: (pan) => audio.sfx('hit-heavy', { vary: false, at: { pan } }),
   postStats: () => renderer.postStats(),
   lightStats: () => renderer.lightStats(),
+  depthStats: () => renderer.depthStats(),
   styleStats: () => renderer.styleStats(),
   lookStats: () => renderer.lookStats(),
   aliveStats: () => renderer.aliveStats(),
