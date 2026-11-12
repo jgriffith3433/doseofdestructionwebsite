@@ -307,6 +307,16 @@
       ]
     },
     {
+      "id": "bookends",
+      "title": "Episode bookends: a won episode replays its final KO (last hit at 25%) within 1 s, plays Blog Man's voiced \"Next time on\" tease over the next episode's stage, and the next episode opens on \"Previously on\" with the saved KO and a voiced recap; any press skips each segment within 0.3 s (phone 844x390: taps)",
+      "description": "Option chapter (default open-mic; the episode after it is played too). Setup shortcut: the chapters before it are marked cleared and any saved highlight is set aside (both put back). Plays the episode from the Campaign map with the bot: replay-start (within 1 s of the KO: metric replayStartMs), replay-lower-third (logo bug, episode title), replay-slow, replay-fit; a press skips it (replay-skipped, replaySkipMs under 300); the outro scene; the tease (tease: Blog Man's tease line voiced, the next episode's stage and title, tease-fit; tease-skipped); results-after-skips; then the next episode from the map opens on the recap (recap: the saved KO replayed, Blog Man's recap line voiced; recap-fit, recap-skipped) and goes on to its fight (next-episode-live). On a 390x844 touch phone it plays in the turned 844x390 frame, the skips are pointer taps and every segment is checked inside the window with a 44 px Skip button.",
+      "seconds": 420,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "presentation",
       "title": "Menu, VS screen and results presentation: the broadcast menu, a name card animating in for each VS fighter, results with winner, time, damage dealt and highlights, no text clipped",
       "description": "Main menu: the ON AIR bug and Tonight ticker are shown (menu-broadcast). Versus 1v1 (1 stock): on the VS screen each fighter lands and its name card animates in (vs-start, vs-name-card per fighter). The match is played by the bot to its end; the results must show the winner, the time and the damage dealt in the summary strip (results-summary, checked against the match) and list the knockouts as highlights (results-highlights). Each screen is checked for text cut off or pushed off the sides at the window's shape (no-clipping, with the size and 16:9 / 20:9 / phone). The character and stage select screens are checked too. At phone size (390x844, 844x390) every button must be at least 44 px tall and none overlap (phone-targets). Options: stage, fighter. Metric highlights.",

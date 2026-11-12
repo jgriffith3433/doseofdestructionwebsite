@@ -3175,6 +3175,864 @@
       }
     },
     {
+      "id": "blog-man.tease.open-mic",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Next: Break. Very large. The floor has concerns.",
+      "audio": "/audio/voice/blog-man.tease.open-mic.mp3",
+      "take": {
+        "text": "Next: Break. Very large. The floor has concerns.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.open-mic",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "One skateboard. One win.",
+      "audio": "/audio/voice/blog-man.recap.open-mic.mp3",
+      "take": {
+        "text": "One skateboard. One win.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.house-heavy",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Two on one. Platforms won't sit still.",
+      "audio": "/audio/voice/blog-man.tease.house-heavy.mp3",
+      "take": {
+        "text": "Two on one. Platforms won't sit still.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.house-heavy",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Break fell off his own stage. Ratings up.",
+      "audio": "/audio/voice/blog-man.recap.house-heavy.mp3",
+      "take": {
+        "text": "Break fell off his own stage. Ratings up.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.bad-signal",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Someone brought the weather.",
+      "audio": "/audio/voice/blog-man.tease.bad-signal.mp3",
+      "take": {
+        "text": "Someone brought the weather.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.bad-signal",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Shutup Bot said one word. It was Fine.",
+      "audio": "/audio/voice/blog-man.recap.bad-signal.mp3",
+      "take": {
+        "text": "Shutup Bot said one word. It was Fine.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.low-pressure",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The reporter joins the card.",
+      "audio": "/audio/voice/blog-man.tease.low-pressure.mp3",
+      "take": {
+        "text": "The reporter joins the card.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.low-pressure",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Clear skies. For about a minute.",
+      "audio": "/audio/voice/blog-man.recap.low-pressure.mp3",
+      "take": {
+        "text": "Clear skies. For about a minute.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.turn-the-page",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "One stock each. One clean hit. Blink.",
+      "audio": "/audio/voice/blog-man.tease.turn-the-page.mp3",
+      "take": {
+        "text": "One stock each. One clean hit. Blink.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.turn-the-page",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The headline ran long. So did the fight.",
+      "audio": "/audio/voice/blog-man.recap.turn-the-page.mp3",
+      "take": {
+        "text": "The headline ran long. So did the fight.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.sudden-death",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Heavy hitters. The kid stays.",
+      "audio": "/audio/voice/blog-man.tease.sudden-death.mp3",
+      "take": {
+        "text": "Heavy hitters. The kid stays.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.sudden-death",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "One clean hit. He ducked.",
+      "audio": "/audio/voice/blog-man.recap.sudden-death.mp3",
+      "take": {
+        "text": "One clean hit. He ducked.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.dead-weight",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The man who runs the show steps on.",
+      "audio": "/audio/voice/blog-man.tease.dead-weight.mp3",
+      "take": {
+        "text": "The man who runs the show steps on.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.dead-weight",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Still standing at the bell.",
+      "audio": "/audio/voice/blog-man.recap.dead-weight.mp3",
+      "take": {
+        "text": "Still standing at the bell.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.encore",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "New season. The champion defends City Top.",
+      "audio": "/audio/voice/blog-man.tease.encore.mp3",
+      "take": {
+        "text": "New season. The champion defends City Top.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.encore",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The broadcast went quiet. The host fell.",
+      "audio": "/audio/voice/blog-man.recap.encore.mp3",
+      "take": {
+        "text": "The broadcast went quiet. The host fell.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.title-defense",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "She wants the ratings. So does everyone.",
+      "audio": "/audio/voice/blog-man.tease.title-defense.mp3",
+      "take": {
+        "text": "She wants the ratings. So does everyone.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.title-defense",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Shark Dude lost a defense. The belt stays.",
+      "audio": "/audio/voice/blog-man.recap.title-defense.mp3",
+      "take": {
+        "text": "Shark Dude lost a defense. The belt stays.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.drop-in",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The champion pays to fight.",
+      "audio": "/audio/voice/blog-man.tease.drop-in.mp3",
+      "take": {
+        "text": "The champion pays to fight.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.drop-in",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Pyro Singer dropped in. Dropped out.",
+      "audio": "/audio/voice/blog-man.recap.drop-in.mp3",
+      "take": {
+        "text": "Pyro Singer dropped in. Dropped out.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.champions-tax",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Someone bought a bigger fighter.",
+      "audio": "/audio/voice/blog-man.tease.champions-tax.mp3",
+      "take": {
+        "text": "Someone bought a bigger fighter.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.champions-tax",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Tax paid in full, in the fog.",
+      "audio": "/audio/voice/blog-man.recap.champions-tax.mp3",
+      "take": {
+        "text": "Tax paid in full, in the fog.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.sponsored",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "One name on the sheet. One baton.",
+      "audio": "/audio/voice/blog-man.tease.sponsored.mp3",
+      "take": {
+        "text": "One name on the sheet. One baton.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.sponsored",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The champion kept the receipt.",
+      "audio": "/audio/voice/blog-man.recap.sponsored.mp3",
+      "take": {
+        "text": "The champion kept the receipt.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.walk-on",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "A rival broadcast, same time slot.",
+      "audio": "/audio/voice/blog-man.tease.walk-on.mp3",
+      "take": {
+        "text": "A rival broadcast, same time slot.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.walk-on",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "He signed the sheet. Took the baton.",
+      "audio": "/audio/voice/blog-man.recap.walk-on.mp3",
+      "take": {
+        "text": "He signed the sheet. Took the baton.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.simulcast",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Reruns of the champion. New endings.",
+      "audio": "/audio/voice/blog-man.tease.simulcast.mp3",
+      "take": {
+        "text": "Reruns of the champion. New endings.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.simulcast",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Two feeds. One winner. Switch back.",
+      "audio": "/audio/voice/blog-man.recap.simulcast.mp3",
+      "take": {
+        "text": "Two feeds. One winner. Switch back.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.rerun",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Budget cuts. Starting with you.",
+      "audio": "/audio/voice/blog-man.tease.rerun.mp3",
+      "take": {
+        "text": "Budget cuts. Starting with you.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.rerun",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Same night. Same ending.",
+      "audio": "/audio/voice/blog-man.recap.rerun.mp3",
+      "take": {
+        "text": "Same night. Same ending.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.cut-to-size",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Two networks, one card. Backup arrives.",
+      "audio": "/audio/voice/blog-man.tease.cut-to-size.mp3",
+      "take": {
+        "text": "Two networks, one card. Backup arrives.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.cut-to-size",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Cut to size. Back to full length.",
+      "audio": "/audio/voice/blog-man.recap.cut-to-size.mp3",
+      "take": {
+        "text": "Cut to size. Back to full length.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.hostile-takeover",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Sweeps Week. No warning, no mercy.",
+      "audio": "/audio/voice/blog-man.tease.hostile-takeover.mp3",
+      "take": {
+        "text": "Sweeps Week. No warning, no mercy.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.hostile-takeover",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "No merger. The card stays independent.",
+      "audio": "/audio/voice/blog-man.recap.hostile-takeover.mp3",
+      "take": {
+        "text": "No merger. The card stays independent.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.cold-open",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The sponsor pays by the percent.",
+      "audio": "/audio/voice/blog-man.tease.cold-open.mp3",
+      "take": {
+        "text": "The sponsor pays by the percent.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.cold-open",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The cold open's over. Roll the titles.",
+      "audio": "/audio/voice/blog-man.recap.cold-open.mp3",
+      "take": {
+        "text": "The cold open's over. Roll the titles.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.product-placement",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The signal drops. The walk-on doesn't.",
+      "audio": "/audio/voice/blog-man.tease.product-placement.mp3",
+      "take": {
+        "text": "The signal drops. The walk-on doesn't.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.product-placement",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Quota filled. The sponsor sent a hat.",
+      "audio": "/audio/voice/blog-man.recap.product-placement.mp3",
+      "take": {
+        "text": "Quota filled. The sponsor sent a hat.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.dead-air",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Every highlight. One tag team.",
+      "audio": "/audio/voice/blog-man.tease.dead-air.mp3",
+      "take": {
+        "text": "Every highlight. One tag team.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.dead-air",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Signal's back. So is the champion.",
+      "audio": "/audio/voice/blog-man.recap.dead-air.mp3",
+      "take": {
+        "text": "Signal's back. So is the champion.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.clip-show",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "A new city that can't afford effects.",
+      "audio": "/audio/voice/blog-man.tease.clip-show.mp3",
+      "take": {
+        "text": "A new city that can't afford effects.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.clip-show",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "A clip show with a new clip.",
+      "audio": "/audio/voice/blog-man.recap.clip-show.mp3",
+      "take": {
+        "text": "A clip show with a new clip.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.local-affiliate",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "New market. New rules about what airs.",
+      "audio": "/audio/voice/blog-man.tease.local-affiliate.mp3",
+      "take": {
+        "text": "New market. New rules about what airs.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.local-affiliate",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "No effects needed. The city approved.",
+      "audio": "/audio/voice/blog-man.recap.local-affiliate.mp3",
+      "take": {
+        "text": "No effects needed. The city approved.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.standards-and-practices",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The best hour wants a number.",
+      "audio": "/audio/voice/blog-man.tease.standards-and-practices.mp3",
+      "take": {
+        "text": "The best hour wants a number.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.standards-and-practices",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Nothing cleared. Everything aired.",
+      "audio": "/audio/voice/blog-man.recap.standards-and-practices.mp3",
+      "take": {
+        "text": "Nothing cleared. Everything aired.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.prime-time",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Every city, live, at once.",
+      "audio": "/audio/voice/blog-man.tease.prime-time.mp3",
+      "take": {
+        "text": "Every city, live, at once.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.prime-time",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The number came in. Prime time approves.",
+      "audio": "/audio/voice/blog-man.recap.prime-time.mp3",
+      "take": {
+        "text": "The number came in. Prime time approves.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.global-feed",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The first night, remade. Again.",
+      "audio": "/audio/voice/blog-man.tease.global-feed.mp3",
+      "take": {
+        "text": "The first night, remade. Again.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.global-feed",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Seen in every city. Remembered in most.",
+      "audio": "/audio/voice/blog-man.recap.global-feed.mp3",
+      "take": {
+        "text": "Seen in every city. Remembered in most.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.pilot-remake",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The network added a laugh track.",
+      "audio": "/audio/voice/blog-man.tease.pilot-remake.mp3",
+      "take": {
+        "text": "The network added a laugh track.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.pilot-remake",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The remake lost to the original. Again.",
+      "audio": "/audio/voice/blog-man.recap.pilot-remake.mp3",
+      "take": {
+        "text": "The remake lost to the original. Again.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.laugh-track",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Two shows, one night, supposedly friends.",
+      "audio": "/audio/voice/blog-man.tease.laugh-track.mp3",
+      "take": {
+        "text": "Two shows, one night, supposedly friends.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.laugh-track",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The track laughed. The walk-on didn't.",
+      "audio": "/audio/voice/blog-man.recap.laugh-track.mp3",
+      "take": {
+        "text": "The track laughed. The walk-on didn't.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.crossover-event",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Clean footage only. Don't get hit.",
+      "audio": "/audio/voice/blog-man.tease.crossover-event.mp3",
+      "take": {
+        "text": "Clean footage only. Don't get hit.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.crossover-event",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "They weren't friends. The ratings were.",
+      "audio": "/audio/voice/blog-man.recap.crossover-event.mp3",
+      "take": {
+        "text": "They weren't friends. The ratings were.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.series-finale",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Awards season. Nobody scuffs the carpet.",
+      "audio": "/audio/voice/blog-man.tease.series-finale.mp3",
+      "take": {
+        "text": "Awards season. Nobody scuffs the carpet.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.series-finale",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Clean footage. Ship it to editing.",
+      "audio": "/audio/voice/blog-man.recap.series-finale.mp3",
+      "take": {
+        "text": "Clean footage. Ship it to editing.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.red-carpet",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Two nominees. One supporting role.",
+      "audio": "/audio/voice/blog-man.tease.red-carpet.mp3",
+      "take": {
+        "text": "Two nominees. One supporting role.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.red-carpet",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "One scuff. The carpet survived.",
+      "audio": "/audio/voice/blog-man.recap.red-carpet.mp3",
+      "take": {
+        "text": "One scuff. The carpet survived.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.best-supporting",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "A lifetime award, and a quota to earn it.",
+      "audio": "/audio/voice/blog-man.tease.best-supporting.mp3",
+      "take": {
+        "text": "A lifetime award, and a quota to earn it.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.best-supporting",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The category went to the champion.",
+      "audio": "/audio/voice/blog-man.recap.best-supporting.mp3",
+      "take": {
+        "text": "The category went to the champion.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.lifetime-achievement",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The big envelope. Keep it clean.",
+      "audio": "/audio/voice/blog-man.tease.lifetime-achievement.mp3",
+      "take": {
+        "text": "The big envelope. Keep it clean.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.lifetime-achievement",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Earned. The statuette is heavy.",
+      "audio": "/audio/voice/blog-man.recap.lifetime-achievement.mp3",
+      "take": {
+        "text": "Earned. The statuette is heavy.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.best-in-show",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Thirty seconds of footage. No explanation.",
+      "audio": "/audio/voice/blog-man.tease.best-in-show.mp3",
+      "take": {
+        "text": "Thirty seconds of footage. No explanation.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.best-in-show",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The envelope opened. Four-word speech.",
+      "audio": "/audio/voice/blog-man.recap.best-in-show.mp3",
+      "take": {
+        "text": "The envelope opened. Four-word speech.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.teaser",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Two walk-ons. One trailer. One voiceover.",
+      "audio": "/audio/voice/blog-man.tease.teaser.mp3",
+      "take": {
+        "text": "Two walk-ons. One trailer. One voiceover.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.teaser",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Teaser over. Nobody explained anything.",
+      "audio": "/audio/voice/blog-man.recap.teaser.mp3",
+      "take": {
+        "text": "Teaser over. Nobody explained anything.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.trailer",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The finale script. Every page has a hole.",
+      "audio": "/audio/voice/blog-man.tease.trailer.mp3",
+      "take": {
+        "text": "The finale script. Every page has a hole.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.trailer",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The trailer ran. The voiceover's disputed.",
+      "audio": "/audio/voice/blog-man.recap.trailer.mp3",
+      "take": {
+        "text": "The trailer ran. The voiceover's disputed.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.table-read",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The season ends mid-sentence.",
+      "audio": "/audio/voice/blog-man.tease.table-read.mp3",
+      "take": {
+        "text": "The season ends mid-sentence.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.table-read",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The holes got filled in. By fists.",
+      "audio": "/audio/voice/blog-man.recap.table-read.mp3",
+      "take": {
+        "text": "The holes got filled in. By fists.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.cliffhanger",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The finale. The host is on the card.",
+      "audio": "/audio/voice/blog-man.tease.cliffhanger.mp3",
+      "take": {
+        "text": "The finale. The host is on the card.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.cliffhanger",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "To be continued. It always is.",
+      "audio": "/audio/voice/blog-man.recap.cliffhanger.mp3",
+      "take": {
+        "text": "To be continued. It always is.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.first-cut",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The last fight of the last season.",
+      "audio": "/audio/voice/blog-man.tease.first-cut.mp3",
+      "take": {
+        "text": "The last fight of the last season.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.first-cut",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "One fight down. The second sheet is next.",
+      "audio": "/audio/voice/blog-man.recap.first-cut.mp3",
+      "take": {
+        "text": "One fight down. The second sheet is next.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.tease.final-cut",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "Nothing. That's a wrap. Thank you.",
+      "audio": "/audio/voice/blog-man.tease.final-cut.mp3",
+      "take": {
+        "text": "Nothing. That's a wrap. Thank you.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "blog-man.recap.final-cut",
+      "group": "blog-man",
+      "who": "blog-man",
+      "text": "The card is yours, and the show is over.",
+      "audio": "/audio/voice/blog-man.recap.final-cut.mp3",
+      "take": {
+        "text": "The card is yours, and the show is over.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
       "id": "fighter.ball-person.effort.0",
       "group": "effort",
       "who": "ball-person",

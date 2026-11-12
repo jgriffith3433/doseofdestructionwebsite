@@ -7,6 +7,7 @@ import { ACT, cloneState, newGame, type BroadcastDef, type GameState, type Rules
 import { BUFFER_FRAMES, step, type SimEvent } from './sim/step.ts';
 import { Bot } from './ai/bot.ts';
 import { consumeInputEdge } from './input/devices.ts';
+import { HighlightRecorder, type Highlight } from './campaign/highlight.ts';
 
 export type Mode = 'versus' | 'training' | 'campaign' | 'online';
 
@@ -118,6 +119,10 @@ export class Match {
   readonly inputLatencies: number[] = [];
   bufferedActions = 0;
   coyoteJumps = 0;
+  /** Campaign matches record their last seconds of inputs (campaign/highlight.ts), so the final KO can be replayed. */
+  private readonly recorder: HighlightRecorder | null;
+  /** The replayable final KO, built the tick the match ends (campaign only). */
+  highlight: Highlight | null = null;
   private pendingInput: { frame: number; pollMs: number; kind: 'button' | 'stick' } | null = null;
   private combo: { by: number; count: number }[];
 
@@ -134,6 +139,7 @@ export class Match {
       })),
       { stocks: setup.stocks, seed, stage: setup.stage, rules: setup.rules, broadcast: setup.events },
     );
+    this.recorder = setup.mode === 'campaign' ? new HighlightRecorder() : null;
     this.bots = setup.slots.map((s, i) => (s.cpu ? new Bot(i, s.cpu, seed + i * 7919, s.pilot) : null));
     this.stats = setup.slots.map(() => ({
       dealt: 0, taken: 0, hitsLanded: 0, hitsShielded: 0, biggestHit: 0, longestCombo: 0, streak: 0, bestStreak: 0,
@@ -181,7 +187,9 @@ export class Match {
       }
     }
     const before = s.fighters.map((f) => f.percent);
+    this.recorder?.record(s, inputs);
     const events = step(s, inputs);
+    this.recorder?.events(events);
     for (const f of s.fighters) {
       const p = prev[f.id];
       const jumped = events.some((e) => e.type === 'jump' && e.id === f.id);
@@ -224,8 +232,14 @@ export class Match {
     }
     this.record(events, before);
     this.checkObjective();
+    this.freezeHighlight();
     if (s.frame % SAMPLE_EVERY === 0) this.sample();
     return events;
+  }
+
+  /** The tick the match ends, the last seconds are kept as a replay (campaign only). */
+  private freezeHighlight(): void {
+    if (this.recorder && this.state.over && !this.highlight) this.highlight = this.recorder.build(this.state);
   }
 
   /** Median and worst input-to-action latency (ms) measured in this match. */

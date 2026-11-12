@@ -60,6 +60,11 @@ export function sceneShowing(): boolean {
   return active !== null;
 }
 
+/** Lets another presentation (ui/segment.ts) answer Esc and Start like a scene does; null when it ends. */
+export function registerSceneSkip(skip: (() => void) | null): void {
+  active = skip ? { skip } : null;
+}
+
 /** Ends the scene that is playing, as Skip does (Esc or Start in main.ts). */
 export function skipScene(): void {
   active?.skip();
