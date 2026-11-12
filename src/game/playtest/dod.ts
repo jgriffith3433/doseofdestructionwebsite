@@ -1110,13 +1110,58 @@ class Run {
     const stopWatch = this.watchWipe();
     const stopBlank = this.watchBlank();
     this.vsHoldWanted = true;
+    const stopStinger = this.watchStingers();
     try {
       await this.smokeRun();
     } finally {
+      stopStinger();
       stopBlank();
       stopWatch();
     }
     void t;
+  }
+
+  /**
+   * The show's stinger (ui/stinger.ts) on every screen change and the slams (main.ts): each `dod:stinger` is one
+   * event with its length (0.5-0.7 s unless the next screen was still loading: loadMs), ROUND START and GAME! come
+   * with `dod:slam` (GAME! with its 0.5 s freeze offline). A screen switch with no stinger is a problem.
+   */
+  private watchStingers(): () => void {
+    const t = this.t;
+    let stingers = 0;
+    let slams = 0;
+    let switches = 0;
+    let lastShown: string | null = null;
+    const onStinger = (e: Event) => {
+      const d = (e as CustomEvent<{ from: string; to: string; ms: number; loadMs: number; reduced: boolean }>).detail;
+      stingers++;
+      t.event('stinger', `${d.from} -> ${d.to}: ${d.ms} ms (loading held ${d.loadMs} ms)${d.reduced ? ' reduced-motion crossfade' : ''}`);
+      t.metric('stingers', stingers);
+      const loading = d.loadMs > 150;
+      if (!d.reduced && !loading && (d.ms < 480 || d.ms > 720)) t.problem('bug', `Stinger ${d.from} -> ${d.to} lasted ${d.ms} ms (want 500-700 ms unless loading runs longer)`);
+    };
+    const onSlam = (e: Event) => {
+      const d = (e as CustomEvent<{ text: string; over: boolean; freezeMs: number }>).detail;
+      slams++;
+      t.event(d.over ? 'slam-game' : 'slam-round-start', `${d.text}${d.freezeMs ? `, ${d.freezeMs} ms freeze` : ''}`);
+      t.metric('slams', slams);
+    };
+    const poll = window.setInterval(() => {
+      const now = currentScreen();
+      if (now && now !== lastShown) {
+        if (lastShown !== null) switches++;
+        lastShown = now;
+      }
+    }, 50);
+    window.addEventListener('dod:stinger', onStinger);
+    window.addEventListener('dod:slam', onSlam);
+    return () => {
+      window.removeEventListener('dod:stinger', onStinger);
+      window.removeEventListener('dod:slam', onSlam);
+      window.clearInterval(poll);
+      t.metric('screenSwitches', switches);
+      if (switches > stingers) t.problem('bug', `${switches} screen changes but only ${stingers} stingers: a hard cut`);
+    };
   }
 
   /**

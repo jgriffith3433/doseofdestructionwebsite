@@ -1934,6 +1934,11 @@ export class Renderer {
     this.talking.set(id, performance.now());
   }
 
+  /** Kicks the camera (slams: ROUND START, GAME!). 0.3 is a medium hit. */
+  kick(amount: number): void {
+    this.shake = Math.max(this.shake, amount);
+  }
+
   /** A match moment the stage's effects can react to: 'start' when play begins, 'end' at Game! */
   stageEvent(on: 'start' | 'end'): void {
     this.fx?.trigger(on);
