@@ -30,6 +30,9 @@ import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBac
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playVersus, showResults, type ResultAction } from './ui/views.ts';
 import { startResultsMusic } from './ui/victory.ts';
+import { planIntro } from './campaign/intro.ts';
+import { playMatchIntro } from './ui/matchIntro.ts';
+import { FX } from './sim/fixed.ts';
 import { playColdOpen, playExchange, playScene, skipScene, type SceneCard, type SceneLine, type SceneStage } from './ui/scene.ts';
 import { chunkLine, chunkTimes } from './campaign/sceneText.ts';
 import { exchangeFor, markExchangeSeen, seenExchanges, type Exchange } from './campaign/intros.ts';
@@ -461,6 +464,39 @@ async function runExchange(m: Match, ex: Exchange): Promise<void> {
   const end = await playExchange(sceneStage(m), ex.id, ex.lines);
   if (!ex.generic) markExchangeSeen(ex.id);
   analytics.scene(ex.id, { skipped: end.skipped, line: Math.max(0, end.lines - 1) }, ex.lines.length);
+}
+
+/**
+ * The match intro (campaign/intro.ts, ui/matchIntro.ts): a 3 s fly-in from the stage's far layers to the fight, the stage's
+ * name as the lower third (with the announcer's call when it is recorded), each fighter's entrance. Any input skips it.
+ */
+async function runMatchIntro(m: Match): Promise<void> {
+  phase = 'scene';
+  const st = STAGES[m.setup.stage];
+  const plan = planIntro(m.state.fighters.map((ft) => ({ slot: ft.id, who: CHARACTERS[ft.char].id, x: ft.x / FX, color: PLAYER_COLORS[ft.id % PLAYER_COLORS.length] })), st.id);
+  audio.playStageBed(st.id);
+  renderer.onIntroBeat = (slot, who, fx) => {
+    if (fx === 'taunt') audio.fighterVoice(who, 'taunt');
+  };
+  $('scene-next').focus();
+  await playMatchIntro(
+    {
+      begin: (p) => renderer.introBegin(p),
+      end: () => {
+        renderer.introEnd();
+        renderer.onIntroBeat = null;
+      },
+      stageCall: (id) => {
+        const line = voiceLine(`announcer.stage.${id}`);
+        if (!line?.audio) return false;
+        void audio.call(`announcer.stage.${id}`);
+        return true;
+      },
+      input: () => readLocal(),
+    },
+    plan,
+    { id: st.id, name: st.name, blurb: st.blurb },
+  );
 }
 
 /** Plays a chapter's intro or outro live in the arena (phase 'scene'), with its story card as the lower third. */
@@ -1100,7 +1136,10 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   const vsHoldMs = withVersus ? Math.round(performance.now() - vsStart) : null;
   // Ready ticks during the wipe-out (~280 ms), so vsHoldMs (to first play frame) stays under 3 s.
   const versusExchange = !f && !scene && setup.mode === 'versus' ? exchangeFor2(m, false) : null;
-  const readyUnderWipe = !f && !intro && !versusExchange;
+  // Every offline match with a VS card opens like a broadcast (a fly-in and the entrances); an episode's own scene,
+  // Tonight's Episode (its leaderboard needs the same start for everyone), the pilot, Training and online matches skip it.
+  const matchIntro = withVersus && !f && !intro && !scene && setup.mode !== 'training' && setup.mode !== 'online' && !setup.teach && dailyRun?.setup !== setup;
+  const readyUnderWipe = !f && !intro && !versusExchange && !matchIntro;
   await go('match', () => {
     window.dispatchEvent(new CustomEvent('dod:scene-timing', { detail: { selectToVs: fromSelect, vsToMatch: vsMs, vsHoldMs, warmUpMs, selectToMatch: pickedAt === null ? null : performance.now() - pickedAt, withVersus } }));
     // The canvas may have changed size while menus were up.
@@ -1138,6 +1177,14 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     }
     beginReady(m);
     return;
+  }
+  if (matchIntro) {
+    await runMatchIntro(m);
+    if (match !== m) return;
+    if (!versusExchange) {
+      beginReady(m);
+      return;
+    }
   }
   if (versusExchange) {
     await runExchange(m, versusExchange);
@@ -2197,6 +2244,7 @@ installDodPlaytest({
   reactFxStats: (reset) => renderer.reactFxStats(reset),
   markerStats: () => ({ ...markerLog, rects: markerRects() }),
   gfxStats: () => renderer.gfxStats(),
+  introStats: () => renderer.introStats(),
   mixStats: () => audio.mixStats(),
   probeHit: (pan) => audio.sfx('hit-heavy', { vary: false, at: { pan } }),
   postStats: () => renderer.postStats(),

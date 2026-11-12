@@ -78,6 +78,17 @@
       ]
     },
     {
+      "id": "match-intro",
+      "title": "Match intro: a 3 s broadcast open after the VS card (camera flies in, stage-name lower third, each fighter's entrance, ROUND START), any input skips within 0.3 s, stage select shows 9 moving previews (phone 844x390: 45 fps on Low, a tap skips)",
+      "description": "Options fighter / foe (default exit-punk or shutup-bot vs Wallit: a Season 1 entrance against the spotlight drop), stage. Stage select: every tile has a live canvas preview whose pan changes between samples and is not blank (stage-preview, stage-previews; metric stagePreviews). Versus match 1: the intro starts within 3 s of the VS card (intro-start), the stage card shows within 600 ms and the lower third inside the window (intro-card, intro-lower-third), the camera distance falls from wide to the fight framing without pulling back or moving faster than 25 units/s (intro-camera; metrics introCamFrom, introCamTo, introCamPeakSpeed), both fighters enter with the entrance their story gives them (intro-entrance: 13 Season 1 entrances, the rest the spotlight drop; intro-data), it lasts about 3 s unskipped (introMs), ROUND START follows (intro-round-start), touch controls are hidden during it and back after (intro-touch-controls), average fps (intro-fps, introFps; phone: 45 wanted). Match 2: a tap skips it within 300 ms (intro-skip-tap, introSkipTapMs); match 3 (desktop): a key does (intro-skip-key). The online scenario checks no intro plays online. On a 390x844 touch phone it is turned to 844x390 and presses by touch.",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "touch",
+        "sound"
+      ]
+    },
+    {
       "id": "intro-exchange",
       "title": "Pre-fight exchange: two rivals trade a voiced jab before the fight, the camera on each speaker, 6 s at most, any tap skips it (phone 844x390: caption in two lines)",
       "description": "Options fighter / foe (default exit-punk vs kaelen, a listed pair in content/intros.json). Checks the data (32 pairs, two voiced lines each, files present), then a Versus match: a tap skips the exchange once its first line shows (exchange-skip, within 300 ms), the caption fits the window in at most two lines (exchange-caption), then the same fight again plays out: both lines voiced with the camera on each speaker, the listener's taunt, at most 6 s (exchange-lines, exchangeMs). On a 390x844 touch phone it turns to 844x390 and presses by touch. Events exchange-start / -line / -taunt / -end; metrics exchangeMs, exchangeSkipMs, exchangeCaptionLines, exchangePairs.",

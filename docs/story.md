@@ -653,6 +653,41 @@ as a lower third), the other answers, the listener of that answer taunts. 6 s at
 skips it. In Versus it plays every time; in the campaign an episode between a listed pair plays it once, after the
 intro scene. Not in Training, online, Tour or Tonight's Episode.
 
+## The broadcast opens: entrances (as built)
+
+Every offline match with a VS card opens like a broadcast, in the 3 seconds before ROUND START (`campaign/intro.ts`,
+`ui/matchIntro.ts`): the camera starts wide on the stage's far layers and flies in to the fight framing (eased at both
+ends, never a cut), the stage's name takes the show's lower third ("Tonight on Dose of Destruction") with the
+announcer's stage call under it when that line is recorded, and each fighter makes an entrance, one after another. Any
+input (tap, key, button) skips it at once. Not in Training, online (both pages must start together), the pilot, Tonight's
+Episode (its board needs the same start for everyone) or an episode's own intro scene, which already brings the fighters on.
+
+The 13 Season 1 fighters each come in the way their story says:
+
+| Fighter | Entrance | What you see |
+|---|---|---|
+| Exit Punk | `board` | Rolls in from the wings on the skateboard, pops off it, lands, and the board rolls on. |
+| Kaelen | `zip` | "Hi. Bye." A blur across the stage, then a small wave. Gone before the trade lands. |
+| Break | `slam` | Rule one is that he doesn't fall off. He comes down heavy, a ring of dust, and stays down. |
+| DJ Won't Read | `pop` | Pops up out of the floor on the bass, a ring on every beat. |
+| Shutup Bot | `rig` | Drops from the lighting rig on a cable, snaps it, lands, and does not flinch. |
+| Small Weather | `storm` | A lightning flash, then a slow, swaying float down. He brought the weather. |
+| Blog Man | `flash` | Floats in to a bank of flashbulbs. The press is here. |
+| Evil Blue Bird | `swoop` | Banks in from the side on an air game that never lands, until it has to. |
+| Got Ur Back | `stomp` | Huge, soft, in no hurry: four steps, each one felt. |
+| Slice | `slash` | A cut across the air and he is simply there, in a spin that settles. |
+| SS Boulder | `roll` | Rolls in, the slowest swings in the game and the biggest stop. |
+| Stratabots | `assemble` | Heavy plates stacked from the floor up, one clank a plate. |
+| The Orchestrator | `descend` | He does not drop. He is lowered, baton first, and the house goes quiet. |
+
+The other 20 fighters get the `spotlight` drop: a light in their slot colour, a fall into it, a landing ring and their own
+taunt bark. The entrances use the fighters' existing walk, jump, fall and land clips plus procedural motion, sparks and
+camera kicks; no new art. A new fighter is on the spotlight until their story gives them an entrance
+(`SEASON_ONE_ENTRANCES` in `campaign/intro.ts`).
+
+Stage select shows each stage as a live 2-second camera pan over its own painted layers (`ui/stagePreview.ts`, drawn by
+parallax on a small canvas: no video files), the same move the fly-in starts from.
+
 ## Previously and Next time (as built)
 
 Every won episode ends the way television does. A moment after Game! the show **replays the knockout you just landed**
