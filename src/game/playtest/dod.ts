@@ -5612,13 +5612,13 @@ class Run {
     };
     window.addEventListener('dod:fighter-voice', onVoice);
 
-    const koTexts = SEASON_ONE.map((id) => {
+    const koTexts = CHARACTERS.map(({ id }) => {
       const l = VOICE.lines.find((x) => x.id === `fighter.${id}.ko`);
       return { id, text: l?.text ?? '' };
     });
-    const shared = koTexts.filter((a, i) => koTexts.findIndex((b) => b.text === a.text) !== i);
-    if (shared.length) t.problem('bug', `Season 1 fighters share KO text: ${shared.map((s) => `${s.id}="${s.text}"`).join(', ')}`);
-    else t.event('ko-texts-unique', '13 Season 1 KO cries, all different');
+    const shared = koTexts.filter((a, i) => a.text === 'Aaaaagh!' || koTexts.findIndex((b) => b.text === a.text) !== i);
+    if (shared.length) t.problem('bug', `fighters share a KO text: ${shared.map((s) => `${s.id}="${s.text}"`).join(', ')}`);
+    else t.event('ko-texts-unique', `${koTexts.length} fighter KO cries, all different`);
 
     const meId = typeof this.options.fighter === 'string' ? this.options.fighter : 'exit-punk';
     const taunt = VOICE.lines.find((l) => l.id === `fighter.${meId}.taunt`);
@@ -5629,7 +5629,7 @@ class Run {
     }
 
     const savedUnlocks = [...unlocks()];
-    for (const id of SEASON_ONE) if (LOCKABLE.has(id)) unlocks().add(id);
+    for (const id of [...SEASON_ONE, String(this.options.fighter || ''), String(this.options.foe || '')]) if (LOCKABLE.has(id)) unlocks().add(id);
     saveUnlocks(unlocks());
 
     try {
@@ -5675,11 +5675,12 @@ class Run {
           else t.event(`has-${need}`, `${who} played a ${need}`);
         }
         // Preflight: every Season 1 take file for this fighter must exist (404s fail even if no bark fired).
-        if (SEASON_ONE.includes(who)) {
+        {
+          const nEffort = SEASON_ONE.includes(who) ? 3 : 2;
           const ids = [
             `fighter.${who}.ko`,
             `fighter.${who}.taunt`,
-            ...[0, 1, 2].map((i) => `fighter.${who}.effort.${i}`),
+            ...Array.from({ length: nEffort }, (_, i) => `fighter.${who}.effort.${i}`),
             ...[0, 1].map((i) => `fighter.${who}.hurt.${i}`),
           ];
           for (const lid of ids) {
