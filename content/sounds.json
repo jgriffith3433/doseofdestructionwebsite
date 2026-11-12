@@ -896,8 +896,27 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.7,
-    "file": null,
-    "take": null
+    "file": "/audio/sfx/special-projectile-release.mp3",
+    "take": {
+      "text": "a rising charge whoosh then a sharp launch crack, a energy projectile fired forward, tight, dry. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "special-projectile-release.0",
+        "file": "/audio/sfx/special-projectile-release.mp3"
+      },
+      {
+        "id": "special-projectile-release.1",
+        "file": "/audio/sfx/special-projectile-release-1.mp3"
+      },
+      {
+        "id": "special-projectile-release.2",
+        "file": "/audio/sfx/special-projectile-release-2.mp3"
+      }
+    ]
   },
   {
     "id": "special-projectile-impact",
@@ -907,8 +926,27 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.85,
-    "file": null,
-    "take": null
+    "file": "/audio/sfx/special-projectile-impact.mp3",
+    "take": {
+      "text": "a projectile smacking a target, a bright crack with a small energy burst, short, dry. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "special-projectile-impact.0",
+        "file": "/audio/sfx/special-projectile-impact.mp3"
+      },
+      {
+        "id": "special-projectile-impact.1",
+        "file": "/audio/sfx/special-projectile-impact-1.mp3"
+      },
+      {
+        "id": "special-projectile-impact.2",
+        "file": "/audio/sfx/special-projectile-impact-2.mp3"
+      }
+    ]
   },
   {
     "id": "special-dash-release",
@@ -918,8 +956,27 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.7,
-    "file": null,
-    "take": null
+    "file": "/audio/sfx/special-dash-release.mp3",
+    "take": {
+      "text": "a fast low whoosh of a body rushing forward, a scrape of shoes skidding, short burst. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "special-dash-release.0",
+        "file": "/audio/sfx/special-dash-release.mp3"
+      },
+      {
+        "id": "special-dash-release.1",
+        "file": "/audio/sfx/special-dash-release-1.mp3"
+      },
+      {
+        "id": "special-dash-release.2",
+        "file": "/audio/sfx/special-dash-release-2.mp3"
+      }
+    ]
   },
   {
     "id": "special-dash-impact",
@@ -929,8 +986,27 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.85,
-    "file": null,
-    "take": null
+    "file": "/audio/sfx/special-dash-impact.mp3",
+    "take": {
+      "text": "a heavy shoulder-check collision, a thick body thud with a short crunch, dash hit. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "special-dash-impact.0",
+        "file": "/audio/sfx/special-dash-impact.mp3"
+      },
+      {
+        "id": "special-dash-impact.1",
+        "file": "/audio/sfx/special-dash-impact-1.mp3"
+      },
+      {
+        "id": "special-dash-impact.2",
+        "file": "/audio/sfx/special-dash-impact-2.mp3"
+      }
+    ]
   },
   {
     "id": "special-counter-release",
@@ -940,8 +1016,27 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.7,
-    "file": null,
-    "take": null
+    "file": "/audio/sfx/special-counter-release.mp3",
+    "take": {
+      "text": "a tense metallic ring as a guard stance snaps up, a bright shimmer, ready to parry. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "special-counter-release.0",
+        "file": "/audio/sfx/special-counter-release.mp3"
+      },
+      {
+        "id": "special-counter-release.1",
+        "file": "/audio/sfx/special-counter-release-1.mp3"
+      },
+      {
+        "id": "special-counter-release.2",
+        "file": "/audio/sfx/special-counter-release-2.mp3"
+      }
+    ]
   },
   {
     "id": "special-counter-impact",
@@ -951,8 +1046,23 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.85,
-    "file": null,
-    "take": null
+    "file": "/audio/sfx/special-counter-impact.mp3",
+    "take": {
+      "text": "a successful parry: a bright metal clang with a ringing reversal sting and a whip-back whoosh. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "special-counter-impact.0",
+        "file": "/audio/sfx/special-counter-impact.mp3"
+      },
+      {
+        "id": "special-counter-impact.2",
+        "file": "/audio/sfx/special-counter-impact-2.mp3"
+      }
+    ]
   },
   {
     "id": "special-grab-release",
@@ -962,8 +1072,27 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.7,
-    "file": null,
-    "take": null
+    "file": "/audio/sfx/special-grab-release.mp3",
+    "take": {
+      "text": "a fast lunging reach, cloth rustle and a hard grasping snatch, short. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "special-grab-release.0",
+        "file": "/audio/sfx/special-grab-release.mp3"
+      },
+      {
+        "id": "special-grab-release.1",
+        "file": "/audio/sfx/special-grab-release-1.mp3"
+      },
+      {
+        "id": "special-grab-release.2",
+        "file": "/audio/sfx/special-grab-release-2.mp3"
+      }
+    ]
   },
   {
     "id": "special-grab-impact",
@@ -973,8 +1102,27 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.85,
-    "file": null,
-    "take": null
+    "file": "/audio/sfx/special-grab-impact.mp3",
+    "take": {
+      "text": "a crushing grip then a heavy throw slam, a body hitting the floor with a deep thud. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "special-grab-impact.0",
+        "file": "/audio/sfx/special-grab-impact.mp3"
+      },
+      {
+        "id": "special-grab-impact.1",
+        "file": "/audio/sfx/special-grab-impact-1.mp3"
+      },
+      {
+        "id": "special-grab-impact.2",
+        "file": "/audio/sfx/special-grab-impact-2.mp3"
+      }
+    ]
   },
   {
     "id": "special-trap-release",
@@ -984,8 +1132,27 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.7,
-    "file": null,
-    "take": null
+    "file": "/audio/sfx/special-trap-release.mp3",
+    "take": {
+      "text": "placing a device on the floor: a clunk, a click, and a soft arming beep. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "special-trap-release.0",
+        "file": "/audio/sfx/special-trap-release.mp3"
+      },
+      {
+        "id": "special-trap-release.1",
+        "file": "/audio/sfx/special-trap-release-1.mp3"
+      },
+      {
+        "id": "special-trap-release.2",
+        "file": "/audio/sfx/special-trap-release-2.mp3"
+      }
+    ]
   },
   {
     "id": "special-trap-impact",
@@ -995,8 +1162,27 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.85,
-    "file": null,
-    "take": null
+    "file": "/audio/sfx/special-trap-impact.mp3",
+    "take": {
+      "text": "a trap springing: a sharp snap-clack and a burst pop, a surprise trigger. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "special-trap-impact.0",
+        "file": "/audio/sfx/special-trap-impact.mp3"
+      },
+      {
+        "id": "special-trap-impact.1",
+        "file": "/audio/sfx/special-trap-impact-1.mp3"
+      },
+      {
+        "id": "special-trap-impact.2",
+        "file": "/audio/sfx/special-trap-impact-2.mp3"
+      }
+    ]
   },
   {
     "id": "special-flurry-release",
@@ -1006,8 +1192,27 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.7,
-    "file": null,
-    "take": null
+    "file": "/audio/sfx/special-flurry-release.mp3",
+    "take": {
+      "text": "a rapid-fire start of quick light swishes, five fast air cuts in a row. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "special-flurry-release.0",
+        "file": "/audio/sfx/special-flurry-release.mp3"
+      },
+      {
+        "id": "special-flurry-release.1",
+        "file": "/audio/sfx/special-flurry-release-1.mp3"
+      },
+      {
+        "id": "special-flurry-release.2",
+        "file": "/audio/sfx/special-flurry-release-2.mp3"
+      }
+    ]
   },
   {
     "id": "special-flurry-impact",
@@ -1017,8 +1222,27 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.85,
-    "file": null,
-    "take": null
+    "file": "/audio/sfx/special-flurry-impact.mp3",
+    "take": {
+      "text": "a rapid string of quick smacks, many light hits stacked with a final heavier crack. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "special-flurry-impact.0",
+        "file": "/audio/sfx/special-flurry-impact.mp3"
+      },
+      {
+        "id": "special-flurry-impact.1",
+        "file": "/audio/sfx/special-flurry-impact-1.mp3"
+      },
+      {
+        "id": "special-flurry-impact.2",
+        "file": "/audio/sfx/special-flurry-impact-2.mp3"
+      }
+    ]
   },
   {
     "id": "special-recovery-release",
@@ -1028,8 +1252,27 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.7,
-    "file": null,
-    "take": null
+    "file": "/audio/sfx/special-recovery-release.mp3",
+    "take": {
+      "text": "an upward rushing whoosh, a leap with rising wind and a short airy lift. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "special-recovery-release.0",
+        "file": "/audio/sfx/special-recovery-release.mp3"
+      },
+      {
+        "id": "special-recovery-release.1",
+        "file": "/audio/sfx/special-recovery-release-1.mp3"
+      },
+      {
+        "id": "special-recovery-release.2",
+        "file": "/audio/sfx/special-recovery-release-2.mp3"
+      }
+    ]
   },
   {
     "id": "special-recovery-impact",
@@ -1039,8 +1282,27 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.85,
-    "file": null,
-    "take": null
+    "file": "/audio/sfx/special-recovery-impact.mp3",
+    "take": {
+      "text": "a rising strike hitting from below, a sharp uppercut crack with an airy tail. One-shot.",
+      "loop": false,
+      "duration": null,
+      "influence": 0.55
+    },
+    "takes": [
+      {
+        "id": "special-recovery-impact.0",
+        "file": "/audio/sfx/special-recovery-impact.mp3"
+      },
+      {
+        "id": "special-recovery-impact.1",
+        "file": "/audio/sfx/special-recovery-impact-1.mp3"
+      },
+      {
+        "id": "special-recovery-impact.2",
+        "file": "/audio/sfx/special-recovery-impact-2.mp3"
+      }
+    ]
   },
   {
     "id": "special-accent-exit-punk",
@@ -1050,7 +1312,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-exit-punk.mp3",
     "take": null
   },
   {
@@ -1061,7 +1323,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-kaelen.mp3",
     "take": null
   },
   {
@@ -1072,7 +1334,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-break.mp3",
     "take": null
   },
   {
@@ -1083,7 +1345,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-dj-wont-read.mp3",
     "take": null
   },
   {
@@ -1094,7 +1356,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-shutup-bot.mp3",
     "take": null
   },
   {
@@ -1105,7 +1367,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-small-weather.mp3",
     "take": null
   },
   {
@@ -1116,7 +1378,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-blog-man.mp3",
     "take": null
   },
   {
@@ -1127,7 +1389,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-evil-blue-bird.mp3",
     "take": null
   },
   {
@@ -1138,7 +1400,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-got-ur-back.mp3",
     "take": null
   },
   {
@@ -1149,7 +1411,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-slice.mp3",
     "take": null
   },
   {
@@ -1160,7 +1422,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-ss-boulder.mp3",
     "take": null
   },
   {
@@ -1171,7 +1433,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-stratabots.mp3",
     "take": null
   },
   {
@@ -1182,7 +1444,7 @@
     "duration": null,
     "influence": 0.55,
     "volume": 0.5,
-    "file": null,
+    "file": "/audio/sfx/special-accent-orchestrator.mp3",
     "take": null
   }
 ]
