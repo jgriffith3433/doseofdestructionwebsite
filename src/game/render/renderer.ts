@@ -28,7 +28,7 @@ import { GRAB_FIRST, activeHitboxes, rigPos, type SimEvent } from '../sim/step.t
 import { KILL_CUE, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, type HitTier, type TrailKind } from '../hitFeel.ts';
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { cameraFighters, followCamera, frameGoal, punchGoal, type CamBounds, type CamState } from './cameraRig.ts';
-import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
+import { clipFrame, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
 import { StageLive } from './stageLive.ts';
 import { StageAlive } from './stageAlive.ts';
@@ -1246,7 +1246,7 @@ export class Renderer {
       const px = height / v.anims.refHeight;
       v.body.scaling.set(c.fw * px, c.fh * px, 1);
       v.body.position.x = (c.fw / 2 - c.ax) * px;
-      v.body.position.y = (c.ay - c.fh / 2) * px;
+      v.body.position.y = (c.ay - c.fh / 2 + feetLift(f, pick, i)) * px;
       // Clips line up on the feet, but a hang is about the hands: put the top of the
       // sprite (the gripping hands) on the ledge's top edge instead.
       if (pick.key === 'ledge' && pick.exact && f.ledge > 0) {

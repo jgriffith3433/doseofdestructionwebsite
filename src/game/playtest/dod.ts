@@ -37,7 +37,7 @@ import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
 import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
-import { loadAnimSet } from '../render/anims.ts';
+import { clipFrame, feetLift, loadAnimSet, pickClip, type AnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import { BUFFER_FRAMES, COYOTE_FRAMES, type SimEvent } from '../sim/step.ts';
 import { onlineReady } from '../net/loader.ts';
@@ -168,6 +168,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'first-visit') await r.firstVisit();
         else if (id === 'presentation') await r.presentation();
         else if (id === 'roster') await r.roster();
+        else if (id === 'feet') await r.feetRun();
         else if (id === 'specials') await r.specialsRun();
         else if (id === 'grab') await r.grabRun();
         else if (id === 'select-specials') await r.selectSpecials();
@@ -271,12 +272,57 @@ class Run {
   /** Animation over time (studio rule 5): each match's per-frame state is checked against the motion. */
   private trace = new AnimTrace();
   private traceFrames = 0;
+  /** Clip sets of the fighters seen (filled by checkFighter), for the feet check. */
+  private readonly feetSets = new Map<string, AnimSet>();
+  /** Per fighter this match: the worst sole-to-floor gap in sheet pixels as drawn (after the lift), and without it. */
+  private feetGap = new Map<string, { worst: number; idle: number; raw: number; clip: string }>();
+
+  /** Feet on the floor (studio rule 4): each grounded fighter's sole gap in the frame the renderer draws. */
+  private sampleFeet(m: Match): void {
+    for (const f of m.state.fighters) {
+      if (!f.grounded || f.hitlag > 0) continue;
+      const id = CHARACTERS[f.char].id;
+      const set = this.feetSets.get(id);
+      if (!set) continue;
+      const pick = pickClip(f, set);
+      if (!pick || !pick.exact || !pick.clip.feet) continue;
+      const i = clipFrame(f, pick);
+      const raw = pick.clip.feet[i];
+      if (raw == null) continue;
+      const lift = feetLift(f, pick, i);
+      // Only floor clips are corrected; a grounded attack or hurt frame has its own pose.
+      if (lift === 0 && raw !== 0 && pick.key !== 'idle' && pick.key !== 'walk' && pick.key !== 'land' && pick.key !== 'crouch') continue;
+      const gap = Math.abs(raw - lift);
+      const g = this.feetGap.get(id) ?? { worst: 0, idle: 0, raw: 0, clip: '' };
+      g.raw = Math.max(g.raw, Math.abs(raw));
+      if (gap > g.worst) { g.worst = gap; g.clip = pick.key; }
+      if (pick.key === 'idle') g.idle = Math.max(g.idle, gap);
+      this.feetGap.set(id, g);
+    }
+  }
+
+  private reportFeet(): void {
+    if (!this.feetGap.size) return;
+    for (const [id, g] of this.feetGap) {
+      const detail = { fighter: id, worst: g.worst, idle: g.idle, withoutFit: g.raw, clip: g.clip };
+      this.t.event('feet-gap', `${id}: worst ${g.worst}px (idle ${g.idle}px, ${g.raw}px before the fit) in ${g.clip || 'no floor clip'}`);
+      window.dispatchEvent(new CustomEvent('dod:feet-gap', { detail }));
+      if (g.idle > 2) this.t.problem('bug', `${id}: idle feet ${g.idle}px off the floor (over 2px)`);
+      if (g.worst > 6) this.t.problem('polish', `${id}: feet ${g.worst}px off the floor in ${g.clip}`);
+    }
+    this.feetGap.clear();
+  }
 
   private onTick(m: Match, events: SimEvent[]): void {
     const s = m.state;
     const me = m.player;
-    if (m !== this.seen) this.onMatchStart(m);
+    // Training matches are quit without `over`, so report the previous bout's feet before the next starts.
+    if (m !== this.seen) {
+      this.reportFeet();
+      this.onMatchStart(m);
+    }
     this.traceFrames++;
+    this.sampleFeet(m);
     for (const p of this.trace.check(s)) {
       this.t.problem('bug', `animation over time on ${STAGES[s.stage].name}: ${p.text}`);
     }
@@ -382,6 +428,7 @@ class Run {
       const used = [...this.specialsUsed].map((x) => CHARACTERS[m.state.fighters[me].char].moves[x].name);
       this.t.event('specials-used', `${CHARACTERS[m.state.fighters[me].char].name} used ${used.length} different specials this match: ${used.join(', ') || 'none'}`);
       this.t.metric('specialsUsed', used.length);
+      this.reportFeet();
       this.t.event('anim-trace', `${this.traceFrames} frames traced, ${this.trace.problems.length} state/motion mismatches`);
     }
     this.t.progress(this.progressNow());
@@ -398,6 +445,7 @@ class Run {
     this.seen = m;
     this.trace = new AnimTrace();
     this.traceFrames = 0;
+    this.feetGap = new Map();
     this.lastHitFrame = m.state.frame;
     this.quietWarned = false;
     this.overSeen = false;
@@ -507,6 +555,7 @@ class Run {
       if (!(await exists(url))) this.t.problem('bug', `${c.name}: missing image ${url}`);
     }
     const set = await loadAnimSet(id);
+    if (set) this.feetSets.set(id, set);
     if (!set) {
       this.t.problem('warning', `${c.name}: no animation clips (shows the still image only)`);
     } else {
@@ -2915,6 +2964,142 @@ class Run {
    * button only (`touch-special`, `touch-grab`), and the run counts any special that needed a button the touch layout
    * doesn't have (`specialsOutsideTouch`, must stay 0). Options: `fighter` (one id), `input: "touch"`, `at`.
    */
+  /**
+   * Feet on the floor: every fighter idles and walks on the main platform (events feet-gap / dod:feet-gap),
+   * then The Mechanic stands on a City Top scaffold deck. Phone 390x844 turns to 844x390 and plays by touch.
+   */
+  async feetRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('feet');
+    }
+    if (touch) {
+      this.logViewport(this.isPhone());
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      await this.toMainMenu();
+      const train = stagesFor('training')[0]?.index ?? 0;
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : CHARACTERS.map((c) => c.id);
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the stick controls were not built');
+        t.finish('error');
+        return;
+      }
+      if (touch) t.event('phone-shot', `feet check at ${innerWidth}x${innerHeight}`);
+
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+      };
+      const me = () => {
+        const m = this.game.match()!;
+        return m.state.fighters[m.player];
+      };
+
+      for (const [n, id] of ids.entries()) {
+        const i = CHARACTERS.findIndex((c) => c.id === id);
+        if (i < 0) {
+          t.problem('bug', `fighter "${id}" is not in the roster`);
+          continue;
+        }
+        this.progressNow = () => (n / (ids.length + 1)) * 0.85;
+        t.progress(this.progressNow());
+        t.event('fighter', CHARACTERS[i].name);
+        void this.game.startMatch({
+          mode: 'training', stage: train, stocks: 1, rules: {},
+          slots: [{ char: i, cpu: null }, { char: (i + 1) % CHARACTERS.length, cpu: 0 }],
+        });
+        await this.matchLive();
+        await this.checkFighter(id);
+        // Idle on the main platform so sampleFeet records the sole gap. Bot off: only the pad moves them.
+        this.manual = NO_INPUT;
+        pad.release();
+        await t.until(() => me().grounded > 0 && me().action === ACT.IDLE, 8000, `${CHARACTERS[i].name} idle on the platform`).catch(() => {
+          t.problem('bug', `${CHARACTERS[i].name}: never idled on the platform`);
+        });
+        await frames(45);
+        // Walk so stride-based playback is on screen (planted foot vs floor).
+        pad.stick(100, 0);
+        await frames(90);
+        pad.release();
+        await frames(12);
+        // Jump and land so soles meet the platform after landing (phone criterion).
+        this.manual = packInput(0, 0, BTN.JUMP);
+        await frames(6);
+        this.manual = NO_INPUT;
+        await t.until(() => me().action === ACT.LAND || (me().grounded > 0 && me().action === ACT.IDLE), 8000, `${CHARACTERS[i].name} to land`).catch(() => {
+          t.problem('bug', `${CHARACTERS[i].name}: never landed after the jump`);
+        });
+        await frames(20);
+        if (me().grounded > 0) t.event('feet-land', `${CHARACTERS[i].name} grounded after landing`);
+        this.reportFeet();
+        await this.game.quitMatch();
+        await this.screen('main');
+        t.add('fightersTested');
+      }
+
+      // City Top: The Mechanic on a scaffold deck (finding f_7e0b4fd55a29).
+      const mech = CHARACTERS.findIndex((c) => c.id === 'the-mechanic');
+      const city = STAGES.findIndex((s) => s.id === 'city-top');
+      if (mech < 0 || city < 0) {
+        t.problem('bug', 'City Top or The Mechanic is missing');
+      } else {
+        this.progressNow = () => 0.9;
+        t.progress(0.9);
+        t.event('stage', 'City Top');
+        void this.game.startMatch({
+          mode: 'versus', stage: city, stocks: 1, rules: { timeLimit: 60 },
+          slots: [{ char: mech, cpu: null }, { char: CHARACTERS.findIndex((c) => c.id === 'exit-punk'), cpu: 1 }],
+        });
+        await this.matchLive();
+        await this.checkFighter('the-mechanic');
+        // Soft scaffolds sit at y=140; run and jump onto the right-of-centre deck from the main roof.
+        const onDeck = () => {
+          const f = me();
+          if (f.grounded <= 0) return false;
+          const x = f.x / FX;
+          const y = f.y / FX;
+          return y > 100 && y < 160 && ((x > 145 && x < 435) || (x > 440 && x < 730) || (x < -145 && x > -435) || (x < -440 && x > -730));
+        };
+        pad.release();
+        await frames(20);
+        for (let attempt = 0; attempt < 5 && !onDeck(); attempt++) {
+          this.manual = packInput(100, 0, 0);
+          await frames(18);
+          this.manual = packInput(100, 0, BTN.JUMP);
+          await frames(6);
+          this.manual = packInput(80, 0, 0);
+          await frames(45);
+          this.manual = NO_INPUT;
+          await frames(15);
+        }
+        await t.until(onDeck, 8000, 'The Mechanic on a City Top scaffold').catch(() => {
+          t.problem('bug', 'The Mechanic never stood on a City Top scaffold deck');
+        });
+        this.manual = NO_INPUT;
+        await frames(60);
+        if (onDeck()) t.event('city-top-deck', 'The Mechanic idle on a City Top scaffold deck');
+        this.reportFeet();
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+    } finally {
+      this.manual = null;
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   async roster(): Promise<void> {
     const t = this.t;
     const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
