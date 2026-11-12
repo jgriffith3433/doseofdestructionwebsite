@@ -169,6 +169,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'presentation') await r.presentation();
         else if (id === 'roster') await r.roster();
         else if (id === 'feet') await r.feetRun();
+        else if (id === 'smooth-clips') await r.smoothClips();
         else if (id === 'specials') await r.specialsRun();
         else if (id === 'grab') await r.grabRun();
         else if (id === 'select-specials') await r.selectSpecials();
@@ -2968,6 +2969,143 @@ class Run {
    * Feet on the floor: every fighter idles and walks on the main platform (events feet-gap / dod:feet-gap),
    * then The Mechanic stands on a City Top scaffold deck. Phone 390x844 turns to 844x390 and plays by touch.
    */
+  /**
+   * Season 1 idle / walk / jab / fsmash at 30 fps with fringe-clean half sheets on Low,
+   * hitboxes shown on jab and side smash, phone Low fps ≥45.
+   */
+  async smoothClips(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('smooth-clips');
+    }
+    if (touch) {
+      this.logViewport(this.isPhone());
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const gfxWas = localStorage.getItem(GFX_KEY);
+    const want = ['idle', 'walk', 'jab', 'fsmash'] as const;
+    let fps30 = 0;
+    let halfSheets = 0;
+    const fpsSamples: number[] = [];
+    try {
+      await this.toMainMenu();
+      setGraphics({ quality: 'low', glow: false });
+      const train = stagesFor('training')[0]?.index ?? 0;
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : [...SEASON_ONE];
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the stick controls were not built');
+        t.finish('error');
+        return;
+      }
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+      };
+      const me = () => {
+        const m = this.game.match()!;
+        return m.state.fighters[m.player];
+      };
+
+      for (const [n, id] of ids.entries()) {
+        const i = CHARACTERS.findIndex((c) => c.id === id);
+        if (i < 0) {
+          t.problem('bug', `fighter "${id}" is not in the roster`);
+          continue;
+        }
+        this.progressNow = () => n / ids.length;
+        t.progress(n / ids.length);
+        t.event('fighter', CHARACTERS[i].name);
+        void this.game.startMatch({
+          mode: 'training', stage: train, stocks: 1, rules: {},
+          slots: [{ char: i, cpu: null }, { char: (i + 1) % CHARACTERS.length, cpu: 0 }],
+        });
+        await this.matchLive();
+        await this.checkFighter(id);
+        const set = await loadAnimSet(id);
+        if (!set) {
+          t.problem('bug', `${CHARACTERS[i].name}: no animation clips`);
+          await this.game.quitMatch();
+          await this.screen('main');
+          continue;
+        }
+        for (const key of want) {
+          const clip = set.clips[key];
+          if (!clip) {
+            t.problem('bug', `${CHARACTERS[i].name}: missing ${key} clip`);
+            continue;
+          }
+          const label = key === 'walk' ? 'run/walk' : key;
+          if (clip.fps === 30) {
+            fps30++;
+            t.event('clip-fps', `${CHARACTERS[i].name} ${label} ${clip.fps} fps (${clip.frames} frames)`);
+          } else {
+            t.problem('bug', `${CHARACTERS[i].name} ${label} plays at ${clip.fps} fps (want 30)`);
+          }
+          if (clip.halfFile) {
+            halfSheets++;
+            const ok = await exists(`${set.base}${clip.halfFile}`);
+            if (!ok) t.problem('bug', `${CHARACTERS[i].name} ${label}: half sheet 404 ${clip.halfFile}`);
+            else t.event('half-sheet', `${CHARACTERS[i].name} ${label} → ${clip.halfFile}`);
+          } else t.problem('polish', `${CHARACTERS[i].name} ${label}: no halfFile for Low quality`);
+        }
+
+        // Hitbox view and the two most-seen attacks on screen for the footage.
+        if (!touch) pressAction('KeyH', true);
+        this.manual = NO_INPUT;
+        pad.release();
+        await t.until(() => me().grounded > 0 && (me().action === ACT.IDLE || me().action === ACT.WALK), 8000, `${CHARACTERS[i].name} standing`).catch(() => undefined);
+        await frames(20);
+        t.event('clip-zoom', `${CHARACTERS[i].name} idle (fringe check at 2x)`);
+        // Jab.
+        this.manual = packInput(0, 0, BTN.ATTACK);
+        await frames(4);
+        this.manual = NO_INPUT;
+        await frames(24);
+        t.event('hitbox-jab', `${CHARACTERS[i].name} jab with hitboxes`);
+        await frames(12);
+        // Side smash via the C-stick (same path as roster / keyboard I).
+        this.manual = packInput(0, 0, me().facing > 0 ? BTN.C_RIGHT : BTN.C_LEFT);
+        await frames(8);
+        this.manual = NO_INPUT;
+        await frames(40);
+        t.event('hitbox-fsmash', `${CHARACTERS[i].name} side smash with hitboxes`);
+
+        if (touch || this.isPhone()) {
+          const g = this.game.gfxStats?.();
+          if (g && g.quality === 'low' && g.fpsNow > 0) fpsSamples.push(g.fpsNow);
+        }
+        await this.game.quitMatch();
+        await this.screen('main');
+        t.add('fightersTested');
+      }
+
+      t.metric('clipFps30', fps30);
+      t.metric('halfSheets', halfSheets);
+      if (fpsSamples.length) {
+        const avg = fpsSamples.reduce((a, b) => a + b, 0) / fpsSamples.length;
+        t.metric('fpsMatchLow', Math.round(avg));
+        if (avg < 45) t.problem('warning', `phone-size Low ran at ${Math.round(avg)} fps (want 45)`);
+        else t.event('phone-fps', `Low quality averaged ${Math.round(avg)} fps`);
+      }
+    } finally {
+      this.manual = null;
+      if (gfxWas == null) localStorage.removeItem(GFX_KEY);
+      else localStorage.setItem(GFX_KEY, gfxWas);
+      setGraphics(graphics());
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   async feetRun(): Promise<void> {
     const t = this.t;
     const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();

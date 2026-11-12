@@ -161,3 +161,39 @@ python _build_anims.py --src D:\clips   # a different art root
 ```
 
 Rerunning a fighter rebuilds all of their clips from the source files.
+
+## Smoothing clips to 30 fps
+
+`tools/smooth-clips.mjs` fringe-cleans Season 1 sheets (erode 1 px, decontaminate
+key colour, feather 1 px), writes half-resolution `*.half.webp` for Low quality,
+prepares source videos from the current sheets, and packs Hawkes Gen
+`video.interpolate` ×2 outputs back at 30 fps (max side 2048). Brief "run" means
+this game's `walk` clip; side smash is `fsmash`. MOVE_TIME and sim hit frames stay
+unchanged — only the sheet fps/frames change.
+
+```
+node tools/smooth-clips.mjs --fringe --season1
+node tools/smooth-clips.mjs --prepare --season1 --clips idle,walk,jab,fsmash
+node tools/smooth-clips.mjs --pack --from .hawkes/smooth-out
+```
+
+After packing smoothed attack clips, rerun `node tools/fit-hitboxes.mjs` and
+`node tools/fit-feet.mjs`.
+
+## Smoothing clips to 30 fps
+
+`tools/smooth-clips.mjs` fringe-cleans Season 1 sheets (erode 1 px, decontaminate
+key colour, feather 1 px), writes half-resolution `*.half.webp` for Low quality,
+prepares source videos from the current sheets, and packs Hawkes Gen
+`video.interpolate` ×2 outputs back at 30 fps (max side 2048). Brief "run" means
+this game's `walk` clip; side smash is `fsmash`. MOVE_TIME and sim hit frames stay
+unchanged — only the sheet fps/frames change.
+
+```
+node tools/smooth-clips.mjs --fringe --season1
+node tools/smooth-clips.mjs --prepare --season1 --clips idle,walk,jab,fsmash
+node tools/smooth-clips.mjs --pack --from .hawkes/smooth-out
+```
+
+After packing smoothed attack clips, rerun `node tools/fit-hitboxes.mjs` and
+`node tools/fit-feet.mjs`.

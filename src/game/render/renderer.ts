@@ -28,7 +28,7 @@ import { GRAB_FIRST, activeHitboxes, rigPos, type SimEvent } from '../sim/step.t
 import { KILL_CUE, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, type HitTier, type TrailKind } from '../hitFeel.ts';
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { cameraFighters, followCamera, frameGoal, punchGoal, type CamBounds, type CamState } from './cameraRig.ts';
-import { clipFrame, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
+import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
 import { StageLive } from './stageLive.ts';
 import { StageAlive } from './stageAlive.ts';
@@ -256,6 +256,13 @@ export class Renderer {
     this.engine.setHardwareScalingLevel(scalingLevel(g.quality, window.devicePixelRatio));
     if (qualityChanged && this.alive) this.showStage(this.stage);
     if (qualityChanged) this.engine.resize();
+    // Low loads half-resolution clip sheets when present; drop cached textures so the next preload picks the right file.
+    if (qualityChanged) {
+      for (const tex of this.clipCache.values()) tex.dispose();
+      this.clipCache.clear();
+      for (const v of this.views) v.clipTex.clear();
+      void this.preloadClips(0);
+    }
     this.glow.isEnabled = g.glow;
     this.post.setQuality(g.quality);
     if (this.fpsEl) this.fpsEl.hidden = !g.fps;
@@ -640,10 +647,12 @@ export class Renderer {
     const waits: Promise<void>[] = [];
     let total = 0;
     let loaded = 0;
+    const quality = this.gfx.quality;
     this.views.forEach((v, slot) => {
       if (!v.anims) return;
       for (const key of Object.keys(v.anims.clips)) {
-        const url = `${v.anims.base}${v.anims.clips[key].file}?v=${v.anims.version}`;
+        const file = clipSheetFile(v.anims.clips[key], quality);
+        const url = `${v.anims.base}${file}?v=${v.anims.version}`;
         const id = `${slot}|${url}`;
         keep.add(id);
         let tex = this.clipCache.get(id);
@@ -824,7 +833,8 @@ export class Renderer {
     // Normally preloaded (preloadClips); made here only if a clip appears mid-match.
     let tex = v.clipTex.get(key);
     if (!tex) {
-      const url = `${v.anims.base}${v.anims.clips[key].file}?v=${v.anims.version}`;
+      const file = clipSheetFile(v.anims.clips[key], this.gfx.quality);
+      const url = `${v.anims.base}${file}?v=${v.anims.version}`;
       tex = new Texture(url, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE);
       tex.hasAlpha = true;
       v.clipTex.set(key, tex);
@@ -1698,10 +1708,11 @@ export function prefetchFighters(chars: number[]): Promise<void> {
       p = (async () => {
         const [, anims] = await Promise.all([loadArt(`/characters/large/${id}.webp`).catch(() => null), loadAnimSet(id)]);
         if (!anims) return;
+        const quality = graphics().quality;
         await Promise.all(Object.values(anims.clips).map((clip) => new Promise<void>((done) => {
           const img = new Image();
           img.onload = img.onerror = () => done();
-          img.src = `${anims.base}${clip.file}?v=${anims.version}`;
+          img.src = `${anims.base}${clipSheetFile(clip, quality)}?v=${anims.version}`;
         })));
       })();
       prefetched.set(id, p);

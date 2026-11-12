@@ -7,6 +7,8 @@ import { ACT, type Fighter } from '../sim/state.ts';
 
 export interface Clip {
   file: string;
+  /** Optional half-resolution sheet for Low quality (same UV layout; tools/smooth-clips.mjs). */
+  halfFile?: string;
   frames: number;
   cols: number;
   rows: number;
@@ -26,6 +28,11 @@ export interface Clip {
   stride?: number;
   travel?: number[];
   slip?: number;
+}
+
+/** Sheet file to load for a clip at the current quality (half-size on Low when present). */
+export function clipSheetFile(clip: Clip, quality: 'high' | 'low'): string {
+  return quality === 'low' && clip.halfFile ? clip.halfFile : clip.file;
 }
 
 export interface AnimSet {

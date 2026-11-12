@@ -375,6 +375,16 @@
         "full",
         "touch"
       ]
+    },
+    {
+      "id": "smooth-clips",
+      "title": "Season 1 idle/walk/jab/fsmash at 30 fps with fringe-clean sheets, hitboxes on jab and side smash, phone Low ≥45 fps",
+      "description": "Setup shortcut: each of the 13 Season 1 fighters into training (option fighter: one). Logs clip-fps for idle, walk (run), jab and fsmash (want 30) and half-sheet when Quality is Low. Hitbox view (H) on; jab and side smash (fsmash) so active frames are on screen (hitbox-jab, hitbox-fsmash). 2x zoom screenshot beats (clip-zoom) for fringe review. On a 390x844 phone turns to 844x390, forces Low, and samples fpsMatchLow (want ≥45). Metrics clipFps30, halfSheets, fpsMatchLow.",
+      "seconds": 480,
+      "tags": [
+        "full",
+        "touch"
+      ]
     }
   ];
   // END SCENARIOS
