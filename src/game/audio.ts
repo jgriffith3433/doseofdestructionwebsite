@@ -12,9 +12,24 @@ import {
   type MusicState,
   type StageBedRecipe,
 } from './stageBed.ts';
+import { departing, makeImpulse, roomOf, wetFor, type StageRoom } from './roomAudio.ts';
+import { graphics, onGraphics } from './graphics.ts';
 import { busLevel, onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
 
 export { fightersNeedIntense, INTENSE_PERCENT, stageBedGaps, stageBedRecipe, type MusicState, type StageBedRecipe } from './stageBed.ts';
+
+/** Where a fighter's sound comes from: a stereo pan (-0.8 to 0.8, from the fighter's screen x) and, for a KO, how far past the view they leave (0..1). */
+export interface Spatial {
+  pan: number;
+  away?: number;
+}
+
+/** The loudness the whole mix is levelled to, and the ceiling the last stage never passes. */
+export const TARGET_LUFS = -14;
+/** The sample ceiling after the limiter: 0.85 = -1.4 dBFS, so the true peak stays under -1 dBTP. */
+const CEILING = 0.85;
+/** Sounds that are menu feedback: never panned, never sent to the room. */
+const UI_SOUNDS: ReadonlySet<string> = new Set(['ui-move', 'ui-select', 'ui-back', 'wipe', 'vs-slam']);
 
 type LoopVoice = {
   id: string;
@@ -117,7 +132,27 @@ export const tapState = (): TapState | undefined => (window as unknown as { __do
 
 class AudioSystem {
   private ctx: AudioContext | null = null;
-  private buses: Record<'master' | 'music' | 'sfx' | 'voice', GainNode> | null = null;
+  private buses: Record<'master' | 'music' | 'sfx' | 'voice' | 'ui', GainNode> | null = null;
+  /** The master chain after the buses: makeup gain, compressor, limiter, ceiling; the room's reverb beside it. */
+  private chain: {
+    makeup: GainNode;
+    convolver: ConvolverNode;
+    sfxSend: GainNode;
+    voiceSend: GainNode;
+    returnLp: BiquadFilterNode;
+    dryLp: BiquadFilterNode;
+    analyser: AnalyserNode;
+    block: Float32Array;
+  } | null = null;
+  private room: StageRoom | null = null;
+  private peakTap: AnalyserNode | null = null;
+  private peakBlock = new Float32Array(2048);
+  private roomImpulses = new Map<string, AudioBuffer>();
+  private makeupDb = 6;
+  private levelBlocks: number[] = [];
+  private peak = 0;
+  private lufs = -70;
+  private levelTimer: ReturnType<typeof setInterval> | null = null;
   private buffers = new Map<string, Promise<AudioBuffer | null>>();
   /** Downloaded but not yet decoded (decoding needs the AudioContext, which waits for a click). */
   private raw = new Map<string, Promise<ArrayBuffer | null>>();
@@ -225,7 +260,93 @@ class AudioSystem {
       this.buses.music.gain.setTargetAtTime(music, t, 0.02);
     }
     this.buses.sfx.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
+    this.buses.ui.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
     this.buses.voice.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
+  }
+
+  /**
+   * The stage's room: builds (and caches) its impulse from the numbers in content/stages.json, sets the wet send
+   * (10-25%, halved on Low), the return low-pass and, underwater, the dry low-pass. Logs `dod:mix-room`.
+   */
+  setRoom(stageId: string | null): void {
+    const room = roomOf(stageId);
+    this.room = room;
+    this.applyRoom();
+    try {
+      window.dispatchEvent(new CustomEvent('dod:mix-room', { detail: this.mixStats(stageId) }));
+    } catch {
+      // Node tests.
+    }
+  }
+
+  private applyRoom(): void {
+    const c = this.chain;
+    const ctx = this.ctx;
+    if (!c || !ctx || !this.room) return;
+    const low = graphics().quality === 'low';
+    const room = this.room;
+    const key = `${room.name}:${low ? 'low' : 'high'}:${ctx.sampleRate}`;
+    let ir = this.roomImpulses.get(key);
+    if (!ir) {
+      const ch = makeImpulse(room, ctx.sampleRate, low);
+      ir = ctx.createBuffer(2, ch[0].length, ctx.sampleRate);
+      ir.copyToChannel(ch[0] as Float32Array<ArrayBuffer>, 0);
+      ir.copyToChannel(ch[1] as Float32Array<ArrayBuffer>, 1);
+      this.roomImpulses.set(key, ir);
+    }
+    if (c.convolver.buffer !== ir) c.convolver.buffer = ir;
+    const t = ctx.currentTime;
+    const wet = wetFor(room, low);
+    c.sfxSend.gain.setTargetAtTime(wet, t, 0.05);
+    c.voiceSend.gain.setTargetAtTime(wet, t, 0.05);
+    c.returnLp.frequency.setTargetAtTime(room.lowpassHz, t, 0.05);
+    c.dryLp.frequency.setTargetAtTime(room.dryLowpassHz ?? 20000, t, 0.05);
+  }
+
+  /** What the mix is doing now, for the playtest: the room, the wet share, the measured loudness and the sample peak. */
+  mixStats(stageId: string | null = this.bedStageId): {
+    stage: string | null; room: string; seconds: number; wet: number; low: boolean;
+    lufs: number; makeupDb: number; peakDbfs: number; chain: boolean;
+  } {
+    const room = this.room ?? roomOf(stageId);
+    const low = graphics().quality === 'low';
+    return {
+      stage: stageId,
+      room: room.name,
+      seconds: low ? Math.min(room.seconds, 1) : room.seconds,
+      wet: Math.round(wetFor(room, low) * 1000) / 1000,
+      low,
+      lufs: Math.round(this.lufs * 10) / 10,
+      makeupDb: Math.round(this.makeupDb * 10) / 10,
+      peakDbfs: this.peak > 0 ? Math.round(20 * Math.log10(this.peak) * 10) / 10 : -120,
+      chain: !!this.chain,
+    };
+  }
+
+  /** Every 100 ms: the K-weighted level of the last block steers the makeup gain slowly towards -14 LUFS. */
+  private level(): void {
+    const c = this.chain;
+    if (!c || !this.ctx || this.ctx.state !== 'running') return;
+    c.analyser.getFloatTimeDomainData(c.block as Float32Array<ArrayBuffer>);
+    let sum = 0;
+    for (let i = 0; i < c.block.length; i++) sum += c.block[i] * c.block[i];
+    const ms = sum / c.block.length;
+    if (this.peakTap) {
+      this.peakTap.getFloatTimeDomainData(this.peakBlock as Float32Array<ArrayBuffer>);
+      for (let i = 0; i < this.peakBlock.length; i++) this.peak = Math.max(this.peak, Math.abs(this.peakBlock[i]));
+    }
+    const block = ms > 0 ? -0.691 + 10 * Math.log10(ms) : -120;
+    this.levelBlocks.push(block);
+    if (this.levelBlocks.length > 40) this.levelBlocks.shift();
+    // Short-term loudness: the energy mean of the last 4 s of blocks above the -70 LUFS absolute gate.
+    const live = this.levelBlocks.filter((b) => b > -70);
+    if (live.length < 5) return;
+    this.lufs = 10 * Math.log10(live.reduce((a, b) => a + 10 ** (b / 10), 0) / live.length);
+    // Only a real signal steers the gain (a quiet gap must not pump it up); a slow step, never more than 0.4 dB at a time.
+    if (this.lufs < -45) return;
+    const step = Math.max(-0.4, Math.min(0.4, (TARGET_LUFS - this.lufs) * 0.06));
+    this.makeupDb = Math.max(-6, Math.min(18, this.makeupDb + step));
+    c.makeup.gain.setTargetAtTime(10 ** (this.makeupDb / 20), this.ctx.currentTime, 0.1);
   }
 
   /** Browsers only allow sound after a click or key press; call this from one. */
@@ -242,15 +363,77 @@ class AudioSystem {
       if (!Ctx) return;
       // The Tap to play prompt starts a context itself when the tap comes before this module.
       this.ctx = tapState()?.ctx ?? new Ctx();
-      const master = this.ctx.createGain();
-      master.connect(this.ctx.destination);
-      const bus = () => {
-        const g = this.ctx!.createGain();
-        g.connect(master);
+      const ctx = this.ctx;
+      const master = ctx.createGain();
+      // Master chain: a levelling gain, a gentle compressor, a fast limiter and a ceiling clip (4x oversampled).
+      const makeup = ctx.createGain();
+      makeup.gain.value = 10 ** (this.makeupDb / 20);
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -20;
+      comp.knee.value = 14;
+      comp.ratio.value = 3;
+      comp.attack.value = 0.008;
+      comp.release.value = 0.22;
+      const limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = -4;
+      limiter.knee.value = 0;
+      limiter.ratio.value = 20;
+      limiter.attack.value = 0.001;
+      limiter.release.value = 0.06;
+      const ceiling = ctx.createWaveShaper();
+      const curve = new Float32Array(4097);
+      for (let i = 0; i < curve.length; i++) {
+        const x = (i / 2048) - 1;
+        curve[i] = Math.abs(x) <= CEILING * 0.8 ? x : Math.sign(x) * (CEILING * 0.8 + (CEILING * 0.2) * Math.tanh((Math.abs(x) - CEILING * 0.8) / (CEILING * 0.2)));
+      }
+      ceiling.curve = curve;
+      ceiling.oversample = '4x';
+      master.connect(makeup).connect(comp).connect(limiter).connect(ceiling).connect(ctx.destination);
+      // Dry effects and voices pass a low-pass that only underwater closes; the room returns beside it.
+      const dryLp = ctx.createBiquadFilter();
+      dryLp.type = 'lowpass';
+      dryLp.frequency.value = 20000;
+      dryLp.connect(master);
+      const bus = (to: AudioNode = master) => {
+        const g = ctx.createGain();
+        g.connect(to);
         return g;
       };
-      this.buses = { master, music: bus(), sfx: bus(), voice: bus() };
+      const convolver = ctx.createConvolver();
+      const returnLp = ctx.createBiquadFilter();
+      returnLp.type = 'lowpass';
+      returnLp.frequency.value = 14000;
+      convolver.connect(returnLp).connect(master);
+      const sfxSend = ctx.createGain();
+      const voiceSend = ctx.createGain();
+      sfxSend.gain.value = 0;
+      voiceSend.gain.value = 0;
+      sfxSend.connect(convolver);
+      voiceSend.connect(convolver);
+      this.buses = { master, music: bus(), sfx: bus(dryLp), voice: bus(dryLp), ui: bus() };
+      this.buses.sfx.connect(sfxSend);
+      this.buses.voice.connect(voiceSend);
+      // The loudness meter listens to the finished mix, K-weighted (BS.1770: a high shelf and a 38 Hz high-pass).
+      const shelf = ctx.createBiquadFilter();
+      shelf.type = 'highshelf';
+      shelf.frequency.value = 1500;
+      shelf.gain.value = 4;
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 38;
+      hp.Q.value = 0.5;
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 4096;
+      ceiling.connect(shelf).connect(hp).connect(analyser);
+      const tap = ctx.createAnalyser();
+      tap.fftSize = 2048;
+      ceiling.connect(tap);
+      this.chain = { makeup, convolver, sfxSend, voiceSend, returnLp, dryLp, analyser, block: new Float32Array(analyser.fftSize) };
+      this.peakTap = tap;
+      this.levelTimer = setInterval(() => this.level(), 100);
+      onGraphics(() => this.applyRoom());
       this.applyVolumes();
+      if (this.bedStageId) this.setRoom(this.bedStageId);
       // iOS marks the context 'interrupted' after a call, Siri or a lock: take it back once the page is in front.
       this.ctx.addEventListener('statechange', () => this.resume());
       if (this.bedStageId) this.playStageBed(this.bedStageId);
@@ -349,7 +532,7 @@ class AudioSystem {
     return b ? b.duration * 1000 : 900;
   }
 
-  private async start(url: string, bus: GainNode, volume: number, rate = 1, loop = false): Promise<AudioBufferSourceNode | null> {
+  private async start(url: string, bus: GainNode, volume: number, rate = 1, loop = false, at?: Spatial): Promise<AudioBufferSourceNode | null> {
     if (!this.ctx) return null;
     const buf = await this.buffer(url);
     if (!buf || !this.ctx) return null;
@@ -359,7 +542,30 @@ class AudioSystem {
     src.playbackRate.value = rate;
     const g = this.ctx.createGain();
     g.gain.value = volume;
-    src.connect(g).connect(bus);
+    if (at) {
+      // Placed in the stereo field by the fighter's screen x; a fighter leaving through the blast zone loses highs and level.
+      let node: AudioNode = g;
+      if (at.away != null) {
+        const d = departing(at.away);
+        const lp = this.ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 12000;
+        const fade = this.ctx.createGain();
+        const t = this.ctx.currentTime;
+        lp.frequency.setValueAtTime(12000, t);
+        lp.frequency.exponentialRampToValueAtTime(Math.max(100, d.cutoffHz), t + d.seconds);
+        fade.gain.setValueAtTime(1, t);
+        fade.gain.linearRampToValueAtTime(d.gain, t + d.seconds);
+        g.connect(lp).connect(fade);
+        node = fade;
+      }
+      const pan = this.ctx.createStereoPanner();
+      pan.pan.value = Math.max(-0.8, Math.min(0.8, at.pan));
+      node.connect(pan).connect(bus);
+      src.connect(g);
+    } else {
+      src.connect(g).connect(bus);
+    }
     src.start();
     return src;
   }
@@ -384,10 +590,10 @@ class AudioSystem {
     return { entry: s, take: pool[idx], rate };
   }
 
-  private emitSoundTake(soundId: string, take: SoundTake, rate: number): void {
+  private emitSoundTake(soundId: string, take: SoundTake, rate: number, at?: Spatial): void {
     try {
       window.dispatchEvent(new CustomEvent('dod:sound-take', {
-        detail: { id: soundId, takeId: take.id, file: take.file, rate },
+        detail: { id: soundId, takeId: take.id, file: take.file, rate, pan: at?.pan ?? null },
       }));
     } catch {
       // Node tests have no window.
@@ -395,19 +601,21 @@ class AudioSystem {
   }
 
   /** Plays a sound effect by id. Picks among takes without immediate repeats; pitch varies 5–10%. */
-  sfx(id: string, opts: { vary?: boolean } = {}): void {
+  sfx(id: string, opts: { vary?: boolean; at?: Spatial } = {}): void {
     const pick = this.pickTake(id);
     if (!pick || !this.buses) return;
     const rate = opts.vary === false ? 1 : pick.rate;
-    this.emitSoundTake(id, pick.take, rate);
-    void this.start(pick.take.file, this.buses.sfx, pick.entry.volume, rate);
+    this.emitSoundTake(id, pick.take, rate, opts.at);
+    // Menu feedback goes round the room and the pan.
+    const ui = UI_SOUNDS.has(id);
+    void this.start(pick.take.file, ui ? this.buses.ui : this.buses.sfx, pick.entry.volume, rate, false, ui ? undefined : opts.at);
   }
 
   /** Landing SFX for the current stage's surface (metal / wood / stone / soft). */
-  landSfx(stageId?: string | null): void {
+  landSfx(stageId?: string | null, at?: Spatial): void {
     const stage = stageId ?? this.landStageId ?? this.bedStageId;
     const surface = (stage && STAGE_SURFACE[stage]) || 'metal';
-    this.sfx(LAND_BY_SURFACE[surface], { vary: true });
+    this.sfx(LAND_BY_SURFACE[surface], { vary: true, at });
   }
 
   /**
@@ -524,7 +732,7 @@ class AudioSystem {
    * At most one line per fighter at a time; efforts also wait 1.5 s between starts.
    * Fires `dod:fighter-voice` when a take starts. Returns false when skipped (busy / cooldown / no take).
    */
-  fighterVoice(who: string, kind: 'effort' | 'hurt' | 'ko' | 'taunt'): boolean {
+  fighterVoice(who: string, kind: 'effort' | 'hurt' | 'ko' | 'taunt', at?: Spatial): boolean {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     if ((this.fighterBusyUntil.get(who) ?? 0) > now) return false;
     if (kind === 'effort' && now - (this.effortAt.get(who) ?? 0) < 1500) return false;
@@ -548,7 +756,7 @@ class AudioSystem {
       if (kind === 'ko') {
         const ko = this.lineById.get(`fighter.${who}.ko`);
         if (ko?.audio) {
-          this.voice(ko.audio, false);
+          this.voice(ko.audio, false, at);
           this.emitFighterVoice(who, kind, ko.id, ko.text, ko.audio, now);
           return true;
         }
@@ -572,7 +780,7 @@ class AudioSystem {
     const audioUrl = l.audio;
     const text = l.text;
     // Fire the playtest event only once the buffer actually starts (a 404 must not look like a played line).
-    void this.start(audioUrl, this.buses.voice, 1).then(async (src) => {
+    void this.start(audioUrl, this.buses.voice, 1, 1, false, at).then(async (src) => {
       if (!src) {
         this.fighterBusyUntil.set(who, now);
         if (kind === 'effort') this.effortAt.set(who, 0);
@@ -601,11 +809,11 @@ class AudioSystem {
   }
 
   /** Plays a voice file. Dialogue cuts off the line before it; callouts overlap. Ducks music ~8 dB. */
-  voice(url: string | null | undefined, interrupt = true): void {
+  voice(url: string | null | undefined, interrupt = true, at?: Spatial): void {
     if (url) window.dispatchEvent(new CustomEvent('dod:voice', { detail: { url, played: !!this.buses } }));
     if (!url || !this.buses) return;
     if (interrupt) this.stopVoice();
-    void this.start(url, this.buses.voice, 1).then(async (src) => {
+    void this.start(url, this.buses.voice, 1, 1, false, at).then(async (src) => {
       if (!src) return;
       if (interrupt) this.speech = src;
       const buf = await this.buffer(url);
@@ -631,6 +839,11 @@ class AudioSystem {
     this.bedStageId = null;
     this.landStageId = null;
     this.bedWant = null;
+    // Menus and results sound like the default room, not the last stage's.
+    if (this.room) {
+      this.room = roomOf(null);
+      this.applyRoom();
+    }
     if (!this.ctx || !this.buses) return;
     if (this.music?.id === id && !this.music.filter) return;
     this.fadeOutLoop(this.music);
@@ -651,6 +864,7 @@ class AudioSystem {
     this.wantMusic = recipe.music;
     this.stung = false;
     if (!this.ctx || !this.buses) return;
+    this.setRoom(stageId);
 
     // Same stage bed already up: keep layers, reset to calm without cutting.
     if (this.music?.id === recipe.music && this.musicState) {
