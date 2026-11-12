@@ -86,6 +86,8 @@ multiply always, on High a Sobel-on-alpha normal for the key and far-side rim. `
 shadow maths (`shadowAt`, `floorBelow`: shrinks and fades, gone at 300 units) and `Renderer.drawFighter` draws the shadow
 and, on glossy floors on High, a 15% mirror. Scenario `lighting` (events `stage-light`, `shadow-height`, `light-low`).
 
+**Art bible.** `docs/art-bible.md` has the numbers (outline 2 px at 1080p and never under 1 px, outline = darkened main hue, saturation and value ranges). `src/game/artStyle.ts` holds them and the maths; `render/stylePlugin.ts` is the remap (priority 275, after the look and before the stage light) and the outline pass (350, after the light) on every fighter's sprite material; each fighter's `style` in `content/fighters.json` (outline, remap, before/after stats) is written by `node tools/derive-style.mjs --write` from its idle sheet (needs ffmpeg and git; prints the style report, exit 1 while a fighter is outside the ranges). `src/game/test/style.test.ts` (in `npm test`) lists fighters outside the ranges (must be 0). Scenario `art-style` (table below is not repeated: see scenarios.ts) checks the outline on both fighters for colour looks 1 to 4 and at 844x390.
+
 **Colour looks.** The pick is cosmetic and never in the sim (`SlotSetup.look`, read by `Renderer.setLooks` and the VS card and
 results); online it travels in the match setup (`OnlineSetup.looks`, from each player's last pick for their picture's fighter,
 the same-fighter rule applied by the host and re-checked by the guest). `tools/derive-looks.mjs` writes `looks` from the idle sheets

@@ -242,6 +242,16 @@
       ]
     },
     {
+      "id": "art-style",
+      "title": "Art bible: every fighter is drawn with a coloured outline (2 px at 1080p, never under 1 px: 1 px at 844x390) and a saturation/value remap that lands it inside the bible's ranges (0 of 33 outside), colour looks 1 to 4 keep both (phone: 390x844 turned to landscape, touch)",
+      "description": "Setup shortcut: straight into a versus match per colour look 1 to 4 (option fighter picks the pair; stage), no menus. Checks the style report first (style-report: 0 of 33 fighters outside the saturation and value ranges of docs/art-bible.md), then on both fighters of each match that the remap and the outline pass are on the material, the outline is a dark coloured line (never black) at the width the bible gives for the render height (outline) and, on a phone, at least 1 px at 844x390 (outline-phone); outline-looks closes it. Metrics outlinePx, fightersOutside. The player's dod.gfx is put back.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "commentary",
       "title": "Commentary: the announcer calls the fight from its events (at least 8 kinds of line, never the same line twice in a row), and Blog Man introduces every season's episodes",
       "description": "Part 1: a versus match against the CPU (3 stocks, the bot on a virtual pad), to its end; each announcer call is an event call-<kind> (first-blood, ko, comeback, last-stock, showdown, self-destruct, big-hit, combo, danger, shield-break, hazard, stage-event, time-low, lull) with its caption shown, plus call-kinds (how many kinds came up) and call-repeat problems. Part 2: setup shortcut marks the campaign cleared (the player's own progress is put back), then plays the first chapter of each season (option `all`: every chapter) from the map through its dialogue, and leaves from Pause once Blog Man has spoken: events blog-intro per episode and blog-intros. Metrics callKinds, calls, blogIntros.",

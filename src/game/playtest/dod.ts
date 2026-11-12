@@ -21,6 +21,7 @@ import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
 import { SHADOW_RANGE, hexRgb } from '../render/fighterLight.ts';
+import { ART, outlineWidthPx, outsideRanges } from '../artStyle.ts';
 import { ACT, ACT_NAMES } from '../sim/state.ts';
 import { AnimTrace } from '../sim/trace.ts';
 import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
@@ -81,6 +82,7 @@ export interface GameHooks {
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
   depthStats?(): { quality: string; camX: number; camDist: number; layers: { id: string; z: number; kind: 'far' | 'foreground' | 'haze' | 'stage'; screenX: number; alpha: number; fade: number | null; behind: boolean }[] };
+  styleStats?(): { quality: 'high' | 'low'; renderHeight: number; fighters: { slot: number; char: number; look: number; outline: { color: number[]; px: number; perPx: number[]; on: number }; remap: boolean; outlinePass: boolean }[] };
   lightStats?(): { stage: string; quality: 'high' | 'low'; glossy: boolean; fighters: { slot: number; plugin: { full: boolean; key: number[]; keyColor: number[]; rim: number[]; ambient: number[] }; height: number; scale: number; alpha: number; shadow: boolean; reflection: boolean }[] };
   postStats?(): { quality: 'high' | 'low'; lut: string | null; lutReady: boolean; vignette: number; grain: number; punchFrames: number; punches: number; lastPunchDrawn: number };
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
@@ -192,6 +194,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'post-chain') await r.postChain();
         else if (id === 'lighting') await r.lighting();
         else if (id === 'stage-depth') await r.stageDepth();
+        else if (id === 'art-style') await r.artStyle();
         else if (id === 'stage-life') await r.stageLife();
         else if (id === 'stage-bed') await r.stageBed();
         else if (id === 'commentary') await r.commentary();
@@ -6059,6 +6062,82 @@ class Run {
       t.finish('done');
     } finally {
       this.manual = null;
+      setGraphics(initial);
+      if (original === null) localStorage.removeItem(GFX_KEY);
+    }
+  }
+
+  /**
+   * The art bible on the roster (docs/art-bible.md, artStyle.ts): both fighters of a match carry the remap and the outline
+   * pass, the outline is a dark coloured line (never black) about 2 px at 1080p and never under 1 px (on a phone at 844x390
+   * it is 1 px), and colour looks 1 to 4 keep both (the outline turns with the look). Also reports the style report: how
+   * many of the 33 fighters are outside the saturation and value ranges. Setup shortcut: straight into a match per look,
+   * no menus. Events `style-report`, `outline`, `outline-looks`, `outline-phone`; metrics `outlinePx`, `fightersOutside`.
+   */
+  async artStyle(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('art-style');
+    }
+    this.logViewport(touch && this.isPhone());
+    const original = localStorage.getItem(GFX_KEY);
+    const initial = graphics();
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    setGraphics(touch || this.options.quality === 'low' ? { quality: 'low', glow: false } : { quality: 'high', glow: true });
+    try {
+      const outside = CHARACTERS.filter((c) => !c.style || outsideRanges(c.style.after).length);
+      t.metric('fightersOutside', outside.length);
+      if (outside.length) t.problem('bug', `${outside.length} of ${CHARACTERS.length} fighters are outside the art bible's ranges (${outside.map((c) => c.id).join(', ')})`);
+      else t.event('style-report', `0 of ${CHARACTERS.length} fighters outside the art bible's ranges (saturation ${ART.ranges.sMean.join('-')}, value ${ART.ranges.vP5.join('-')} low end, ${ART.ranges.vP95.join('-')} high end)`);
+      const first = Math.max(0, Number(this.options.fighter) || 0);
+      const picks = typeof this.options.fighter === 'string' ? [CHARACTERS.findIndex((c) => c.id === this.options.fighter)] : [first, first + 7, first + 14, first + 21];
+      const stage = typeof this.options.stage === 'string' ? Math.max(0, STAGES.findIndex((s) => s.id === this.options.stage)) : 0;
+      let seen = 0;
+      for (let look = 0; look < 4; look++) {
+        t.progress(0.1 + (0.8 * look) / 4);
+        const a = picks[look % picks.length] % CHARACTERS.length;
+        const b = (a + 11) % CHARACTERS.length;
+        void this.game.startMatch({ mode: 'versus', stage, stocks: 1, rules: {}, slots: [{ char: a, cpu: null, look }, { char: b, cpu: 5, look: (look + 1) % 4 }] });
+        await this.matchLive();
+        await this.wait(900);
+        const st = this.game.styleStats?.();
+        if (!st || st.fighters.length < 2) {
+          t.problem('bug', `the style pass reports ${JSON.stringify(st)}`);
+        } else {
+          const want = outlineWidthPx(st.renderHeight);
+          for (const f of st.fighters) {
+            const [r, g, bl] = f.outline.color;
+            const mx = Math.max(r, g, bl), mn = Math.min(r, g, bl);
+            const name = CHARACTERS[f.char].name;
+            if (!f.remap || !f.outlinePass) t.problem('bug', `${name} (look ${f.look + 1}) is missing the ${f.remap ? 'outline' : 'remap'} pass`);
+            else if (mx < 24 || mx > 70 || mx - mn < 8) t.problem('bug', `${name} (look ${f.look + 1}): outline ${f.outline.color.join(',')} is not a dark coloured line`);
+            else if (f.outline.px < 1 || Math.abs(f.outline.px - want) > 0.05) t.problem('bug', `${name}: outline is ${f.outline.px.toFixed(2)} px, want ${want.toFixed(2)} at render height ${st.renderHeight}`);
+            else {
+              seen++;
+              t.event('outline', `${name}, look ${f.look + 1}: coloured outline rgb(${f.outline.color.join(',')}) ${f.outline.px.toFixed(2)} px at ${st.renderHeight}p with the saturation/value remap, ${st.quality}`);
+            }
+          }
+          if (look === 0) t.metric('outlinePx', Math.round(Math.min(...st.fighters.map((f) => f.outline.px)) * 100) / 100);
+          if (look === 0 && innerWidth <= 900 && innerHeight <= 500) {
+            const px = Math.min(...st.fighters.map((f) => f.outline.px));
+            if (px >= 1) t.event('outline-phone', `${innerWidth}x${innerHeight}: outline ${px.toFixed(2)} px on both fighters (at least 1)`);
+            else t.problem('bug', `${innerWidth}x${innerHeight}: outline is ${px.toFixed(2)} px, under 1`);
+          }
+        }
+        await this.fight(() => (this.game.match()?.state.frame ?? 0) > 60 * 3, 60000);
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+      t.event('outline-looks', `colour looks 1 to 4 each drawn with the remap and the outline (${seen} fighter draws checked)`);
+      t.progress(1);
+      t.finish('done');
+    } finally {
       setGraphics(initial);
       if (original === null) localStorage.removeItem(GFX_KEY);
     }
