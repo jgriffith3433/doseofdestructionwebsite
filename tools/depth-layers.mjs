@@ -10,7 +10,7 @@
 //   visible share = this layer's alpha * product of (1 - alpha) of every layer in front of it.
 // At rest the stack is the backdrop (the check prints the difference); under a camera pan the layers slide at their own z.
 //
-// usage: node tools/depth-layers.mjs <stage-id|all> [--layers <dir of <stage>/0..4.png>] [--out <dir>] [--write]
+// usage: node tools/depth-layers.mjs <stage-id|all> [--layers <dir of <stage>/0..4.png; a plan's `dir` names another folder, e.g. a retry>] [--out <dir>] [--write]
 //   --out     where the webp files and <stage>.layers.json go (default: stages/<id>/depth; scratch while judging)
 //   --write   also update content/stages.json (new layers, `low` on the full backdrop, haze depths)
 // Needs `sharp` (npm i --no-save sharp, or NODE_PATH to a copy).
@@ -77,6 +77,20 @@ const PLANS = {
     ],
     haze: [15, 8],
     remove: ['street'],
+  },
+  'humans-in-the-loop': {
+    // The first split (j_6b534b359dea) left the arena in one layer; the retry (j_eea1055faada, 6 layers, seed 23, a prompt naming the
+    // road cases, speaker stacks, trusses, seating and beams) came back as an empty arena plate, the lit far stage, the rig with its
+    // beams, a faint haze and the near cases: layers 3 (a ghost, 1.5% of the picture) and 4 (haze, no solid pixel) are not used.
+    jobs: 'j_eea1055faada',
+    dir: 'humans-in-the-loop-2',
+    layers: [
+      { id: 'arena', z: 20, src: 'g0', mask: 'opaque', holes: ['road-cases'], note: 'Far sky: the dark arena bowl, its seating tiers and the stage floor running to the back.' },
+      { id: 'far-stage', z: 16, src: 'g1', mask: 'alpha', note: 'Far set: the lit far stage at the end of the floor, its row of footlights in smoke.' },
+      { id: 'light-rig', z: 12, src: 'g2', mask: 'alpha', note: 'Mid set: the lighting rig with the gold and blue beams fanning down through the haze.' },
+      { id: 'road-cases', z: 7.5, src: 'g5', mask: 'alpha', note: 'Near set: the black road cases stacked at the left and the speaker stacks hung at the top corners.' },
+    ],
+    haze: [14, 6.5],
   },
   'rainbow-full-pipe': {
     jobs: 'j_7ec99117dab6',
@@ -242,7 +256,7 @@ async function build(id, plan, opts) {
   const back = (await loadRGBA(read(opts.backdropPath(id)))).rgb;
   const gens = {};
   const gen = async (n) => {
-    if (!gens[n]) gens[n] = await loadRGBA(fs.readFileSync(path.join(opts.layersDir, id, `${n}.png`)));
+    if (!gens[n]) gens[n] = await loadRGBA(fs.readFileSync(path.join(opts.layersDir, plan.dir ?? id, `${n}.png`)));
     return gens[n];
   };
   const L = [];

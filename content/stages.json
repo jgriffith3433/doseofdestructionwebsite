@@ -2372,7 +2372,52 @@
         "z": 20,
         "note": "The far background, painted fresh from the concept.",
         "prompt": "A huge indoor arena seen from the stage, curving tiers of seating rising into darkness, packed with thousands of tiny phone flashlights like stars, a ring of balcony fascia lit faintly, overhead lighting rig silhouettes, warm gold and cool blue haze glowing over the upper bowl, deep black roof.",
+        "aspect": 0.429,
+        "low": true
+      },
+      {
+        "id": "arena",
+        "image": "stages/humans-in-the-loop/depth/arena.webp",
+        "x": 0,
+        "y": 250,
+        "width": 3800,
+        "z": 20,
+        "high": true,
+        "note": "Far sky: the dark arena bowl, its seating tiers and the stage floor running to the back. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_eea1055faada).",
         "aspect": 0.429
+      },
+      {
+        "id": "far-stage",
+        "image": "stages/humans-in-the-loop/depth/far-stage.webp",
+        "x": -94.5,
+        "y": 201.5,
+        "width": 2510.7,
+        "z": 16,
+        "high": true,
+        "note": "Far set: the lit far stage at the end of the floor, its row of footlights in smoke. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_eea1055faada).",
+        "aspect": 0.17
+      },
+      {
+        "id": "light-rig",
+        "image": "stages/humans-in-the-loop/depth/light-rig.webp",
+        "x": 178.1,
+        "y": 573.5,
+        "width": 2842.7,
+        "z": 12,
+        "high": true,
+        "note": "Mid set: the lighting rig with the gold and blue beams fanning down through the haze. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_eea1055faada).",
+        "aspect": 0.345
+      },
+      {
+        "id": "road-cases",
+        "image": "stages/humans-in-the-loop/depth/road-cases.webp",
+        "x": -147.8,
+        "y": 250,
+        "width": 3504.3,
+        "z": 7.5,
+        "high": true,
+        "note": "Near set: the black road cases stacked at the left and the speaker stacks hung at the top corners. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_eea1055faada).",
+        "aspect": 0.465
       },
       {
         "id": "crowd",

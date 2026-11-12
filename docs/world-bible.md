@@ -451,14 +451,14 @@ the stage veils the far layers. The code is `render/stageArt.ts` (layers, haze, 
 | City Top | sky 20, city sprawl 16, towers and fireworks 12, rooftops 9, left building 5, escape building 3 | rooftop antenna and vent stack, left | night smog violet |
 | Dust Devil Mesa | sky 22, horizon (mesas, dust plume, salt flat) 17, near flat (arch, boulders, cracked playa) 12, hawk 6, dust wall 4 | sagebrush clump, right | dusty ochre |
 | Cursed Town | sky fog 20, far houses 17, far tentacles 15, mid tentacles 13.5, street and houses 11, tentacles 9, gables and tentacles 4 | a tentacle column rising at the left street edge; fog stays in front | grey-green |
-| Humans In The Loop | backdrop 20, crowd 8, spot beams 6, strobes 5, truss 4 | the floor wedges, right | stage-smoke magenta |
+| Humans In The Loop | arena bowl 20, far stage 16, light rig and beams 12, crowd 8, road cases 7.5, spot beams 6, strobes 5, truss 4 | the floor wedges, right | stage-smoke magenta |
 | Rainbow Full Pipe | sky 20, clouds 17, park 14, drifting clouds 10, plaza 9, trees 6 | the round bush, right | sky blue |
 | Solar Array | sky and canyon 20, plain 14, panels 12 / 10.5 / 9 / 7.5, back panels 6 | foreground rock outcrop, right | sand |
 | Space Chess | star field 20, nebula 15, galaxy 11, the board and its pieces 8, the two kings 3 | the lost pawn drifting, left | nebula blue |
 | Watercolor Nebula | backdrop 20, underwash 8, clouds 6, swirl 4 | the front cloud wisp, right | pigment cream |
 | Yo House | the garden through the windows 22, the room 17, floor, rug and sofa 11, doorway 5, ball and dock light 3 | potted snake plant and monstera, right | morning blue-white |
 
-**The real layers** (seven stages) are Hawkes Gen's `image.layers` split of each backdrop (project
+**The real layers** (eight stages) are Hawkes Gen's `image.layers` split of each backdrop (project
 `org_eb0d5c82e8da8c2d.doseofdestruction`, 5 layers at 1024 px, seed 11), cut by `node tools/depth-layers.mjs`: Gen's picture
 is only 1024 px wide, so each layer's alpha is used as a *cut mask over the full-resolution backdrop* (1568 px), and Gen's own
 inpainted pixels are kept only where a cut reveals what was behind it (the sky behind the towers, the garden behind the
@@ -467,8 +467,9 @@ Yo House's furniture, Space Chess's nebula and galaxy) leaves a hole in the laye
 (no GPU), so a pan never shows an empty gap. The stack at rest differs from the backdrop by an RMS of 2 to 6.5 (of 255). On
 High each stage draws its own stack; Low draws the whole backdrop picture (`low`) and the layers that were already there.
 Jobs: City Top j_de95dbaf4d12, Dust Devil Mesa j_c0b792ce201e, Cursed Town j_baf72867a5f9, Rainbow Full Pipe j_7ec99117dab6,
-Solar Array j_baf31958c811, Space Chess j_81bec11c18e4, Yo House j_0613ca74762a (about $0.57 of GPU for all nine splits; no
-`image.repaint` was needed: Gen's layers come inpainted and the bottom layer of every stack is opaque).
+Solar Array j_baf31958c811, Space Chess j_81bec11c18e4, Yo House j_0613ca74762a, Humans in the Loop (a second split, 6 layers,
+j_eea1055faada) (about $0.57 of GPU for the nine first splits and $0.30 for the two retries; no `image.repaint` was needed: Gen's
+layers come inpainted and the bottom layer of every stack is opaque).
 
 - **City Top:** sky and smoke, the amber sprawl, the towers with the fireworks, the lit rooftops with the avenue; the old
   cut-out skyline band is gone.
@@ -482,9 +483,18 @@ Solar Array j_baf31958c811, Space Chess j_81bec11c18e4, Yo House j_0613ca74762a 
 - **Space Chess:** the star field, the cobalt nebula, the spiral galaxy and the far end of the board with its pieces.
 - **Yo House:** the garden and hills seen through the windows and the skylight slide behind the room; the floor, rug and sofa
   slide in front of the back wall.
-- **Humans in the Loop and Watercolor Nebula:** Gen's split did not separate their backdrops (the arena came back as one
-  layer; the watercolor came back with the painting still whole in one layer and invented clouds), so both keep the real,
-  already separate layers they had (crowd, beams and truss; underwash, clouds and swirl) and a retry is queued.
+- **Humans in the Loop:** Gen's first split (5 layers) left the arena in one layer; a retry with a prompt naming the road cases,
+  speaker stacks, trusses, seating and beams (6 layers, seed 23) came back as an empty arena, the lit far stage, the lighting
+  rig with its beams, and the near road cases with the hung speakers. Those four are cut as `arena` 20, `far-stage` 16,
+  `light-rig` 12 and `road-cases` 7.5 (the road cases only exist at the left: the right cases stay in the arena, so the left
+  stack is nearer); the crowd (8), spot beams (6), strobes (5) and truss (4) keep their depths. The retry's other two layers
+  (a ghost covering 1.5% of the picture, a haze with no solid pixel) are not used. The arena plate is Gen's own empty arena where
+  the beams, the far stage glow and the cases are cut away, and the cases' hole is diffusion-filled (the plate also had them).
+- **Watercolor Nebula:** two splits (j_ee4414382a78, j_568d743c1e78) did not separate the painting: the retry's main layer is
+  the whole painting again (94% of the picture), its clouds are invented shapes that are not in the backdrop, its far wash is
+  a smooth lavender gradient that does not match the pixel-wash painting, and one layer is empty. A cut with those masks would
+  slide a patch of the painting over a second copy of itself, so the stage keeps the real, separate layers it already had
+  (underwash 8, cloud banks 6, swirl 4, the front wisp). Layers painted for the stage are the better route for this one.
 
 **Short:** the foregrounds only shake on KOs (and sway where the art already did), and the cut layers add parallax, not new
 things to see: crowd heads, a bird, traffic lights crawling are the next layer of life. No stage has crowd heads, cables or kelp
