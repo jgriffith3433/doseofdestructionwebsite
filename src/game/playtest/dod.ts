@@ -36,6 +36,7 @@ import { ENDINGS, ENDING_BEATS, endingFor, endingUnlocked } from '../campaign/en
 import { endingShowing } from '../ui/ending.ts';
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
 import { PAIRS, pairFor } from '../campaign/intros.ts';
+import { SEASON_ONE_ENTRANCES, entranceKind } from '../campaign/intro.ts';
 import { PROMPTS, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
@@ -91,6 +92,8 @@ export interface GameHooks {
   mixStats?(): { stage: string | null; room: string; seconds: number; wet: number; low: boolean; lufs: number; makeupDb: number; peakDbfs: number; chain: boolean };
   /** Plays a heavy hit panned to `pan` (-0.8 left edge .. 0.8 right edge) so a capture can measure the channels. */
   probeHit?(pan: number): void;
+  /** The match intro (campaign/intro.ts): its clock, the camera's distance, the fastest camera move (units per second) and the beats fired. */
+  introStats?(): { active: boolean; ms: number; camDist: number; camX: number; maxSpeed: number; beats: number; kinds: string[] };
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
   /** Layered stage bed: calm/intense, ambience under the theme, intensity stem. */
@@ -171,6 +174,7 @@ export function installDodPlaytest(game: GameHooks): void {
       try {
         if (id === 'smoke') await r.smoke();
         else if (id === 'match') await r.match();
+        else if (id === 'match-intro') await r.matchIntro();
         else if (id === 'campaign') await r.campaign();
         else if (id === 'unlocks') await r.unlocksRun();
         else if (id === 'daily') await r.dailyRun();
@@ -816,6 +820,7 @@ class Run {
     const cards = () => document.querySelectorAll<HTMLElement>('#stage-grid .stage-card:not(.random)');
     await this.t.until(() => cards().length > 0, 5000, 'stage cards');
     if (this.onVersus) this.checkClipping('stage select', this.q('#stages'));
+    if (this.onStages) await this.onStages([...cards()]);
     // options.stage plays that stage (a content playtest of a new one); else one from the seed.
     const want = typeof this.options.stage === 'string' ? this.options.stage : null;
     const byId = want ? [...cards()].findIndex((c) => c.dataset.stage === want) : -1;
@@ -828,12 +833,17 @@ class Run {
     const onWarm = (e: Event) => { warmUpMs = (e as CustomEvent).detail.warmUpMs; };
     window.addEventListener('dod:scene-timing', onTiming);
     window.addEventListener('dod:warm-up', onWarm);
+    // The match intro (3 s) sits between the VS card and the first frame: the hold limits below are for the rest.
+    let introMs = 0;
+    const onIntro = (e: Event) => { const d = (e as CustomEvent).detail as { phase: string; ms: number }; if (d.phase === 'end') introMs = d.ms; };
+    window.addEventListener('dod:match-intro', onIntro);
     await this.click(() => cards()[pick], `stage ${want && byId >= 0 ? want : pick + 1}`);
     const confirmAt = performance.now();
     this.vsWipePending = this.vsHoldWanted;
     if (this.onVersus) await this.onVersus();
     await this.matchLive();
     window.removeEventListener('dod:scene-timing', onTiming);
+    window.removeEventListener('dod:match-intro', onIntro);
     const tm = timing as Timing | null;
     if (tm) {
       const sec = (ms: number | null) => (ms === null ? 'n/a' : `${(ms / 1000).toFixed(2)} s`);
@@ -859,7 +869,7 @@ class Run {
     } else this.t.problem('bug', 'no scene timing reported for the match start');
     if (this.vsHoldWanted) {
       await this.t.until(() => (this.game.match()?.state.frame ?? 0) > 0, 10000, 'the first match frame');
-      const ms = Math.round(performance.now() - confirmAt);
+      const ms = Math.round(performance.now() - confirmAt) - introMs;
       this.t.metric('vsHoldMs', ms);
       this.t.event('vsHoldMs', `${ms} ms from the stage confirm to the first match frame`);
       if (ms > 6000) this.t.problem('bug', `The VS card held ${ms} ms from the stage confirm to the first match frame (limit 6000 ms: the stage and both names are called)`);
@@ -931,7 +941,7 @@ class Run {
   /** Waits through the VS splash and loading until "Go!". */
   private async matchLive(): Promise<void> {
     await this.screen('match', 60000);
-    await this.t.until(() => this.game.phase() === 'play', 10000, 'the match to start');
+    await this.t.until(() => this.game.phase() === 'play', 16000, 'the match to start');
   }
 
   /** Lets the bot fight until the match ends, or until `stopAt` says so. Returns 'over' or 'stopped'. */
@@ -1424,6 +1434,8 @@ class Run {
 
   /** Set by the presentation scenario: runs on the VS screen, before the match loads. */
   private onVersus: (() => Promise<void>) | null = null;
+  /** Called on the stage select once its cards are up (match-intro checks the live previews there). */
+  private onStages: ((cards: HTMLElement[]) => Promise<void>) | null = null;
 
   /** Text that is cut off or pushed off the screen inside `root` (the viewport's own aspect is whatever the run has). */
   private clippedText(root: HTMLElement): string[] {
@@ -2711,6 +2723,11 @@ class Run {
     }
     t.progress(0.3);
 
+    // Online matches start with no match intro (both pages must start together): any intro event while the match is online is a bug.
+    let introOnline = 0;
+    window.addEventListener('dod:match-intro', (e) => {
+      if ((e as CustomEvent).detail?.phase === 'start' && this.game.match()?.setup.mode === 'online') introOnline++;
+    });
     // 4. Match found: the banner and its countdown, over whatever is on.
     const banner = () => this.q('#mm-found');
     await t.until(() => (banner() && !banner()!.hidden) || this.game.match()?.setup.mode === 'online', 150000, 'Match found');
@@ -2728,6 +2745,8 @@ class Run {
     const hud = this.q('#hud')?.textContent ?? '';
     if (!hud.includes(opp)) t.problem('bug', `the opponent's name (${opp}) isn't on the fight HUD`);
     t.event('online-start', `${names[0]} vs ${names[1]} on ${STAGES[m.state.stage].name}, this tab is slot ${m.player}`);
+    if (introOnline) t.problem('bug', 'the match intro played in an online match');
+    else t.event('online-no-intro', 'the online match started with no match intro');
     this.progressNow = () => 0.45 + 0.45 * Math.min(1, (this.game.match()?.state.frame ?? 0) / Math.max(1, m.state.rules.timeLimit || 5400));
     await t.until(() => currentScreen() === 'results', 5 * 60 * 1000, 'the online match to end');
     this.progressNow = () => 0.95;
@@ -7527,6 +7546,242 @@ class Run {
     if (lines > 2) this.t.problem('bug', `the exchange caption runs to ${lines} lines (max 2)`);
     if (!inside) this.t.problem('bug', `the exchange caption is off screen (${Math.round(r.left)},${Math.round(r.top)} to ${Math.round(r.right)},${Math.round(r.bottom)} in ${innerWidth}x${innerHeight})`);
     else this.t.event('exchange-caption', `"${text.textContent}" in ${lines} line(s) at ${innerWidth}x${innerHeight}`);
+  }
+
+  /**
+   * The match intro (campaign/intro.ts, ui/matchIntro.ts, renderer introBegin) and the stage select's live previews
+   * (ui/stagePreview.ts). Stage select: each of the stages shows a canvas that pans (its pan changes between samples)
+   * and is not blank. Round 1 plays a Versus match's intro out: it starts within 3 s of the VS card, the camera flies
+   * in (wide to the fight framing, eased: no step over 25 units/s), the stage-name lower third shows inside the window,
+   * each fighter enters with the entrance their story gives them (Season 1: its own; the rest: the spotlight drop), the
+   * touch controls are hidden and fade in as it ends, ROUND START follows. Round 2: a tap skips it within 300 ms; round 3
+   * (desktop): a key does. The online scenario checks no intro plays there. On a 390x844 phone it is turned to 844x390
+   * and every press is a touch pointer event; fps on Low is sampled during the intro (45 wanted).
+   */
+  async matchIntro(): Promise<void> {
+    const t = this.t;
+    if (this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      return this.touchMatchTurned('match-intro');
+    }
+    this.logViewport(this.phoneScenario());
+    type I = { phase: string; ms?: number; t: number; who?: string; kind?: string; slot?: number; skipped?: boolean; stage?: string; name?: string; voiced?: boolean; kinds?: string[]; totalMs?: number };
+    const seen: I[] = [];
+    const onI = (e: Event) => seen.push({ ...((e as CustomEvent).detail as I), t: performance.now() });
+    const slams: { text: string; t: number }[] = [];
+    const onSlam = (e: Event) => slams.push({ text: (e as CustomEvent).detail.text, t: performance.now() });
+    let timingAt = 0;
+    const onTiming = () => { timingAt = performance.now(); };
+    window.addEventListener('dod:match-intro', onI);
+    window.addEventListener('dod:slam', onSlam);
+    window.addEventListener('dod:scene-timing', onTiming);
+    const touch = matchMedia('(pointer: coarse)').matches;
+    const savedUnlocks = [...unlocks()];
+    for (const id of SEASON_ONE) if (LOCKABLE.has(id)) unlocks().add(id);
+    saveUnlocks(unlocks());
+    try {
+      const s1 = Object.keys(SEASON_ONE_ENTRANCES);
+      t.metric('season1Entrances', new Set(Object.values(SEASON_ONE_ENTRANCES)).size);
+      t.event('intro-data', `${s1.length} Season 1 fighters, ${new Set(Object.values(SEASON_ONE_ENTRANCES)).size} different entrances: ${s1.map((id) => `${id}=${SEASON_ONE_ENTRANCES[id]}`).join(', ')}`);
+      if (s1.length !== 13 || new Set(Object.values(SEASON_ONE_ENTRANCES)).size !== 13) t.problem('bug', 'the 13 Season 1 fighters do not each have their own entrance');
+      // Season 1 fighter vs another (spotlight) one when the seed allows: Exit Punk (the skateboard) against a newer fighter.
+      if (!this.options.fighter) this.options.fighter = this.options.seed % 2 ? 'exit-punk' : 'shutup-bot';
+      if (!this.options.foe) this.options.foe = 'wallit';
+      await this.toMainMenu();
+
+      // The stage select: live previews.
+      this.onStages = (cards) => this.checkStagePreviews(cards);
+      // Round 1: the intro plays out.
+      const samples: { ms: number; d: number; x: number; fps: number }[] = [];
+      let lowerOk = false;
+      let lowerInside = false;
+      let touchHidden: boolean | null = null;
+      this.onVersus = async () => {
+        await t.until(() => seen.some((x) => x.phase === 'start'), 60000, 'the match intro to start');
+        const start = seen.find((x) => x.phase === 'start')!;
+        const gap = timingAt ? start.t - timingAt : 0;
+        t.metric('introStartMs', Math.round(gap));
+        t.event('intro-start', `the intro began ${Math.round(gap)} ms after the VS card (${start.kinds?.join(', ')})`);
+        if (gap > 3000) t.problem('bug', `the intro began ${Math.round(gap)} ms after the VS card (max 3000)`);
+        while (!seen.some((x) => x.phase === 'end')) {
+          const st = this.game.introStats?.();
+          const g = this.game.gfxStats?.();
+          if (st?.active) samples.push({ ms: st.ms, d: st.camDist, x: st.camX, fps: g?.fpsNow ?? 0 });
+          const lower = this.q('#intro-lower');
+          if (lower && st && st.ms > 700 && st.ms < 2200 && !lowerOk) {
+            const r = lower.getBoundingClientRect();
+            const name = lower.querySelector('.intro-stage')?.textContent ?? '';
+            lowerInside = r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
+            lowerOk = lower.classList.contains('in') && name.length > 0;
+          }
+          const btn = document.querySelector<HTMLElement>('.touch > *');
+          if (btn && touchHidden === null && st && st.ms > 400 && st.ms < 2500) touchHidden = Number(getComputedStyle(btn).opacity) < 0.05;
+          await t.wait(40);
+        }
+      };
+      await this.startVersus(2);
+      const start = seen.find((x) => x.phase === 'start')!;
+      const end = seen.find((x) => x.phase === 'end')!;
+      const card = seen.find((x) => x.phase === 'card');
+      const entrances = seen.filter((x) => x.phase === 'entrance');
+      // Criterion 1: the fly-in and the stage name card.
+      if (!card) t.problem('bug', 'no stage-name card in the intro');
+      else {
+        t.event('intro-card', `stage card "${card.name}" ${Math.round(card.t - start.t)} ms into the intro${card.voiced ? ', announcer call played' : ', caption only'}`);
+        if (card.t - start.t > 600) t.problem('bug', `the stage card came ${Math.round(card.t - start.t)} ms into the intro (max 600)`);
+      }
+      if (!lowerOk) t.problem('bug', 'the stage-name lower third was not showing mid-intro');
+      else if (!lowerInside) t.problem('bug', `the stage-name lower third is off screen at ${innerWidth}x${innerHeight}`);
+      else t.event('intro-lower-third', `lower third inside the window at ${innerWidth}x${innerHeight}`);
+      if (samples.length >= 4) {
+        const first = samples[0];
+        const last = samples[samples.length - 1];
+        let back = 0;
+        for (let i = 1; i < samples.length; i++) back = Math.max(back, samples[i].d - samples[i - 1].d);
+        t.metric('introCamFrom', Number(first.d.toFixed(2)));
+        t.metric('introCamTo', Number(last.d.toFixed(2)));
+        t.event('intro-camera', `camera distance ${first.d.toFixed(1)} → ${last.d.toFixed(1)} over ${Math.round(last.ms - first.ms)} ms (${samples.length} samples)`);
+        if (first.d - last.d < 2) t.problem('bug', `the camera did not fly in: distance ${first.d.toFixed(1)} → ${last.d.toFixed(1)}`);
+        if (back > 0.05) t.problem('bug', `the fly-in pulled back by ${back.toFixed(2)} (it should only come in)`);
+        const st = this.game.introStats?.();
+        if (st) {
+          t.metric('introCamPeakSpeed', Number(st.maxSpeed.toFixed(1)));
+          if (st.maxSpeed > 25) t.problem('bug', `the fly-in moved at ${st.maxSpeed.toFixed(1)} units/s at its fastest (a snap; max 25)`);
+        }
+      } else t.problem('bug', `the intro camera was sampled ${samples.length} times`);
+      // Criterion 2: entrances.
+      const expectCast = [String(this.options.fighter), String(this.options.foe)];
+      t.metric('introEntrances', entrances.length);
+      for (const e of entrances) t.event('intro-entrance', `${e.who} enters: ${e.kind} (${Math.round(e.t - start.t)} ms in)`);
+      if (entrances.length !== 2) t.problem('bug', `${entrances.length} entrances played, not 2`);
+      for (const who of expectCast) {
+        const got = entrances.find((e) => e.who === who);
+        if (!got) t.problem('bug', `${who} made no entrance`);
+        else if (got.kind !== entranceKind(who)) t.problem('bug', `${who} entered with ${got.kind}, not ${entranceKind(who)}`);
+      }
+      const stats = this.game.introStats?.();
+      t.event('intro-beats', `${stats?.beats ?? 0} beats read at the end (sparks, shakes, thuds)`);
+      // 3 s, played to its end, not skipped.
+      t.metric('introMs', end.ms ?? 0);
+      if (end.skipped) t.problem('bug', 'the intro was skipped with no input');
+      if ((end.ms ?? 0) < 2700 || (end.ms ?? 0) > 3600) t.problem('bug', `the intro lasted ${end.ms} ms (3000 wanted)`);
+      // ROUND START follows it.
+      await t.until(() => slams.some((q) => q.text === 'Round start' && q.t >= end.t - 50), 4000, 'ROUND START').catch(() => null);
+      const rs = slams.find((q) => q.text === 'Round start' && q.t >= end.t - 50);
+      if (!rs) t.problem('bug', 'ROUND START did not follow the intro');
+      else t.event('intro-round-start', `ROUND START ${Math.round(rs.t - end.t)} ms after the intro ended`);
+      // Touch controls: hidden during it, back after it.
+      if (touch || document.querySelector('.touch')) {
+        const btn = document.querySelector<HTMLElement>('.touch > *');
+        if (btn) {
+          await t.wait(500);
+          const after = Number(getComputedStyle(btn).opacity);
+          t.event('intro-touch-controls', `touch controls ${touchHidden ? 'hidden during the intro' : 'visible during the intro'}, opacity ${after.toFixed(2)} after`);
+          if (touchHidden === false) t.problem('bug', 'the touch controls were showing during the intro');
+          if (after < 0.2) t.problem('bug', 'the touch controls did not fade back in after the intro');
+        }
+      }
+      const fps = samples.map((x) => x.fps).filter((v) => v > 0);
+      if (fps.length) {
+        const avg = Math.round(fps.reduce((a, b) => a + b, 0) / fps.length);
+        const q = this.game.gfxStats?.()?.quality;
+        t.metric('introFps', avg);
+        t.event('intro-fps', `average ${avg} fps during the intro (${fps.length} samples, quality ${q})`);
+        if (this.phoneScenario() && avg < 45) t.problem('warning', `average ${avg} fps during the intro on a phone (want at least 45)`);
+      }
+      await this.matchLive();
+
+      // Round 2: a tap skips it.
+      const skipTest = async (how: 'tap' | 'key'): Promise<void> => {
+        seen.length = 0;
+        void this.game.startMatch(this.game.match()!.setup);
+        await t.until(() => seen.some((x) => x.phase === 'start'), 40000, 'the intro to start again');
+        await t.wait(800);
+        const sentAt = performance.now();
+        let target: HTMLElement | null = null;
+        let init: PointerEventInit = {};
+        if (how === 'tap') {
+          const x = innerWidth / 2;
+          const y = innerHeight * 0.4;
+          target = (document.elementFromPoint(x, y) as HTMLElement | null) ?? document.body;
+          init = { pointerType: touch ? 'touch' : 'mouse', pointerId: touch ? 71 : 1, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y };
+          t.log(`${touch ? 'tap' : 'click'} anywhere to skip the intro`);
+          target.dispatchEvent(new PointerEvent('pointerdown', init));
+        } else {
+          t.log('press a key to skip the intro');
+          window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyJ', key: 'j', bubbles: true }));
+        }
+        await t.until(() => seen.some((q) => q.phase === 'end'), 2000, 'the intro to end after the input').catch(() => null);
+        const ms = Math.round(performance.now() - sentAt);
+        const e = seen.find((q) => q.phase === 'end');
+        if (how === 'tap') target?.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }));
+        else window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyJ', key: 'j', bubbles: true }));
+        t.metric(how === 'tap' ? 'introSkipTapMs' : 'introSkipKeyMs', ms);
+        if (!e) t.problem('bug', `a ${how} did not skip the intro`);
+        else if (!e.skipped) t.problem('bug', `the intro ended by itself, not by the ${how}`);
+        else if (ms > 300) t.problem('bug', `a ${how} took ${ms} ms to skip the intro (max 300)`);
+        else t.event(`intro-skip-${how}`, `skipped ${ms} ms after the ${how}`);
+        await this.matchLive();
+      };
+      await skipTest('tap');
+      if (!touch) await skipTest('key');
+      await this.quitFromPause('main');
+    } finally {
+      this.onStages = null;
+      this.onVersus = null;
+      window.removeEventListener('dod:match-intro', onI);
+      window.removeEventListener('dod:slam', onSlam);
+      window.removeEventListener('dod:scene-timing', onTiming);
+      unlocks().clear();
+      for (const id of savedUnlocks) unlocks().add(id);
+      saveUnlocks(unlocks());
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  /** The stage select's tiles each pan: a canvas with layers drawn, its pan changing between samples, and not blank. */
+  private async checkStagePreviews(cards: HTMLElement[]): Promise<void> {
+    const t = this.t;
+    const total = cards.length;
+    let moving = 0;
+    for (const card of cards) {
+      const id = card.dataset.stage ?? '?';
+      const canvas = card.querySelector<HTMLCanvasElement>('canvas.stage-preview');
+      if (!canvas) {
+        t.problem('bug', `stage select: the ${id} tile has no live preview`);
+        continue;
+      }
+      card.scrollIntoView({ block: 'center', inline: 'center' });
+      await t.until(() => Number(canvas.dataset.layers ?? 0) >= 1 && Number(canvas.dataset.frames ?? 0) > 0, 12000, `the ${id} preview to draw`).catch(() => null);
+      const pans: number[] = [];
+      const frames: number[] = [];
+      for (let i = 0; i < 3; i++) {
+        pans.push(Number(canvas.dataset.pan ?? NaN));
+        frames.push(Number(canvas.dataset.frames ?? 0));
+        await t.wait(330);
+      }
+      const ctx = canvas.getContext('2d');
+      const colours = new Set<string>();
+      if (ctx) {
+        for (let i = 0; i < 48; i++) {
+          const px = ctx.getImageData(Math.floor(((i % 8) + 0.5) * (canvas.width / 8)), Math.floor((Math.floor(i / 8) + 0.5) * (canvas.height / 6)), 1, 1).data;
+          colours.add(`${px[0] >> 4},${px[1] >> 4},${px[2] >> 4}`);
+        }
+      }
+      const moved = Math.max(...pans) - Math.min(...pans) > 0.05 && frames[2] > frames[0];
+      const r = canvas.getBoundingClientRect();
+      if (!moved) t.problem('bug', `stage select: the ${id} preview does not move (pan ${pans.map((p) => p.toFixed(2)).join(', ')})`);
+      else if (colours.size < 4) t.problem('bug', `stage select: the ${id} preview is blank (${colours.size} colours)`);
+      else if (r.width < 40 || r.height < 20) t.problem('bug', `stage select: the ${id} preview is ${Math.round(r.width)}x${Math.round(r.height)}`);
+      else {
+        moving++;
+        t.event('stage-preview', `${id}: ${canvas.dataset.layers} layers, pan ${pans.map((p) => p.toFixed(2)).join(' → ')}, ${colours.size} colours`);
+      }
+    }
+    cards[0]?.scrollIntoView({ block: 'center' });
+    t.metric('stagePreviews', moving);
+    t.event('stage-previews', `${moving} of ${total} stage tiles show a moving preview`);
+    if (total < 9) t.problem('bug', `stage select offers ${total} stages (9 expected)`);
   }
 
   async commentary(): Promise<void> {
