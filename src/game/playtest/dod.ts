@@ -6606,7 +6606,7 @@ class Run {
         const depthCount = depths.size + (low && fgs.length ? 1 : 0);
         fewest = Math.min(fewest, depthCount);
         if (depthCount < needDepths) t.problem('bug', `${st.name}: ${depthCount} layers at different depths on ${low ? 'Low (counting the foreground)' : 'High'}, want ${needDepths}`);
-        else t.event('stage-depth', `${st.name}: ${depths.size} depths behind the fighters (z ${[...depths].sort((a, b) => b - a).join(', ')}), foreground ${fgs.map((l) => l.id).join(', ') || 'none'}, ${ds0.quality}`);
+        else t.event('stage-depth', `${st.name}: ${depths.size} depths behind the fighters (z ${[...depths].sort((a, b) => b - a).join(', ')}: ${[...behind].sort((a, b) => b.z - a.z).map((l) => l.id).join(', ')}), foreground ${fgs.map((l) => l.id).join(', ') || 'none'}, ${ds0.quality}`);
         if (low) {
           if (sheets.length) t.problem('bug', `${st.name}: Low still draws ${sheets.length} haze sheet(s)`);
           else t.event('depth-low', `${st.name}: Low drops the haze and the extra depth bands, keeps the foreground (${fgs.map((l) => l.id).join(', ')})`);
