@@ -784,7 +784,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "takeover", "kind": "takeover", "when": {"time": 60, "stocks": 2}, "rule": {"gravity": 60}}],
       "stage": "humans-in-the-loop",
       "stocks": 3,
       "rules": {},
@@ -1235,7 +1235,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "takeover", "kind": "takeover", "when": {"time": 60, "stocks": 2}, "rule": {"startPercent": 400}}],
       "stage": "humans-in-the-loop",
       "stocks": 3,
       "rules": {
@@ -1403,7 +1403,7 @@
         }
       }
     ],
-    "fight": { "events": [{"id": "brb", "kind": "break", "when": {"time": 30}}],
+    "fight": { "events": [{"id": "takeover", "kind": "takeover", "when": {"time": 60, "stocks": 2}, "rule": {"giant": "rival"}}, {"id": "brb", "kind": "break", "when": {"time": 30}}],
       "stage": "humans-in-the-loop",
       "stocks": 4,
       "rules": {},
@@ -1881,7 +1881,7 @@
         }
       }
     ],
-    "fight": { "events": [{"id": "rival", "kind": "hijack", "when": {"damage": 80}}, {"id": "rig", "kind": "rig-drop", "when": {"time": 40}}],
+    "fight": { "events": [{"id": "takeover", "kind": "takeover", "when": {"time": 60, "stocks": 2}, "rule": {"hazard": true}}, {"id": "rival", "kind": "hijack", "when": {"damage": 80}}, {"id": "rig", "kind": "rig-drop", "when": {"time": 40}}],
       "stage": "solar-array",
       "stocks": 3,
       "rules": {},
@@ -2339,7 +2339,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "takeover", "kind": "takeover", "when": {"time": 60, "stocks": 2}, "rule": {"gravity": 140}}],
       "stage": "humans-in-the-loop",
       "stocks": 3,
       "rules": {},
@@ -2783,7 +2783,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "takeover", "kind": "takeover", "when": {"time": 60, "stocks": 2}, "rule": {"giant": "player"}}],
       "stage": "watercolor-nebula",
       "stocks": 3,
       "rules": {
@@ -3225,7 +3225,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "takeover", "kind": "takeover", "when": {"time": 60, "stocks": 2}, "rule": {"startPercent": 300}}],
       "stage": "city-top",
       "stocks": 3,
       "rules": {
@@ -3665,7 +3665,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "takeover", "kind": "takeover", "when": {"time": 60, "stocks": 2}, "rule": {"hazard": true}}],
       "stage": "humans-in-the-loop",
       "stocks": 3,
       "rules": {
@@ -4110,7 +4110,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "takeover", "kind": "takeover", "when": {"time": 60, "stocks": 2}, "rule": {"gravity": 40}}],
       "stage": "cursed-town",
       "stocks": 3,
       "rules": {
@@ -4378,7 +4378,7 @@
         }
       }
     ],
-    "fight": {
+    "fight": { "events": [{"id": "takeover", "kind": "takeover", "when": {"time": 60, "stocks": 2}, "rule": {"giant": "rival"}}],
       "stage": "city-top",
       "stocks": 3,
       "rules": {},

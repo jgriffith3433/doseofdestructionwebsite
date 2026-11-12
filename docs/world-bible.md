@@ -384,7 +384,13 @@ must not flatten into paragraphs alone.
 12. **Finale (Season 10).** First Cut: host Orchestrator giant on the home set; lights cut to the next shot, not to
     black. Final Cut: walk-on Orchestrator on City Top, champ starts hurt; baton and the exit line spoken. Narrator
     series close: the card is yours, and the show is over.
-13. **Booth through every bout.** Announcer calls from real sim events; Blog Man's campaign intro after Go; story cards
+13. **The finale hijack (every season finale).** Sixty seconds in, or at the player's second-to-last stock, the Orchestrator
+    seizes the broadcast: a one-second RGB-split glitch and a cut sound, his face on the stage's screens and in a
+    picture-in-picture (top left, clear of Pause and the touch controls), three voiced lines (a seize or hot call, a reaction
+    for ahead or behind, the finale's own rule line) and one rule rewritten on the spot (gravity, giant, rig light or start
+    percent) with a NEW RULE chip and sting on the HUD. Season 5 to 9 finales play it as his standing order on the finale
+    feed: he is still not on the card. See `docs/story.md` "The finale hijack".
+14. **Booth through every bout.** Announcer calls from real sim events; Blog Man's campaign intro after Go; story cards
     as lower thirds during live arrivals — never a wall of text.
 
 Beats still thin in the build (keep as targets, do not paper over with text): Season 3+ and booth voice takes (hear
@@ -417,3 +423,57 @@ the Desert, Solar Array and Rainbow Full Pipe are hard daylight; Watercolor Nebu
 Every fighter casts a soft contact shadow on the platform under them that shrinks and fades as they leave it and is gone
 above 300 units; glossy floors (Humans in the Loop, Space Chess) add a faint 15% mirror image on High. Low keeps the
 ambient tint and the shadow only. No stage is underwater yet; the cold stages are Space Chess and Cursed Town.
+
+## Stage depth (every set opens up as the camera moves)
+
+The broadcast camera pans and zooms with the fight, and every stage is built to show it: pictures sit at their own depths
+behind the fighters (`z` in `content/stages.json`, authored as seen from the default camera, so the real perspective gives
+the parallax), a **foreground element** stands at the play area's edge in front of them, and a **distance haze** tinted to
+the stage veils the far layers. The code is `render/stageArt.ts` (layers, haze, the High-only extras), `render/foreground.ts`
+(the fade) and `render/stageLive.ts`; scenario `stage-depth`; test `src/game/test/foreground.test.ts`.
+
+- **Rule:** at least four layers at different depths behind the fighters on High (far sky, far set, mid set, near set),
+  three depths on Low (layers marked `high` are the extras and are not built there), plus one foreground element.
+- **Foreground element** (`foreground: true`, z below 0, at the main floor's end): turns to 30% opacity while a fighter is
+  behind one of its solid pixels, read from the picture's own alpha along the camera's ray (so the parallax counts), and
+  eases back when they walk out, and shivers on every KO (a `ko` shake react). It stays on Low. The fog layers of Cursed Town stay silhouette occluders (a fighter in
+  the fog shows as a coloured outline), not foreground elements.
+- **Haze** (`haze: { color, strength, z }`, High only, dropped on Low): 2 gradient sheets at depths between the layers, clear
+  at the top and thickest low where the set meets the floor; the nearer one is lighter.
+- **Decks:** every painted platform top lies within 2 units of its collision. `node tools/deck-align.mjs` measures it
+  (and `--fix` slides the art; it moved a few units on every stage); the dome of City Top's skylight is curved and stays
+  about 8 units proud of its flat platform.
+
+| Stage | Depths behind the fighters (z) | Foreground element (at the edge) | Haze |
+|---|---|---|---|
+| City Top | backdrop 20, skyline 12, left building 5, escape building 3 | rooftop antenna and vent stack, left | night smog violet |
+| Dust Devil Mesa | backdrop 22, buttes 8, hawk 6, dust wall 4 | sagebrush clump, right | dusty ochre |
+| Cursed Town | backdrop 20, street 13, tentacles 9, gables and tentacles 4 | a tentacle column rising at the left street edge; fog stays in front | grey-green |
+| Humans In The Loop | backdrop 20, crowd 8, spot beams 6, strobes 5, truss 4 | the floor wedges, right | stage-smoke magenta |
+| Rainbow Full Pipe | backdrop 20, park 14, clouds 10, trees 6 | the round bush, right | sky blue |
+| Solar Array | backdrop 20, canyon 14, plain 10, back panels 6 | foreground rock outcrop, right | sand |
+| Space Chess | backdrop 20, nebula 14, galaxy 9, the two kings 3 | the lost pawn drifting, left | nebula blue |
+| Watercolor Nebula | backdrop 20, underwash 8, clouds 6, swirl 4 | the front cloud wisp, right | pigment cream |
+| Yo House | backdrop 18, kitchen 11, doorway 5, ball and dock light 3 | potted snake plant and monstera, right | morning blue-white |
+
+**Stand-ins to replace:** the extra bands (City Top skyline, Cursed Town street, Rainbow park, Solar canyon and plain,
+Space Chess nebula and galaxy, Yo House kitchen) and Cursed Town's tentacle are cut from each stage's own backdrop by
+`tools/depth-bands.mjs`: identical pixels at rest, sliding at their own depth under a pan. The finished art is Hawkes Gen's
+`image.layers` split of each backdrop plus `image.repaint` for the gaps each cut reveals (not yet made: Gen was out of
+credits). **Short:** the foregrounds only shake on KOs (and sway where the art already did), and the cut bands add parallax, not new things to see: crowd heads, a bird, traffic lights crawling are the next layer of life. No stage has crowd heads, cables or kelp painted just for the foreground yet; they use art already on
+the stage, moved to the edge.
+
+## Room sound (every stage is its own room)
+
+Each stage sounds like the place it is (`room` in `content/stages.json`; the impulse is made in code by `roomAudio.ts`,
+played by `audio.ts`). Effects and voices go 10-25% into the room, never the music or the menus. Humans in the Loop is a
+TV studio (short, bright, 0.6 s); City Top a rooftop (open, a 0.2 s slap); Yo House the fish tank, underwater (long,
+dark, 1.8 s, with a low-pass over everything); Dust Devil Mesa a canyon (a late slap, 0.45 s); Cursed Town a foggy street
+(damp, dark, 0.95 s); Rainbow Full Pipe a half-pipe (bright, metallic, 1.1 s); Solar Array an open field (dry, 0.3 s);
+Space Chess a hollow void (cold, 1.4 s); Watercolor Nebula a dream (soft, 1.5 s). Fighters' hits, swings, jumps, landings
+and barks sit where the fighter stands on screen (left to right, -0.8 to 0.8); a fighter blasted out of the zone loses
+highs and level as they leave, the crowd's roar stays put. The whole match is levelled to -14 LUFS under a limiter.
+
+## The show's stinger
+
+Every screen change is the show cutting between segments: three slanted panels (brand dark, the four player colours, the hot logo panel) sweep across with a light streak and the "Dose of Destruction" logo, a whoosh going in and an impact as the panels meet (0.58 s; if the next screen is still loading the logo holds and pulses, never black). A bout opens on a ROUND START slam (type punches in, camera kicks, hit sound) and ends on a GAME! slam with a half-second freeze on the final KO, just before the announcer's line. Reduced motion gets a 120 ms crossfade and no shake. Code: `src/game/ui/stinger.ts`, `main.ts` `slam()`.

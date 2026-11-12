@@ -152,9 +152,26 @@ export const DEFAULT_RULES: Rules = { gravity: 100, damage: 100, timeLimit: 0, h
 export interface BroadcastDef {
   id: string;
   /** flicker: studio lights flicker; rig-drop: a rig light falls on a fighter; chant: the crowd chants the leader; break: "We'll be right back"; hijack: the rival network takes the stage screens. */
-  kind: 'flicker' | 'rig-drop' | 'chant' | 'break' | 'hijack';
-  /** The trigger: seconds of match time, or the first stock lost, or a fighter's damage percent. */
-  when: { time?: number; stockLost?: boolean; damage?: number };
+  kind: 'flicker' | 'rig-drop' | 'chant' | 'break' | 'hijack' | 'takeover';
+  /**
+   * The trigger (any one met fires it): seconds of match time, or the first stock lost, or a fighter's damage percent,
+   * or `stocks`: the player (fighter 0) is down to that many stocks or fewer.
+   */
+  when: { time?: number; stockLost?: boolean; damage?: number; stocks?: number };
+  /** takeover: the one rule the Orchestrator rewrites on the spot, TAKEOVER_RULE_FRAMES after the glitch starts. */
+  rule?: TakeoverRule;
+}
+
+/** A finale takeover's rule change, through the match's own rule system (sim/step.ts applyTakeoverRule). */
+export interface TakeoverRule {
+  /** Percent of normal gravity. */
+  gravity?: number;
+  /** Everyone on that side grows to 150%: the player's side or the rival's. */
+  giant?: 'player' | 'rival';
+  /** A rig light falls on the stage (and the stage's hazards switch on). */
+  hazard?: boolean;
+  /** Percent, tenths: everyone is hurt up to it now and respawns at it. */
+  startPercent?: number;
 }
 
 export interface GameState {
@@ -168,6 +185,10 @@ export interface GameState {
   /** Frames left of the flicker and of the rival network's takeover. */
   flicker: number;
   hijack: number;
+  /** The finale takeover: frames left of the feed, which bc entry it is, frames until its rule lands (0 none). */
+  takeover: number;
+  takeoverIdx: number;
+  takeoverAt: number;
   /** The rig light: frames since it was called (-1 none), where it falls, the fighters it hit (bitmask). */
   rigFrame: number;
   rigX: number;
@@ -278,6 +299,9 @@ export function newGame(setup: FighterSetup[], opts: GameOptions): GameState {
     angle: 0,
     flicker: 0,
     hijack: 0,
+    takeover: 0,
+    takeoverIdx: -1,
+    takeoverAt: 0,
     rigFrame: -1,
     rigX: 0,
     rigHit: 0,
@@ -374,6 +398,9 @@ export function hashState(s: GameState): number {
   mix(s.angle);
   mix(s.flicker);
   mix(s.hijack);
+  mix(s.takeover);
+  mix(s.takeoverIdx);
+  mix(s.takeoverAt);
   mix(s.rigFrame);
   mix(s.rigX);
   mix(s.rigHit);

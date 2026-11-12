@@ -21,6 +21,7 @@ import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
 import { SHADOW_RANGE, hexRgb } from '../render/fighterLight.ts';
+import { ART, outlineWidthPx, outsideRanges } from '../artStyle.ts';
 import { ACT, ACT_NAMES } from '../sim/state.ts';
 import { AnimTrace } from '../sim/trace.ts';
 import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
@@ -31,6 +32,8 @@ import { DAILY_POOL, dailyEpisode, msToNext, objectiveLine, twistLine } from '..
 import { DAILY_KEY, dailyDate } from '../campaign/dailyStore.ts';
 import { castLine } from '../ui/daily.ts';
 import { TOURS, TOURS_KEY, TOUR_LENGTH, tourEnding, tourFor, tourIntro } from '../campaign/tour.ts';
+import { ENDINGS, ENDING_BEATS, endingFor, endingUnlocked } from '../campaign/endings.ts';
+import { endingShowing } from '../ui/ending.ts';
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
 import { PAIRS, pairFor } from '../campaign/intros.ts';
 import { PROMPTS, type TeachStep } from '../ui/teach.ts';
@@ -80,8 +83,14 @@ export interface GameHooks {
   lookStats?(): { slot: number; char: number; look: number; shader: boolean }[];
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
+  depthStats?(): { quality: string; camX: number; camDist: number; layers: { id: string; z: number; kind: 'far' | 'foreground' | 'haze' | 'stage'; screenX: number; alpha: number; fade: number | null; behind: boolean }[] };
+  styleStats?(): { quality: 'high' | 'low'; renderHeight: number; fighters: { slot: number; char: number; look: number; outline: { color: number[]; px: number; perPx: number[]; on: number }; remap: boolean; outlinePass: boolean }[] };
   lightStats?(): { stage: string; quality: 'high' | 'low'; glossy: boolean; fighters: { slot: number; plugin: { full: boolean; key: number[]; keyColor: number[]; rim: number[]; ambient: number[] }; height: number; scale: number; alpha: number; shadow: boolean; reflection: boolean }[] };
-  postStats?(): { quality: 'high' | 'low'; lut: string | null; lutReady: boolean; vignette: number; grain: number; punchFrames: number; punches: number; lastPunchDrawn: number };
+  postStats?(): { quality: 'high' | 'low'; lut: string | null; lutReady: boolean; vignette: number; grain: number; punchFrames: number; punches: number; lastPunchDrawn: number; glitches: number; glitchDrawn: number };
+  /** The mix: the stage's room, the wet send, the measured loudness (LUFS), makeup gain and the sample peak (audio.mixStats). */
+  mixStats?(): { stage: string | null; room: string; seconds: number; wet: number; low: boolean; lufs: number; makeupDb: number; peakDbfs: number; chain: boolean };
+  /** Plays a heavy hit panned to `pan` (-0.8 left edge .. 0.8 right edge) so a capture can measure the channels. */
+  probeHit?(pan: number): void;
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
   /** Layered stage bed: calm/intense, ambience under the theme, intensity stem. */
@@ -109,7 +118,7 @@ const CORE_CLIPS = ['idle', 'walk', 'jump', 'fall', 'land', 'hurt', 'shield'];
 
 const SCREEN_NAMES: Record<ScreenId, string> = {
   title: 'Title', main: 'Main Menu', select: 'Character Select', stages: 'Stage Select', versus: 'VS',
-  campaign: 'Campaign Map', tour: 'Tour Select', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
+  campaign: 'Campaign Map', tour: 'Tour Select', extras: 'Extras', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
 };
 
 /** The 13 fighters a new player meets in Season 1; the other 20 are the "newer" fighters (also each with its own four specials). */
@@ -166,9 +175,11 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'unlocks') await r.unlocksRun();
         else if (id === 'daily') await r.dailyRun();
         else if (id === 'tour') await r.tourScenario();
+        else if (id === 'endings') await r.endingsScenario();
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
+        else if (id === 'finale-hijack') await r.finaleHijack();
         else if (id === 'story-cards') await r.storyCards();
         else if (id === 'bookends') await r.bookends();
         else if (id === 'rotate') await r.rotate();
@@ -178,6 +189,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'feet') await r.feetRun();
         else if (id === 'smooth-clips') await r.smoothClips();
         else if (id === 'specials') await r.specialsRun();
+        else if (id === 'special-sounds') await r.specialSounds();
         else if (id === 'grab') await r.grabRun();
         else if (id === 'special-fx') await r.specialFx();
         else if (id === 'select-specials') await r.selectSpecials();
@@ -190,10 +202,14 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'post-chain') await r.postChain();
         else if (id === 'lighting') await r.lighting();
+        else if (id === 'stage-depth') await r.stageDepth();
+        else if (id === 'mix-room') await r.mixRoom();
+        else if (id === 'art-style') await r.artStyle();
         else if (id === 'stage-life') await r.stageLife();
         else if (id === 'stage-bed') await r.stageBed();
         else if (id === 'commentary') await r.commentary();
         else if (id === 'fighter-voice') await r.fighterVoice();
+        else if (id === 'win-quote') await r.winQuoteRun();
         else if (id === 'intro-exchange') await r.introExchange();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
@@ -226,6 +242,8 @@ class Run {
   private matches = 0;
   /** Moves the playing fighter started this match (roster). */
   readonly movesSeen = new Set<number>();
+  /** When (performance.now) each special move was first seen playing, for the release-sound latency check. */
+  readonly moveStartMs = new Map<number, number>();
   /** Which of the playing fighter's four specials it used this match (the bot drives it in `match`). */
   private readonly specialsUsed = new Set<number>();
   private readonly checked = new Set<string>();
@@ -367,6 +385,7 @@ class Run {
     for (const f of s.fighters) {
       if (f.action === ACT.ATTACK && f.id === me) {
         this.movesSeen.add(f.move);
+        if (SPECIAL_MOVES.includes(f.move) && !this.moveStartMs.has(f.move)) this.moveStartMs.set(f.move, performance.now());
         if (SPECIAL_MOVES.includes(f.move)) this.specialsUsed.add(f.move);
       }
       if (![f.x, f.y, f.vx, f.vy, f.percent].every(Number.isFinite)) {
@@ -1099,13 +1118,58 @@ class Run {
     const stopWatch = this.watchWipe();
     const stopBlank = this.watchBlank();
     this.vsHoldWanted = true;
+    const stopStinger = this.watchStingers();
     try {
       await this.smokeRun();
     } finally {
+      stopStinger();
       stopBlank();
       stopWatch();
     }
     void t;
+  }
+
+  /**
+   * The show's stinger (ui/stinger.ts) on every screen change and the slams (main.ts): each `dod:stinger` is one
+   * event with its length (0.5-0.7 s unless the next screen was still loading: loadMs), ROUND START and GAME! come
+   * with `dod:slam` (GAME! with its 0.5 s freeze offline). A screen switch with no stinger is a problem.
+   */
+  private watchStingers(): () => void {
+    const t = this.t;
+    let stingers = 0;
+    let slams = 0;
+    let switches = 0;
+    let lastShown: string | null = null;
+    const onStinger = (e: Event) => {
+      const d = (e as CustomEvent<{ from: string; to: string; ms: number; loadMs: number; reduced: boolean }>).detail;
+      stingers++;
+      t.event('stinger', `${d.from} -> ${d.to}: ${d.ms} ms (loading held ${d.loadMs} ms)${d.reduced ? ' reduced-motion crossfade' : ''}`);
+      t.metric('stingers', stingers);
+      const loading = d.loadMs > 150;
+      if (!d.reduced && !loading && (d.ms < 480 || d.ms > 720)) t.problem('bug', `Stinger ${d.from} -> ${d.to} lasted ${d.ms} ms (want 500-700 ms unless loading runs longer)`);
+    };
+    const onSlam = (e: Event) => {
+      const d = (e as CustomEvent<{ text: string; over: boolean; freezeMs: number }>).detail;
+      slams++;
+      t.event(d.over ? 'slam-game' : 'slam-round-start', `${d.text}${d.freezeMs ? `, ${d.freezeMs} ms freeze` : ''}`);
+      t.metric('slams', slams);
+    };
+    const poll = window.setInterval(() => {
+      const now = currentScreen();
+      if (now && now !== lastShown) {
+        if (lastShown !== null) switches++;
+        lastShown = now;
+      }
+    }, 50);
+    window.addEventListener('dod:stinger', onStinger);
+    window.addEventListener('dod:slam', onSlam);
+    return () => {
+      window.removeEventListener('dod:stinger', onStinger);
+      window.removeEventListener('dod:slam', onSlam);
+      window.clearInterval(poll);
+      t.metric('screenSwitches', switches);
+      if (switches > stingers) t.problem('bug', `${switches} screen changes but only ${stingers} stingers: a hard cut`);
+    };
   }
 
   /**
@@ -1279,7 +1343,7 @@ class Run {
         t.problem('bug', `sound take ${d.takeId} played twice in a row for ${d.id}`);
       }
       lastTakeById.set(d.id, d.takeId);
-      if (/^(hit-|swing-|jump|land|dodge)/.test(d.id)) {
+      if (/^(hit-|swing-|jump|land|dodge|special-)/.test(d.id)) {
         t.event('sound-take', `${d.id} → ${d.takeId} (rate ${d.rate.toFixed(3)})`);
       }
     };
@@ -2201,6 +2265,87 @@ class Run {
     }
   }
 
+  /**
+   * The Orchestrator's finale takeover (campaign/takeover.ts, sim/step.ts): one finale (option `chapter`, default encore; season
+   * finales are encore, sponsored, walk-on, hostile-takeover, clip-show, global-feed, series-finale, best-in-show, cliffhanger,
+   * final-cut) played from the Campaign map with the bot. Logs the takeover (`takeover-start`: mood ahead/behind, over 100%, the
+   * lines), the glitch, the picture-in-picture clear of the HUD and (touch) the controls (`takeover-pip`), each line spoken
+   * (`takeover-line`) and the rule on the HUD within 1 s (`takeover-rule`). Touch: played in the turned 844x390 frame.
+   */
+  async finaleHijack(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('finale-hijack');
+    }
+    const asked = this.options.chapter ?? 'encore';
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    const def = CHAPTERS[from]?.fight.events?.find((e) => e.kind === 'takeover');
+    if (!def) {
+      t.problem('bug', `chapter "${String(asked)}" has no takeover event (content/campaign.json: the ten season finales do)`);
+      t.finish('error');
+      return;
+    }
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((c) => c.id));
+    t.log(`setup shortcut: chapters 1-${from} marked cleared, starting at ${CHAPTERS[from].id}`);
+    let started = 0;
+    let startFrame = -1;
+    let ruled = 0;
+    const rect = (el: Element | null) => (el && (el as HTMLElement).getClientRects().length ? el.getBoundingClientRect() : null);
+    const hit = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    const onTakeover = (ev: Event) => {
+      const d = (ev as CustomEvent).detail as { phase: string; mood?: string; hot?: boolean; lines?: string[]; rule?: string; id?: string; text?: string; frame: number; index?: number };
+      if (d.phase === 'start') {
+        started++;
+        startFrame = d.frame;
+        t.metric('takeoverAtSeconds', Math.round(d.frame / 6) / 10);
+        t.event('takeover-start', `${asked}: the Orchestrator seizes the feed at ${Math.round(d.frame / 60)} s, player ${d.mood}${d.hot ? ' and over 100%' : ''}; lines ${d.lines?.join(', ')}; rule ${d.rule ?? 'none'}`);
+        const post = this.game.postStats?.();
+        window.setTimeout(() => {
+          const pip = this.q('.takeover-pip');
+          const pr = rect(pip);
+          if (!pr) return t.problem('bug', 'the Orchestrator\'s picture-in-picture is not on screen after the takeover');
+          const clashes: string[] = [];
+          const others = [...document.querySelectorAll<HTMLElement>('.touch-btn, .touch-pause, .touch-stick, #match-top, #hud .hud-card, #pause')];
+          for (const o of others) {
+            const r = rect(o);
+            if (r && hit(pr, r)) clashes.push(o.className || o.id);
+          }
+          const inside = pr.left >= 0 && pr.top >= 0 && pr.right <= innerWidth && pr.bottom <= innerHeight;
+          if (clashes.length || !inside) t.problem('bug', `the picture-in-picture (${Math.round(pr.left)},${Math.round(pr.top)} ${Math.round(pr.width)}x${Math.round(pr.height)}) ${inside ? 'covers' : 'runs off the screen and may cover'} ${clashes.join(', ')} at ${innerWidth}x${innerHeight}`);
+          else t.event('takeover-pip', `picture-in-picture at ${Math.round(pr.left)},${Math.round(pr.top)} ${Math.round(pr.width)}x${Math.round(pr.height)} is clear of the ${others.filter((o) => rect(o)).length} HUD and touch controls at ${innerWidth}x${innerHeight}`);
+          if (post) t.event('takeover-glitch', `RGB-split glitch started (post chain glitches: ${post.glitches}, ${post.quality} quality)`);
+        }, 450);
+      } else if (d.phase === 'line') {
+        t.event('takeover-line', `${d.index! + 1}. ${d.id}: "${d.text}"`);
+      } else if (d.phase === 'rule') {
+        ruled++;
+        const chip = this.q('.rule-chip')?.textContent ?? '';
+        const lag = d.frame - startFrame;
+        if (!chip.includes(d.rule ?? '?')) t.problem('bug', `the rule "${d.rule}" is not on the HUD chip ("${chip}")`);
+        else if (lag > 60) t.problem('bug', `the rule took ${lag} frames to land after the takeover (more than 1 s)`);
+        else t.event('takeover-rule', `"${d.rule}" on the HUD ${lag} frames (${(lag / 60).toFixed(2)} s) after the takeover`);
+      }
+    };
+    window.addEventListener('dod:takeover', onTakeover);
+    const t0 = performance.now();
+    try {
+      await this.campaignFrom(from, () => performance.now() - t0 > CAMPAIGN_BUDGET_MS, from);
+    } finally {
+      window.removeEventListener('dod:takeover', onTakeover);
+      this.game.setCampaignProgress(before);
+    }
+    t.metric('takeovers', started);
+    t.metric('takeoverRules', ruled);
+    if (!started) t.problem('bug', `the ${asked} fight ended without the Orchestrator's takeover (60 s in, or the player down to 2 stocks)`);
+    else if (def.rule && !ruled) t.problem('bug', 'the takeover never changed a rule');
+  }
+
   /** A chapter with a clean streak: the HUD chip must show it from the start and follow the sim's streak (up on a hit landed, back to 0 on a hit taken). Call it every poll. */
   private watchStreak(c: (typeof CHAPTERS)[number]): () => void {
     if (c.fight.objective !== 'streak') return () => {};
@@ -3007,6 +3152,7 @@ class Run {
         if (!winAudio || !voices.includes(winAudio)) t.problem('bug', `the ending did not play ${name}'s recorded win line (${winAudio})`);
         t.event('tour-ending', `${e.card.title} · "${e.card.line}" · win line "${e.lines.join(' ')}" ${winAudio && voices.includes(winAudio) ? 'played' : 'NOT played'} over the final KO`);
       }
+      await this.watchEnding(fighterId, name, voices, true);
       await this.screen('results', 30000);
       const banner = this.q('#tour-cleared');
       if (!banner || !(banner.textContent ?? '').includes(`${name} clears the Tour`)) t.problem('bug', `the results show no "${name} clears the Tour" banner`);
@@ -3043,6 +3189,127 @@ class Run {
       window.removeEventListener('dod:tour', onTour);
       window.removeEventListener('dod:voice', onVoice);
       if (!reloading && !portrait) restore();
+    }
+  }
+
+  /**
+   * A Tour's painted ending (ui/ending.ts) on screen: the picture loaded at 1920x1080 and filling the window (cropped, not
+   * squeezed), caption one then caption two inside the window and clear of the bottom edge, the narration take played, the
+   * fighter's sting, the "Tour complete" card with the colour earned; then a tap (or the end) closes it.
+   */
+  private async watchEnding(fighterId: string, name: string, voices: string[], afterTour: boolean): Promise<void> {
+    const t = this.t;
+    const e = endingFor(fighterId);
+    if (!e) {
+      t.problem('bug', `no ending in content/endings.json for ${fighterId}`);
+      return;
+    }
+    const sting: string[] = [];
+    const onEnding = (ev: Event) => sting.push((ev as CustomEvent).detail.phase);
+    window.addEventListener('dod:ending', onEnding);
+    try {
+      await t.until(() => endingShowing(), 30000, 'the painted ending');
+      const t0 = performance.now();
+      const img = this.q('#ending-art') as HTMLImageElement | null;
+      if (!img) return void t.problem('bug', 'the ending has no picture');
+      await t.until(() => img.complete, 15000, 'the ending picture to load');
+      const loaded = img.naturalWidth >= 1900 && img.naturalHeight >= 1060;
+      if (!loaded) t.problem('bug', `${name}'s ending picture is ${img.naturalWidth}x${img.naturalHeight}, not 1920x1080 (${e.art})`);
+      const r = img.getBoundingClientRect();
+      const fills = r.width >= innerWidth - 1 && r.height >= innerHeight - 1 && getComputedStyle(img).objectFit === 'cover';
+      if (!fills) t.problem('bug', `the ending picture does not fill the window (${Math.round(r.width)}x${Math.round(r.height)} in ${innerWidth}x${innerHeight}, ${getComputedStyle(img).objectFit})`);
+      const seen: string[] = [];
+      let captionFits = true;
+      const skip = this.q('#ending-skip');
+      const card = () => this.q('#ending');
+      const until = performance.now() + 25000;
+      while (performance.now() < until && endingShowing() && !card()?.classList.contains('carded')) {
+        const cap = this.q('#ending-caption');
+        const text = cap?.textContent ?? '';
+        if (cap && text && getComputedStyle(cap).opacity !== '0') {
+          if (!seen.includes(text)) seen.push(text);
+          const c = cap.getBoundingClientRect();
+          if (c.left < 0 || c.right > innerWidth || c.top < 0 || c.bottom > innerHeight - 8) captionFits = false;
+          const s = skip?.getBoundingClientRect();
+          if (s && c.right > s.left && c.left < s.right && c.bottom > s.top && c.top < s.bottom) captionFits = false;
+        }
+        await this.wait(100);
+      }
+      if (!captionFits) t.problem('bug', `the ending's caption runs outside the window or under the Skip button at ${innerWidth}x${innerHeight}`);
+      if (seen.length < 2 || seen[0] !== e.lines[0] || seen[1] !== e.lines[1]) t.problem('bug', `the ending showed captions ${JSON.stringify(seen)}, expected ${JSON.stringify(e.lines)}`);
+      const voiced = !!e.audio && voices.includes(e.audio);
+      if (!voiced) t.problem('bug', `${name}'s ending did not play the narration take (${e.audio})`);
+      const cardEl = this.q('#ending-card');
+      const cardText = cardEl?.textContent ?? '';
+      const cardOk = !!cardEl && cardText.includes(afterTour ? 'Tour complete' : 'Ending') && cardText.includes(name) && cardText.includes('Colour earned') && !!cardEl.querySelector('.ending-swatch');
+      if (!cardOk) t.problem('bug', `the ending's closing card reads "${cardText}"`);
+      const cr = cardEl?.getBoundingClientRect();
+      if (cr && (cr.left < 0 || cr.right > innerWidth || cr.bottom > innerHeight - 8 || cr.top < 0)) t.problem('bug', `the ending's closing card runs outside the window at ${innerWidth}x${innerHeight}`);
+      const ms = performance.now() - t0;
+      const wantMs = ENDING_BEATS.card - ENDING_BEATS.caption1;
+      t.event('ending', `${name}: ${loaded ? '1920x1080' : 'bad'} picture ${fills ? 'fills' : 'does not fill'} ${innerWidth}x${innerHeight}; captions ${JSON.stringify(seen)} ${captionFits ? 'fit' : 'DO NOT fit'}; narration ${voiced ? 'played' : 'NOT played'}; ${sting.includes('sting') ? 'sting' : 'no sting'}; card "${cardText.replace(/\\s+/g, ' ').trim()}" after ${Math.round(ms)} ms (beats ${wantMs} ms)`);
+      t.metric('endingFits', loaded && fills && captionFits && cardOk ? 1 : 0);
+      // A tap skips (a finger on a phone).
+      await this.tap(() => this.q('#ending'), 'the ending (a tap skips)');
+      await t.until(() => !endingShowing(), 3000, 'the ending to close on a tap');
+      t.event('ending-skip', `a tap closed ${name}'s ending after ${Math.round(performance.now() - t0)} ms`);
+    } finally {
+      window.removeEventListener('dod:ending', onEnding);
+    }
+  }
+
+  /**
+   * Endings (campaign/endings.ts, ui/extras.ts, ui/ending.ts): setup shortcut marks Tours cleared (`dod-tours`, put back at the
+   * end); Extras from the main menu shows one slot per fighter (33), open ones for the cleared Tours and locked the rest
+   * (`endings-gallery`); a tap on an open slot replays that fighter's ending (`ending`). On a phone everything is a tap.
+   */
+  async endingsScenario(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    this.logViewport(touch && this.isPhone());
+    const ids = ['exit-punk', 'blog-man', 'kaelen'];
+    const fighterId = typeof this.options.fighter === 'string' ? this.options.fighter : 'exit-punk';
+    if (!ids.includes(fighterId)) ids.push(fighterId);
+    const original = localStorage.getItem(TOURS_KEY);
+    const voices: string[] = [];
+    const onVoice = (e: Event) => voices.push((e as CustomEvent).detail.url);
+    window.addEventListener('dod:voice', onVoice);
+    try {
+      localStorage.setItem(TOURS_KEY, JSON.stringify(ids));
+      this.useTap = touch;
+      await this.tapToPlay();
+      await this.click(() => this.q('#btn-extras'), 'Extras');
+      await this.screen('extras');
+      await t.until(() => document.querySelectorAll('#ending-grid .ending-tile').length > 0, 5000, 'the ending slots');
+      const tiles = [...document.querySelectorAll<HTMLButtonElement>('#ending-grid .ending-tile')];
+      const open = tiles.filter((x) => x.dataset.unlocked === '1');
+      const cleared = new Set(ids);
+      const want = ENDINGS.filter((e) => endingUnlocked(e.fighter, cleared)).length;
+      const sideways = document.documentElement.scrollWidth > innerWidth + 1;
+      const small = touch ? this.phoneTargets(this.q('#extras')!) : [];
+      if (tiles.length !== 33) t.problem('bug', `the Endings gallery shows ${tiles.length} slots, not 33`);
+      if (open.length !== want) t.problem('bug', `${open.length} endings are open, expected ${want} for ${ids.length} cleared Tours`);
+      if (sideways) t.problem('bug', `Extras scrolls sideways at ${innerWidth}x${innerHeight}`);
+      if (small.length) t.problem('bug', `Extras: ${small.join('; ')}`);
+      t.event('endings-gallery', `${tiles.length} slots, ${open.length} open (${ids.join(', ')} cleared), ${sideways ? 'scrolls sideways' : 'fits'} at ${innerWidth}x${innerHeight}`);
+      t.metric('endingSlots', tiles.length);
+      t.metric('endingsOpen', open.length);
+      const broken = open.filter((x) => { const im = x.querySelector('img'); return im && im.complete && im.naturalWidth === 0; });
+      if (broken.length) t.problem('bug', `${broken.length} open slot picture(s) did not load`);
+      for (const id of [fighterId, ...(this.options.all ? ids.filter((x) => x !== fighterId) : [])]) {
+        const name = CHARACTERS.find((c) => c.id === id)?.name ?? id;
+        voices.length = 0;
+        await this.click(() => this.q(`#ending-grid [data-ending="${id}"]`), `${name}'s ending`);
+        await this.watchEnding(id, name, voices, false);
+      }
+      const locked = this.q('#ending-grid .ending-tile.locked') as HTMLButtonElement | null;
+      if (locked && !locked.disabled) t.problem('bug', 'a locked ending slot can be pressed');
+      t.finish('done');
+    } finally {
+      window.removeEventListener('dod:voice', onVoice);
+      this.useTap = false;
+      if (original === null) localStorage.removeItem(TOURS_KEY);
+      else localStorage.setItem(TOURS_KEY, original);
     }
   }
 
@@ -4405,6 +4672,173 @@ class Run {
       await this.game.quitMatch();
       await this.screen('main');
     } finally {
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- special sounds
+
+  /**
+   * Special sounds (docs/specials.md "Sound"): each Season 1 fighter in Training fires its four specials from real
+   * input (the keyboard, or with `input: "touch"` / a phone the on-screen stick and Special button at 844x390). Every
+   * special must play its archetype's release (`special-<kind>-release`, logged as `dod:sound-take`) within 50 ms of the
+   * move starting (`special-release`, metric `releaseLatencyMs`), with the fighter's accent on top
+   * (`special-accent-<id>`, `special-accent`); impacts (`special-impact`) are logged when the dummy is hit. The run ends
+   * by reporting which of the seven archetypes played a release and an impact (`archetype-pools`) and fails on a take
+   * played twice in a row. Options: `fighter` (one id), `input`, `at`.
+   */
+  async specialSounds(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('special-sounds');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    const takes: { id: string; takeId: string; t: number }[] = [];
+    const last = new Map<string, string>();
+    const onTake = (e: Event) => {
+      const d = (e as CustomEvent).detail as { id: string; takeId: string; t: number };
+      if (!d.id.startsWith('special-')) return;
+      takes.push({ id: d.id, takeId: d.takeId, t: d.t });
+      if (last.get(d.id) === d.takeId) t.problem('bug', `special sound take ${d.takeId} played twice in a row for ${d.id}`);
+      last.set(d.id, d.takeId);
+    };
+    window.addEventListener('dod:sound-take', onTake);
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const release = new Set<string>();
+    const impact = new Set<string>();
+    const latencies: number[] = [];
+    try {
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : SEASON_ONE;
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      for (const [n, id] of ids.entries()) {
+        const ci = CHARACTERS.findIndex((c) => c.id === id);
+        if (ci < 0) {
+          t.problem('bug', `special-sounds: ${id} is not on the roster`);
+          continue;
+        }
+        const c = CHARACTERS[ci];
+        void this.game.startMatch({
+          mode: 'training', stage, stocks: 1, rules: {},
+          slots: [{ char: ci, cpu: null }, { char: (ci + 1) % CHARACTERS.length, cpu: 0 }],
+        });
+        await this.matchLive();
+        this.manual = NO_INPUT;
+        const pad = touch ? makeTouchPad() : makeKeyboardPad();
+        if (!pad) {
+          t.problem('bug', 'the touch controls (stick and Special button) were not built');
+          break;
+        }
+        const match = () => this.game.match()!;
+        const me = () => match().state.fighters[match().player];
+        const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+        const frame = () => this.game.match()?.state.frame ?? 0;
+        const frames = async (k: number) => {
+          const end = frame() + k;
+          await t.until(() => frame() >= end, 6000 + k * 150, 'frames to pass');
+        };
+        const standing = () => {
+          const f = me();
+          return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+        };
+        const settle = async () => {
+          pad.release();
+          try {
+            await t.until(standing, 10000, 'the fighter to stand');
+          } catch (e) {
+            if (String(e).includes('stopped')) throw e;
+          }
+          await frames(8);
+        };
+        const slots = [
+          { slot: 'neutral', sx: 0, sy: 0, move: MOVE.NSPECIAL },
+          { slot: 'side', sx: 100, sy: 0, move: MOVE.SSPECIAL },
+          { slot: 'up', sx: 0, sy: 100, move: MOVE.UPB },
+          { slot: 'down', sx: 0, sy: -100, move: MOVE.DSPECIAL },
+        ];
+        for (const sl of slots) {
+          await settle();
+          // Close up on the dummy, facing it, so a melee special can land.
+          const toward = () => (dummy().x >= me().x ? 1 : -1);
+          pad.stick(toward() * 100, 0);
+          try {
+            await t.until(() => Math.abs(dummy().x - me().x) / FX < 70, 3000, 'the fighter to reach the dummy');
+          } catch (e) {
+            if (String(e).includes('stopped')) throw e;
+          }
+          pad.stick(0, 0);
+          await frames(3);
+          this.movesSeen.clear();
+          this.moveStartMs.clear();
+          const from = takes.length;
+          pad.stick(sl.sx, sl.sy);
+          await frames(3);
+          pad.special(true);
+          await frames(4);
+          pad.special(false);
+          try {
+            await t.until(() => this.movesSeen.has(sl.move), 4000, `${id}'s ${sl.slot} special to come out`);
+          } catch (e) {
+            if (String(e).includes('stopped')) throw e;
+          }
+          pad.stick(0, 0);
+          const mv = c.moves[sl.move];
+          const kind = mv.kind ?? 'shared';
+          if (!this.movesSeen.has(sl.move)) {
+            t.problem('bug', `${how}: ${id}'s ${sl.slot} special "${mv.name}" did not come out`);
+            continue;
+          }
+          // Let the hit land and the take play out.
+          await frames(30);
+          const got = takes.slice(from);
+          const rel = got.find((x) => x.id === `special-${kind}-release`);
+          const acc = got.find((x) => x.id === `special-accent-${id}`);
+          const imp = got.find((x) => x.id === `special-${kind}-impact`);
+          const start = this.moveStartMs.get(sl.move);
+          if (!rel) t.problem('bug', `${how}: ${id}'s ${sl.slot} special "${mv.name}" (${kind}) played no release sound (pool special-${kind}-release)`);
+          else {
+            release.add(kind);
+            const ms = start == null ? 0 : Math.round(Math.abs(rel.t - start));
+            latencies.push(ms);
+            t.event('special-release', `${how}: ${id} ${sl.slot} "${mv.name}" -> ${rel.id} / ${rel.takeId}, ${ms} ms after the move started`);
+            if (ms > 50) t.problem('bug', `${how}: ${id}'s ${sl.slot} special release sound came ${ms} ms after the move started (want 50 ms)`);
+          }
+          if (!acc) t.problem('bug', `${how}: ${id}'s ${sl.slot} special played no signature accent (special-accent-${id})`);
+          else t.event('special-accent', `${id} ${sl.slot}: ${acc.id} / ${acc.takeId} on top of the ${kind} release`);
+          if (imp) {
+            impact.add(kind);
+            t.event('special-impact', `${id} ${sl.slot} "${mv.name}": ${imp.id} / ${imp.takeId}`);
+          }
+        }
+        pad.release();
+        this.manual = null;
+        await this.game.quitMatch();
+        await this.screen('main');
+        t.progress((n + 1) / ids.length);
+      }
+      const kinds = ['projectile', 'dash', 'counter', 'grab', 'trap', 'flurry', 'recovery'];
+      if (typeof this.options.fighter !== 'string') {
+        t.event('archetype-pools', `release: ${kinds.filter((k) => release.has(k)).join(', ') || 'none'}; impact: ${kinds.filter((k) => impact.has(k)).join(', ') || 'none'}`);
+        for (const k of kinds) {
+          if (!release.has(k)) t.problem('bug', `no ${k} special played its own release sound`);
+          if (!impact.has(k)) t.problem('warning', `no ${k} special landed on the dummy with its own impact sound (a counter needs a hit to turn back)`);
+        }
+      }
+      if (latencies.length) t.metric('releaseLatencyMs', Math.max(...latencies));
+      t.metric('specialTakes', takes.length);
+    } finally {
+      window.removeEventListener('dod:sound-take', onTake);
       if (touch) {
         this.useTap = false;
         forceTouchUi(false);
@@ -5906,6 +6340,361 @@ class Run {
     }
   }
 
+  /**
+   * Stage depth: every stage's picture layers sit at their own depths and the broadcast camera's pan and zoom slide them past
+   * each other (4 or more depths behind the fighters on High, 3 on Low), one foreground element at the play area's edge fades
+   * to 30% while a fighter walks behind it and comes back when they leave, and a distance haze tinted to the stage (High; Low
+   * drops it). Setup shortcut: straight into a match on each stage (option `stage`: one), the bot off: the player walks to the
+   * foreground element and back across the stage by the pad (keys, or the touch stick on a phone). Events `stage-depth`,
+   * `parallax`, `foreground-fade`, `foreground-clear`, `haze`, `depth-low`; metrics depthLayers (fewest depths), depthFades, fpsDepth.
+   */
+  async stageDepth(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('stage-depth');
+    }
+    this.logViewport(touch && this.isPhone());
+    const original = localStorage.getItem(GFX_KEY);
+    const initial = graphics();
+    const low = touch || this.options.quality === 'low';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    setGraphics(low ? { quality: 'low', glow: false } : { quality: 'high', glow: true });
+    try {
+      const want = typeof this.options.stage === 'string' ? STAGES.filter((s) => s.id === this.options.stage) : STAGES;
+      if (!want.length) t.problem('bug', `stage "${String(this.options.stage)}" is not on the list`);
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the stick controls were not built');
+        t.finish('error');
+        return;
+      }
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = (punk + 1) % CHARACTERS.length;
+      const needDepths = low ? 3 : 4;
+      const fps: number[] = [];
+      let fewest = 99;
+      let fades = 0;
+      for (const [i, st] of want.entries()) {
+        t.progress(0.05 + (0.9 * i) / want.length);
+        void this.game.startMatch({ mode: 'versus', stage: STAGES.indexOf(st), stocks: 3, rules: { timeLimit: 150 }, slots: [{ char: punk, cpu: null }, { char: foe, cpu: 0 }] });
+        await this.matchLive();
+        this.manual = NO_INPUT;
+        pad.release();
+        await this.wait(700);
+        const ds0 = this.game.depthStats?.();
+        if (!ds0) {
+          t.problem('bug', `${st.name}: the renderer reports no depth stats`);
+          await this.game.quitMatch();
+          await this.screen('main');
+          continue;
+        }
+        // 1. What is built: depths behind the fighters, the foreground, the haze sheets.
+        const behind = ds0.layers.filter((l) => l.kind === 'far');
+        const depths = new Set(behind.map((l) => l.z));
+        const fgs = ds0.layers.filter((l) => l.kind === 'foreground');
+        const sheets = ds0.layers.filter((l) => l.kind === 'haze');
+        const depthCount = depths.size + (low && fgs.length ? 1 : 0);
+        fewest = Math.min(fewest, depthCount);
+        if (depthCount < needDepths) t.problem('bug', `${st.name}: ${depthCount} layers at different depths on ${low ? 'Low (counting the foreground)' : 'High'}, want ${needDepths}`);
+        else t.event('stage-depth', `${st.name}: ${depths.size} depths behind the fighters (z ${[...depths].sort((a, b) => b - a).join(', ')}), foreground ${fgs.map((l) => l.id).join(', ') || 'none'}, ${ds0.quality}`);
+        if (low) {
+          if (sheets.length) t.problem('bug', `${st.name}: Low still draws ${sheets.length} haze sheet(s)`);
+          else t.event('depth-low', `${st.name}: Low drops the haze and the extra depth bands, keeps the foreground (${fgs.map((l) => l.id).join(', ')})`);
+        } else if (sheets.length < 2) t.problem('bug', `${st.name}: ${sheets.length} haze sheet(s) on High, want 2 or more`);
+        else t.event('haze', `${st.name}: ${sheets.length} haze sheets at z ${sheets.map((l) => l.z).join(', ')} tinted ${st.haze?.color} (${Math.round((st.haze?.strength ?? 0) * 100)}%)`);
+        if (!fgs.length) {
+          t.problem('bug', `${st.name}: no foreground element is built`);
+          await this.game.quitMatch();
+          await this.screen('main');
+          continue;
+        }
+        // 2. The player walks to the foreground element (real input), then back across the stage; every ~100 ms the camera and
+        // every layer's place on the page are sampled.
+        const samples: { camX: number; camDist: number; at: Map<string, number> }[] = [];
+        let tick = 0;
+        const record = () => {
+          const d = this.game.depthStats?.();
+          if (!d) return;
+          samples.push({ camX: d.camX, camDist: d.camDist, at: new Map(d.layers.map((l) => [l.id, l.screenX])) });
+          if (++tick % 8 === 0) fps.push(this.game.gfxStats?.()?.fpsNow ?? 0);
+        };
+        const fgNow = () => this.game.depthStats?.()?.layers.filter((l) => l.kind === 'foreground') ?? [];
+        const dir = Math.sign(st.layers!.find((l) => l.foreground)!.x) || 1;
+        pad.stick(dir * 100, 0);
+        let sawFade = false;
+        let lowest = 1;
+        await t.until(() => {
+          record();
+          const f = fgNow();
+          lowest = Math.min(lowest, ...f.map((l) => l.alpha));
+          if (f.some((l) => l.alpha <= 0.34)) {
+            sawFade = true;
+            return true;
+          }
+          return false;
+        }, 16000, 'a fighter to walk behind the foreground element').catch(() => undefined);
+        pad.release();
+        if (sawFade) {
+          fades++;
+          t.event('foreground-fade', `${st.name}: ${fgNow().map((l) => `${l.id} ${Math.round(l.alpha * 100)}%`).join(', ')} with the fighter behind it (lowest ${Math.round(lowest * 100)}%)`);
+        } else t.problem('bug', `${st.name}: the foreground element never turned see-through with a fighter behind it (lowest opacity ${Math.round(lowest * 100)}%)`);
+        // Then the other way, across the whole stage: the element comes back and the camera pans.
+        pad.stick(-dir * 100, 0);
+        let cleared = false;
+        await t.until(() => {
+          record();
+          if (fgNow().every((l) => l.alpha >= 0.95)) cleared = true;
+          const m = this.game.match();
+          const me = m?.state.fighters[m.player];
+          return cleared && !!me && Math.abs(me.x / FX) > 300 && Math.sign(me.x) === -dir;
+        }, 16000, 'the fighter to cross the stage').catch(() => undefined);
+        pad.release();
+        if (cleared) t.event('foreground-clear', `${st.name}: back to full opacity once the fighter walked out from behind it`);
+        else t.problem('bug', `${st.name}: the foreground element stayed see-through after the fighter left`);
+        // 3. Parallax: between the two camera positions furthest apart, how far each layer moved on the page.
+        if (samples.length > 4) {
+          let a = samples[0];
+          let b = samples[0];
+          for (const s of samples) {
+            if (s.camX < a.camX) a = s;
+            if (s.camX > b.camX) b = s;
+          }
+          const ds1 = this.game.depthStats?.();
+          const groups = new Map<number, number[]>();
+          for (const l of ds1?.layers ?? []) {
+            if (l.kind === 'haze' || l.kind === 'stage' || !a.at.has(l.id) || !b.at.has(l.id)) continue;
+            groups.set(l.z, [...(groups.get(l.z) ?? []), b.at.get(l.id)! - a.at.get(l.id)!]);
+          }
+          const moves = [...groups.entries()].sort((x, y) => y[0] - x[0]).map(([z, v]) => ({ z, px: v.reduce((p, q) => p + q, 0) / v.length }));
+          const speeds: number[] = [];
+          for (const m of moves) if (!speeds.some((p) => Math.abs(p - m.px) < 0.25)) speeds.push(m.px);
+          const span = Math.abs(b.camX - a.camX);
+          if (span < 0.4) t.problem('warning', `${st.name}: the camera only moved ${span.toFixed(2)} units, the parallax could not be measured`);
+          else if (speeds.length < needDepths) t.problem('bug', `${st.name}: only ${speeds.length} layers moved at different speeds over a ${span.toFixed(1)} unit camera pan (want ${needDepths}): ${moves.map((m) => `z${m.z} ${m.px.toFixed(1)}px`).join(', ')}`);
+          else t.event('parallax', `${st.name}: ${speeds.length} speeds over a ${span.toFixed(1)} unit camera pan: ${moves.map((m) => `z${m.z} ${m.px.toFixed(1)}px`).join(', ')}`);
+        } else t.problem('warning', `${st.name}: too few camera samples (${samples.length}) to measure the parallax`);
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+      t.metric('depthLayers', fewest === 99 ? 0 : fewest);
+      t.metric('depthFades', fades);
+      const mean = fps.length ? fps.reduce((a, b) => a + b, 0) / fps.length : 0;
+      t.metric('fpsDepth', Math.round(mean));
+      if (low && mean > 0 && mean < 45 && innerWidth <= 900) t.problem('warning', `Low at ${innerWidth}x${innerHeight} ran at ${Math.round(mean)} fps (want 45)`);
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      this.manual = null;
+      setGraphics(initial);
+      if (original === null) localStorage.removeItem(GFX_KEY);
+    }
+  }
+
+  /**
+   * The match mix (audio.ts, roomAudio.ts): every stage is its own room (`dod:mix-room` with the room's name, its
+   * length and wet share; Low sends half), fighter sounds are panned by where the fighter stands (a hit played at the
+   * left edge is 6+ dB louder in the left channel, one at the right edge in the right), and the mix is levelled to
+   * -14 LUFS under a limiter (the in-game meter and sample peak are logged; the capture is judged by Hawkes Gen
+   * audio.analyze). Setup shortcut: straight into a match on each of the 9 stages (option stage: one), then a
+   * 2-minute match on `stage` (default humans-in-the-loop). Events `mix-room`, `pan-left`, `pan-right`, `pan-fight`,
+   * `mix-level`; metrics `mixRooms`, `mixLufs`, `mixPeakDbfs`, `fpsMix`.
+   */
+  async mixRoom(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('mix-room');
+    }
+    this.logViewport(touch && this.isPhone());
+    const original = localStorage.getItem(GFX_KEY);
+    const initial = graphics();
+    const low = touch || this.options.quality === 'low';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    setGraphics(low ? { quality: 'low', glow: false } : { quality: 'high', glow: true });
+    type Room = { stage: string | null; room: string; seconds: number; wet: number; low: boolean };
+    const rooms: Room[] = [];
+    const onRoom = (e: Event) => rooms.push((e as CustomEvent).detail as Room);
+    const pans: number[] = [];
+    const onTake = (e: Event) => {
+      const d = (e as CustomEvent).detail as { id: string; pan: number | null };
+      if (d.pan != null) pans.push(d.pan);
+    };
+    window.addEventListener('dod:mix-room', onRoom);
+    window.addEventListener('dod:sound-take', onTake);
+    try {
+      const want = typeof this.options.stage === 'string' ? STAGES.filter((s) => s.id === this.options.stage) : STAGES;
+      if (!want.length) t.problem('bug', `stage "${String(this.options.stage)}" is not on the list`);
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = (punk + 1) % CHARACTERS.length;
+      const slots = [{ char: punk, cpu: null, look: 0 }, { char: foe, cpu: 5, look: 1 }];
+      const seen = new Set<string>();
+      const fps: number[] = [];
+      for (const [i, st] of want.entries()) {
+        t.progress(0.05 + (0.45 * i) / want.length);
+        const before = rooms.length;
+        void this.game.startMatch({ mode: 'versus', stage: STAGES.indexOf(st), stocks: 1, rules: {}, slots });
+        await this.matchLive();
+        await this.wait(600);
+        const r = rooms.slice(before).find((x) => x.stage === st.id);
+        const def = st.room;
+        if (!def) t.problem('bug', `${st.name} has no room in content/stages.json`);
+        else if (!r) t.problem('bug', `${st.name}: no dod:mix-room came out when the match started`);
+        else if (r.room !== def.name) t.problem('bug', `${st.name}: mix-room says "${r.room}", the stage's room is "${def.name}"`);
+        else if (seen.has(r.room)) t.problem('bug', `${st.name}: the room "${r.room}" is another stage's too`);
+        else {
+          seen.add(r.room);
+          t.event('mix-room', `${st.name}: room "${r.room}", ${r.seconds} s, ${Math.round(r.wet * 100)}% wet on effects and voices${r.low ? ' (Low: half the send)' : ''}, none on music or menus`);
+        }
+        const frame0 = this.game.match()?.state.frame ?? 0;
+        let tick = 0;
+        await this.fight(() => {
+          if (++tick % 20 === 0) fps.push(this.game.gfxStats?.()?.fpsNow ?? 0);
+          return (this.game.match()?.state.frame ?? 0) - frame0 > 60 * 3;
+        }, 60000);
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+      t.metric('mixRooms', seen.size);
+
+      // The long match on one stage: pans from real fighters, then the measured level.
+      const stage = typeof this.options.stage === 'string' ? Math.max(0, STAGES.findIndex((s) => s.id === this.options.stage)) : Math.max(0, STAGES.findIndex((s) => s.id === 'humans-in-the-loop'));
+      pans.length = 0;
+      void this.game.startMatch({ mode: 'versus', stage, stocks: 9, rules: {}, slots });
+      await this.matchLive();
+      await this.wait(800);
+      // A hit at each edge, then the real fight (the capture measures the channels of these two).
+      this.game.probeHit?.(-0.8);
+      t.event('pan-left', 'a heavy hit played at the left screen edge (pan -0.8): the left channel should be 6+ dB over the right (equal-power pan: about 16 dB)');
+      await this.wait(1400);
+      this.game.probeHit?.(0.8);
+      t.event('pan-right', 'a heavy hit played at the right screen edge (pan 0.8)');
+      await this.wait(1400);
+      const frame0 = this.game.match()?.state.frame ?? 0;
+      const total = Math.max(5, Number(this.options.seconds) || 120);
+      let tick = 0;
+      await this.fight(() => {
+        if (++tick % 20 === 0) fps.push(this.game.gfxStats?.()?.fpsNow ?? 0);
+        if (tick % 600 === 0) t.progress(0.5 + 0.45 * Math.min(1, ((this.game.match()?.state.frame ?? 0) - frame0) / (60 * total)));
+        return (this.game.match()?.state.frame ?? 0) - frame0 > 60 * total;
+      }, (total + 90) * 1000);
+      const fightPans = pans.filter((p) => Math.abs(p) !== 0.8 || pans.length > 2);
+      if (fightPans.length < 5) t.problem('bug', `only ${fightPans.length} panned fighter sounds in the ${total} s match`);
+      else {
+        const lo = Math.min(...fightPans), hi = Math.max(...fightPans);
+        t.event('pan-fight', `${fightPans.length} fighter sounds panned across ${lo.toFixed(2)} to ${hi.toFixed(2)} by where the fighters stood`);
+        if (hi - lo < 0.2) t.problem('warning', `the fighter pans only span ${(hi - lo).toFixed(2)}`);
+      }
+      const mix = this.game.mixStats?.();
+      if (!mix?.chain) t.problem('bug', 'the master chain (compressor, limiter) is not running');
+      else {
+        t.metric('mixLufs', mix.lufs);
+        t.metric('mixPeakDbfs', mix.peakDbfs);
+        t.event('mix-level', `${total} s match: about ${mix.lufs} LUFS short-term (target -14), sample peak ${mix.peakDbfs} dBFS (ceiling -1.4), makeup ${mix.makeupDb} dB`);
+        if (mix.peakDbfs > -1) t.problem('bug', `the mix peaked at ${mix.peakDbfs} dBFS: over the -1 dBTP ceiling`);
+        if (mix.lufs < -17 || mix.lufs > -11) t.problem('warning', `the in-game meter reads ${mix.lufs} LUFS, target -14`);
+      }
+      await this.game.quitMatch();
+      const mean = fps.length ? fps.reduce((a, b) => a + b, 0) / fps.length : 0;
+      t.metric('fpsMix', Math.round(mean));
+      if (low && mean > 0 && mean < 45 && innerWidth <= 900) t.problem('warning', `with the reverb on, Low at ${innerWidth}x${innerHeight} ran at ${Math.round(mean)} fps (want 45)`);
+      else t.event('mix-fps', `${Math.round(mean)} fps with panning and the room reverb on (${low ? 'Low' : 'High'})`);
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      window.removeEventListener('dod:mix-room', onRoom);
+      window.removeEventListener('dod:sound-take', onTake);
+      setGraphics(initial);
+      if (original === null) localStorage.removeItem(GFX_KEY);
+    }
+  }
+
+  /**
+   * The art bible on the roster (docs/art-bible.md, artStyle.ts): both fighters of a match carry the remap and the outline
+   * pass, the outline is a dark coloured line (never black) about 2 px at 1080p and never under 1 px (on a phone at 844x390
+   * it is 1 px), and colour looks 1 to 4 keep both (the outline turns with the look). Also reports the style report: how
+   * many of the 33 fighters are outside the saturation and value ranges. Setup shortcut: straight into a match per look,
+   * no menus. Events `style-report`, `outline`, `outline-looks`, `outline-phone`; metrics `outlinePx`, `fightersOutside`.
+   */
+  async artStyle(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('art-style');
+    }
+    this.logViewport(touch && this.isPhone());
+    const original = localStorage.getItem(GFX_KEY);
+    const initial = graphics();
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    setGraphics(touch || this.options.quality === 'low' ? { quality: 'low', glow: false } : { quality: 'high', glow: true });
+    try {
+      const outside = CHARACTERS.filter((c) => !c.style || outsideRanges(c.style.after).length);
+      t.metric('fightersOutside', outside.length);
+      if (outside.length) t.problem('bug', `${outside.length} of ${CHARACTERS.length} fighters are outside the art bible's ranges (${outside.map((c) => c.id).join(', ')})`);
+      else t.event('style-report', `0 of ${CHARACTERS.length} fighters outside the art bible's ranges (saturation ${ART.ranges.sMean.join('-')}, value ${ART.ranges.vP5.join('-')} low end, ${ART.ranges.vP95.join('-')} high end)`);
+      const first = Math.max(0, Number(this.options.fighter) || 0);
+      const picks = typeof this.options.fighter === 'string' ? [CHARACTERS.findIndex((c) => c.id === this.options.fighter)] : [first, first + 7, first + 14, first + 21];
+      const stage = typeof this.options.stage === 'string' ? Math.max(0, STAGES.findIndex((s) => s.id === this.options.stage)) : 0;
+      let seen = 0;
+      for (let look = 0; look < 4; look++) {
+        t.progress(0.1 + (0.8 * look) / 4);
+        const a = picks[look % picks.length] % CHARACTERS.length;
+        const b = (a + 11) % CHARACTERS.length;
+        void this.game.startMatch({ mode: 'versus', stage, stocks: 1, rules: {}, slots: [{ char: a, cpu: null, look }, { char: b, cpu: 5, look: (look + 1) % 4 }] });
+        await this.matchLive();
+        await this.wait(900);
+        const st = this.game.styleStats?.();
+        if (!st || st.fighters.length < 2) {
+          t.problem('bug', `the style pass reports ${JSON.stringify(st)}`);
+        } else {
+          const want = outlineWidthPx(st.renderHeight);
+          for (const f of st.fighters) {
+            const [r, g, bl] = f.outline.color;
+            const mx = Math.max(r, g, bl), mn = Math.min(r, g, bl);
+            const name = CHARACTERS[f.char].name;
+            if (!f.remap || !f.outlinePass) t.problem('bug', `${name} (look ${f.look + 1}) is missing the ${f.remap ? 'outline' : 'remap'} pass`);
+            else if (mx < 24 || mx > 70 || mx - mn < 8) t.problem('bug', `${name} (look ${f.look + 1}): outline ${f.outline.color.join(',')} is not a dark coloured line`);
+            else if (f.outline.px < 1 || Math.abs(f.outline.px - want) > 0.05) t.problem('bug', `${name}: outline is ${f.outline.px.toFixed(2)} px, want ${want.toFixed(2)} at render height ${st.renderHeight}`);
+            else {
+              seen++;
+              t.event('outline', `${name}, look ${f.look + 1}: coloured outline rgb(${f.outline.color.join(',')}) ${f.outline.px.toFixed(2)} px at ${st.renderHeight}p with the saturation/value remap, ${st.quality}`);
+            }
+          }
+          if (look === 0) t.metric('outlinePx', Math.round(Math.min(...st.fighters.map((f) => f.outline.px)) * 100) / 100);
+          if (look === 0 && innerWidth <= 900 && innerHeight <= 500) {
+            const px = Math.min(...st.fighters.map((f) => f.outline.px));
+            if (px >= 1) t.event('outline-phone', `${innerWidth}x${innerHeight}: outline ${px.toFixed(2)} px on both fighters (at least 1)`);
+            else t.problem('bug', `${innerWidth}x${innerHeight}: outline is ${px.toFixed(2)} px, under 1`);
+          }
+        }
+        await this.fight(() => (this.game.match()?.state.frame ?? 0) > 60 * 3, 60000);
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+      t.event('outline-looks', `colour looks 1 to 4 each drawn with the remap and the outline (${seen} fighter draws checked)`);
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      setGraphics(initial);
+      if (original === null) localStorage.removeItem(GFX_KEY);
+    }
+  }
+
   async graphicsRun(): Promise<void> {
     const t = this.t;
     const original = localStorage.getItem(GFX_KEY);
@@ -6182,6 +6971,105 @@ class Run {
       unlocks().clear();
       for (const id of savedUnlocks) unlocks().add(id);
       saveUnlocks(unlocks());
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  /**
+   * Win quotes (content/voice.json winQuotes, winQuote.ts, ui/quoteCaption.ts): a Versus 1v1 between two story rivals
+   * (options fighter / foe, default Exit Punk vs Kaelen), played twice (Rematch). On each results screen the winner's quote
+   * must play as a recorded take (`dod:win-quote-play`) with a typed-on caption of the same words (`quote-caption`), the
+   * matchup quote when the loser is the winner's rival (`quote-matchup`), never the quote the same fighter played last
+   * (`quote-repeat`), and at 844x390 the caption fits in two lines inside the screen with Rematch visible and uncovered
+   * (`quote-fit`, `quote-rematch`). On a phone every tap is a touch pointer event. Events `quote-voice`, `quote-caption`,
+   * `quote-matchup`, `quote-repeat`, `quote-fit`, `quote-rematch`; metric `winQuotes`.
+   */
+  async winQuoteRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('win-quote');
+    }
+    this.logViewport(touch && this.isPhone());
+    if (typeof this.options.fighter !== 'string') this.options.fighter = 'exit-punk';
+    if (typeof this.options.foe !== 'string') this.options.foe = 'kaelen';
+    type Q = { id: string; text: string; audio: string | null; kind: string; winner: string; loser: string | null; losers: string[] };
+    const picks: Q[] = [];
+    const played: string[] = [];
+    const typed: string[] = [];
+    const onPick = (e: Event) => picks.push((e as CustomEvent).detail as Q);
+    const onPlay = (e: Event) => played.push(String((e as CustomEvent).detail?.id));
+    const onTyped = (e: Event) => typed.push(String((e as CustomEvent).detail?.id));
+    window.addEventListener('dod:win-quote', onPick);
+    window.addEventListener('dod:win-quote-play', onPlay);
+    window.addEventListener('dod:win-quote-typed', onTyped);
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const lastBy = new Map<string, string>();
+    try {
+      await this.toMainMenu();
+      await this.startVersus(1);
+      for (let round = 1; round <= 2; round++) {
+        t.progress(0.1 + 0.4 * (round - 1));
+        await this.fight(() => false, 6 * 60 * 1000);
+        await this.screen('results', 30000);
+        const q = picks[picks.length - 1];
+        if (!q) {
+          t.problem('bug', `round ${round}: the results screen had no win quote`);
+          break;
+        }
+        // The caption: typed on, then the whole line.
+        await t.until(() => typed.includes(q.id) || !!this.q('#results-body .win-quote[data-state="done"]'), 8000, 'the quote caption to finish typing').catch(() => null);
+        const cap = this.q('#results-body .win-quote');
+        const words = cap?.getAttribute('aria-label') ?? '';
+        if (!cap || words !== q.text || !cap.textContent?.includes(q.text)) t.problem('bug', `round ${round}: the results caption "${cap?.textContent ?? ''}" is not the quote "${q.text}"`);
+        else t.event('quote-caption', `round ${round}: ${q.winner} says "${q.text}" (${q.kind}, ${q.id}), caption typed on`);
+        // Voiced: a played take whose file is there.
+        await t.until(() => played.includes(q.id), 3000, 'the quote to play').catch(() => null);
+        if (!q.audio) t.problem('bug', `round ${round}: "${q.id}" has no recorded take (voice file not made yet)`);
+        else if (!played.includes(q.id)) t.problem('bug', `round ${round}: "${q.id}" did not play on the results screen`);
+        else if (!(await exists(q.audio))) t.problem('bug', `round ${round}: voice file missing (404): ${q.audio}`);
+        else t.event('quote-voice', `round ${round}: ${q.id} played from ${q.audio}`);
+        // The matchup quote when the loser is the winner's rival; never the previous quote.
+        const rivalQuote = VOICE.winQuotes?.[q.winner]?.vs[q.losers[0]];
+        const prev = lastBy.get(q.winner);
+        if (rivalQuote && rivalQuote.id !== prev) {
+          if (q.kind !== 'rival' || q.id !== rivalQuote.id) t.problem('bug', `round ${round}: ${q.winner} beat their rival ${q.losers[0]} but said ${q.id}, not ${rivalQuote.id}`);
+          else t.event('quote-matchup', `round ${round}: ${q.winner} beat rival ${q.losers[0]} with the matchup quote`);
+        }
+        if (prev === q.id) t.problem('bug', `round ${round}: ${q.winner} said ${q.id} twice in a row`);
+        else if (prev) t.event('quote-repeat', `round ${round}: ${q.winner} said ${q.id}, last time ${prev}: no repeat`);
+        lastBy.set(q.winner, q.id);
+        // Fit: two lines at most, inside the screen, Rematch visible and not under the caption.
+        const lh = parseFloat(getComputedStyle(cap!).lineHeight) || parseFloat(getComputedStyle(cap!).fontSize) * 1.25;
+        const box = cap!.getBoundingClientRect();
+        const lines = Math.round(box.height / lh);
+        const rematch = this.button('#results-actions', 'Rematch') ?? this.button('#results-actions', 'Main menu');
+        const rb = rematch?.getBoundingClientRect();
+        const inside = box.left >= 0 && box.right <= innerWidth + 1 && box.top >= 0 && box.bottom <= innerHeight + 1;
+        if (lines > 2) t.problem('bug', `round ${round}: the quote caption runs ${lines} lines at ${innerWidth}x${innerHeight} (two at most)`);
+        else if (!inside) t.problem('bug', `round ${round}: the quote caption is not inside the screen at ${innerWidth}x${innerHeight}`);
+        else t.event('quote-fit', `round ${round}: caption ${lines} line(s), ${Math.round(box.width)}x${Math.round(box.height)} px at ${innerWidth}x${innerHeight}`);
+        if (!rb || rb.width < 44 || rb.height < 44 || rb.bottom > innerHeight + 1 || rb.right > innerWidth + 1 || rb.top < 0) t.problem('bug', `round ${round}: Rematch is not fully on screen at ${innerWidth}x${innerHeight}`);
+        else if (rb.top < box.bottom && rb.bottom > box.top && rb.left < box.right && rb.right > box.left) t.problem('bug', `round ${round}: the quote caption covers Rematch`);
+        else t.event('quote-rematch', `round ${round}: Rematch visible at ${Math.round(rb.left)},${Math.round(rb.top)} ${Math.round(rb.width)}x${Math.round(rb.height)}, clear of the caption`);
+        this.checkClipping('results with quote', this.q('#results'));
+        if (round < 2) await this.click(() => this.button('#results-actions', 'Rematch'), 'Rematch');
+      }
+      t.metric('winQuotes', picks.length);
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu').catch(() => null);
+    } finally {
+      window.removeEventListener('dod:win-quote', onPick);
+      window.removeEventListener('dod:win-quote-play', onPlay);
+      window.removeEventListener('dod:win-quote-typed', onTyped);
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
     }
     t.progress(1);
     t.finish('done');

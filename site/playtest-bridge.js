@@ -19,7 +19,7 @@
     {
       "id": "smoke",
       "title": "Boot, menus, a quick versus match for 20 s, quit to the menu",
-      "description": "options: stage, fighter (ids) to play specific content. Logs viewport (size + touch). On a portrait phone (390x844) it turns to an 844x390 landscape frame and plays the match there (phone-turned, viewport); a phone run at desktop size is a bug.",
+      "description": "options: stage, fighter (ids) to play specific content. Logs viewport (size + touch). On a portrait phone (390x844) it turns to an 844x390 landscape frame and plays the match there (phone-turned, viewport); a phone run at desktop size is a bug. Also checks the show's stinger (events stinger / slam-round-start / slam-game, metrics stingers, slams, screenSwitches): every screen change plays one, 0.5-0.7 s unless loading holds it.",
       "seconds": 50,
       "tags": [
         "smoke"
@@ -41,6 +41,16 @@
       "title": "Season 1 fighter voice: efforts, hurts, KO cries and taunts from each fighter's own takes, no overlap, T taunt, phone landscape",
       "description": "Setup shortcut unlocks the Season 1 card. Versus 1v1 with two Season 1 fighters (options fighter / foe, default exit-punk vs break). Listens for dod:fighter-voice: logs effort / hurt / ko / taunt per who with the catalog id and audio path; problems for a missing take, a shared KO text, an overlapping bark from one fighter, or an effort within 1.5 s of the last. Presses T for the player taunt. On a 390x844 touch phone, turns to 844x390 landscape like smoke and checks zero missing-voice / 404 problems. Metrics voiceEfforts, voiceHurts, voiceKos, voiceTaunts.",
       "seconds": 200,
+      "tags": [
+        "full",
+        "sound"
+      ]
+    },
+    {
+      "id": "win-quote",
+      "title": "Win quotes: the winner says a voiced, typed-on quote on the results screen, the matchup quote against a story rival, never the same quote twice in a row, phone landscape fit",
+      "description": "Versus 1v1 between two story rivals (options fighter / foe, default exit-punk vs kaelen), played twice with Rematch. Each results screen must play the winner's recorded quote (quote-voice) with a typed-on caption of the same words (quote-caption), the matchup quote when the loser is the winner's rival (quote-matchup), never the quote that fighter played last (quote-repeat), and at 844x390 (a 390x844 touch phone turned to landscape, every tap a touch pointer event) the caption fits in two lines inside the screen with the Rematch button visible and uncovered (quote-fit, quote-rematch). Metric winQuotes.",
+      "seconds": 240,
       "tags": [
         "full",
         "sound"
@@ -146,6 +156,15 @@
       ]
     },
     {
+      "id": "finale-hijack",
+      "title": "The Orchestrator's finale takeover: the feed glitches, he appears in a picture-in-picture and says voiced lines for how the fight is going, and a new rule shows on the HUD within 1 s (phone: 390x844 touch, picture-in-picture clear of the controls at 844x390)",
+      "description": "Plays one season finale (option `chapter`, default encore; the finales are encore, sponsored, walk-on, hostile-takeover, clip-show, global-feed, series-finale, best-in-show, cliffhanger, final-cut) from the Campaign map with the bot: setup shortcut marks the chapters before it cleared. The takeover fires 60 s in or when the player is down to 2 stocks. Events takeover-start (mood ahead/behind, over 100%, the lines), takeover-glitch, takeover-pip (clear of the HUD and the touch controls), takeover-line (each voiced line), takeover-rule (the rule on the HUD, frames after the takeover). Touch: played in the turned 844x390 frame.",
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "hit-feel",
       "title": "Hit feedback: heavy hits freeze 3+ frames, light and heavy hits look different, Settings turns screen shake off, kill cue on stock-ending hits, smooth camera",
       "description": "A versus match against the CPU (the bot on a virtual pad). Counts the hit-stop frames of the first light and heavy hit (events hit-stop-light/-medium/-heavy, heavy-hit-stop), logs each tier's impact effect (impact-light/-medium/-heavy: sparks, stars, ring, shake, flash) and that they differ (impact-differs), then from Pause opens Settings, turns Screen shake off (shake-off), and checks hits keep landing with the camera still (no-shake). Also the match camera and the kill cue (a hit predicted to end a stock: extra hit-stop, red flash, punch-in, slow motion, rising whistle): every stock-ending hit logs kill-cue and no other hit does (kill-cue-exact), with Screen shake off the cue still zooms (kill-cue-no-shake), the camera never jumps (camera-smooth) and every fighter stays on screen (camera-framing). Metrics hitStopLightFrames, hitStopHeavyFrames, shakeMaxOn, shakeMaxOff, cameraJumps, killCues, framingMisses, killSlowMinFps. The player's dod.shake is put back.",
@@ -222,10 +241,41 @@
       ]
     },
     {
+      "id": "stage-depth",
+      "title": "Stage depth: every stage shows 4 or more layers moving at different speeds as the camera pans, one foreground element at the play area's edge that turns see-through (30%) while a fighter walks behind it, a distance haze tinted to the stage; Low (phone 844x390, touch) keeps three depths and the foreground, drops the haze and holds 45 fps",
+      "description": "Setup shortcut: straight into a match on each of the 9 stages (option stage: one), bot off. The player walks to the stage's foreground element by the pad (keys, or the touch stick on a phone) until it fades (foreground-fade: opacity 30% with the fighter behind it), then back across the stage so it clears (foreground-clear) and the camera pans; every ~100 ms the camera and each layer's place on the page are sampled and the layers must move at 4 or more different speeds (parallax: Low needs 3). Also logs the depths built (stage-depth), the haze sheets and their tint (haze, High: 2 or more) and, on Low, that the haze is gone and the foreground stays (depth-low). Metrics depthLayers (fewest depths on any stage), depthFades (stages where it faded), fpsDepth (Low: want 45). The player's dod.gfx is put back.",
+      "seconds": 330,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "lighting",
       "title": "Fighter lighting: every stage lights both fighters with its own key, rim and ambient colour, each fighter casts a contact shadow that shrinks and fades as they jump (gone above 300 units), colour looks 1 to 4 keep their palettes, Low keeps the ambient tint and shadow and holds 45 fps (phone: 390x844 turned to landscape, touch)",
       "description": "Setup shortcut: straight into a match on each of the 9 stages (option stage: one) with no menus, a different colour look on each fighter per stage. Per stage checks both fighters carry the stage's light (stage-light: key, rim, ambient from content/stages.json, glossy floors) and a shadow under each; the bot then fights 8 s and the shadow is sampled against height over the platform below (shadow-height: smaller and fainter when up, none at 300 units or more). On a phone (touch, Low) only the ambient tint and shadow run (light-low) and the fight holds 45 fps (metric fpsLight). Metric lightStages. The player's dod.gfx is put back.",
       "seconds": 220,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "mix-room",
+      "title": "The match mix: fighter sounds panned to where they stand, each of the 9 stages its own room (reverb on effects and voices only), a blast-zone KO fades the leaver, and a 2-minute match levelled to -14 LUFS under a limiter (phone 844x390: 45 fps with the reverb on)",
+      "description": "Setup shortcut: straight into a short match on each of the 9 stages (option stage: one), no menus. Each logs mix-room (dod:mix-room: the room name, its length, the wet share; Low sends half), then a 2-minute match on option stage (default humans-in-the-loop, option seconds to shorten) plays a heavy hit at the left and right screen edges (pan-left, pan-right: 6+ dB louder in the near channel in the capture), then the real fight (pan-fight: every fighter sound panned -0.8 to 0.8 by screen x) and logs the in-game loudness meter and sample peak (mix-level; the capture is checked by Hawkes Gen audio.analyze: -14 LUFS plus or minus 1, true peak under -1 dBTP). On a 390x844 touch phone it turns to 844x390 and plays on Low (mix-fps, metric fpsMix, want 45). Metrics mixRooms, mixLufs, mixPeakDbfs, fpsMix. The player's dod.gfx is put back.",
+      "seconds": 330,
+      "tags": [
+        "full",
+        "sound",
+        "touch"
+      ]
+    },
+    {
+      "id": "art-style",
+      "title": "Art bible: every fighter is drawn with a coloured outline (2 px at 1080p, never under 1 px: 1 px at 844x390) and a saturation/value remap that lands it inside the bible's ranges (0 of 33 outside), colour looks 1 to 4 keep both (phone: 390x844 turned to landscape, touch)",
+      "description": "Setup shortcut: straight into a versus match per colour look 1 to 4 (option fighter picks the pair; stage), no menus. Checks the style report first (style-report: 0 of 33 fighters outside the saturation and value ranges of docs/art-bible.md), then on both fighters of each match that the remap and the outline pass are on the material, the outline is a dark coloured line (never black) at the width the bible gives for the render height (outline) and, on a phone, at least 1 px at 844x390 (outline-phone); outline-looks closes it. Metrics outlinePx, fightersOutside. The player's dod.gfx is put back.",
+      "seconds": 120,
       "tags": [
         "full",
         "touch"
@@ -267,6 +317,16 @@
       "seconds": 480,
       "tags": [
         "full"
+      ]
+    },
+    {
+      "id": "endings",
+      "title": "Endings: Extras shows 33 ending slots (open for cleared Tours), a tap replays a fighter's painted ending with its narrated line, sting and Tour complete card (phone: 844x390, the art fills the screen, captions fit, a tap skips)",
+      "description": "Setup shortcut: three Tours marked cleared in localStorage dod-tours (put back at the end). Main menu to Extras: one slot per fighter (endings-gallery: 33 slots, the open ones match the cleared Tours, no sideways scroll, 44 px targets on a phone), then a tap on the chosen fighter's slot replays the ending (ending): the 1920x1080 picture fills the window, caption one then caption two inside it and above the bottom edge, the narration take plays, the sting, the Tour complete card with the colour earned; a tap skips (ending-skip). Options: fighter (default exit-punk), all (replay every cleared one), input (touch), at (phone). Metrics endingSlots, endingsOpen, endingFits. The tour scenario checks the same ending after a cleared Tour.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
       ]
     },
     {
@@ -355,6 +415,17 @@
       "tags": [
         "full",
         "touch"
+      ]
+    },
+    {
+      "id": "special-sounds",
+      "title": "Special sounds: each Season 1 fighter's four specials play their archetype's release sound (within 50 ms of the move starting) with the fighter's accent on top, impacts on a hit, no take twice in a row",
+      "description": "Setup shortcut: straight into Training with each of the 13 Season 1 fighters and a dummy. Real input only: the keyboard, or (input: \"touch\" or a phone, 390x844 turned to 844x390) the on-screen stick and Special button as touch pointer events. Each fighter fires neutral, side, up and down at the dummy; the run reads dod:sound-take: special-release (pool special-<archetype>-release, take id and ms after the move started, metric releaseLatencyMs, bug over 50), special-accent (special-accent-<fighter>), special-impact (special-<archetype>-impact when the special lands), archetype-pools (which of the seven archetypes played a release and an impact), a bug for a take twice in a row. Options: fighter (one id), input, at. Metric specialTakes.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "touch",
+        "sound"
       ]
     },
     {

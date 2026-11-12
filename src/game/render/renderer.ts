@@ -15,9 +15,11 @@ import { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder.js';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
 import { LookPlugin } from './lookPlugin.ts';
 import { LightPlugin } from './lightPlugin.ts';
+import { RemapPlugin, OutlinePlugin } from './stylePlugin.ts';
+import { IDENTITY, outlineWidthPx } from '../artStyle.ts';
 import { REFLECTION_ALPHA, floorBelow, lightOf, shadowAt } from './fighterLight.ts';
 import { COUNTER_TINT, Flipbooks, FLIPBOOK_KINDS, fighterTint, type FlipStats } from './flipbook.ts';
-import { lookOf } from '../looks.ts';
+import { lookOf, recolorHex } from '../looks.ts';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture.js';
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture.js';
 import { GlowLayer } from '@babylonjs/core/Layers/glowLayer.js';
@@ -33,6 +35,7 @@ import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from
 import { cameraFighters, followCamera, frameGoal, punchGoal, type CamBounds, type CamState } from './cameraRig.ts';
 import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
+import { behindForeground, bodyPoints, fadeToward } from './foreground.ts';
 import { StageLive } from './stageLive.ts';
 import { StageAlive } from './stageAlive.ts';
 import { PostChain } from './post.ts';
@@ -85,6 +88,8 @@ interface FighterView {
   tumble?: number;
   /** The stage's key, rim and ambient on the sprite (lightPlugin.ts). */
   light: LightPlugin;
+  /** The art bible's remap and outline on the sprite (stylePlugin.ts). */
+  outline: OutlinePlugin;
   /** The soft contact shadow under the feet, and its material (alpha follows the height). */
   shadow: Mesh;
   shadowMat: StandardMaterial;
@@ -299,6 +304,12 @@ export class Renderer {
     if (this.fpsEl) this.fpsEl.hidden = !g.fps;
   }
 
+  /** The Orchestrator seizes the feed: a 1 s RGB-split glitch over the whole picture (the HUD and screens are DOM, so they get a CSS glitch of their own). */
+  glitch(ms = 1000): void {
+    this.post.glitch(ms);
+    this.shake = Math.max(this.shake, 0.25);
+  }
+
   /** The post chain's state (grade, vignette, grain, hit punches), for the playtest. */
   postStats() {
     return this.post.report();
@@ -417,6 +428,7 @@ export class Renderer {
 
     this.buildBackdrop(root);
     const built = buildLayers(this.scene, root, this.stage, this.glow, this.gfx.quality === 'high');
+    this.fgMs = 0;
     this.occluders = built.occluders;
     this.live = new StageLive(this.scene, root, this.stage, built.placed, this.glow);
     this.alive = new StageAlive(this.scene, root, this.stage, this.glow, this.gfx.quality, () => this.views.map((v) => v.body), this.camera);
@@ -602,7 +614,13 @@ export class Renderer {
       const look = lookOf(f.char, this.looks[f.id] ?? 0);
       if (look.from !== undefined) new LookPlugin(mat, look);
       // The stage's light comes after the look: the palette is recoloured first, then lit.
+      const style = ch.style;
+      // The art bible: the remap sits between the look and the light (priority 275), the outline after the light (350).
+      new RemapPlugin(mat, style?.remap ?? IDENTITY);
       const lightPlugin = new LightPlugin(mat, lightOf(this.stage), this.gfx.quality === 'high');
+      // The outline is the fighter's darkened main hue, turned with the colour look so a recoloured fighter keeps a matching line.
+      const outlinePlugin = new OutlinePlugin(mat, style ? recolorHex(style.outline, look) : '#1a1a1a');
+      outlinePlugin.setQuality(this.gfx.quality === 'high');
 
       const body = CreatePlane(`body-${f.id}`, { size: 1 }, this.scene);
       body.position.z = -0.05 * f.id;
@@ -699,7 +717,7 @@ export class Renderer {
       root.onDisposeObservable.add(() => reflMat.dispose());
 
       this.views.push({
-        light: lightPlugin, shadow, shadowMat, reflRoot, reflPose, refl, reflMat, lit: { height: -1, scale: 0, alpha: 0, shadow: false, reflection: false },
+        light: lightPlugin, outline: outlinePlugin, shadow, shadowMat, reflRoot, reflPose, refl, reflMat, lit: { height: -1, scale: 0, alpha: 0, shadow: false, reflection: false },
         root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, ghost, ghostMat, rim, rimMat, charIdx: f.char, lookIdx: this.looks[f.id] ?? 0,
       });
     }
@@ -1357,6 +1375,7 @@ export class Renderer {
     }
     this.drawDebug(state);
     this.updateCamera(state);
+    this.updateForeground(state);
     this.scene.render();
     this.post.endFrame();
     this.checkFraming(state);
@@ -1364,6 +1383,54 @@ export class Renderer {
       const fps = this.engine.getFps();
       this.camStats.slowFpsMin = this.camStats.slowFpsMin === 0 ? fps : Math.min(this.camStats.slowFpsMin, fps);
     }
+  }
+
+  private fgMs = 0;
+
+  /**
+   * Foreground elements at the play area's edge fade to 30% while a fighter is behind one of their solid pixels (seen from
+   * the camera, so the parallax counts) and come back when they walk out. Runs after the camera has moved.
+   */
+  private updateForeground(state: GameState): void {
+    const fgs = this.live?.foregrounds();
+    if (!fgs?.length) return;
+    const now = performance.now();
+    const dt = this.fgMs ? Math.min(0.1, (now - this.fgMs) / 1000) : 0.1;
+    this.fgMs = now;
+    const cam = { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z };
+    const bodies = [];
+    for (const f of state.fighters) {
+      const v = this.views[f.id];
+      if (!v || f.action === ACT.DEAD || this.offstage.has(f.id)) continue;
+      const ch = CHARACTERS[f.char];
+      const k = f.scale / 100;
+      bodies.push(bodyPoints(v.root.position.x, v.root.position.y, ch.height * W * ART_SCALE * k, ch.width * W * ART_SCALE * k * 0.35, v.body.position.z));
+    }
+    for (const pl of fgs) {
+      let behind = false;
+      if (pl.mask && pl.size.w && pl.mesh.isEnabled()) {
+        const plane = { x: pl.mesh.position.x, y: pl.mesh.position.y, z: pl.mesh.position.z, w: pl.size.w, h: pl.size.h };
+        behind = bodies.some((pts) => behindForeground(pl.mask!, plane, cam, pts));
+      }
+      pl.fade = fadeToward(pl.fade ?? 1, behind, dt);
+      pl.mat.alpha = (pl.layer.opacity ?? 1) * pl.fade;
+    }
+  }
+
+  /** Every layer's depth and where its picture sits on the page (CSS px, from the last render), for the playtest's parallax check. */
+  depthStats(): { quality: string; camX: number; camDist: number; layers: { id: string; z: number; kind: 'far' | 'foreground' | 'haze' | 'stage'; screenX: number; alpha: number; fade: number | null; behind: boolean }[] } {
+    const canvas = this.engine.getRenderingCanvas();
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const k = canvas ? canvas.clientWidth / w : 1;
+    const layers = (this.live?.allPlaced() ?? []).map((pl) => {
+      const p = Vector3.Project(new Vector3(pl.mesh.position.x, pl.mesh.position.y, pl.mesh.position.z), Matrix.IdentityReadOnly, m, vp);
+      const kind: 'far' | 'foreground' | 'haze' | 'stage' = pl.haze ? 'haze' : pl.layer.foreground ? 'foreground' : pl.layer.z > 0.5 ? 'far' : 'stage';
+      return { id: pl.layer.id, z: pl.layer.z, kind, screenX: p.x * k, alpha: pl.mat.alpha, fade: pl.fade ?? null, behind: pl.fade !== undefined && pl.fade < 0.99 };
+    });
+    return { quality: this.gfx.quality, camX: this.camera.position.x, camDist: this.camDist, layers };
   }
 
   private shadowTex: DynamicTexture | null = null;
@@ -1399,7 +1466,32 @@ export class Renderer {
   /** The stage's light goes onto every fighter's material (a new stage, or a quality change). */
   private applyLight(): void {
     const light = lightOf(this.stage);
-    for (const v of this.views) v.light.set(light, this.gfx.quality === 'high');
+    for (const v of this.views) {
+      v.light.set(light, this.gfx.quality === 'high');
+      v.outline.setQuality(this.gfx.quality === 'high');
+    }
+  }
+
+  /** The outline's width in the sprite's own units: 2 px at 1080p, never under 1 px, from how big the fighter is on screen. */
+  private sizeOutline(v: FighterView): void {
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const p = v.root.getAbsolutePosition();
+    const a = Vector3.Project(p, Matrix.IdentityReadOnly, m, vp);
+    const b = Vector3.Project(new Vector3(p.x + 1, p.y, p.z), Matrix.IdentityReadOnly, m, vp);
+    const pxPerWorld = Math.max(1, Math.abs(b.x - a.x));
+    v.outline.setWidth(outlineWidthPx(h), 1 / (Math.max(0.01, v.body.scaling.x) * pxPerWorld), 1 / (Math.max(0.01, v.body.scaling.y) * pxPerWorld));
+  }
+
+  /** Every fighter's outline as drawn (playtest): colour, width in device px, and the render height it was sized for. */
+  styleStats() {
+    return {
+      quality: this.gfx.quality,
+      renderHeight: this.engine.getRenderHeight(),
+      fighters: this.views.map((v, slot) => ({ slot, char: v.charIdx, look: v.lookIdx, outline: v.outline.state(), remap: v.mat.pluginManager?.getPlugin('DodRemap') !== undefined, outlinePass: v.mat.pluginManager?.getPlugin('DodOutline') !== undefined })),
+    };
   }
 
   private drawFighter(f: Fighter, v: FighterView | undefined, state: GameState): void {
@@ -1496,6 +1588,8 @@ export class Renderer {
       v.rim.scaling.set(v.body.scaling.x * grow, v.body.scaling.y * grow, 1);
       if (v.rimMat.diffuseTexture !== v.mat.diffuseTexture) v.rimMat.diffuseTexture = v.mat.diffuseTexture;
     }
+
+    this.sizeOutline(v);
 
     const flicker = f.intangible > 0 && f.action !== ACT.LEDGE ? (f.frame & 4 ? 0.45 : 0.8) : 1;
     v.mat.alpha = flicker;
@@ -1768,6 +1862,19 @@ export class Renderer {
   }
 
   /**
+   * Where a sim x is across the view: 0 at the left edge, 1 at the right, beyond that off screen (the stereo pan of a
+   * sound made there, see roomAudio.panFromScreen). 0.5 when there is no view to ask.
+   */
+  screenX01(simX: number): number {
+    const w = this.engine.getRenderWidth();
+    if (!w) return 0.5;
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const p = Vector3.Project(new Vector3(simX * S, 0, 0), Matrix.IdentityReadOnly, this.scene.getTransformMatrix(), vp);
+    return Number.isFinite(p.x) ? p.x / w : 0.5;
+  }
+
+  /**
    * Where a living fighter's middle is on the page (CSS px), whether it is out of the view (or cut off by its edge), and how far
    * it is from the nearest blast line (world units). Null while it is away, dead or in a story scene.
    */
@@ -1831,6 +1938,11 @@ export class Renderer {
   /** The speaker of a story line gives a little bounce as they start talking. */
   cue(id: number): void {
     this.talking.set(id, performance.now());
+  }
+
+  /** Kicks the camera (slams: ROUND START, GAME!). 0.3 is a medium hit. */
+  kick(amount: number): void {
+    this.shake = Math.max(this.shake, amount);
   }
 
   /** A match moment the stage's effects can react to: 'start' when play begins, 'end' at Game! */

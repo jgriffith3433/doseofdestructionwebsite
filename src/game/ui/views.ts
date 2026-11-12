@@ -13,6 +13,8 @@ import { audio } from '../audio.ts';
 import { loadAnimSet } from '../render/anims.ts';
 import { lookOf, recolorUrl } from '../looks.ts';
 import { lookChip, paintImage } from './lookUi.ts';
+import { currentWinQuote } from '../winQuote.ts';
+import { quoteCaption } from './quoteCaption.ts';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -375,6 +377,8 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
   if (online) headline = online.headline;
 
   const hero = (online?.winner !== undefined ? s.fighters[online.winner] : undefined) ?? winner ?? s.fighters[0];
+  // The winner's quote (winQuote.ts), when this screen is for a finished match with a winner.
+  const quote = currentWinQuote()?.winner === CHARACTERS[hero.char].id ? currentWinQuote() : null;
   // The summary strip: who won, how long it ran, how much damage the winner (or winning team) dealt.
   const side = s.winnerTeam >= 0 && !campaign ? s.fighters.filter((f) => f.team === s.winnerTeam) : [hero];
   const dealt = side.reduce((n, f) => n + m.stats[f.id].dealt, 0);
@@ -392,6 +396,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
         {},
         h('p', { class: 'kicker' }, s.timedOut ? 'Time' : 'Game', ' · ', formatTime(s.frame)),
         h('h2', {}, headline),
+        quote && quoteCaption(quote),
         h('p', { class: 'results-look' }, lookChip(hero.char, look(hero.id)), unlocked.length ? h('em', { class: 'look-new' }, `New colour: ${unlocked.join(', ')}`) : null),
         campaign && m.setup.objective === 'survive' && h('p', {}, won ? 'You lasted the whole minute.' : 'They took you off the air.'),
         m.setup.objective === 'ko' && h('p', { class: 'results-objective' }, koLine(m, won)),

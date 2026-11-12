@@ -1,16 +1,16 @@
 // Screens, the wipe between them, and menu navigation with keyboard or gamepad.
 //
 // Each screen is a <section class="screen" id="..."> in the page. Only one is
-// shown at a time; go() covers the switch with a diagonal wipe.
+// shown at a time; go() covers the switch with the show's stinger.
 
 import { pads } from '../input/devices.ts';
 import { audio } from '../audio.ts';
 import { screen as trackScreen } from '../analytics.ts';
+import { startStinger } from './stinger.ts';
 
 export type ScreenId =
-  | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'tour' | 'howto' | 'results' | 'match' | 'leaderboard';
+  | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'tour' | 'extras' | 'howto' | 'results' | 'match' | 'leaderboard';
 
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const backHandlers = new Map<ScreenId, () => void>();
 /** A panel over the screen (Settings): Back closes it first. */
 let panelBack: (() => void) | null = null;
@@ -36,33 +36,21 @@ export function onBack(id: ScreenId, fn: () => void): void {
   backHandlers.set(id, fn);
 }
 
-const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
-/** Switches screens behind a wipe. The callback runs while the screen is covered. */
+/** Switches screens behind the show's stinger (ui/stinger.ts). The callback runs while the screen is covered. */
 export async function go(id: ScreenId, whileCovered?: () => void | Promise<void>): Promise<void> {
   if (busy) return;
   busy = true;
-  const wipe = document.getElementById('wipe')!;
   const first = current === null;
-  if (!first) {
-    audio.sfx('wipe');
-    wipe.className = 'wipe in';
-    await wait(reduceMotion ? 120 : 260);
-  }
-  // The label only appears when the cover has to stay up for a while; a normal switch is just the wipe.
-  const slow = first ? 0 : window.setTimeout(() => { if (wipe.className === 'wipe in') wipe.className = 'wipe in slow'; }, 500);
+  const from = current ?? 'none';
+  const st = first ? null : startStinger(from, id);
+  await st?.covered;
   try {
     await whileCovered?.();
   } finally {
-    clearTimeout(slow);
+    show(id);
+    await st?.open();
+    busy = false;
   }
-  show(id);
-  if (!first) {
-    wipe.className = 'wipe out';
-    await wait(reduceMotion ? 120 : 280);
-    wipe.className = 'wipe';
-  }
-  busy = false;
   focusFirst();
 }
 

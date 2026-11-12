@@ -4,6 +4,7 @@
 
 import { FX, TRIG_ONE, approach, clamp, iatan2, icos, idiv, isin, isqrt, normDeg, rngNext, sign } from './fixed.ts';
 import { AERIALS, CHARACTERS, MOVE, THROW, type CharacterDef, type CounterDef, type Hitbox, type ShotDef } from './characters.ts';
+import type { SpecialKind } from './fighterDefs.ts';
 import { BTN, C_ANY, NO_INPUT, stickX, stickY } from './input.ts';
 import {
   EV_IDLE,
@@ -21,10 +22,11 @@ import {
   type StageZone,
 } from './stage.ts';
 import { predictLaunchKo } from '../hitFeel.ts';
-import { ACT, SHIELD_MAX, allies, bodySize, newShot, type Fighter, type GameState, type Shot } from './state.ts';
+import { ACT, SHIELD_MAX, allies, bodySize, newShot, type Fighter, type GameState, type Shot, type TakeoverRule } from './state.ts';
 
 export type SimEvent =
-  | { type: 'hit'; attacker: number; victim: number; x: number; y: number; dmg: number; kb: number; shield: boolean; lag: number }
+  /** special: the archetype of the special that landed it (a shot is projectile or trap), for the impact sound. Presentation only. */
+  | { type: 'hit'; attacker: number; victim: number; x: number; y: number; dmg: number; kb: number; shield: boolean; lag: number; special?: SpecialKind }
   /** A launch begins as hit-stop ends. ko: the launch carries the victim out of the blast zone, so the kill cue plays (hitFeel.ts). Presentation only. */
   | { type: 'launch'; victim: number; by: number; x: number; y: number; ko: boolean }
   | { type: 'ko'; victim: number; by: number; x: number; y: number }
@@ -44,7 +46,10 @@ export type SimEvent =
   /** A stage event (index into stage.events) warned, started or ended. */
   | { type: 'stage'; event: number; phase: 'warn' | 'start' | 'end' }
   /** A broadcast event (state.bc[index]) started or ended; who is the fighter a chant is for. */
-  | { type: 'broadcast'; index: number; kind: string; phase: 'start' | 'end'; who: number };
+  | { type: 'broadcast'; index: number; kind: string; phase: 'start' | 'end'; who: number; mood?: number; hot?: number };
+
+/** The four special moves: only these carry an archetype into a hit event. */
+const SPECIAL_SLOTS: ReadonlySet<number> = new Set([MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL]);
 
 const BUTTONS = BTN.ATTACK | BTN.SPECIAL | BTN.JUMP | BTN.SHIELD | C_ANY;
 export const BUFFER_FRAMES = 6;
@@ -924,7 +929,7 @@ function shotHit(s: GameState, o: Shot, ev: SimEvent[]): boolean {
     const dy = o.y - py;
     if (dx * dx + dy * dy > o.r * o.r) continue;
     const box: Hitbox = { x: 0, y: 0, r: 0, dmg: o.dmg, angle: o.angle, bkb: o.bkb, kbg: o.kbg };
-    applyHit(s, owner, v, box, (o.x + px) >> 1, (o.y + py) >> 1, ev, { facing: o.facing, shot: true });
+    applyHit(s, owner, v, box, (o.x + px) >> 1, (o.y + py) >> 1, ev, { facing: o.facing, shot: true, shotKind: o.kind === 1 ? 'trap' : 'projectile' });
     return true;
   }
   return false;
@@ -942,6 +947,8 @@ export function knockback(percent: number, dmg: number, weight: number, bkb: num
 interface Via {
   facing: number;
   shot?: boolean;
+  /** Archetype of the shot (projectile or trap). */
+  shotKind?: SpecialKind;
   counter?: boolean;
 }
 
@@ -968,6 +975,7 @@ function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, 
     return;
   }
   const dmg = idiv(box.dmg * s.rules.damage, 100);
+  const special = via?.shot ? via.shotKind : a.action === ACT.ATTACK && SPECIAL_SLOTS.has(a.move) ? CHARACTERS[a.char].moves[a.move].kind : undefined;
   // Hit-stop scales with damage: a jab freezes 3 frames, a smash 8 or more (at most 14).
   const lag = Math.min(14, 3 + idiv(dmg, 25));
   if (!via?.shot) a.hitlag = lag;
@@ -975,7 +983,7 @@ function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, 
 
   if (!box.grab && (v.action === ACT.SHIELD || v.action === ACT.SHIELD_STUN)) {
     v.shield -= dmg;
-    ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: 0, shield: true, lag });
+    ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: 0, shield: true, lag, special });
     if (v.shield <= 0) {
       breakShield(v, ev);
     } else {
@@ -1006,7 +1014,7 @@ function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, 
   v.facing = via?.shot ? -facing : a.x < v.x ? -1 : 1;
   if (box.grab) v.x = a.x + facing * idiv((box.pull ?? 0) * a.scale * FX, 100);
   v.lastHitBy = a.id;
-  ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: idiv(kb, 1000), shield: false, lag });
+  ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: idiv(kb, 1000), shield: false, lag, special });
 }
 
 /** Applies a stored launch once hitlag ends, bent by the victim's stick (DI). */
@@ -1610,6 +1618,9 @@ const RIG_FALL = 24;
 const RIG_R = 90;
 const FLICKER_FRAMES = 150;
 const HIJACK_FRAMES = 600;
+/** The finale takeover: the feed stays up this long; its rule lands this many frames after the glitch starts (inside 1 s). */
+export const TAKEOVER_FRAMES = 600;
+export const TAKEOVER_RULE_FRAMES = 45;
 export const BREAK_FRAMES = 90;
 export const RIG_DROP_FRAMES = RIG_WARN + RIG_FALL;
 
@@ -1624,12 +1635,23 @@ function broadcastEvents(s: GameState, ev: SimEvent[]): void {
     const met =
       (w.time !== undefined && s.frame >= secs(w.time)) ||
       (w.stockLost && koed) ||
+      (w.stocks !== undefined && s.fighters[0].stocks <= w.stocks) ||
       (w.damage !== undefined && s.fighters.some((f) => f.percent >= w.damage! * 10));
     if (!met) continue;
     if (b.kind === 'rig-drop' && (!s.rules.hazards || s.rigFrame >= 0)) continue;
+    // One takeover at a time, and none once the fight is decided.
+    if (b.kind === 'takeover' && s.takeover > 0) continue;
     s.bcFired[i] = 1;
     let who = 0;
-    if (b.kind === 'flicker') s.flicker = FLICKER_FRAMES;
+    let mood: number | undefined;
+    let hot: number | undefined;
+    if (b.kind === 'takeover') {
+      s.takeover = TAKEOVER_FRAMES;
+      s.takeoverIdx = i;
+      s.takeoverAt = b.rule ? TAKEOVER_RULE_FRAMES : 0;
+      mood = playerMood(s);
+      hot = s.fighters[0].percent >= 1000 ? 1 : 0;
+    } else if (b.kind === 'flicker') s.flicker = FLICKER_FRAMES;
     else if (b.kind === 'hijack') s.hijack = HIJACK_FRAMES;
     else if (b.kind === 'break') {
       s.freeze = BREAK_FRAMES;
@@ -1641,18 +1663,18 @@ function broadcastEvents(s: GameState, ev: SimEvent[]): void {
         if (f.stocks > c.stocks || (f.stocks === c.stocks && f.percent < c.percent)) who = f.id;
       }
     } else {
-      // The rig light picks either fighter, from the match rng.
-      let v: number;
-      [s.rng, v] = rngNext(s.rng);
-      const live = s.fighters.filter((f) => f.action !== ACT.DEAD);
-      const t = live[v % Math.max(1, live.length)] ?? s.fighters[0];
-      who = t.id;
-      s.rigX = t.x;
-      s.rigFrame = 0;
-      s.rigHit = 0;
+      who = callRig(s);
     }
-    ev.push({ type: 'broadcast', index: i, kind: b.kind, phase: 'start', who });
+    ev.push({ type: 'broadcast', index: i, kind: b.kind, phase: 'start', who, mood, hot });
   }
+  if (s.takeoverAt > 0 && --s.takeoverAt === 0) {
+    const rule = s.bc[s.takeoverIdx]?.rule;
+    if (rule) {
+      applyTakeoverRule(s, rule);
+      ev.push({ type: 'broadcast', index: s.takeoverIdx, kind: 'takeover-rule', phase: 'start', who: 0 });
+    }
+  }
+  if (s.takeover > 0 && --s.takeover === 0) ev.push({ type: 'broadcast', index: s.takeoverIdx, kind: 'takeover', phase: 'end', who: 0 });
   if (s.flicker > 0 && --s.flicker === 0) ev.push({ type: 'broadcast', index: s.bc.findIndex((b) => b.kind === 'flicker'), kind: 'flicker', phase: 'end', who: 0 });
   if (s.hijack > 0 && --s.hijack === 0) ev.push({ type: 'broadcast', index: s.bc.findIndex((b) => b.kind === 'hijack'), kind: 'hijack', phase: 'end', who: 0 });
   if (s.rigFrame >= 0) {
@@ -1674,6 +1696,50 @@ function broadcastEvents(s: GameState, ev: SimEvent[]): void {
       }
     }
     if (s.rigFrame > RIG_DROP_FRAMES + 20) s.rigFrame = -1;
+  }
+}
+
+/** The rig light picks either fighter, from the match rng; returns who. */
+function callRig(s: GameState): number {
+  let v: number;
+  [s.rng, v] = rngNext(s.rng);
+  const live = s.fighters.filter((f) => f.action !== ACT.DEAD);
+  const t = live[v % Math.max(1, live.length)] ?? s.fighters[0];
+  s.rigX = t.x;
+  s.rigFrame = 0;
+  s.rigHit = 0;
+  return t.id;
+}
+
+/** How the player (fighter 0) is doing against the others: 1 ahead (more stocks, then less damage, ties go to the player), -1 behind. */
+export function playerMood(s: GameState): number {
+  const me = s.fighters[0];
+  for (const f of s.fighters) {
+    if (f.id === 0 || (me.team >= 0 && f.team === me.team)) continue;
+    if (f.stocks > me.stocks || (f.stocks === me.stocks && f.percent < me.percent)) return -1;
+  }
+  return 1;
+}
+
+/** The Orchestrator's rewrite, through the rule system the match already has (gravity, scale, hazards, respawn percent). */
+function applyTakeoverRule(s: GameState, r: TakeoverRule): void {
+  if (r.gravity !== undefined) s.rules.gravity = r.gravity;
+  if (r.hazard) {
+    s.rules.hazards = 1;
+    if (s.rigFrame < 0) callRig(s);
+  }
+  if (r.giant) {
+    const me = s.fighters[0];
+    for (const f of s.fighters) {
+      const mine = f.id === 0 || (me.team >= 0 && f.team === me.team);
+      if (mine === (r.giant === 'player')) f.scale = Math.max(f.scale, 150);
+    }
+  }
+  if (r.startPercent !== undefined) {
+    for (const f of s.fighters) {
+      f.startPercent = r.startPercent;
+      if (f.stocks > 0) f.percent = Math.max(f.percent, r.startPercent);
+    }
   }
 }
 

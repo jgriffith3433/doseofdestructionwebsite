@@ -470,7 +470,7 @@ is one easier than Series Finale's 5.
 
 Awards season is over, and television does what it does before a finale: it teases it. Four nights of promotion (a
 teaser, a trailer, a table read, a cliffhanger), each a piece of the Season 10 finale that the network won't show
-whole. No villain, and the Orchestrator is still off the air: **he is never seen or heard in Season 9, only talked
+whole. No villain, and the Orchestrator is still off the air: **he is never seen or heard in Season 9 (bar the finale hijack at the end of "The finale hijack" below), only talked
 about**, so the first time he is on the card again is the finale. **The Mechanic is not used** (still a candidate,
 not confirmed canon). Blog Man hosts and the narrator stays; Exit Punk is the player, team 0. The promoters are
 **returning walk-ons** (Shark Dude, Wallit and Cel, Try Belt, Pyro Singer), in their own voices. Nobody is unlocked
@@ -560,6 +560,25 @@ six bouts in a row, ratings rising, and the last slot is always the fighter's **
   fight (the foe reacting to the last result) are the next step, as is a broadcast beat (ratings bump, host call) between
   wins.
 
+## Endings: where each fighter lands (as built)
+
+Winning the sixth fight of a Tour plays the arena win scene (the fighter's own win line, "<Fighter> clears the Tour"), and
+then the show cuts to the **ending**: one painted broadcast-poster picture of that fighter somewhere after the show (the
+exit door, the empty pitch, the vault of cash), a slow push-in over about 13 seconds, two caption lines, the second said
+by **Blog Man** (his usual voice: the host's reporter, who always files the story), the fighter's sting and cheer, then the
+card "Tour complete: <Fighter> clears the Tour" with the colour the Tour earned. A tap, Enter, Space or Esc skips.
+
+- The words are in `tools/endings.data.json` (merged into `content/endings.json` and `voice.json` `endings` by
+  `node tools/endings.mjs`); the pictures are `characters/endings/<id>.webp` (Hawkes Gen image.generate, 1920x1080, the
+  fighter centred so a 844x390 phone crop keeps them); the takes are `audio/voice/ending.<id>.mp3`.
+- Each ending is a short, dry coda in the fighter's own rule: Exit Punk finds the door (it was never locked), Break never
+  fell, Kaelen was gone before the cameras turned, Shutup Bot says nothing (a very loud nothing).
+- **The Mechanic** has no Tour (he is still not on the card, and not used in the campaign). His slot in the gallery is the
+  show's very last scene: the stage after the finale, one bolt left. It opens when every other Tour is cleared.
+- **Extras > Endings** on the main menu shows one slot per fighter (33). A cleared Tour opens its slot (its picture,
+  "Replay ending"); the rest are dark silhouettes saying "Clear <Fighter>'s Tour". A tap replays the ending, with the
+  card reading "Ending".
+
 ## Tonight's Episode: the nightly special (as built)
 
 The Orchestrator's show never goes dark: at midnight UTC the network drops one more episode into the schedule, the same
@@ -632,3 +651,42 @@ Destruction"**: the saved KO replayed on its own stage under Blog Man's voiced r
   tease signs the show off ("Nothing. That's a wrap."); its recap plays if a run starts over from Open Mic.
 - Every segment is skippable by any key, click, tap or pad button (`ui/segment.ts`); the pilot, the daily episode and
   the Tour have none of it. Scenario `bookends` plays it.
+
+## Win quotes (as built)
+
+Every win ends with the winner talking to the loser, in the style of a fighting game's win screen: the results screen shows
+the winner's portrait with the quote typed on beneath the headline while the recorded take plays (`winQuote.ts`,
+`ui/quoteCaption.ts`; data `content/voice.json` `winQuotes`, made by `tools/win-quotes.mjs` from `tools/win-quotes.data.json`).
+
+- Each fighter has two general quotes (the older `fighter.<id>.win` line stays one of them, and the Tour's ending still
+  plays it) and one matchup quote against each story rival, the pairs in `content/intros.json` in both directions:
+  33 new general quotes and 64 matchup quotes, ten words or fewer, recorded in the fighter's own voice
+  (`winquote.<id>.1`, `winquote.<id>.vs.<rival>`).
+- Beating a rival plays the matchup quote, which answers the square-up before the fight (Exit Punk to Kaelen: "Told you.
+  Stand still."). Otherwise a general quote. A fighter never plays the same quote twice in a row: a repeated rival win
+  falls back to a general quote.
+- Versus, online, campaign, Tour (a lost fight's foe gloats on the choice screen) and the daily episode all use it; the
+  Tour's last win keeps the win line already heard over the final KO. Scenario `win-quote`.
+
+## The finale hijack (every season finale)
+
+The last fight of each of the ten seasons is a finale, and the Orchestrator never lets a finale air clean. **Canon:** in each
+season finale (Encore, Sponsored, Walk-On, Hostile Takeover, Clip Show, Global Feed, Series Finale, Best In Show, Cliffhanger,
+Final Cut) he **seizes the broadcast mid-fight**: the picture tears, he is on the stage's screens and in a picture-in-picture
+feed ("LIVE · THE ORCHESTRATOR"), he talks to the player about how the fight is going and he **rewrites one rule on the spot**.
+He is a showman: every line is about ratings, the card or the next show, never about the vat (the corporate secret stays out).
+
+- **Trigger (sim):** 60 s into the fight, or the player (fighter 0) down to 2 stocks, whichever comes first. One takeover per fight.
+- **Lines (30, his own voice):** he opens with a seize line (7) or, when the player is over 100%, a hot line (3); then a reaction
+  to the fight, one for a player ahead (5) and one for a player behind (5); then the finale's own rule line (10). Staggered
+  by season so no two finales sound alike.
+- **The rules he rewrites** (the sim's own rule system, 0.75 s after the glitch): Encore gravity 60%; Sponsored everyone starts
+  at 40%; Walk-On the host grows to a giant (150%); Hostile Takeover a rig light falls (stage hazards on); Clip Show gravity
+  140%; Global Feed the player is the giant; Series Finale everyone starts at 30%; Best In Show a rig light; Cliffhanger gravity 40%;
+  Final Cut the host grows to a giant.
+- **Seasons 5 to 9 exception:** in those seasons he is off the air, and that is still true of the show: the hijack is not him
+  hosting, it is his **standing order on the network's finale feed** (the clause he wrote into the sign-up sheet). The feed cuts
+  to his tape and back; he is still not on the card, not named by Blog Man, and not heard anywhere else in those seasons. This
+  is the one exception to "never seen or heard" in Season 9 (the Cliffhanger).
+- Data: `content/campaign.json` `events` (kind `takeover`, `when`, `rule`), lines `orchestrator.takeover.*` in
+  `content/voice.json` (words in `tools/takeover-lines.data.json`), pickers `src/game/campaign/takeover.ts`. Scenario `finale-hijack`.

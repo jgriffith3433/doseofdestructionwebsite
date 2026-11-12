@@ -64,6 +64,7 @@
       <button id="btn-find" class="menu-item online-item" type="button" data-go="online"><strong>Find match</strong><span id="find-sub">Fight another player online. Play on while you wait.</span></button>
       <button id="btn-profile" class="menu-item profile-item" type="button" data-go="profile"><img id="profile-img" alt=""><strong>Profile</strong><span id="profile-sub">Your name and picture.</span></button>
       <button id="btn-board" class="menu-item board-item" type="button" data-go="leaderboard"><strong>Leaderboard</strong><span id="board-sub">Top 100 online, this week and all time.</span></button>
+      <button id="btn-extras" class="menu-item" type="button" data-go="extras"><strong>Extras</strong><span>Endings: replay every Tour's last scene.</span></button>
       <button class="menu-item" type="button" data-go="training"><strong>Training</strong><span>A dummy, no stocks, hitboxes on H.</span></button>
       <button class="menu-item" type="button" data-go="howto"><strong>How to play</strong><span>Learn it on the stage, one move at a time.</span></button>
       <button class="menu-item quiet" type="button" data-go="controls"><strong>All controls</strong></button>
@@ -129,6 +130,16 @@
     </header>
     <p class="lede">Pick a fighter and play their own six fights, ending on their rival. Clear it and the Tour stays marked.</p>
     <div id="tour-grid" class="tour-grid"></div>
+  </section>
+
+  <section id="extras" class="screen extras-screen" hidden>
+    <header class="screen-head">
+      <button class="back-btn" type="button" data-back>&larr; Back</button>
+      <h2>Extras · Endings</h2>
+      <span id="extras-count" class="tour-count"></span>
+    </header>
+    <p class="lede">Clear a fighter's Tour to open their ending. Tap one to watch it again.</p>
+    <div id="ending-grid" class="ending-grid"></div>
   </section>
 
   <section id="howto" class="screen howto-screen" hidden>
@@ -303,7 +314,7 @@
   <p id="net-status" class="net-status" hidden></p>
 
   <div id="loading" class="loading" hidden>Loading fighters&hellip;</div>
-  <div id="wipe" class="wipe" aria-hidden="true"><i></i><i><b>Dose of <span>Destruction</span></b></i></div>
+  <div id="wipe" class="wipe" aria-hidden="true"><i></i><i class="stinger-slots"><u></u><u></u><u></u><u></u></i><i class="stinger-logo"><b>Dose of <span>Destruction</span></b></i><em class="stinger-streak"></em></div>
 
   <!-- Studio standard: one tap before the game starts turns sound on (iOS needs a gesture). -->
   <div id="tap-to-play" class="tap-to-play" role="button" tabindex="0" aria-label="Play as guest: tap to play">
@@ -370,5 +381,6 @@
   <script src="https://hawkesgen.ai/sdk/analytics@1.js" data-product="doseofdestruction" defer></script>
   <script type="module" src="../src/game/main.ts"></script>
   <script src="/site/hawkes-release.js" data-releases="/releases.json" defer></script>
+  <div id="ending" class="ending" hidden role="dialog" aria-label="Tour ending"></div>
 </body>
 </html>

@@ -7,6 +7,7 @@
 // fighter's facing space: 0 is forward, 90 is up, 180 is backward, 270 is down.
 
 import { FX } from './fixed.ts';
+import type { FighterStyle } from '../artStyle.ts';
 
 export interface Look {
   name: string;
@@ -194,6 +195,8 @@ export interface CharacterDef {
   blurb: string;
   /** Colour looks, Classic first (looks.ts). */
   looks: Look[];
+  /** Art bible numbers (artStyle.ts): outline colour and the saturation / value remap. Render only, never in the sim. */
+  style?: FighterStyle;
   width: number;
   height: number;
   weight: number;
@@ -623,6 +626,8 @@ export interface Spec {
   hitboxes?: HitboxFit;
   /** Colour looks (looks.ts): the first is today's art; the rest are palette shifts of the same sprite sheets. */
   looks?: Look[];
+  /** Art bible style (tools/derive-style.mjs). */
+  style?: FighterStyle;
 }
 
 // Specs are written in world units for readability. Everything the sim reads
@@ -645,6 +650,7 @@ export function fighter(id: string, name: string, role: string, blurb: string, p
     name,
     art: `${id}.png`,
     looks: p.looks && p.looks.length ? p.looks : [CLASSIC],
+    style: p.style,
     role,
     blurb,
     width: p.w,

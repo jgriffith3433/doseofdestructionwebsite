@@ -5,7 +5,8 @@
 import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
 import { addWin } from './looks.ts';
-import { audio, tapState } from './audio.ts';
+import { audio, tapState, type Spatial } from './audio.ts';
+import { panFromScreen } from './roomAudio.ts';
 import { Commentator, introCall, type Call } from './commentary.ts';
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
 import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
@@ -21,6 +22,7 @@ import { clearMarkers, markerLog, markerRects, updateMarkers, type MarkerIn } fr
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
+import { ruleLabel, takeoverLines } from './campaign/takeover.ts';
 import { CHAPTERS, isUnlocked, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
@@ -48,8 +50,12 @@ import { DAILY_POOL, dailyEpisode, dailyScore, dailySetup, liveStreak, msToNext,
 import { dailyDate, loadDaily, saveDaily } from './campaign/dailyStore.ts';
 import { fillBoard, renderDailyCard, renderDailyResults, setCountdown } from './ui/daily.ts';
 import { TOURS, TOUR_LENGTH, loadTours, tourFor, markTourCleared, tourEnding, tourIntro, tourSetup, type Tour } from './campaign/tour.ts';
+import { ENDINGS as TOUR_ENDINGS, endingFor, type Ending } from './campaign/endings.ts';
+import { playEnding } from './ui/ending.ts';
+import { renderEndings } from './ui/extras.ts';
 import { renderTourChoice, renderTourSelect, tourBanner } from './ui/tour.ts';
 import { VOICE } from './audio.ts';
+import { clearWinQuote, pickWinQuote, type WinQuote } from './winQuote.ts';
 import { PILOT_CHAPTER, PILOT_KAELEN, isFirstVisit, markPilotSeen, pilotState } from './campaign/firstVisit.ts';
 
 const TICK_MS = 1000 / 60;
@@ -150,6 +156,7 @@ function wireMenus(): void {
       if (to === 'online' || to === 'profile') analytics.feature(to === 'online' ? 'find_match' : 'profile_open');
       if (to === 'campaign') openCampaignScreen();
       else if (to === 'tour') openTourScreen();
+      else if (to === 'extras') openExtras();
       else if (to === 'versus') openVersus();
       else if (to === 'training') openTraining();
       else if (to === 'howto') startHowToPlay();
@@ -168,6 +175,7 @@ function wireMenus(): void {
   onBack('stages', () => (lastSelect === 'training' ? openTraining() : openVersus()));
   onBack('campaign', () => go('main', spotlight));
   onBack('tour', () => go('main', spotlight));
+  onBack('extras', () => go('main', spotlight));
   onBack('howto', () => go('main', spotlight));
   wirePilot();
   onBack('leaderboard', () => go('main', spotlight));
@@ -691,6 +699,14 @@ function openTourScreen(): Promise<void> {
   });
 }
 
+/** Extras: the Endings gallery; a tap on an open slot replays that ending. */
+function openExtras(): Promise<void> {
+  return go('extras', () => {
+    renderEndings(loadTours(), (e: Ending) => void playEnding(e, { replay: true }));
+    window.dispatchEvent(new CustomEvent('dod:ending', { detail: { phase: 'gallery', slots: TOUR_ENDINGS.length, cleared: [...loadTours()] } }));
+  });
+}
+
 function playTour(tour: Tour): void {
   tourRun = { tour, index: 0, setup: tourSetup(tour, 0), continues: 0 };
   analytics.setMode('campaign');
@@ -729,9 +745,7 @@ async function tourFinish(m: Match, won: boolean): Promise<void> {
   const last = r.index >= r.tour.fights.length - 1;
   if (!won) {
     analytics.tour('lost', { fighter: r.tour.fighter, fight: r.index + 1 });
-    // The foe gloats over the Continue or Quit choice, in their own recorded win line.
-    const gloat = r.tour.fights[r.index].foes[0];
-    window.setTimeout(() => audio.line(`fighter.${gloat}.win`), 1200);
+    // The foe gloats over the Continue or Quit choice: the results' win quote (showFinish) is their line.
     tourEvent('lost', { fighter: r.tour.fighter, fight: r.index + 1 });
     showFinish(m, false, null);
     return;
@@ -753,6 +767,12 @@ async function tourFinish(m: Match, won: boolean): Promise<void> {
   await audio.preloadUrls(tourAudio(r.tour, r.index));
   if (match !== m) return;
   await runScene(m, { tour: { ...tourEnding(r.tour, voiceLine), id: `tour.${r.tour.fighter}.ending` }, which: 'outro' });
+  // Then the fighter's own painted ending: the picture, the narrated line, the sting and "Tour complete".
+  const ending = endingFor(r.tour.fighter);
+  if (match === m && ending) {
+    await audio.preloadUrls([ending.audio]);
+    await playEnding(ending);
+  }
   if (match === m) showFinish(m, true, null);
 }
 
@@ -1124,11 +1144,12 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
 function beginReady(m: Match): void {
   const setup = m.setup;
   analytics.matchStart(m, chapter);
+  clearTakeover();
   endPilotBoot();
   phase = 'ready';
   readyFrames = 0;
   readyStart = performance.now();
-  banner('Ready');
+  slam('Round start');
   renderer.stageEvent('start');
   audio.line('announcer.ready');
   commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state) : null;
@@ -1157,6 +1178,7 @@ function endMatch(): void {
   $('hud').hidden = true;
   clearMarkers();
   $('match-top').hidden = true;
+  clearTakeover();
   $('pause').hidden = true;
   renderer.debug = false;
 }
@@ -1239,7 +1261,9 @@ function afterTick(m: Match, events: SimEvent[]): void {
   if (s.over && !shownOver) {
     shownOver = true;
     renderer.stageEvent('end');
-    banner(s.timedOut ? 'Time!' : 'Game!');
+    slam(s.timedOut ? 'Time!' : 'Game!', true);
+    // The final KO holds for half a second (offline; online the rollback keeps ticking) under the slam.
+    if (!fight) freezeUntil = performance.now() + GAME_FREEZE_MS;
     audio.line(s.timedOut ? 'announcer.time' : 'announcer.game');
     // Final-KO sting only when a stock wipe closes the bout (not a quota/streak/ko chip win).
     const teamsLeft = new Set(s.fighters.filter((f) => f.stocks > 0).map((f) => f.team));
@@ -1257,7 +1281,83 @@ function afterTick(m: Match, events: SimEvent[]): void {
 }
 
 const SMASHES: ReadonlySet<number> = new Set([MOVE.FSMASH, MOVE.USMASH, MOVE.DSMASH]);
+/** A sound made where a fighter stands: panned by its screen x (-0.8 to 0.8); `away` for a KO leaving the view. */
+function at(simX: number, ko = false): Spatial {
+  const x01 = renderer.screenX01(simX);
+  const pan = panFromScreen(x01);
+  return ko ? { pan, away: Math.min(1, Math.max(0, (Math.abs(x01 * 2 - 1) - 0.8) / 1.2)) } : { pan };
+}
+
 const VOICE_SPECIALS: ReadonlySet<number> = new Set([MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL]);
+
+// ------------------------------------------------------------- the finale takeover
+// The sim fires a 'takeover' broadcast (sim/step.ts) with the player's mood, and 45 frames later 'takeover-rule' when the
+// rule has landed. This is what the player sees and hears: a 1 s RGB-split glitch and a cut sound, the Orchestrator's feed in
+// a picture-in-picture (top left, clear of Pause and the touch controls) with his ghost on the stage screens, his lines for
+// the state of the fight (campaign/takeover.ts), and the rule chip on the HUD with a sting.
+const TAKEOVER_GLITCH_MS = 1000;
+let takeoverTimers: number[] = [];
+let takeoverSeq = 0;
+
+function clearTakeover(): void {
+  for (const t of takeoverTimers) clearTimeout(t);
+  takeoverTimers = [];
+  takeoverSeq++;
+  document.querySelectorAll('.takeover-pip, .takeover-ghost, .rule-chip, .booth-orchestrator').forEach((el) => el.remove());
+  document.body.classList.remove('takeover-glitch');
+}
+
+function endTakeover(): void {
+  document.querySelector('.takeover-pip')?.classList.add('off');
+  document.querySelector('.takeover-ghost')?.remove();
+  takeoverTimers.push(window.setTimeout(() => document.querySelector('.takeover-pip')?.remove(), 600));
+}
+
+function startTakeover(m: Match, e: { index: number; mood?: number; hot?: number }): void {
+  clearTakeover();
+  const seq = takeoverSeq;
+  const def = m.state.bc[e.index];
+  const lines = takeoverLines(chapter?.season ?? 1, chapter?.id ?? 'encore', e.mood ?? 1, !!e.hot, !!def?.rule);
+  renderer.glitch(TAKEOVER_GLITCH_MS);
+  audio.synth('cut');
+  audio.synth('alarm', 0.4);
+  document.body.classList.add('takeover-glitch');
+  takeoverTimers.push(window.setTimeout(() => document.body.classList.remove('takeover-glitch'), TAKEOVER_GLITCH_MS));
+  const pip = h('div', { class: 'takeover-pip', 'data-takeover': 'on', 'data-mood': e.mood && e.mood < 0 ? 'behind' : 'ahead', 'data-hot': e.hot ? '1' : '0' },
+    h('img', { src: headUrl('orchestrator'), alt: '' }),
+    h('span', { class: 'takeover-live' }, 'LIVE · THE ORCHESTRATOR'));
+  document.body.appendChild(pip);
+  document.body.appendChild(h('img', { class: 'takeover-ghost', src: headUrl('orchestrator'), alt: '' }));
+  const said: string[] = [];
+  // His lines come one after another, each when the last has finished (a take's own length, else reading time).
+  const next = (i: number): void => {
+    if (seq !== takeoverSeq || i >= lines.ids.length) return;
+    const id = lines.ids[i];
+    const text = VOICE.lines.find((l) => l.id === id)?.text ?? '';
+    audio.line(id);
+    said.push(id);
+    document.querySelector('.booth')?.remove();
+    document.querySelector('.booth-orchestrator')?.remove();
+    document.body.appendChild(h('div', { class: 'booth booth-orchestrator', 'data-line': id }, h('span', { class: 'booth-who' }, 'The Orchestrator'), h('span', { class: 'booth-text' }, text)));
+    window.dispatchEvent(new CustomEvent('dod:takeover', { detail: { phase: 'line', id, text, index: i, mood: e.mood && e.mood < 0 ? 'behind' : 'ahead', hot: !!e.hot, chapter: chapter?.id ?? null, frame: m.state.frame } }));
+    takeoverTimers.push(window.setTimeout(() => next(i + 1), Math.max(2600, text.split(/\s+/).length * 380 + 900)));
+  };
+  window.dispatchEvent(new CustomEvent('dod:takeover', { detail: { phase: 'start', mood: e.mood && e.mood < 0 ? 'behind' : 'ahead', hot: !!e.hot, chapter: chapter?.id ?? null, frame: m.state.frame, lines: lines.ids, rule: def?.rule ? ruleLabel(def.rule) : null } }));
+  takeoverTimers.push(window.setTimeout(() => next(0), 450));
+}
+
+function showTakeoverRule(m: Match, index: number): void {
+  const rule = m.state.bc[index]?.rule;
+  if (!rule) return;
+  const label = ruleLabel(rule);
+  audio.synth('sting');
+  audio.synth('thud', 0.7);
+  document.querySelector('.rule-chip')?.remove();
+  const chip = h('div', { class: 'rule-chip', 'data-rule': label }, h('small', {}, 'NEW RULE'), label);
+  document.body.appendChild(chip);
+  showBanner(`NEW RULE · ${label}`, 2600).className = 'bc-banner bc-hijack';
+  window.dispatchEvent(new CustomEvent('dod:takeover', { detail: { phase: 'rule', rule: label, frame: m.state.frame, chapter: chapter?.id ?? null } }));
+}
 
 /** A broadcast caption over the match. */
 function showBanner(text: string, ms: number): HTMLElement {
@@ -1274,18 +1374,20 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
   for (const e of events) {
     switch (e.type) {
       case 'hit':
-        if (e.shield) audio.sfx('hit-shield', { vary: true });
+        if (e.shield) audio.sfx('hit-shield', { vary: true, at: at(e.x) });
         else {
-          audio.sfx(e.dmg < 70 ? 'hit-light' : e.dmg < 130 ? 'hit-medium' : 'hit-heavy', { vary: true });
+          audio.sfx(e.dmg < 70 ? 'hit-light' : e.dmg < 130 ? 'hit-medium' : 'hit-heavy', { vary: true, at: at(e.x) });
+          // A special's own impact (its archetype's crack) and the attacker's signature accent on top.
+          if (e.special) audio.special('impact', e.special, CHARACTERS[m.state.fighters[e.attacker].char].id, at(e.x));
           // Heavy hits: the studio crowd gasps (ooh). Medium/heavy: the victim's hurt bark.
           if (e.dmg >= 130) audio.crowd('ooh');
-          if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt');
+          if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt', at(m.state.fighters[e.victim].x));
         }
         break;
       case 'hurt':
         // Stage damage (hazards, damage zones) lands with a hit sound like any other hit.
-        audio.sfx(e.dmg < 70 ? 'hit-light' : 'hit-medium', { vary: true });
-        if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt');
+        audio.sfx(e.dmg < 70 ? 'hit-light' : 'hit-medium', { vary: true, at: at(m.state.fighters[e.victim].x) });
+        if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt', at(m.state.fighters[e.victim].x));
         break;
       case 'stage':
         // The stage's events are heard: an alarm on the warning, a rush when it starts, a crowd reaction.
@@ -1298,6 +1400,7 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
       case 'broadcast':
         if (e.phase === 'end') {
           if (e.kind === 'break') document.getElementById('brb')?.remove();
+          if (e.kind === 'takeover') endTakeover();
           break;
         }
         if (e.kind === 'chant') {
@@ -1311,11 +1414,13 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         } else if (e.kind === 'hijack') {
           audio.synth('alarm', 0.6);
           showBanner('RIVAL NETWORK · NOW BROADCASTING', 10000).className = 'bc-banner bc-hijack';
-        } else if (e.kind === 'flicker') audio.synth('thud', 0.6);
+        } else if (e.kind === 'takeover') startTakeover(m, e);
+        else if (e.kind === 'takeover-rule') showTakeoverRule(m, e.index);
+        else if (e.kind === 'flicker') audio.synth('thud', 0.6);
         else audio.synth('alarm', 0.9);
         break;
       case 'ko': {
-        audio.sfx('ko');
+        audio.sfx('ko', { at: at(e.x, true) });
         // Crowd: roar on every KO; rising cheer when the killer was behind and is now level-or-ahead.
         const before = crowdStocksBefore.length === m.state.fighters.length
           ? crowdStocksBefore
@@ -1328,40 +1433,40 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         if (behind && level) audio.crowd('rising');
         else audio.crowd('roar');
         crowdStocksBefore = stocks;
-        audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'ko');
+        audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'ko', at(e.x, true));
         break;
       }
       case 'grab':
         // The grab clasps (a shielded one cracks through the guard too); a held fighter's shield stays whole.
         audio.synth('grab', 1);
-        if (e.shield) audio.sfx('hit-shield', { vary: true });
+        if (e.shield) audio.sfx('hit-shield', { vary: true, at: at(m.state.fighters[e.victim].x) });
         break;
       case 'throw':
         audio.synth('whoosh', 0.7);
-        audio.sfx(e.kind === 2 ? 'hit-heavy' : 'hit-medium', { vary: true });
+        audio.sfx(e.kind === 2 ? 'hit-heavy' : 'hit-medium', { vary: true, at: at(m.state.fighters[e.victim].x) });
         break;
       case 'grab-break':
         audio.synth('whoosh', 0.35);
         break;
       case 'counter':
         // A counter rings out: a shield-bright hit and a sting.
-        audio.sfx('hit-shield');
+        audio.sfx('hit-shield', { at: at(e.x) });
         audio.synth('sting', 0.5);
         break;
       case 'jump':
-        audio.sfx('jump', { vary: true });
+        audio.sfx('jump', { vary: true, at: at(e.x) });
         break;
       case 'land':
-        audio.landSfx();
+        audio.landSfx(null, at(e.x));
         break;
       case 'ledge':
-        audio.sfx('ledge', { vary: true });
+        audio.sfx('ledge', { vary: true, at: at(e.x) });
         break;
       case 'shieldbreak':
-        audio.sfx('shield-break');
+        audio.sfx('shield-break', { at: at(e.x) });
         break;
       case 'respawn':
-        audio.sfx('respawn');
+        audio.sfx('respawn', { at: at(e.x) });
         break;
     }
   }
@@ -1369,12 +1474,16 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
   m.state.fighters.forEach((f, i) => {
     if (f.action !== lastActions[i]) {
       if (f.action === ACT.ATTACK) {
-        audio.sfx(SMASHES.has(f.move) || f.move === MOVE.SSPECIAL || f.move === MOVE.DSPECIAL ? 'swing-heavy' : 'swing-light', { vary: true });
+        // A special plays its archetype's release (plus the fighter's accent) on its first frame, in place of the generic swing.
+        const kind = VOICE_SPECIALS.has(f.move) ? CHARACTERS[f.char].moves[f.move].kind : undefined;
+        if (!(kind && audio.special('release', kind, CHARACTERS[f.char].id, at(f.x)))) {
+          audio.sfx(SMASHES.has(f.move) || f.move === MOVE.SSPECIAL || f.move === MOVE.DSPECIAL ? 'swing-heavy' : 'swing-light', { vary: true, at: at(f.x) });
+        }
         // Smash and special effort barks (1.5 s cooldown + no overlap, inside audio.fighterVoice).
         if (SMASHES.has(f.move) || VOICE_SPECIALS.has(f.move)) {
-          audio.fighterVoice(CHARACTERS[f.char].id, 'effort');
+          audio.fighterVoice(CHARACTERS[f.char].id, 'effort', at(f.x));
         }
-      } else if (f.action === ACT.ROLL || f.action === ACT.SPOTDODGE || f.action === ACT.AIRDODGE) audio.sfx('dodge', { vary: true });
+      } else if (f.action === ACT.ROLL || f.action === ACT.SPOTDODGE || f.action === ACT.AIRDODGE) audio.sfx('dodge', { vary: true, at: at(f.x) });
     }
     lastActions[i] = f.action;
   });
@@ -1496,7 +1605,7 @@ function wireSettings(): void {
 }
 
 // Menus play the menu loop; matches pick their stage's loop when they start.
-const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'tour', 'howto', 'leaderboard']);
+const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'tour', 'extras', 'howto', 'leaderboard']);
 setInterval(() => {
   const s = currentScreen();
   if (s && MENU_SCREENS.has(s)) audio.playMusic('music-menu');
@@ -1527,6 +1636,30 @@ function creditWins(m: Match, winners: number[]): string[] {
     out.push(...addWin(CHARACTERS[slot.char].id));
   }
   return out;
+}
+
+/**
+ * Picks the winner's quote for this match (winQuote.ts) and tells the playtest (`dod:win-quote`). `ending` is a Tour's last win,
+ * whose own win line already played over the final KO: that line is the quote.
+ */
+function announceWinQuote(m: Match, winnerSlot: number, ending: boolean): WinQuote | null {
+  const w = m.state.fighters[winnerSlot];
+  clearWinQuote();
+  if (!w) return null;
+  const winner = CHARACTERS[w.char].id;
+  const team = m.state.winnerTeam >= 0 ? m.state.fighters.filter((f) => f.team === m.state.winnerTeam).map((f) => f.id) : [winnerSlot];
+  const losers = m.state.fighters.filter((f) => !team.includes(f.id)).map((f) => CHARACTERS[f.char].id);
+  const q = pickWinQuote(VOICE, winner, losers, Math.random, ending ? `fighter.${winner}.win` : undefined);
+  window.dispatchEvent(new CustomEvent('dod:win-quote', { detail: { id: q.id, text: q.text, audio: q.audio, kind: q.kind, winner: q.winner, loser: q.loser, losers } }));
+  return q;
+}
+
+/** Plays the quote's take as the results settle in (900 ms after the screen); a quote with no take is only the caption. */
+function playWinQuote(q: WinQuote): void {
+  setTimeout(() => {
+    audio.line(q.id);
+    window.dispatchEvent(new CustomEvent('dod:win-quote-play', { detail: { id: q.id, audio: q.audio } }));
+  }, 900);
 }
 
 /** The slots that won a finished match (a team's, or the single winner). */
@@ -1566,6 +1699,8 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
     actions.push({ label: 'Change fighters', run: () => openVersus() });
     actions.push({ label: 'Main menu', run: () => go('main', spotlight) });
   }
+  // The winner's quote, picked before the screen opens so the caption and the voice are the same line.
+  const quote = announceWinQuote(m, m.state.winner, tourRun?.setup === m.setup && won);
   void go('results', () => {
     endMatch();
     if (tourRun?.setup === m.setup && !won) {
@@ -1576,9 +1711,8 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
     if (dailyRun?.setup === m.setup && m.setup.mode === 'campaign') dailyFinished(m, dailyRun.ep, won);
     audio.playMusic('music-results');
   }).then(() => askOnResults(m));
-  const winner = m.state.fighters[m.state.winner];
   // The Tour's closing win line already played over the final KO.
-  if (winner && !(tourRun?.setup === m.setup && won)) setTimeout(() => audio.line(`fighter.${CHARACTERS[winner.char].id}.win`), 900);
+  if (quote && !(tourRun?.setup === m.setup && won)) playWinQuote(quote);
   syncPad();
 }
 
@@ -1662,6 +1796,8 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
     { label: 'Main menu', run: () => go('main', spotlight) },
   ];
   const newLooks = won && !voided ? creditWins(m, [f.slot]) : [];
+  clearWinQuote();
+  const quote = voided ? null : announceWinQuote(m, end.winner, false);
   await go('results', () => {
     endMatch();
     showResults(m, actions, { ...ending, winner: end.winner >= 0 ? end.winner : undefined }, newLooks);
@@ -1669,8 +1805,7 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
     audio.playMusic('music-results');
   });
   if (!voided) askOnResults(m);
-  const winner = m.state.fighters[end.winner];
-  if (winner) setTimeout(() => audio.line(`fighter.${CHARACTERS[winner.char].id}.win`), 900);
+  if (quote) playWinQuote(quote);
   syncPad();
 }
 
@@ -1705,6 +1840,21 @@ function broadcast(c: Call): void {
   window.dispatchEvent(new CustomEvent('dod:commentary', { detail: c }));
 }
 let boothTimer = 0;
+
+/** The GAME! freeze on the final KO. */
+const GAME_FREEZE_MS = 500;
+let freezeUntil = 0;
+const slamReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+/** ROUND START / GAME!: big type punches in with a camera shake and a hit sound (the announcer's line follows). */
+function slam(text: string, over = false): void {
+  const el = h('div', { class: over ? 'slam game' : 'slam' }, text);
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
+  audio.sfx('vs-slam');
+  if (!slamReduced.matches) renderer.kick(over ? 0.7 : 0.4);
+  window.dispatchEvent(new CustomEvent('dod:slam', { detail: { text, over, at: Math.round(performance.now()), freezeMs: over && !fight ? GAME_FREEZE_MS : 0 } }));
+}
 
 function banner(text: string): void {
   const el = h('div', { class: 'banner' }, text);
@@ -1869,6 +2019,7 @@ function frame(draw = true): void {
     }
   } else if (match && phase === 'play') {
     let steps = 0;
+    if (performance.now() < freezeUntil) acc = 0;
     while (acc >= TICK_MS && steps < 5 * simSpeed && phase === 'play' && match) {
       acc -= TICK_MS;
       tick(match);
@@ -2022,8 +2173,12 @@ installDodPlaytest({
   reactFxStats: (reset) => renderer.reactFxStats(reset),
   markerStats: () => ({ ...markerLog, rects: markerRects() }),
   gfxStats: () => renderer.gfxStats(),
+  mixStats: () => audio.mixStats(),
+  probeHit: (pan) => audio.sfx('hit-heavy', { vary: false, at: { pan } }),
   postStats: () => renderer.postStats(),
   lightStats: () => renderer.lightStats(),
+  depthStats: () => renderer.depthStats(),
+  styleStats: () => renderer.styleStats(),
   lookStats: () => renderer.lookStats(),
   aliveStats: () => renderer.aliveStats(),
   musicBedStats: () => audio.bedStats(),

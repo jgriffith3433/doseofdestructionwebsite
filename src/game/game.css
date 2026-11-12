@@ -777,8 +777,10 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   z-index: 30;
 }
 
-/* The transition: two slanted panels sweep across, then off the other side. */
-.wipe { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
+/* The show's stinger (ui/stinger.ts): three slanted panels (brand dark, the four slot colours, the hot logo panel) sweep in,
+   a light streak crosses, the logo holds, then the panels leave the other side. Transform and opacity only, so a phone keeps 50 fps.
+   While the next screen loads the cover stays on a branded loop (.hold), never black. */
+.wipe { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; contain: strict; }
 .wipe i {
   position: absolute;
   top: -10%;
@@ -788,7 +790,14 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   transform: translateX(-110%) skewX(-18deg);
   will-change: transform;
 }
-/* The branded cover: the show's logo on the hot panel. Transform-only animation, so no layout or paint work while it shows. */
+.wipe i:nth-child(1) { background: #1c0d06; } /* brand dark, not pure black */
+.wipe i.stinger-slots { display: flex; left: -36%; width: 172%; }
+.wipe i.stinger-slots u { flex: 1; display: block; }
+.wipe i.stinger-slots u:nth-child(1) { background: #ff5a1f; }
+.wipe i.stinger-slots u:nth-child(2) { background: #3fa7ff; }
+.wipe i.stinger-slots u:nth-child(3) { background: #ffd15a; }
+.wipe i.stinger-slots u:nth-child(4) { background: #5ce08a; }
+.wipe i.stinger-logo { background: var(--hot); border-left: 6px solid var(--gold); left: -32%; width: 164%; }
 .wipe i b {
   position: absolute;
   left: 55%;
@@ -804,34 +813,71 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   color: #0c0a09;
 }
 .wipe i b span { color: var(--gold); text-shadow: 0 3px 0 #5a2410; }
-.wipe i:first-child { background: #1c0d06; } /* brand dark, not pure black */
-.wipe i:last-child { background: var(--hot); border-left: 6px solid var(--gold); }
-/* If the cover has to stay up for a while it says why, rather than read as an empty orange frame. */
-.wipe.in.slow::after {
-  content: 'Loading\2026';
+/* The light streak: one bright slanted bar that crosses the whole frame while the panels close. */
+.wipe .stinger-streak {
   position: absolute;
-  right: 6%;
-  bottom: 8%;
-  font-family: Oswald, sans-serif;
-  font-size: clamp(18px, 2.4vw, 28px);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: #0c0a09;
+  top: -10%;
+  bottom: -10%;
+  left: 0;
+  width: 14%;
   opacity: 0;
-  animation: wipe-label 240ms linear forwards;
+  transform: translateX(-120%) skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 244, 214, 0.95), transparent);
+  will-change: transform, opacity;
 }
-@keyframes wipe-label { to { opacity: 1; } }
-.wipe.in, .wipe.out { pointer-events: all; }
-.wipe.in i { animation: wipe-in 220ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
-.wipe.in i:last-child { animation-delay: 40ms; }
-.wipe.out i { transform: translateX(-5%) skewX(-18deg); animation: wipe-out 240ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
-.wipe.out i:first-child { animation-delay: 40ms; }
+.wipe.in, .wipe.hold, .wipe.out { pointer-events: all; }
+.wipe.in i:nth-child(1) { animation: wipe-in 260ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
+.wipe.in i:nth-child(2) { animation: wipe-in 260ms cubic-bezier(0.7, 0, 0.3, 1) 30ms forwards; }
+.wipe.in i:nth-child(3) { animation: wipe-in 260ms cubic-bezier(0.7, 0, 0.3, 1) 60ms forwards; }
+.wipe.in .stinger-streak { animation: stinger-streak 320ms cubic-bezier(0.5, 0, 0.5, 1) 40ms forwards; }
+.wipe.hold i, .wipe.out i { transform: translateX(-5%) skewX(-18deg); }
+.wipe.hold i b { animation: stinger-pulse 700ms ease-in-out infinite alternate; }
+.wipe.hold .stinger-streak { animation: stinger-loop 900ms linear infinite; }
+.wipe.out i:nth-child(1) { animation: wipe-out 300ms cubic-bezier(0.7, 0, 0.3, 1) 60ms forwards; }
+.wipe.out i:nth-child(2) { animation: wipe-out 300ms cubic-bezier(0.7, 0, 0.3, 1) 30ms forwards; }
+.wipe.out i:nth-child(3) { animation: wipe-out 300ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
 @keyframes wipe-in { to { transform: translateX(-5%) skewX(-18deg); } }
 @keyframes wipe-out { to { transform: translateX(110%) skewX(-18deg); } }
+@keyframes stinger-streak { 0% { opacity: 0; transform: translateX(-120%) skewX(-18deg); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateX(820%) skewX(-18deg); } }
+@keyframes stinger-loop { 0% { opacity: 1; transform: translateX(-120%) skewX(-18deg); } 100% { opacity: 1; transform: translateX(820%) skewX(-18deg); } }
+@keyframes stinger-pulse { to { transform: translate(-50%, -50%) skewX(18deg) scale(1.06); } }
+
+/* ROUND START and GAME!: big type punches in over the arena (main.ts slam). */
+.slam {
+  position: fixed;
+  left: 50%;
+  top: 38%;
+  transform: translate(-50%, -50%);
+  font-family: Oswald, sans-serif;
+  font-weight: 700;
+  font-size: clamp(56px, 15vw, 170px);
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--gold);
+  -webkit-text-stroke: 3px #5a2410;
+  text-shadow: 0 8px 0 #5a2410, 0 0 60px rgba(255, 90, 31, 0.8);
+  pointer-events: none;
+  z-index: 12;
+  animation: slam 900ms cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
+}
+.slam.game { color: #fff; font-size: clamp(64px, 18vw, 210px); }
+@keyframes slam {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(3) skewX(-8deg); }
+  16% { opacity: 1; transform: translate(-50%, -50%) scale(0.92) skewX(-8deg); }
+  26% { transform: translate(-50%, -50%) scale(1.04) skewX(-8deg); }
+  36% { transform: translate(-50%, -50%) scale(1) skewX(-8deg); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.08) skewX(-8deg); }
+}
 @media (prefers-reduced-motion: reduce) {
   .wipe i { transform: none; left: 0; width: 100%; opacity: 0; }
-  .wipe.in i { animation: none; opacity: 1; transition: opacity 120ms; }
+  .wipe .stinger-streak { display: none; }
+  .wipe.in i, .wipe.hold i { animation: none; transform: none; opacity: 1; transition: opacity 120ms; }
   .wipe.out i { animation: none; opacity: 0; transform: none; transition: opacity 120ms; }
+  .wipe i.stinger-slots { display: none; }
+  .slam { animation-name: slam-fade; }
+  @keyframes slam-fade { 0% { opacity: 0; } 15% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
   *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; }
 }
 
@@ -1732,3 +1778,116 @@ body.pilot-boot .screen { visibility: hidden; }
   .scene-bug { font-size: 11px; }
   .scene-sub.segment { bottom: calc(max(9vh, 56px) + 8px + 62px); padding: 5px 12px; }
 }
+
+/* The winner's quote on the results screen: typed on beside the portrait, two lines at most. */
+.win-quote { margin: 4px 0 6px; padding: 0 0 0 10px; border-left: 3px solid var(--slot, var(--gold)); color: var(--text); font-size: clamp(16px, 2.2vw, 24px); font-style: italic; line-height: 1.25; max-width: 34em; overflow-wrap: anywhere; }
+.win-quote.rival { border-left-color: var(--gold); }
+.win-quote .wq-rest { visibility: hidden; }
+@media (max-height: 520px) {
+  .win-quote { font-size: clamp(14px, 2.6vw, 18px); margin: 2px 0 4px; line-height: 1.2; }
+  .win-quote .wq-typed, .win-quote .wq-rest { display: inline; }
+}
+
+/* -------------------------------------------------------------- endings (Tour ending overlay, Extras gallery) */
+.ending { position: fixed; inset: 0; z-index: 9000; background: #05060a; overflow: hidden; touch-action: manipulation; cursor: pointer; }
+.ending[hidden] { display: none; }
+.ending-art {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%;
+  transform-origin: 50% 50%; animation: ending-push linear forwards; opacity: 0; animation-name: ending-push, ending-fade;
+  animation-duration: var(--ending-ms, 13.6s), 0.9s; animation-timing-function: linear, ease-out; animation-fill-mode: forwards, forwards;
+}
+@keyframes ending-push { from { transform: scale(1); } to { transform: scale(1.13); } }
+@keyframes ending-fade { from { opacity: 0; } to { opacity: 1; } }
+.ending-shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.35) 28%, transparent 52%); pointer-events: none; }
+.ending-caption {
+  position: absolute; left: 50%; transform: translateX(-50%); width: min(92%, 900px); margin: 0; text-align: center;
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 34px); font-family: Oswald, sans-serif; text-transform: uppercase;
+  font-size: clamp(18px, 3.4vw, 34px); line-height: 1.15; letter-spacing: 0.04em; color: #fff; text-shadow: 0 2px 8px #000, 0 0 2px #000;
+  opacity: 0; pointer-events: none; overflow-wrap: anywhere;
+}
+.ending-caption.in { animation: ending-cap 0.5s ease-out forwards; }
+@keyframes ending-cap { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.ending-card {
+  position: absolute; left: 50%; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 34px); transform: translate(-50%, 10px); width: min(92%, 760px);
+  text-align: center; opacity: 0; pointer-events: none; transition: opacity 0.5s, transform 0.5s; display: grid; gap: 4px; justify-items: center;
+  padding: 10px 14px; background: rgba(8, 8, 14, 0.72); border: 2px solid var(--gold); border-radius: 10px;
+}
+.ending.carded .ending-card { opacity: 1; transform: translate(-50%, 0); }
+.ending-card .kicker { margin: 0; color: var(--gold); font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.14em; font-size: 14px; }
+.ending-card h2 { margin: 0; font-family: Oswald, sans-serif; text-transform: uppercase; font-size: clamp(22px, 4.6vw, 42px); line-height: 1.05; overflow-wrap: anywhere; }
+.ending-look { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.ending-swatch { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #fff; display: inline-block; }
+.ending-skip {
+  position: absolute; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); min-width: 64px; min-height: 44px; padding: 0 14px;
+  background: rgba(0, 0, 0, 0.55); color: #fff; border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 8px; font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.08em;
+}
+.extras-screen > .lede { max-width: 1280px; margin: 0 auto 14px; }
+.extras-screen .screen-head { max-width: 1280px; margin-inline: auto; }
+.ending-grid { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 12px; padding-bottom: 24px; }
+.ending-tile {
+  display: grid; gap: 6px; padding: 8px; text-align: left; color: inherit; font: inherit; background: var(--card); border: 2px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px; cursor: pointer; min-height: 44px; transition: transform 0.12s, border-color 0.12s;
+}
+.ending-tile.open { border-color: rgba(255, 207, 74, 0.5); }
+.ending-tile:hover:not(:disabled), .ending-tile:focus-visible { border-color: var(--hot); transform: translateY(-2px); outline: none; }
+.ending-tile:active:not(:disabled) { transform: scale(0.98); border-color: var(--gold); }
+.ending-tile.locked { cursor: not-allowed; opacity: 0.65; }
+.ending-thumb { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; background: #0b0c12; display: grid; place-items: center; }
+.locked-thumb img { height: 70%; width: auto; filter: brightness(0) drop-shadow(0 0 1px rgba(255, 255, 255, 0.4)); }
+.ending-tile strong { font-family: Oswald, sans-serif; font-size: 18px; text-transform: uppercase; overflow-wrap: anywhere; }
+.ending-status { font-style: normal; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); overflow-wrap: anywhere; }
+.ending-tile.locked .ending-status { color: var(--muted); }
+@media (max-height: 560px) {
+  .ending-caption, .ending-card { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 22px); }
+  .ending-caption { font-size: clamp(15px, 3vw, 22px); }
+  .ending-card { padding: 6px 12px; gap: 2px; }
+  .ending-card h2 { font-size: clamp(18px, 3.6vw, 26px); }
+  .ending-grid { grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr)); gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .ending-art { animation-name: ending-fade; animation-duration: 0.9s; } }
+
+/* ------------------------------------------------- finale takeover (campaign/takeover.ts, main.ts startTakeover) */
+/* The Orchestrator's picture-in-picture: top left, so it stays clear of Pause (top right), the timer and caption
+   (top centre) and the stick and buttons (bottom). Small on a phone. */
+.takeover-pip {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  width: clamp(120px, 14vw, 188px);
+  z-index: 7;
+  background: #0a0a14;
+  border: 3px solid #ff3b6b;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.7), 0 6px 18px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  overflow: hidden;
+  animation: pip-in 260ms steps(5, end), pip-jitter 2.6s steps(1, end) infinite;
+}
+.takeover-pip.off { opacity: 0; transition: opacity 500ms; }
+.takeover-pip img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: top; filter: contrast(1.15) saturate(1.2); }
+.takeover-pip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22) 0 2px, transparent 2px 4px);
+  mix-blend-mode: multiply;
+}
+.takeover-live { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 6px; background: rgba(255, 59, 107, 0.92); color: #fff; font: 700 11px/1.3 Oswald, sans-serif; letter-spacing: 0.1em; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+@keyframes pip-in { from { transform: translateX(-12px) skewX(8deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes pip-jitter { 0%, 88% { transform: none; } 90% { transform: translateX(3px); } 93% { transform: translateX(-2px) skewX(3deg); } 96% { transform: none; } }
+/* The Orchestrator on the stage's screens: a ghost of him across the picture for the glitch second. */
+.takeover-ghost { position: fixed; left: 50%; top: 4%; height: 70vh; max-width: 90vw; object-fit: contain; transform: translateX(-50%); opacity: 0; z-index: 1; pointer-events: none; mix-blend-mode: screen; animation: ghost-flash 1400ms ease-out forwards; }
+@keyframes ghost-flash { 0% { opacity: 0; } 12% { opacity: 0.42; } 40% { opacity: 0.18; } 55% { opacity: 0.34; } 100% { opacity: 0; } }
+/* The HUD and the DOM next to the canvas tear with the picture for the glitch second. */
+body.takeover-glitch #hud, body.takeover-glitch #match-top { animation: hud-glitch 1000ms steps(10, end); }
+@keyframes hud-glitch { 0%, 100% { transform: none; filter: none; } 20% { transform: translateX(-6px); filter: drop-shadow(4px 0 #f0f) drop-shadow(-4px 0 #0ff); } 45% { transform: translateX(8px) skewX(-6deg); filter: drop-shadow(6px 0 #f0f) drop-shadow(-6px 0 #0ff); } 70% { transform: translateX(-3px); filter: drop-shadow(3px 0 #f0f) drop-shadow(-3px 0 #0ff); } }
+.booth-orchestrator { border-left-color: #ff3b6b; }
+.booth-orchestrator .booth-who { color: #ff3b6b; }
+/* The new rule on the HUD: under the picture-in-picture, left, until the match ends. */
+.rule-chip { position: fixed; top: calc(max(12px, env(safe-area-inset-top)) + clamp(96px, 11vw, 156px)); left: max(12px, env(safe-area-inset-left)); z-index: 7; padding: 3px 10px; background: #ff3b6b; color: #fff; font: 700 13px/1.25 Oswald, sans-serif; letter-spacing: 0.08em; border-radius: 4px; pointer-events: none; animation: pip-in 260ms steps(5, end); }
+.rule-chip small { display: block; font-size: 9px; letter-spacing: 0.16em; opacity: 0.85; }
+@media (max-height: 460px) {
+  .takeover-pip { width: 108px; border-width: 2px; }
+  .takeover-live { font-size: 9px; padding: 1px 4px; }
+  .rule-chip { top: calc(max(12px, env(safe-area-inset-top)) + 92px); font-size: 11px; padding: 2px 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .takeover-pip, .rule-chip { animation: none; } .takeover-ghost { animation-duration: 1ms; } body.takeover-glitch #hud, body.takeover-glitch #match-top { animation: none; } }

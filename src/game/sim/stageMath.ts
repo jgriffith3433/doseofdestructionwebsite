@@ -126,6 +126,13 @@ export interface StageLayer {
   opacity?: number;
   /** In front only: fighters behind it show through as a colored silhouette. */
   occluder?: boolean;
+  /**
+   * In front only: a foreground element at the play area's edge. It turns see-through (30%) while a fighter stands behind
+   * one of its solid pixels, and comes back when they walk out (render only; see render/foreground.ts).
+   */
+  foreground?: boolean;
+  /** Built on High only (the extra depth bands): Low keeps its three or four layers for the frame rate. */
+  high?: boolean;
   /** Adds light instead of covering (neon, glows). */
   glow?: boolean;
   hidden?: boolean;
@@ -225,6 +232,34 @@ export interface StageLight {
   glossy?: boolean;
 }
 
+/** Distance haze: tinted gradient sheets at these depths (z behind the fighters), strongest low, near the horizon. */
+export interface StageHaze {
+  color: string;
+  /** Opacity of the strongest sheet, 0..1 (the nearer sheets are lighter). */
+  strength: number;
+  /** Depths of the sheets, far to near. */
+  z: number[];
+}
+
+/** Per-stage room numbers: a reverb impulse is generated from them in code. */
+export interface StageRoom {
+  /** The room's name, logged as `dod:mix-room`. */
+  name: string;
+  /** Reverb length (RT60-ish), seconds. */
+  seconds: number;
+  /** Where the tail has darkened to by its end (Hz); it starts bright and falls to this. */
+  brightnessHz: number;
+  /** Share of the sound sent to the room, 0.10 to 0.25. */
+  wet: number;
+  preDelayMs: number;
+  /** Echo density 0..1 (low = a few slaps, high = a smooth wash). */
+  density: number;
+  /** Low-pass on the room's return (Hz). */
+  lowpassHz: number;
+  /** Low-pass on the dry effects too (Hz), for underwater. */
+  dryLowpassHz?: number;
+}
+
 export interface StageDef {
   id: string;
   name: string;
@@ -251,9 +286,13 @@ export interface StageDef {
   notes?: string;
   /** Art direction for painting the stage, and the concept image it is styled on. */
   art?: { style?: string; reference?: string };
+  /** The stage's distance haze (render only; dropped on Low): sheets tinted to the stage between the far layers. */
+  haze?: StageHaze;
   /** The stage's colour grade (render only): baked into stages/<id>/lut.png by tools/make-luts.mjs. */
   /** The light the stage puts on its fighters (render only): key, rim, ambient, glossy floor. */
   light?: StageLight;
+  /** The stage's acoustics (roomAudio.ts builds the impulse from these numbers; audio only, never the sim). */
+  room?: StageRoom;
   grade?: { lift: number; gamma: number; gain: number; saturation: number; tint: string; tintAmount: number };
 }
 
