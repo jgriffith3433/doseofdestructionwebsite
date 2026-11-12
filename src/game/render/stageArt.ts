@@ -43,9 +43,12 @@ export function drawnPlatforms(stage: StageDef): Set<number> {
   return out;
 }
 
-/** Which of a stage's layers are built at this quality: `high`-only extras (the extra depth bands) are dropped on Low. */
+/**
+ * Which of a stage's layers are built at this quality: `high`-only layers (the depth layers cut from the backdrop) are dropped
+ * on Low, and the `low`-only whole backdrop picture is dropped on High, where those layers replace it.
+ */
 export function layersFor(stage: StageDef, high: boolean): StageLayer[] {
-  return (stage.layers ?? []).filter((l) => high || !l.high);
+  return (stage.layers ?? []).filter((l) => (high ? !l.low : !l.high));
 }
 
 /**

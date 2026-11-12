@@ -1,9 +1,9 @@
-// Cuts extra depth layers out of a stage's own backdrop (CPU only, no Gen): each band is a crop of the backdrop (a
-// horizontal slice or a soft ellipse) with a feathered edge, written to stages/<id>/depth/<name>.webp and added to the
-// stage as a `high` layer at its own depth, in the same place and scale as the backdrop. Over the whole backdrop it
-// looks the same at rest (the pixels are identical); as the camera pans the bands slide at their own speed, so the
-// set separates into far sky, far set, mid set and near set. These are stand-ins for Hawkes Gen's image.layers split
-// + image.repaint of each backdrop (stages/<id>/_takes/backdrop-*): replace them when that art is made.
+// Stand-in depth bands cut from a stage's own backdrop (CPU only, no Gen), and Cursed Town's foreground tentacle.
+//
+// The bands (a slice or a soft ellipse of the backdrop at its own depth) were the stand-ins until Hawkes Gen's image.layers
+// split every backdrop: tools/depth-layers.mjs now cuts the real layers (with the gaps behind them filled), so BANDS below
+// is empty and this tool only keeps the one piece Gen did not make: the left-most tentacle column of Cursed Town's
+// distant-tentacles take, standing at the left street edge in front of the fighters (the foreground element that fades).
 // Needs `sharp` (npm i --no-save sharp). usage: node tools/depth-bands.mjs [stage-id]
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
@@ -18,22 +18,8 @@ try {
   process.exit(1);
 }
 
-// t/b: top and bottom of the slice as fractions of the backdrop's height; ft/fb: feather at each edge, as a fraction
-// of the slice. ellipse: centre and radii as fractions of the backdrop (width, height), soft at the rim.
-const BANDS = {
-  'city-top': [{ name: 'skyline', z: 12, t: 0.5, b: 0.84, ft: 0.4, fb: 0.25, note: 'Far set: the downtown blocks and the tower, cut from the backdrop.' }],
-  'cursed-town': [{ name: 'street', z: 13, t: 0.3, b: 0.86, ft: 0.4, fb: 0.2, note: 'Far set: the houses and the tentacle forest down the street, cut from the backdrop.' }],
-  'rainbow-full-pipe': [{ name: 'park', z: 14, t: 0.42, b: 1, ft: 0.3, fb: 0, note: 'Far set: the park, trees and footpath, cut from the backdrop.' }],
-  'solar-array': [
-    { name: 'canyon', z: 14, t: 0.2, b: 0.62, ft: 0.35, fb: 0.3, note: 'Far set: the canyon walls, buttes and the horizon, cut from the backdrop.' },
-    { name: 'plain', z: 10, t: 0.55, b: 1, ft: 0.3, fb: 0, note: 'Mid set: the solar field and the ochre plain, cut from the backdrop.' },
-  ],
-  'space-chess': [
-    { name: 'nebula', z: 14, ellipse: { cx: 0.55, cy: 0.27, rx: 0.34, ry: 0.28 }, note: 'Far set: the cobalt nebula band, cut from the backdrop.' },
-    { name: 'galaxy', z: 9, ellipse: { cx: 0.865, cy: 0.27, rx: 0.1, ry: 0.13 }, note: 'Mid set: the spiral galaxy, cut from the backdrop.' },
-  ],
-  'yo-house': [{ name: 'kitchen', z: 11, t: 0.34, b: 0.78, ft: 0.3, fb: 0.3, note: 'Far set: the kitchen run with the bright windows, cut from the backdrop.' }],
-};
+// Kept for reference of the format: { id: [{ name, z, t, b, ft, fb, note } | { name, z, ellipse: { cx, cy, rx, ry }, note }] }.
+const BANDS = {};
 
 const path = root + 'content/stages.json';
 const stages = JSON.parse(fs.readFileSync(path, 'utf8'));
