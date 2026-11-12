@@ -34,7 +34,7 @@ import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, kil
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { cameraFighters, followCamera, frameGoal, punchGoal, type CamBounds, type CamState } from './cameraRig.ts';
 import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
-import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
+import { StageFx, buildLayers, drawnPlatforms, layersFor } from './stageArt.ts';
 import { behindForeground, bodyPoints, fadeToward } from './foreground.ts';
 import { StageLive } from './stageLive.ts';
 import { StageAlive } from './stageAlive.ts';
@@ -2146,7 +2146,8 @@ const prefetchedStages = new Set<number>();
 export function prefetchStage(stage: number): void {
   if (prefetchedStages.has(stage)) return;
   prefetchedStages.add(stage);
-  for (const l of STAGES[stage]?.layers ?? []) {
+  const st = STAGES[stage];
+  for (const l of st ? layersFor(st, graphics().quality === 'high') : []) {
     if (l.hidden || !l.image) continue;
     const img = new Image();
     img.src = `/${l.image}`;

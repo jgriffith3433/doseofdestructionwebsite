@@ -433,7 +433,9 @@ the stage veils the far layers. The code is `render/stageArt.ts` (layers, haze, 
 (the fade) and `render/stageLive.ts`; scenario `stage-depth`; test `src/game/test/foreground.test.ts`.
 
 - **Rule:** at least four layers at different depths behind the fighters on High (far sky, far set, mid set, near set),
-  three depths on Low (layers marked `high` are the extras and are not built there), plus one foreground element.
+  three depths on Low (layers marked `high` are the depth layers cut from the backdrop and are not built there; a layer
+  marked `low` is the whole backdrop picture, built on Low only, because High replaces it with those layers), plus one
+  foreground element.
 - **Foreground element** (`foreground: true`, z below 0, at the main floor's end): turns to 30% opacity while a fighter is
   behind one of its solid pixels, read from the picture's own alpha along the camera's ray (so the parallax counts), and
   eases back when they walk out, and shivers on every KO (a `ko` shake react). It stays on Low. The fog layers of Cursed Town stay silhouette occluders (a fighter in
@@ -444,24 +446,49 @@ the stage veils the far layers. The code is `render/stageArt.ts` (layers, haze, 
   (and `--fix` slides the art; it moved a few units on every stage); the dome of City Top's skylight is curved and stays
   about 8 units proud of its flat platform.
 
-| Stage | Depths behind the fighters (z) | Foreground element (at the edge) | Haze |
+| Stage | Depths behind the fighters on High (z) | Foreground element (at the edge) | Haze |
 |---|---|---|---|
-| City Top | backdrop 20, skyline 12, left building 5, escape building 3 | rooftop antenna and vent stack, left | night smog violet |
-| Dust Devil Mesa | backdrop 22, buttes 8, hawk 6, dust wall 4 | sagebrush clump, right | dusty ochre |
-| Cursed Town | backdrop 20, street 13, tentacles 9, gables and tentacles 4 | a tentacle column rising at the left street edge; fog stays in front | grey-green |
+| City Top | sky 20, city sprawl 16, towers and fireworks 12, rooftops 9, left building 5, escape building 3 | rooftop antenna and vent stack, left | night smog violet |
+| Dust Devil Mesa | sky 22, horizon (mesas, dust plume, salt flat) 17, near flat (arch, boulders, cracked playa) 12, hawk 6, dust wall 4 | sagebrush clump, right | dusty ochre |
+| Cursed Town | sky fog 20, far houses 17, far tentacles 15, mid tentacles 13.5, street and houses 11, tentacles 9, gables and tentacles 4 | a tentacle column rising at the left street edge; fog stays in front | grey-green |
 | Humans In The Loop | backdrop 20, crowd 8, spot beams 6, strobes 5, truss 4 | the floor wedges, right | stage-smoke magenta |
-| Rainbow Full Pipe | backdrop 20, park 14, clouds 10, trees 6 | the round bush, right | sky blue |
-| Solar Array | backdrop 20, canyon 14, plain 10, back panels 6 | foreground rock outcrop, right | sand |
-| Space Chess | backdrop 20, nebula 14, galaxy 9, the two kings 3 | the lost pawn drifting, left | nebula blue |
+| Rainbow Full Pipe | sky 20, clouds 17, park 14, drifting clouds 10, plaza 9, trees 6 | the round bush, right | sky blue |
+| Solar Array | sky and canyon 20, plain 14, panels 12 / 10.5 / 9 / 7.5, back panels 6 | foreground rock outcrop, right | sand |
+| Space Chess | star field 20, nebula 15, galaxy 11, the board and its pieces 8, the two kings 3 | the lost pawn drifting, left | nebula blue |
 | Watercolor Nebula | backdrop 20, underwash 8, clouds 6, swirl 4 | the front cloud wisp, right | pigment cream |
-| Yo House | backdrop 18, kitchen 11, doorway 5, ball and dock light 3 | potted snake plant and monstera, right | morning blue-white |
+| Yo House | the garden through the windows 22, the room 17, floor, rug and sofa 11, doorway 5, ball and dock light 3 | potted snake plant and monstera, right | morning blue-white |
 
-**Stand-ins to replace:** the extra bands (City Top skyline, Cursed Town street, Rainbow park, Solar canyon and plain,
-Space Chess nebula and galaxy, Yo House kitchen) and Cursed Town's tentacle are cut from each stage's own backdrop by
-`tools/depth-bands.mjs`: identical pixels at rest, sliding at their own depth under a pan. The finished art is Hawkes Gen's
-`image.layers` split of each backdrop plus `image.repaint` for the gaps each cut reveals (not yet made: Gen was out of
-credits). **Short:** the foregrounds only shake on KOs (and sway where the art already did), and the cut bands add parallax, not new things to see: crowd heads, a bird, traffic lights crawling are the next layer of life. No stage has crowd heads, cables or kelp painted just for the foreground yet; they use art already on
-the stage, moved to the edge.
+**The real layers** (seven stages) are Hawkes Gen's `image.layers` split of each backdrop (project
+`org_eb0d5c82e8da8c2d.doseofdestruction`, 5 layers at 1024 px, seed 11), cut by `node tools/depth-layers.mjs`: Gen's picture
+is only 1024 px wide, so each layer's alpha is used as a *cut mask over the full-resolution backdrop* (1568 px), and Gen's own
+inpainted pixels are kept only where a cut reveals what was behind it (the sky behind the towers, the garden behind the
+window, the street behind a tentacle). A band cut from one opaque Gen layer (Dust Devil Mesa's horizon, Solar Array's plain,
+Yo House's furniture, Space Chess's nebula and galaxy) leaves a hole in the layer behind it that the tool fills by diffusion
+(no GPU), so a pan never shows an empty gap. The stack at rest differs from the backdrop by an RMS of 2 to 6.5 (of 255). On
+High each stage draws its own stack; Low draws the whole backdrop picture (`low`) and the layers that were already there.
+Jobs: City Top j_de95dbaf4d12, Dust Devil Mesa j_c0b792ce201e, Cursed Town j_baf72867a5f9, Rainbow Full Pipe j_7ec99117dab6,
+Solar Array j_baf31958c811, Space Chess j_81bec11c18e4, Yo House j_0613ca74762a (about $0.57 of GPU for all nine splits; no
+`image.repaint` was needed: Gen's layers come inpainted and the bottom layer of every stack is opaque).
+
+- **City Top:** sky and smoke, the amber sprawl, the towers with the fireworks, the lit rooftops with the avenue; the old
+  cut-out skyline band is gone.
+- **Dust Devil Mesa:** the old `far-buttes` take (beige blocks) is replaced by Gen's real mesas, plume and salt flat; the
+  arch and boulders sit nearer, the hawk and the dust wall stay on their depths.
+- **Cursed Town:** the fog, the last houses, two far tentacles and a thicket of tentacles come up the street behind the near
+  houses and cobbles; the animated distant tentacles, gables and the fog occluders keep their depths.
+- **Rainbow Full Pipe:** sky, big clouds, the park, then the plaza around the half-pipe; the scrolling cloud layer and the
+  trees keep theirs.
+- **Solar Array:** the canyon and the sky, the plain with the panel shadows, and four rings of panels sliding past each other.
+- **Space Chess:** the star field, the cobalt nebula, the spiral galaxy and the far end of the board with its pieces.
+- **Yo House:** the garden and hills seen through the windows and the skylight slide behind the room; the floor, rug and sofa
+  slide in front of the back wall.
+- **Humans in the Loop and Watercolor Nebula:** Gen's split did not separate their backdrops (the arena came back as one
+  layer; the watercolor came back with the painting still whole in one layer and invented clouds), so both keep the real,
+  already separate layers they had (crowd, beams and truss; underwash, clouds and swirl) and a retry is queued.
+
+**Short:** the foregrounds only shake on KOs (and sway where the art already did), and the cut layers add parallax, not new
+things to see: crowd heads, a bird, traffic lights crawling are the next layer of life. No stage has crowd heads, cables or kelp
+painted just for the foreground yet; they use art already on the stage, moved to the edge.
 
 ## Room sound (every stage is its own room)
 

@@ -123,18 +123,52 @@
         "z": 20,
         "note": "The far background, painted fresh from the concept.",
         "prompt": "Aerial night view of a downtown Los Angeles skyline from rooftop height: a cluster of glowing glass skyscrapers in the middle distance, one tall spire tower slightly off center, a sprawling grid of amber city lights stretching to a low horizon, near-black sky with faint smoke trails from distant fireworks, a few golden firework streaks rising.",
+        "aspect": 0.429,
+        "low": true
+      },
+      {
+        "id": "sky",
+        "image": "stages/city-top/depth/sky.webp",
+        "x": 0,
+        "y": 250,
+        "width": 3800,
+        "z": 20,
+        "high": true,
+        "note": "Far sky: the smoky night sky behind the whole skyline. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_de95dbaf4d12).",
         "aspect": 0.429
       },
       {
-        "id": "skyline",
-        "image": "stages/city-top/depth/skyline.webp",
+        "id": "sprawl",
+        "image": "stages/city-top/depth/sprawl.webp",
         "x": 0,
-        "y": -26.3,
+        "y": -226.2,
         "width": 3800,
+        "z": 16,
+        "high": true,
+        "note": "Far set: the amber sprawl of the city grid at the horizon. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_de95dbaf4d12).",
+        "aspect": 0.178
+      },
+      {
+        "id": "towers",
+        "image": "stages/city-top/depth/towers.webp",
+        "x": -162.4,
+        "y": 310.6,
+        "width": 2079.3,
         "z": 12,
         "high": true,
-        "note": "Far set: the downtown blocks and the tower, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
-        "aspect": 0.145
+        "note": "Mid set: the downtown towers and the spire, with the fireworks over them. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_de95dbaf4d12).",
+        "aspect": 0.592
+      },
+      {
+        "id": "rooftops",
+        "image": "stages/city-top/depth/rooftops.webp",
+        "x": 0,
+        "y": -194.7,
+        "width": 3800,
+        "z": 9,
+        "high": true,
+        "note": "Near set: the lit rooftops and the avenue running to the horizon. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_de95dbaf4d12).",
+        "aspect": 0.195
       },
       {
         "id": "left-building",
@@ -728,44 +762,41 @@
         "z": 22,
         "note": "The far background, painted fresh from the concept.",
         "prompt": "A vast empty desert salt flat under a huge clear sky that fades from deep blue at the top to hazy white near a blinding sun in the upper right; a low line of distant blue-grey mountains on the left horizon, the horizon sitting low, faint dust plumes drifting across the far playa, heat shimmer along the ground.",
+        "aspect": 0.429,
+        "low": true
+      },
+      {
+        "id": "sky",
+        "image": "stages/desert/depth/sky.webp",
+        "x": 0,
+        "y": 250,
+        "width": 4000,
+        "z": 22,
+        "high": true,
+        "note": "Far sky: the blue sky and the blinding sun, clear down to the horizon. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_c0b792ce201e).",
         "aspect": 0.429
       },
       {
-        "id": "far-buttes",
-        "image": "stages/desert/_takes/far-buttes-2123706924.webp",
+        "id": "horizon",
+        "image": "stages/desert/depth/horizon.webp",
         "x": 0,
-        "y": 65,
-        "width": 3460,
-        "z": 8,
-        "note": "Mid-distance buttes and low ridges on the horizon behind the stage.",
-        "prompt": "Hazy flat-topped buttes and low ridgelines in dusty blue-grey, softened by heat haze, pale tan playa stretching to their feet.",
-        "aspect": 0.414,
-        "shape": [
-          {
-            "x1": -1300,
-            "x2": -700,
-            "y1": -165,
-            "y2": 115
-          },
-          {
-            "x1": -700,
-            "x2": -400,
-            "y1": -165,
-            "y2": 25
-          },
-          {
-            "x1": 300,
-            "x2": 500,
-            "y1": -165,
-            "y2": 55
-          },
-          {
-            "x1": 500,
-            "x2": 1300,
-            "y1": -165,
-            "y2": 165
-          }
-        ]
+        "y": -58.7,
+        "width": 4000,
+        "z": 17,
+        "high": true,
+        "note": "Far set: the low mesas, the dust plume and the salt flat. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_c0b792ce201e).",
+        "aspect": 0.274
+      },
+      {
+        "id": "near-flat",
+        "image": "stages/desert/depth/near-flat.webp",
+        "x": 0,
+        "y": -187.5,
+        "width": 4000,
+        "z": 12,
+        "high": true,
+        "note": "Near set: the sandstone arch, the boulders and the cracked playa in front of them. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_c0b792ce201e).",
+        "aspect": 0.21
       },
       {
         "id": "hawk-circling",
@@ -1408,18 +1439,63 @@
         "z": 20,
         "note": "The far background, painted fresh from the concept.",
         "prompt": "A long abandoned colonial street receding into thick white fog, rows of steep-roofed wooden houses on both sides fading to pale silhouettes, sagging chimneys, and far down the street enormous black tentacles curling up out of the mist like dead trees; overcast pale grey sky, no sun, desaturated grey-green palette.",
+        "aspect": 0.429,
+        "low": true
+      },
+      {
+        "id": "sky",
+        "image": "stages/cursed-town/depth/sky.webp",
+        "x": 0,
+        "y": 250,
+        "width": 3800,
+        "z": 20,
+        "high": true,
+        "note": "Far sky: the pale overcast fog, no sun. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_baf72867a5f9).",
         "aspect": 0.429
+      },
+      {
+        "id": "far-houses",
+        "image": "stages/cursed-town/depth/far-houses.webp",
+        "x": -152.7,
+        "y": 1.6,
+        "width": 2302.3,
+        "z": 17,
+        "high": true,
+        "note": "Far set: the last houses down the street, nearly lost in the fog. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_baf72867a5f9).",
+        "aspect": 0.492
+      },
+      {
+        "id": "tentacles-far",
+        "image": "stages/cursed-town/depth/tentacles-far.webp",
+        "x": -203.6,
+        "y": 274.2,
+        "width": 387.8,
+        "z": 15,
+        "high": true,
+        "note": "Far set: two tentacles curling up out of the mist at the end of the street. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_baf72867a5f9).",
+        "aspect": 2.038
+      },
+      {
+        "id": "tentacles-mid",
+        "image": "stages/cursed-town/depth/tentacles-mid.webp",
+        "x": 384.1,
+        "y": -130.5,
+        "width": 3031.8,
+        "z": 13.5,
+        "high": true,
+        "note": "Mid set: a thicket of black tentacles coming up the street. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_baf72867a5f9).",
+        "aspect": 0.286
       },
       {
         "id": "street",
         "image": "stages/cursed-town/depth/street.webp",
         "x": 0,
-        "y": 119.1,
+        "y": 250,
         "width": 3800,
-        "z": 13,
+        "z": 11,
         "high": true,
-        "note": "Far set: the houses and the tentacle forest down the street, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
-        "aspect": 0.24
+        "note": "Mid set: the wet cobbles and the steep-roofed houses on both sides. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_baf72867a5f9).",
+        "aspect": 0.429
       },
       {
         "id": "distant-tentacles",
@@ -2195,7 +2271,7 @@
       "brightnessHz": 9000,
       "wet": 0.2,
       "preDelayMs": 12,
-      "density": 1.0,
+      "density": 1,
       "lowpassHz": 16000
     },
     "name": "Humans In The Loop",
@@ -3039,18 +3115,52 @@
         "z": 20,
         "note": "The far background, painted fresh from the concept.",
         "prompt": "A sunny cartoon park far in the distance: rolling green hills fading to soft blue mountains, scattered round bushy trees, a winding pale footpath, a small dome-shaped shelter, under a bright gradient blue sky with big fluffy white clouds and a soft sun glow at the upper left. No skate ramp in the backdrop; leave the center open and calm.",
+        "aspect": 0.429,
+        "low": true
+      },
+      {
+        "id": "sky",
+        "image": "stages/rainbow-full-pipe/depth/sky.webp",
+        "x": 0,
+        "y": 250,
+        "width": 4000,
+        "z": 20,
+        "high": true,
+        "note": "Far sky: the blue sky and the morning sun. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_7ec99117dab6).",
         "aspect": 0.429
       },
       {
-        "id": "park",
-        "image": "stages/rainbow-full-pipe/depth/park.webp",
+        "id": "clouds",
+        "image": "stages/rainbow-full-pipe/depth/clouds.webp",
+        "x": 94.4,
+        "y": 562.5,
+        "width": 3811.2,
+        "z": 17,
+        "high": true,
+        "note": "Far sky: the big white clouds. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_7ec99117dab6).",
+        "aspect": 0.286
+      },
+      {
+        "id": "park-far",
+        "image": "stages/rainbow-full-pipe/depth/park-far.webp",
         "x": 0,
-        "y": -109.7,
+        "y": 108.4,
         "width": 4000,
         "z": 14,
         "high": true,
-        "note": "Far set: the park, trees and footpath, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
-        "aspect": 0.249
+        "note": "Far set: the park, the round trees and the lawn. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_7ec99117dab6).",
+        "aspect": 0.23
+      },
+      {
+        "id": "plaza",
+        "image": "stages/rainbow-full-pipe/depth/plaza.webp",
+        "x": 0,
+        "y": 81.6,
+        "width": 4000,
+        "z": 9,
+        "high": true,
+        "note": "Near set: the concrete plaza around the half-pipe. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_7ec99117dab6).",
+        "aspect": 0.344
       },
       {
         "id": "sky-clouds",
@@ -3779,29 +3889,74 @@
         "z": 20,
         "note": "The far background, painted fresh from the concept.",
         "prompt": "A wide desert valley under a clear cyan sky with a few puffy white clouds: towering red-orange sandstone canyon walls and mesas framing both sides, a flat ochre plain receding to a hazy low horizon of distant purple-brown buttes, and endless tiny rows of blue solar panels glinting on the plain in the middle distance. Cartoon ink outlines, flat cel shading, warm sunlight.",
+        "aspect": 0.429,
+        "low": true
+      },
+      {
+        "id": "sky",
+        "image": "stages/solar-array/depth/sky.webp",
+        "x": 0,
+        "y": 250,
+        "width": 3800,
+        "z": 20,
+        "high": true,
+        "note": "Far sky: the turquoise sky, the sun and the canyon walls. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_baf31958c811).",
         "aspect": 0.429
       },
       {
         "id": "plain",
         "image": "stages/solar-array/depth/plain.webp",
         "x": 0,
-        "y": -198.3,
-        "width": 3800,
-        "z": 10,
-        "high": true,
-        "note": "Mid set: the solar field and the ochre plain, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
-        "aspect": 0.193
-      },
-      {
-        "id": "canyon",
-        "image": "stages/solar-array/depth/canyon.webp",
-        "x": 0,
-        "y": 396.6,
+        "y": 25.8,
         "width": 3800,
         "z": 14,
         "high": true,
-        "note": "Far set: the canyon walls, buttes and the horizon, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
-        "aspect": 0.18
+        "note": "Far set: the ochre plain with the panel shadows and the rocks. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_baf31958c811).",
+        "aspect": 0.311
+      },
+      {
+        "id": "panels-far",
+        "image": "stages/solar-array/depth/panels-far.webp",
+        "x": -665.2,
+        "y": 356.6,
+        "width": 2469.5,
+        "z": 12,
+        "high": true,
+        "note": "Far set: the far field of solar panels. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_baf31958c811).",
+        "aspect": 0.188
+      },
+      {
+        "id": "panels-mid",
+        "image": "stages/solar-array/depth/panels-mid.webp",
+        "x": -459.2,
+        "y": 107,
+        "width": 2028.4,
+        "z": 10.5,
+        "high": true,
+        "note": "Mid set: two panels on their pylons. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_baf31958c811).",
+        "aspect": 0.237
+      },
+      {
+        "id": "panels-edge",
+        "image": "stages/solar-array/depth/panels-edge.webp",
+        "x": 0,
+        "y": 281.5,
+        "width": 3800,
+        "z": 9,
+        "high": true,
+        "note": "Mid set: panels at the left and right edges. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_baf31958c811).",
+        "aspect": 0.142
+      },
+      {
+        "id": "panels-near",
+        "image": "stages/solar-array/depth/panels-near.webp",
+        "x": 927,
+        "y": 233,
+        "width": 1199.6,
+        "z": 7.5,
+        "high": true,
+        "note": "Near set: the cluster of panels on the right. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_baf31958c811).",
+        "aspect": 0.574
       },
       {
         "id": "back-panels",
@@ -4412,29 +4567,52 @@
         "z": 20,
         "note": "The far background, painted fresh from the concept.",
         "prompt": "Deep space filled with dense white starfields, a sweeping band of glowing cobalt and royal-blue nebula clouds running diagonally from lower left to upper right, a bright spiral galaxy with a warm golden core in the upper right, a second small distant galaxy low in the frame, a few bright four-pointed stars; dark navy-black edges, no chessboard or objects in the scene.",
-        "aspect": 0.429
+        "aspect": 0.429,
+        "low": true
       },
       {
-        "id": "galaxy",
-        "image": "stages/space-chess/depth/galaxy.webp",
-        "x": 1460.5,
-        "y": 594.1,
-        "width": 798.5,
-        "z": 9,
+        "id": "sky",
+        "image": "stages/space-chess/depth/sky.webp",
+        "x": 0,
+        "y": 200,
+        "width": 4000,
+        "z": 20,
         "high": true,
-        "note": "Mid set: the spiral galaxy, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
-        "aspect": 0.559
+        "note": "Far sky: the star field. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_81bec11c18e4).",
+        "aspect": 0.429
       },
       {
         "id": "nebula",
         "image": "stages/space-chess/depth/nebula.webp",
-        "x": 200.3,
-        "y": 585.2,
-        "width": 2721.9,
-        "z": 14,
+        "x": 201.5,
+        "y": 587.8,
+        "width": 2663.3,
+        "z": 15,
         "high": true,
-        "note": "Far set: the cobalt nebula band, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
-        "aspect": 0.347
+        "note": "Far set: the cobalt nebula band. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_81bec11c18e4).",
+        "aspect": 0.352
+      },
+      {
+        "id": "galaxy",
+        "image": "stages/space-chess/depth/galaxy.webp",
+        "x": 1461.7,
+        "y": 592.9,
+        "width": 795.9,
+        "z": 11,
+        "high": true,
+        "note": "Mid set: the spiral galaxy. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_81bec11c18e4).",
+        "aspect": 0.564
+      },
+      {
+        "id": "board",
+        "image": "stages/space-chess/depth/board.webp",
+        "x": 0,
+        "y": -2.8,
+        "width": 4000,
+        "z": 8,
+        "high": true,
+        "note": "Near set: the far end of the board and its pieces. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_81bec11c18e4).",
+        "aspect": 0.217
       },
       {
         "id": "white-king",
@@ -4796,7 +4974,7 @@
       "strength": 0.26,
       "z": [
         17,
-        9
+        9.5
       ]
     }
   },
@@ -5695,7 +5873,7 @@
       "brightnessHz": 1400,
       "wet": 0.25,
       "preDelayMs": 6,
-      "density": 1.0,
+      "density": 1,
       "lowpassHz": 1800,
       "dryLowpassHz": 7000
     },
@@ -5805,18 +5983,41 @@
         "z": 18,
         "note": "The far background, painted fresh from the concept.",
         "prompt": "A long open-plan kitchen wall in cool morning light: a run of glossy white handleless upper and lower cabinets, a dark charcoal backsplash with under-cabinet strip lights, a sleek tap and a few bottles, tall paned windows at the far right with green garden leaves outside, and on the far left a glimpse through a wide doorway into a bright small yoga room with its own window. Blue-grey walls, white crown molding, recessed ceiling lights, dark wood floor receding into the distance, soft haze, no people.",
+        "aspect": 0.429,
+        "low": true
+      },
+      {
+        "id": "outside",
+        "image": "stages/yo-house/depth/outside.webp",
+        "x": 0,
+        "y": 250,
+        "width": 3600,
+        "z": 22,
+        "high": true,
+        "note": "Far sky: the garden and the hills seen through the windows. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_0613ca74762a).",
         "aspect": 0.429
       },
       {
-        "id": "kitchen",
-        "image": "stages/yo-house/depth/kitchen.webp",
+        "id": "room",
+        "image": "stages/yo-house/depth/room.webp",
         "x": 0,
-        "y": 158.2,
+        "y": 250,
+        "width": 3600,
+        "z": 17,
+        "high": true,
+        "note": "Far set: the back wall, the kitchen and the windows (they show the outside sliding past). High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_0613ca74762a).",
+        "aspect": 0.429
+      },
+      {
+        "id": "furniture",
+        "image": "stages/yo-house/depth/furniture.webp",
+        "x": 0,
+        "y": -139.2,
         "width": 3600,
         "z": 11,
         "high": true,
-        "note": "Far set: the kitchen run with the bright windows, cut from the backdrop. High only; a stand-in for Hawkes Gen image.layers + image.repaint of the backdrop.",
-        "aspect": 0.189
+        "note": "Near set: the floor, the rug, the coffee table and the sofa. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_0613ca74762a).",
+        "aspect": 0.212
       },
       {
         "id": "doorway-frame",
