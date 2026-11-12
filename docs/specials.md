@@ -40,6 +40,17 @@ cloned and hashed with the rest, so rollback and the desync hash hold). The rend
 flashes. `src/game/test/specials.test.ts` has a test and a rollback replay for each archetype; the `specials`
 playtest scenario plays Exit Punk's kit with the keyboard or the touch overlay.
 
+## Effect flipbooks
+
+Each archetype has a painted flipbook (`render/flipbook.ts`, `content/flipbooks.json`): an additive white-on-transparent
+grid atlas, tinted per fighter (the hue of its main outfit colour, `looks[].from`), drawn from a pool of 28 planes built
+(with every texture) in the renderer's warm-up. High: 16 frames of 256 px cells (4x4); Low: 8 frames of 128 px cells
+(4x2); both last 32 sim frames. Played on: a projectile's release (muzzle flash) with a short trail on the shot, a
+trap's placement (glyph), a dash's and a recovery's drive, each flurry hit (slash), a throw (slam ring), and a counter
+catching a hit (white-blue flash; the sim freezes both fighters `COUNTER_FREEZE` = 6 frames on that frame).
+**The sheets are stand-ins drawn in code** until the Gen art (keyframe, video, sprite sheet) is made: add the PNGs under
+`fx/flipbook/` and their `file` in `content/flipbooks.json` `sheets` and nothing else changes. Scenario `special-fx`.
+
 ## All 33 kits, hitbox fit and character select
 
 All 33 fighters in `content/fighters.json` (the 13 of Season 1 and the 20 newer: `ball-person`, `cel`, `chooser`,

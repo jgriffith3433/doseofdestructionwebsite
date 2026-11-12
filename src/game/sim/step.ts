@@ -54,6 +54,8 @@ const JUMPSQUAT = 3;
 const KB_SPEED = 17;
 const KB_DECAY = 300;
 export const RESPAWN_DELAY = 70;
+/** Frames a successful counter freezes both fighters (the flash plays with it). */
+export const COUNTER_FREEZE = 6;
 
 // The stage and frame being stepped. Set at the top of step() and only read
 // below it, so the sim stays a pure function of (state, inputs).
@@ -960,6 +962,9 @@ function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, 
     v.frame = Math.max(v.frame, cw.to + 1);
     ev.push({ type: 'counter', id: v.id, x, y });
     applyHit(s, v, a, { ...cw.box, dmg: back }, x, y, ev, { facing: v.facing, counter: true });
+    // A parry freezes both fighters for at least 6 frames, on the frame of the parry (the flash plays with it).
+    a.hitlag = Math.max(a.hitlag, COUNTER_FREEZE);
+    v.hitlag = Math.max(v.hitlag, COUNTER_FREEZE);
     return;
   }
   const dmg = idiv(box.dmg * s.rules.damage, 100);
