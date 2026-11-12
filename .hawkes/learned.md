@@ -1,1 +1,0 @@
-- canon: Show stinger sound — the show's screen-change stinger is a whoosh going in and a heavy impact as the panels meet, each rotating among takes.
