@@ -165,6 +165,11 @@ class AudioSystem {
   private music: LoopVoice | null = null;
   private wantMusic: string | null = null;
   private speech: AudioBufferSourceNode | null = null;
+  /** The announcer's call on the air (one at a time): a new call or `stopCall` cuts it, and `callSeq` retires pending ones. */
+  private callSrc: AudioBufferSourceNode | null = null;
+  private callSeq = 0;
+  private callUntil = 0;
+  private linePick = new Map<string, number>();
   private silent: HTMLAudioElement | null = null;
   /** True once a gesture has started sound; after that it is taken back whenever the page is in front. */
   private unlocked = false;
@@ -844,6 +849,94 @@ class AudioSystem {
       const buf = await this.buffer(url);
       this.duckForVoice(buf ? buf.duration * 1000 : 900);
     });
+  }
+
+  /**
+   * The announcer's call (a fighter's or stage's name, "The winner is...", "Choose your fighter!"): one at a time, a new
+   * call cuts the one still playing. Ducks the music under it. Fires `dod:announcer` (play / stop) for the playtest.
+   * Resolves with the length played in ms (0 when there is no take or no sound yet), once it has started.
+   */
+  async call(id: string): Promise<number> {
+    this.stopCall();
+    return this.playCall(id, this.callSeq);
+  }
+
+  /**
+   * Calls in order, each when the one before has finished (by its real length) plus `gapMs`. A new call or `stopCall`
+   * ends the sequence. Resolves true when the last one has finished, false when the sequence was cut.
+   */
+  async callEach(ids: string[], gapMs = 120): Promise<boolean> {
+    this.stopCall();
+    const seq = this.callSeq;
+    for (const id of ids) {
+      if (seq !== this.callSeq) return false;
+      const ms = await this.playCall(id, seq);
+      if (seq !== this.callSeq) return false;
+      await new Promise((r) => setTimeout(r, ms + gapMs));
+    }
+    return seq === this.callSeq;
+  }
+
+  /**
+   * The next take of a call with several (`announcer.ready-fight` has .1 and .2): starts at a random one and then goes
+   * round, so the same take never plays twice running. Null when none is recorded.
+   */
+  pickLine(prefix: string): string | null {
+    const ids: string[] = [];
+    for (let n = 1; this.lineById.get(`${prefix}.${n}`)?.audio; n++) ids.push(`${prefix}.${n}`);
+    if (!ids.length) return null;
+    const i = ((this.linePick.get(prefix) ?? Math.floor(Math.random() * ids.length) - 1) + 1) % ids.length;
+    this.linePick.set(prefix, i);
+    return ids[i];
+  }
+
+  private async playCall(id: string, seq: number): Promise<number> {
+    const l = this.lineById.get(id);
+    if (!l?.audio) return 0;
+    const url = l.audio;
+    window.dispatchEvent(new CustomEvent('dod:voice', { detail: { url, played: !!this.buses } }));
+    if (!this.buses) return 0;
+    const buf = await this.buffer(url);
+    // A newer call (or a stop) came in while this one was loading: it never starts.
+    if (seq !== this.callSeq) return 0;
+    const src = await this.start(url, this.buses.voice, 1, 1, false);
+    if (!src) return 0;
+    if (seq !== this.callSeq) {
+      try { src.stop(); } catch { /* not started */ }
+      return 0;
+    }
+    const ms = buf ? buf.duration * 1000 : 900;
+    this.callSrc = src;
+    this.callUntil = performance.now() + ms;
+    src.onended = () => { if (this.callSrc === src) this.callSrc = null; };
+    this.duckForVoice(ms);
+    this.emitCall('play', id, l.text, ms);
+    return ms;
+  }
+
+  /** Cuts the announcer's call that is playing and drops any that are waiting. */
+  stopCall(): void {
+    this.callSeq++;
+    const src = this.callSrc;
+    this.callSrc = null;
+    if (src) {
+      try { src.stop(); } catch { /* already finished */ }
+      this.emitCall('stop', '', '', 0);
+    }
+    this.callUntil = 0;
+  }
+
+  /** Milliseconds left on the call that is playing (0 when none). */
+  callBusyMs(): number {
+    return Math.max(0, this.callUntil - performance.now());
+  }
+
+  private emitCall(phase: 'play' | 'stop', id: string, text: string, ms: number): void {
+    try {
+      window.dispatchEvent(new CustomEvent('dod:announcer', { detail: { phase, id, text, ms, at: performance.now() } }));
+    } catch {
+      // Node tests have no window.
+    }
   }
 
   stopVoice(): void {

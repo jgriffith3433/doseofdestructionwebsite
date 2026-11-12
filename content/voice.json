@@ -2746,6 +2746,204 @@
       }
     },
     {
+      "id": "announcer.choose",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Choose your fighter!",
+      "audio": "/audio/voice/announcer.choose.mp3",
+      "take": {
+        "text": "[shouting] Choose your fighter!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.winner-is",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "The winner is...",
+      "audio": "/audio/voice/announcer.winner-is.mp3",
+      "take": {
+        "text": "[shouting] The winner is...",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.ready-fight.1",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Ready... FIGHT!",
+      "audio": "/audio/voice/announcer.ready-fight.1.mp3",
+      "take": {
+        "text": "[shouting] Ready... FIGHT!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.ready-fight.2",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Ready... FIGHT!",
+      "audio": "/audio/voice/announcer.ready-fight.2.mp3",
+      "take": {
+        "text": "[shouting] Ready... [pause] FIGHT!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.game.1",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "GAME!",
+      "audio": "/audio/voice/announcer.game.1.mp3",
+      "take": {
+        "text": "[shouting] GAME!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.game.2",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "GAME!!",
+      "audio": "/audio/voice/announcer.game.2.mp3",
+      "take": {
+        "text": "[shouting] GAME!!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.game.3",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "And... GAME!",
+      "audio": "/audio/voice/announcer.game.3.mp3",
+      "take": {
+        "text": "[shouting] And... GAME!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.last-stock.4",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Final stock!",
+      "audio": "/audio/voice/announcer.last-stock.4.mp3",
+      "take": {
+        "text": "[shouting] Final stock!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.no-contest",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "No contest!",
+      "audio": "/audio/voice/announcer.no-contest.mp3",
+      "take": {
+        "text": "[shouting] No contest!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.stage.city-top",
+      "group": "names",
+      "who": "announcer",
+      "text": "City Top!",
+      "audio": "/audio/voice/announcer.stage.city-top.mp3",
+      "take": {
+        "text": "[shouting] City Top!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.stage.desert",
+      "group": "names",
+      "who": "announcer",
+      "text": "Dust Devil Mesa!",
+      "audio": "/audio/voice/announcer.stage.desert.mp3",
+      "take": {
+        "text": "[shouting] Dust Devil Mesa!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.stage.cursed-town",
+      "group": "names",
+      "who": "announcer",
+      "text": "Cursed Town!",
+      "audio": "/audio/voice/announcer.stage.cursed-town.mp3",
+      "take": {
+        "text": "[shouting] Cursed Town!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.stage.humans-in-the-loop",
+      "group": "names",
+      "who": "announcer",
+      "text": "Humans In The Loop!",
+      "audio": "/audio/voice/announcer.stage.humans-in-the-loop.mp3",
+      "take": {
+        "text": "[shouting] Humans In The Loop!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.stage.rainbow-full-pipe",
+      "group": "names",
+      "who": "announcer",
+      "text": "Rainbow Full Pipe!",
+      "audio": "/audio/voice/announcer.stage.rainbow-full-pipe.mp3",
+      "take": {
+        "text": "[shouting] Rainbow Full Pipe!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.stage.solar-array",
+      "group": "names",
+      "who": "announcer",
+      "text": "Solar Array!",
+      "audio": "/audio/voice/announcer.stage.solar-array.mp3",
+      "take": {
+        "text": "[shouting] Solar Array!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.stage.space-chess",
+      "group": "names",
+      "who": "announcer",
+      "text": "Space Chess!",
+      "audio": "/audio/voice/announcer.stage.space-chess.mp3",
+      "take": {
+        "text": "[shouting] Space Chess!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.stage.watercolor-nebula",
+      "group": "names",
+      "who": "announcer",
+      "text": "Watercolor Nebula!",
+      "audio": "/audio/voice/announcer.stage.watercolor-nebula.mp3",
+      "take": {
+        "text": "[shouting] Watercolor Nebula!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.stage.yo-house",
+      "group": "names",
+      "who": "announcer",
+      "text": "Yo House!",
+      "audio": "/audio/voice/announcer.stage.yo-house.mp3",
+      "take": {
+        "text": "[shouting] Yo House!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
       "id": "blog-man.intro.open-mic",
       "group": "blog-man",
       "who": "blog-man",
