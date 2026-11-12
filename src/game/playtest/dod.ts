@@ -165,6 +165,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'story-cards') await r.storyCards();
+        else if (id === 'bookends') await r.bookends();
         else if (id === 'rotate') await r.rotate();
         else if (id === 'first-visit') await r.firstVisit();
         else if (id === 'presentation') await r.presentation();
@@ -928,8 +929,12 @@ class Run {
     const m = this.game.match() ?? this.seen;
     const won = m?.playerWon() ?? false;
     // A won campaign episode signs off in the arena first (the outro scene), then the results come.
-    await this.t.until(() => sceneShowing() || currentScreen() === 'results', 30000, 'the outro or the results');
-    if (sceneShowing()) await this.passScene();
+    // The episode's ending is a chain: the replay of the final KO, the outro scene, the "Next time" tease (ui/segment.ts).
+    const t0 = performance.now();
+    while (currentScreen() !== 'results' && performance.now() - t0 < 90000) {
+      if (sceneShowing()) await this.passScene();
+      else await this.t.wait(200);
+    }
     await this.screen('results', 30000);
     return won;
   }
@@ -1935,6 +1940,172 @@ class Run {
     }
     t.metric('cardsSeen', this.cardsSeen);
     if (this.cardsSeen < 2) t.problem('bug', `only ${this.cardsSeen} story card(s) shown for the episode (a before and an after card are expected)`);
+  }
+
+  /**
+   * The episode's bookends (ui/segment.ts): a won episode replays its final KO within 1 s with the last hit slowed, then the
+   * outro, then Blog Man's "Next time on" tease over the next episode's stage; the next episode opens on "Previously on" with
+   * the saved highlight and a voiced recap. A press skips each segment within 0.3 s and the results still come. Option
+   * `chapter` (default open-mic; the next chapter is played too). Touch: the skips are pointer taps, played in 844x390.
+   */
+  async bookends(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('bookends');
+    }
+    this.logViewport(touch && this.isPhone());
+    const asked = this.options.chapter ?? 'open-mic';
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    if (from < 0 || from + 1 >= CHAPTERS.length) {
+      t.problem('bug', `chapter "${String(asked)}" is not an episode with a next one (content/campaign.json ids: ${CHAPTERS.map((c) => c.id).join(', ')})`);
+      t.finish('error');
+      return;
+    }
+    const c = CHAPTERS[from];
+    const next = CHAPTERS[from + 1];
+    type Seg = { kind: string; phase: string; at: number; abs: number; [k: string]: unknown };
+    const segs: Seg[] = [];
+    const onSeg = (e: Event) => segs.push({ ...(e as CustomEvent).detail, abs: performance.now() });
+    const voices: string[] = [];
+    const onVoice = (e: Event) => voices.push(String((e as CustomEvent).detail?.url ?? ''));
+    window.addEventListener('dod:segment', onSeg);
+    window.addEventListener('dod:voice', onVoice);
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((x) => x.id));
+    const savedHl = localStorage.getItem('dod-highlight');
+    localStorage.removeItem('dod-highlight');
+    t.log(`setup shortcut: chapters 1-${from} marked cleared, no saved highlight, starting at ${c.id}`);
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      await this.toMainMenu();
+      await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+      await this.screen('campaign');
+      await this.click(() => this.q(`#chapter-path .chapter[data-chapter="${c.id}"]`), `Chapter ${from + 1} · ${c.title}`);
+      await this.playDialogue();
+      await this.matchLive();
+      if (segs.some((s) => s.kind === 'recap')) t.problem('bug', 'the first episode of a run opened on a recap with nothing to recap');
+      // The match: the bot to the end; the moment of the KO is the moment the match is over.
+      let tOver = 0;
+      await this.fight(() => {
+        const m = this.game.match();
+        if (m?.state.over && !tOver) tOver = performance.now();
+        return false;
+      }, 8 * 60 * 1000);
+      if (!(this.game.match() ?? this.seen)?.playerWon()) {
+        t.problem('bug', 'the bot lost the episode, so there is no final KO to replay: try another seed');
+        t.finish('lost');
+        return;
+      }
+      // 1. The replay of the final KO.
+      await t.until(() => segs.some((s) => s.kind === 'replay' && s.phase === 'start'), 8000, 'the replay of the final KO');
+      const rs = segs.find((s) => s.kind === 'replay' && s.phase === 'start')!;
+      const lag = tOver ? rs.abs - tOver : 0;
+      t.event('replay-start', `the replay of ${c.title}'s final KO started ${Math.round(lag)} ms after the KO (${rs.inputs} ticks of inputs stored, final hit tick ${rs.hit}, KO tick ${rs.ko})`);
+      if (lag > 1000) t.problem('bug', `the replay started ${Math.round(lag)} ms after the KO (more than 1 s)`);
+      t.metric('replayStartMs', Math.round(lag));
+      await t.until(() => this.q('#scene')?.getAttribute('data-scene') === 'highlight' && !!this.q('#scene-card-title')?.textContent, 3000, 'the lower third');
+      const tag = this.q('#scene-card-tag')?.textContent ?? '';
+      const title = this.q('#scene-card-title')?.textContent ?? '';
+      const bugShown = !!this.q('#scene-bug') && !this.q('#scene-bug')!.hidden;
+      if (title !== c.title) t.problem('bug', `the replay's lower third says "${title}", not the episode title "${c.title}"`);
+      if (!bugShown) t.problem('bug', 'the show logo bug is not on the replay');
+      t.event('replay-lower-third', `${tag} · ${title}, logo bug shown: ${bugShown}`);
+      await t.until(() => segs.some((s) => s.kind === 'replay' && s.phase === 'slow'), 5000, 'the final hit in slow motion');
+      t.event('replay-slow', 'the final hit plays at 25%');
+      await this.fitCheck('replay');
+      // A press ends it within 0.3 s; the outro and tease follow.
+      await this.skipSegment('replay');
+      // 2. The outro scene is the story's own; let it play through, then the tease.
+      await t.until(() => segs.some((s) => s.kind === 'tease' && s.phase === 'start') || currentScreen() === 'results', 90000, 'the Next time tease');
+      const ts = segs.find((s) => s.kind === 'tease' && s.phase === 'start');
+      if (!ts) t.problem('bug', 'no "Next time on" tease played before the results');
+      else {
+        await this.t.wait(900);
+        const tvoice = voices.some((u) => u.includes(`blog-man.tease.${c.id}`));
+        if (!tvoice) t.problem('bug', `Blog Man's tease line (blog-man.tease.${c.id}) did not play`);
+        if (ts.next !== next.id) t.problem('bug', `the tease is for ${String(ts.next)}, not the next episode ${next.id}`);
+        t.event('tease', `"${this.q('#scene-card-tag')?.textContent ?? ''}" · ${this.q('#scene-card-title')?.textContent ?? ''}, stage ${String(ts.stage)}, voiced: ${tvoice}, caption "${this.q('#scene-text')?.textContent ?? ''}"`);
+        await this.fitCheck('tease');
+        await this.skipSegment('tease');
+      }
+      await this.screen('results', 30000);
+      t.event('results-after-skips', 'the results still came after the skipped segments');
+      await this.click(() => this.button('#results-actions', 'Continue'), 'Continue');
+      await this.screen('campaign');
+      // 3. The next episode opens on "Previously on".
+      segs.length = 0;
+      voices.length = 0;
+      await this.click(() => this.q(`#chapter-path .chapter[data-chapter="${next.id}"]`), `Chapter ${from + 2} · ${next.title}`);
+      await t.until(() => segs.some((s) => s.kind === 'recap' && s.phase === 'start'), 30000, 'the Previously on recap');
+      await t.wait(900);
+      const rc = segs.find((s) => s.kind === 'recap' && s.phase === 'start')!;
+      const rvoice = voices.some((u) => u.includes(`blog-man.recap.${c.id}`));
+      if (!rvoice) t.problem('bug', `Blog Man's recap line (blog-man.recap.${c.id}) did not play`);
+      if (rc.chapter !== c.id) t.problem('bug', `the recap replays ${String(rc.chapter)}, not the episode before (${c.id})`);
+      if (!segs.some((s) => s.kind === 'recap' && s.phase === 'slow')) await t.until(() => segs.some((s) => s.kind === 'recap' && s.phase === 'slow'), 4000, 'the saved KO in slow motion').catch(() => {});
+      t.event('recap', `"${this.q('#scene-card-tag')?.textContent ?? ''}" · ${this.q('#scene-card-title')?.textContent ?? ''}, saved highlight replayed on ${String(rc.stage)}, voiced: ${rvoice}, caption "${this.q('#scene-text')?.textContent ?? ''}"`);
+      await this.fitCheck('recap');
+      await this.skipSegment('recap');
+      await this.playDialogue();
+      await this.matchLive();
+      t.event('next-episode-live', `${next.title} went on to its own fight after the recap`);
+      await this.quitFromPause('campaign');
+      t.finish('won');
+    } finally {
+      window.removeEventListener('dod:segment', onSeg);
+      window.removeEventListener('dod:voice', onVoice);
+      this.game.setCampaignProgress(before);
+      if (savedHl === null) localStorage.removeItem('dod-highlight');
+      else localStorage.setItem('dod-highlight', savedHl);
+    }
+  }
+
+  /** A segment's picture fills the screen: its caption and lower third inside the window, above the bottom bar, no sideways scroll. */
+  private async fitCheck(what: string): Promise<void> {
+    const t = this.t;
+    const w = innerWidth;
+    const h = innerHeight;
+    const inside = (sel: string) => {
+      const el = this.q(sel);
+      if (!el || el.hidden) return true;
+      const r = el.getBoundingClientRect();
+      return r.left >= -1 && r.right <= w + 1 && r.top >= -1 && r.bottom <= h + 1;
+    };
+    for (const sel of ['#scene-card', '#scene-sub', '#scene-bug', '#scene-skip']) {
+      if (!inside(sel)) t.problem('bug', `the ${what} segment's ${sel} runs off the ${w}x${h} window`);
+    }
+    const bar = this.q('.scene-bar.bottom')?.getBoundingClientRect();
+    const card = this.q('#scene-card')?.getBoundingClientRect();
+    if (bar && card && !this.q('#scene-card')!.hidden && card.bottom > bar.top + 1) t.problem('bug', `the ${what} lower third overlaps the bottom bar`);
+    const skip = this.q('#scene-skip')?.getBoundingClientRect();
+    if (skip && (skip.width < 44 || skip.height < 44)) t.problem('bug', `the ${what} Skip button is ${Math.round(skip.width)}x${Math.round(skip.height)}, under 44 px`);
+    if (document.documentElement.scrollWidth > w + 1) t.problem('bug', `the ${what} segment scrolls sideways`);
+    t.event(`${what}-fit`, `${w}x${h}: lower third, caption, logo bug and Skip inside the window`);
+  }
+
+  /** Presses (a tap on a phone, a key on a desktop) and times how long the segment takes to end. */
+  private async skipSegment(kind: string): Promise<void> {
+    const t = this.t;
+    const touch = matchMedia('(pointer: coarse)').matches;
+    const t0 = performance.now();
+    if (touch) {
+      const x = innerWidth / 2;
+      const y = innerHeight / 2;
+      const target = (document.elementFromPoint(x, y) as HTMLElement | null) ?? document.body;
+      const init = { pointerType: 'touch', pointerId: 52, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y };
+      target.dispatchEvent(new PointerEvent('pointerdown', init));
+      await t.wait(40);
+      target.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }));
+    } else await tapKey('Space');
+    await t.until(() => this.q('#scene')?.hidden !== false || this.q('#scene')?.getAttribute('data-scene') !== (kind === 'replay' ? 'highlight' : kind), 3000, `the ${kind} to be skipped`);
+    const ms = Math.round(performance.now() - t0);
+    t.event(`${kind}-skipped`, `${touch ? 'a tap' : 'a key'} ended the ${kind} in ${ms} ms`);
+    if (ms > 300) t.problem('bug', `the ${kind} took ${ms} ms to skip (more than 0.3 s)`);
+    t.metric(`${kind}SkipMs`, ms);
   }
 
   /** The 'quota' objective's chapter alone (`chapter` option, default the first one that uses it), played from the map. */
