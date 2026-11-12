@@ -614,6 +614,23 @@ the front row there (in Turn the Page he is in the fight itself). The Mechanic i
 - Every call also shows as a caption (`.booth`) and fires `dod:commentary`. The lines are text only for now: no `audio` or
   `take`, so they are captioned and silent until recorded through Hawkes Gen (cents, no GPU).
 
+### The announcer calls the show (as built)
+
+Besides the fight calls the announcer (Brian, deep, big-room) opens and closes every bout the way the show would, shouting
+and levelled to -16 LUFS (`tools/announcer-calls.mjs` merges the recorded takes into `content/voice.json`; the 33 fighter
+names `announcer.name.<id>` were already there):
+
+- **Select:** "Choose your fighter!" (`announcer.choose`) as the select opens. When the cursor lands on a fighter (mouse,
+  pad, keyboard, a tap, a finger dragged across the grid) that fighter's name plays after 250 ms; a new landing cuts the
+  name playing, so a fast sweep calls only where it stops, and one tap calls once (`ui/nameCall.ts`). Locked fighters stay unnamed.
+- **Stage pick:** the stage's name (`announcer.stage.<id>`, 9), finished before the VS card.
+- **VS card:** both names in slot order, one at a time (the card waits for them), "Versus!" between them only when the whole
+  exchange fits 3.3 s.
+- **Match start:** "Ready... FIGHT!" (`announcer.ready-fight.1/2`; its FIGHT lands on the Go frame, so no separate "Go!").
+  **Final KO:** "GAME!" (`announcer.game.1-3`; a timeout is still "Time!"). "Final stock!" is `announcer.last-stock.4`.
+- **Results:** "The winner is..." then the winner's name, then the winner's quote; with no winner (or a void online match)
+  "No contest!". The music ducks (~8 dB) under every call; one call at a time (`audio.call`, `dod:announcer`).
+
 ## Story cards
 
 Every episode opens and closes on a title card, like the show's own bumpers: "Tonight" before the intro scene (season,
@@ -690,3 +707,23 @@ He is a showman: every line is about ratings, the card or the next show, never a
   is the one exception to "never seen or heard" in Season 9 (the Cliffhanger).
 - Data: `content/campaign.json` `events` (kind `takeover`, `when`, `rule`), lines `orchestrator.takeover.*` in
   `content/voice.json` (words in `tools/takeover-lines.data.json`), pickers `src/game/campaign/takeover.ts`. Scenario `finale-hijack`.
+
+## Victory fanfares (as built)
+
+A win ends on the show's victory stage, not a table: the results screen opens on the winner on a lit podium playing their pose
+clip in their colour look, the camera pushing in slowly, confetti and sparks in their colour, the winner's quote over the pose,
+and the beaten fighter dim in an inset, sulking. A 5 s fanfare plays per **group**, assigned per fighter in
+`content/fighters.json` (`fanfare`), and the results loop starts when it ends. Then the panel (winner, time, damage, highlights)
+slides in at about 2 s; any press skips the pose and cuts the fanfare. Code `src/game/ui/victory.ts`, maths and groups
+`src/game/victory.ts`, sounds `fanfare-<group>` in `content/sounds.json`. Scenario `victory`.
+
+- **Open Mic** (Season 1's first night): Exit Punk, Kaelen, Break, DJ Won't Read, Small Weather. Brass and a snare roll.
+- **The Booth** (the commentary desk): Blog Man, Slice, SS Boulder, Got Ur Back. A late-night band sting.
+- **The Host** (the house): the Orchestrator, The Mechanic, TT. Strings and timpani, a baton-drop chord.
+- **The Champion's Card** (Season 2): Shark Dude, Pyro Singer, Susan, Wallit. A title-fight theme.
+- **The Rival Broadcast** (Season 4): Cel, Try Belt, Crosser, Crystalline Intelligences. Synth brass, glitchy.
+- **Sweeps Week** (Season 5): Uh Me, Yo Bot, Spider Bot, Lapis Man. Pop arena, a rising sweep.
+- **Syndication** (Season 6): Ball Person, Chooser, Not An Old Man Yet, Yooba, Slow Rider. Global percussion.
+- **The Reboot** (Season 7): Evil Blue Bird, Shutup Bot, Stratabots, Future Man. Trailer brass, a heavy hit.
+
+Season 3 has no group (it is the Orchestrator's, The Host). Fighters with no `unlock` chapter sit with the cast they fight beside.

@@ -16,7 +16,7 @@ import { readTouch, touchDevice, touchOverlay } from '../input/touch.ts';
 import { TOUCH_KEY, forceTouchUi, touchSettings } from '../touchSettings.ts';
 import { forceTouchPrompt, lockLandscape, rotateShowing } from '../ui/rotate.ts';
 import { currentScreen, switching, type ScreenId } from '../ui/screens.ts';
-import { CHARACTERS, MOVE, MOVE_KEYS } from '../sim/characters.ts';
+import { CHARACTERS, FIGHTERS as FIGHTERS_DATA, MOVE, MOVE_KEYS } from '../sim/characters.ts';
 import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
@@ -209,7 +209,9 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'stage-bed') await r.stageBed();
         else if (id === 'commentary') await r.commentary();
         else if (id === 'fighter-voice') await r.fighterVoice();
+        else if (id === 'announcer') await r.announcerRun();
         else if (id === 'win-quote') await r.winQuoteRun();
+        else if (id === 'victory') await r.victoryRun();
         else if (id === 'intro-exchange') await r.introExchange();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
@@ -753,9 +755,11 @@ class Run {
   }
 
   /** Main menu → Versus → a 1v1 against one CPU → a stage → the match is live. */
-  private async startVersus(stocks: number): Promise<void> {
-    await this.click(() => this.q('[data-go="versus"]'), 'Versus');
-    await this.screen('select');
+  private async startVersus(stocks: number, opened = false): Promise<void> {
+    if (!opened) {
+      await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+      await this.screen('select');
+    }
     const rule = (label: string) => [...document.querySelectorAll<HTMLElement>('#select-rules .rule')].find((r) => r.querySelector('span')?.textContent === label);
     // Saved choices from an earlier visit: back to a plain 1v1.
     for (let i = 0; i < 4 && document.querySelectorAll('#select-slots .slot:not(.add)').length > 2; i++) {
@@ -850,14 +854,15 @@ class Run {
       this.t.event('select-to-vs', `stage picked to VS card up: ${sec(tm.selectToVs)}`);
       this.t.event('vs-to-match', `VS card to match: ${sec(tm.vsToMatch)}`);
       this.t.event('select-to-match', `stage picked to match: ${sec(tm.selectToMatch)}`);
-      if (tm.selectToMatch !== null && tm.selectToMatch > 3000) this.t.problem('bug', `the VS card took ${sec(tm.selectToMatch)} after the stage pick (limit 3 s)`);
+      // The announcer calls the stage, then both fighters, before the match (about 1.5 s + 3 s): limit 6 s.
+      if (tm.selectToMatch !== null && tm.selectToMatch > 6000) this.t.problem('bug', `the VS card took ${sec(tm.selectToMatch)} after the stage pick (limit 6 s)`);
     } else this.t.problem('bug', 'no scene timing reported for the match start');
     if (this.vsHoldWanted) {
       await this.t.until(() => (this.game.match()?.state.frame ?? 0) > 0, 10000, 'the first match frame');
       const ms = Math.round(performance.now() - confirmAt);
       this.t.metric('vsHoldMs', ms);
       this.t.event('vsHoldMs', `${ms} ms from the stage confirm to the first match frame`);
-      if (ms > 3000) this.t.problem('bug', `The VS card held ${ms} ms from the stage confirm to the first match frame (limit 3000 ms)`);
+      if (ms > 6000) this.t.problem('bug', `The VS card held ${ms} ms from the stage confirm to the first match frame (limit 6000 ms: the stage and both names are called)`);
     }
   }
 
@@ -4306,6 +4311,205 @@ class Run {
     t.finish('done');
   }
 
+  // ---------------------------------------------------------- the announcer
+
+  /**
+   * The announcer calls the show (`ui/nameCall.ts`, `audio.call`): "Choose your fighter!" as the select opens; a fighter's name
+   * when the cursor lands on them (250 ms debounce; a new landing cuts the one playing, so a fast sweep plays only where it
+   * stops); the stage's name on the stage pick; both fighters' names in order on the VS card; "Ready... FIGHT!" at the match
+   * start; "GAME!" on the final KO; "The winner is..." and the winner's name on the results. Played through real input (a phone:
+   * touch taps and a touch drag across the grid, turned to 844x390; a desktop: pointer enters and clicks), a 1v1 of one stock to
+   * its results. Listens to `dod:announcer` (each call that starts or is cut) and `dod:name-call`.
+   * Events: `choose-call`, `name-hover` (and its delay), `name-once`, `name-sweep`, `name-cancel`, `stage-call`, `vs-calls`,
+   * `ready-fight-call`, `game-call`, `result-calls`, `music-duck`; problems for a late name (over 300 ms), a repeat, an overlap,
+   * a missing or out-of-order call. Metrics `nameDelayMs`, `announcerCalls`, `announcerOverlaps`.
+   */
+  async announcerRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('announcer');
+    }
+    this.logViewport(touch && this.isPhone());
+    type Call = { phase: 'play' | 'stop'; id: string; text: string; ms: number; at: number };
+    const calls: Call[] = [];
+    const lands: { id: string; at: number }[] = [];
+    let live: { id: string; until: number } | null = null;
+    let overlaps = 0;
+    const onCall = (e: Event) => {
+      const c = (e as CustomEvent).detail as Call;
+      calls.push(c);
+      if (c.phase === 'stop') live = null;
+      else {
+        if (live && c.at < live.until - 40) {
+          overlaps++;
+          t.problem('bug', `the announcer overlaps itself: ${c.id} started ${Math.round(live.until - c.at)} ms before ${live.id} ended`);
+        }
+        live = { id: c.id, until: c.at + c.ms };
+      }
+    };
+    const onLand = (e: Event) => {
+      const d = (e as CustomEvent).detail as { phase: string; id: string; at: number };
+      if (d.phase === 'land') lands.push({ id: d.id, at: d.at });
+    };
+    let ducks = 0;
+    const onDuck = (e: Event) => { if ((e as CustomEvent).detail?.on) ducks++; };
+    window.addEventListener('dod:announcer', onCall);
+    window.addEventListener('dod:name-call', onLand);
+    window.addEventListener('dod:music-duck', onDuck);
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const plays = (id: string, since = 0) => calls.filter((c) => c.phase === 'play' && c.id === id && c.at >= since);
+    const idOf = (c: { id: string }) => c.id.replace('announcer.name.', '');
+    try {
+      await this.toMainMenu();
+      // --- character select
+      await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+      await this.screen('select');
+      await t.until(() => plays('announcer.choose').length > 0, 6000, '"Choose your fighter!"').catch(() => null);
+      if (plays('announcer.choose').length === 1) t.event('choose-call', `"Choose your fighter!" played as the select opened (${Math.round(plays('announcer.choose')[0].ms)} ms)`);
+      else t.problem('bug', `"Choose your fighter!" played ${plays('announcer.choose').length} times as the select opened (want 1)`);
+      await t.wait(plays('announcer.choose')[0]?.ms ?? 1500);
+      // Tiles a finger or pointer can reach in the first screenful.
+      const tiles = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('#select-grid .tile[data-fighter]:not(.locked)')].filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;
+      });
+      const pool = tiles();
+      if (pool.length < 6) t.problem('bug', `only ${pool.length} fighter tiles reachable on the select at ${innerWidth}x${innerHeight}`);
+      const center = (el: HTMLElement) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      };
+      // One landing: a pointer entering the tile (desktop) or a finger pressing it (phone: pointerdown, up, then the click).
+      const land = async (el: HTMLElement, name: string) => {
+        if (touch) return this.tap(() => el, name);
+        el.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse', pointerId: 1 }));
+        el.dispatchEvent(new MouseEvent('mouseenter'));
+        await t.wait(20);
+      };
+      const nameOf = (el: HTMLElement) => `announcer.name.${el.dataset.fighter}`;
+      // 1. Landing on a fighter: its name within 300 ms of the landing, once.
+      const first = pool[2] ?? pool[0];
+      const t1 = performance.now();
+      await land(first, `fighter ${first.dataset.fighter}`);
+      await t.until(() => plays(nameOf(first), t1).length > 0, 3000, `the name of ${first.dataset.fighter}`).catch(() => null);
+      const heard = plays(nameOf(first), t1)[0];
+      const landed = lands.find((l) => l.id === nameOf(first) && l.at >= t1 - 5);
+      if (!heard || !landed) t.problem('bug', `landing on ${first.dataset.fighter} did not play the name`);
+      else {
+        const delay = Math.round(heard.at - landed.at);
+        t.metric('nameDelayMs', delay);
+        if (delay > 300) t.problem('bug', `${first.dataset.fighter}'s name played ${delay} ms after the cursor landed (limit 300)`);
+        else t.event('name-hover', `${first.dataset.fighter}: "${heard.text}" played ${delay} ms after the cursor landed (debounce 250)`);
+      }
+      await t.wait(900);
+      if (plays(nameOf(first), t1).length === 1) t.event('name-once', `${first.dataset.fighter}'s name played once for one ${touch ? 'tap' : 'hover'} (focus, pointer and click are one landing)`);
+      else t.problem('bug', `${first.dataset.fighter}'s name played ${plays(nameOf(first), t1).length} times for one ${touch ? 'tap' : 'hover'} (want 1)`);
+      // 2. A new landing cuts the name that is playing.
+      const a = pool[3] ?? pool[1];
+      const b = pool[4] ?? pool[2];
+      const t2 = performance.now();
+      await land(a, `fighter ${a.dataset.fighter}`);
+      await t.until(() => plays(nameOf(a), t2).length > 0, 3000, `the name of ${a.dataset.fighter}`).catch(() => null);
+      await t.wait(120);
+      const stopsBefore = calls.filter((c) => c.phase === 'stop').length;
+      const t3 = performance.now();
+      await land(b, `fighter ${b.dataset.fighter}`);
+      await t.until(() => plays(nameOf(b), t3).length > 0, 3000, `the name of ${b.dataset.fighter}`).catch(() => null);
+      if (calls.filter((c) => c.phase === 'stop').length > stopsBefore && plays(nameOf(b), t3).length === 1) t.event('name-cancel', `${b.dataset.fighter}'s name cut ${a.dataset.fighter}'s, one voice at a time`);
+      else if (plays(nameOf(a), t2)[0] && plays(nameOf(a), t2)[0].ms < 250) t.event('name-cancel', `${a.dataset.fighter}'s name had finished before ${b.dataset.fighter} landed`);
+      else t.problem('bug', `landing on ${b.dataset.fighter} did not cut ${a.dataset.fighter}'s name (stops ${calls.filter((c) => c.phase === 'stop').length - stopsBefore}, plays ${plays(nameOf(b), t3).length})`);
+      await t.wait(1500);
+      // 3. A fast sweep across the grid: only the last name plays.
+      const sweep = pool.slice(5, 11).length >= 4 ? pool.slice(5, 11) : pool.slice(0, 6);
+      const last = sweep[sweep.length - 1];
+      const t4 = performance.now();
+      if (touch) {
+        const p0 = center(sweep[0]);
+        const init = (x: number, y: number) => ({ pointerType: 'touch', pointerId: 52, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y });
+        sweep[0].dispatchEvent(new PointerEvent('pointerdown', init(p0.x, p0.y)));
+        for (const el of sweep.slice(1)) {
+          await t.wait(45);
+          const c = center(el);
+          sweep[0].dispatchEvent(new PointerEvent('pointermove', init(c.x, c.y)));
+        }
+        const cl = center(last);
+        sweep[0].dispatchEvent(new PointerEvent('pointerup', { ...init(cl.x, cl.y), buttons: 0 }));
+      } else {
+        for (const el of sweep) await land(el, `fighter ${el.dataset.fighter}`), await t.wait(40);
+      }
+      await t.until(() => plays(nameOf(last), t4).length > 0, 3000, `the name of ${last.dataset.fighter}`).catch(() => null);
+      await t.wait(900);
+      const heardSweep = calls.filter((c) => c.phase === 'play' && c.at >= t4 && c.id.startsWith('announcer.name.')).map((c) => idOf(c));
+      if (heardSweep.length === 1 && heardSweep[0] === last.dataset.fighter) t.event('name-sweep', `a ${sweep.length}-tile ${touch ? 'swipe' : 'sweep'} in ${Math.round(40 * sweep.length + 60)} ms played only the last name (${heardSweep[0]})`);
+      else t.problem('bug', `a ${sweep.length}-tile sweep ending on ${last.dataset.fighter} played ${heardSweep.length} names: ${heardSweep.join(', ') || 'none'}`);
+      await t.wait(400);
+      // --- Fight: two fighters, the stage
+      const mark = performance.now();
+      await this.startVersus(1, true);
+      const m = this.game.match() ?? this.seen;
+      const since = (id: string) => calls.filter((c) => c.phase === 'play' && c.at >= mark && c.id === id);
+      const stageId = m ? STAGES[m.setup.stage].id : '';
+      const stagePlay = since(`announcer.stage.${stageId}`)[0];
+      if (!stagePlay) t.problem('bug', `picking ${stageId} did not play the stage's name`);
+      else t.event('stage-call', `"${stagePlay.text}" played on the stage pick`);
+      // The VS card: both names, in the slot order, one after the other.
+      const meId = m ? CHARACTERS[m.state.fighters[0].char].id : '';
+      const foeId = m ? CHARACTERS[m.state.fighters[1].char].id : '';
+      const vs = calls.filter((c) => c.phase === 'play' && c.at >= (stagePlay?.at ?? mark) && c.id.startsWith('announcer.name.') || c.phase === 'play' && c.at >= (stagePlay?.at ?? mark) && c.id === 'announcer.versus');
+      const order = vs.map((c) => c.id).filter((id) => id !== 'announcer.versus');
+      if (order[0] === `announcer.name.${meId}` && order[1] === `announcer.name.${foeId}`) {
+        const gap = vs.length > 1 ? Math.round(vs[vs.length - 1].at - (vs[0].at + vs[0].ms)) : 0;
+        t.event('vs-calls', `VS card: ${vs.map((c) => c.text).join(' · ')} (in order, ${gap} ms after the first ended before the last)`);
+      } else t.problem('bug', `the VS card called ${order.map((i) => i.replace('announcer.name.', '')).join(', ') || 'nothing'}, want ${meId} then ${foeId}`);
+      if (stagePlay && vs[0] && stagePlay.at + stagePlay.ms > vs[0].at + 40) t.problem('bug', `the VS names began before the stage's name had finished`);
+      // Match start: Ready... FIGHT!
+      await t.until(() => calls.some((c) => c.phase === 'play' && c.at >= mark && c.id.startsWith('announcer.ready-fight.')), 8000, '"Ready... FIGHT!"').catch(() => null);
+      const rf = calls.find((c) => c.phase === 'play' && c.at >= mark && c.id.startsWith('announcer.ready-fight.'));
+      if (rf) t.event('ready-fight-call', `"${rf.text}" (${rf.id}) played at the match start`);
+      else t.problem('bug', 'the match start did not play "Ready... FIGHT!"');
+      t.progress(0.4);
+      // The final KO: GAME!
+      await this.fight(() => false, 6 * 60 * 1000);
+      const over = performance.now();
+      await t.until(() => calls.some((c) => c.phase === 'play' && c.at >= over - 1500 && /^announcer\.(game\.\d|time)$/.test(c.id)), 5000, '"GAME!"').catch(() => null);
+      const game = calls.find((c) => c.phase === 'play' && c.at >= over - 1500 && /^announcer\.(game\.\d|time)$/.test(c.id));
+      if (game) t.event('game-call', `"${game.text}" (${game.id}) on the final KO`);
+      else t.problem('bug', 'the final KO did not play "GAME!"');
+      // The results: The winner is... and the name.
+      await this.screen('results', 30000);
+      const fin = this.game.match() ?? m;
+      const winSlot = fin?.state.winner ?? -1;
+      const winId = winSlot >= 0 && fin ? CHARACTERS[fin.state.fighters[winSlot].char].id : '';
+      const r0 = performance.now() - 5000;
+      await t.until(() => calls.some((c) => c.phase === 'play' && c.at >= r0 && (c.id === 'announcer.no-contest' || (winId && c.id === `announcer.name.${winId}`) && calls.some((d) => d.id === 'announcer.winner-is' && d.at >= r0))), 9000, 'the winner call').catch(() => null);
+      const wi = calls.find((c) => c.phase === 'play' && c.at >= r0 && c.id === 'announcer.winner-is');
+      const wn = winId ? calls.find((c) => c.phase === 'play' && c.at >= r0 && c.id === `announcer.name.${winId}`) : undefined;
+      if (winId && wi && wn && wn.at >= wi.at + wi.ms - 40) t.event('result-calls', `results: "${wi.text}" then "${wn.text}" (${Math.round(wn.at - wi.at - wi.ms)} ms after it ended)`);
+      else if (!winId && calls.some((c) => c.phase === 'play' && c.at >= r0 && c.id === 'announcer.no-contest')) t.event('result-calls', 'results: "No contest!" (no winner)');
+      else t.problem('bug', `the results did not call "The winner is..." then ${winId || 'the winner'} (heard ${calls.filter((c) => c.phase === 'play' && c.at >= r0).map((c) => c.id).join(', ') || 'nothing'})`);
+      t.event('music-duck', `${ducks} times the music ducked under the announcer`);
+      if (!ducks) t.problem('bug', 'the music never ducked under the announcer');
+      t.metric('announcerCalls', calls.filter((c) => c.phase === 'play').length);
+      t.metric('announcerOverlaps', overlaps);
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu').catch(() => null);
+    } finally {
+      window.removeEventListener('dod:announcer', onCall);
+      window.removeEventListener('dod:name-call', onLand);
+      window.removeEventListener('dod:music-duck', onDuck);
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   // ---------------------------------------------------------- colour looks
 
   /**
@@ -6977,6 +7181,149 @@ class Run {
   }
 
   /**
+   * The victory stage (ui/victory.ts, victory.ts): a Versus 1v1 (options fighter / foe, default Exit Punk vs Kaelen) played twice.
+   * Round 1: the results open on the winner on a lit podium playing a clip (`victory-stage`), the group's fanfare plays
+   * (`victory-fanfare`: the group of content/fighters.json `fanfare`, its file on disk), the loser shows in a dim inset
+   * (`victory-loser`), the camera pushes in (`victory-push`) with confetti (`victory-confetti`), Rematch is on screen and
+   * tappable within 3 s (`victory-rematch`), the panel slides in (`victory-panel`) with the podium beside it on a landscape
+   * phone and every button 44 px tall (`victory-fit`). Round 2: a tap on the stage skips the pose (`victory-skip`).
+   * On a phone every tap is a touch pointer event (390x844 turned to 844x390). Metric `victoryMs` (results open to Rematch).
+   */
+  async victoryRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('victory');
+    }
+    this.logViewport(touch && this.isPhone());
+    if (typeof this.options.fighter !== 'string') this.options.fighter = 'exit-punk';
+    if (typeof this.options.foe !== 'string') this.options.foe = 'kaelen';
+    type V = { group: string; fanfare: string; hasFanfare: boolean; winner: string; loser: string | null };
+    const opened: { v: V; at: number }[] = [];
+    const fanfares: { id: string; file: string | null; played: boolean }[] = [];
+    const clips: { role: string; clip: string | null }[] = [];
+    const panels: { why: string; ms: number }[] = [];
+    const on = (type: string, fn: (d: any) => void) => {
+      const f = (e: Event) => fn((e as CustomEvent).detail);
+      window.addEventListener(type, f);
+      return () => window.removeEventListener(type, f);
+    };
+    const offs = [
+      on('dod:victory', (d) => opened.push({ v: d, at: performance.now() })),
+      on('dod:fanfare', (d) => fanfares.push(d)),
+      on('dod:victory-clip', (d) => clips.push(d)),
+      on('dod:victory-panel', (d) => panels.push(d)),
+    ];
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const rect = (el: Element | null) => (el ? el.getBoundingClientRect() : null);
+    const onScreen = (r: DOMRect | null) => !!r && r.width > 0 && r.height > 0 && r.left >= -1 && r.top >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1;
+    try {
+      await this.toMainMenu();
+      await this.startVersus(1);
+      for (let round = 1; round <= 2; round++) {
+        t.progress(0.1 + 0.4 * (round - 1));
+        const before = opened.length;
+        await this.fight(() => false, 6 * 60 * 1000);
+        await this.screen('results', 30000);
+        await t.until(() => opened.length > before, 5000, 'the victory stage to open').catch(() => null);
+        const o = opened[opened.length - 1];
+        const stage = this.q('#results-body .victory');
+        if (!o || opened.length <= before || !stage) {
+          t.problem('bug', `round ${round}: the results screen opened with no victory stage`);
+          break;
+        }
+        const t0 = o.at;
+        // The podium: a lit stage, the winner playing a clip on the plinth.
+        await t.until(() => clips.some((c) => c.role === 'winner'), 6000, 'the winner clip').catch(() => null);
+        const winClip = clips.filter((c) => c.role === 'winner').pop();
+        const sprite = this.q('#results-body .vic-winner .vic-sprite');
+        const sr = rect(this.q('#results-body .vic-winner'));
+        if (!this.q('#results-body .vic-plinth') || !this.q('#results-body .vic-beam')) t.problem('bug', `round ${round}: the podium has no plinth or no light`);
+        else if (!winClip?.clip || !sprite || !onScreen(sr)) t.problem('bug', `round ${round}: the winner is not playing a clip on the podium (${winClip?.clip ?? 'no clip'}, ${sr ? `${Math.round(sr.width)}x${Math.round(sr.height)}` : 'no box'})`);
+        else t.event('victory-stage', `round ${round}: ${o.v.winner} on the lit podium playing "${winClip.clip}" (${o.v.group}), ${Math.round(sr!.width)}x${Math.round(sr!.height)} px`);
+        // The fanfare: the fighter's group, a file that exists.
+        const f = fanfares[fanfares.length - 1];
+        const group = FIGHTERS_DATA.find((x) => x.id === o.v.winner)?.fanfare ?? '';
+        const file = SOUNDS.find((x) => x.id === o.v.fanfare)?.file;
+        if (o.v.group !== group) t.problem('bug', `round ${round}: ${o.v.winner} won with group "${o.v.group}", content/fighters.json says "${group}"`);
+        else if (!f || f.id !== o.v.fanfare || !f.played || !file) t.problem('bug', `round ${round}: the ${o.v.group} fanfare (${o.v.fanfare}) did not play${file ? '' : ' (no sound made yet)'}`);
+        else if (!(await exists(file))) t.problem('bug', `round ${round}: fanfare file missing (404): ${file}`);
+        else t.event('victory-fanfare', `round ${round}: ${o.v.group} fanfare ${o.v.fanfare} from ${file}`);
+        // The loser: dim, in an inset, sulking.
+        const inset = this.q('#results-body .vic-inset');
+        const ir = rect(inset);
+        if (!inset || !onScreen(ir) || inset.dataset.mood !== 'sulking') t.problem('bug', `round ${round}: no loser inset sulking on screen`);
+        else t.event('victory-loser', `round ${round}: ${o.v.loser} in the inset (${clips.filter((c) => c.role === 'loser').pop()?.clip ?? 'still'}), ${Math.round(ir!.width)}x${Math.round(ir!.height)} px, mood ${inset.dataset.mood}`);
+        // The push-in and the confetti.
+        const cam = this.q('#results-body .vic-cam');
+        const scaleOf = () => new DOMMatrixReadOnly(getComputedStyle(cam!).transform).a;
+        const s1 = scaleOf();
+        await t.wait(700);
+        const s2 = scaleOf();
+        const confetti = Number(stage.dataset.confetti ?? 0);
+        if (!(s2 > s1)) t.problem('bug', `round ${round}: the camera is not pushing in (scale ${s1.toFixed(3)} -> ${s2.toFixed(3)})`);
+        else t.event('victory-push', `round ${round}: camera push-in ${s1.toFixed(3)} -> ${s2.toFixed(3)}`);
+        if (confetti < 1) t.problem('bug', `round ${round}: no confetti on the stage`);
+        else t.event('victory-confetti', `round ${round}: ${confetti} pieces in the air, colour ${getComputedStyle(stage).getPropertyValue('--slot').trim()}`);
+        if (round === 1) {
+          // Rematch within 3 s of the results opening: on screen, 44 px, nothing over it.
+          const rematch = this.button('#results-actions', 'Rematch');
+          const rb = rect(rematch ?? null);
+          const ms = Math.round(performance.now() - t0);
+          const mid = rb ? document.elementFromPoint(rb.left + rb.width / 2, rb.top + rb.height / 2) : null;
+          if (!rematch || !onScreen(rb) || rb!.height < 44 || (rematch as HTMLButtonElement).disabled || !mid || !rematch.contains(mid)) t.problem('bug', `round ${round}: Rematch is not tappable ${ms} ms after the results opened`);
+          else if (ms > 3000) t.problem('bug', `round ${round}: Rematch took ${ms} ms to be tappable`);
+          else {
+            t.event('victory-rematch', `round ${round}: Rematch tappable ${ms} ms after the results opened (${Math.round(rb!.width)}x${Math.round(rb!.height)} px)`);
+            t.metric('victoryMs', ms);
+          }
+          // The panel slides in; the podium and the panel side by side on a landscape phone; every button 44 px.
+          await t.until(() => panels.length > 0 && this.q('#results-body .results-row')?.dataset.phase === 'panel', 5000, 'the results panel').catch(() => null);
+          await t.wait(500);
+          const pr = rect(this.q('#results-body .results-panel'));
+          const vr = rect(stage);
+          const landscape = innerWidth > innerHeight;
+          const small = Math.min(innerWidth, innerHeight) <= 560;
+          const btns = [...document.querySelectorAll<HTMLElement>('#results-actions button')].map((b) => b.getBoundingClientRect());
+          const short = btns.filter((b) => b.height < 44 || b.width < 44);
+          if (!pr || !vr || !onScreen(vr) || pr.right > innerWidth + 1 || pr.width < 100) t.problem('bug', `round ${round}: the panel did not slide in beside the podium at ${innerWidth}x${innerHeight}`);
+          else if (small && landscape && vr.right > pr.left + 1) t.problem('bug', `round ${round}: at ${innerWidth}x${innerHeight} the podium is not left of the panel`);
+          else if (short.length || !btns.length || btns.some((b) => b.bottom > innerHeight + 1 || b.right > innerWidth + 1)) t.problem('bug', `round ${round}: result buttons are under 44 px or off screen at ${innerWidth}x${innerHeight}`);
+          else t.event('victory-fit', `round ${round}: podium ${Math.round(vr.width)}x${Math.round(vr.height)} left, panel ${Math.round(pr.width)}x${Math.round(pr.height)} right, ${btns.length} buttons all >= 44 px, at ${innerWidth}x${innerHeight}`);
+          t.event('victory-panel', `round ${round}: panel in ${panels[panels.length - 1]?.ms} ms (${panels[panels.length - 1]?.why})`);
+          this.checkClipping('results with victory stage', this.q('#results'));
+          await this.click(() => this.button('#results-actions', 'Rematch'), 'Rematch');
+        } else {
+          // Any input skips the pose: a tap on the stage brings the panel at once.
+          const row = this.q('#results-body .results-row');
+          if (row?.dataset.phase !== 'pose') {
+            t.event('victory-skip', `round ${round}: panel was already in (${panels[panels.length - 1]?.why})`);
+          } else {
+            const n = panels.length;
+            await this.tap(() => this.q('#results-body .victory'), 'the victory stage');
+            await t.until(() => panels.length > n, 1000, 'the pose to skip').catch(() => null);
+            if (panels[panels.length - 1]?.why !== 'input') t.problem('bug', `round ${round}: a tap on the stage did not skip the pose`);
+            else t.event('victory-skip', `round ${round}: a tap skipped the pose after ${panels[panels.length - 1].ms} ms`);
+          }
+        }
+      }
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu').catch(() => null);
+    } finally {
+      for (const off of offs) off();
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  /**
    * Win quotes (content/voice.json winQuotes, winQuote.ts, ui/quoteCaption.ts): a Versus 1v1 between two story rivals
    * (options fighter / foe, default Exit Punk vs Kaelen), played twice (Rematch). On each results screen the winner's quote
    * must play as a recorded take (`dod:win-quote-play`) with a typed-on caption of the same words (`quote-caption`), the
@@ -7029,7 +7376,7 @@ class Run {
         if (!cap || words !== q.text || !cap.textContent?.includes(q.text)) t.problem('bug', `round ${round}: the results caption "${cap?.textContent ?? ''}" is not the quote "${q.text}"`);
         else t.event('quote-caption', `round ${round}: ${q.winner} says "${q.text}" (${q.kind}, ${q.id}), caption typed on`);
         // Voiced: a played take whose file is there.
-        await t.until(() => played.includes(q.id), 3000, 'the quote to play').catch(() => null);
+        await t.until(() => played.includes(q.id), 9000, 'the quote to play').catch(() => null);
         if (!q.audio) t.problem('bug', `round ${round}: "${q.id}" has no recorded take (voice file not made yet)`);
         else if (!played.includes(q.id)) t.problem('bug', `round ${round}: "${q.id}" did not play on the results screen`);
         else if (!(await exists(q.audio))) t.problem('bug', `round ${round}: voice file missing (404): ${q.audio}`);
