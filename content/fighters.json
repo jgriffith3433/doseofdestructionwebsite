@@ -58,7 +58,7 @@
       "down": { "type": "counter", "name": "No comment", "clip": "dsmash", "startup": 4, "window": 20, "endlag": 20, "mult": 150, "dmg": 60, "angle": 45, "bkb": 40, "kbg": 100 }
     },
     "hitboxes": {
-      "fsmash": [{ "x": 17, "y": 97 }],
+      "fsmash": [{ "x": 17, "y": 98 }],
       "usmash": [{ "x": 10, "y": 130 }],
       "dsmash": [{ "x": 63, "y": 14 }, { "x": -4, "y": 26 }],
       "nspecial": [{ "x": 41, "y": 63 }],
@@ -259,11 +259,11 @@
       "down": { "type": "counter", "name": "Rewind", "clip": "dsmash", "startup": 4, "window": 20, "endlag": 18, "mult": 150, "dmg": 60, "angle": 45, "bkb": 40, "kbg": 100 }
     },
     "hitboxes": {
-      "fsmash": [{ "x": 42, "y": 114 }],
+      "fsmash": [{ "x": 26, "y": 110 }],
       "usmash": [{ "x": 10, "y": 130 }],
       "dsmash": [{ "x": 63, "y": 14 }, { "x": 10, "y": 19 }],
       "nspecial": [{ "x": 9, "y": 95 }],
-      "sspecial": [{ "x": 41, "y": 61 }, { "x": 41, "y": 61 }, { "x": 21, "y": 101 }, { "x": 16, "y": 110 }, { "x": 41, "y": 61 }],
+      "sspecial": [{ "x": 41, "y": 61 }, { "x": 41, "y": 61 }, { "x": 20, "y": 105 }, { "x": 16, "y": 109 }, { "x": 41, "y": 61 }],
       "upb": [{ "x": 0, "y": 65 }]
     }
   },
@@ -322,7 +322,7 @@
       "down": { "type": "trap", "name": "Kickflip trap", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 20, "life": 600, "x": 58, "r": 34, "dmg": 100, "angle": 80, "bkb": 40, "kbg": 90, "style": "trap" }
     },
     "hitboxes": {
-      "fsmash": [{ "x": 28, "y": 87 }],
+      "fsmash": [{ "x": 30, "y": 92 }],
       "usmash": [{ "x": 35, "y": 64 }],
       "dsmash": [{ "x": 3, "y": 16 }, { "x": -27, "y": 62 }],
       "nspecial": [{ "x": 8, "y": 114 }],
@@ -389,7 +389,7 @@
       "down": { "type": "counter", "name": "Got ur back", "clip": "dsmash", "startup": 5, "window": 28, "endlag": 22, "mult": 170, "dmg": 90, "angle": 40, "bkb": 45, "kbg": 105 }
     },
     "hitboxes": {
-      "fsmash": [{ "x": 82, "y": 61 }],
+      "fsmash": [{ "x": 69, "y": 132 }],
       "usmash": [{ "x": 11, "y": 140 }],
       "dsmash": [{ "x": 70, "y": 15 }, { "x": -45, "y": 66 }],
       "nspecial": [{ "x": 61, "y": 65 }],
@@ -422,7 +422,7 @@
       "down": { "type": "counter", "name": "Slip", "clip": "dsmash", "startup": 3, "window": 16, "endlag": 16, "mult": 140, "dmg": 60, "angle": 45, "bkb": 40, "kbg": 100 }
     },
     "hitboxes": {
-      "fsmash": [{ "x": 49, "y": 109 }],
+      "fsmash": [{ "x": 37, "y": 107 }],
       "usmash": [{ "x": 19, "y": 72 }],
       "dsmash": [{ "x": 70, "y": 105 }, { "x": 14, "y": 14 }],
       "nspecial": [{ "x": 34, "y": 94 }, { "x": 35, "y": 96 }, { "x": 37, "y": 99 }, { "x": 45, "y": 59 }],
@@ -520,10 +520,10 @@
       "down": { "type": "trap", "name": "Downbeat", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 22, "life": 540, "x": 58, "r": 36, "dmg": 100, "angle": 80, "bkb": 40, "kbg": 90, "style": "trap" }
     },
     "hitboxes": {
-      "fsmash": [{ "x": 37, "y": 116 }],
+      "fsmash": [{ "x": 16, "y": 109 }],
       "usmash": [{ "x": 23, "y": 73 }],
       "dsmash": [{ "x": 67, "y": 103 }, { "x": 14, "y": 13 }],
-      "sspecial": [{ "x": 22, "y": 84 }],
+      "sspecial": [{ "x": 22, "y": 93 }],
       "upb": [{ "x": 0, "y": 74 }]
     }
   },
@@ -651,7 +651,7 @@
       "down": { "type": "counter", "name": "Parry", "clip": "dsmash", "startup": 2, "window": 14, "endlag": 12, "mult": 150, "dmg": 60, "angle": 45, "bkb": 40, "kbg": 100 }
     },
     "hitboxes": {
-      "fsmash": [{ "x": 35, "y": 112 }],
+      "fsmash": [{ "x": 33, "y": 113 }],
       "usmash": [{ "x": 10, "y": 130 }],
       "dsmash": [{ "x": -3, "y": 17 }, { "x": 5, "y": 17 }],
       "nspecial": [{ "x": 1, "y": 83 }, { "x": 1, "y": 82 }, { "x": 1, "y": 82 }, { "x": 1, "y": 82 }, { "x": 1, "y": 83 }, { "x": -1, "y": 84 }],
@@ -718,11 +718,11 @@
       "down": { "type": "trap", "name": "Storm cell", "clip": "dsmash", "startup": 10, "endlag": 22, "arm": 25, "life": 480, "x": 60, "r": 40, "dmg": 90, "angle": 80, "bkb": 40, "kbg": 90, "style": "orb" }
     },
     "hitboxes": {
-      "fsmash": [{ "x": 39, "y": 114 }],
+      "fsmash": [{ "x": 8, "y": 103 }],
       "usmash": [{ "x": 12, "y": 133 }],
       "dsmash": [{ "x": 55, "y": 94 }, { "x": 15, "y": 19 }],
       "nspecial": [{ "x": 36, "y": 100 }],
-      "sspecial": [{ "x": 6, "y": 68 }, { "x": 12, "y": 98 }, { "x": 6, "y": 109 }, { "x": 5, "y": 107 }],
+      "sspecial": [{ "x": 6, "y": 68 }, { "x": 13, "y": 98 }, { "x": 7, "y": 109 }, { "x": 5, "y": 108 }],
       "upb": [{ "x": 0, "y": 73 }]
     }
   },
@@ -786,11 +786,11 @@
       "down": { "type": "trap", "name": "Landslide", "clip": "dsmash", "startup": 14, "endlag": 28, "arm": 28, "life": 600, "x": 70, "r": 44, "dmg": 140, "angle": 80, "bkb": 45, "kbg": 95, "style": "trap" }
     },
     "hitboxes": {
-      "fsmash": [{ "x": 55, "y": 123 }],
+      "fsmash": [{ "x": 39, "y": 121 }],
       "usmash": [{ "x": 12, "y": 144 }],
       "dsmash": [{ "x": 21, "y": 16 }, { "x": 29, "y": 21 }],
       "nspecial": [{ "x": 55, "y": 79 }],
-      "sspecial": [{ "x": 14, "y": 108 }],
+      "sspecial": [{ "x": 13, "y": 104 }],
       "upb": [{ "x": 0, "y": 86 }]
     }
   },
@@ -819,7 +819,7 @@
       "down": { "type": "counter", "name": "Plates up", "clip": "dsmash", "startup": 4, "window": 22, "endlag": 22, "mult": 160, "dmg": 80, "angle": 40, "bkb": 42, "kbg": 100 }
     },
     "hitboxes": {
-      "fsmash": [{ "x": 62, "y": 123 }],
+      "fsmash": [{ "x": 52, "y": 115 }],
       "usmash": [{ "x": 11, "y": 137 }],
       "dsmash": [{ "x": 21, "y": 29 }, { "x": -43, "y": 65 }],
       "sspecial": [{ "x": 60, "y": 62 }, { "x": 60, "y": 62 }, { "x": 60, "y": 62 }],

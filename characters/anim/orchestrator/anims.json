@@ -3,16 +3,16 @@
  "clips": {
   "idle": {
    "file": "idle.webp",
-   "frames": 24,
+   "frames": 46,
    "cols": 19,
-   "rows": 2,
-   "fw": 106,
+   "rows": 3,
+   "fw": 105,
    "fh": 329,
-   "ax": 40,
+   "ax": 39,
    "ay": 325,
-   "fps": 15,
+   "fps": 30.0,
    "loop": true,
-   "source": "idle.mp4",
+   "source": "orchestrator__idle.mp4",
    "sourceMtime": 1792051490720,
    "options": {
     "tolerance": 60
@@ -25,7 +25,8 @@
    "autoSizeFrom": "stand",
    "halfFile": "idle.half.webp",
    "fringe": true,
-   "feet": [-3, -3, -3, -3, -2, -2, -2, -6, -2, -4, -9, -2, -4, -6, -1, -2, -11, -2, -2, -3, -2, -3, -3, -3]
+   "smoothed": true,
+   "feet": [-3, -3, -3, -3, -3, -3, -3, -2, -2, -1, -1, -1, -1, -3, -5, -3, -1, -3, -3, -7, -9, -5, -1, -3, -3, -5, -5, -3, -1, -1, -1, -7, -11, -7, -1, -1, -1, -3, -3, -3, -3, -3, -3, -3, -3, -3]
   },
   "airdodge": {
    "file": "airdodge.webp",
@@ -309,16 +310,16 @@
   },
   "fsmash": {
    "file": "fsmash.webp",
-   "frames": 24,
+   "frames": 35,
    "cols": 10,
-   "rows": 3,
-   "fw": 199,
+   "rows": 4,
+   "fw": 191,
    "fh": 309,
-   "ax": 58,
-   "ay": 306,
-   "fps": 20,
+   "ax": 56,
+   "ay": 305,
+   "fps": 30.0,
    "loop": false,
-   "source": "fsmash.mp4",
+   "source": "orchestrator__fsmash.mp4",
    "sourceMtime": 1792051709499,
    "options": {
     "tolerance": 60
@@ -334,7 +335,8 @@
    "autoSizeFrom": "stand",
    "halfFile": "fsmash.half.webp",
    "fringe": true,
-   "feet": [-4, -4, -4, -4, -3, -3, -4, -4, -4, -4, -3, -3, -3, -2, -2, -2, -2, -2, -3, -4, -4, -4, -4, -4]
+   "smoothed": true,
+   "feet": [-3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -3, -3, -3, -3, -3, -3]
   },
   "ftilt": {
    "file": "ftilt.webp",
@@ -419,16 +421,16 @@
   },
   "jab": {
    "file": "jab.webp",
-   "frames": 24,
+   "frames": 35,
    "cols": 12,
-   "rows": 2,
-   "fw": 166,
+   "rows": 3,
+   "fw": 164,
    "fh": 307,
-   "ax": 42,
-   "ay": 304,
-   "fps": 20,
+   "ax": 40,
+   "ay": 303,
+   "fps": 30.0,
    "loop": false,
-   "source": "jab.mp4",
+   "source": "orchestrator__jab.mp4",
    "sourceMtime": 1792051657837,
    "options": {
     "tolerance": 60
@@ -444,7 +446,8 @@
    "autoSizeFrom": "stand",
    "halfFile": "jab.half.webp",
    "fringe": true,
-   "feet": [-2, -2, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3]
+   "smoothed": true,
+   "feet": [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
   },
   "jump": {
    "file": "jump.webp",
@@ -782,16 +785,16 @@
   },
   "walk": {
    "file": "walk.webp",
-   "frames": 24,
+   "frames": 46,
    "cols": 11,
-   "rows": 3,
-   "fw": 181,
+   "rows": 5,
+   "fw": 180,
    "fh": 315,
-   "ax": 89,
+   "ax": 88,
    "ay": 311,
-   "fps": 15,
+   "fps": 30.0,
    "loop": true,
-   "source": "walk.mp4",
+   "source": "orchestrator__walk.mp4",
    "sourceMtime": 1792051501765,
    "options": {
     "tolerance": 72
@@ -804,10 +807,11 @@
    "autoSizeFrom": "stride",
    "halfFile": "walk.half.webp",
    "fringe": true,
-   "feet": [-2, -2, -2, -2, -2, -2, -2, -3, -6, -6, -6, -5, -2, -2, -2, -2, -2, -2, -2, -3, -6, -6, -6, -5],
-   "stride": 342.75,
-   "slip": 1.75,
-   "travel": [10, 18, 6, 29.5, 11.5, 11, 14.5, 17.5, 14.5, 24, 3.75, 11.5, 7, 20, 6, 30, 15, 8, 12.5, 14.5, 13, 23.5, 7.5, 14]
+   "smoothed": true,
+   "feet": [-2, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -3, -5, -5, -5, -5, -5, -5, -5, -5, -4, -1, -1, -1, -1, -2, -2, -1, -1, -1, -1, -1, -1, -1, -1, -3, -5, -5, -5, -5, -5, -5, -5],
+   "stride": 338.6,
+   "slip": 12.75,
+   "travel": [3.5, 9, 6, 11.5, 2, 3.5, 11.5, 8, 9.5, 9.5, 6.5, 5, 6.5, 9, 1.65, 13.75, 3.5, 11, 11.5, 2.5, 5.5, 6, 13.75, 7.5, 8, 1.65, 8, 9.5, 3, 5, 10.5, 13.75, 3, 12, 4, 4, 6.5, 7, 1.65, 13.75, 1.65, 10.5, 5.5, 13.75, 4.5, 13.75]
   },
   "dtilt": {
    "file": "dtilt.webp",
@@ -841,5 +845,5 @@
   }
  },
  "idleScale": 0.6211180124223602,
- "version": 1792052677
+ "version": 1792052681
 }

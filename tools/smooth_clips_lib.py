@@ -266,6 +266,35 @@ def pack_interpolated(
             b = keyed[-1].resize((32, 32)).convert("L")
             if sum(abs(x - y) for x, y in zip(a.getdata(), b.getdata())) / (32 * 32) < 8:
                 keyed = keyed[:-1]
+        # Short sources (1–2 frame idles) barely grow under FILM: hold-duplicate so the
+        # clip keeps a sensible loop length at target_fps instead of flashing.
+        # Prefer the interpolated video's own duration (ffprobe); fall back to the
+        # pre-smooth frame count when the manifest was already rewritten at 30 fps.
+        duration = None
+        try:
+            probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                 "-of", "default=noprint_wrappers=1:nokey=1", str(video)],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+            duration = float(probe)
+        except (ValueError, subprocess.CalledProcessError, OSError):
+            duration = None
+        if duration is None or duration < 0.05:
+            old_fps = float(old.get("fps") or 15)
+            old_n = int(old.get("frames") or len(keyed))
+            duration = old_n / max(0.1, old_fps)
+        # Near-static idles (FILM can't invent motion from 1–3 frames): hold to ~1 s at 30 fps
+        # so the loop doesn't flash. Longer clips keep their real duration.
+        if old.get("loop") and len(keyed) <= 4:
+            duration = max(duration, 1.0)
+        want_n = max(len(keyed), int(round(duration * target_fps)))
+        want_n = min(want_n, 48)
+        if len(keyed) < want_n:
+            held = []
+            for i in range(want_n):
+                held.append(keyed[min(len(keyed) - 1, i * len(keyed) // want_n)])
+            keyed = held
         # Fit to same cell aspect as before when possible: use union bbox.
         boxes = [f.getchannel("A").point(lambda v: 255 if v > 16 else 0).getbbox() for f in keyed]
         real = [b for b in boxes if b]

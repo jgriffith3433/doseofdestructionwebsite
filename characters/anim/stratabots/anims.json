@@ -3,16 +3,16 @@
  "clips": {
   "walk": {
    "file": "walk.webp",
-   "frames": 24,
-   "cols": 8,
-   "rows": 3,
-   "fw": 228,
+   "frames": 47,
+   "cols": 9,
+   "rows": 6,
+   "fw": 226,
    "fh": 318,
-   "ax": 121,
+   "ax": 120,
    "ay": 314,
-   "fps": 15,
+   "fps": 30.0,
    "loop": true,
-   "source": "walk.mp4",
+   "source": "stratabots__walk.mp4",
    "sourceMtime": 1792054658079,
    "options": {},
    "speed": 1.5,
@@ -23,10 +23,11 @@
    "autoSizeFrom": "stride",
    "halfFile": "walk.half.webp",
    "fringe": true,
-   "feet": [-7, -5, -10, -9, -3, -2, -2, -4, -2, -11, -10, -8, -6, -4, -9, -9, -4, -2, -2, -4, -5, -5, -11, -10],
-   "stride": 256.45,
-   "slip": 9.25,
-   "travel": [21.25, 2.55, 3.5, 21.25, 21.25, 8.5, 2.55, 2.55, 9.5, 21.25, 11, 2.55, 21.25, 2.55, 2.55, 19.5, 21.25, 11, 14, 2.55, 2.55, 14.5, 14.5, 2.55]
+   "smoothed": true,
+   "feet": [-6, -6, -4, -8, -10, -8, -8, -8, -4, -2, -2, -2, -2, -2, -4, -6, -2, -6, -11, -12, -10, -8, -8, -6, -6, -5, -4, -6, -8, -10, -8, -8, -4, -2, -2, -2, -2, -2, -4, -4, -4, -10, -4, -8, -10, -10, -10],
+   "stride": 267.65,
+   "slip": 18.25,
+   "travel": [10.5, 11.25, 1.35, 4, 1.35, 2.5, 11.25, 4.5, 11, 11.25, 5, 4, 1.35, 1.35, 1.35, 2.5, 3.5, 11, 11.25, 9.5, 4.5, 6, 1.35, 1.35, 11.25, 11.25, 7, 1.35, 3.5, 1.35, 11.25, 1.35, 11.25, 11.25, 5.5, 5.5, 6.5, 8.5, 1.35, 1.35, 1.35, 2, 5.5, 8.5, 9.5, 7, 1.35]
   },
   "fall": {
    "file": "fall.webp",
@@ -303,16 +304,16 @@
   },
   "jab": {
    "file": "jab.webp",
-   "frames": 24,
+   "frames": 35,
    "cols": 9,
-   "rows": 3,
+   "rows": 4,
    "fw": 211,
    "fh": 307,
-   "ax": 57,
-   "ay": 304,
-   "fps": 20,
+   "ax": 58,
+   "ay": 303,
+   "fps": 30.0,
    "loop": false,
-   "source": "jab.mp4",
+   "source": "stratabots__jab.mp4",
    "sourceMtime": 1792054825823,
    "options": {},
    "speed": 1.0,
@@ -326,7 +327,8 @@
    "autoSizeFrom": "stand",
    "halfFile": "jab.half.webp",
    "fringe": true,
-   "feet": [-2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2]
+   "smoothed": true,
+   "feet": [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
   },
   "ftilt": {
    "file": "ftilt.webp",
@@ -411,16 +413,16 @@
   },
   "fsmash": {
    "file": "fsmash.webp",
-   "frames": 24,
+   "frames": 35,
    "cols": 6,
-   "rows": 4,
+   "rows": 6,
    "fw": 329,
    "fh": 317,
-   "ax": 147,
-   "ay": 314,
-   "fps": 20,
+   "ax": 146,
+   "ay": 313,
+   "fps": 30.0,
    "loop": false,
-   "source": "fsmash.mp4",
+   "source": "stratabots__fsmash.mp4",
    "sourceMtime": 1792054900317,
    "options": {},
    "speed": 1.0,
@@ -434,7 +436,8 @@
    "autoSizeFrom": "stand",
    "halfFile": "fsmash.half.webp",
    "fringe": true,
-   "feet": [-5, -5, -5, -6, -4, -2, -2, -2, -3, -4, -6, -6, -6, -6, -6, -6, -6, -6, -6, -6, -5, -4, -5, -5]
+   "smoothed": true,
+   "feet": [-3, -3, -3, -3, -5, -5, -3, -1, -1, -1, -1, -1, -1, -1, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -3, -5, -3, -3, -3]
   },
   "usmash": {
    "file": "usmash.webp",
@@ -759,16 +762,16 @@
   },
   "idle": {
    "file": "idle.webp",
-   "frames": 1,
-   "cols": 1,
-   "rows": 1,
+   "frames": 30,
+   "cols": 17,
+   "rows": 2,
    "fw": 115,
    "fh": 307,
    "ax": 57,
-   "ay": 304,
-   "fps": 15,
+   "ay": 303,
+   "fps": 30.0,
    "loop": true,
-   "source": "idle.mp4",
+   "source": "stratabots__idle.mp4",
    "sourceMtime": 1792054639261,
    "options": {
     "start": 2.99
@@ -781,9 +784,10 @@
    "autoSizeFrom": "stand",
    "halfFile": "idle.half.webp",
    "fringe": true,
-   "feet": [-2]
+   "smoothed": true,
+   "feet": [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
   }
  },
  "idleScale": 0.6224066390041494,
- "version": 1792055631
+ "version": 1792055637
 }
