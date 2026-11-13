@@ -105,7 +105,8 @@ export const trailFor = (tier: HitTier, kb: number, ko: boolean): Trail => {
   if (tier === 'light' && !ko) return { kind: 'none', every: 0, puffs: 0, size: 0 };
   const big = Math.min(1, kb / 90);
   const kind: TrailKind = ko ? 'streak' : tier === 'heavy' ? 'white' : 'grey';
-  return { kind, every: tier === 'heavy' || ko ? 1 : 2, puffs: 1 + Math.floor(big * 2.4), size: 0.2 + big * 0.4 };
+  // Polish pass: smoke is a faint hint behind the fighter, not a cloud (every 3rd or 2nd frame, 1-2 small puffs); the KO streak keeps its rate.
+  return { kind, every: ko ? 1 : tier === 'heavy' ? 2 : 3, puffs: 1 + Math.floor(big * 1.5), size: 0.12 + big * 0.2 };
 };
 
 // ------------------------------------------------------------------ kill cue
