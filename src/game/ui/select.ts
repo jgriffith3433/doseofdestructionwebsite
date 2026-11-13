@@ -1,15 +1,20 @@
-// Character select: a grid of every fighter, a large preview with stat bars,
-// and a row of slots for you and up to three CPUs.
+// Character select, a broadcast set: a grid of every fighter's painted portrait (hover lift, slot-colour frame) beside a
+// big render of the hovered fighter (idle, in their colour look, under the stage light: fighterRender.ts) with a name
+// lower third and a tagline, a live special preview from the sim in an inset (specialsPreview.ts, specialSim.ts) and
+// the stat bars behind a Details toggle. A pick plays the confirm pose, the fighter's voiced taunt and the announcer's
+// name. Below it, the row of slots for you and up to three CPUs.
 
 import { CHARACTERS, type CharacterDef } from '../sim/characters.ts';
 import type { SlotSetup } from '../match.ts';
 import { PLAYER_COLORS, prefetchFighters } from '../render/renderer.ts';
 import { CHAPTERS, isUnlocked } from '../campaign/story.ts';
-import { $, h, kids, largeUrl, thumbUrl } from './dom.ts';
+import { $, h, kids, largeUrl, portraitSize, portraitUrl, thumbUrl } from './dom.ts';
 import { specialsPanel } from './specialsPreview.ts';
+import { createFighterRender, prefetchIdles } from './fighterRender.ts';
 import { swatchRow } from './lookUi.ts';
 import { audio } from '../audio.ts';
 import { landOn, resetLanding } from './nameCall.ts';
+import { currentScreen } from './screens.ts';
 import { lookCount, lookOpen, openLook, preferredLook, rememberLook, separateLooks } from '../looks.ts';
 
 export interface VersusConfig {
@@ -97,11 +102,11 @@ export function openSelect({ mode, config, onDone }: Options): void {
   const portrait = (c: CharacterDef): HTMLImageElement => {
     let img = portraits.get(c.id);
     if (!img) {
-      img = h('img', { src: largeUrl(c.id), alt: '' }) as HTMLImageElement;
+      img = h('img', { src: portraitUrl(c.id, portraitSize()), alt: '', class: 'select-portrait', 'data-portrait': c.id }) as HTMLImageElement;
       img.decoding = 'async';
       img.onerror = () => {
         img!.onerror = null;
-        img!.src = thumbUrl(c.id);
+        img!.src = largeUrl(c.id);
       };
       portraits.set(c.id, img);
     }
@@ -109,9 +114,9 @@ export function openSelect({ mode, config, onDone }: Options): void {
   };
   CHARACTERS.forEach(portrait);
 
-  // Roster and slot thumbnails: one kept, preloaded <img> per fighter (cloned into tiles and slots),
-  // so the grid never shows empty boxes. A tile stays a dark silhouette placeholder until its image
-  // has loaded (`.loaded`), and falls back to the large portrait if the thumbnail fails.
+  // Roster and slot pictures: one kept, preloaded <img> per fighter (cloned into tiles and slots), the painted
+  // 256 px portrait, so the grid never shows empty boxes. A tile stays a dark placeholder until its image
+  // has loaded (`.loaded`), and falls back to the cutout thumbnail if the portrait fails.
   const thumbs = new Map<string, HTMLImageElement>();
   const thumb = (c: CharacterDef): HTMLImageElement => {
     let src = thumbs.get(c.id);
@@ -120,16 +125,16 @@ export function openSelect({ mode, config, onDone }: Options): void {
       src.decoding = 'async';
       src.onerror = () => {
         src!.onerror = null;
-        src!.src = largeUrl(c.id);
+        src!.src = thumbUrl(c.id);
       };
-      src.src = thumbUrl(c.id);
+      src.src = portraitUrl(c.id, 256);
       thumbs.set(c.id, src);
     }
-    const img = h('img', { alt: '', draggable: 'false' }) as HTMLImageElement;
+    const img = h('img', { alt: '', draggable: 'false', 'data-portrait': c.id }) as HTMLImageElement;
     const mark = () => img.classList.add('loaded');
     img.onerror = () => {
       img.onerror = null;
-      img.src = largeUrl(c.id);
+      img.src = thumbUrl(c.id);
     };
     img.onload = mark;
     img.src = src.currentSrc || src.src;
@@ -138,16 +143,60 @@ export function openSelect({ mode, config, onDone }: Options): void {
   };
   CHARACTERS.forEach(thumb);
 
+  // The big render keeps one canvas for the whole screen; the preview is rebuilt around it for each fighter.
+  const renderCanvas = h('canvas', { class: 'set-render', 'aria-hidden': 'true' }) as HTMLCanvasElement;
+  const render = createFighterRender(renderCanvas);
+  prefetchIdles([CHARACTERS[cfg.slots[0].char], ...CHARACTERS.filter((_, i) => i !== cfg.slots[0].char)]);
+  let detailsOn = false;
+  let shownId = '';
+  /** The colour the render wears: the active slot's own pick if it holds this fighter, else the one you last wore. */
+  const lookFor = (i: number): number => {
+    const s = cfg.slots.find((o) => o.char === i);
+    return s ? s.look ?? 0 : preferredLook(i);
+  };
   const showPreview = (c: CharacterDef) => {
-    const by = !open(CHARACTERS.indexOf(c), training) ? unlockedBy(c.id) : undefined;
+    const i = CHARACTERS.indexOf(c);
+    const locked = !open(i, training);
+    const by = locked ? unlockedBy(c.id) : undefined;
+    const details = h('button', { type: 'button', class: 'details-toggle', 'aria-pressed': String(detailsOn), onclick: () => {
+      detailsOn = !detailsOn;
+      preview.classList.toggle('details', detailsOn);
+      details.setAttribute('aria-pressed', String(detailsOn));
+    } }, 'Details');
+    preview.classList.toggle('details', detailsOn);
+    preview.classList.toggle('is-locked', locked);
     preview.replaceChildren(
-      portrait(c),
-      h('p', { class: 'kicker' }, by ? `Locked · clear ${by.title} in the campaign` : c.role),
-      h('h3', {}, c.name),
-      h('p', { class: 'blurb' }, c.blurb),
-      statBars(c),
+      renderCanvas,
+      h('div', { class: 'lower-third' }, portrait(c), h('div', { class: 'lt-text' },
+        h('p', { class: 'kicker' }, by ? `Locked · clear ${by.title} in the campaign` : locked ? 'Locked' : c.role),
+        h('h3', {}, c.name),
+        h('p', { class: 'blurb' }, locked ? 'Clear the campaign episode to put them on the card.' : c.blurb),
+      )),
       specialsPanel(c),
+      details,
+      statBars(c),
     );
+    if (shownId !== c.id) {
+      shownId = c.id;
+      render.show(c, lookFor(i), locked);
+      window.dispatchEvent(new CustomEvent('dod:select-preview', { detail: { id: c.id, locked, at: performance.now() } }));
+    } else {
+      render.show(c, lookFor(i), locked);
+    }
+  };
+
+  // A pick: the confirm pose, the fighter's own taunt (else an effort shout), then the announcer says the name.
+  let nameTimer: ReturnType<typeof setTimeout> | null = null;
+  const confirmPick = (c: CharacterDef) => {
+    render.confirm();
+    audio.stopCall();
+    if (nameTimer) clearTimeout(nameTimer);
+    const voiced = audio.fighterVoice(c.id, 'taunt') || audio.fighterVoice(c.id, 'effort');
+    window.dispatchEvent(new CustomEvent('dod:select-confirm', { detail: { id: c.id, voiced, at: performance.now() } }));
+    nameTimer = setTimeout(() => {
+      nameTimer = null;
+      if (currentScreen() === 'select') void audio.call(nameId(c));
+    }, voiced ? 900 : 150);
   };
 
   // The announcer: "Choose your fighter!" as the select opens, then each name as the cursor lands on a fighter (nameCall.ts).
@@ -164,6 +213,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
     if (!moved) void audio.call('announcer.choose');
   });
   void audio.preloadLines(CHARACTERS.map(nameId));
+  void audio.preloadLines(CHARACTERS.map((c) => `fighter.${c.id}.taunt`));
   const land = (c: CharacterDef, i: number, viaFocus = false) => {
     if (!open(i, training)) return;
     if (viaFocus && !moved && performance.now() - openedAt < 800) return;
@@ -191,6 +241,8 @@ export function openSelect({ mode, config, onDone }: Options): void {
     // A person gets the colour they last wore with this fighter; a CPU starts on Classic. Same fighter twice: the second moves on.
     cfg.slots[active].look = cfg.slots[active].cpu === null ? preferredLook(char) : 0;
     fixLooks();
+    showPreview(CHARACTERS[char]);
+    confirmPick(CHARACTERS[char]);
     // After you pick, move on to the next CPU so a whole match can be set from the grid.
     if (active < cfg.slots.length - 1) active++;
     renderSlots();
@@ -261,6 +313,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
               if (!isCpu) rememberLook(s.char, look);
               slotFocus = i;
               fixLooks();
+              if (CHARACTERS[s.char].id === shownId) render.setLook(s.look ?? 0);
               renderSlots();
             },
           }),
@@ -279,8 +332,21 @@ export function openSelect({ mode, config, onDone }: Options): void {
       !training && cfg.slots.length < 4 && h('button', { type: 'button', class: 'slot add', onclick: addCpu }, '+ Add CPU'),
       h('button', { type: 'button', class: 'primary fight', onclick: () => { resetLanding(); fixLooks(); onDone(cfg); } }, training ? 'Train' : 'Fight'),
     ));
+    markTiles();
     // Keep the keyboard on the row it was using after a colour pick redraws the slots.
     if (back >= 0) slotsEl.querySelector<HTMLElement>(`.swatches[data-slot="${back}"] .swatch.on`)?.focus();
+  }
+
+  /** The grid's frames: the active slot's colour on hover, and each picked fighter's tile in its slot's colour. */
+  function markTiles(): void {
+    const colour = (i: number) => (cfg.teams ? TEAM_COLORS[cfg.slots[i].team ?? 0] : PLAYER_COLORS[i]);
+    grid.style.setProperty('--slot', colour(Math.min(active, cfg.slots.length - 1)));
+    grid.querySelectorAll<HTMLElement>('.tile[data-fighter]').forEach((t, i) => {
+      const si = cfg.slots.findIndex((o) => o.char === i);
+      t.classList.toggle('picked', si >= 0);
+      if (si >= 0) t.style.setProperty('--pick', colour(si));
+      else t.style.removeProperty('--pick');
+    });
   }
 
   function level(i: number, d: number): void {

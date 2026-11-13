@@ -38,8 +38,8 @@
 
   <section id="title" class="screen title-screen">
     <picture class="title-art">
-      <source type="image/webp" srcset="/site/img/lineup-900.webp 900w, /site/img/lineup-1600.webp 1600w, /site/img/lineup-2800.webp 2800w" sizes="100vw">
-      <img src="/site/img/lineup-1600.jpg" alt="">
+      <source type="image/webp" srcset="/site/img/key-art-720.webp 720w, /site/img/key-art-1280.webp 1280w, /site/img/key-art-1920.webp 1920w" sizes="100vw">
+      <img src="/site/img/key-art-1920.jpg" alt="" data-key-art="roster">
     </picture>
     <div class="title-copy">
       <p class="kicker">A platform fighter</p>
@@ -94,8 +94,8 @@
       <div id="select-rules" class="rules"></div>
     </header>
     <div class="select-body">
-      <aside id="select-preview" class="preview" aria-live="polite"></aside>
       <div id="select-grid" class="grid"></div>
+      <aside id="select-preview" class="preview" aria-live="polite"></aside>
     </div>
     <footer id="select-slots" class="slots"></footer>
   </section>
@@ -138,6 +138,7 @@
       <h2>Extras · Endings</h2>
       <span id="extras-count" class="tour-count"></span>
     </header>
+    <button id="btn-opening" class="menu-item opening-replay" type="button"><strong>Opening</strong><span>Watch the show's 30 second opening titles.</span></button>
     <p class="lede">Clear a fighter's Tour to open their ending. Tap one to watch it again.</p>
     <div id="ending-grid" class="ending-grid"></div>
   </section>
@@ -320,13 +321,13 @@
   <div id="tap-to-play" class="tap-to-play" role="button" tabindex="0" aria-label="Play as guest: tap to play">
     <!-- Key art: the whole roster, full screen, behind the card (same file as the card's picture, so one download). -->
     <picture class="tap-backdrop" aria-hidden="true">
-      <source type="image/webp" srcset="/site/img/lineup-900.webp">
-      <img src="/site/img/lineup-1600.jpg" alt="" decoding="async">
+      <source type="image/webp" srcset="/site/img/key-art-720.webp">
+      <img src="/site/img/key-art-1920.jpg" alt="" decoding="async">
     </picture>
     <div class="tap-card">
       <picture class="tap-art" aria-hidden="true">
-        <source type="image/webp" srcset="/site/img/lineup-900.webp">
-        <img src="/site/img/lineup-1600.jpg" alt="" width="900" height="506" decoding="async">
+        <source type="image/webp" srcset="/site/img/key-art-720.webp">
+        <img src="/site/img/key-art-1920.jpg" alt="" width="720" height="405" decoding="async">
       </picture>
       <div class="tap-copy">
         <p class="kicker">Live from the Foundry</p>
@@ -382,5 +383,6 @@
   <script type="module" src="../src/game/main.ts"></script>
   <script src="/site/hawkes-release.js" data-releases="/releases.json" defer></script>
   <div id="ending" class="ending" hidden role="dialog" aria-label="Tour ending"></div>
+  <div id="opening" class="opening" hidden role="dialog" aria-label="The show's opening"></div>
 </body>
 </html>

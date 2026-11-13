@@ -542,3 +542,16 @@ highs and level as they leave, the crowd's roar stays put. The whole match is le
 Every screen change is the show cutting between segments: three slanted panels (brand dark, the four player colours, the hot logo panel) sweep across with a light streak and the "Dose of Destruction" logo, a whoosh going in and an impact as the panels meet (0.58 s; if the next screen is still loading the logo holds and pulses, never black). A bout opens on a ROUND START slam (type punches in, camera kicks, hit sound) and ends on a GAME! slam with a half-second freeze on the final KO, just before the announcer's line. Reduced motion gets a 120 ms crossfade and no shake. Code: `src/game/ui/stinger.ts`, `main.ts` `slam()`.
 
 **The announcer's show calls.** The booth's voice also opens and closes the bout: "Choose your fighter!", each fighter's and stage's name on select / pick / VS, "Ready... FIGHT!", "GAME!", "The winner is..." and the winner's name (docs/story.md "The announcer calls the show").
+
+## Character select is a set (the casting wall)
+
+- **Look:** the select is the show's casting wall. Left, the 33 painted portraits (hover lifts a tile and frames it in
+  the slot's colour; a picked fighter keeps its slot's colour; a locked one is a dark silhouette reading "Locked").
+  Right, a spotlit stage in the first stage's light: the hovered fighter large, playing their idle in the colour look
+  being picked, a name lower third with the one-line tagline, and a small "Live · vs dummy" monitor.
+- **The monitor is the sim:** it runs the real fight engine against a training dummy (Wallit, or Ball Person when
+  Wallit is the one shown) in a 3 s loop: neutral special by default, or whichever of the four special buttons is
+  pinned. No video files.
+- **A pick** plays the confirm pose (taunt clip, else win / jump, with a hop and a light ring), the fighter's own
+  recorded taunt (a fighter with none shouts an effort), then the announcer calls their name.
+- **Details** (toggle) opens the stat bars; they are off by default.

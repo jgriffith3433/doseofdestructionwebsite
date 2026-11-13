@@ -352,6 +352,16 @@
       ]
     },
     {
+      "id": "opening",
+      "title": "Opening titles: from Extras the 30 s film plays (starts within 1 s, fills the window, six name cards, logo slam on the last hit, theme song), a tap in the first second is ignored and a tap after it skips; the title plays the theme's instrumental (phone: 844x390, a tap skips)",
+      "description": "Title: the music is music-title. Main menu to Extras to Opening (opening-start, opening-no-early-skip, opening-cast, metrics openingStartMs openingNameCards openingSeconds), then a second replay skipped by a tap after 1 s (opening-skip). first-visit also checks the opening plays right after the pilot and a tap skips it. Options: input (touch), at (phone).",
+      "seconds": 90,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "endings",
       "title": "Endings: Extras shows 33 ending slots (open for cleared Tours), a tap replays a fighter's painted ending with its narrated line, sting and Tour complete card (phone: 844x390, the art fills the screen, captions fit, a tap skips)",
       "description": "Setup shortcut: three Tours marked cleared in localStorage dod-tours (put back at the end). Main menu to Extras: one slot per fighter (endings-gallery: 33 slots, the open ones match the cleared Tours, no sideways scroll, 44 px targets on a phone), then a tap on the chosen fighter's slot replays the ending (ending): the 1920x1080 picture fills the window, caption one then caption two inside it and above the bottom edge, the narration take plays, the sting, the Tour complete card with the colour earned; a tap skips (ending-skip). Options: fighter (default exit-punk), all (replay every cleared one), input (touch), at (phone). Metrics endingSlots, endingsOpen, endingFits. The tour scenario checks the same ending after a cleared Tour.",
@@ -491,10 +501,30 @@
       ]
     },
     {
+      "id": "portraits",
+      "title": "Painted portraits: the title shows the roster key art, character select shows 33 portraits framed alike (256 px ones on a phone, 64 px or more with readable names), the VS card and the results show the same pictures (phone: 390x844 turned to landscape, touch)",
+      "description": "Title: the key art (site/img/key-art-*, 16:9) is loaded and fills the screen behind the logo, cropped to the centre of the cast (title-key-art). Versus select: 33 portrait tiles (characters/portrait/<id>-256.webp), every one loaded, square, drawn at the same size so the faces sit in the same band, each with its full name beside it and no text cut off (select-portraits, select-framing, select-names; on a phone each at least 64 px wide and the 256 px file: select-phone-size, metric portraitTilePx). A tap on a tile puts the same picture in the preview where it shows (select-preview-same). A 1-stock match: the VS card shows each fighter's portrait plate (vs-portraits, same file as select) and the results show the winner's (results-portrait, results-same). Played through taps on a phone (390x844 is turned to 844x390 like select-specials). Options: fighter, foe, input (touch forces the touch UI), at (phone). Metrics portraitsShown, portraitTilePx.",
+      "seconds": 300,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "select-specials",
       "title": "Character select shows how each fighter plays: the hovered or tapped fighter's four specials by name and a looping clip, fitting the screen (phone: 390x844 turned to landscape, touch)",
       "description": "Opens Training's select from the main menu and taps each of the 33 fighters in turn (option fighter: one): the preview lists the four specials (neutral, side, up, down) with the names the sim plays (select-specials), the clip and the four rows sit inside the screen and the preview with no text cut off (select-fit), the clip preview moves (select-clip), and tapping the down special pins it. Played through taps (a phone: touch pointer events; 390x844 is turned to 844x390 like specials). Options: fighter, input (touch forces the touch UI), at (phone). Metric selectFits.",
       "seconds": 360,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "select-set",
+      "title": "Character select is a broadcast set: 33 painted portraits with hover lift and slot frame, the hovered fighter large and animated with a name lower third, a live sim special preview, a voiced confirm pose on pick (phone 844x390: the grid swipes, 44 px tiles, the render beside it)",
+      "description": "Training's select. Desktop at 1920x1080: all 33 portraits fit the grid without scrolling (select-no-scroll). A spread of fighters (options fighter: one, count: how many, default 6): hover (a tap on a phone) shows the animated render and the live special inset within 300 ms (select-render; metric fastRenders), the inset is the sim playing the special on a training dummy and moves (select-sim), and a pick plays the confirm pose with the fighter's voiced taunt (select-confirm). Phone: 390x844 is turned to 844x390; the grid scrolls by swipe (select-swipe), every tile is 44 px or more (select-tiles) and the render sits beside the grid (select-beside); all by touch pointer events. Options: fighter, count, input (touch forces the touch UI), at (phone).",
+      "seconds": 240,
       "tags": [
         "full",
         "touch"
@@ -521,8 +551,8 @@
     },
     {
       "id": "smooth-clips",
-      "title": "Season 1 idle/walk/jab/fsmash at 30 fps with fringe-clean sheets, hitboxes on jab and side smash, phone Low ≥45 fps",
-      "description": "Setup shortcut: each of the 13 Season 1 fighters into training (option fighter: one). Logs clip-fps for idle, walk (run), jab and fsmash (want 30) and half-sheet when Quality is Low. Hitbox view (H) on; jab and side smash (fsmash) so active frames are on screen (hitbox-jab, hitbox-fsmash). 2x zoom screenshot beats (clip-zoom) for fringe review. On a 390x844 phone turns to 844x390, forces Low, and samples fpsMatchLow (want ≥45). Metrics clipFps30, halfSheets, fpsMatchLow.",
+      "title": "Idle and run at 30 fps with fringe-clean sheets, hitboxes on jab and side smash, phone Low ≥45 fps (Season 1 cast; option cast \"rest\": the 20 other fighters)",
+      "description": "Setup shortcut: each of the 13 Season 1 fighters into training (option fighter: one; option cast \"rest\": the 20 fighters outside Season 1, checking idle and walk/run at 30 fps, then jab with hitboxes). Logs clip-fps for idle, walk (run), jab and fsmash (want 30) and half-sheet when Quality is Low. Hitbox view (H) on; jab and side smash (fsmash) so active frames are on screen (hitbox-jab, hitbox-fsmash). 2x zoom screenshot beats (clip-zoom) for fringe review. On a 390x844 phone turns to 844x390, forces Low, and samples fpsMatchLow (want ≥45). Metrics clipFps30, halfSheets, fpsMatchLow.",
       "seconds": 480,
       "tags": [
         "full",

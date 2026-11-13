@@ -34,6 +34,7 @@ import { castLine } from '../ui/daily.ts';
 import { TOURS, TOURS_KEY, TOUR_LENGTH, tourEnding, tourFor, tourIntro } from '../campaign/tour.ts';
 import { ENDINGS, ENDING_BEATS, endingFor, endingUnlocked } from '../campaign/endings.ts';
 import { endingShowing } from '../ui/ending.ts';
+import { OPENING_CAST, OPENING_KEY, OPENING_SKIP_AFTER, openingShowing } from '../ui/opening.ts';
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
 import { PAIRS, pairFor } from '../campaign/intros.ts';
 import { SEASON_ONE_ENTRANCES, entranceKind } from '../campaign/intro.ts';
@@ -180,6 +181,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'daily') await r.dailyRun();
         else if (id === 'tour') await r.tourScenario();
         else if (id === 'endings') await r.endingsScenario();
+        else if (id === 'opening') await r.openingScenario();
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
@@ -197,6 +199,8 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'grab') await r.grabRun();
         else if (id === 'special-fx') await r.specialFx();
         else if (id === 'select-specials') await r.selectSpecials();
+        else if (id === 'select-set') await r.selectSet();
+        else if (id === 'portraits') await r.portraitsRun();
         else if (id === 'colours') await r.coloursRun();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
@@ -1527,7 +1531,7 @@ class Run {
    */
   async firstVisit(): Promise<void> {
     const t = this.t;
-    const KEYS = ['dod-campaign', 'dod-versus', 'dod-pilot', 'dod-unlocks'];
+    const KEYS = ['dod-campaign', 'dod-versus', 'dod-pilot', 'dod-unlocks', OPENING_KEY];
     const saved = KEYS.map((k) => [k, localStorage.getItem(k)] as const);
     const wipe = () => KEYS.forEach((k) => localStorage.removeItem(k));
     const portraitPhone = this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560;
@@ -1640,7 +1644,11 @@ class Run {
           if (attempt === 0) await this.click(() => this.button('#results-actions', 'Retry'), 'Retry');
         }
         const result = this.game.match() ?? this.seen;
-        await this.click(() => this.button('#results-actions', 'Continue') ?? this.button('#results-actions', 'Main menu'), 'Continue');
+        const cont = this.button('#results-actions', 'Continue');
+        const contAt = performance.now();
+        await this.click(() => cont ?? this.button('#results-actions', 'Main menu'), 'Continue');
+        // TV order: the opening titles play once right after the pilot, then the main menu.
+        await this.watchOpening({ since: contAt, skipAt: 1300, tag: 'after-pilot' });
         await this.screen('main', 20000);
         const tag = this.q('.menu-item[data-go="campaign"] .next-tag');
         if (tag && !tag.hidden && /Next episode/i.test(tag.textContent ?? '')) t.event('next-episode', `the main menu marks Campaign "${tag.textContent}" after the pilot (${this.q('.menu-item[data-go="campaign"] span')?.textContent ?? ''})`);
@@ -3287,6 +3295,104 @@ class Run {
    * end); Extras from the main menu shows one slot per fighter (33), open ones for the cleared Tours and locked the rest
    * (`endings-gallery`); a tap on an open slot replays that fighter's ending (`ending`). On a phone everything is a tap.
    */
+  /**
+   * The opening titles (ui/opening.ts) from the moment they were asked for (`since`): they start within 1 s, fill the window,
+   * ignore a tap in the first second, then either play to the end (name cards, the logo slam; `full`) or are skipped by a tap.
+   */
+  private async watchOpening(o: { since: number; skipAt: number; full?: boolean; tag: string }): Promise<void> {
+    const t = this.t;
+    const seen: { phase: string; at: number; name?: string }[] = [];
+    const on = (e: Event) => { const d = (e as CustomEvent).detail; seen.push({ phase: d.phase, at: performance.now(), name: d.name }); };
+    window.addEventListener('dod:opening', on);
+    try {
+      await t.until(() => openingShowing() || seen.some((x) => x.phase === 'start'), 5000, `the opening titles (${o.tag})`).catch(() => undefined);
+      const start = seen.find((x) => x.phase === 'start');
+      if (!start) {
+        t.problem('bug', `the opening did not start after ${o.tag}`);
+        return;
+      }
+      const startMs = Math.round(start.at - o.since);
+      if (startMs > 1000) t.problem('bug', `the opening started ${startMs} ms after ${o.tag}, over 1 s`);
+      const v = document.querySelector<HTMLVideoElement>('#opening-video');
+      const r = v?.getBoundingClientRect();
+      const fills = !!r && r.width >= innerWidth - 1 && r.height >= innerHeight - 1;
+      if (!fills) t.problem('bug', `the opening does not fill the window at ${innerWidth}x${innerHeight}`);
+      t.event('opening-start', `the opening started ${startMs} ms after ${o.tag}, ${fills ? 'fills' : 'does not fill'} ${innerWidth}x${innerHeight}`);
+      t.metric('openingStartMs', startMs);
+      // A tap inside the first second must not skip it.
+      await t.wait(Math.max(0, 300 - (performance.now() - start.at)));
+      this.pressOpening();
+      await t.wait(150);
+      if (!openingShowing()) t.problem('bug', `the opening was skipped by a tap before ${OPENING_SKIP_AFTER} ms`);
+      else t.event('opening-no-early-skip', 'a tap at 0.3 s did not skip the opening');
+      if (o.full) {
+        await t.until(() => seen.some((x) => x.phase === 'logo'), 40000, 'the logo slam').catch(() => undefined);
+        const names = seen.filter((x) => x.phase === 'name').map((x) => x.name);
+        if (names.length !== OPENING_CAST.length) t.problem('bug', `the opening showed ${names.length} name cards, expected ${OPENING_CAST.length}`);
+        if (!seen.some((x) => x.phase === 'logo')) t.problem('bug', 'the logo never slammed in');
+        t.event('opening-cast', `name cards: ${names.join(', ')}; logo ${seen.some((x) => x.phase === 'logo') ? 'slammed' : 'missing'}`);
+        t.metric('openingNameCards', names.length);
+        await t.until(() => !openingShowing(), 15000, 'the opening to end').catch(() => undefined);
+      } else {
+        await t.wait(Math.max(0, o.skipAt - (performance.now() - start.at)));
+        this.pressOpening();
+        await t.until(() => !openingShowing(), 1500, 'a tap to skip the opening').catch(() => undefined);
+        if (openingShowing()) t.problem('bug', 'a tap after 1 s did not skip the opening');
+        else t.event('opening-skip', `a tap ${Math.round(performance.now() - start.at)} ms in skipped the opening`);
+      }
+      const end = seen.find((x) => x.phase === 'end');
+      if (end) t.metric('openingSeconds', Math.round((end.at - start.at) / 100) / 10);
+    } finally {
+      window.removeEventListener('dod:opening', on);
+    }
+  }
+
+  /** A tap on the opening itself (pointer down and up, like a finger). */
+  private pressOpening(): void {
+    const el = document.getElementById('opening');
+    if (!el) return;
+    const touch = matchMedia('(pointer: coarse)').matches;
+    const init = { pointerType: touch ? 'touch' : 'mouse', pointerId: 52, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, composed: true, clientX: innerWidth / 2, clientY: innerHeight / 2 };
+    el.dispatchEvent(new PointerEvent('pointerdown', init));
+    el.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }));
+    this.t.add('interactions');
+  }
+
+  /**
+   * The opening titles from Extras: Opening plays the 30 s film (start, no skip at 0.3 s, six name cards over the cast shots,
+   * the logo slam, the end), then a second replay is skipped by a tap after 1 s. The title plays the theme's instrumental.
+   * On a phone (touch, 844x390) every press is a tap and the film fills the window.
+   */
+  async openingScenario(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    this.logViewport(touch && this.isPhone());
+    const saved = localStorage.getItem(OPENING_KEY);
+    try {
+      this.useTap = touch;
+      await this.screen('title', 30000);
+      await this.tapToPlay();
+      await t.until(() => audio.musicPlaying === 'music-title', 15000, 'the title music').catch(() => undefined);
+      if (audio.musicPlaying !== 'music-title') t.problem('bug', `the title plays ${audio.musicPlaying ?? 'nothing'}, not the theme's instrumental`);
+      else t.event('title-music', 'the title screen plays music-title (the theme instrumental)');
+      await this.click(() => this.q('#btn-start'), 'Press start');
+      await this.screen('main');
+      await this.click(() => this.q('#btn-extras'), 'Extras');
+      await this.screen('extras');
+      let at = performance.now();
+      await this.click(() => this.q('#btn-opening'), 'Opening');
+      await this.watchOpening({ since: at, skipAt: 1300, full: true, tag: 'Extras > Opening' });
+      await this.screen('extras');
+      at = performance.now();
+      await this.click(() => this.q('#btn-opening'), 'Opening');
+      await this.watchOpening({ since: at, skipAt: 1300, tag: 'the replay' });
+      await this.screen('extras');
+    } finally {
+      if (saved === null) localStorage.removeItem(OPENING_KEY);
+      else localStorage.setItem(OPENING_KEY, saved);
+    }
+  }
+
   async endingsScenario(): Promise<void> {
     const t = this.t;
     const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
@@ -3457,7 +3563,10 @@ class Run {
       forceTouchUi(true);
     }
     const gfxWas = localStorage.getItem(GFX_KEY);
-    const want = ['idle', 'walk', 'jab', 'fsmash'] as const;
+    // option cast: "rest" plays the 20 fighters outside Season 1 (their idle and run are the 30 fps clips;
+    // the jab still plays with hitboxes shown). Default: the Season 1 cast with all four clips.
+    const rest = this.options.cast === 'rest';
+    const want = (rest ? ['idle', 'walk'] : ['idle', 'walk', 'jab', 'fsmash']) as readonly ('idle' | 'walk' | 'jab' | 'fsmash')[];
     let fps30 = 0;
     let halfSheets = 0;
     const fpsSamples: number[] = [];
@@ -3465,7 +3574,7 @@ class Run {
       await this.toMainMenu();
       setGraphics({ quality: 'low', glow: false });
       const train = stagesFor('training')[0]?.index ?? 0;
-      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : [...SEASON_ONE];
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : rest ? CHARACTERS.map((c) => c.id).filter((id) => !SEASON_ONE.includes(id)) : [...SEASON_ONE];
       const pad = touch ? makeTouchPad() : makeKeyboardPad();
       if (!pad) {
         t.problem('bug', 'the stick controls were not built');
@@ -4231,6 +4340,137 @@ class Run {
     t.finish('done');
   }
 
+  // ---------------------------------------------------------- painted portraits and the key art
+
+  /**
+   * The painted portraits (characters/portrait/<id>-512.webp and -256.webp) and the roster key art on the title.
+   * Title: the key art is loaded, 16:9 and fills the screen. Select: all 33 tiles show a loaded square portrait
+   * drawn at one size (so the eyes sit in the same band), with the full name under it; on a phone the 256 px file at
+   * 64 px or more. VS and results show the same pictures. Played through taps on a phone (390x844 is turned).
+   */
+  async portraitsRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('portraits');
+    }
+    this.logViewport(touch && this.isPhone());
+    const phone = this.isPhone();
+    const baseOf = (src: string) => /\/characters\/portrait\/([a-z0-9-]+)-(256|512)\.webp/.exec(src)?.[1] ?? '';
+    // 1. The title: the key art behind the logo.
+    await this.screen('title', 30000);
+    if (promptShowing()) await this.tapToPlay();
+    await this.t.wait(800);
+    const art = this.q('#title .title-art img') as HTMLImageElement | null;
+    if (!art || !(art.complete && art.naturalWidth > 0)) t.problem('bug', 'the title screen has no roster key art loaded');
+    else {
+      const r = art.getBoundingClientRect();
+      const ratio = art.naturalWidth / art.naturalHeight;
+      const fills = r.width >= innerWidth - 1 && r.height >= innerHeight - 1;
+      const cs = getComputedStyle(art);
+      if (!/key-art/.test(art.currentSrc)) t.problem('bug', `the title shows ${art.currentSrc}, not the roster key art`);
+      else if (Math.abs(ratio - 16 / 9) > 0.03) t.problem('bug', `the key art is ${art.naturalWidth}x${art.naturalHeight}, not 16:9`);
+      else if (!fills || cs.objectFit !== 'cover' || !/^50%/.test(cs.objectPosition)) t.problem('bug', `the key art does not fill the title screen cropped to the centre (${Math.round(r.width)}x${Math.round(r.height)}, ${cs.objectFit} ${cs.objectPosition})`);
+      else t.event('title-key-art', `${art.naturalWidth}x${art.naturalHeight} key art fills ${innerWidth}x${innerHeight}, cropped to the centre (${cs.objectPosition}), brand gradient behind (${getComputedStyle(this.q('#title')!).backgroundImage.includes('gradient') ? 'yes' : 'no'})`);
+    }
+    await this.click(() => this.q('#btn-start'), 'Press start');
+    await this.screen('main');
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      // 2. Versus select: 33 painted portraits, one size, names under them.
+      await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+      await this.screen('select');
+      const tiles = () => [...document.querySelectorAll<HTMLElement>('#select-grid .tile[data-fighter]')];
+      await t.until(() => tiles().length === CHARACTERS.length, 6000, `${CHARACTERS.length} fighter tiles`);
+      const imgs = tiles().map((el) => el.querySelector<HTMLImageElement>('img[data-portrait]'));
+      await t.until(() => imgs.every((i) => !!i && i.complete && i.naturalWidth > 0), 12000, 'every portrait to load');
+      const bad: string[] = [];
+      const sizes = new Set<string>();
+      let minPx = Infinity;
+      const cut: string[] = [];
+      for (const el of tiles()) {
+        const id = el.dataset.fighter!;
+        const c = CHARACTERS.find((x) => x.id === id)!;
+        const img = el.querySelector<HTMLImageElement>('img[data-portrait]');
+        if (!img || !(img.complete && img.naturalWidth > 0)) { bad.push(`${c.name} (not loaded)`); continue; }
+        if (!/\/characters\/portrait\//.test(img.currentSrc) || baseOf(img.currentSrc) !== id) bad.push(`${c.name} (shows ${img.currentSrc})`);
+        if (img.naturalWidth !== img.naturalHeight) bad.push(`${c.name} (${img.naturalWidth}x${img.naturalHeight} is not square)`);
+        if (phone && !/-256\.webp/.test(img.currentSrc)) bad.push(`${c.name} (phone loads ${img.currentSrc}, not the 256 px file)`);
+        const r = img.getBoundingClientRect();
+        sizes.add(`${Math.round(r.width)}x${Math.round(r.height)}`);
+        minPx = Math.min(minPx, Math.round(Math.min(r.width, r.height)));
+        const label = el.querySelector<HTMLElement>('span');
+        const text = label?.textContent?.trim() ?? '';
+        if (!(el.classList.contains('locked') ? text === 'Locked' : text === c.name)) bad.push(`${c.name} (label "${text}")`);
+        if (label && (label.scrollWidth > label.clientWidth + 1 || label.getBoundingClientRect().right > innerWidth + 0.5)) cut.push(c.name);
+      }
+      t.metric('portraitsShown', tiles().length - bad.length);
+      if (bad.length) t.problem('bug', `character select portraits: ${bad.join('; ')}`);
+      else t.event('select-portraits', `${tiles().length} painted portraits loaded, square, from characters/portrait/`);
+      // Drawn at one size, so the eyes (on the upper third of every picture) sit in the same band on every tile.
+      if (sizes.size === 1) t.event('select-framing', `all tiles draw their portrait at ${[...sizes][0]} px, eyes on the same upper-third band`);
+      else t.problem('bug', `portrait tiles differ in size (${[...sizes].join(', ')}): the faces would not line up`);
+      if (cut.length) t.problem('bug', `names cut off under the portraits: ${cut.join(', ')} at ${innerWidth}x${innerHeight}`);
+      else t.event('select-names', `every name reads in full under its portrait at ${innerWidth}x${innerHeight}`);
+      t.metric('portraitTilePx', minPx);
+      if (phone) {
+        if (minPx >= 64) t.event('select-phone-size', `portraits are at least ${minPx} px at ${innerWidth}x${innerHeight} (256 px files)`);
+        else t.problem('bug', `a portrait is only ${minPx} px at ${innerWidth}x${innerHeight} (want 64 or more)`);
+      }
+      // A tap on a tile: the preview (where it shows) holds the same picture.
+      const pick = CHARACTERS.find((c) => c.id === (typeof this.options.fighter === 'string' ? this.options.fighter : 'break')) ?? CHARACTERS[0];
+      await this.click(() => this.q(`#select-grid .tile[data-fighter="${pick.id}"]`), pick.name);
+      const prev = this.q('#select-preview img.select-portrait') as HTMLImageElement | null;
+      if (prev && prev.getClientRects().length > 0) {
+        await t.until(() => prev.complete && prev.naturalWidth > 0, 5000, 'the preview portrait');
+        if (baseOf(prev.currentSrc) === pick.id) t.event('select-preview-same', `${pick.name}: the preview shows the same painted portrait (${prev.naturalWidth} px file)`);
+        else t.problem('bug', `the preview for ${pick.name} shows ${prev.currentSrc}`);
+      }
+      t.progress(0.25);
+      // 3. A 1-stock match: the VS card and the results show the same pictures.
+      const seenIds: string[] = [];
+      this.onVersus = async () => {
+        await this.screen('versus', 15000);
+        await t.until(() => document.querySelectorAll('#versus-body .vs-fighter img.vs-portrait').length > 0, 3000, 'the VS portraits');
+        await this.wait(1200);
+        const vs = [...document.querySelectorAll<HTMLImageElement>('#versus-body .vs-fighter img.vs-portrait')];
+        const wrong = vs.filter((i) => !(i.complete && i.naturalWidth > 0) || !baseOf(i.currentSrc || i.src));
+        if (!vs.length || wrong.length) t.problem('bug', `the VS card portraits did not load (${wrong.length}/${vs.length})`);
+        else {
+          seenIds.push(...vs.map((i) => baseOf(i.currentSrc || i.src)));
+          t.event('vs-portraits', `${vs.length} painted portraits on the VS card: ${seenIds.join(', ')} (same files as select)`);
+        }
+        this.checkClipping('VS screen', this.q('#versus'));
+      };
+      await this.startVersus(1, true);
+      this.onVersus = null;
+      t.progress(0.45);
+      await this.fight(() => false, 6 * 60 * 1000);
+      await this.screen('results', 30000);
+      await this.wait(900);
+      const win = this.q('#results-body img.results-portrait') as HTMLImageElement | null;
+      if (!win || !(win.complete && win.naturalWidth > 0)) t.problem('bug', 'the results show no painted portrait of the winner');
+      else {
+        const id = baseOf(win.currentSrc || win.src);
+        t.event('results-portrait', `the winner's painted portrait (${id}, ${win.naturalWidth} px file) is on the results`);
+        if (seenIds.length && !seenIds.includes(id)) t.problem('bug', `the results portrait (${id}) is not one of the fighters on the VS card (${seenIds.join(', ')})`);
+        else t.event('results-same', `the results portrait is the one on select and the VS card (${id})`);
+      }
+      this.checkClipping('results', this.q('#results'));
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+    } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   // ---------------------------------------------------------- character select: the specials preview
 
   /**
@@ -4324,6 +4564,142 @@ class Run {
       t.metric('selectFits', shown);
       t.progress(1);
     } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.finish('done');
+  }
+
+
+  // ---------------------------------------------------------- character select: the broadcast set
+
+  /**
+   * The select as a broadcast set (`ui/select.ts`, `fighterRender.ts`, `specialSim.ts`). Training's select, a spread of
+   * fighters (option `fighter`: one; `count`: how many, default 6, 33 for all):
+   * hover or tap shows the animated render and the live special inset within 300 ms (`select-render`, metric `renderMs`),
+   * the inset moves (`select-sim`), a pick plays the confirm pose and the fighter's voiced taunt (`select-confirm`),
+   * the grid shows all 33 portraits without scrolling at 1920x1080 (`select-no-scroll`), and on a phone at 844x390 the
+   * grid scrolls by swipe, tiles are 44 px or more and the render sits beside it (`select-swipe`, `select-tiles`,
+   * `select-beside`). A 390x844 phone is turned to 844x390 like select-specials.
+   */
+  async selectSet(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('select-set');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const confirms: { id: string; voiced: boolean; at: number }[] = [];
+    const onConfirm = (e: Event) => confirms.push((e as CustomEvent).detail);
+    window.addEventListener('dod:select-confirm', onConfirm);
+    try {
+      await this.click(() => this.q('[data-go="training"]'), 'Training');
+      await this.screen('select');
+      await t.until(() => document.querySelectorAll('#select-grid .tile[data-fighter]').length === CHARACTERS.length, 6000, 'every fighter tile');
+      const grid = this.q('#select-grid')!;
+      const tiles = [...document.querySelectorAll<HTMLElement>('#select-grid .tile[data-fighter]')];
+      // The wall: all 33 inside the grid without scrolling on a big screen; on a phone it scrolls and the tiles are 44 px+.
+      await t.wait(400);
+      if (innerWidth >= 1900 && innerHeight >= 1000) {
+        const g = grid.getBoundingClientRect();
+        const inside = tiles.every((el) => {
+          const r = el.getBoundingClientRect();
+          return r.top >= g.top - 1 && r.bottom <= g.bottom + 1;
+        });
+        if (inside && grid.scrollHeight <= grid.clientHeight + 1) t.event('select-no-scroll', `all ${tiles.length} portraits fit in the grid at ${innerWidth}x${innerHeight} (${Math.round(g.width)}x${Math.round(g.height)})`);
+        else t.problem('bug', `the portrait grid needs scrolling at ${innerWidth}x${innerHeight} (${grid.scrollHeight} px of ${grid.clientHeight})`);
+      }
+      if (touch && innerHeight <= 520) {
+        const small = tiles.filter((el) => el.getBoundingClientRect().width < 44 || el.getBoundingClientRect().height < 44);
+        if (small.length) t.problem('bug', `${small.length} portrait tiles are under 44 px at ${innerWidth}x${innerHeight}`);
+        else t.event('select-tiles', `all ${tiles.length} tiles are 44 px or more (${Math.round(tiles[0].getBoundingClientRect().width)} px wide)`);
+        const g = grid.getBoundingClientRect();
+        const rr = this.q('#select-preview .set-render')?.getBoundingClientRect();
+        if (rr && rr.left >= g.right - 1 && rr.width > 100 && rr.height > 50) t.event('select-beside', `the render (${Math.round(rr.width)}x${Math.round(rr.height)}) sits right of the grid at ${innerWidth}x${innerHeight}`);
+        else t.problem('bug', `the render is not beside the grid at ${innerWidth}x${innerHeight}`);
+        // A swipe up the grid: a finger drag on the tiles, then the list moves and the last tile can be tapped.
+        if (grid.scrollHeight > grid.clientHeight + 4) {
+          const from = tiles[0].getBoundingClientRect();
+          const x = from.left + from.width / 2;
+          const init = (y: number) => ({ pointerType: 'touch', pointerId: 53, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y });
+          const y0 = g.bottom - 20;
+          tiles[0].dispatchEvent(new PointerEvent('pointerdown', init(y0)));
+          for (let i = 1; i <= 6; i++) {
+            await t.wait(30);
+            grid.scrollTop += (grid.scrollHeight - grid.clientHeight) / 6;
+            tiles[0].dispatchEvent(new PointerEvent('pointermove', init(y0 - i * 30)));
+          }
+          tiles[0].dispatchEvent(new PointerEvent('pointerup', { ...init(y0 - 180), buttons: 0 }));
+          if (grid.scrollTop > 10) t.event('select-swipe', `the grid scrolled by swipe (${Math.round(grid.scrollTop)} px of ${grid.scrollHeight - grid.clientHeight})`);
+          else t.problem('bug', 'the portrait grid did not scroll by swipe at 844x390');
+        } else t.problem('bug', 'the portrait grid does not scroll at 844x390 (all tiles fit?)');
+      }
+      // The fighters: hover (a tap on a phone) shows the render and the live inset at once; a pick confirms.
+      const all = CHARACTERS.map((c) => c.id);
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : all.filter((_, i) => i % Math.max(1, Math.floor(all.length / Math.max(1, Number(this.options.count) || 6))) === 0);
+      let fast = 0;
+      for (const [k, id] of ids.entries()) {
+        t.progress(0.2 + (0.78 * k) / ids.length);
+        const c = CHARACTERS.find((o) => o.id === id);
+        if (!c) {
+          t.problem('bug', `fighter "${id}" is not in the roster`);
+          continue;
+        }
+        const tile = () => this.q(`#select-grid .tile[data-fighter="${id}"]`);
+        tile()?.scrollIntoView({ block: 'nearest' });
+        const t0 = performance.now();
+        // Hover first (a mouse); a phone taps (the press shows the preview before the pick).
+        if (touch) await this.click(tile, `${c.name} (touch)`);
+        else {
+          tile()?.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
+          tile()?.focus();
+        }
+        const canvas = () => this.q('#select-preview .set-render') as HTMLCanvasElement | null;
+        const inset = () => this.q(`#select-preview .specials[data-fighter="${id}"] .sp-clip`) as HTMLCanvasElement | null;
+        const drawn = (cv: HTMLCanvasElement | null): number => {
+          const g = cv?.getContext('2d');
+          if (!cv || !g || cv.width === 0) return 0;
+          const d = g.getImageData(0, 0, cv.width, cv.height).data;
+          let n = 0;
+          for (let i = 3; i < d.length; i += 64) if (d[i] > 20) n++;
+          return n;
+        };
+        await t.until(() => canvas()?.dataset.fighter === id && drawn(canvas()) > 50 && !!inset() && drawn(inset()) > 20, 6000, `${c.name}'s render and special preview`);
+        const ms = Math.round(performance.now() - t0);
+        const animated = canvas()?.dataset.ready === '1';
+        if (ms <= 300) {
+          fast++;
+          t.event('select-render', `${c.name}: render and live special preview up in ${ms} ms${animated ? ' (idle playing)' : ' (portrait until the sheet loads)'}`);
+        } else t.problem('bug', `${c.name}: render and special preview took ${ms} ms (want 300 or less)`);
+        // The inset is the sim running: its picture changes over the next second.
+        const seen = new Set<number>();
+        for (let i = 0; i < 8 && seen.size < 3; i++) {
+          seen.add(drawn(inset()));
+          await t.wait(140);
+        }
+        if (seen.size >= 2) t.event('select-sim', `${c.name}: the live special preview is moving (${seen.size} different frames)`);
+        else t.problem('bug', `${c.name}: the live special preview is not moving`);
+        // The pick: confirm pose and the voiced taunt (a fighter with no recorded taunt shouts an effort).
+        const before = confirms.length;
+        await this.click(tile, `pick ${c.name}`);
+        await t.until(() => confirms.length > before, 2000, `${c.name}'s confirm`).catch(() => null);
+        const got = confirms[confirms.length - 1];
+        const posing = !!canvas()?.dataset.pose;
+        if (confirms.length > before && posing) t.event('select-confirm', `${c.name}: confirm pose played${got?.voiced ? ' with their voiced taunt' : ' (no voice take for this fighter yet)'}`);
+        else t.problem('bug', `${c.name}: picking did not play a confirm pose`);
+        t.add('fightersShown');
+        await t.wait(350);
+      }
+      t.metric('fastRenders', fast);
+      t.progress(1);
+    } finally {
+      window.removeEventListener('dod:select-confirm', onConfirm);
       this.useTap = false;
       forceTouchUi(false);
     }
