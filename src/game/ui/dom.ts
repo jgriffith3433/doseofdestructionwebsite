@@ -54,6 +54,20 @@ export function largeUrl(id: string): string {
   return `/characters/large/${id}.webp`;
 }
 
+/**
+ * A painted three-quarter bust, one style for every fighter (characters/portrait/<id>-512.webp and -256.webp, from
+ * Hawkes Gen image.edit; docs/art-bible.md "Portraits"). Select, VS and results all show these.
+ */
+export function portraitUrl(id: string, size: 256 | 512 = 512): string {
+  return `/characters/portrait/${id}-${size}.webp`;
+}
+
+/** Which portrait size to load: the 256 px file on a phone-sized window (landscape or portrait), else the 512 px one. */
+export function portraitSize(): 256 | 512 {
+  if (typeof window === 'undefined' || !window.matchMedia) return 512;
+  return window.matchMedia('(max-height: 500px), (max-width: 700px)').matches ? 256 : 512;
+}
+
 export function formatTime(frames: number): string {
   const secs = Math.max(0, Math.ceil(frames / 60));
   return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
