@@ -11,8 +11,14 @@
 // At rest the stack is the backdrop (the check prints the difference); under a camera pan the layers slide at their own z.
 //
 // usage: node tools/depth-layers.mjs <stage-id|all> [--layers <dir of <stage>/0..4.png; a plan's `dir` names another folder, e.g. a retry>] [--out <dir>] [--write]
+//                                       [--holes <dir>] [--repaint <dir>]
 //   --out     where the webp files and <stage>.layers.json go (default: stages/<id>/depth; scratch while judging)
 //   --write   also update content/stages.json (new layers, `low` on the full backdrop, haze depths)
+//   --holes   writes, for each layer that has `holes`, <dir>/<stage>/<layer>.fill.png (the layer with its holes diffusion-filled)
+//             and <dir>/<stage>/<layer>.mask.png (white = the hole): the two inputs of Hawkes Gen image.repaint, which paints
+//             what the cut really revealed (stars behind the nebula) instead of a smooth blur.
+//   --repaint reads <dir>/<stage>/<layer>.png (image.repaint's result for that fill + mask) and uses it in the hole instead of the
+//             diffusion fill (only inside the mask: everything outside stays exactly as it was).
 // Needs `sharp` (npm i --no-save sharp, or NODE_PATH to a copy).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -322,6 +328,24 @@ function fillHoles(rgb, known) {
   return levels[0].c;
 }
 
+/** The hole a cut leaves, as image.repaint's mask: the cut's soft body (> 0.3) grown by a few pixels, feathered. 0..1. */
+function holeMask(cut) {
+  const hard = Float32Array.from(cut, (v) => (v > 0.3 ? 1 : 0));
+  const grown = boxBlur(hard, 4);
+  return Float32Array.from(grown, (v) => smooth(v / 0.35));
+}
+
+async function savePng(file, rgb, mono) {
+  const px = Buffer.alloc(N * 3);
+  for (let i = 0; i < N; i++)
+    for (let ch = 0; ch < 3; ch++) {
+      const v = mono ? mono[i] * 255 : rgb[i * 3 + ch];
+      px[i * 3 + ch] = v < 0 ? 0 : v > 255 ? 255 : Math.round(v);
+    }
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  await sharp(px, { raw: { width: W, height: H, channels: 3 } }).png({ compressionLevel: 9 }).toFile(file);
+}
+
 // ---------------------------------------------------------------------------------------------------- one stage
 async function build(id, plan, opts) {
   const back = (await loadRGBA(read(opts.backdropPath(id)))).rgb;
@@ -366,6 +390,27 @@ async function build(id, plan, opts) {
     }
     const known = Float32Array.from(cut, (v) => 1 - smooth((v - 0.05) / 0.5));
     l.rgb = fillHoles(l.src.rgb, known);
+    l.cut = cut;
+    // image.repaint's fill, where there is one: the mask it was given is `holeMask` (cut > 0.3, grown a little), so inside it the
+    // painted pixels replace the diffusion fill, with the mask's own soft edge.
+    const rp = opts.repaintDir && path.join(opts.repaintDir, id, `${l.spec.id}.png`);
+    if (rp && fs.existsSync(rp)) {
+      const painted = (await loadRGBA(fs.readFileSync(rp))).rgb;
+      const w = holeMask(cut);
+      const rgb = Float32Array.from(l.rgb);
+      for (let i = 0; i < N; i++)
+        for (let ch = 0; ch < 3; ch++) rgb[i * 3 + ch] = l.rgb[i * 3 + ch] * (1 - w[i]) + painted[i * 3 + ch] * w[i];
+      l.rgb = rgb;
+      console.log(`${id}/${l.spec.id}: hole filled from the repaint ${rp.replace(root, '')}`);
+    }
+  }
+  if (opts.holesDir) {
+    for (const l of L) {
+      if (!l.cut) continue;
+      await savePng(path.join(opts.holesDir, id, `${l.spec.id}.fill.png`), l.rgb);
+      await savePng(path.join(opts.holesDir, id, `${l.spec.id}.mask.png`), null, holeMask(l.cut));
+      console.log(`${id}/${l.spec.id}: hole share ${((Float32Array.from(l.cut, (v) => (v > 0.3 ? 1 : 0)).reduce((a, b) => a + b, 0) / N) * 100).toFixed(1)}% -> ${opts.holesDir}/${id}/`);
+    }
   }
   // Visible share, near to far; the pixel is the backdrop where the layer is what you see, Gen's / the filled one where it is hidden.
   const P = new Float32Array(N).fill(1);
@@ -409,6 +454,8 @@ const flag = (n) => {
 };
 const layersDir = flag('--layers') ?? root + '.hawkes/layers';
 const outDir = flag('--out');
+const holesDir = flag('--holes');
+const repaintDir = flag('--repaint');
 const write = args.includes('--write');
 const stagesPath = root + 'content/stages.json';
 const stages = JSON.parse(fs.readFileSync(stagesPath, 'utf8'));
@@ -417,7 +464,7 @@ for (const [id, plan] of Object.entries(PLANS)) {
   if (which !== 'all' && which !== id) continue;
   const st = stages.find((s) => s.id === id);
   const backLayer = st.layers.find((l) => l.id === 'backdrop');
-  const { out, back } = await build(id, plan, { layersDir, backdropPath: () => backLayer.image });
+  const { out, back } = await build(id, plan, { layersDir, holesDir, repaintDir, backdropPath: () => backLayer.image });
   const dir = outDir ? path.join(outDir, id) : `${root}stages/${id}/depth`;
   fs.mkdirSync(dir, { recursive: true });
   const worldH = backLayer.width * (H / W);
