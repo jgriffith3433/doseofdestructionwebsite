@@ -8,6 +8,8 @@ import { CHAPTERS, isUnlocked } from '../campaign/story.ts';
 import { $, h, kids, largeUrl, thumbUrl } from './dom.ts';
 import { specialsPanel } from './specialsPreview.ts';
 import { swatchRow } from './lookUi.ts';
+import { audio } from '../audio.ts';
+import { landOn, resetLanding } from './nameCall.ts';
 import { lookCount, lookOpen, openLook, preferredLook, rememberLook, separateLooks } from '../looks.ts';
 
 export interface VersusConfig {
@@ -148,6 +150,40 @@ export function openSelect({ mode, config, onDone }: Options): void {
     );
   };
 
+  // The announcer: "Choose your fighter!" as the select opens, then each name as the cursor lands on a fighter (nameCall.ts).
+  // A focus that the screen opening gives the first tile isn't a landing: only once the player has moved something, or the
+  // screen has been up a moment (the pad moves focus without a key).
+  const openedAt = performance.now();
+  let moved = false;
+  const markMoved = () => { moved = true; };
+  window.addEventListener('keydown', markMoved, { once: true });
+  window.addEventListener('pointerdown', markMoved, { once: true });
+  const nameId = (c: CharacterDef) => `announcer.name.${c.id}`;
+  resetLanding();
+  void audio.preloadLines(['announcer.choose']).then(() => {
+    if (!moved) void audio.call('announcer.choose');
+  });
+  void audio.preloadLines(CHARACTERS.map(nameId));
+  const land = (c: CharacterDef, i: number, viaFocus = false) => {
+    if (!open(i, training)) return;
+    if (viaFocus && !moved && performance.now() - openedAt < 800) return;
+    moved = true;
+    landOn(nameId(c));
+  };
+  // A finger dragged across the grid lands on the tile under it (a touch pointer stays on the tile it pressed).
+  const tileUnder = (e: PointerEvent): HTMLElement | null =>
+    (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>('.tile[data-fighter]') ?? null;
+  const follow = (e: PointerEvent) => {
+    if (e.pointerType === 'mouse') return;
+    const t = tileUnder(e);
+    const i = CHARACTERS.findIndex((c) => c.id === t?.dataset.fighter);
+    if (i < 0) return;
+    showPreview(CHARACTERS[i]);
+    land(CHARACTERS[i], i);
+  };
+  grid.onpointermove = follow;
+  grid.onpointerup = follow;
+
   const assign = (char: number) => {
     if (!open(char, training)) return;
     void prefetchFighters([char]);
@@ -171,10 +207,10 @@ export function openSelect({ mode, config, onDone }: Options): void {
           'aria-disabled': open(i, training) ? undefined : 'true',
           'data-fighter': c.id,
           onclick: () => assign(i),
-          onfocus: () => { showPreview(c); if (open(i, training)) void prefetchFighters([i]); },
-          onmouseenter: () => showPreview(c),
+          onfocus: () => { showPreview(c); land(c, i, true); if (open(i, training)) void prefetchFighters([i]); },
+          onmouseenter: () => { showPreview(c); land(c, i); },
           // A tap on a phone: the preview (and its clip) follows the finger, not only the fighter picked.
-          onpointerdown: () => showPreview(c),
+          onpointerdown: () => { showPreview(c); land(c, i); },
         },
         thumb(c),
         h('span', {}, open(i, training) ? c.name : 'Locked'),
@@ -241,7 +277,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
         );
       }),
       !training && cfg.slots.length < 4 && h('button', { type: 'button', class: 'slot add', onclick: addCpu }, '+ Add CPU'),
-      h('button', { type: 'button', class: 'primary fight', onclick: () => { fixLooks(); onDone(cfg); } }, training ? 'Train' : 'Fight'),
+      h('button', { type: 'button', class: 'primary fight', onclick: () => { resetLanding(); fixLooks(); onDone(cfg); } }, training ? 'Train' : 'Fight'),
     ));
     // Keep the keyboard on the row it was using after a colour pick redraws the slots.
     if (back >= 0) slotsEl.querySelector<HTMLElement>(`.swatches[data-slot="${back}"] .swatch.on`)?.focus();

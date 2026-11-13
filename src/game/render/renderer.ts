@@ -26,6 +26,7 @@ import { GlowLayer } from '@babylonjs/core/Layers/glowLayer.js';
 import '@babylonjs/core/Layers/effectLayerSceneComponent.js';
 
 import { FX } from '../sim/fixed.ts';
+import { entranceBeats, entrancePose, flyCamera, flyProgress, type BeatFx, type IntroPlan, type Pose } from '../campaign/intro.ts';
 import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
@@ -34,7 +35,7 @@ import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, kil
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { cameraFighters, followCamera, frameGoal, punchGoal, type CamBounds, type CamState } from './cameraRig.ts';
 import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
-import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
+import { StageFx, buildLayers, drawnPlatforms, layersFor } from './stageArt.ts';
 import { behindForeground, bodyPoints, fadeToward } from './foreground.ts';
 import { StageLive } from './stageLive.ts';
 import { StageAlive } from './stageAlive.ts';
@@ -187,6 +188,12 @@ export class Renderer {
   /** Fighters held off stage until their arrival, and arrivals in progress (fighter id -> start time). */
   private offstage = new Set<number>();
   private arriving = new Map<number, number>();
+  /** The match intro in progress (campaign/intro.ts): its clock, each fighter's entrance pose and the beats already fired. */
+  private intro: { t0: number; plan: IntroPlan; fired: Map<number, number>; poses: Map<number, Pose>; beats: number; flyMax: number; lastD: number } | null = null;
+  private introMats = new Map<string, StandardMaterial>();
+  private introProps = new Map<number, Mesh>();
+  /** Called at each entrance beat (main.ts plays the taunt on 'taunt'). */
+  onIntroBeat: ((slot: number, who: string, fx: BeatFx) => void) | null = null;
   /** Speakers in a story scene: a small bounce while their line starts (fighter id -> start time). */
   private talking = new Map<number, number>();
   /** The last hit's effect and the camera shake actually applied, for the playtest to read. */
@@ -1328,12 +1335,12 @@ export class Renderer {
     return out;
   }
 
-  private burst(x: number, y: number, count: number, speed: number): void {
+  private burst(x: number, y: number, count: number, speed: number, mat?: StandardMaterial): void {
     const n = Math.ceil(count * particleShare(this.gfx.quality));
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = speed * (0.4 + Math.random() * 0.8);
-      const mesh = this.takeSpark();
+      const mesh = this.takeSpark(mat);
       mesh.position.set(x, y, -0.4);
       mesh.rotation.z = a;
       const life = 14 + Math.floor(Math.random() * 14);
@@ -1350,6 +1357,7 @@ export class Renderer {
     }
     this.live?.update(state);
     this.alive?.update(performance.now() / 1000);
+    if (this.intro) this.introTick(state);
     // Broadcast events: the studio lights flicker, the rig light hangs and falls.
     this.sky.intensity = state.flicker > 0 ? (state.frame % 8 < 3 ? 0.15 : 1) : 1;
     if (state.rigFrame >= 0) {
@@ -1498,7 +1506,8 @@ export class Renderer {
     if (!v) return;
     const ch = CHARACTERS[f.char];
     const dead = f.action === ACT.DEAD;
-    const away = this.offstage.has(f.id);
+    const ip = this.intro?.poses.get(f.id);
+    const away = this.offstage.has(f.id) || !!ip?.hidden;
     v.root.setEnabled(!dead && !away);
     if (dead || away) return;
 
@@ -1520,14 +1529,20 @@ export class Renderer {
         this.onSynth?.('thud');
       }
     }
+    if (ip) {
+      // An entrance (match intro): its offset in fighter heights, on top of where the sim stands them.
+      x += ip.dx * height;
+      drop += ip.dy * height;
+    }
     v.root.position.set(x, f.y * S + drop, 0);
 
-    // A clip if there is one, else the still with procedural motion.
-    const pick = pickClip(f, v.anims);
+    // A clip if there is one, else the still with procedural motion. An entrance borrows the walk, jump, fall or land clip.
+    const fa = ip && ip.anim !== 'idle' ? { ...f, x: x / S, action: ip.anim === 'walk' ? ACT.WALK : ip.anim === 'land' ? ACT.LAND : ACT.AIR, vy: ip.anim === 'jump' ? 1 : -1, frame: Math.floor(((performance.now() - this.intro!.t0) / 1000) * 60) } : f;
+    const pick = pickClip(fa, v.anims);
     const tex = pick ? this.clipTexture(v, pick.key) : null;
     if (pick && tex && v.anims) {
       const c = pick.clip;
-      const i = clipFrame(f, pick);
+      const i = clipFrame(fa, pick);
       tex.uScale = 1 / c.cols;
       tex.vScale = 1 / c.rows;
       tex.uOffset = (i % c.cols) / c.cols;
@@ -1536,7 +1551,7 @@ export class Renderer {
       const px = height / v.anims.refHeight;
       v.body.scaling.set(c.fw * px, c.fh * px, 1);
       v.body.position.x = (c.fw / 2 - c.ax) * px;
-      v.body.position.y = (c.ay - c.fh / 2 + feetLift(f, pick, i)) * px;
+      v.body.position.y = (c.ay - c.fh / 2 + feetLift(fa, pick, i)) * px;
       // Clips line up on the feet, but a hang is about the hands: put the top of the
       // sprite (the gripping hands) on the ledge's top edge instead.
       if (pick.key === 'ledge' && pick.exact && f.ledge > 0) {
@@ -1565,6 +1580,11 @@ export class Renderer {
     sx *= rx.sx;
     sy *= rx.sy;
     if (rx.rot !== null) rot = rx.rot;
+    if (ip) {
+      sx *= ip.sx;
+      sy *= ip.sy;
+      rot += ip.rot;
+    }
     x += rx.dx;
     v.root.position.x = x;
     v.pose.scaling.set(f.facing * sx, sy, 1);
@@ -1592,7 +1612,7 @@ export class Renderer {
     this.sizeOutline(v);
 
     const flicker = f.intangible > 0 && f.action !== ACT.LEDGE ? (f.frame & 4 ? 0.45 : 0.8) : 1;
-    v.mat.alpha = flicker;
+    v.mat.alpha = flicker * (ip ? ip.alpha : 1);
     if (v.flash > 0) {
       v.flash--;
       v.mat.emissiveColor.set(1, 0.55 + (10 - v.flash) * 0.045, 0.45 + (10 - v.flash) * 0.055);
@@ -1633,7 +1653,7 @@ export class Renderer {
     }
     v.lit = { height: Number(sh.height.toFixed(1)), scale: Number(sh.scale.toFixed(3)), alpha: Number(sh.alpha.toFixed(3)), shadow: sh.on, reflection: mirror };
 
-    v.ring.setEnabled(f.grounded === 1 || f.action === ACT.RESPAWN);
+    v.ring.setEnabled((f.grounded === 1 || f.action === ACT.RESPAWN) && !(ip && ip.dy > 0.05));
     const shielding = f.action === ACT.SHIELD || f.action === ACT.SHIELD_STUN;
     v.shield.setEnabled(shielding);
     if (shielding) {
@@ -1817,7 +1837,17 @@ export class Renderer {
     this.camSide += (sideGoal - this.camSide) * k;
     this.camTilt += (tiltGoal - this.camTilt) * k;
 
-    if (this.camCut) {
+    if (this.intro) {
+      // The match intro's fly-in: from a wide shot of the stage's far layers to the fight framing, eased both ends,
+      // set outright each frame (it is a scripted move, not a follow), so it lands exactly where the gameplay camera starts.
+      const ms = now - this.intro.t0;
+      const wideD = Math.max(cd + 3, Math.min(30, ((b.right - b.left) * W) / (2 * tan * aspect) * 0.62));
+      const c = flyCamera({ x: cx - 4, y: cy + 1.6, d: wideD }, { x: cx, y: cy, d: cd }, flyProgress(ms, this.intro.plan.flyMs));
+      this.intro.flyMax = Math.max(this.intro.flyMax, (Math.hypot(c.x - this.camRig.x, c.y - this.camRig.y) + Math.abs(c.d - this.camRig.d)) / dt);
+      this.camRig = { x: c.x, y: c.y, d: c.d, vx: 0, vy: 0, vd: 0 };
+      this.intro.lastD = c.d;
+      this.camCut = false;
+    } else if (this.camCut) {
       this.camRig = { x: cx, y: cy, d: cd, vx: 0, vy: 0, vd: 0 };
       this.camSide = sideGoal;
       this.camTilt = tiltGoal;
@@ -1900,7 +1930,7 @@ export class Renderer {
 
   /** After a render: counts a living fighter whose body is outside the view (the playtest wants none). */
   private checkFraming(state: GameState): void {
-    if (this.shot || this.camCut) return;
+    if (this.shot || this.camCut || this.intro) return;
     const w = this.engine.getRenderWidth();
     const h = this.engine.getRenderHeight();
     const vp = this.camera.viewport.toGlobal(w, h);
@@ -1943,6 +1973,225 @@ export class Renderer {
   /** Kicks the camera (slams: ROUND START, GAME!). 0.3 is a medium hit. */
   kick(amount: number): void {
     this.shake = Math.max(this.shake, amount);
+  }
+
+  // ---------------------------------------------------------------- the match intro (campaign/intro.ts)
+
+  /** Starts the intro: the fly-in camera and each fighter's entrance run from this moment (until `introEnd`). */
+  introBegin(plan: IntroPlan): void {
+    this.intro = { t0: performance.now(), plan, fired: new Map(), poses: new Map(), beats: 0, flyMax: 0, lastD: 0 };
+    for (const e of plan.entries) this.intro.poses.set(e.slot, entrancePose(e.kind, -1, e.from));
+    this.camMs = 0;
+  }
+
+  /** Ends the intro (it ran out or was skipped): everyone stands where the sim has them and the gameplay camera follows on. */
+  introEnd(): void {
+    this.intro = null;
+    for (const m of this.introProps.values()) m.setEnabled(false);
+    this.camMs = 0;
+  }
+
+  introActive(): boolean {
+    return this.intro !== null;
+  }
+
+  /** Where the intro is, for the playtest: the clock, the camera's distance, the fastest camera move (units per second) and the beats fired. */
+  introStats(): { active: boolean; ms: number; camDist: number; camX: number; maxSpeed: number; beats: number; kinds: string[] } {
+    const i = this.intro;
+    return { active: !!i, ms: i ? Math.round(performance.now() - i.t0) : 0, camDist: this.camRig.d, camX: this.camRig.x, maxSpeed: i?.flyMax ?? 0, beats: i?.beats ?? 0, kinds: i ? i.plan.entries.map((e) => `${e.who}:${e.kind}`) : [] };
+  }
+
+  /** A flat additive material in a colour, for the intro's coloured sparks, rings and spotlights. */
+  private introMat(hex: string, tex?: DynamicTexture): StandardMaterial {
+    const key = `${hex}|${tex?.name ?? ''}`;
+    let m = this.introMats.get(key);
+    if (!m) {
+      m = this.sparkMat.clone(`intro-${key}`);
+      m.emissiveColor = Color3.FromHexString(hex);
+      if (tex) {
+        m.diffuseTexture = tex;
+        m.opacityTexture = tex;
+        m.emissiveTexture = tex;
+      }
+      this.introMats.set(key, m);
+    }
+    return m;
+  }
+
+  /** A small painted prop texture: the skateboard, the cable and the spotlight's cone. */
+  private introTex(kind: 'board' | 'cable' | 'spot'): DynamicTexture {
+    const name = `intro-${kind}`;
+    const found = this.scene.getTextureByName(name);
+    if (found) return found as DynamicTexture;
+    const [w, h] = kind === 'board' ? [128, 32] : kind === 'cable' ? [8, 64] : [64, 128];
+    const t = new DynamicTexture(name, { width: w, height: h }, this.scene, false);
+    const c = t.getContext() as CanvasRenderingContext2D;
+    c.clearRect(0, 0, w, h);
+    if (kind === 'board') {
+      c.fillStyle = '#e8e0d0';
+      for (const x of [28, 100]) {
+        c.beginPath();
+        c.arc(x, 24, 6, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.fillStyle = '#7d7468';
+      c.fillRect(24, 16, 8, 4);
+      c.fillRect(96, 16, 8, 4);
+      c.fillStyle = '#2b2118';
+      c.beginPath();
+      c.roundRect(6, 6, 116, 11, 5);
+      c.fill();
+      c.fillStyle = '#ff5a1f';
+      c.fillRect(14, 9, 100, 3);
+    } else if (kind === 'cable') {
+      c.fillStyle = '#3a3a40';
+      c.fillRect(2, 0, 4, h);
+      c.fillStyle = '#9a9aa6';
+      c.fillRect(3, 0, 1, h);
+    } else {
+      // A cone of light, narrow at the top, wide at the floor, soft at the edges.
+      const g = c.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, 'rgba(255,255,255,0.35)');
+      g.addColorStop(1, 'rgba(255,255,255,0.95)');
+      c.fillStyle = g;
+      c.beginPath();
+      c.moveTo(w * 0.42, 0);
+      c.lineTo(w * 0.58, 0);
+      c.lineTo(w * 0.98, h);
+      c.lineTo(w * 0.02, h);
+      c.closePath();
+      c.fill();
+    }
+    t.hasAlpha = true;
+    t.update();
+    return t;
+  }
+
+  /** The prop mesh of one fighter's entrance (made on first use, then reused). */
+  private introProp(slot: number, kind: 'board' | 'cable' | 'spot', color: string): Mesh {
+    let m = this.introProps.get(slot);
+    const tag = `${kind}|${color}`;
+    if (!m || m.metadata !== tag) {
+      m?.dispose();
+      m = CreatePlane(`intro-prop-${slot}`, { size: 1 }, this.scene);
+      m.isPickable = false;
+      m.metadata = tag;
+      const tex = this.introTex(kind);
+      if (kind === 'spot') m.material = this.introMat(color, tex);
+      else {
+        const mat = this.flatMaterial(`intro-${kind}-${slot}`, '#ffffff');
+        mat.diffuseTexture = tex;
+        mat.emissiveTexture = tex;
+        mat.opacityTexture = tex;
+        mat.disableDepthWrite = true;
+        m.material = mat;
+      }
+      this.glow.addExcludedMesh(m);
+      this.introProps.set(slot, m);
+    }
+    return m;
+  }
+
+  /** One frame of the intro: each entrance's pose, the beats it has passed and its prop. */
+  private introTick(state: GameState): void {
+    const intro = this.intro!;
+    const ms = performance.now() - intro.t0;
+    for (const e of intro.plan.entries) {
+      const f = state.fighters[e.slot];
+      const v = this.views[e.slot];
+      if (!f || !v) continue;
+      const k = (ms - e.startMs) / e.durMs;
+      const pose = entrancePose(e.kind, k, e.from);
+      intro.poses.set(e.slot, pose);
+      const h = CHARACTERS[f.char].height * W * ART_SCALE * (f.scale / 100);
+      const fx = f.x * S + pose.dx * h;
+      const fy = f.y * S + pose.dy * h;
+      const beats = entranceBeats(e.kind);
+      let i = intro.fired.get(e.slot) ?? 0;
+      while (i < beats.length && k >= beats[i].at) {
+        this.introBeat(e.slot, e.who, beats[i], fx, f.y * S, fy, h, e.from, e.color);
+        intro.beats++;
+        i++;
+      }
+      intro.fired.set(e.slot, i);
+      const mesh = pose.prop && k < 1.2 ? this.introProp(e.slot, pose.prop.kind, e.color) : this.introProps.get(e.slot);
+      if (!mesh) continue;
+      if (!pose.prop || pose.hidden) {
+        mesh.setEnabled(false);
+        continue;
+      }
+      const p = pose.prop;
+      mesh.setEnabled(p.alpha > 0.01);
+      const px = f.x * S + p.dx * h;
+      if (p.kind === 'board') {
+        mesh.position.set(px, f.y * S + p.dy * h + h * 0.07, 0.03);
+        mesh.scaling.set(h * 0.75, h * 0.19, 1);
+        (mesh.material as StandardMaterial).alpha = p.alpha;
+      } else if (p.kind === 'cable') {
+        const len = (p.len ?? 4) * h;
+        mesh.position.set(px, f.y * S + p.dy * h + len / 2, 0.02);
+        mesh.scaling.set(0.07, len, 1);
+        (mesh.material as StandardMaterial).alpha = p.alpha;
+      } else {
+        const len = (p.len ?? 4) * h;
+        mesh.position.set(px, f.y * S + len / 2, 0.04);
+        mesh.scaling.set(h * 1.9, len, 1);
+        (mesh.material as StandardMaterial).alpha = p.alpha;
+      }
+      mesh.rotation.z = p.rot;
+    }
+  }
+
+  /** One beat of an entrance: sparks, a shake, the thud of a landing. `fx`/`fy` is where the feet are, `floor` where the ground is. */
+  private introBeat(slot: number, who: string, b: { fx: BeatFx; kick?: number; n?: number }, fx: number, floor: number, fy: number, h: number, from: number, color: string): void {
+    const n = b.n ?? 8;
+    const tint = this.introMat(color);
+    switch (b.fx) {
+      case 'dust':
+        this.burst(fx, floor + 0.02, n, 0.06);
+        break;
+      case 'thud':
+        this.burst(fx, floor + 0.02, n, 0.08);
+        this.onSound?.('land');
+        this.onSynth?.('thud');
+        break;
+      case 'clank':
+        this.burst(fx, fy + h * 0.5, n, 0.05, this.introMat('#ffd9a0'));
+        this.onSound?.('land');
+        break;
+      case 'ring': {
+        const mesh = this.takeSpark(tint);
+        mesh.position.set(fx, floor + 0.05, -0.38);
+        mesh.rotation.z = 0;
+        this.sparks.push({ mesh, vx: 0, vy: 0, life: 20, max: 20, size: 0.7, grow: 5, stretch: 2.2 });
+        break;
+      }
+      case 'spark':
+        this.burst(fx, fy + h * 0.5, n, 0.07, tint);
+        break;
+      case 'streak':
+        for (let i = 0; i < Math.ceil(n * particleShare(this.gfx.quality)); i++) {
+          const mesh = this.takeSpark(tint);
+          mesh.position.set(fx - from * (0.1 + Math.random() * 0.5), fy + h * (0.15 + Math.random() * 0.7), -0.4);
+          mesh.rotation.z = 0;
+          this.sparks.push({ mesh, vx: -from * 0.01, vy: 0, life: 9 + Math.floor(Math.random() * 6), max: 14, size: 0.28 + Math.random() * 0.22, stretch: 4 });
+        }
+        break;
+      case 'flash':
+        // A lightning strike or a flashbulb: the screen whitens for a few frames and sparks fly off the fighter.
+        this.flashMat.alpha = Math.max(this.flashMat.alpha, b.kick ? 0.5 : 0.28);
+        this.flashPlane.setEnabled(true);
+        this.burst(fx + (Math.random() - 0.5) * h * 0.8, fy + h * (0.4 + Math.random() * 0.6), n, 0.05, this.introMat('#ffffff'));
+        break;
+      case 'snap':
+        this.burst(fx, fy + h * 1.05, n, 0.06, this.introMat('#fff0a0'));
+        this.onSynth?.('whoosh');
+        break;
+      case 'taunt':
+        break;
+    }
+    if (b.kick) this.kick(b.kick);
+    this.onIntroBeat?.(slot, who, b.fx);
   }
 
   /** A match moment the stage's effects can react to: 'start' when play begins, 'end' at Game! */
@@ -2146,7 +2395,8 @@ const prefetchedStages = new Set<number>();
 export function prefetchStage(stage: number): void {
   if (prefetchedStages.has(stage)) return;
   prefetchedStages.add(stage);
-  for (const l of STAGES[stage]?.layers ?? []) {
+  const st = STAGES[stage];
+  for (const l of st ? layersFor(st, graphics().quality === 'high') : []) {
     if (l.hidden || !l.image) continue;
     const img = new Image();
     img.src = `/${l.image}`;

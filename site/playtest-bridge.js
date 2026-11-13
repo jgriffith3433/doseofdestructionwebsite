@@ -47,12 +47,44 @@
       ]
     },
     {
+      "id": "victory",
+      "title": "Victory stage: the results open on the winner on a lit podium with their group fanfare, the loser sulking in an inset, Rematch tappable within 3 s, phone landscape fit",
+      "description": "Versus 1v1 (options fighter / foe, default exit-punk vs kaelen), played twice. The results open on the winner playing a clip on a lit podium (victory-stage), the group's fanfare from content/fighters.json plays from a file that exists (victory-fanfare), the beaten fighter sulks dim in an inset (victory-loser), the camera pushes in (victory-push) with confetti in the winner's colour (victory-confetti), Rematch is on screen, 44 px and not covered within 3 s (victory-rematch), the panel slides in with the podium left of it at 844x390 and every button 44 px or taller (victory-fit, victory-panel), and in round 2 a tap on the stage skips the pose (victory-skip). On a 390x844 touch phone every tap is a touch pointer event and the run plays turned to 844x390. Metric victoryMs.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "sound"
+      ]
+    },
+    {
+      "id": "announcer",
+      "title": "The announcer calls the show: Choose your fighter, each fighter's name on select (250 ms debounce), the stage, both names on the VS card, Ready FIGHT, GAME, The winner is",
+      "description": "Versus select: \"Choose your fighter!\" as it opens; landing on a fighter plays that name within 300 ms, once (`name-hover`, `name-once`); a new landing cuts the name playing (`name-cancel`); a fast sweep or swipe across the grid plays only the last name (`name-sweep`). Then a 1v1 of one stock: the stage name on the pick (`stage-call`), both fighters' names in order on the VS card (`vs-calls`), \"Ready... FIGHT!\" at the match start (`ready-fight-call`), \"GAME!\" on the final KO (`game-call`), and on the results \"The winner is...\" then the winner's name (`result-calls`); the music ducks under each (`music-duck`) and the announcer never overlaps itself. On a 390x844 touch phone it turns to 844x390 and every landing is a touch tap or drag. Metrics nameDelayMs, announcerCalls, announcerOverlaps.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "sound",
+        "touch"
+      ]
+    },
+    {
       "id": "win-quote",
       "title": "Win quotes: the winner says a voiced, typed-on quote on the results screen, the matchup quote against a story rival, never the same quote twice in a row, phone landscape fit",
       "description": "Versus 1v1 between two story rivals (options fighter / foe, default exit-punk vs kaelen), played twice with Rematch. Each results screen must play the winner's recorded quote (quote-voice) with a typed-on caption of the same words (quote-caption), the matchup quote when the loser is the winner's rival (quote-matchup), never the quote that fighter played last (quote-repeat), and at 844x390 (a 390x844 touch phone turned to landscape, every tap a touch pointer event) the caption fits in two lines inside the screen with the Rematch button visible and uncovered (quote-fit, quote-rematch). Metric winQuotes.",
       "seconds": 240,
       "tags": [
         "full",
+        "sound"
+      ]
+    },
+    {
+      "id": "match-intro",
+      "title": "Match intro: a 3 s broadcast open after the VS card (camera flies in, stage-name lower third, each fighter's entrance, ROUND START), any input skips within 0.3 s, stage select shows 9 moving previews (phone 844x390: 45 fps on Low, a tap skips)",
+      "description": "Options fighter / foe (default exit-punk or shutup-bot vs Wallit: a Season 1 entrance against the spotlight drop), stage. Stage select: every tile has a live canvas preview whose pan changes between samples and is not blank (stage-preview, stage-previews; metric stagePreviews). Versus match 1: the intro starts within 3 s of the VS card (intro-start), the stage card shows within 600 ms and the lower third inside the window (intro-card, intro-lower-third), the camera distance falls from wide to the fight framing without pulling back or moving faster than 25 units/s (intro-camera; metrics introCamFrom, introCamTo, introCamPeakSpeed), both fighters enter with the entrance their story gives them (intro-entrance: 13 Season 1 entrances, the rest the spotlight drop; intro-data), it lasts about 3 s unskipped (introMs), ROUND START follows (intro-round-start), touch controls are hidden during it and back after (intro-touch-controls), average fps (intro-fps, introFps; phone: 45 wanted). Match 2: a tap skips it within 300 ms (intro-skip-tap, introSkipTapMs); match 3 (desktop): a key does (intro-skip-key). The online scenario checks no intro plays online. On a 390x844 touch phone it is turned to 844x390 and presses by touch.",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "touch",
         "sound"
       ]
     },

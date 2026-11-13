@@ -614,6 +614,23 @@ the front row there (in Turn the Page he is in the fight itself). The Mechanic i
 - Every call also shows as a caption (`.booth`) and fires `dod:commentary`. The lines are text only for now: no `audio` or
   `take`, so they are captioned and silent until recorded through Hawkes Gen (cents, no GPU).
 
+### The announcer calls the show (as built)
+
+Besides the fight calls the announcer (Brian, deep, big-room) opens and closes every bout the way the show would, shouting
+and levelled to -16 LUFS (`tools/announcer-calls.mjs` merges the recorded takes into `content/voice.json`; the 33 fighter
+names `announcer.name.<id>` were already there):
+
+- **Select:** "Choose your fighter!" (`announcer.choose`) as the select opens. When the cursor lands on a fighter (mouse,
+  pad, keyboard, a tap, a finger dragged across the grid) that fighter's name plays after 250 ms; a new landing cuts the
+  name playing, so a fast sweep calls only where it stops, and one tap calls once (`ui/nameCall.ts`). Locked fighters stay unnamed.
+- **Stage pick:** the stage's name (`announcer.stage.<id>`, 9), finished before the VS card.
+- **VS card:** both names in slot order, one at a time (the card waits for them), "Versus!" between them only when the whole
+  exchange fits 3.3 s.
+- **Match start:** "Ready... FIGHT!" (`announcer.ready-fight.1/2`; its FIGHT lands on the Go frame, so no separate "Go!").
+  **Final KO:** "GAME!" (`announcer.game.1-3`; a timeout is still "Time!"). "Final stock!" is `announcer.last-stock.4`.
+- **Results:** "The winner is..." then the winner's name, then the winner's quote; with no winner (or a void online match)
+  "No contest!". The music ducks (~8 dB) under every call; one call at a time (`audio.call`, `dod:announcer`).
+
 ## Story cards
 
 Every episode opens and closes on a title card, like the show's own bumpers: "Tonight" before the intro scene (season,
@@ -635,6 +652,41 @@ It plays after the VS card, with the fighters already standing: the camera cuts 
 as a lower third), the other answers, the listener of that answer taunts. 6 s at most; any key, click, tap or button
 skips it. In Versus it plays every time; in the campaign an episode between a listed pair plays it once, after the
 intro scene. Not in Training, online, Tour or Tonight's Episode.
+
+## The broadcast opens: entrances (as built)
+
+Every offline match with a VS card opens like a broadcast, in the 3 seconds before ROUND START (`campaign/intro.ts`,
+`ui/matchIntro.ts`): the camera starts wide on the stage's far layers and flies in to the fight framing (eased at both
+ends, never a cut), the stage's name takes the show's lower third ("Tonight on Dose of Destruction") with the
+announcer's stage call under it when that line is recorded, and each fighter makes an entrance, one after another. Any
+input (tap, key, button) skips it at once. Not in Training, online (both pages must start together), the pilot, Tonight's
+Episode (its board needs the same start for everyone) or an episode's own intro scene, which already brings the fighters on.
+
+The 13 Season 1 fighters each come in the way their story says:
+
+| Fighter | Entrance | What you see |
+|---|---|---|
+| Exit Punk | `board` | Rolls in from the wings on the skateboard, pops off it, lands, and the board rolls on. |
+| Kaelen | `zip` | "Hi. Bye." A blur across the stage, then a small wave. Gone before the trade lands. |
+| Break | `slam` | Rule one is that he doesn't fall off. He comes down heavy, a ring of dust, and stays down. |
+| DJ Won't Read | `pop` | Pops up out of the floor on the bass, a ring on every beat. |
+| Shutup Bot | `rig` | Drops from the lighting rig on a cable, snaps it, lands, and does not flinch. |
+| Small Weather | `storm` | A lightning flash, then a slow, swaying float down. He brought the weather. |
+| Blog Man | `flash` | Floats in to a bank of flashbulbs. The press is here. |
+| Evil Blue Bird | `swoop` | Banks in from the side on an air game that never lands, until it has to. |
+| Got Ur Back | `stomp` | Huge, soft, in no hurry: four steps, each one felt. |
+| Slice | `slash` | A cut across the air and he is simply there, in a spin that settles. |
+| SS Boulder | `roll` | Rolls in, the slowest swings in the game and the biggest stop. |
+| Stratabots | `assemble` | Heavy plates stacked from the floor up, one clank a plate. |
+| The Orchestrator | `descend` | He does not drop. He is lowered, baton first, and the house goes quiet. |
+
+The other 20 fighters get the `spotlight` drop: a light in their slot colour, a fall into it, a landing ring and their own
+taunt bark. The entrances use the fighters' existing walk, jump, fall and land clips plus procedural motion, sparks and
+camera kicks; no new art. A new fighter is on the spotlight until their story gives them an entrance
+(`SEASON_ONE_ENTRANCES` in `campaign/intro.ts`).
+
+Stage select shows each stage as a live 2-second camera pan over its own painted layers (`ui/stagePreview.ts`, drawn by
+parallax on a small canvas: no video files), the same move the fly-in starts from.
 
 ## Previously and Next time (as built)
 
@@ -690,3 +742,23 @@ He is a showman: every line is about ratings, the card or the next show, never a
   is the one exception to "never seen or heard" in Season 9 (the Cliffhanger).
 - Data: `content/campaign.json` `events` (kind `takeover`, `when`, `rule`), lines `orchestrator.takeover.*` in
   `content/voice.json` (words in `tools/takeover-lines.data.json`), pickers `src/game/campaign/takeover.ts`. Scenario `finale-hijack`.
+
+## Victory fanfares (as built)
+
+A win ends on the show's victory stage, not a table: the results screen opens on the winner on a lit podium playing their pose
+clip in their colour look, the camera pushing in slowly, confetti and sparks in their colour, the winner's quote over the pose,
+and the beaten fighter dim in an inset, sulking. A 5 s fanfare plays per **group**, assigned per fighter in
+`content/fighters.json` (`fanfare`), and the results loop starts when it ends. Then the panel (winner, time, damage, highlights)
+slides in at about 2 s; any press skips the pose and cuts the fanfare. Code `src/game/ui/victory.ts`, maths and groups
+`src/game/victory.ts`, sounds `fanfare-<group>` in `content/sounds.json`. Scenario `victory`.
+
+- **Open Mic** (Season 1's first night): Exit Punk, Kaelen, Break, DJ Won't Read, Small Weather. Brass and a snare roll.
+- **The Booth** (the commentary desk): Blog Man, Slice, SS Boulder, Got Ur Back. A late-night band sting.
+- **The Host** (the house): the Orchestrator, The Mechanic, TT. Strings and timpani, a baton-drop chord.
+- **The Champion's Card** (Season 2): Shark Dude, Pyro Singer, Susan, Wallit. A title-fight theme.
+- **The Rival Broadcast** (Season 4): Cel, Try Belt, Crosser, Crystalline Intelligences. Synth brass, glitchy.
+- **Sweeps Week** (Season 5): Uh Me, Yo Bot, Spider Bot, Lapis Man. Pop arena, a rising sweep.
+- **Syndication** (Season 6): Ball Person, Chooser, Not An Old Man Yet, Yooba, Slow Rider. Global percussion.
+- **The Reboot** (Season 7): Evil Blue Bird, Shutup Bot, Stratabots, Future Man. Trailer brass, a heavy hit.
+
+Season 3 has no group (it is the Orchestrator's, The Host). Fighters with no `unlock` chapter sit with the cast they fight beside.

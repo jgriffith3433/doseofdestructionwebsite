@@ -131,8 +131,10 @@ export interface StageLayer {
    * one of its solid pixels, and comes back when they walk out (render only; see render/foreground.ts).
    */
   foreground?: boolean;
-  /** Built on High only (the extra depth bands): Low keeps its three or four layers for the frame rate. */
+  /** Built on High only (the extra depth layers): Low keeps its three or four layers for the frame rate. */
   high?: boolean;
+  /** Built on Low only: the whole backdrop picture, which High replaces with the depth layers cut from it (far sky, far set, mid set, near set). */
+  low?: boolean;
   /** Adds light instead of covering (neon, glows). */
   glow?: boolean;
   hidden?: boolean;
