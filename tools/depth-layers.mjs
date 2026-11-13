@@ -49,7 +49,7 @@ const N = W * H;
 // Layers far -> near. src: 'B' (the backdrop) or 'gN' (Gen layer N). mask: 'alpha' (the source's own alpha), 'opaque', or a
 // band { t, b, ft, fb } (top and bottom as fractions of the height, feather at each edge as a fraction of the slice) or an
 // ellipse { cx, cy, rx, ry } or a colour cut { warm: { lo, hi, blur, keep: [ellipses] } } (a painting with no separate objects). erase: boxes [x0, y0, x1, y1]
-// (fractions) zeroed in the layer's alpha, for a piece Gen cut into two layers (a wall lamp). holes: ids of nearer layers cut from this same source, filled by diffusion (or by image.repaint, `repaint`: the job and asset, put in <dir>/<stage>/<layer>.png for --repaint). low: this layer
+// (fractions) zeroed in the layer's alpha, for a piece Gen cut into two layers (a wall lamp). holes: ids of nearer layers cut from this same source, filled by diffusion (or by image.repaint, `repaint`: the job and asset, put in <dir>/<stage>/<layer>.png for --repaint; `thin`: keep only that share of the painted detail). low: this layer
 // is the full backdrop Low keeps (it is not built on High, where the layers below replace it).
 const PLANS = {
   'city-top': {
@@ -138,7 +138,7 @@ const PLANS = {
   'space-chess': {
     jobs: 'j_81bec11c18e4',
     layers: [
-      { id: 'sky', z: 20, src: 'g1', mask: 'opaque', holes: ['nebula', 'galaxy'], repaint: 'image.repaint j_a68822e94372, take 3, asset a_183686296f0e693a', note: 'Far sky: the star field.' },
+      { id: 'sky', z: 20, src: 'g1', mask: 'opaque', holes: ['nebula', 'galaxy'], repaint: 'image.repaint j_a68822e94372, take 3, asset a_183686296f0e693a', thin: 0.4, note: 'Far sky: the star field.' },
       { id: 'nebula', z: 15, src: 'g1', mask: { ellipse: { cx: 0.55, cy: 0.27, rx: 0.34, ry: 0.28 } }, note: 'Far set: the cobalt nebula band.' },
       { id: 'galaxy', z: 11, src: 'g1', mask: { ellipse: { cx: 0.865, cy: 0.27, rx: 0.1, ry: 0.13 } }, note: 'Mid set: the spiral galaxy.' },
       { id: 'board', z: 8, src: 'g4', mask: 'alpha', note: 'Near set: the far end of the board and its pieces.' },
@@ -394,12 +394,34 @@ async function build(id, plan, opts) {
     // image.repaint's fill, where there is one: the mask it was given is `holeMask` (cut > 0.3, grown a little), so inside it the
     // painted pixels replace the diffusion fill, with the mask's own soft edge.
     const rp = opts.repaintDir && path.join(opts.repaintDir, id, `${l.spec.id}.png`);
+    if (l.spec.repaint && !(rp && fs.existsSync(rp)) && write) {
+      console.log(`${id}/${l.spec.id}: its hole is painted by ${l.spec.repaint}; put that image at <dir>/${id}/${l.spec.id}.png and pass --repaint <dir> (--write would put the diffusion fill back)`);
+      process.exit(1);
+    }
     if (rp && fs.existsSync(rp)) {
       const painted = (await loadRGBA(fs.readFileSync(rp))).rgb;
       const w = holeMask(cut);
       const rgb = Float32Array.from(l.rgb);
-      for (let i = 0; i < N; i++)
-        for (let ch = 0; ch < 3; ch++) rgb[i * 3 + ch] = l.rgb[i * 3 + ch] * (1 - w[i]) + painted[i * 3 + ch] * w[i];
+      // thin: the painted fine detail (stars on dark space) is kept in only this share of 5 px blocks, at a random
+      // strength, so a model's even lattice of stars reads as the scatter around it.
+      const thin = l.spec.thin;
+      const keep = (i) => {
+        if (thin == null) return 1;
+        const bx = ((i % W) / 5) | 0;
+        const by = (((i / W) | 0) / 5) | 0;
+        const h = (Math.imul(bx, 73856093) ^ Math.imul(by, 19349663)) >>> 0;
+        const u = (h % 1000) / 1000;
+        return u < thin ? 0.55 + 0.45 * ((h >>> 10) % 100) / 100 : 0;
+      };
+      // Only the fine detail is thinned (stars): the smooth colour under it (a glow) stays whole, or the blocks would show.
+      const low = thin == null ? null : [0, 1, 2].map((ch) => boxBlur(Float32Array.from({ length: N }, (_, i) => painted[i * 3 + ch]), 4));
+      for (let i = 0; i < N; i++) {
+        const k = keep(i);
+        for (let ch = 0; ch < 3; ch++) {
+          const p = low ? low[ch][i] + (painted[i * 3 + ch] - low[ch][i]) * k : painted[i * 3 + ch];
+          rgb[i * 3 + ch] = l.rgb[i * 3 + ch] * (1 - w[i]) + p * w[i];
+        }
+      }
       l.rgb = rgb;
       console.log(`${id}/${l.spec.id}: hole filled from the repaint ${rp.replace(root, '')}`);
     }

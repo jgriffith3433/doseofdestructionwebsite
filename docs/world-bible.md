@@ -471,9 +471,11 @@ High each stage draws its own stack; Low draws the whole backdrop picture (`low`
 Jobs: City Top j_de95dbaf4d12, Dust Devil Mesa j_c0b792ce201e, Cursed Town j_baf72867a5f9, Rainbow Full Pipe j_7ec99117dab6,
 Solar Array j_baf31958c811, Space Chess j_81bec11c18e4, Yo House j_0613ca74762a, Humans in the Loop (a second split, 6 layers,
 j_eea1055faada) (about $0.57 of GPU for the nine first splits, $0.30 for the two retries and $0.17 for the repaints below; Gen's
-layers come inpainted and the bottom layer of every stack is opaque). Only two holes were repainted: Dust Devil Mesa's, Solar
-Array's and Yo House's holes lie behind a band that is opaque below its feathered top edge, so a pan reveals a sliver of smooth
-sky or wall that the diffusion fill already matches; they stay diffusion-filled (three more `image.repaint` jobs if wanted).
+layers come inpainted and the bottom layer of every stack is opaque). Only two stages' holes were repainted (Space Chess,
+Watercolor Nebula). The holes of Dust Devil Mesa, Solar Array and Yo House lie behind a band that is opaque below its feathered
+top edge, so a pan reveals only a sliver of smooth sky or wall that the diffusion fill already matches; they stay
+diffusion-filled (three more `image.repaint` jobs, about $0.2 with the model load, if wanted). The repainted images are in Hawkes
+Gen's library by the asset ids in `tools/depth-layers.mjs`; `--write` stops if they are not put back for `--repaint`.
 
 - **City Top:** sky and smoke, the amber sprawl, the towers with the fireworks, the lit rooftops with the avenue; the old
   cut-out skyline band is gone.
@@ -487,7 +489,10 @@ sky or wall that the diffusion fill already matches; they stay diffusion-filled 
 - **Space Chess:** the star field, the cobalt nebula, the spiral galaxy and the far end of the board with its pieces. The
   nebula and galaxy are cut out of Gen's star-field layer; the stars behind them are painted by `image.repaint`
   (j_a68822e94372, three takes: the first came out as a regular dot lattice, the second invented a nebula streak and
-  drew the guide outline, the third is used), so a pan keeps a continuous star field instead of a star-free patch.
+  drew the guide outline; the third is used, with its stars thinned to 40% of 5 px blocks at random strengths on the CPU
+  (`thin`), because the model draws them as an even lattice 2 to 3 times denser than the sky around them), so a pan keeps a
+  star field instead of a star-free patch. The ghost outlines of the far chess pieces that Gen left in its star-field plate stay
+  (dark on dark, behind the board at rest).
 - **Yo House:** the garden and hills seen through the windows and the skylight slide behind the room; the floor, rug and sofa
   slide in front of the back wall.
 - **Humans in the Loop:** Gen's first split (5 layers) left the arena in one layer; a retry with a prompt naming the road cases,
