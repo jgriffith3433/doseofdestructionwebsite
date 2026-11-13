@@ -61,6 +61,15 @@ Season end: *"Dose of Destruction will return. The card is yours now."*
 Fighters Season 1 used (none of them is a Season 2 walk-on): exit-punk, kaelen, break, dj-wont-read,
 shutup-bot, small-weather, blog-man, evil-blue-bird, got-ur-back, slice, ss-boulder, stratabots, orchestrator.
 
+## The opening (as built)
+
+The pilot is the cold open; the show's titles roll right after it, once (`dod-opening` in localStorage), and replay from
+Extras > Opening. A 30 s film (`audio/opening.webm`, 720p WebM, about 4 MB): the Season 1 cast in motion from the painted
+portraits and the roster key art, cut on the beat of the theme song (punk arena rock, 128 BPM, shout-along chorus naming the
+show), a name lower third per fighter (Exit Punk, Kaelen, Break, DJ Won't Read, the Orchestrator) drawn in code, and the logo
+slamming in on the last hit. A tap or key skips it after the first second. The theme's 60 s instrumental (`music-title`) is the
+title screen's music.
+
 ## The pilot: a stranger's first night (as built)
 
 A player with nothing saved (no `dod-campaign`, `dod-versus` or `dod-pilot` in localStorage) never meets the title or the

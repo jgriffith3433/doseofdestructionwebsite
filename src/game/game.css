@@ -2051,3 +2051,25 @@ body.intro-on .touch > * { opacity: 0; pointer-events: none; }
 /* Stage select: the tile's live 2 s camera pan sits over the drawn thumbnail until its layers have loaded. */
 .stage-shot { position: relative; line-height: 0; }
 .stage-preview { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 6px; display: block; }
+
+/* The opening titles (ui/opening.ts): the 720p film fills the screen, name lower thirds and the logo slam are drawn over it. */
+.opening { position: fixed; inset: 0; z-index: 9100; background: #000; overflow: hidden; touch-action: manipulation; cursor: pointer; }
+.opening[hidden] { display: none; }
+.opening-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
+.opening-third {
+  position: absolute; left: max(4vw, env(safe-area-inset-left)); bottom: max(9vh, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 2px;
+  padding: 8px 18px 8px 14px; background: linear-gradient(90deg, rgba(8, 10, 20, 0.88), rgba(8, 10, 20, 0.5)); border-left: 5px solid var(--hot);
+  opacity: 0; transform: translateX(-40px); pointer-events: none; max-width: 80vw;
+}
+.opening-third.in { animation: opening-third 2.1s ease-out forwards; }
+.opening-third em { font-style: normal; color: var(--gold); font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.14em; font-size: clamp(11px, 1.6vw, 15px); }
+.opening-third strong { font-family: Oswald, sans-serif; text-transform: uppercase; font-size: clamp(22px, 4.6vw, 44px); line-height: 1.05; color: #fff; overflow-wrap: anywhere; }
+@keyframes opening-third { 0% { opacity: 0; transform: translateX(-40px); } 12% { opacity: 1; transform: translateX(0); } 85% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; transform: translateX(0); } }
+.opening-logo { position: absolute; left: 50%; top: 50%; margin: 0; text-align: center; opacity: 0; transform: translate(-50%, -50%) scale(3); pointer-events: none; text-shadow: 0 6px 30px rgba(0, 0, 0, 0.85); }
+.opening.slam .opening-logo { animation: opening-slam 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) forwards; }
+.opening.slam { animation: opening-shake 0.4s linear 1; }
+@keyframes opening-slam { 0% { opacity: 0; transform: translate(-50%, -50%) scale(3); } 60% { opacity: 1; } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes opening-shake { 0%, 100% { transform: none; } 20% { transform: translate(-8px, 5px); } 40% { transform: translate(7px, -6px); } 60% { transform: translate(-4px, 3px); } 80% { transform: translate(3px, -2px); } }
+.opening-skip { position: absolute; right: max(12px, env(safe-area-inset-right)); top: max(12px, env(safe-area-inset-top)); min-width: 64px; min-height: 44px; padding: 0 16px; border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 22px; background: rgba(0, 0, 0, 0.5); color: #fff; font: 600 14px Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.1em; }
+@media (prefers-reduced-motion: reduce) { .opening.slam { animation: none; } }
+.opening-replay { margin: 0 auto 12px; max-width: 520px; display: block; }

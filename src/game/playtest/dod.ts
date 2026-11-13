@@ -34,6 +34,7 @@ import { castLine } from '../ui/daily.ts';
 import { TOURS, TOURS_KEY, TOUR_LENGTH, tourEnding, tourFor, tourIntro } from '../campaign/tour.ts';
 import { ENDINGS, ENDING_BEATS, endingFor, endingUnlocked } from '../campaign/endings.ts';
 import { endingShowing } from '../ui/ending.ts';
+import { OPENING_CAST, OPENING_KEY, OPENING_SKIP_AFTER, openingShowing } from '../ui/opening.ts';
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
 import { PAIRS, pairFor } from '../campaign/intros.ts';
 import { SEASON_ONE_ENTRANCES, entranceKind } from '../campaign/intro.ts';
@@ -180,6 +181,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'daily') await r.dailyRun();
         else if (id === 'tour') await r.tourScenario();
         else if (id === 'endings') await r.endingsScenario();
+        else if (id === 'opening') await r.openingScenario();
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
@@ -1529,7 +1531,7 @@ class Run {
    */
   async firstVisit(): Promise<void> {
     const t = this.t;
-    const KEYS = ['dod-campaign', 'dod-versus', 'dod-pilot', 'dod-unlocks'];
+    const KEYS = ['dod-campaign', 'dod-versus', 'dod-pilot', 'dod-unlocks', OPENING_KEY];
     const saved = KEYS.map((k) => [k, localStorage.getItem(k)] as const);
     const wipe = () => KEYS.forEach((k) => localStorage.removeItem(k));
     const portraitPhone = this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560;
@@ -1642,7 +1644,11 @@ class Run {
           if (attempt === 0) await this.click(() => this.button('#results-actions', 'Retry'), 'Retry');
         }
         const result = this.game.match() ?? this.seen;
-        await this.click(() => this.button('#results-actions', 'Continue') ?? this.button('#results-actions', 'Main menu'), 'Continue');
+        const cont = this.button('#results-actions', 'Continue');
+        const contAt = performance.now();
+        await this.click(() => cont ?? this.button('#results-actions', 'Main menu'), 'Continue');
+        // TV order: the opening titles play once right after the pilot, then the main menu.
+        await this.watchOpening({ since: contAt, skipAt: 1300, tag: 'after-pilot' });
         await this.screen('main', 20000);
         const tag = this.q('.menu-item[data-go="campaign"] .next-tag');
         if (tag && !tag.hidden && /Next episode/i.test(tag.textContent ?? '')) t.event('next-episode', `the main menu marks Campaign "${tag.textContent}" after the pilot (${this.q('.menu-item[data-go="campaign"] span')?.textContent ?? ''})`);
@@ -3289,6 +3295,104 @@ class Run {
    * end); Extras from the main menu shows one slot per fighter (33), open ones for the cleared Tours and locked the rest
    * (`endings-gallery`); a tap on an open slot replays that fighter's ending (`ending`). On a phone everything is a tap.
    */
+  /**
+   * The opening titles (ui/opening.ts) from the moment they were asked for (`since`): they start within 1 s, fill the window,
+   * ignore a tap in the first second, then either play to the end (name cards, the logo slam; `full`) or are skipped by a tap.
+   */
+  private async watchOpening(o: { since: number; skipAt: number; full?: boolean; tag: string }): Promise<void> {
+    const t = this.t;
+    const seen: { phase: string; at: number; name?: string }[] = [];
+    const on = (e: Event) => { const d = (e as CustomEvent).detail; seen.push({ phase: d.phase, at: performance.now(), name: d.name }); };
+    window.addEventListener('dod:opening', on);
+    try {
+      await t.until(() => openingShowing() || seen.some((x) => x.phase === 'start'), 5000, `the opening titles (${o.tag})`).catch(() => undefined);
+      const start = seen.find((x) => x.phase === 'start');
+      if (!start) {
+        t.problem('bug', `the opening did not start after ${o.tag}`);
+        return;
+      }
+      const startMs = Math.round(start.at - o.since);
+      if (startMs > 1000) t.problem('bug', `the opening started ${startMs} ms after ${o.tag}, over 1 s`);
+      const v = document.querySelector<HTMLVideoElement>('#opening-video');
+      const r = v?.getBoundingClientRect();
+      const fills = !!r && r.width >= innerWidth - 1 && r.height >= innerHeight - 1;
+      if (!fills) t.problem('bug', `the opening does not fill the window at ${innerWidth}x${innerHeight}`);
+      t.event('opening-start', `the opening started ${startMs} ms after ${o.tag}, ${fills ? 'fills' : 'does not fill'} ${innerWidth}x${innerHeight}`);
+      t.metric('openingStartMs', startMs);
+      // A tap inside the first second must not skip it.
+      await t.wait(Math.max(0, 300 - (performance.now() - start.at)));
+      this.pressOpening();
+      await t.wait(150);
+      if (!openingShowing()) t.problem('bug', `the opening was skipped by a tap before ${OPENING_SKIP_AFTER} ms`);
+      else t.event('opening-no-early-skip', 'a tap at 0.3 s did not skip the opening');
+      if (o.full) {
+        await t.until(() => seen.some((x) => x.phase === 'logo'), 40000, 'the logo slam').catch(() => undefined);
+        const names = seen.filter((x) => x.phase === 'name').map((x) => x.name);
+        if (names.length !== OPENING_CAST.length) t.problem('bug', `the opening showed ${names.length} name cards, expected ${OPENING_CAST.length}`);
+        if (!seen.some((x) => x.phase === 'logo')) t.problem('bug', 'the logo never slammed in');
+        t.event('opening-cast', `name cards: ${names.join(', ')}; logo ${seen.some((x) => x.phase === 'logo') ? 'slammed' : 'missing'}`);
+        t.metric('openingNameCards', names.length);
+        await t.until(() => !openingShowing(), 15000, 'the opening to end').catch(() => undefined);
+      } else {
+        await t.wait(Math.max(0, o.skipAt - (performance.now() - start.at)));
+        this.pressOpening();
+        await t.until(() => !openingShowing(), 1500, 'a tap to skip the opening').catch(() => undefined);
+        if (openingShowing()) t.problem('bug', 'a tap after 1 s did not skip the opening');
+        else t.event('opening-skip', `a tap ${Math.round(performance.now() - start.at)} ms in skipped the opening`);
+      }
+      const end = seen.find((x) => x.phase === 'end');
+      if (end) t.metric('openingSeconds', Math.round((end.at - start.at) / 100) / 10);
+    } finally {
+      window.removeEventListener('dod:opening', on);
+    }
+  }
+
+  /** A tap on the opening itself (pointer down and up, like a finger). */
+  private pressOpening(): void {
+    const el = document.getElementById('opening');
+    if (!el) return;
+    const touch = matchMedia('(pointer: coarse)').matches;
+    const init = { pointerType: touch ? 'touch' : 'mouse', pointerId: 52, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, composed: true, clientX: innerWidth / 2, clientY: innerHeight / 2 };
+    el.dispatchEvent(new PointerEvent('pointerdown', init));
+    el.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }));
+    this.t.add('interactions');
+  }
+
+  /**
+   * The opening titles from Extras: Opening plays the 30 s film (start, no skip at 0.3 s, six name cards over the cast shots,
+   * the logo slam, the end), then a second replay is skipped by a tap after 1 s. The title plays the theme's instrumental.
+   * On a phone (touch, 844x390) every press is a tap and the film fills the window.
+   */
+  async openingScenario(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    this.logViewport(touch && this.isPhone());
+    const saved = localStorage.getItem(OPENING_KEY);
+    try {
+      this.useTap = touch;
+      await this.screen('title', 30000);
+      await this.tapToPlay();
+      await t.until(() => audio.musicPlaying === 'music-title', 15000, 'the title music').catch(() => undefined);
+      if (audio.musicPlaying !== 'music-title') t.problem('bug', `the title plays ${audio.musicPlaying ?? 'nothing'}, not the theme's instrumental`);
+      else t.event('title-music', 'the title screen plays music-title (the theme instrumental)');
+      await this.click(() => this.q('#btn-start'), 'Press start');
+      await this.screen('main');
+      await this.click(() => this.q('#btn-extras'), 'Extras');
+      await this.screen('extras');
+      let at = performance.now();
+      await this.click(() => this.q('#btn-opening'), 'Opening');
+      await this.watchOpening({ since: at, skipAt: 1300, full: true, tag: 'Extras > Opening' });
+      await this.screen('extras');
+      at = performance.now();
+      await this.click(() => this.q('#btn-opening'), 'Opening');
+      await this.watchOpening({ since: at, skipAt: 1300, tag: 'the replay' });
+      await this.screen('extras');
+    } finally {
+      if (saved === null) localStorage.removeItem(OPENING_KEY);
+      else localStorage.setItem(OPENING_KEY, saved);
+    }
+  }
+
   async endingsScenario(): Promise<void> {
     const t = this.t;
     const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();

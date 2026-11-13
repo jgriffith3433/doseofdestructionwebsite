@@ -352,6 +352,16 @@
       ]
     },
     {
+      "id": "opening",
+      "title": "Opening titles: from Extras the 30 s film plays (starts within 1 s, fills the window, six name cards, logo slam on the last hit, theme song), a tap in the first second is ignored and a tap after it skips; the title plays the theme's instrumental (phone: 844x390, a tap skips)",
+      "description": "Title: the music is music-title. Main menu to Extras to Opening (opening-start, opening-no-early-skip, opening-cast, metrics openingStartMs openingNameCards openingSeconds), then a second replay skipped by a tap after 1 s (opening-skip). first-visit also checks the opening plays right after the pilot and a tap skips it. Options: input (touch), at (phone).",
+      "seconds": 90,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "endings",
       "title": "Endings: Extras shows 33 ending slots (open for cleared Tours), a tap replays a fighter's painted ending with its narrated line, sting and Tour complete card (phone: 844x390, the art fills the screen, captions fit, a tap skips)",
       "description": "Setup shortcut: three Tours marked cleared in localStorage dod-tours (put back at the end). Main menu to Extras: one slot per fighter (endings-gallery: 33 slots, the open ones match the cleared Tours, no sideways scroll, 44 px targets on a phone), then a tap on the chosen fighter's slot replays the ending (ending): the 1920x1080 picture fills the window, caption one then caption two inside it and above the bottom edge, the narration take plays, the sting, the Tour complete card with the colour earned; a tap skips (ending-skip). Options: fighter (default exit-punk), all (replay every cleared one), input (touch), at (phone). Metrics endingSlots, endingsOpen, endingFits. The tour scenario checks the same ending after a cleared Tour.",

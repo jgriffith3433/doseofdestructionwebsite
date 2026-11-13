@@ -722,6 +722,22 @@
     }
   },
   {
+    "id": "music-title",
+    "group": "music",
+    "text": "Seamless 60 s instrumental loop of the show's punk arena-rock opening theme, shout-along chorus riff, 128 BPM, no vocals.",
+    "loop": true,
+    "duration": 62,
+    "influence": 0.45,
+    "volume": 0.5,
+    "file": "/audio/sfx/music-title.mp3",
+    "take": {
+      "text": "Seamless 60 s instrumental loop of the show's punk arena-rock opening theme, shout-along chorus riff, 128 BPM, no vocals.",
+      "loop": true,
+      "duration": 62,
+      "influence": 0.45
+    }
+  },
+  {
     "id": "music-foundry",
     "group": "music",
     "text": "Seamless loop of heavy industrial fighting game music, pounding drums, clanging metal percussion and a furnace roar under a distorted guitar riff, 140 BPM, no vocals.",
