@@ -16,6 +16,7 @@ import { lookChip, paintImage } from './lookUi.ts';
 import { currentWinQuote } from '../winQuote.ts';
 import { quoteCaption } from './quoteCaption.ts';
 import { victoryStage } from './victory.ts';
+import { stagePreview } from './stagePreview.ts';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -95,7 +96,7 @@ export function openStages(
       return h(
         'button',
         { type: 'button', class: 'stage-card', 'data-stage': st.id, 'data-autofocus': index === focus || undefined, onclick: () => onPick(index, entry), onfocus: () => prep(index), onpointerenter: () => prep(index) },
-        stageThumb(st),
+        h('div', { class: 'stage-shot' }, stageThumb(st), stagePreview(st)),
         h('strong', {}, entry.name || st.name),
         h('span', {}, entry.blurb || st.blurb),
       );

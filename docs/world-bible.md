@@ -413,6 +413,15 @@ static cut; Local Affiliate / Red Carpet quiet routines. Do not invent new seaso
 - **What happens:** line, answer, the listener's taunt; crowd ambience and the stage bed play under ducked music.
 - **Story beats:** told by voice and camera, one caption line at a time; never a text screen.
 
+## The broadcast opens (added with the match intro)
+
+- **Areas:** the match stage itself, in the 3 seconds between the VS card and ROUND START, and the Stage Select tiles (each a live 2 s pan of that stage). No new area.
+- **Landmarks:** the lighting rig Shutup Bot drops from, the skateboard Exit Punk leaves rolling, the spotlight cone in each newer fighter's slot colour, the stage-name lower third.
+- **Who lives here:** the 13 Season 1 fighters (each their own entrance), the other 20 (spotlight drop and taunt), the announcer's stage call.
+- **Characters:** no new character. Each keeps their voice and look; entrances are drawn from their story (Exit Punk's skateboard, Kaelen's "Hi. Bye.", Break who doesn't fall off, Shutup Bot's rig, the Orchestrator lowered in silence). The table is in docs/story.md "The broadcast opens".
+- **What happens:** the camera flies from wide on the far layers to the fight, eased; the stage card slides in; fighters enter one by one with dust, sparks, a thud and a camera kick; the crowd and stage bed play under it; any input skips; ROUND START lands as it ends.
+- **Story beats:** told by camera, motion, sound and the announcer's call; one caption (the stage's name) and a name strap, never a text screen.
+
 ## Stage light (fighters stand inside each set)
 
 Every stage lights its fighters with its own colours (`light` in `content/stages.json`, drawn by `render/lightPlugin.ts`,
