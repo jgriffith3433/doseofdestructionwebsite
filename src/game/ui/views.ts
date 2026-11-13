@@ -7,11 +7,9 @@ import type { Match, MatchSetup } from '../match.ts';
 import { CHAPTERS, SEASONS, isOpen, seasonCleared, seasonOpen, type Chapter } from '../campaign/story.ts';
 import { PLAYER_COLORS, prefetchStage } from '../render/renderer.ts';
 import { TEAM_COLORS } from './select.ts';
-import { $, formatTime, h, kids, largeUrl, pct, thumbUrl } from './dom.ts';
+import { $, formatTime, h, kids, pct, portraitSize, portraitUrl, thumbUrl } from './dom.ts';
 import type { ModeStage } from '../modes.ts';
 import { audio } from '../audio.ts';
-import { loadAnimSet } from '../render/anims.ts';
-import { lookOf, recolorUrl } from '../looks.ts';
 import { lookChip, paintImage } from './lookUi.ts';
 import { currentWinQuote } from '../winQuote.ts';
 import { quoteCaption } from './quoteCaption.ts';
@@ -115,8 +113,8 @@ export function openStages(
 
 /** Fills the VS splash. Resolves when it has played or the player skips it. */
 /** A picture of a fighter in the colour it plays in. */
-function paintedImg(url: string, char: number, look: number): HTMLImageElement {
-  const img = h('img', { alt: '' }) as HTMLImageElement;
+function paintedImg(url: string, char: number, look: number, cls = ''): HTMLImageElement {
+  const img = h('img', { alt: '', class: cls || undefined }) as HTMLImageElement;
   paintImage(img, url, char, look);
   return img;
 }
@@ -147,7 +145,7 @@ export function playVersus(setup: MatchSetup): Promise<void> {
             return h(
               'figure',
               { class: 'vs-fighter', 'data-fighter': c.id, 'data-look': String(s.look ?? 0), style: `--slot:${color}` },
-              paintedImg(largeUrl(c.id), s.char, s.look ?? 0),
+              paintedImg(portraitUrl(c.id, portraitSize()), s.char, s.look ?? 0, 'vs-portrait'),
               h(
                 'figcaption',
                 { class: 'vs-card' },
@@ -164,39 +162,6 @@ export function playVersus(setup: MatchSetup): Promise<void> {
     ),
     h('p', { class: 'vs-stage' }, stage.name, setup.subtitle ? h('span', {}, setup.subtitle) : null),
   ));
-
-  // Each fighter's idle clip plays over its still, stepped from the page's own frames.
-  const sprites: { el: HTMLElement; fps: number; frames: number; cols: number; rows: number }[] = [];
-  body.querySelectorAll<HTMLElement>('.vs-fighter').forEach((fig) => {
-    void loadAnimSet(fig.dataset.fighter!).then((set) => {
-      const c = set?.clips.idle;
-      if (!set || !c || !fig.isConnected) return;
-      const el = h('div', { class: 'vs-sprite' });
-      el.style.aspectRatio = `${c.fw} / ${c.fh}`;
-      const sheet = `${set.base}${c.file}?v=${set.version}`;
-      el.style.backgroundImage = `url(${sheet})`;
-      // A colour look repaints the sheet (the same maths as the in-match shader).
-      const look = Number(fig.dataset.look) || 0;
-      const char = CHARACTERS.findIndex((x) => x.id === fig.dataset.fighter);
-      if (look > 0) void recolorUrl(sheet, lookOf(char, look)).then((u) => { if (el.isConnected) el.style.backgroundImage = `url(${u})`; });
-      el.style.backgroundSize = `${c.cols * 100}% ${c.rows * 100}%`;
-      fig.querySelector('img')?.replaceWith(el);
-      sprites.push({ el, fps: c.fps, frames: c.frames, cols: c.cols, rows: c.rows });
-    });
-  });
-  const t0 = performance.now();
-  const spin = () => {
-    if (!body.isConnected || body.closest('[hidden]')) return;
-    const n = Math.floor(((performance.now() - t0) / 1000) * 12);
-    for (const sp of sprites) {
-      const i = n % sp.frames;
-      const x = sp.cols > 1 ? ((i % sp.cols) / (sp.cols - 1)) * 100 : 0;
-      const y = sp.rows > 1 ? (Math.floor(i / sp.cols) / (sp.rows - 1)) * 100 : 0;
-      sp.el.style.backgroundPosition = `${x}% ${y}%`;
-    }
-    requestAnimationFrame(spin);
-  };
-  requestAnimationFrame(spin);
 
   // The announcer's lines load first, so the slam and the calls play on time, in order (not
   // all at once when the downloads land). The splash clock starts when they're ready.
@@ -406,6 +371,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
     h(
       'header',
       { class: 'results-hero', style: `--slot:${colors[hero.id]}` },
+      paintedImg(portraitUrl(CHARACTERS[hero.char].id, portraitSize()), hero.char, look(hero.id), 'results-portrait'),
       h(
         'div',
         {},

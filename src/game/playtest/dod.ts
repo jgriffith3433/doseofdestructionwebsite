@@ -197,6 +197,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'grab') await r.grabRun();
         else if (id === 'special-fx') await r.specialFx();
         else if (id === 'select-specials') await r.selectSpecials();
+        else if (id === 'portraits') await r.portraitsRun();
         else if (id === 'colours') await r.coloursRun();
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'hit-feel') await r.hitFeel();
@@ -4227,6 +4228,137 @@ class Run {
       if (min < (low ? 45 : 40)) t.problem('warning', `a special's effect ran at ${Math.round(min)} fps (want ${low ? 45 : 40})`);
     }
     t.metric('fxShown', shown);
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- painted portraits and the key art
+
+  /**
+   * The painted portraits (characters/portrait/<id>-512.webp and -256.webp) and the roster key art on the title.
+   * Title: the key art is loaded, 16:9 and fills the screen. Select: all 33 tiles show a loaded square portrait
+   * drawn at one size (so the eyes sit in the same band), with the full name under it; on a phone the 256 px file at
+   * 64 px or more. VS and results show the same pictures. Played through taps on a phone (390x844 is turned).
+   */
+  async portraitsRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('portraits');
+    }
+    this.logViewport(touch && this.isPhone());
+    const phone = this.isPhone();
+    const baseOf = (src: string) => /\/characters\/portrait\/([a-z0-9-]+)-(256|512)\.webp/.exec(src)?.[1] ?? '';
+    // 1. The title: the key art behind the logo.
+    await this.screen('title', 30000);
+    if (promptShowing()) await this.tapToPlay();
+    await this.t.wait(800);
+    const art = this.q('#title .title-art img') as HTMLImageElement | null;
+    if (!art || !(art.complete && art.naturalWidth > 0)) t.problem('bug', 'the title screen has no roster key art loaded');
+    else {
+      const r = art.getBoundingClientRect();
+      const ratio = art.naturalWidth / art.naturalHeight;
+      const fills = r.width >= innerWidth - 1 && r.height >= innerHeight - 1;
+      const cs = getComputedStyle(art);
+      if (!/key-art/.test(art.currentSrc)) t.problem('bug', `the title shows ${art.currentSrc}, not the roster key art`);
+      else if (Math.abs(ratio - 16 / 9) > 0.03) t.problem('bug', `the key art is ${art.naturalWidth}x${art.naturalHeight}, not 16:9`);
+      else if (!fills || cs.objectFit !== 'cover' || !/^50%/.test(cs.objectPosition)) t.problem('bug', `the key art does not fill the title screen cropped to the centre (${Math.round(r.width)}x${Math.round(r.height)}, ${cs.objectFit} ${cs.objectPosition})`);
+      else t.event('title-key-art', `${art.naturalWidth}x${art.naturalHeight} key art fills ${innerWidth}x${innerHeight}, cropped to the centre (${cs.objectPosition}), brand gradient behind (${getComputedStyle(this.q('#title')!).backgroundImage.includes('gradient') ? 'yes' : 'no'})`);
+    }
+    await this.click(() => this.q('#btn-start'), 'Press start');
+    await this.screen('main');
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      // 2. Versus select: 33 painted portraits, one size, names under them.
+      await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+      await this.screen('select');
+      const tiles = () => [...document.querySelectorAll<HTMLElement>('#select-grid .tile[data-fighter]')];
+      await t.until(() => tiles().length === CHARACTERS.length, 6000, `${CHARACTERS.length} fighter tiles`);
+      const imgs = tiles().map((el) => el.querySelector<HTMLImageElement>('img[data-portrait]'));
+      await t.until(() => imgs.every((i) => !!i && i.complete && i.naturalWidth > 0), 12000, 'every portrait to load');
+      const bad: string[] = [];
+      const sizes = new Set<string>();
+      let minPx = Infinity;
+      const cut: string[] = [];
+      for (const el of tiles()) {
+        const id = el.dataset.fighter!;
+        const c = CHARACTERS.find((x) => x.id === id)!;
+        const img = el.querySelector<HTMLImageElement>('img[data-portrait]');
+        if (!img || !(img.complete && img.naturalWidth > 0)) { bad.push(`${c.name} (not loaded)`); continue; }
+        if (!/\/characters\/portrait\//.test(img.currentSrc) || baseOf(img.currentSrc) !== id) bad.push(`${c.name} (shows ${img.currentSrc})`);
+        if (img.naturalWidth !== img.naturalHeight) bad.push(`${c.name} (${img.naturalWidth}x${img.naturalHeight} is not square)`);
+        if (phone && !/-256\.webp/.test(img.currentSrc)) bad.push(`${c.name} (phone loads ${img.currentSrc}, not the 256 px file)`);
+        const r = img.getBoundingClientRect();
+        sizes.add(`${Math.round(r.width)}x${Math.round(r.height)}`);
+        minPx = Math.min(minPx, Math.round(Math.min(r.width, r.height)));
+        const label = el.querySelector<HTMLElement>('span');
+        const text = label?.textContent?.trim() ?? '';
+        if (!(el.classList.contains('locked') ? text === 'Locked' : text === c.name)) bad.push(`${c.name} (label "${text}")`);
+        if (label && (label.scrollWidth > label.clientWidth + 1 || label.getBoundingClientRect().right > innerWidth + 0.5)) cut.push(c.name);
+      }
+      t.metric('portraitsShown', tiles().length - bad.length);
+      if (bad.length) t.problem('bug', `character select portraits: ${bad.join('; ')}`);
+      else t.event('select-portraits', `${tiles().length} painted portraits loaded, square, from characters/portrait/`);
+      // Drawn at one size, so the eyes (on the upper third of every picture) sit in the same band on every tile.
+      if (sizes.size === 1) t.event('select-framing', `all tiles draw their portrait at ${[...sizes][0]} px, eyes on the same upper-third band`);
+      else t.problem('bug', `portrait tiles differ in size (${[...sizes].join(', ')}): the faces would not line up`);
+      if (cut.length) t.problem('bug', `names cut off under the portraits: ${cut.join(', ')} at ${innerWidth}x${innerHeight}`);
+      else t.event('select-names', `every name reads in full under its portrait at ${innerWidth}x${innerHeight}`);
+      t.metric('portraitTilePx', minPx);
+      if (phone) {
+        if (minPx >= 64) t.event('select-phone-size', `portraits are at least ${minPx} px at ${innerWidth}x${innerHeight} (256 px files)`);
+        else t.problem('bug', `a portrait is only ${minPx} px at ${innerWidth}x${innerHeight} (want 64 or more)`);
+      }
+      // A tap on a tile: the preview (where it shows) holds the same picture.
+      const pick = CHARACTERS.find((c) => c.id === (typeof this.options.fighter === 'string' ? this.options.fighter : 'break')) ?? CHARACTERS[0];
+      await this.click(() => this.q(`#select-grid .tile[data-fighter="${pick.id}"]`), pick.name);
+      const prev = this.q('#select-preview img.select-portrait') as HTMLImageElement | null;
+      if (prev && prev.getClientRects().length > 0) {
+        await t.until(() => prev.complete && prev.naturalWidth > 0, 5000, 'the preview portrait');
+        if (baseOf(prev.currentSrc) === pick.id) t.event('select-preview-same', `${pick.name}: the preview shows the same painted portrait (${prev.naturalWidth} px file)`);
+        else t.problem('bug', `the preview for ${pick.name} shows ${prev.currentSrc}`);
+      }
+      t.progress(0.25);
+      // 3. A 1-stock match: the VS card and the results show the same pictures.
+      const seenIds: string[] = [];
+      this.onVersus = async () => {
+        await this.screen('versus', 15000);
+        await t.until(() => document.querySelectorAll('#versus-body .vs-fighter img.vs-portrait').length > 0, 3000, 'the VS portraits');
+        await this.wait(1200);
+        const vs = [...document.querySelectorAll<HTMLImageElement>('#versus-body .vs-fighter img.vs-portrait')];
+        const wrong = vs.filter((i) => !(i.complete && i.naturalWidth > 0) || !baseOf(i.currentSrc || i.src));
+        if (!vs.length || wrong.length) t.problem('bug', `the VS card portraits did not load (${wrong.length}/${vs.length})`);
+        else {
+          seenIds.push(...vs.map((i) => baseOf(i.currentSrc || i.src)));
+          t.event('vs-portraits', `${vs.length} painted portraits on the VS card: ${seenIds.join(', ')} (same files as select)`);
+        }
+        this.checkClipping('VS screen', this.q('#versus'));
+      };
+      await this.startVersus(1, true);
+      this.onVersus = null;
+      t.progress(0.45);
+      await this.fight(() => false, 6 * 60 * 1000);
+      await this.screen('results', 30000);
+      await this.wait(900);
+      const win = this.q('#results-body img.results-portrait') as HTMLImageElement | null;
+      if (!win || !(win.complete && win.naturalWidth > 0)) t.problem('bug', 'the results show no painted portrait of the winner');
+      else {
+        const id = baseOf(win.currentSrc || win.src);
+        t.event('results-portrait', `the winner's painted portrait (${id}, ${win.naturalWidth} px file) is on the results`);
+        if (seenIds.length && !seenIds.includes(id)) t.problem('bug', `the results portrait (${id}) is not one of the fighters on the VS card (${seenIds.join(', ')})`);
+        else t.event('results-same', `the results portrait is the one on select and the VS card (${id})`);
+      }
+      this.checkClipping('results', this.q('#results'));
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+    } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
     t.progress(1);
     t.finish('done');
   }

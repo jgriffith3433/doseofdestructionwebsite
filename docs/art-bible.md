@@ -38,11 +38,18 @@ The width is set every frame (`Renderer.sizeOutline`) from how big the fighter i
 - `node src/game/test/style.test.ts` (in `npm test`) lists the fighters outside the ranges (must be 0), that every stored remap reproduces its numbers, that outlines are dark and coloured on every look, and the width rule.
 - Playtest scenario `art-style` (phone: 390x844 turned to 844x390): the style report, the remap and outline pass on both fighters of a match for colour looks 1 to 4, the outline width the bible gives for the render height, and at least 1 px at 844x390.
 
+## Portraits and the key art
+
+- **One painted style** for the 33 portraits on character select, the VS card and the results: a three-quarter bust, rim-lit, on a dark broadcast-studio backdrop (near-black navy, soft stage lights), eyes on the upper third (about 28 to 38% from the top), the same face, outfit and colours as the fighter's `characters/large/<id>.webp`. Hawkes Gen `image.edit` (project `org_eb0d5c82e8da8c2d.doseofdestruction`, 1024x1024, seed 11, the prompt in `tools/portraits.md`), one job per fighter; the 1024 picture stays in Gen's library, the game ships WebP at 512 and 256 px: `characters/portrait/<id>-512.webp` and `<id>-256.webp` (`ui/dom.ts` `portraitUrl`, `portraitSize`: a phone-sized window loads the 256 px file).
+- **Where they show:** select tiles and slot buttons (256, square, name under it, 64 px or more at 844x390), the select preview (512; hidden on a phone landscape), the VS plate (`.vs-portrait`) and the results hero (`.results-portrait`). Colour looks tint the VS and results copies through `paintImage`.
+- **Key art:** one painted 1920x1080 picture, the Season 1 cast mid-brawl on City Top (`site/img/key-art-1920.webp|.jpg`, 1280 and 720 webp too; Gen `image.generate`, four candidates, best picked). It sits behind the logo on the title and the Tap to play card, centre-cropped on a phone, and is the share card (`og:image`). The brand gradient stays behind it, so the title is never flat black while it loads.
+- Scenario `portraits` checks all of it (events `title-key-art`, `select-portraits`, `select-framing`, `select-names`, `select-phone-size`, `vs-portraits`, `results-portrait`, `results-same`).
+
 ## Report at the time of writing
 
 Before the remap 24 of 33 fighters were outside the ranges (the 11 darkest, e.g. Slice, Dj Won't Read, Orchestrator, at a light end of 0.25 - 0.46; and the dullest, e.g. Uh Me, Susan, at mean saturation 0.16 - 0.19). After it, 0 of 33.
 
 ## Not in this part
 
-- Portraits are painted by Hawkes Gen (GPU), so the portrait framing numbers are the brief for that task (k_19bda62fd9b9), not enforced in code.
+- The portrait framing (eyes on the upper third) is checked by eye at bake time, not enforced in code: the runtime scenario checks every tile draws its square portrait at one size.
 - The remap is measured on the idle sheet; a few clips (special effects drawn into the sheet) may sit slightly outside.

@@ -491,6 +491,16 @@
       ]
     },
     {
+      "id": "portraits",
+      "title": "Painted portraits: the title shows the roster key art, character select shows 33 portraits framed alike (256 px ones on a phone, 64 px or more with readable names), the VS card and the results show the same pictures (phone: 390x844 turned to landscape, touch)",
+      "description": "Title: the key art (site/img/key-art-*, 16:9) is loaded and fills the screen behind the logo, cropped to the centre of the cast (title-key-art). Versus select: 33 portrait tiles (characters/portrait/<id>-256.webp), every one loaded, square, drawn at the same size so the faces sit in the same band, each with its full name beside it and no text cut off (select-portraits, select-framing, select-names; on a phone each at least 64 px wide and the 256 px file: select-phone-size, metric portraitTilePx). A tap on a tile puts the same picture in the preview where it shows (select-preview-same). A 1-stock match: the VS card shows each fighter's portrait plate (vs-portraits, same file as select) and the results show the winner's (results-portrait, results-same). Played through taps on a phone (390x844 is turned to 844x390 like select-specials). Options: fighter, foe, input (touch forces the touch UI), at (phone). Metrics portraitsShown, portraitTilePx.",
+      "seconds": 300,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "select-specials",
       "title": "Character select shows how each fighter plays: the hovered or tapped fighter's four specials by name and a looping clip, fitting the screen (phone: 390x844 turned to landscape, touch)",
       "description": "Opens Training's select from the main menu and taps each of the 33 fighters in turn (option fighter: one): the preview lists the four specials (neutral, side, up, down) with the names the sim plays (select-specials), the clip and the four rows sit inside the screen and the preview with no text cut off (select-fit), the clip preview moves (select-clip), and tapping the down special pins it. Played through taps (a phone: touch pointer events; 390x844 is turned to 844x390 like specials). Options: fighter, input (touch forces the touch UI), at (phone). Metric selectFits.",

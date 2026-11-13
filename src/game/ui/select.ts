@@ -5,7 +5,7 @@ import { CHARACTERS, type CharacterDef } from '../sim/characters.ts';
 import type { SlotSetup } from '../match.ts';
 import { PLAYER_COLORS, prefetchFighters } from '../render/renderer.ts';
 import { CHAPTERS, isUnlocked } from '../campaign/story.ts';
-import { $, h, kids, largeUrl, thumbUrl } from './dom.ts';
+import { $, h, kids, largeUrl, portraitSize, portraitUrl, thumbUrl } from './dom.ts';
 import { specialsPanel } from './specialsPreview.ts';
 import { swatchRow } from './lookUi.ts';
 import { audio } from '../audio.ts';
@@ -97,11 +97,11 @@ export function openSelect({ mode, config, onDone }: Options): void {
   const portrait = (c: CharacterDef): HTMLImageElement => {
     let img = portraits.get(c.id);
     if (!img) {
-      img = h('img', { src: largeUrl(c.id), alt: '' }) as HTMLImageElement;
+      img = h('img', { src: portraitUrl(c.id, portraitSize()), alt: '', class: 'select-portrait', 'data-portrait': c.id }) as HTMLImageElement;
       img.decoding = 'async';
       img.onerror = () => {
         img!.onerror = null;
-        img!.src = thumbUrl(c.id);
+        img!.src = largeUrl(c.id);
       };
       portraits.set(c.id, img);
     }
@@ -109,9 +109,9 @@ export function openSelect({ mode, config, onDone }: Options): void {
   };
   CHARACTERS.forEach(portrait);
 
-  // Roster and slot thumbnails: one kept, preloaded <img> per fighter (cloned into tiles and slots),
-  // so the grid never shows empty boxes. A tile stays a dark silhouette placeholder until its image
-  // has loaded (`.loaded`), and falls back to the large portrait if the thumbnail fails.
+  // Roster and slot pictures: one kept, preloaded <img> per fighter (cloned into tiles and slots), the painted
+  // 256 px portrait, so the grid never shows empty boxes. A tile stays a dark placeholder until its image
+  // has loaded (`.loaded`), and falls back to the cutout thumbnail if the portrait fails.
   const thumbs = new Map<string, HTMLImageElement>();
   const thumb = (c: CharacterDef): HTMLImageElement => {
     let src = thumbs.get(c.id);
@@ -120,16 +120,16 @@ export function openSelect({ mode, config, onDone }: Options): void {
       src.decoding = 'async';
       src.onerror = () => {
         src!.onerror = null;
-        src!.src = largeUrl(c.id);
+        src!.src = thumbUrl(c.id);
       };
-      src.src = thumbUrl(c.id);
+      src.src = portraitUrl(c.id, 256);
       thumbs.set(c.id, src);
     }
-    const img = h('img', { alt: '', draggable: 'false' }) as HTMLImageElement;
+    const img = h('img', { alt: '', draggable: 'false', 'data-portrait': c.id }) as HTMLImageElement;
     const mark = () => img.classList.add('loaded');
     img.onerror = () => {
       img.onerror = null;
-      img.src = largeUrl(c.id);
+      img.src = thumbUrl(c.id);
     };
     img.onload = mark;
     img.src = src.currentSrc || src.src;
