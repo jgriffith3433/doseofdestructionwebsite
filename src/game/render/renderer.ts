@@ -252,6 +252,7 @@ export class Renderer {
       m.emissiveTexture = soft;
       m.disableDepthWrite = true;
       if (add) m.alphaMode = Constants.ALPHA_ADD;
+      else m.alpha = 0.3; // faint: smoke must never compete with the fighters
       return m;
     };
     this.smokeMats = { grey: smoke('smoke-grey', '#9a9a9e', false), white: smoke('smoke-white', '#ffffff', false), streak: smoke('smoke-streak', '#ff4a1f', true) };
@@ -1236,11 +1237,12 @@ export class Renderer {
           this.sparks.push({ mesh, vx: 0, vy: 0, life: 10, max: 10, size: look.size * 1.1, stretch: 3.4, grow: 0 });
         } else {
           const mesh = this.takeSpark(look.kind === 'white' ? this.smokeMats.white : this.smokeMats.grey);
-          mesh.position.set(cx + j * Math.cos(ang + 1.57), cy + j * Math.sin(ang + 1.57), -0.36);
+          // Behind the fighters (they sit at z 0 to -0.05), so smoke never covers a body or its outline.
+          mesh.position.set(cx + j * Math.cos(ang + 1.57), cy + j * Math.sin(ang + 1.57), 0.08);
           mesh.rotation.z = Math.random() * 6.28;
-          const life = 22 + Math.floor(Math.random() * 12);
+          const life = 10 + Math.floor(Math.random() * 6);
           // The puff stays where it was dropped (the fighter moves on, so it lines up behind it) and billows as it thins.
-          this.sparks.push({ mesh, vx: 0, vy: 0.003, life, max: life, size: look.size * (0.8 + Math.random() * 0.5), grow: 1.4 });
+          this.sparks.push({ mesh, vx: 0, vy: 0.003, life, max: life, size: look.size * (0.8 + Math.random() * 0.4), grow: 0.8 });
         }
         rec.puffs++;
       }
@@ -1695,7 +1697,7 @@ export class Renderer {
       r.hop = 14;
       st.bounces++;
       st.dustBursts++;
-      this.burst(f.x * S, f.y * S + 0.02, 14, 0.07);
+      this.burst(f.x * S, f.y * S + 0.02, 7, 0.07);
       this.onSynth?.('thud');
     }
     if (f.action === ACT.ATTACK) {
