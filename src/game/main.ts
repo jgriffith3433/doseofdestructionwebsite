@@ -17,7 +17,7 @@ import { STAGES } from './sim/stage.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
 import { GAMEPAD_HELP, KEYBOARD_HELP, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
 import { installPerfMonitor } from './playtest/hawkes-perf.js';
-import { damageColor, damageShake } from './hitFeel.ts';
+import { damageColor, damageShake, hitTier } from './hitFeel.ts';
 import { clearMarkers, markerLog, markerRects, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
@@ -563,11 +563,13 @@ function segmentEnv(): SegmentEnv {
 }
 
 /** The sounds of a replayed hit and KO (no barks: Blog Man is talking over it). */
+const HIT_SOUND = { light: 'hit-light', medium: 'hit-medium', heavy: 'hit-heavy' } as const;
+
 function replaySounds(events: SimEvent[]): void {
   for (const e of events) {
     if (e.type === 'hit' && !e.shield) {
-      audio.sfx(e.dmg < 70 ? 'hit-light' : e.dmg < 130 ? 'hit-medium' : 'hit-heavy', { vary: true });
-      if (e.dmg >= 130) audio.crowd('ooh');
+      audio.sfx(HIT_SOUND[hitTier(e.dmg)], { vary: true });
+      if (e.dmg >= 130 && !events.some((k) => k.type === 'ko')) audio.crowd('ooh');
     } else if (e.type === 'ko') {
       audio.sfx('ko');
       audio.crowd('roar');
@@ -1437,22 +1439,26 @@ function showBanner(text: string, ms: number): HTMLElement {
 }
 
 function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
+  // A killing blow gets the KO roar, not a gasp on top of it in the same frame.
+  const koThisTick = events.some((k) => k.type === 'ko');
   for (const e of events) {
     switch (e.type) {
       case 'hit':
         if (e.shield) audio.sfx('hit-shield', { vary: true, at: at(e.x) });
         else {
-          audio.sfx(e.dmg < 70 ? 'hit-light' : e.dmg < 130 ? 'hit-medium' : 'hit-heavy', { vary: true, at: at(e.x) });
-          // A special's own impact (its archetype's crack) and the attacker's signature accent on top.
-          if (e.special) audio.special('impact', e.special, CHARACTERS[m.state.fighters[e.attacker].char].id, at(e.x));
+          const tier = hitTier(e.dmg);
+          // A special's own impact (its archetype's crack) layers on the generic hit. A light hit of a special
+          // (each hit of a flurry) plays only the special's impact, so rapid hits don't stack two sounds each.
+          const specialLayer = e.special ? audio.special('impact', e.special, CHARACTERS[m.state.fighters[e.attacker].char].id, at(e.x)) : false;
+          if (!(specialLayer && tier === 'light')) audio.sfx(HIT_SOUND[tier], { vary: true, at: at(e.x) });
           // Heavy hits: the studio crowd gasps (ooh). Medium/heavy: the victim's hurt bark.
-          if (e.dmg >= 130) audio.crowd('ooh');
+          if (e.dmg >= 130 && !koThisTick) audio.crowd('ooh');
           if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt', at(m.state.fighters[e.victim].x));
         }
         break;
       case 'hurt':
         // Stage damage (hazards, damage zones) lands with a hit sound like any other hit.
-        audio.sfx(e.dmg < 70 ? 'hit-light' : 'hit-medium', { vary: true, at: at(m.state.fighters[e.victim].x) });
+        audio.sfx(HIT_SOUND[hitTier(e.dmg)], { vary: true, at: at(m.state.fighters[e.victim].x) });
         if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt', at(m.state.fighters[e.victim].x));
         break;
       case 'stage':
@@ -1549,6 +1555,9 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         if (SMASHES.has(f.move) || VOICE_SPECIALS.has(f.move)) {
           audio.fighterVoice(CHARACTERS[f.char].id, 'effort', at(f.x));
         }
+      } else if (f.action === ACT.SHIELD) {
+        // Raising the shield answers the press with a soft bubble-up, not silence.
+        audio.synth('whoosh', 0.25);
       } else if (f.action === ACT.ROLL || f.action === ACT.SPOTDODGE || f.action === ACT.AIRDODGE) audio.sfx('dodge', { vary: true, at: at(f.x) });
     }
     lastActions[i] = f.action;

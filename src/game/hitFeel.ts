@@ -26,9 +26,9 @@ export interface Impact {
 
 export const impactFor = (tier: HitTier, kb: number): Impact => {
   const push = Math.min(16, kb >> 3);
-  if (tier === 'light') return { sparks: 6 + (push >> 2), stars: 0, ring: false, shake: Math.min(0.12, kb * 0.001), flash: 0 };
-  if (tier === 'medium') return { sparks: 10 + (push >> 1), stars: 1, ring: false, shake: Math.min(0.3, 0.1 + kb * 0.002), flash: 0 };
-  return { sparks: 16 + push, stars: 2, ring: true, shake: Math.min(0.7, 0.35 + kb * 0.003), flash: 0.25 };
+  if (tier === 'light') return { sparks: 5 + (push >> 3), stars: 0, ring: false, shake: Math.min(0.12, kb * 0.001), flash: 0 };
+  if (tier === 'medium') return { sparks: 8 + (push >> 2), stars: 1, ring: false, shake: Math.min(0.3, 0.1 + kb * 0.002), flash: 0 };
+  return { sparks: 12 + (push >> 1), stars: 2, ring: true, shake: Math.min(0.7, 0.35 + kb * 0.003), flash: 0.18 };
 };
 
 const SHAKE_KEY = 'dod.shake';
@@ -105,7 +105,8 @@ export const trailFor = (tier: HitTier, kb: number, ko: boolean): Trail => {
   if (tier === 'light' && !ko) return { kind: 'none', every: 0, puffs: 0, size: 0 };
   const big = Math.min(1, kb / 90);
   const kind: TrailKind = ko ? 'streak' : tier === 'heavy' ? 'white' : 'grey';
-  return { kind, every: tier === 'heavy' || ko ? 1 : 2, puffs: 1 + Math.floor(big * 2.4), size: 0.2 + big * 0.4 };
+  // Polish pass: smoke is a faint hint behind the fighter, not a cloud (every 3rd or 2nd frame, 1-2 small puffs); the KO streak keeps its rate.
+  return { kind, every: ko ? 1 : tier === 'heavy' ? 2 : 3, puffs: 1 + Math.floor(big * 1.5), size: 0.12 + big * 0.2 };
 };
 
 // ------------------------------------------------------------------ kill cue
