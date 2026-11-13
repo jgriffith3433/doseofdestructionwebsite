@@ -3563,7 +3563,10 @@ class Run {
       forceTouchUi(true);
     }
     const gfxWas = localStorage.getItem(GFX_KEY);
-    const want = ['idle', 'walk', 'jab', 'fsmash'] as const;
+    // option cast: "rest" plays the 20 fighters outside Season 1 (their idle and run are the 30 fps clips;
+    // the jab still plays with hitboxes shown). Default: the Season 1 cast with all four clips.
+    const rest = this.options.cast === 'rest';
+    const want = (rest ? ['idle', 'walk'] : ['idle', 'walk', 'jab', 'fsmash']) as readonly ('idle' | 'walk' | 'jab' | 'fsmash')[];
     let fps30 = 0;
     let halfSheets = 0;
     const fpsSamples: number[] = [];
@@ -3571,7 +3574,7 @@ class Run {
       await this.toMainMenu();
       setGraphics({ quality: 'low', glow: false });
       const train = stagesFor('training')[0]?.index ?? 0;
-      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : [...SEASON_ONE];
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : rest ? CHARACTERS.map((c) => c.id).filter((id) => !SEASON_ONE.includes(id)) : [...SEASON_ONE];
       const pad = touch ? makeTouchPad() : makeKeyboardPad();
       if (!pad) {
         t.problem('bug', 'the stick controls were not built');
