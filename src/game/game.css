@@ -273,53 +273,94 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 .rule button:hover, .slot-tools button:hover { border-color: var(--gold); }
 .rule b { min-width: 18px; text-align: center; color: var(--text); }
 
+/* The broadcast set: the portrait wall on the left, the lit stage on the right (the hovered fighter large, their lower
+   third, a live special inset, four special buttons, a Details toggle for the stat bars). */
 .select-body {
   display: grid;
-  grid-template-columns: minmax(240px, 340px) 1fr;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   gap: 16px;
   min-height: 0;
-  max-width: 1280px;
   width: 100%;
   margin: 0 auto;
 }
 .preview {
-  display: grid;
-  align-content: end;
-  gap: 4px;
-  background: radial-gradient(ellipse at 50% 55%, rgba(255, 90, 31, 0.32), transparent 65%), var(--card);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 8px;
+  background: #0d0a09;
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 14px;
   min-height: 0;
   overflow: hidden;
+  isolation: isolate;
 }
-.preview img { width: 100%; height: clamp(130px, 26vh, 300px); object-fit: contain; object-position: center; border-radius: 8px; }
-.preview img.select-portrait { aspect-ratio: 1 / 1; width: auto; max-width: 100%; justify-self: center; object-fit: cover; box-shadow: 0 0 0 2px rgba(255, 209, 90, 0.35); }
-.preview { overflow-y: auto; }
-.preview h3 { font-size: 26px; color: var(--text); letter-spacing: 0.02em; }
-.preview .blurb { color: var(--muted); font-size: 15px; margin-bottom: 8px; }
-/* The hovered fighter's four specials: a looping clip of the one in focus and a button per special (specialsPreview.ts). */
-.specials { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr); gap: 8px; align-items: start; margin-top: 8px; min-width: 0; }
-.sp-stage { border-radius: 8px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line); overflow: hidden; }
-.sp-clip { display: block; width: 100%; height: auto; aspect-ratio: 176 / 132; }
-.sp-list { display: grid; gap: 4px; min-width: 0; }
+.set-render { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }
+.lower-third {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  align-self: stretch;
+  padding: 8px 14px 8px 8px;
+  background: linear-gradient(90deg, rgba(10, 7, 6, 0.9), rgba(10, 7, 6, 0.55));
+  border-left: 5px solid var(--gold);
+  border-radius: 4px 10px 10px 4px;
+  animation: lt-in 220ms ease-out;
+}
+@keyframes lt-in { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .lower-third { animation: none; } }
+.lower-third img.select-portrait { flex: none; width: clamp(56px, 8vh, 96px); aspect-ratio: 1 / 1; height: auto; object-fit: cover; border-radius: 8px; box-shadow: 0 0 0 2px rgba(255, 209, 90, 0.45); }
+.preview.is-locked .lower-third img.select-portrait { filter: brightness(0) contrast(0.6); }
+.lt-text { min-width: 0; display: grid; gap: 1px; }
+.lt-text h3 { font-size: clamp(22px, 3.2vh, 34px); line-height: 1.05; color: var(--text); letter-spacing: 0.02em; }
+.lt-text .blurb { color: var(--muted); font-size: clamp(13px, 1.8vh, 17px); }
+/* The live special: a small inset in the corner of the set, the sim playing the special on a dummy. */
+.preview .sp-stage { position: absolute; top: 12px; right: 12px; width: clamp(150px, 36%, 300px); z-index: 2; }
+.specials { display: contents; }
+.sp-stage { border-radius: 8px; background: rgba(0, 0, 0, 0.55); border: 1px solid var(--gold); overflow: hidden; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5); }
+.sp-clip { display: block; width: 100%; height: auto; aspect-ratio: 256 / 160; }
+.sp-tag { position: absolute; left: 6px; top: 5px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; color: var(--gold); text-shadow: 0 1px 2px #000; }
+.sp-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; min-width: 0; }
 .sp-row {
   display: grid;
   gap: 0;
+  align-content: center;
   text-align: left;
-  min-height: 38px;
-  padding: 3px 10px;
+  min-height: 48px;
+  padding: 4px 10px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  background: var(--card);
+  background: rgba(20, 15, 12, 0.88);
   color: var(--text);
   cursor: pointer;
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.sp-row.on { border-color: var(--gold); background: rgba(255, 209, 90, 0.12); }
+.sp-row.on { border-color: var(--gold); background: rgba(255, 209, 90, 0.16); }
 .sp-name { font-size: 13px; line-height: 1.2; letter-spacing: 0.02em; }
 .sp-kind { font-style: normal; font-size: 11px; line-height: 1.2; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.details-toggle {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 2;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(20, 15, 12, 0.88);
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.details-toggle[aria-pressed="true"] { border-color: var(--gold); background: rgba(255, 209, 90, 0.2); }
+.preview .stat-bars { display: none; position: absolute; left: 12px; top: 64px; width: min(220px, 42%); z-index: 2; padding: 10px 12px; border-radius: 10px; background: rgba(10, 7, 6, 0.85); border: 1px solid var(--line); }
+.preview.details .stat-bars { display: grid; }
 .stat-bars { display: grid; gap: 5px; }
 .stat-bars div { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 8px; font-size: 13px; }
 .stat-bars dt { color: var(--muted); }
@@ -328,8 +369,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
   align-content: start;
   overflow-y: auto;
   min-height: 0;
@@ -363,8 +404,12 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 .tile img:not(.loaded), .slot-pick img:not(.loaded) {
   background: radial-gradient(ellipse 30% 18% at 50% 24%, #3a2a22 98%, transparent 100%), radial-gradient(ellipse 48% 40% at 50% 80%, #3a2a22 98%, transparent 100%);
 }
-.tile:hover, .tile:focus-visible { border-color: var(--hot); outline: none; background: #2a1810; }
-.tile:hover img, .tile:focus-visible img { transform: scale(1.08); }
+.tile { transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease; }
+/* Hover or focus lifts the tile and frames it in the active slot's colour; a picked fighter keeps its slot's colour. */
+.tile:hover, .tile:focus-visible { border-color: var(--slot, var(--hot)); outline: none; background: #2a1810; transform: translateY(-4px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--slot, var(--hot)); z-index: 1; }
+.tile:hover img, .tile:focus-visible img { transform: scale(1.06); }
+.tile.picked { border-color: var(--pick, var(--gold)); }
+@media (prefers-reduced-motion: reduce) { .tile, .tile img { transition: none; } .tile:hover, .tile:focus-visible { transform: none; } }
 .tile.locked { opacity: 0.55; cursor: not-allowed; }
 .tile.locked img { filter: brightness(0) contrast(0.6); }
 .tile.locked span { color: var(--gold); letter-spacing: 0.08em; text-transform: uppercase; }
@@ -1170,10 +1215,9 @@ body.scene-on .touch { visibility: hidden; }
   .select-screen { grid-template-rows: auto auto auto; overflow-y: auto; }
   /* The page scrolls as a whole here, so nothing should shrink to fit. */
   .select-body { grid-template-columns: 1fr; min-height: auto; }
-  .select-body .grid, .select-body .preview { min-height: auto; }
-  .preview { grid-template-columns: 110px 1fr; align-items: end; column-gap: 12px; }
-  .preview img { grid-row: 1 / 6; height: 150px; }
-  .specials { grid-column: 1 / -1; }
+  .select-body .grid { min-height: auto; }
+  .select-body .preview { min-height: 440px; }
+  .sp-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid { overflow: visible; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
   .season-chapters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .howto-body, .results-grid { grid-template-columns: 1fr; }
@@ -1521,8 +1565,6 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
   .grid { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
   .tile span { font-size: 10px; }
   .preview { padding: 10px; }
-  .preview h3 { font-size: 22px; }
-  .preview .blurb { font-size: 14px; }
   .stage-grid { grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 12px; }
 
   /* VS: smaller fighters, name cards and mark so both fighters and their cards stay on screen. */
@@ -1583,19 +1625,30 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
   .results-actions { gap: 8px; }
 }
 
-/* A phone on its side (844x390): nothing scrolls the preview away. The preview is a column beside the tiles (which
-   scroll on their own): name and role, then the clip beside the four specials' buttons. The big picture, the blurb
-   and the stat bars give way (they stay on bigger screens and the upright phone). The slot cards go to one row. */
+/* A phone on its side (844x390): nothing scrolls the stage away. The portrait wall is on the left and swipes on its own
+   (tiles 64 px); the render sits beside it: the fighter, their lower third, then the four special buttons, with the
+   live special inset in the render's corner. The slot cards go to one row. */
 @media (max-height: 520px) and (min-width: 561px) {
   .select-screen { grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; gap: 6px; }
-  .select-body { grid-template-columns: minmax(330px, 46%) minmax(0, 1fr); min-height: 0; gap: 10px; }
+  .select-body { grid-template-columns: minmax(0, 1fr) minmax(300px, 44%); min-height: 0; gap: 10px; }
   .select-body .grid { overflow-y: auto; min-height: 0; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
-  .preview { align-content: start; gap: 2px; padding: 8px 10px; overflow: hidden; }
-  .preview > img, .preview .blurb, .preview .stat-bars { display: none; }
-  .preview h3 { font-size: 20px; line-height: 1.1; }
-  .preview .kicker { font-size: 11px; }
-  .specials { grid-template-columns: 128px minmax(0, 1fr); margin-top: 4px; gap: 8px; }
-  .sp-row { min-height: 34px; padding: 2px 8px; }
+  /* The render is a block above the lower third and the four special buttons, the inset sits in its corner. */
+  .select-body .preview { min-height: 0; }
+  .preview { gap: 4px; padding: 6px 8px; }
+  .set-render { position: relative; inset: auto; flex: 1 1 0; min-height: 70px; height: auto; z-index: auto; border-radius: 8px; }
+  .preview .sp-stage { top: 10px; right: 10px; width: 104px; }
+  .sp-tag { display: none; }
+  .details-toggle { left: 10px; top: 10px; padding: 0 10px; font-size: 11px; }
+  .preview .stat-bars { top: 60px; left: 10px; width: 180px; }
+  .lower-third { gap: 8px; padding: 3px 8px 3px 4px; }
+  .lower-third img.select-portrait { width: 40px; }
+  .lt-text .kicker { display: none; }
+  .lt-text h3 { font-size: 17px; }
+  .lt-text .blurb { font-size: 12px; line-height: 1.15; }
+  .sp-list { gap: 4px; }
+  .sp-row { min-height: 44px; padding: 2px 6px; }
+  .sp-name { font-size: 11px; }
+  .sp-kind { display: none; }
   .slots { gap: 6px; }
   .slot { display: flex; align-items: center; flex-wrap: nowrap; gap: 6px; min-width: 0; max-width: none; padding: 3px 6px; }
   .slot-pick img { width: 36px; height: 36px; }
@@ -1603,8 +1656,8 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
 }
 /* An upright phone (390x844): the clip sits over the list, both inside the width. */
 @media (max-width: 560px) {
-  .specials { grid-template-columns: minmax(0, 1fr); }
-  .sp-stage { max-width: 176px; justify-self: center; width: 100%; }
+  .preview .sp-stage { width: 120px; }
+  .sp-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* ---------------------------------------------------------- rotate prompt */

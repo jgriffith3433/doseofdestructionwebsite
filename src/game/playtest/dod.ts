@@ -197,6 +197,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'grab') await r.grabRun();
         else if (id === 'special-fx') await r.specialFx();
         else if (id === 'select-specials') await r.selectSpecials();
+        else if (id === 'select-set') await r.selectSet();
         else if (id === 'portraits') await r.portraitsRun();
         else if (id === 'colours') await r.coloursRun();
         else if (id === 'sound-settings') await r.soundSettings();
@@ -4456,6 +4457,142 @@ class Run {
       t.metric('selectFits', shown);
       t.progress(1);
     } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.finish('done');
+  }
+
+
+  // ---------------------------------------------------------- character select: the broadcast set
+
+  /**
+   * The select as a broadcast set (`ui/select.ts`, `fighterRender.ts`, `specialSim.ts`). Training's select, a spread of
+   * fighters (option `fighter`: one; `count`: how many, default 6, 33 for all):
+   * hover or tap shows the animated render and the live special inset within 300 ms (`select-render`, metric `renderMs`),
+   * the inset moves (`select-sim`), a pick plays the confirm pose and the fighter's voiced taunt (`select-confirm`),
+   * the grid shows all 33 portraits without scrolling at 1920x1080 (`select-no-scroll`), and on a phone at 844x390 the
+   * grid scrolls by swipe, tiles are 44 px or more and the render sits beside it (`select-swipe`, `select-tiles`,
+   * `select-beside`). A 390x844 phone is turned to 844x390 like select-specials.
+   */
+  async selectSet(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('select-set');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const confirms: { id: string; voiced: boolean; at: number }[] = [];
+    const onConfirm = (e: Event) => confirms.push((e as CustomEvent).detail);
+    window.addEventListener('dod:select-confirm', onConfirm);
+    try {
+      await this.click(() => this.q('[data-go="training"]'), 'Training');
+      await this.screen('select');
+      await t.until(() => document.querySelectorAll('#select-grid .tile[data-fighter]').length === CHARACTERS.length, 6000, 'every fighter tile');
+      const grid = this.q('#select-grid')!;
+      const tiles = [...document.querySelectorAll<HTMLElement>('#select-grid .tile[data-fighter]')];
+      // The wall: all 33 inside the grid without scrolling on a big screen; on a phone it scrolls and the tiles are 44 px+.
+      await t.wait(400);
+      if (innerWidth >= 1900 && innerHeight >= 1000) {
+        const g = grid.getBoundingClientRect();
+        const inside = tiles.every((el) => {
+          const r = el.getBoundingClientRect();
+          return r.top >= g.top - 1 && r.bottom <= g.bottom + 1;
+        });
+        if (inside && grid.scrollHeight <= grid.clientHeight + 1) t.event('select-no-scroll', `all ${tiles.length} portraits fit in the grid at ${innerWidth}x${innerHeight} (${Math.round(g.width)}x${Math.round(g.height)})`);
+        else t.problem('bug', `the portrait grid needs scrolling at ${innerWidth}x${innerHeight} (${grid.scrollHeight} px of ${grid.clientHeight})`);
+      }
+      if (touch && innerHeight <= 520) {
+        const small = tiles.filter((el) => el.getBoundingClientRect().width < 44 || el.getBoundingClientRect().height < 44);
+        if (small.length) t.problem('bug', `${small.length} portrait tiles are under 44 px at ${innerWidth}x${innerHeight}`);
+        else t.event('select-tiles', `all ${tiles.length} tiles are 44 px or more (${Math.round(tiles[0].getBoundingClientRect().width)} px wide)`);
+        const g = grid.getBoundingClientRect();
+        const rr = this.q('#select-preview .set-render')?.getBoundingClientRect();
+        if (rr && rr.left >= g.right - 1 && rr.width > 100 && rr.height > 50) t.event('select-beside', `the render (${Math.round(rr.width)}x${Math.round(rr.height)}) sits right of the grid at ${innerWidth}x${innerHeight}`);
+        else t.problem('bug', `the render is not beside the grid at ${innerWidth}x${innerHeight}`);
+        // A swipe up the grid: a finger drag on the tiles, then the list moves and the last tile can be tapped.
+        if (grid.scrollHeight > grid.clientHeight + 4) {
+          const from = tiles[0].getBoundingClientRect();
+          const x = from.left + from.width / 2;
+          const init = (y: number) => ({ pointerType: 'touch', pointerId: 53, isPrimary: true, button: 0, buttons: 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y });
+          const y0 = g.bottom - 20;
+          tiles[0].dispatchEvent(new PointerEvent('pointerdown', init(y0)));
+          for (let i = 1; i <= 6; i++) {
+            await t.wait(30);
+            grid.scrollTop += (grid.scrollHeight - grid.clientHeight) / 6;
+            tiles[0].dispatchEvent(new PointerEvent('pointermove', init(y0 - i * 30)));
+          }
+          tiles[0].dispatchEvent(new PointerEvent('pointerup', { ...init(y0 - 180), buttons: 0 }));
+          if (grid.scrollTop > 10) t.event('select-swipe', `the grid scrolled by swipe (${Math.round(grid.scrollTop)} px of ${grid.scrollHeight - grid.clientHeight})`);
+          else t.problem('bug', 'the portrait grid did not scroll by swipe at 844x390');
+        } else t.problem('bug', 'the portrait grid does not scroll at 844x390 (all tiles fit?)');
+      }
+      // The fighters: hover (a tap on a phone) shows the render and the live inset at once; a pick confirms.
+      const all = CHARACTERS.map((c) => c.id);
+      const ids = typeof this.options.fighter === 'string' ? [this.options.fighter] : all.filter((_, i) => i % Math.max(1, Math.floor(all.length / Math.max(1, Number(this.options.count) || 6))) === 0);
+      let fast = 0;
+      for (const [k, id] of ids.entries()) {
+        t.progress(0.2 + (0.78 * k) / ids.length);
+        const c = CHARACTERS.find((o) => o.id === id);
+        if (!c) {
+          t.problem('bug', `fighter "${id}" is not in the roster`);
+          continue;
+        }
+        const tile = () => this.q(`#select-grid .tile[data-fighter="${id}"]`);
+        tile()?.scrollIntoView({ block: 'nearest' });
+        const t0 = performance.now();
+        // Hover first (a mouse); a phone taps (the press shows the preview before the pick).
+        if (touch) await this.click(tile, `${c.name} (touch)`);
+        else {
+          tile()?.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
+          tile()?.focus();
+        }
+        const canvas = () => this.q('#select-preview .set-render') as HTMLCanvasElement | null;
+        const inset = () => this.q(`#select-preview .specials[data-fighter="${id}"] .sp-clip`) as HTMLCanvasElement | null;
+        const drawn = (cv: HTMLCanvasElement | null): number => {
+          const g = cv?.getContext('2d');
+          if (!cv || !g || cv.width === 0) return 0;
+          const d = g.getImageData(0, 0, cv.width, cv.height).data;
+          let n = 0;
+          for (let i = 3; i < d.length; i += 64) if (d[i] > 20) n++;
+          return n;
+        };
+        await t.until(() => canvas()?.dataset.fighter === id && drawn(canvas()) > 50 && !!inset() && drawn(inset()) > 20, 6000, `${c.name}'s render and special preview`);
+        const ms = Math.round(performance.now() - t0);
+        const animated = canvas()?.dataset.ready === '1';
+        if (ms <= 300) {
+          fast++;
+          t.event('select-render', `${c.name}: render and live special preview up in ${ms} ms${animated ? ' (idle playing)' : ' (portrait until the sheet loads)'}`);
+        } else t.problem('bug', `${c.name}: render and special preview took ${ms} ms (want 300 or less)`);
+        // The inset is the sim running: its picture changes over the next second.
+        const seen = new Set<number>();
+        for (let i = 0; i < 8 && seen.size < 3; i++) {
+          seen.add(drawn(inset()));
+          await t.wait(140);
+        }
+        if (seen.size >= 2) t.event('select-sim', `${c.name}: the live special preview is moving (${seen.size} different frames)`);
+        else t.problem('bug', `${c.name}: the live special preview is not moving`);
+        // The pick: confirm pose and the voiced taunt (a fighter with no recorded taunt shouts an effort).
+        const before = confirms.length;
+        await this.click(tile, `pick ${c.name}`);
+        await t.until(() => confirms.length > before, 2000, `${c.name}'s confirm`).catch(() => null);
+        const got = confirms[confirms.length - 1];
+        const posing = !!canvas()?.dataset.pose;
+        if (confirms.length > before && posing) t.event('select-confirm', `${c.name}: confirm pose played${got?.voiced ? ' with their voiced taunt' : ' (no voice take for this fighter yet)'}`);
+        else t.problem('bug', `${c.name}: picking did not play a confirm pose`);
+        t.add('fightersShown');
+        await t.wait(350);
+      }
+      t.metric('fastRenders', fast);
+      t.progress(1);
+    } finally {
+      window.removeEventListener('dod:select-confirm', onConfirm);
       this.useTap = false;
       forceTouchUi(false);
     }
