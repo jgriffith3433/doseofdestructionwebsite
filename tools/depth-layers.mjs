@@ -49,7 +49,7 @@ const N = W * H;
 // Layers far -> near. src: 'B' (the backdrop) or 'gN' (Gen layer N). mask: 'alpha' (the source's own alpha), 'opaque', or a
 // band { t, b, ft, fb } (top and bottom as fractions of the height, feather at each edge as a fraction of the slice) or an
 // ellipse { cx, cy, rx, ry } or a colour cut { warm: { lo, hi, blur, keep: [ellipses] } } (a painting with no separate objects). erase: boxes [x0, y0, x1, y1]
-// (fractions) zeroed in the layer's alpha, for a piece Gen cut into two layers (a wall lamp). holes: ids of nearer layers cut from this same source, filled by diffusion. low: this layer
+// (fractions) zeroed in the layer's alpha, for a piece Gen cut into two layers (a wall lamp). holes: ids of nearer layers cut from this same source, filled by diffusion (or by image.repaint, `repaint`: the job and asset, put in <dir>/<stage>/<layer>.png for --repaint). low: this layer
 // is the full backdrop Low keeps (it is not built on High, where the layers below replace it).
 const PLANS = {
   'city-top': {
@@ -106,7 +106,7 @@ const PLANS = {
     jobs: 'j_568d743c1e78',
     how: 'cut from the backdrop by colour with tools/depth-layers.mjs (Hawkes Gen image.layers, j_ee4414382a78 and j_568d743c1e78, did not separate the painting)',
     layers: [
-      { id: 'cool-wash', z: 20, src: 'B', mask: 'opaque', holes: ['warm-clouds'], note: 'Far sky: the cool teal and navy washes and the heart light.' },
+      { id: 'cool-wash', z: 20, src: 'B', mask: 'opaque', holes: ['warm-clouds'], repaint: 'image.repaint j_c90b42383a1a, asset a_6f2b140ff92cae1c', note: 'Far sky: the cool teal and navy washes and the heart light.' },
       { id: 'warm-clouds', z: 13, src: 'B', mask: { warm: { lo: 0.06, hi: 0.26, blur: 10, keep: [{ cx: 0.5, cy: 0.42, rx: 0.1, ry: 0.2 }] } }, note: 'Mid set: the warm amber and pink pigment clouds around the heart.' },
     ],
     haze: [14, 7],
@@ -138,7 +138,7 @@ const PLANS = {
   'space-chess': {
     jobs: 'j_81bec11c18e4',
     layers: [
-      { id: 'sky', z: 20, src: 'g1', mask: 'opaque', holes: ['nebula', 'galaxy'], note: 'Far sky: the star field.' },
+      { id: 'sky', z: 20, src: 'g1', mask: 'opaque', holes: ['nebula', 'galaxy'], repaint: 'image.repaint j_a68822e94372, take 3, asset a_183686296f0e693a', note: 'Far sky: the star field.' },
       { id: 'nebula', z: 15, src: 'g1', mask: { ellipse: { cx: 0.55, cy: 0.27, rx: 0.34, ry: 0.28 } }, note: 'Far set: the cobalt nebula band.' },
       { id: 'galaxy', z: 11, src: 'g1', mask: { ellipse: { cx: 0.865, cy: 0.27, rx: 0.1, ry: 0.13 } }, note: 'Mid set: the spiral galaxy.' },
       { id: 'board', z: 8, src: 'g4', mask: 'alpha', note: 'Near set: the far end of the board and its pieces.' },
@@ -495,7 +495,7 @@ for (const [id, plan] of Object.entries(PLANS)) {
       width: Math.round(backLayer.width * (w / W) * 10) / 10,
       z: l.spec.z,
       high: true,
-      note: `${l.spec.note} High only; ${plan.how ?? `cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (${plan.jobs})`}.`,
+      note: `${l.spec.note} High only; ${plan.how ?? `cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (${plan.jobs})`}${l.spec.repaint && repaintDir ? `; what the cuts reveal is painted by Hawkes Gen ${l.spec.repaint}` : ''}.`,
       aspect: Math.round((h / w) * 1000) / 1000,
     });
     console.log(`${id}/${l.spec.id}: ${w}x${h} z${l.spec.z} ${(fs.statSync(file).size / 1024).toFixed(0)} KB`);
@@ -517,6 +517,7 @@ for (const [id, plan] of Object.entries(PLANS)) {
   if (outDir) fs.writeFileSync(`${dir}/${id}.layers.json`, JSON.stringify({ entries, plan: { haze: plan.haze, remove: plan.remove ?? [] } }, null, 1)); // scratch: the preview reads it
   if (write) {
     for (const r of plan.remove ?? []) {
+      if (plan.layers.some((l) => l.id === r)) continue; // a layer this plan makes replaces its old one in place
       const at = st.layers.findIndex((l) => l.id === r);
       if (at >= 0) st.layers.splice(at, 1);
     }
