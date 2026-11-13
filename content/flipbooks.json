@@ -53,6 +53,22 @@
       "low": {
         "file": "fx/flipbook/flurry-low.png"
       }
+    },
+    "counter": {
+      "high": {
+        "file": "fx/flipbook/counter.png"
+      },
+      "low": {
+        "file": "fx/flipbook/counter-low.png"
+      }
+    },
+    "recovery": {
+      "high": {
+        "file": "fx/flipbook/recovery.png"
+      },
+      "low": {
+        "file": "fx/flipbook/recovery-low.png"
+      }
     }
   }
 }
