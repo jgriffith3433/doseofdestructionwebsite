@@ -4623,7 +4623,7 @@
         "width": 4000,
         "z": 20,
         "high": true,
-        "note": "Far sky: the star field. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_81bec11c18e4).",
+        "note": "Far sky: the star field. High only; cut from the backdrop by tools/depth-layers.mjs with Hawkes Gen image.layers (j_81bec11c18e4); what the cuts reveal is painted by Hawkes Gen image.repaint j_a68822e94372, take 3, asset a_183686296f0e693a.",
         "aspect": 0.429
       },
       {
@@ -5172,7 +5172,7 @@
         "width": 3800,
         "z": 20,
         "high": true,
-        "note": "Far sky: the cool teal and navy washes and the heart light. High only; cut from the backdrop by colour with tools/depth-layers.mjs (Hawkes Gen image.layers, j_ee4414382a78 and j_568d743c1e78, did not separate the painting).",
+        "note": "Far sky: the cool teal and navy washes and the heart light. High only; cut from the backdrop by colour with tools/depth-layers.mjs (Hawkes Gen image.layers, j_ee4414382a78 and j_568d743c1e78, did not separate the painting); what the cuts reveal is painted by Hawkes Gen image.repaint j_c90b42383a1a, asset a_6f2b140ff92cae1c.",
         "aspect": 0.429
       },
       {

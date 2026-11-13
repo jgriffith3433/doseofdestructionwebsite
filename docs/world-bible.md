@@ -473,12 +473,18 @@ is only 1024 px wide, so each layer's alpha is used as a *cut mask over the full
 inpainted pixels are kept only where a cut reveals what was behind it (the sky behind the towers, the garden behind the
 window, the street behind a tentacle). A band cut from one opaque Gen layer (Dust Devil Mesa's horizon, Solar Array's plain,
 Yo House's furniture, Space Chess's nebula and galaxy) leaves a hole in the layer behind it that the tool fills by diffusion
-(no GPU), so a pan never shows an empty gap. The stack at rest differs from the backdrop by an RMS of 2 to 6.5 (of 255). On
+(no GPU), so a pan never shows an empty gap; where the hole shows something a smooth blur cannot be (stars, a painting's wash)
+the fill is painted by Hawkes Gen `image.repaint` instead (`--holes` writes the fill and the hole mask, `--repaint` reads
+the painted fill back; Space Chess's star field and Watercolor Nebula's cool wash). The stack at rest differs from the backdrop by an RMS of 2 to 6.5 (of 255). On
 High each stage draws its own stack; Low draws the whole backdrop picture (`low`) and the layers that were already there.
 Jobs: City Top j_de95dbaf4d12, Dust Devil Mesa j_c0b792ce201e, Cursed Town j_baf72867a5f9, Rainbow Full Pipe j_7ec99117dab6,
 Solar Array j_baf31958c811, Space Chess j_81bec11c18e4, Yo House j_0613ca74762a, Humans in the Loop (a second split, 6 layers,
-j_eea1055faada) (about $0.57 of GPU for the nine first splits and $0.30 for the two retries; no `image.repaint` was needed: Gen's
-layers come inpainted and the bottom layer of every stack is opaque).
+j_eea1055faada) (about $0.57 of GPU for the nine first splits, $0.30 for the two retries and $0.17 for the repaints below; Gen's
+layers come inpainted and the bottom layer of every stack is opaque). Only two stages' holes were repainted (Space Chess,
+Watercolor Nebula). The holes of Dust Devil Mesa, Solar Array and Yo House lie behind a band that is opaque below its feathered
+top edge, so a pan reveals only a sliver of smooth sky or wall that the diffusion fill already matches; they stay
+diffusion-filled (three more `image.repaint` jobs, about $0.2 with the model load, if wanted). The repainted images are in Hawkes
+Gen's library by the asset ids in `tools/depth-layers.mjs`; `--write` stops if they are not put back for `--repaint`.
 
 - **City Top:** sky and smoke, the amber sprawl, the towers with the fireworks, the lit rooftops with the avenue; the old
   cut-out skyline band is gone.
@@ -489,7 +495,13 @@ layers come inpainted and the bottom layer of every stack is opaque).
 - **Rainbow Full Pipe:** sky, big clouds, the park, then the plaza around the half-pipe; the scrolling cloud layer and the
   trees keep theirs.
 - **Solar Array:** the canyon and the sky, the plain with the panel shadows, and four rings of panels sliding past each other.
-- **Space Chess:** the star field, the cobalt nebula, the spiral galaxy and the far end of the board with its pieces.
+- **Space Chess:** the star field, the cobalt nebula, the spiral galaxy and the far end of the board with its pieces. The
+  nebula and galaxy are cut out of Gen's star-field layer; the stars behind them are painted by `image.repaint`
+  (j_a68822e94372, three takes: the first came out as a regular dot lattice, the second invented a nebula streak and
+  drew the guide outline; the third is used, with its stars thinned to 40% of 5 px blocks at random strengths on the CPU
+  (`thin`), because the model draws them as an even lattice 2 to 3 times denser than the sky around them), so a pan keeps a
+  star field instead of a star-free patch. The ghost outlines of the far chess pieces that Gen left in its star-field plate stay
+  (dark on dark, behind the board at rest).
 - **Yo House:** the garden and hills seen through the windows and the skylight slide behind the room; the floor, rug and sofa
   slide in front of the back wall.
 - **Humans in the Loop:** Gen's first split (5 layers) left the arena in one layer; a retry with a prompt naming the road cases,
@@ -506,7 +518,8 @@ layers come inpainted and the bottom layer of every stack is opaque).
   smooth lavender gradient that does not match the pixel-wash painting, and one layer is empty. So it is cut by colour on the CPU
   (`warm` mask in `tools/depth-layers.mjs`: red over blue, blurred into coherent masses, the heart light kept out): the warm
   amber and pink clouds are `warm-clouds` 13, the cool teal and navy washes with the heart are `cool-wash` 20 (the holes the
-  cut leaves are diffusion-filled, so a pan shows soft pale mist between them), which closes the gap between the backdrop and the
+  cut leaves are painted by `image.repaint`, j_c90b42383a1a: the same teal and navy pixel wash where the clouds were, in place
+  of the flat grey the diffusion fill gave), which closes the gap between the backdrop and the
   painted underwash 8, cloud banks 6, swirl 4 and the front wisp (all kept).
 
 **Short:** the foregrounds only shake on KOs (and sway where the art already did), and the cut layers add parallax, not new
