@@ -48,7 +48,7 @@ grid atlas, tinted per fighter (the hue of its main outfit colour, `looks[].from
 (4x2); both last 32 sim frames. Played on: a projectile's release (muzzle flash) with a short trail on the shot, a
 trap's placement (glyph), a dash's and a recovery's drive, each flurry hit (slash), a throw (slam ring), and a counter
 catching a hit (white-blue flash; the sim freezes both fighters `COUNTER_FREEZE` = 6 frames on that frame).
-**The sheets are stand-ins drawn in code** until the Gen art (keyframe, video, sprite sheet) is made: add the PNGs under
+**Painted sheets (Gen keyframe, video.i2v, sprite.sheet, black keyed to alpha) ship for projectile, dash, grab, trap and flurry; counter and recovery still play code-drawn stand-ins** (their first Gen bursts had text artefacts and a fighter silhouette). To add a sheet: add the PNGs under
 `fx/flipbook/` and their `file` in `content/flipbooks.json` `sheets` and nothing else changes. Scenario `special-fx`.
 
 ## All 33 kits, hitbox fit and character select
