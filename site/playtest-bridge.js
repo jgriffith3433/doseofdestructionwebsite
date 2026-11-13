@@ -511,6 +511,16 @@
       ]
     },
     {
+      "id": "select-set",
+      "title": "Character select is a broadcast set: 33 painted portraits with hover lift and slot frame, the hovered fighter large and animated with a name lower third, a live sim special preview, a voiced confirm pose on pick (phone 844x390: the grid swipes, 44 px tiles, the render beside it)",
+      "description": "Training's select. Desktop at 1920x1080: all 33 portraits fit the grid without scrolling (select-no-scroll). A spread of fighters (options fighter: one, count: how many, default 6): hover (a tap on a phone) shows the animated render and the live special inset within 300 ms (select-render; metric fastRenders), the inset is the sim playing the special on a training dummy and moves (select-sim), and a pick plays the confirm pose with the fighter's voiced taunt (select-confirm). Phone: 390x844 is turned to 844x390; the grid scrolls by swipe (select-swipe), every tile is 44 px or more (select-tiles) and the render sits beside the grid (select-beside); all by touch pointer events. Options: fighter, count, input (touch forces the touch UI), at (phone).",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "roster",
       "title": "Every fighter spawns in training and does each move and all four specials once, logging each kit (touch: the 20 newer fighters fire all four specials from the touch controls) (starts matches directly)",
       "seconds": 900,
