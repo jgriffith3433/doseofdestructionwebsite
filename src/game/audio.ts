@@ -679,8 +679,9 @@ class AudioSystem {
     const id = `special-${kind}-${phase}`;
     const played = this.hasSound(id);
     if (played) this.sfx(id, { vary: true, at });
+    // The signature accent marks the move's start only; on the impact it would play twice per special.
     const accent = `special-accent-${fighterId}`;
-    if (this.hasSound(accent)) this.sfx(accent, { vary: true, at });
+    if (phase === 'release' && this.hasSound(accent)) this.sfx(accent, { vary: true, at });
     return played;
   }
 
@@ -691,11 +692,17 @@ class AudioSystem {
     this.sfx(LAND_BY_SURFACE[surface], { vary: true, at });
   }
 
+  private lastOohAt = -1e9;
+
   /**
    * Crowd reaction from a match event: ooh (heavy hit), roar (KO), rising (comeback).
    * Never plays the same reaction kind twice in a row; takes also no-repeat inside the family.
    */
   crowd(kind: CrowdKind): void {
+    // A gasp at most every 2.5 s, so a combo of heavy hits doesn't become a wall of crowd.
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (kind === 'ooh' && now - this.lastOohAt < 2500) return;
+    if (kind === 'ooh') this.lastOohAt = now;
     let use = kind;
     if (this.lastCrowd === use) {
       const alts: CrowdKind[] = (['ooh', 'roar', 'rising'] as CrowdKind[]).filter((k) => k !== use);
