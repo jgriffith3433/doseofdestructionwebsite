@@ -56,6 +56,7 @@ import { fillBoard, renderDailyCard, renderDailyResults, setCountdown } from './
 import { TOURS, TOUR_LENGTH, loadTours, tourFor, markTourCleared, tourEnding, tourIntro, tourSetup, type Tour } from './campaign/tour.ts';
 import { ENDINGS as TOUR_ENDINGS, endingFor, type Ending } from './campaign/endings.ts';
 import { playEnding } from './ui/ending.ts';
+import { openingSeen, openingShowing, playOpening } from './ui/opening.ts';
 import { renderEndings } from './ui/extras.ts';
 import { renderTourChoice, renderTourSelect, tourBanner } from './ui/tour.ts';
 import { VOICE } from './audio.ts';
@@ -742,6 +743,7 @@ function openTourScreen(): Promise<void> {
 function openExtras(): Promise<void> {
   return go('extras', () => {
     renderEndings(loadTours(), (e: Ending) => void playEnding(e, { replay: true }));
+    $('btn-opening').onclick = () => void playOpening({ replay: true });
     window.dispatchEvent(new CustomEvent('dod:ending', { detail: { phase: 'gallery', slots: TOUR_ENDINGS.length, cleared: [...loadTours()] } }));
   });
 }
@@ -886,6 +888,8 @@ async function pilotCleared(c: Chapter): Promise<void> {
   analytics.chapterCleared(c, firstTime, progress);
   chapter = null;
   analytics.setMode('main');
+  // TV order: the pilot is the cold open, then the opening titles, once (Extras > Opening replays them).
+  if (!openingSeen()) await playOpening();
   await go('main', spotlight);
 }
 
@@ -1670,7 +1674,8 @@ function wireSettings(): void {
 const MENU_SCREENS = new Set(['title', 'main', 'select', 'stages', 'campaign', 'tour', 'extras', 'howto', 'leaderboard']);
 setInterval(() => {
   const s = currentScreen();
-  if (s && MENU_SCREENS.has(s)) audio.playMusic('music-menu');
+  if (openingShowing()) return;
+  if (s && MENU_SCREENS.has(s)) audio.playMusic(s === 'title' ? 'music-title' : 'music-menu');
   else if (s === 'versus') audio.playMusic(null);
 }, 300);
 
