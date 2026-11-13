@@ -26,9 +26,9 @@ export interface Impact {
 
 export const impactFor = (tier: HitTier, kb: number): Impact => {
   const push = Math.min(16, kb >> 3);
-  if (tier === 'light') return { sparks: 6 + (push >> 2), stars: 0, ring: false, shake: Math.min(0.12, kb * 0.001), flash: 0 };
-  if (tier === 'medium') return { sparks: 10 + (push >> 1), stars: 1, ring: false, shake: Math.min(0.3, 0.1 + kb * 0.002), flash: 0 };
-  return { sparks: 16 + push, stars: 2, ring: true, shake: Math.min(0.7, 0.35 + kb * 0.003), flash: 0.25 };
+  if (tier === 'light') return { sparks: 5 + (push >> 3), stars: 0, ring: false, shake: Math.min(0.12, kb * 0.001), flash: 0 };
+  if (tier === 'medium') return { sparks: 8 + (push >> 2), stars: 1, ring: false, shake: Math.min(0.3, 0.1 + kb * 0.002), flash: 0 };
+  return { sparks: 12 + (push >> 1), stars: 2, ring: true, shake: Math.min(0.7, 0.35 + kb * 0.003), flash: 0.18 };
 };
 
 const SHAKE_KEY = 'dod.shake';

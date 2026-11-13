@@ -122,6 +122,9 @@ interface Spark {
 /** Looks of a special's projectile or trap, by ShotDef.style: 0 thrown board, 1 placed trap, 2 orb. */
 const SHOT_LOOKS = ['board', 'trap', 'orb'] as const;
 
+/** Depth of every hit, dust and streak effect: behind the fighters (they sit at z 0 to -0.05), in front of the stage, so no effect covers a body or its outline. */
+const FX_Z = 0.06;
+
 export class Renderer {
   readonly engine: Engine;
   readonly scene: Scene;
@@ -984,12 +987,12 @@ export class Renderer {
         const b = this.stage.blast;
         const x = Math.max(b.left + 40, Math.min(b.right - 40, e.x / FX)) * W;
         const y = Math.max(b.bottom + 40, Math.min(b.top - 40, e.y / FX)) * W;
-        this.burst(x, y, 40, 0.25);
+        this.burst(x, y, 28, 0.25);
         this.shake = 0.9;
         this.fx?.trigger('ko', { x, y });
         this.live?.trigger('ko');
       } else if (e.type === 'shieldbreak') {
-        this.burst(e.x * S, e.y * S + 0.6, 24, 0.16);
+        this.burst(e.x * S, e.y * S + 0.6, 16, 0.16);
         this.shake = 0.5;
       } else if (e.type === 'land' || e.type === 'jump') {
         this.burst(e.x * S, e.y * S + 0.02, 3, 0.03);
@@ -1143,9 +1146,9 @@ export class Renderer {
       if (m.kind !== 'dash' && !(m.kind === 'recovery' && m.drive?.some((d) => f.frame >= d.from && f.frame <= d.to))) continue;
       if (m.kind === 'dash' && !m.drive?.some((d) => f.frame >= d.from && f.frame <= d.to)) continue;
       const mesh = this.takeSpark();
-      mesh.position.set((f.x - f.facing * 24 * FX * (f.scale / 100)) * S, (f.y + 40 * FX) * S, -0.35);
+      mesh.position.set((f.x - f.facing * 24 * FX * (f.scale / 100)) * S, (f.y + 40 * FX) * S, FX_Z);
       mesh.rotation.z = m.kind === 'dash' ? 0 : Math.atan2(f.vy, f.vx * f.facing) * f.facing;
-      this.sparks.push({ mesh, vx: 0, vy: 0, life: 9, max: 9, size: 0.32, stretch: m.kind === 'dash' ? 3.2 : 2, grow: 0 });
+      this.sparks.push({ mesh, vx: 0, vy: 0, life: 6, max: 6, size: 0.26, stretch: m.kind === 'dash' ? 3.2 : 2, grow: 0 });
     }
   }
 
@@ -1232,7 +1235,7 @@ export class Renderer {
         const j = (Math.random() - 0.5) * h * 0.5;
         if (look.kind === 'streak') {
           const mesh = this.takeSpark(this.smokeMats.streak);
-          mesh.position.set(cx, cy + j * 0.4, -0.38);
+          mesh.position.set(cx, cy + j * 0.4, FX_Z);
           mesh.rotation.z = ang;
           this.sparks.push({ mesh, vx: 0, vy: 0, life: 10, max: 10, size: look.size * 1.1, stretch: 3.4, grow: 0 });
         } else {
@@ -1263,8 +1266,8 @@ export class Renderer {
     const x = e.x * S;
     const y = e.y * S;
     this.burst(x, y, fx.sparks, (tier === 'light' ? 0.06 : 0.09) + e.kb * 0.0006);
-    for (let i = 0; i < fx.stars; i++) this.sprite(x, y, i * (Math.PI / 4) + Math.random(), tier === 'heavy' ? 0.5 : 0.3, 10 + i * 3, 1.4);
-    if (fx.ring) this.sprite(x, y, 0, 0.35, 16, 5);
+    for (let i = 0; i < fx.stars; i++) this.sprite(x, y, i * (Math.PI / 4) + Math.random(), tier === 'heavy' ? 0.4 : 0.26, 8 + i * 2, 1);
+    if (fx.ring) this.sprite(x, y, 0, 0.3, 12, 3.2);
     this.shake = Math.max(this.shake, fx.shake);
     if (fx.flash > 0 && this.flashMat.alpha < fx.flash) {
       this.flashMat.emissiveColor = Color3.White();
@@ -1287,8 +1290,8 @@ export class Renderer {
     this.flashMat.emissiveColor = new Color3(1, 0.12, 0.08);
     this.flashMat.alpha = KILL_CUE.redFlash;
     this.flashPlane.setEnabled(true);
-    this.sprite(x, y, 0, 0.5, 12, 9);
-    this.sprite(x, y, 0.5, 0.8, 18, 6);
+    this.sprite(x, y, 0, 0.45, 12, 6);
+    this.sprite(x, y, 0.5, 0.7, 16, 4);
     this.shake = Math.max(this.shake, 0.8);
     this.onSynth?.('whistle');
     const c = this.camStats;
@@ -1317,7 +1320,7 @@ export class Renderer {
   /** One impact flash: a soft disc that blows up as it fades (two make a heavy burst, a big fast one reads as a shockwave). */
   private sprite(x: number, y: number, rot: number, size: number, life: number, grow: number): void {
     const mesh = this.takeSpark();
-    mesh.position.set(x, y, -0.45);
+    mesh.position.set(x, y, FX_Z);
     mesh.rotation.z = rot;
     this.sparks.push({ mesh, vx: 0, vy: 0, life, max: life, size, grow });
   }
@@ -1343,9 +1346,9 @@ export class Renderer {
       const a = Math.random() * Math.PI * 2;
       const sp = speed * (0.4 + Math.random() * 0.8);
       const mesh = this.takeSpark(mat);
-      mesh.position.set(x, y, -0.4);
+      mesh.position.set(x, y, FX_Z);
       mesh.rotation.z = a;
-      const life = 14 + Math.floor(Math.random() * 14);
+      const life = 10 + Math.floor(Math.random() * 10);
       this.sparks.push({ mesh, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life, max: life, size: 0.06 + Math.random() * 0.08 });
     }
   }
@@ -1525,7 +1528,7 @@ export class Renderer {
       drop = (1 - k * k) * 7;
       if (k >= 1) {
         this.arriving.delete(f.id);
-        this.burst(x, f.y * S + 0.02, 18, 0.07);
+        this.burst(x, f.y * S + 0.02, 10, 0.07);
         this.shake = Math.max(this.shake, 0.35);
         this.onSound?.('land');
         this.onSynth?.('thud');
@@ -1734,7 +1737,7 @@ export class Renderer {
     const cy = hw * 0.5;
     const t = (i + 1) / 3;
     const mesh = this.takeSpark(this.smokeMats.streak);
-    mesh.position.set(f.x * S + bx * t * 0.9, f.y * S + cy + (by - cy) * t, -0.37);
+    mesh.position.set(f.x * S + bx * t * 0.9, f.y * S + cy + (by - cy) * t, FX_Z);
     mesh.rotation.z = Math.atan2(by - cy, bx || f.facing);
     this.sparks.push({ mesh, vx: 0, vy: 0, life: 3, max: 3, size: (big ? 0.55 : 0.4) * (0.6 + t * 0.6), stretch: 3, grow: 0 });
   }
