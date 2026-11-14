@@ -469,12 +469,26 @@
         if (!tap.onTap) {
           try {
             var Ctor = window.AudioContext || window.webkitAudioContext;
-            if (Ctor) {
+            if (Ctor && !tap.ctx) {
               tap.ctx = new Ctor();
               if (tap.ctx.resume) tap.ctx.resume().catch(function () {});
             }
           } catch (e) {}
         }
+        // The press answers with a sound on the same frame (every input has one, within 150 ms). It is a short blip on a
+        // context of its own, reported to the sound probe as a sound start like the game's other synth sounds.
+        try {
+          var Bctor = window.AudioContext || window.webkitAudioContext;
+          var bctx = tap.ctx || (Bctor ? (tap.ctx = new Bctor()) : null);
+          if (bctx) {
+            if (bctx.resume) bctx.resume().catch(function () {});
+            var bt = bctx.currentTime, bo = bctx.createOscillator(), bg = bctx.createGain();
+            bo.type = 'triangle'; bo.frequency.setValueAtTime(660, bt); bo.frequency.exponentialRampToValueAtTime(990, bt + 0.07);
+            bg.gain.setValueAtTime(0.0001, bt); bg.gain.exponentialRampToValueAtTime(0.07, bt + 0.01); bg.gain.exponentialRampToValueAtTime(0.0001, bt + 0.16);
+            bo.connect(bg); bg.connect(bctx.destination); bo.start(bt); bo.stop(bt + 0.18);
+            window.dispatchEvent(new CustomEvent('hawkes-sound', { detail: { type: 'sound-start', sample: 'ui-tap-to-play', bus: 'ui', rate: 1, gain: 0.07, dur: 0.18 } }));
+          }
+        } catch (e) {}
         // It keeps catching taps while it fades, so the tap's own click never lands on the title below.
         prompt.classList.add('gone');
         setTimeout(function () { prompt.hidden = true; document.dispatchEvent(new Event('dod:tapped')); }, 400);
