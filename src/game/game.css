@@ -1116,6 +1116,9 @@ body.scene-on #fighter-tags { display: none; }
   --touch-opacity: 1;
   --btn: max(44px, min(calc(56px * var(--touch-scale)), 14vh));
   --btn-attack: max(52px, min(calc(72px * var(--touch-scale)), 18vh));
+  /* Side margin: the real inset, never under 47px (a landscape notch / Dynamic Island is that wide even where env() reads 0). */
+  --touch-side-l: max(16px, env(safe-area-inset-left), 47px);
+  --touch-side-r: max(12px, env(safe-area-inset-right), 47px);
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -1138,8 +1141,8 @@ body.scene-on #fighter-tags { display: none; }
 }
 .touch-stick {
   position: absolute;
-  left: max(16px, env(safe-area-inset-left));
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 70px);
+  left: var(--touch-side-l);
+  bottom: calc(max(12px, env(safe-area-inset-bottom), 21px) + 70px);
   width: max(44px, min(calc(128px * var(--touch-scale)), 36vh));
   aspect-ratio: 1;
   border-radius: 50%;
@@ -1165,8 +1168,8 @@ body.scene-on #fighter-tags { display: none; }
 /* Right-thumb arc: Attack largest; neighbours clear by ≥8 px (no overlapping hit circles). */
 .touch-buttons {
   position: absolute;
-  right: max(10px, env(safe-area-inset-right));
-  bottom: calc(max(10px, env(safe-area-inset-bottom)) + 58px);
+  right: var(--touch-side-r);
+  bottom: calc(max(10px, env(safe-area-inset-bottom), 21px) + 58px);
   width: calc(var(--btn-attack) + var(--btn) + 20px);
   height: calc(var(--btn-attack) + var(--btn) * 2 + 24px);
   pointer-events: none;
@@ -1209,7 +1212,7 @@ body.scene-on #fighter-tags { display: none; }
 .touch-pause {
   position: absolute;
   top: max(12px, env(safe-area-inset-top));
-  right: max(12px, env(safe-area-inset-right));
+  right: var(--touch-side-r);
   min-width: max(44px, min(calc(64px * var(--touch-scale)), 20vw));
   min-height: max(44px, min(calc(56px * var(--touch-scale)), 15vh));
   border-radius: 12px;
