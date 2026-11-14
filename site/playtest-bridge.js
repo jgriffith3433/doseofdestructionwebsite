@@ -600,6 +600,16 @@
       ]
     },
     {
+      "id": "hurtbox-fit",
+      "title": "Hurtboxes hug the art: Exit Punk's jab from just outside Spider-Bot's body visibly misses, from just inside it connects (phone: stick + Attack by touch)",
+      "description": "Setup shortcut: Training, Exit Punk against an idle Spider-Bot (hurtbox fitted to its idle art by tools/hurtbox-art.mjs; it was 100 wide against a roster average of 55). The bot walks with the stick to a gap computed from the jab's own hitbox tip and Spider-Bot's hurtbox half width: 16 units outside (near miss, hurtbox-near-miss: must deal no damage), then 8 units inside (hurtbox-hit: must connect). Played from the keyboard, or on a phone (390x844 turned to 844x390) from the touch stick and Attack button as pointer events. Metrics spiderBotHurtW, nearMissHit (0), closeJabHit (1).",
+      "seconds": 90,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "specials",
       "title": "Specials: Exit Punk in Training does four different specials from K, K+side, K+down, K+up (touch: stick + Special), and the thrown board crosses the stage, hits the dummy and disappears",
       "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus). Played through real input only: keyboard K plus A/D/S/W on a desktop; at phone size (390x844, turned to 844x390 landscape like touch-match, or 844x390) the on-screen stick and Special button as touch pointer events, with no extra button on the overlay. Walks into the board's range, then: neutral Special throws the board (projectile-hit: it crosses the stage, hurts the dummy and is gone), thrown the other way it hits nobody and disappears at its lifetime (projectile-lifetime); Special + side is the skate dash (special-side; touch-side-special), Special + down places the kickflip trap (special-down; touch-down-special), Special + up is the ollie recovery (special-up); specials-distinct when all four were different moves. Options: input (touch forces the overlay on a desktop window), at (phone). Metric specialsSeen.",
@@ -635,6 +645,26 @@
       "title": "How to play 2: a prompt for grab, throw, roll left, roll right and spot-dodge in turn, each ticked off within a second of the move (phone: 390x844 touch, finished with touch controls only)",
       "description": "Taps How to play 2 on the main menu (a touch tap on a phone), then plays the lesson through real input only: keyboard L + J / A D / L + A / L + D / L + S on a desktop; on a 390x844 phone (turned to 844x390) the on-screen Shield and Attack buttons and the stick as touch pointer events. Each prompt must show in order with the glyphs of the device (lesson-prompt: keys, or touch icons), tick off within 1 s of the sim seeing the move (lesson-tick, lessonTickMaxMs), the dummy swings slowly before the spot-dodge (lesson-dummy-swing, a swing every 2 s or more), and the card reads Lesson clear! (lesson-clear), then the Lesson complete card with Next lesson and Back to menu, 44 px tall (lesson-card, lesson-next, lesson-ticks, campaign-blurb). Prompts never stack (one on screen at a time), never sit under a touch control, and every touch control is 44 px or larger (lesson-touch). Events lesson-*; metrics lessonSteps, lessonTickMaxMs.",
       "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "archetype-normals",
+      "title": "Archetype normals: a fast fighter's jab is a three-hit flurry from one Attack press, a heavy's is one slower, harder hit; floaty aerials hang out longer than fast ones (phone: 390x844 touch, the same Attack button)",
+      "description": "Setup shortcut: straight into Training with Kaelen (fast) and a dummy, then Break (heavy), no menus. Each walks up to the dummy with the stick and presses Attack once from real input (keyboard, or on a phone turned to 844x390 the Attack button as a touch pointer event, archetype-touch: every control 44 px, no new button). The sim's hits are counted: Kaelen's jab lands 3 hits, Break's 1, later and with more launch growth (archetype-jab; metrics fastJabHits, heavyJabHits, fastJabStartup, heavyJabStartup). archetype-data checks every fighter has an archetype in content/archetypes.json and floaty neutral air stays out longer than fast.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "training-combo",
+      "title": "Training: a 3-hit true combo shows the combo counter, its damage and the last hit; the dummy's percent is set and reset and its behaviour (stand, jump, shield, CPU) chosen from Pause (phone: 390x844 touch, readout and options fit, controls 44 px)",
+      "description": "Setup shortcut: straight into Training with Exit Punk and a Break dummy (no menus). The combo readout (top left, `training-readout`) sits inside the screen clear of the pause button, timer and touch controls. Pause shows the dummy options: every button at least 44x44 and on screen (`training-fit`); the percent buttons set the dummy to 100% (`training-percent`) and Reset puts it back at 0 (`training-reset`); the behaviour buttons Jump, Shield, Stand and CPU (level raised twice) each change what the dummy does in the sim (`training-dummy`). Then real input, stick down + Attack (down tilt) again and again, lands a string while the dummy is still in hitstun: the readout counts to 3 or more with the combo's damage, the last hit's damage and the True combo tag (`training-combo`). Keyboard on a desktop; at phone size (390x844, turned to 844x390 like ledge-options) the same by touch taps and the on-screen stick and Attack button. Metrics trainingComboHits, trainingComboDamage.",
+      "seconds": 180,
       "tags": [
         "full",
         "touch"

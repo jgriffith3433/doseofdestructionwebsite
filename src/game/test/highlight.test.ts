@@ -37,8 +37,11 @@ function play(seed: number): Match {
   return m;
 }
 
+// A highlight anchors on the last hit only when it landed within 150 ticks of the KO (a long fall after an early launch
+// has no hit in the replay window), so the match used is the first seed whose final KO follows a real hit.
+const anchoredOnHit = (x: Match): boolean => !!x.highlight && x.highlight.ko - x.highlight.hit !== 10 && x.highlight.hit >= x.highlight.from;
 let m = play(1);
-for (let seed = 2; seed < 8 && !m.highlight; seed++) m = play(seed);
+for (let seed = 2; seed < 16 && !(anchoredOnHit(m)); seed++) m = play(seed);
 check(m.state.over && m.highlight, 'a finished campaign match has a highlight');
 const h = m.highlight!;
 h.chapter = 'open-mic';

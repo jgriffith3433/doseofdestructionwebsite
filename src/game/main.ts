@@ -27,6 +27,7 @@ import { clearMarkers, markerLog, markerRects, safeInsets, updateMarkers, type M
 import { clearTags, tagLog, tagRects, tagText, updateTags, type TagIn } from './ui/tags.ts';
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
 import { Match, type MatchSetup, type SlotSetup } from './match.ts';
+import { DUMMY_MODES, DUMMY_PERCENTS } from './ai/trainingDummy.ts';
 import { applyResult as applyAutoResult, levelNote, loadAutoLevel } from './ai/autoLevel.ts';
 import type { SimEvent } from './sim/step.ts';
 import { ruleLabel, takeoverLines } from './campaign/takeover.ts';
@@ -248,6 +249,7 @@ function wireMenus(): void {
       startMatch(match.setup, false);
     }
   });
+  wireTrainingOptions();
   $('btn-pause-settings').addEventListener('click', () => openSettings());
   $('btn-pause-controls').addEventListener('click', () => openControlsPanel(true));
   $('btn-controls-close').addEventListener('click', () => openControlsPanel(false));
@@ -282,6 +284,54 @@ function wireMenus(): void {
   });
 
   fillControlLists();
+}
+
+/** Free Training (not a How to play lesson): the combo readout and the dummy options in Pause are on. */
+function trainingFree(m: Match | null): m is Match {
+  return !!m && m.setup.mode === 'training' && !m.setup.teach && !m.setup.online;
+}
+
+/** Pause → Training: the dummy's behaviour, its CPU level and its percent (Reset is 0). Built once; synced each time Pause opens. */
+function wireTrainingOptions(): void {
+  const modes = $('to-modes');
+  for (const { id, label } of DUMMY_MODES) {
+    modes.appendChild(
+      h('button', { type: 'button', class: 'secondary', 'data-dummy': id, 'aria-pressed': 'false', onclick: () => {
+        if (!trainingFree(match)) return;
+        match.setDummyMode(id);
+        analytics.feature('training_dummy', { value: id });
+        syncTrainingOptions();
+      } }, label),
+    );
+  }
+  const pcts = $('to-percents');
+  for (const pct of DUMMY_PERCENTS) {
+    pcts.appendChild(
+      h('button', { type: 'button', class: 'secondary', 'data-percent': String(pct), onclick: () => {
+        if (!trainingFree(match)) return;
+        match.setDummyPercent(pct);
+        analytics.feature('training_percent', { value: pct });
+        updateHud(match);
+      } }, pct === 0 ? 'Reset' : `${pct}%`),
+    );
+  }
+  const level = (d: number) => () => {
+    if (!trainingFree(match)) return;
+    match.setDummyLevel(match.dummy.level + d);
+    syncTrainingOptions();
+  };
+  $('to-level-down').addEventListener('click', level(-1));
+  $('to-level-up').addEventListener('click', level(1));
+}
+
+function syncTrainingOptions(): void {
+  const on = trainingFree(match);
+  $('training-options').hidden = !on;
+  $('pause').querySelector('.panel')!.classList.toggle('training', on);
+  if (!on || !match) return;
+  document.querySelectorAll<HTMLElement>('#to-modes button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.dummy === match!.dummy.mode)));
+  $('to-level-row').hidden = match.dummy.mode !== 'cpu';
+  $('to-level').textContent = `CPU level ${match.dummy.level}`;
 }
 
 /** The key list as a panel over Pause ("All controls"); the same lists are the All controls screen in the menu. */
@@ -1444,6 +1494,7 @@ function endMatch(): void {
   renderer.setPresenting(false);
   showTouchControls(false);
   $('hud').hidden = true;
+  $('training-readout').hidden = true;
   clearMarkers();
   clearTags();
   $('match-top').hidden = true;
@@ -1474,6 +1525,7 @@ function setPaused(paused: boolean): void {
   $('pause').hidden = !paused;
   $('btn-restart').hidden = !!fight;
   $('pause').querySelector('h2')!.textContent = fight ? 'Menu (the match goes on)' : 'Paused';
+  syncTrainingOptions();
   if (paused) {
     $('btn-quit').textContent = fight ? 'Leave match (you lose)' : inTour() ? 'Quit to Tour' : chapter ? 'Quit to campaign' : 'Quit to menu';
     ($('btn-resume') as HTMLButtonElement).focus();
@@ -2344,8 +2396,40 @@ function buildHud(m: Match): void {
   hudKos = -1;
   hudQuota = -1;
   hudStreak = -1;
+  trainingShown = { seq: -1, count: -1, active: null, ko: null, dmg: -1 };
+  $('training-readout').hidden = !trainingFree(m);
   $('match-top').hidden = limit <= 0 && !shown;
   updateHud(m);
+}
+
+/** What Training's combo readout last drew, so the DOM is only touched when a number changes. */
+let trainingShown: { seq: number; count: number; active: boolean | null; ko: boolean | null; dmg: number } = { seq: -1, count: -1, active: null, ko: null, dmg: -1 };
+
+const tenths = (n: number): string => `${Math.floor(n / 10)}.${n % 10}%`;
+
+/** Training: the hits in the combo, its damage, the last hit's damage, and whether it ended in a KO. Stays up after the combo ends, until the next hit. */
+function updateReadout(m: Match): void {
+  const r = m.readout;
+  const shown = trainingShown;
+  if (shown.seq === r.seq && shown.count === r.count && shown.active === r.active && shown.ko === r.ko && shown.dmg === r.dmg) return;
+  const el = $('training-readout');
+  const count = el.querySelector<HTMLElement>('.tr-count')!;
+  count.textContent = String(r.count);
+  if (r.count !== shown.count && r.count > 0) {
+    count.classList.remove('bump');
+    void count.offsetWidth;
+    count.classList.add('bump');
+  }
+  el.querySelector('.tr-unit')!.textContent = r.count === 1 ? 'HIT' : 'HIT COMBO';
+  el.querySelector('.tr-dmg')!.textContent = tenths(r.dmg);
+  el.querySelector('.tr-last')!.textContent = tenths(r.lastHit);
+  const tag = el.querySelector<HTMLElement>('.tr-tag')!;
+  tag.hidden = r.count < 2;
+  tag.textContent = r.ko ? 'KO' : 'True combo';
+  el.dataset.live = String(r.active);
+  el.dataset.ko = String(r.ko);
+  el.dataset.count = String(r.count);
+  trainingShown = { seq: r.seq, count: r.count, active: r.active, ko: r.ko, dmg: r.dmg };
 }
 
 /** The KO count last shown on the 'ko' objective's chip. */
@@ -2383,6 +2467,7 @@ function updateHud(m: Match): void {
       $('objective').textContent = `Clean streak ${got}/${m.streakTarget}`;
     }
   }
+  if (trainingFree(m)) updateReadout(m);
   for (const f of s.fighters) {
     const card = cards[f.id] as HTMLElement | undefined;
     const cache = hudCache[f.id];

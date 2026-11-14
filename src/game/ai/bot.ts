@@ -49,6 +49,7 @@ export class Bot {
   private spot: { x: number; y: number; p: Platform } | null = null;
   private spotAt = -9999;
   private lureHopAt = -9999;
+  private commitOf = new Map<number, number>();
   private lastClose = 0;
   /** Until this frame the bot wades through always-on fog (a stand-off across a pit that nobody breaks). */
   private braveUntil = -1;
@@ -112,8 +113,50 @@ export class Bot {
     if (--this.wait > 0) return packInput(this.hold.sx, this.hold.sy, 0);
     this.wait = this.reaction();
     this.decide(s);
-    if (this.hazardous) this.guardSteer(s);
+    if (this.hazardous) {
+      this.guardSteer(s);
+      this.guardCommit(s);
+    }
     return packInput(this.hold.sx, this.hold.sy, 0);
+  }
+
+  /**
+   * Frames this fighter stays committed once it swings: its slowest normal's length plus its landing lag (a heavy's
+   * later aerials and longer landings make this much bigger than a fast fighter's).
+   */
+  private commitFrames(me: Fighter): number {
+    let c = this.commitOf.get(me.char);
+    if (c === undefined) {
+      c = 0;
+      for (const m of CHARACTERS[me.char].moves) if (m.hits.length && !m.helpless) c = Math.max(c, m.total + (m.landingLag ?? 0));
+      this.commitOf.set(me.char, c);
+    }
+    return c;
+  }
+
+  /** Extra room a slow-to-leave fighter keeps from a hazard (world units): a heavy starts earlier and a landing never ends inside it. */
+  private lagPad(me: Fighter): number {
+    return Math.max(0, this.commitFrames(me) - 40) * 1.5;
+  }
+
+  /**
+   * Runs after a decision: no attack or special whose startup, active frames and landing lag would still be running
+   * when a warned hazard reaches the bot's spot. The press is dropped and the bot waits at a safe distance instead.
+   */
+  private guardCommit(s: GameState): void {
+    if (!this.queue.some((q) => q.btn & (BTN.ATTACK | BTN.SPECIAL))) return;
+    const me = s.fighters[this.id];
+    if (this.rec || this.offstage(me)) return;
+    const d = this.read(s, me);
+    if (!d.event) return;
+    if (!this.aware(s, d)) return;
+    const [hw, h] = bodyOf(me);
+    const horizon = this.commitFrames(me) + 20;
+    const pad = this.lagPad(me);
+    if (clearance(d, me.x / FX, me.y / FX, hw, h, horizon, true) >= HAZARD_SAFE + pad && this.room(s, me, d) >= HAZARD_SAFE) return;
+    // Keep the guard, not the swing.
+    this.queue.length = 0;
+    this.steer(0);
   }
 
   /** How this bot likes to fight: the fighter's playstyle profile, which weights spacing, grabs, projectiles and air time. */
@@ -389,7 +432,7 @@ export class Bot {
       return false;
     }
     if (!this.aware(s, d)) return false;
-    return this.room(s, me, d) < HAZARD_SAFE;
+    return this.room(s, me, d) < HAZARD_SAFE + (d.event ? this.lagPad(me) : 0);
   }
 
   /** Moves out of the way when the bot's spot is in a hazard's path or zone: true when it acted. */
@@ -401,7 +444,7 @@ export class Bot {
     }
     if (!this.aware(s, d)) return false;
     const [hw, h] = bodyOf(me);
-    if (this.room(s, me, d) >= HAZARD_SAFE) return false;
+    if (this.room(s, me, d) >= HAZARD_SAFE + (d.event ? this.lagPad(me) : 0)) return false;
     // Stick to the spot picked a moment ago while it stays clear (no dithering between two equal ways out).
     let spot = this.spot;
     if (!spot || s.frame - this.spotAt > 120 || clearance(d, spot.x, spot.y, hw, h, Infinity, true) < HAZARD_SAFE) {

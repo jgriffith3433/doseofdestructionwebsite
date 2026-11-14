@@ -42,6 +42,12 @@
   <canvas id="stage" aria-label="Game view"></canvas>
 
   <div id="hud" class="hud" hidden></div>
+  <div id="training-readout" class="training-readout" aria-live="off" hidden>
+    <div class="tr-combo"><span class="tr-count">0</span><span class="tr-unit">HIT COMBO</span></div>
+    <div class="tr-line"><span>Combo</span><b class="tr-dmg">0.0%</b></div>
+    <div class="tr-line"><span>Last hit</span><b class="tr-last">0.0%</b></div>
+    <div class="tr-tag">True combo</div>
+  </div>
   <div id="edge-markers" class="edge-markers" aria-hidden="true"></div>
   <div id="fighter-tags" class="fighter-tags" aria-hidden="true"></div>
   <div id="match-top" class="match-top" hidden>
@@ -249,12 +255,25 @@
   <div id="pause" class="overlay" hidden>
     <div class="panel small">
       <h2>Paused</h2>
+      <div class="pause-body">
+      <div id="training-options" class="training-options" hidden>
+        <h3>Dummy</h3>
+        <div class="to-group" role="group" aria-label="Dummy behaviour" id="to-modes"></div>
+        <div class="to-level" id="to-level-row" hidden>
+          <button id="to-level-down" class="secondary" type="button" aria-label="CPU level down">−</button>
+          <span id="to-level">CPU level 5</span>
+          <button id="to-level-up" class="secondary" type="button" aria-label="CPU level up">+</button>
+        </div>
+        <h3>Dummy percent</h3>
+        <div class="to-group pct" role="group" aria-label="Dummy percent" id="to-percents"></div>
+      </div>
       <div class="actions column">
         <button id="btn-resume" class="primary" type="button" data-autofocus>Resume</button>
         <button id="btn-restart" class="secondary" type="button">Restart</button>
         <button id="btn-pause-controls" class="secondary" type="button">All controls</button>
         <button id="btn-pause-settings" class="secondary" type="button">Settings</button>
         <button id="btn-quit" class="secondary" type="button">Quit</button>
+      </div>
       </div>
     </div>
   </div>

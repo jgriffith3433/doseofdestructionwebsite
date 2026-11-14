@@ -224,6 +224,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'feet') await r.feetRun();
         else if (id === 'smooth-clips') await r.smoothClips();
         else if (id === 'specials') await r.specialsRun();
+        else if (id === 'hurtbox-fit') await r.hurtboxFitRun();
         else if (id === 'extra-jumps') await r.extraJumpsRun();
         else if (id === 'cpu-styles') await r.cpuStylesRun();
         else if (id === 'special-sounds') await r.specialSounds();
@@ -231,6 +232,8 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'lesson-2') await r.lessonTwo();
         else if (id === 'lesson-3') await r.lessonThree();
         else if (id === 'ledge-options') await r.ledgeOptions();
+        else if (id === 'training-combo') await r.trainingCombo();
+        else if (id === 'archetype-normals') await r.archetypeNormals();
         else if (id === 'special-fx') await r.specialFx();
         else if (id === 'menu-walk') await r.menuWalk();
         else if (id === 'select-specials') await r.selectSpecials();
@@ -6686,6 +6689,119 @@ class Run {
     t.finish();
   }
 
+  /**
+   * Hurtboxes hug the art (tools/hurtbox-art.mjs, tools/hurtbox.test.mjs): in Training Exit Punk jabs a Spider-Bot dummy from just
+   * outside its body (a near miss that must visibly miss, `hurtbox-near-miss`), then from just inside (`hurtbox-hit`). The gaps come
+   * from the jab's own hitbox and Spider-Bot's hurtbox, so they move with the data. Touch (a phone is turned to 844x390): the stick
+   * and the Attack button as pointer events.
+   */
+  async hurtboxFitRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('hurtbox-fit');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const spider = CHARACTERS.findIndex((c) => c.id === 'spider-bot');
+      if (punk < 0 || spider < 0) {
+        t.problem('bug', 'Exit Punk or Spider-Bot is not on the roster');
+        t.finish('error');
+        return;
+      }
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      void this.game.startMatch({
+        mode: 'training', stage, stocks: 1, rules: {},
+        slots: [{ char: punk, cpu: null }, { char: spider, cpu: 0 }],
+      });
+      await this.matchLive();
+      this.manual = NO_INPUT;
+      const match = () => this.game.match()!;
+      const me = () => match().state.fighters[match().player];
+      const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+      };
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls were not built');
+        t.finish('error');
+        return;
+      }
+      if (touch) t.event('phone-shot', `training against Spider-Bot with the touch overlay at ${innerWidth}x${innerHeight}`);
+
+      // The jab's tip (world units from the fighter's centre) and Spider-Bot's half width.
+      const box = CHARACTERS[punk].moves[MOVE.JAB].hits[0].boxes[0];
+      const tip = box.x + box.r;
+      const half = CHARACTERS[spider].width / 2;
+      t.event('hurtbox-fit', `Spider-Bot hurtbox ${CHARACTERS[spider].width}x${CHARACTERS[spider].height} (was 100 wide); Exit Punk's jab reaches ${tip}`);
+      t.metric('spiderBotHurtW', CHARACTERS[spider].width);
+
+      const standing = () => {
+        const f = me();
+        return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      };
+      const gap = () => Math.abs(dummy().x - me().x) / FX;
+      const dir = () => (dummy().x >= me().x ? 1 : -1);
+      /** Walks to a centre gap (stepping back if too close), lets go and stands still. */
+      const approach = async (want: number) => {
+        for (let i = 0; i < 6 && Math.abs(gap() - want) > 3; i++) {
+          const d = gap() > want ? dir() : -dir();
+          pad.stick(d * 100, 0);
+          try {
+            await t.until(() => (d === dir() ? gap() <= want + 2 : gap() >= want - 2), 12000, 'the fighter to reach the gap');
+          } finally {
+            pad.stick(0, 0);
+          }
+          await t.until(standing, 10000, 'the fighter to stand');
+          await frames(6);
+        }
+      };
+      const jab = async (): Promise<number> => {
+        const before = dummy().percent;
+        pad.button('attack', true);
+        await frames(3);
+        pad.button('attack', false);
+        await frames(30);
+        return dummy().percent - before;
+      };
+
+      // Face it first: a jab only reaches forward.
+      pad.stick(dir() * 100, 0);
+      await frames(4);
+      pad.stick(0, 0);
+      await approach(tip + half + 16);
+      const missGap = gap();
+      const missDmg = await jab();
+      if (missDmg > 0) t.problem('bug', `a jab from ${missGap.toFixed(0)} units away (16 outside Spider-Bot's body) hit it: its hurtbox is wider than it looks`);
+      t.event('hurtbox-near-miss', `jab from ${missGap.toFixed(0)} units (body edge ${half}, jab tip ${tip}): ${missDmg > 0 ? 'HIT' : 'visibly missed'}`);
+      t.metric('nearMissHit', missDmg > 0 ? 1 : 0);
+      t.progress(0.55);
+
+      await approach(tip + half - 8);
+      const hitGap = gap();
+      const hitDmg = await jab();
+      if (hitDmg <= 0) t.problem('bug', `a jab from ${hitGap.toFixed(0)} units away (8 inside Spider-Bot's body) missed`);
+      t.event('hurtbox-hit', `jab from ${hitGap.toFixed(0)} units: ${hitDmg > 0 ? 'connected' : 'MISSED'}`);
+      t.metric('closeJabHit', hitDmg > 0 ? 1 : 0);
+      pad.release();
+      await frames(30);
+      t.finish();
+    } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+  }
+
   async specialsRun(): Promise<void> {
     const t = this.t;
     const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
@@ -6936,6 +7052,127 @@ class Run {
       }
       if (avg.zoner > avg.rushdown) t.event('cpu-spacing', `zoner CPU kept ${Math.round(avg.zoner)} units on average, rushdown ${Math.round(avg.rushdown)}`);
       else t.problem('bug', `the zoner CPU (${Math.round(avg.zoner)} units) did not keep more distance than the rushdown (${Math.round(avg.rushdown)})`);
+    } finally {
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- archetype normals
+
+  /**
+   * Archetype normals (`sim/fighterDefs.ts` `applyArchetype`, content/archetypes.json): in Training a fast fighter (Kaelen) and a
+   * heavy (Break) each walk up to a dummy and press Attack once, from real input (keyboard, or on a phone, 390x844 turned to
+   * 844x390, the Attack button as a touch pointer event). The sim's own hit events are counted: the fast jab lands its three-hit
+   * flurry from one press, the heavy's one hit comes later and launches harder; a fast and a floaty fighter's neutral air are
+   * compared in the data. Events `archetype-jab`, `archetype-data`, `archetype-touch`; metrics `fastJabHits`, `heavyJabHits`,
+   * `fastJabStartup`, `heavyJabStartup`.
+   */
+  async archetypeNormals(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('archetype-normals');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      const dummyChar = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const results: Record<string, { hits: number; startup: number; kb: number; arch: string }> = {};
+      for (const [round, id] of [['fast', 'kaelen'], ['heavy', 'break']] as const) {
+        const ix = CHARACTERS.findIndex((c) => c.id === id);
+        if (ix < 0) {
+          t.problem('bug', `${id} is not on the roster`);
+          t.finish('error');
+          return;
+        }
+        void this.game.startMatch({ mode: 'training', stage, stocks: 1, rules: {}, slots: [{ char: ix, cpu: null }, { char: dummyChar, cpu: 0 }] });
+        await this.matchLive();
+        this.manual = NO_INPUT;
+        const match = () => this.game.match()!;
+        const me = () => match().state.fighters[match().player];
+        const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+        const frame = () => match().state.frame;
+        const pad = touch ? makeTouchPad() : makeKeyboardPad();
+        if (!pad) {
+          t.problem('bug', 'the touch controls were not built');
+          t.finish('error');
+          return;
+        }
+        if (touch && round === 'fast') {
+          const small: string[] = [];
+          for (const b of document.querySelectorAll<HTMLElement>('.touch .touch-btn')) {
+            const r = b.getBoundingClientRect();
+            if (r.width && (r.width < 44 || r.height < 44)) small.push(`${b.className} ${Math.round(r.width)}x${Math.round(r.height)}`);
+          }
+          if (small.length) t.problem('bug', `touch buttons under 44 px: ${small.join(', ')}`);
+          else t.event('archetype-touch', `Attack is the same button for every archetype (${document.querySelectorAll('.touch .touch-btn').length} on the overlay, ${innerWidth}x${innerHeight}); nothing new`);
+        }
+        const c = CHARACTERS[ix];
+        const reach = Math.max(...c.moves[MOVE.JAB].hits.flatMap((w) => w.boxes.map((b) => b.x))) * 0.5;
+        // Walk up to the dummy with the stick until it is close, then stand still.
+        await t.until(() => me().grounded > 0 && me().action === ACT.IDLE, 12000, 'the fighter to stand');
+        const toward = () => (dummy().x >= me().x ? 1 : -1);
+        for (let i = 0; i < 400 && Math.abs(dummy().x - me().x) / FX > reach + 10; i++) {
+          pad.stick(toward() * 100, 0);
+          await t.wait(40);
+        }
+        pad.stick(0, 0);
+        await t.until(() => me().action === ACT.IDLE || me().action === ACT.WALK, 3000, 'the fighter to stop');
+        await t.wait(250);
+        // One press of Attack, from a still stick, facing the dummy.
+        const before = dummy().percent;
+        let hits = 0;
+        let last = before;
+        let startup = -1;
+        const f0 = frame();
+        pad.button('attack', true);
+        await t.wait(70);
+        pad.button('attack', false);
+        const end = f0 + c.moves[MOVE.JAB].total + 30;
+        while (frame() < end) {
+          if (me().action === ACT.ATTACK && startup < 0 && dummy().percent > last) startup = me().frame;
+          if (dummy().percent > last) {
+            hits++;
+            last = dummy().percent;
+          }
+          await t.wait(16);
+        }
+        const hitboxes = c.moves[MOVE.JAB].hits;
+        const kb = Math.max(...hitboxes.flatMap((w) => w.boxes.map((b) => b.kbg)));
+        const first = Math.min(...hitboxes.map((w) => w.start));
+        results[round] = { hits, startup: first, kb, arch: c.archetype };
+        t.event('archetype-jab', `${how}: ${c.name} (${c.archetype}) one Attack press: ${hits} hit${hits === 1 ? '' : 's'} on the dummy, first hitbox on frame ${first}, ${hitboxes.length} hit window${hitboxes.length === 1 ? '' : 's'}, launch growth ${kb}`);
+        t.metric(round === 'fast' ? 'fastJabHits' : 'heavyJabHits', hits);
+        t.metric(round === 'fast' ? 'fastJabStartup' : 'heavyJabStartup', first);
+        pad.release();
+        this.manual = null;
+        await this.game.quitMatch();
+        await this.screen('main');
+        t.progress(round === 'fast' ? 0.45 : 0.85);
+      }
+      const f = results.fast, h = results.heavy;
+      if (f.hits < 3) t.problem('bug', `${how}: the fast jab landed ${f.hits} hits from one Attack press (want 3)`);
+      if (h.hits < 1) t.problem('bug', `${how}: the heavy jab hit nothing from one Attack press`);
+      if (h.startup <= f.startup) t.problem('bug', `a heavy's jab starts on frame ${h.startup}, not later than the fast one's (${f.startup})`);
+      if (h.kb <= f.kb) t.problem('bug', 'a heavy\'s jab does not launch harder than the fast one\'s');
+      // The data side: every fighter has an archetype, and floaty aerials hang out longer than fast ones.
+      const active = (ch: (typeof CHARACTERS)[number]) => Math.max(...ch.moves[MOVE.NAIR].hits.map((w) => w.end)) - Math.min(...ch.moves[MOVE.NAIR].hits.map((w) => w.start)) + 1;
+      const floaty = CHARACTERS.filter((ch) => ch.archetype === 'floaty'), fast = CHARACTERS.filter((ch) => ch.archetype === 'fast');
+      const minF = Math.min(...floaty.map(active)), maxQ = Math.max(...fast.map(active));
+      if (minF > maxQ && CHARACTERS.every((ch) => ch.archetype)) t.event('archetype-data', `every fighter has an archetype (${['heavy', 'floaty', 'fast', 'standard'].map((a) => `${a} ${CHARACTERS.filter((ch) => ch.archetype === a).length}`).join(', ')}); floaty neutral air stays out ${minF}+ frames, fast ${maxQ} at most`);
+      else t.problem('bug', `archetype data: floaty neutral air ${minF}, fast ${maxQ}`);
     } finally {
       if (touch) {
         this.useTap = false;
@@ -7228,6 +7465,212 @@ class Run {
       if (close) close.click();
     } finally {
       window.removeEventListener('dod:ledge', onLedge);
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- training combo
+
+  /**
+   * Training's combo readout and dummy options (Match.readout, main.ts updateReadout / wireTrainingOptions, ai/trainingDummy.ts).
+   * Setup shortcut: straight into Training (Exit Punk vs Break, no menus). The readout sits top left clear of the pause button,
+   * the timer and every touch control. Pause: the dummy's percent is set to 100 and read back from the sim, then Reset puts it at 0;
+   * the dummy's behaviour is set to Jump, Shield, Stand and CPU (level raised) in turn, each seen in the sim. Then a true combo from
+   * real input: the stick down plus Attack (down tilt) again and again lands a string while the dummy is still in hitstun, the
+   * readout counting to 3 or more with the combo's damage and the last hit's. Every Pause control must be 44 px and on screen.
+   * Keyboard on a desktop; at phone size (390x844, turned to 844x390 like ledge-options) the same through touch taps and the
+   * on-screen stick and Attack button. Events `training-readout`, `training-percent`, `training-reset`, `training-dummy`,
+   * `training-combo`, `training-fit`; metrics `trainingComboHits`, `trainingComboDamage`.
+   */
+  async trainingCombo(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('training-combo');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = CHARACTERS.findIndex((c) => c.id === 'break');
+      if (punk < 0 || foe < 0) {
+        t.problem('bug', 'Exit Punk or Break is not on the roster');
+        t.finish('error');
+        return;
+      }
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      void this.game.startMatch({
+        mode: 'training', stage, stocks: 1, rules: {},
+        slots: [{ char: punk, cpu: null }, { char: foe, cpu: 0 }],
+      });
+      await this.matchLive();
+      this.manual = NO_INPUT;
+      const match = () => this.game.match()!;
+      const me = () => match().state.fighters[match().player];
+      const dummy = () => match().state.fighters[match().dummySlot];
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 8000 + n * 150, 'frames to pass');
+      };
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls were not built');
+        t.finish('error');
+        return;
+      }
+      const vw = innerWidth;
+      const vh = innerHeight;
+      const rectOf = (el: Element) => el.getBoundingClientRect();
+      const overlap = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      const visible = (el: Element | null): el is HTMLElement => !!el && (el as HTMLElement).getClientRects().length > 0;
+
+      // ---- 1. the readout is up, on screen, clear of the controls.
+      const readout = this.q('#training-readout');
+      if (!visible(readout)) {
+        t.problem('bug', `${how}: no combo readout on the Training screen`);
+        t.finish('error');
+        return;
+      }
+      const rr = rectOf(readout);
+      const blockers = [...document.querySelectorAll<HTMLElement>('.touch-btn, .touch-stick, .touch-pause, #match-top, #hud .hud-card')].filter(visible);
+      const hit = blockers.find((b) => overlap(rr, rectOf(b)));
+      if (rr.left < 0 || rr.top < 0 || rr.right > vw || rr.bottom > vh) t.problem('bug', `${how}: the combo readout runs off the screen (${Math.round(rr.left)},${Math.round(rr.top)} ${Math.round(rr.width)}x${Math.round(rr.height)} in ${vw}x${vh})`);
+      else if (hit) t.problem('bug', `${how}: the combo readout is under ${hit.className || hit.id}`);
+      else t.event('training-readout', `${how}: readout top left at ${Math.round(rr.left)},${Math.round(rr.top)} (${Math.round(rr.width)}x${Math.round(rr.height)} in ${vw}x${vh}), clear of the pause button and the controls`);
+      t.progress(0.1);
+
+      // ---- 2. Pause: the options are there, every control 44 px, on screen.
+      const openPause = async () => {
+        const pauseBtn = () => (touch && visible(this.q('.touch-pause')) ? this.q('.touch-pause') : null);
+        if (pauseBtn()) await this.tap(pauseBtn, 'Pause');
+        else await tapKey('Escape');
+        await t.until(() => this.game.phase() === 'pause' && visible(this.q('#training-options')), 4000, 'Pause with the Training options');
+        await t.wait(300);
+      };
+      const closePause = async () => {
+        await this.tap(() => this.q('#btn-resume'), 'Resume');
+        await t.until(() => this.game.phase() === 'play', 4000, 'the match to resume');
+      };
+      await openPause();
+      const small: string[] = [];
+      const off: string[] = [];
+      for (const b of document.querySelectorAll<HTMLElement>('#pause button')) {
+        if (!visible(b)) continue;
+        const r = rectOf(b);
+        if (r.width < 44 || r.height < 44) small.push(`${b.textContent?.trim() || b.id} ${Math.round(r.width)}x${Math.round(r.height)}`);
+        if (r.left < 0 || r.top < 0 || r.right > vw + 1 || r.bottom > vh + 1) off.push(`${b.textContent?.trim() || b.id}`);
+      }
+      const pausePanel = this.q('#pause .panel');
+      const pr = pausePanel ? rectOf(pausePanel) : null;
+      if (small.length) t.problem('bug', `${how}: Pause controls under 44 px: ${small.join(', ')}`);
+      else if (off.length) t.problem('bug', `${how}: Pause controls off the screen: ${off.join(', ')}`);
+      else if (pr && (pr.left < 0 || pr.top < 0 || pr.right > vw + 1 || pr.bottom > vh + 1)) t.problem('bug', `${how}: the Pause panel runs off the screen (${Math.round(pr.width)}x${Math.round(pr.height)} in ${vw}x${vh})`);
+      else t.event('training-fit', `${how}: ${document.querySelectorAll('#pause button').length} Pause buttons, all at least 44x44, panel ${pr ? `${Math.round(pr.width)}x${Math.round(pr.height)}` : '?'} inside ${vw}x${vh}`);
+
+      // ---- 3. the dummy's percent: set 100, then Reset.
+      const pctBtn = (n: number) => () => this.q(`#to-percents button[data-percent="${n}"]`);
+      await this.tap(pctBtn(100), 'Dummy 100%');
+      if (dummy().percent !== 1000) t.problem('bug', `${how}: the 100% button left the dummy at ${dummy().percent / 10}%`);
+      else t.event('training-percent', `${how}: the dummy was set to 100% from Pause (sim ${dummy().percent / 10}%)`);
+      await this.tap(pctBtn(0), 'Dummy Reset');
+      if (dummy().percent !== 0) t.problem('bug', `${how}: Reset left the dummy at ${dummy().percent / 10}%`);
+      else t.event('training-reset', `${how}: Reset put the dummy back at 0%`);
+      await closePause();
+      t.progress(0.3);
+
+      // ---- 4. the dummy's behaviour: Jump, Shield, Stand, CPU. Each is seen in the sim after Resume.
+      const mode = async (id: string, seen: () => boolean, label: string, ms = 6000) => {
+        await openPause();
+        await this.tap(() => this.q(`#to-modes button[data-dummy="${id}"]`), `Dummy ${id}`);
+        if (this.q(`#to-modes button[data-dummy="${id}"]`)?.getAttribute('aria-pressed') !== 'true') t.problem('bug', `${how}: ${id} is not marked as chosen`);
+        if (id === 'cpu') {
+          await this.tap(() => this.q('#to-level-up'), 'CPU level up');
+          await this.tap(() => this.q('#to-level-up'), 'CPU level up');
+          if (!/level 7/i.test(this.q('#to-level')?.textContent ?? '')) t.problem('bug', `${how}: the CPU level did not go up ("${this.q('#to-level')?.textContent}")`);
+        }
+        await closePause();
+        try {
+          await t.until(seen, ms, label);
+          t.event('training-dummy', `${how}: dummy ${id}: ${label}`);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.problem('bug', `${how}: dummy set to ${id} but ${label} never happened`);
+        }
+      };
+      await mode('jump', () => dummy().grounded === 0, 'it jumped');
+      await mode('shield', () => dummy().action === ACT.SHIELD, 'it shielded');
+      await mode('stand', () => dummy().action === ACT.IDLE && dummy().grounded > 0, 'it stood');
+      await mode('cpu', () => dummy().action !== ACT.IDLE, 'it acted as a CPU');
+      // Back to a still dummy at 0% for the combo.
+      await openPause();
+      await this.tap(() => this.q('#to-modes button[data-dummy="stand"]'), 'Dummy stand');
+      await this.tap(pctBtn(0), 'Dummy Reset');
+      await closePause();
+      t.progress(0.55);
+
+      // ---- 5. a true combo: down tilt again and again, the dummy still in hitstun at each hit.
+      const standing = () => {
+        const f = me();
+        return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      };
+      let best = 0;
+      let bestDmg = 0;
+      let lastText = '';
+      for (let attempt = 1; attempt <= 8 && best < 3; attempt++) {
+        pad.release();
+        await t.until(() => standing() && dummy().grounded > 0 && dummy().action !== ACT.HITSTUN, 12000, 'both fighters to stand');
+        // Setup shortcut: stand the fighters 50 units apart facing each other (the hits are real input).
+        const p = me();
+        const d = dummy();
+        p.x = d.x - 50 * FX;
+        p.y = d.y;
+        p.facing = 1;
+        d.facing = -1;
+        p.vx = 0;
+        await frames(4);
+        const start = frame();
+        while (frame() - start < 6 * 19 && best < 3) {
+          pad.stick(0, -100);
+          pad.button('attack', true);
+          await frames(3);
+          pad.button('attack', false);
+          await frames(16);
+          const r = match().readout;
+          if (r.count > best) {
+            best = r.count;
+            bestDmg = r.dmg;
+            lastText = `${this.q('#training-readout .tr-count')?.textContent} ${this.q('#training-readout .tr-dmg')?.textContent} / last ${this.q('#training-readout .tr-last')?.textContent}`;
+          }
+        }
+        pad.release();
+        if (best < 3) t.event('training-retry', `${how}: attempt ${attempt} reached a ${best}-hit combo; trying again`);
+      }
+      if (best < 3) t.problem('bug', `${how}: the down tilt string never made a 3-hit true combo (best ${best})`);
+      else {
+        await frames(4);
+        const shownCount = Number(this.q('#training-readout .tr-count')?.textContent);
+        const shownDmg = this.q('#training-readout .tr-dmg')?.textContent ?? '';
+        const shownLast = this.q('#training-readout .tr-last')?.textContent ?? '';
+        if (shownCount < 3 || !/\d+\.\d%/.test(shownDmg) || shownDmg === '0.0%') t.problem('bug', `${how}: a ${best}-hit combo but the readout shows "${shownCount}" and "${shownDmg}"`);
+        else if (!visible(this.q('#training-readout .tr-tag'))) t.problem('bug', `${how}: the readout does not say the ${best}-hit combo was true`);
+        else t.event('training-combo', `${how}: ${best}-hit true combo (${touch ? 'stick down + Attack' : 'S + J'}); readout ${lastText}; after: ${shownCount} hits, combo ${shownDmg}, last hit ${shownLast}`);
+      }
+      t.metric('trainingComboHits', best);
+      t.metric('trainingComboDamage', Math.round(bestDmg) / 10);
+      pad.release();
+    } finally {
       if (touch) {
         this.useTap = false;
         forceTouchUi(false);

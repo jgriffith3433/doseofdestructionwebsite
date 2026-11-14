@@ -183,6 +183,15 @@ the floor like a bowling lane), **Skate dash** (side, he rides it straight throu
 floor and walks away from it; whoever steps on it eats it). Dry as ever: no one on the show says what the moves
 are called.
 
+**How a fighter's hands move (archetypes).** The same button reads differently by build, from `content/archetypes.json`
+(every fighter is listed; `archetype` in `fighters.json` overrides; `src/game/sim/fighterDefs.ts` `applyArchetype`). A
+**heavy** (Break, SS Boulder, Shutup Bot, Got Ur Back, Stratabots, TT, Spider Bot, Yo Bot) jabs like a shove: it starts
+later, reaches further and launches harder. A **fast** fighter (Kaelen, Slice, DJ Won't Read, Shark Dude, Try Belt,
+Ball Person) answers one press with a three-hit flurry and pokes with short aerials. A **floaty** fighter (Cel, Evil Blue
+Bird, Uh Me, Slow Rider, Chooser, Small Weather, Yooba) leaves aerials hanging in the air and lands them quickly, softer.
+Everyone else is standard. Smashes and specials are untouched. The show never names any of it; the crowd just flinches
+at a heavy's jab. Scenario `archetype-normals`; `test/archetypes.test.ts`.
+
 The other twelve Season 1 fighters each have their own kit, drawn from their blurb and the show, and no two share
 the same four kinds (neutral / side / up / down): Kaelen (Hi, bye · Gone · Bye · Slip: a flurry, a dash, a straight
 jump, a sidestep counter; gone before the trade lands), Break (Rule one · Hammer fists · House jump · Hold the line:

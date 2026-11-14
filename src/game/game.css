@@ -2248,3 +2248,57 @@ body.sudden-death .hud-card { box-shadow: 0 0 0 2px rgba(255, 59, 47, 0.7); }
 .vs-card .vs-level { white-space: nowrap; }
 .results-hero .level-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--gold); font-weight: 700; font-size: calc(14px * var(--ts, 1)); }
 .slot-tools button.auto-level[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+
+/* ------------------------------------------------- Training: combo readout and dummy options */
+
+/* Top left, clear of the pause button (top right), the timer (top centre) and the touch controls (bottom). */
+.training-readout {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  display: grid;
+  gap: 2px;
+  min-width: 132px;
+  max-width: 42vw;
+  padding: 6px 12px 6px 10px;
+  background: linear-gradient(180deg, rgba(20, 15, 12, 0.85), rgba(20, 15, 12, 0.55));
+  border-left: 3px solid var(--gold);
+  border-radius: 4px 8px 8px 4px;
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity 300ms;
+}
+body.scene-on .training-readout { opacity: 0; }
+.training-readout[data-live="false"] { opacity: 0.7; }
+.tr-combo { display: flex; align-items: baseline; gap: 6px; font-family: Oswald, sans-serif; }
+.tr-count { font-size: calc(clamp(30px, 4.4vw, 42px) * var(--ts, 1)); line-height: 1; color: var(--gold); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7); display: inline-block; transform-origin: 0 80%; }
+.tr-count.bump { animation: pct-shake 260ms ease-out; }
+.tr-unit { font-size: calc(12px * var(--ts, 1)); letter-spacing: 0.14em; color: var(--muted); }
+.tr-line { display: flex; justify-content: space-between; gap: 12px; font-size: calc(13px * var(--ts, 1)); color: var(--muted); }
+.tr-line b { font-family: Oswald, sans-serif; color: #fff; font-variant-numeric: tabular-nums; }
+.tr-tag { font: 600 calc(11px * var(--ts, 1)) Oswald, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #1a0d08; background: var(--gold); border-radius: 999px; padding: 1px 8px; justify-self: start; }
+.tr-tag[hidden] { display: none; }
+.training-readout[data-ko="true"] .tr-tag { background: #ff3b2f; color: #fff; }
+
+.panel.training { width: min(720px, 100%); }
+.panel.training .pause-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 220px); gap: 16px; align-items: start; text-align: left; }
+.panel.training .pause-body .training-options { grid-column: 1; grid-row: 1; }
+.panel.training .pause-body .actions { grid-column: 2; grid-row: 1; }
+.training-options { display: grid; gap: 8px; }
+.training-options h3 { margin: 0; font: 600 calc(13px * var(--ts, 1)) Oswald, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.to-group { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.to-group.pct { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.to-group button, .to-level button { min-height: 44px; padding: 0 8px; }
+.to-group button[aria-pressed="true"] { background: var(--hot); border-color: var(--hot); color: #fff; }
+.to-level { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; gap: 8px; text-align: center; font: 600 calc(15px * var(--ts, 1)) Oswald, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; }
+.to-level[hidden] { display: none; }
+@media (max-width: 640px), (max-height: 520px) {
+  .panel.training { padding: 10px 16px; gap: 6px; max-height: calc(100dvh - 16px); overflow-y: auto; }
+  .panel.training h2 { font-size: calc(20px * var(--ts, 1)); margin: 0; }
+  .training-options { gap: 6px; }
+}
+@media (max-width: 640px) {
+  .panel.training .pause-body { grid-template-columns: minmax(0, 1fr); }
+  .panel.training .pause-body .actions { grid-column: 1; grid-row: 2; }
+}
+@media (prefers-reduced-motion: reduce) { .tr-count.bump { animation: none; } }

@@ -34,6 +34,7 @@ const BASELINE: Record<string, number> = {
 
 const A = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
 const B = CHARACTERS.findIndex((c) => c.id === 'break');
+// Every fighter plays its real archetype from content/archetypes.json (Break is a heavy).
 
 /** Plays the seeds on a stage; returns hits the stage landed, and for each warning the frames from warn to the first move. */
 export function hazardHits(stageId: string, level: number): { hits: number; byZone: number; matches: number; threatened: number; reacted: number } {
