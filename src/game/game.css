@@ -1744,6 +1744,10 @@ body.pilot-boot .screen { visibility: hidden; }
 .teach-prompt.used, .teach-prompt.gone { opacity: 0; transform: translate(-50%, -140%); }
 .teach-glyphs { display: flex; align-items: center; gap: 6px; }
 .teach-word { padding: 2px 10px; background: rgba(10, 10, 20, 0.82); color: #fff; font: 700 clamp(13px, 1.6vw, 18px) Oswald, system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 3px; }
+.teach-pips { display: flex; gap: 5px; }
+.teach-pips i { width: 9px; height: 9px; border-radius: 50%; background: rgba(10, 10, 20, 0.7); border: 2px solid #fff; }
+.teach-pips i.done { background: #ffd15a; border-color: #ffd15a; }
+.teach-pips i.now { background: #fff; }
 .teach-plus { color: #fff; font: 800 18px system-ui; text-shadow: 0 1px 3px #000; }
 .teach-glyph { display: inline-grid; place-items: center; min-width: 38px; height: 38px; padding: 0 8px; border-radius: 7px; background: #f4efe8; color: #14101c; border: 2px solid #14101c; box-shadow: 0 3px 0 #14101c; font: 800 17px system-ui, sans-serif; animation: teach-bob 1s ease-in-out infinite; }
 .teach-glyph.gamepad { min-width: 38px; border-radius: 50%; background: #ffd15a; font-size: 14px; }

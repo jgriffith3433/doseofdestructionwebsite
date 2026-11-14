@@ -40,7 +40,7 @@ import { OPENING_CAST, OPENING_KEY, OPENING_SKIP_AFTER, openingShowing } from '.
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
 import { PAIRS, pairFor } from '../campaign/intros.ts';
 import { SEASON_ONE_ENTRANCES, entranceKind } from '../campaign/intro.ts';
-import { PROMPTS, hintText, padGlyphs, type TeachStep } from '../ui/teach.ts';
+import { DEFENCE_STEPS, PROMPTS, hintText, padGlyphs, type DefenceStep, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { VoiceWatch } from './voiceWatch.ts';
@@ -217,6 +217,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'specials') await r.specialsRun();
         else if (id === 'special-sounds') await r.specialSounds();
         else if (id === 'grab') await r.grabRun();
+        else if (id === 'lesson-2') await r.lessonTwo();
         else if (id === 'special-fx') await r.specialFx();
         else if (id === 'menu-walk') await r.menuWalk();
         else if (id === 'select-specials') await r.selectSpecials();
@@ -1904,7 +1905,7 @@ class Run {
       fire(stick, 'pointerup', cx, cy);
       return;
     }
-    const cls = PROMPTS[step].touch;
+    const cls = [PROMPTS[step].touch ?? []].flat()[0];
     const btn = cls ? root.querySelector(`.touch-btn.${cls}`) : null;
     if (!btn) return;
     const r = btn.getBoundingClientRect();
@@ -4910,6 +4911,218 @@ class Run {
       else t.problem('bug', `the hold did not grow with damage (0%: ${low ?? 'no grab'} frames, 100%: ${high ?? 'no grab'} frames)`);
       t.metric('throwsLanded', thrown);
     } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- How to play 2: grab, throw, roll, spot-dodge
+
+  /**
+   * How to play 2 (`ui/teach.ts` lesson 'defence', `ai/dummy.ts`): the main menu's second lesson in Training. Five prompts in
+   * turn (grab, throw, roll left, roll right, spot-dodge), each ticked off by the sim seeing the move. Played from real
+   * input only (keys, or the touch stick, Shield and Attack buttons on a phone turned to 844x390).
+   */
+  async lessonTwo(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('lesson-2');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const seen: { step: DefenceStep; state: string; at: number; glyphs: string; device: string }[] = [];
+    const onTeach = (ev: Event) => {
+      const d = (ev as CustomEvent<{ step: DefenceStep; state: string }>).detail;
+      const el = document.querySelector<HTMLElement>('.teach-prompt');
+      seen.push({ step: d.step, state: d.state, at: performance.now(), glyphs: el?.dataset.glyphs ?? '', device: el?.dataset.device ?? '' });
+    };
+    window.addEventListener('dod:teach', onTeach);
+    let stacked = 0;
+    const poll = window.setInterval(() => {
+      if (document.querySelectorAll('.teach-prompt:not(.used):not(.gone)').length > 1) stacked++;
+    }, 50);
+    try {
+      await this.click(() => this.q('#main .menu-item[data-go="howto2"]'), 'How to play 2');
+      await this.matchLive();
+      this.manual = NO_INPUT;
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls (stick, Attack and Shield) were not built');
+        t.finish('error');
+        return;
+      }
+      const match = () => this.game.match()!;
+      const me = () => match().state.fighters[match().player];
+      const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+      };
+      const standing = () => {
+        const f = me();
+        return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      };
+      const settle = async () => {
+        pad.release();
+        await t.until(standing, 10000, 'the fighter to stand');
+        await frames(6);
+      };
+      const toward = () => (dummy().x >= me().x ? 1 : -1);
+      const gap = () => Math.abs(dummy().x - me().x) / FX;
+      const shownNow = (step: DefenceStep) => document.querySelector(`.teach-prompt[data-step="${step}"]:not(.used):not(.gone)`) as HTMLElement | null;
+      if (touch) t.event('phone-shot', `How to play 2 with the touch overlay: Shield and Attack buttons, the stick (${innerWidth}x${innerHeight})`);
+
+      // The moves, each from real input.
+      const reach = CHARACTERS[me().char].grabReach * 0.7;
+      const doStep: Record<DefenceStep, () => Promise<void>> = {
+        grab: async () => {
+          await settle();
+          if (gap() > reach || me().facing !== toward()) {
+            pad.stick(toward() * 100, 0);
+            try {
+              await t.until(() => gap() < reach && me().facing === toward(), 8000, 'Exit Punk to walk up to the dummy');
+            } finally {
+              pad.stick(0, 0);
+            }
+            await frames(6);
+          }
+          pad.button('shield', true);
+          pad.button('attack', true);
+          await frames(3);
+          pad.button('attack', false);
+          pad.button('shield', false);
+        },
+        throw: async () => {
+          await t.until(() => me().action === ACT.GRAB_HOLD, 3000, 'the grab to hold the dummy');
+          await frames(10);
+          pad.stick(toward() * 100, 0);
+          await frames(3);
+          pad.stick(0, 0);
+        },
+        rollL: async () => {
+          await settle();
+          pad.button('shield', true);
+          await frames(6);
+          pad.stick(-100, 0);
+          await frames(4);
+          pad.stick(0, 0);
+          pad.button('shield', false);
+        },
+        rollR: async () => {
+          await settle();
+          pad.button('shield', true);
+          await frames(6);
+          pad.stick(100, 0);
+          await frames(4);
+          pad.stick(0, 0);
+          pad.button('shield', false);
+        },
+        dodge: async () => {
+          await settle();
+          // The dummy walks up and swings on its own: log the gap between its swings.
+          const swings: number[] = [];
+          let last = -1;
+          let wasSwinging = false;
+          const watchSwing = window.setInterval(() => {
+            const d = dummy();
+            const swinging = d.action === ACT.ATTACK;
+            if (swinging && !wasSwinging) {
+              if (last >= 0) swings.push(frame() - last);
+              last = frame();
+            }
+            wasSwinging = swinging;
+          }, 16);
+          try {
+            await t.until(() => dummy().action === ACT.ATTACK || last >= 0, 20000, 'the dummy to swing');
+            t.event('lesson-dummy-swing', `the dummy swung at the player (${Math.round(gap())} units away); it swings every ${150} frames at most`);
+            // Shield up, then a tap down, on the rhythm of its next swing.
+            await t.until(() => standing(), 5000, 'the fighter to stand');
+            pad.button('shield', true);
+            await frames(4);
+            pad.stick(0, -100);
+            await frames(4);
+            pad.stick(0, 0);
+            pad.button('shield', false);
+          } finally {
+            clearInterval(watchSwing);
+          }
+          if (swings.length && Math.min(...swings) < 120) t.problem('bug', `the lesson's dummy swung again after ${Math.min(...swings)} frames (slow means 2 s or more)`);
+        },
+      };
+
+      let tickMax = 0;
+      let done = 0;
+      for (const step of DEFENCE_STEPS) {
+        // The prompt for this step shows, alone, with this device's glyphs.
+        await t.until(() => !!shownNow(step), 20000, `the ${step} prompt`);
+        const el = shownNow(step)!;
+        const dev = el.dataset.device ?? '';
+        const word = PROMPTS[step].word;
+        t.event('lesson-prompt', `${step}: "${word}" (${dev}: ${el.dataset.glyphs ?? ''}) after ${done} ticked`);
+        if (dev !== (touch ? 'touch' : 'keyboard')) t.problem('bug', `the ${step} prompt shows ${dev} glyphs on ${how}`);
+        if (el.textContent?.trim() === '') t.problem('bug', `the ${step} prompt is empty`);
+        if (touch) {
+          // Clear of the touch controls, and the buttons it names pulse.
+          const r = el.getBoundingClientRect();
+          for (const b of document.querySelectorAll<HTMLElement>('.touch .touch-btn, .touch .touch-stick, .touch .touch-pause')) {
+            const q = b.getBoundingClientRect();
+            if (q.width && r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top) t.problem('bug', `the ${step} prompt sits under the ${b.className} control`);
+          }
+        }
+        await doStep[step]();
+        // The tick lands within a second of the move.
+        const moved = performance.now();
+        try {
+          await t.until(() => seen.some((e) => e.step === step && e.state === 'used'), 3000, `the ${step} tick`);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.problem('bug', `${how}: the ${step} step was not ticked off within 3 s of the move (${ACT_NAMES[me().action]})`);
+          continue;
+        }
+        const tick = seen.find((e) => e.step === step && e.state === 'used')!;
+        const ms = Math.max(0, Math.round(tick.at - moved));
+        tickMax = Math.max(tickMax, ms);
+        done++;
+        t.event('lesson-tick', `${step} ticked off ${ms} ms after the move was done (${how})`);
+        if (ms > 1000) t.problem('bug', `${how}: the ${step} step ticked off ${ms} ms after the move (over 1 s)`);
+        t.progress(0.1 + 0.15 * done);
+        await t.wait(700);
+      }
+      t.metric('lessonSteps', done);
+      t.metric('lessonTickMaxMs', tickMax);
+      if (done === DEFENCE_STEPS.length) {
+        try {
+          await t.until(() => !!document.getElementById('teach-reward'), 2000, 'the lesson-clear card');
+          t.event('lesson-clear', `"${document.getElementById('teach-reward')?.textContent ?? ''}" after all ${done} steps (${how})`);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.problem('bug', 'the lesson showed no clear card after the last step');
+        }
+      }
+      if (stacked) t.problem('bug', `${stacked} samples had more than one teaching prompt on screen`);
+      if (touch) {
+        let small = 0;
+        for (const b of document.querySelectorAll<HTMLElement>('.touch .touch-btn, .touch .touch-pause')) {
+          const q = b.getBoundingClientRect();
+          if (q.width < 44 || q.height < 44) small++;
+        }
+        t.event('lesson-touch', small === 0 ? 'every touch control is 44 px or larger and the lesson was finished with touch only' : `${small} touch controls under 44 px`);
+        if (small) t.problem('bug', `${small} touch controls are under 44 px`);
+      }
+    } finally {
+      clearInterval(poll);
+      window.removeEventListener('dod:teach', onTeach);
+      this.manual = null;
       this.useTap = false;
       forceTouchUi(false);
     }
