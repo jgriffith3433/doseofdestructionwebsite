@@ -77,6 +77,11 @@
         <ul id="lobby-list" class="lobby-list"></ul>
       </div>
       <section id="daily-card" class="daily-card" aria-label="Tonight's Episode"></section>
+      <div class="mode-row" role="group" aria-label="Choose a mode">
+        <button class="mode-btn" type="button" data-go="campaign"><strong>Story</strong><span>Campaign</span></button>
+        <button class="mode-btn" type="button" data-go="versus"><strong>Versus</strong><span>Local</span></button>
+        <button class="mode-btn" type="button" data-go="online"><strong>Play</strong><span>Online</span></button>
+      </div>
       <button class="menu-item" type="button" data-go="campaign" data-autofocus><strong>Campaign</strong><span id="campaign-blurb">The whole run. One way off the air.</span></button>
       <button id="btn-tour" class="menu-item" type="button" data-go="tour"><strong>Tour</strong><span>Pick a fighter. Six fights, one rival, one ending.</span></button>
       <button class="menu-item" type="button" data-go="versus"><strong>Versus</strong><span>Up to four fighters, any mix of you and bots.</span></button>
@@ -432,7 +437,7 @@
     <span class="boot-label">Loading&hellip;</span>
     <span class="boot-fail" hidden><span class="boot-msg"></span><button type="button" class="boot-retry">Retry</button></span>
   </div>
-  <div id="loading" class="loading" hidden>Loading fighters&hellip;</div>
+  <div id="loading" class="loading" hidden role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Loading"><span id="loading-text" class="loading-text">Loading fighters&hellip;</span><div class="loading-bar"><i id="loading-fill" class="loading-fill"></i></div></div>
   <div id="wipe" class="wipe" aria-hidden="true"><i></i><i class="stinger-slots"><u></u><u></u><u></u><u></u></i><i class="stinger-logo"><b>Dose of <span>Destruction</span></b></i><em class="stinger-streak"></em></div>
 
   <!-- Studio standard: one tap before the game starts turns sound on (iOS needs a gesture). -->

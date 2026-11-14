@@ -242,6 +242,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'first-visit') await r.firstVisit();
         else if (id === 'presentation') await r.presentation();
         else if (id === 'share') await r.shareScenario();
+        else if (id === 'menu-modes') await r.menuModes();
         else if (id === 'unlock-route') await r.unlockRouteRun();
         else if (id === 'replay') await r.replayScenario();
         else if (id === 'roster') await r.roster();
@@ -2224,6 +2225,35 @@ class Run {
    * second tap must download the card and copy the text line (`share-fallback`). Events `share-button`, `share-sheet`,
    * `share-fallback`, `share-card`; metrics `shareCardBytes`.
    */
+  async menuModes(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.phoneScenario();
+    this.logViewport(touch && this.isPhone());
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+      suppressRotate(true);
+    }
+    await this.toMainMenu();
+    const btns = [...document.querySelectorAll<HTMLElement>('#main .mode-row .mode-btn')];
+    if (btns.length !== 3) t.problem('bug', `the main menu has ${btns.length} mode buttons (want Story, Versus, Play)`);
+    for (const b of btns) {
+      const r = b.getBoundingClientRect();
+      const name = b.querySelector('strong')?.textContent ?? '?';
+      t.event('mode-fit', `${name} ${Math.round(r.width)}x${Math.round(r.height)} at ${innerWidth}x${innerHeight}`);
+      if (r.width < 44 || r.height < 44 || r.left < 0 || r.right > innerWidth || r.top < 0 || r.bottom > innerHeight) t.problem('bug', `mode button ${name} is too small or off screen`);
+    }
+    if (document.documentElement.scrollWidth > innerWidth + 1) t.problem('bug', 'the main menu scrolls sideways');
+    t.event('mode-row', btns.map((b) => b.querySelector('strong')?.textContent).join(' / '));
+    const veil = this.q('#loading');
+    if (!veil?.querySelector('.loading-bar')) t.problem('bug', 'the loading veil has no progress bar');
+    else t.event('loading-bar', 'the loading veil holds a progress bar');
+    await this.tap(() => this.q('#main .mode-btn[data-go="versus"]'), 'Versus (mode row)');
+    await this.screen('select');
+    t.event('mode-versus', 'Versus opened from the mode row');
+    t.finish('done');
+  }
+
   async shareScenario(): Promise<void> {
     const t = this.t;
     const touch = this.options.input === 'touch' || this.phoneScenario();
