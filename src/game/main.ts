@@ -64,7 +64,7 @@ import { playSegment, type SegmentEnv, type Showcase } from './ui/segment.ts';
 // Online code is never imported here: it loads after boot through the loader (a failure there can't stop the game).
 import type { OnlineFight, FightEnd } from './net/fight.ts';
 import type { Found, OnlineSetup } from './net/matchmaker.ts';
-import { bootOnline, onlineApi } from './net/loader.ts';
+import { bootOnline, onlineApi, onlineReady } from './net/loader.ts';
 import { switching } from './ui/screens.ts';
 import { initRotatePrompt, rotateShowing, rotateSuppressed, suppressRotate } from './ui/rotate.ts';
 import { Teacher } from './ui/teach.ts';
@@ -230,6 +230,7 @@ function wireMenus(): void {
       else if (to === 'controls') go('howto');
       else if (to === 'settings') openSettings();
       else if (to === 'online') onlineCall('find match', (o) => o.findMatch());
+      else if (to === 'invite') onlineCall('invite a friend', (o) => o.inviteFriend());
       else if (to === 'profile') onlineCall('profile', (o) => o.openProfile());
       else if (to === 'leaderboard') go('leaderboard', () => onlineCall('leaderboard', (o) => o.renderBoard()));
     }),
@@ -2981,8 +2982,16 @@ titleUp.then(() => bootReady(startPressed));
 const playtestChapter = CHAPTERS.find((c) => c.id === params.get('chapter'));
 // First visit (campaign/firstVisit.ts): nothing saved, so Tap to play is the way into Season 1 Episode 1. It is decided at
 // the tap (a playtest clears storage first), and the backdrop under the prompt is only for a visit that starts clean.
-if (isFirstVisit()) document.body.classList.add('pilot-boot');
-if (!playtestChapter && !params.has('play')) {
+// An invite link (?invite=CODE) skips all of it: tap, then straight into that room's lobby.
+const inviteCode = /^[A-Za-z0-9]{4,12}$/.test(params.get('invite') ?? '') ? (params.get('invite') as string).toUpperCase() : '';
+if (isFirstVisit() && !inviteCode) document.body.classList.add('pilot-boot');
+if (inviteCode && !playtestChapter && !params.has('play')) {
+  titleUp
+    .then(tapped)
+    .then(() => go('main', spotlight))
+    .then(() => onlineReady())
+    .then((o) => o?.openInvite(inviteCode));
+} else if (!playtestChapter && !params.has('play')) {
   titleUp.then(tapped).then(() => {
     if (isFirstVisit()) startPilot();
     else document.body.classList.remove('pilot-boot');

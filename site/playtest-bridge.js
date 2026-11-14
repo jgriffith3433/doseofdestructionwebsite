@@ -456,6 +456,17 @@
       ]
     },
     {
+      "id": "invite",
+      "title": "Invite a friend (peers: 2): Invite a friend makes a private room and offers its link to the share sheet or copies it; a full room says so and offers Quick match; opening the link puts both players in the same room and Match found",
+      "description": "Needs Hawkes Gen playtest.run with peers: 2 (private test lobby, ?room=<id>&peer=0/1). Peer 0 taps Invite a friend: the Invite panel shows the link and the system share sheet opens, or the link is copied (invite-created, invite-shared / invite-copied; panel and controls checked against the window and 44 px). A stand-in third browser takes the second seat; peer 1 opens the link and sees the full-room message with a Quick match button (invite-full), taps it and searches (invite-quick-match). The seat is freed, peer 1 opens the link again past the title, lands in peer 0's room (invite-paired) and both see Match found (match-found). Taps only, so a 390x844 touch phone run plays the same path.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "online",
+        "touch"
+      ]
+    },
+    {
       "id": "reconnect",
       "title": "Reconnecting (peers: 2): a 3 s cut pauses both sides under \"Reconnecting…\" with a countdown and play resumes with the same stocks and percents; a drop past 10 s ends the match as an unrated disconnect",
       "description": "Needs Hawkes Gen playtest.run with peers: 2 (private test lobby, ?room=<id>&peer=0/1). Plays online's lobby and match, then peer 1 cuts its Hawkes Net connection for 3 s (the real thing: it leaves the room and joins again as the same player). Both pages show \"Reconnecting… N s\" top centre, clear of every touch control (reconnecting-banner, reconnect-banner-clear), the match stands still on its frame (reconnect-paused), the countdown counts (reconnect-countdown), and play resumes (reconnect-resumed) with no stock gained. Then peer 1 cuts for 14 s: both end on Connection lost, not \"left the match\" (disconnect-result), with no rating change (disconnect-unrated). On a 390x844 touch phone the banner is measured against the touch overlay.",

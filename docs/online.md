@@ -70,6 +70,25 @@ online; on the dev server, Vite's error overlay for the online chunk is taken do
 Keep it that way: a new static import of `net/` or `ui/online|leaderboard` from `main.ts` or `dod.ts` brings back
 beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
 
+## Invite a friend
+
+J, 2026-11-14: "Add Online > Invite a friend: it makes a private room on Hawkes Net and offers the link through
+navigator.share with a copy fallback. Opening the link goes past the title straight into that room's lobby. A full or
+closed room says so and offers quick match. No polling: use the room's push events." (`?room=` stays the playtests'
+test lobby.)
+
+- Main menu **Invite a friend** (`ui/online.ts` `inviteFriend`): makes a 6-character code (`net/invite.ts`), opens the
+  Invite panel with the link (`<game page>?invite=CODE`) and, in the same tap, hands it to `navigator.share`; with no
+  share sheet it copies it (or selects it); closing the sheet is "Not shared", never an error. Share and Copy link stay on the panel.
+- The room is a Hawkes Net relay room `i/<code>` (`roomName`; test rooms and beta stay apart from live), two players at
+  most. Both sides say `hi` (id, name, picture, host) on the room's `peer:join` push; nothing polls. A third player's join is refused
+  by Hawkes Net (code 4009 / `full`): "That room is full" with **Quick match**. A guest who hears no host in 7 s, or whose host
+  leaves, gets "That invite has ended" with Quick match.
+- Once both know each other, `Matchmaker.invite(partner, host)` runs the same hello/ok handshake and match room as Find
+  match with no queue (host searches 1, guest 2), then the usual Match found countdown. The invite room is left then.
+- Opening a link (`main.ts`): after Tap to play it goes straight to the main menu and opens that room's panel; the first-visit pilot is skipped.
+- Playtest: scenario `invite` (peers: 2; the test lobby's code is always `TEST42`); `dod:invite` events (open, state, friend, shared, copied, closed).
+
 ## The lobby
 
 - On load the page joins the lobby: one Hawkes Net room (`lobby/global` live, `t-lobby/beta` on beta; relay only,
