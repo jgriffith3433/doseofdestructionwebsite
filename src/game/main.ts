@@ -1522,6 +1522,8 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     // The loading screen stays up until the match's first frame is drawn (under the wipe).
     $('loading').hidden = false;
     await warm;
+    // Painted stage layers (and their alpha masks) are decoded before the first frame, not mid-match.
+    await renderer.stageArtReady(4000);
     if (stale()) return;
   }
 
