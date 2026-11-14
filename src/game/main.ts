@@ -3071,6 +3071,39 @@ if (!params.has('play') && !params.has('playtest') && !params.has('chapter') && 
 const titleUp = go('title').then(() => analytics.ready());
 // Menus are wired and the title is up: a Press start pressed while loading goes on into the menu now.
 titleUp.then(() => bootReady(startPressed));
+
+/**
+ * Warm the first match while the player is still on the title and menus (feel: no menu-to-match frame over 250 ms).
+ * Network and decode only, one small step per idle slot so it never makes a hitch of its own: the roster's first
+ * fighters' art and clip sheets, the first stages' painted layers, the match audio (stage bed, fighter and announcer
+ * voices, UI sounds). startMatch then finds all of it cached. Skipped on a first visit (the pilot loads its own cast).
+ */
+function preloadFirstMatch(): void {
+  const idle = (fn: () => void) => {
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+    if (ric) ric(fn, { timeout: 2500 });
+    else setTimeout(fn, 300);
+  };
+  const steps: Array<() => unknown> = [];
+  const cast = CHARACTERS.slice(0, 4).map((_, i) => i);
+  steps.push(() => prefetchStage(0));
+  for (const c of cast) steps.push(() => prefetchFighters([c]));
+  steps.push(() => audio.preloadMatch(STAGES[0].id, cast.slice(0, 2).map((i) => CHARACTERS[i].id), 20000));
+  for (let s = 1; s < Math.min(3, STAGES.length); s++) steps.push(() => prefetchStage(s));
+  let n = 0;
+  const next = () => {
+    const step = steps[n++];
+    if (!step) {
+      window.dispatchEvent(new CustomEvent('dod:preload-done', { detail: { steps: steps.length } }));
+      return;
+    }
+    Promise.resolve().then(step).catch((err) => console.error(err)).then(() => idle(next));
+  };
+  idle(next);
+}
+titleUp.then(tapped).then(() => {
+  if (!isFirstVisit()) setTimeout(preloadFirstMatch, 800);
+});
 const playtestChapter = CHAPTERS.find((c) => c.id === params.get('chapter'));
 // First visit (campaign/firstVisit.ts): nothing saved, so Tap to play is the way into Season 1 Episode 1. It is decided at
 // the tap (a playtest clears storage first), and the backdrop under the prompt is only for a visit that starts clean.
