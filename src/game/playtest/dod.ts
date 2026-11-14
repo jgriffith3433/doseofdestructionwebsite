@@ -8313,11 +8313,18 @@ class Run {
             } else if (e.type === 'launch') launched++;
           }
         });
+        // The first fight opens with an in-engine beat (the rival drops in, the stage is called) before any input is read.
+        const beats: string[] = [];
+        const onBeat = (e: Event) => { const d = (e as CustomEvent<{ phase: string }>).detail; beats.push(d.phase); };
+        window.addEventListener('dod:match-intro', onBeat);
         void this.game.startMatch({
           mode: 'versus', stage, stocks: 2, rules: {},
           slots: [{ char: punk, cpu: null }, { char: foe, cpu: 4 }],
         });
         await this.matchLive();
+        window.removeEventListener('dod:match-intro', onBeat);
+        if (beats.includes('end') || beats.length > 0) t.event('opening-beat', `${how}: the first match opened with the rival's entrance (match intro: ${[...new Set(beats)].join(', ')}) before Ready and before any input`);
+        else t.problem('bug', `${how}: the first match started with no entrance beat`);
         t.event('opening-bout', `${how}: the first match is a versus fight against a level 4 CPU that swings back (no stationary dummy)`);
         const start = frame0(this.game);
         await this.fight(() => (dealt > 0 && taken > 0 && launched > 0) || frame0(this.game) - start > 1800, 90000);

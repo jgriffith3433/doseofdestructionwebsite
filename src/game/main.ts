@@ -122,6 +122,8 @@ let shownOver = false;
 /** The announcer and Blog Man for the running match (versus and campaign; not training or online). */
 let commentator: Commentator | null = null;
 let introPending: Call | null = null;
+/** The first fight of a page visit gets the entrance beat once (see startMatch); later bouts and Retry go straight to Ready. */
+let openingBeatSeen = false;
 let chapter: Chapter | null = null;
 /** On-stage teaching prompts for the pilot fight and How to play (ui/teach.ts). */
 let teacher: Teacher | null = null;
@@ -1538,7 +1540,12 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   // Every offline match with a VS card opens like a broadcast (a fly-in and the entrances); an episode's own scene,
   // Tonight's Episode (its leaderboard needs the same start for everyone), the pilot, Training and online matches skip it.
   const matchIntro = withVersus && !f && !intro && !scene && setup.mode !== 'training' && setup.mode !== 'online' && !setup.teach && dailyRun?.setup !== setup;
-  const readyUnderWipe = !f && !intro && !versusExchange && !matchIntro;
+  // The first fight of a visit opens with the same in-engine beat whatever started it (Training, the shortcut into a bout):
+  // the rival drops in, the stage is called, and nothing asks for input until Ready (docs/world-bible.md "The first bout").
+  const openingBeat = !openingBeatSeen && !matchIntro && !f && !intro && !scene && !setup.teach && (setup.mode === 'training' || setup.mode === 'versus') && dailyRun?.setup !== setup;
+  if (openingBeat || matchIntro) openingBeatSeen = true;
+  const playIntro = matchIntro || openingBeat;
+  const readyUnderWipe = !f && !intro && !versusExchange && !playIntro;
   await go('match', () => {
     window.dispatchEvent(new CustomEvent('dod:scene-timing', { detail: { selectToVs: fromSelect, vsToMatch: vsMs, vsHoldMs, warmUpMs, selectToMatch: pickedAt === null ? null : performance.now() - pickedAt, withVersus } }));
     // The canvas may have changed size while menus were up.
@@ -1604,7 +1611,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     beginReady(m);
     return;
   }
-  if (matchIntro) {
+  if (playIntro) {
     await runMatchIntro(m);
     if (match !== m) return;
     if (!versusExchange) {
