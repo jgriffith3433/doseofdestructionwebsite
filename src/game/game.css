@@ -2005,6 +2005,54 @@ body.pilot-boot .screen { visibility: hidden; }
 @keyframes daily-flash { 0% { background: rgba(255, 209, 90, 0.75); transform: scale(1.06); } 100% { background: rgba(0, 0, 0, 0.35); transform: none; } }
 @media (prefers-reduced-motion: reduce) { .daily-card::after, .daily-results.new-best .daily-score .stat:first-child { animation: none; } }
 
+/* -------------------------------------------------------------- roster (after Press start) */
+
+.roster-screen { display: flex; flex-direction: column; gap: 10px; padding-bottom: 0; }
+.roster-screen .screen-head, .roster-progress, .roster-grid, .roster-detail, .roster-foot { width: 100%; max-width: 1280px; margin-inline: auto; box-sizing: border-box; }
+.roster-progress { display: grid; gap: 6px; }
+.roster-bar { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.roster-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--hot), var(--gold)); border-radius: 6px; }
+.roster-bar.next { height: 6px; }
+.roster-bar.next i { background: var(--gold); opacity: 0.8; }
+.roster-next { margin: 0; color: var(--muted); font-size: calc(14px * var(--ts, 1)); overflow-wrap: anywhere; }
+.roster-next b { color: var(--gold); font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.04em; }
+.roster-stats { display: flex; flex-wrap: wrap; gap: 6px 16px; list-style: none; margin: 0; padding: 0; }
+.roster-stats li { display: flex; align-items: baseline; gap: 5px; }
+.roster-stats b { font-family: Oswald, sans-serif; font-size: calc(20px * var(--ts, 1)); color: var(--gold); }
+.roster-stats span { color: var(--muted); font-size: calc(13px * var(--ts, 1)); text-transform: uppercase; letter-spacing: 0.05em; }
+.roster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.roster-tile {
+  display: grid; justify-items: center; align-content: center; gap: 2px;
+  min-width: 0; min-height: 88px; padding: 6px 4px; color: inherit; cursor: pointer;
+  background: radial-gradient(ellipse at 50% 30%, rgba(255, 90, 31, 0.18), transparent 70%), var(--card);
+  border: 2px solid transparent; border-radius: 10px;
+  transition: transform 140ms ease, border-color 140ms ease;
+}
+.roster-tile:hover, .roster-tile:focus-visible { border-color: var(--hot); outline: none; transform: translateY(-2px); }
+.roster-tile:active { transform: scale(0.97); border-color: var(--gold); }
+.roster-tile.picked { border-color: var(--gold); }
+.roster-tile img { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; background: rgba(0, 0, 0, 0.35); }
+.roster-name { font-family: Oswald, sans-serif; font-size: calc(13px * var(--ts, 1)); text-transform: uppercase; line-height: 1.1; max-width: 100%; overflow-wrap: anywhere; text-align: center; }
+.roster-tile em { font-style: normal; font-size: calc(11px * var(--ts, 1)); font-weight: 700; letter-spacing: 0.05em; color: var(--gold); }
+.roster-tile.locked { opacity: 0.7; }
+.roster-tile.locked img { filter: brightness(0) drop-shadow(0 0 1px rgba(255, 255, 255, 0.45)); }
+.roster-detail { display: grid; gap: 2px; margin: 0; min-height: 3.2em; padding: 8px 12px; border-radius: 10px; background: var(--card); border-left: 4px solid var(--hot); }
+.roster-detail.is-locked { border-left-color: var(--gold); }
+.roster-detail b { font-family: Oswald, sans-serif; text-transform: uppercase; font-size: calc(16px * var(--ts, 1)); }
+.roster-detail span { color: var(--muted); font-size: calc(14px * var(--ts, 1)); overflow-wrap: anywhere; }
+.roster-foot { position: sticky; bottom: 0; margin-top: auto; padding: 10px 0 max(12px, env(safe-area-inset-bottom)); display: flex; justify-content: center; background: linear-gradient(transparent, var(--bg) 40%); }
+.roster-foot .primary { min-height: 48px; min-width: min(320px, 100%); }
+@media (max-width: 560px) {
+  .roster-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .roster-tile { min-height: 80px; }
+  .roster-tile img { width: 44px; height: 44px; }
+}
+@media (max-height: 520px) {
+  .roster-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+  .roster-tile { min-height: 72px; }
+  .roster-tile img { width: 36px; height: 36px; }
+}
+
 /* -------------------------------------------------------------- tour */
 
 .tour-screen > .lede { max-width: 1280px; margin: 0 auto 14px; }

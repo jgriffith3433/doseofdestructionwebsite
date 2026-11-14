@@ -600,3 +600,10 @@ Every fighter wears the show's name tag: P1-P4 for people, CPU for bots, DUMMY i
 - **What happens:** the first fight of every page visit, however it starts (the Versus card, Training, a setup shortcut), plays the match intro once (`openingBeatSeen` in `main.ts` `startMatch`): the rival drops in with dust and a thud, the crowd and bed play, then Ready. No input is asked for until Ready; any press skips it. Retry and later bouts go straight to Ready. Lessons, online, Tonight's Episode and episodes with their own scene are unchanged.
 - **Story beats:** told by camera, entrance, crowd and the announcer's call, with one caption line (the stage name).
 - **Future Man talks during the fight, not before it** (`campaign/futureTaunts.ts`, `main.ts` `futureManTaunt`): he has seen how it ends, so his lines answer play. He lands a hit ("Left jab. I counted that one."), he is hit ("Spoiler: that one hurts."), or the other fighter grabs the ledge ("Nice ledge. Hold it. Four seconds."). Nine lines, 10 words or fewer, one at a time, never the same line twice running, 6 s apart. Each shows as one caption under his name and plays his recorded take when `audio` exists for the id (`taunt.future-man.<kind>.<n>`; **takes not recorded yet**, Gen refused the project: record them in his voice and add them to `content/voice.json`). Event `dod:future-taunt`; the `ledge-options` playtest opens on a fight against him and checks it (`future-taunt`).
+
+## The roster screen (the casting wall)
+
+Area: the screen after Press start. Landmark: the wall of 33 head tiles with locked silhouettes. Who lives here: every fighter,
+open or waiting for the episode that casts them. What happens: the player sees how much of the show there is, which fighter is
+next (progress bar), and taps a silhouette to learn the episode that opens them. Story beat: the card is a tease, "the show has
+more than you have seen". No new named characters.

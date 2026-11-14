@@ -518,6 +518,16 @@
       ]
     },
     {
+      "id": "roster-intro",
+      "title": "Roster after Play: Press start opens the roster (every fighter, locked ones with the episode that opens them, open count, next unlock, show size); a tap on a locked tile says how to open it; Continue goes to the main menu (phone: 390x844 touch, no sideways scroll, 44 px)",
+      "description": "Tap to play, Press start, then the roster screen (ui/roster.ts): one tile per fighter (`roster`: tiles, open, locked, next unlock line, stats), the fit at the window size with 44 px targets on touch (`roster-fit`, metric rosterFits), a tap on a locked tile shows its Clear Season N, Episode M route (`roster-locked-route`), a tap on an open one names them (`roster-open-pick`), Continue goes on to the main menu (`roster-continue`). Every other scenario skips the roster so its menu clicks still work. Metrics rosterTiles, rosterLocked, rosterFits.",
+      "seconds": 60,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "tour",
       "title": "Tour: pick a fighter, play their six-fight run (fights 1 and 2, then the rival), a Continue after a loss, the voiced ending with the closing card, the Tour marked cleared and still marked after a reload (phone: 390x844 touch)",
       "description": "Option fighter (default exit-punk). Main menu → Tour (tour-select: every fighter's tile, none cleared on a fresh save, no sideways scroll, 44 px targets and no overlap on a phone; metric tourSelectFits). Setup shortcut: the Continue or Quit panel is shown without losing a fight so a portrait phone can measure it (tour-choice-fit; metric tourChoiceFits). Picks the fighter's tile and plays fights 1 and 2 with the bot on the pad: each opens in the arena with the fight's card and the foe's recorded line (tour-scene) and checks the twist, stage and CPU level from content/tours.json (tour-fight), the CPU never easier. Setup shortcut: after fight 2 the run jumps to the last fight, the rival; the player stands still until knocked out (tour-lost: Continue or Quit, both ≥44 px and on screen), Continue replays that fight (tour-continue), then the bot wins. The ending plays the fighter's own recorded win line over the final KO under the closing card \"<Fighter> clears the Tour\" (tour-ending), the results show the banner and the KO highlights (tour-cleared; metric tourCleared), the Tour select marks the Tour cleared (tour-marked), and after a page reload the mark is still there (tour-mark-after-reload; metric tourMarkedAfterReload). On a portrait phone it checks the select and the panel in the portrait window and plays in the turned 844x390 frame, all by taps. The player's own dod-tours is put back.",

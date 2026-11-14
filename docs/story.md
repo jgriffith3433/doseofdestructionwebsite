@@ -865,3 +865,14 @@ specials, unless `content/fighters.json` gives it a `playstyle` of its own (a st
 Story rivals are the same fighter in the campaign as everywhere else, so their style is their own. Overrides keep
 the roster honest (bot-vs-bot win rates stay inside 35-65%). `test/profiles.test.ts` measures it: a zoner keeps more
 distance than a rushdown, a grappler grabs at least twice as often as an aerial.
+
+## The roster (the casting wall, as built)
+
+Press start opens the **roster** before the main menu: the show's casting wall, every fighter on one screen. Open fighters
+show their head and name; locked ones are a black silhouette marked `S1 · E2` (the episode that opens them, the same route the
+select screen's lock note uses). A tap on a tile says who they are, or "Clear Season N, Episode M: Title" for a locked one.
+Above the wall: "N of 33 open" and a bar, the **next unlock** (the first uncleared episode that opens a locked fighter, how many
+episodes away, and how far through its season), and the size of the show (fighters, stages, seasons, episodes cleared, Tours),
+all read from the game's data (`ui/roster.ts`, `campaign/story.ts` `nextUnlock`), never typed. Continue goes to the main menu;
+Esc or Back returns to the title. A first visit (the pilot), a chapter/quick-match/invite/test-lobby link and every playtest
+scenario but `roster-intro` skip it, so nobody is slowed on the way into a fight.
