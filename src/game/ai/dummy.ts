@@ -16,6 +16,12 @@ export class SwingDummy {
   private waited = 0;
   private near = false;
 
+  /** Starts the wait to the next swing from `frames` already spent (lesson 3 stages a knock-off and wants the first swing soon). */
+  prime(frames: number): void {
+    this.waited = frames;
+    this.near = true;
+  }
+
   think(s: GameState, id: number): number {
     const me = s.fighters[id];
     const foe = s.fighters.find((f) => f.id !== id && f.stocks > 0 && f.action !== ACT.DEAD && f.action !== ACT.RESPAWN);

@@ -210,6 +210,7 @@ function wireMenus(): void {
       else if (to === 'training') openTraining();
       else if (to === 'howto') startHowToPlay();
       else if (to === 'howto2') startHowToPlay('defence');
+      else if (to === 'howto3') startHowToPlay('recovery');
       else if (to === 'controls') go('howto');
       else if (to === 'settings') openSettings();
       else if (to === 'online') onlineCall('find match', (o) => o.findMatch());
@@ -938,8 +939,8 @@ async function pilotCleared(c: Chapter): Promise<void> {
   await go('main', spotlight);
 }
 
-/** How to play: the same prompted fight in Training against a dummy, with no setup screens. Lesson 2 ('defence'): grab, throw, roll, spot-dodge. */
-function startHowToPlay(lesson: 'training' | 'defence' = 'training'): void {
+/** How to play: the same prompted fight in Training against a dummy, with no setup screens. Lesson 2 ('defence'): grab, throw, roll, spot-dodge. Lesson 3 ('recovery'): the four specials, fast fall, the way back to the ledge. */
+function startHowToPlay(lesson: 'training' | 'defence' | 'recovery' = 'training'): void {
   chapter = null;
   analytics.setMode('training');
   const ep = CHARACTERS.findIndex((x) => x.id === 'exit-punk');
@@ -952,7 +953,7 @@ function startHowToPlay(lesson: 'training' | 'defence' = 'training'): void {
       stocks: 1,
       rules: {},
       teach: lesson,
-      title: lesson === 'defence' ? 'How to play 2' : 'How to play',
+      title: lesson === 'defence' ? 'How to play 2' : lesson === 'recovery' ? 'How to play 3' : 'How to play',
       slots: [{ char: ep, cpu: null }, { char: dummy, cpu: 0 }],
     },
     false,
@@ -1196,11 +1197,19 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     // The canvas may have changed size while menus were up.
     renderer.engine.resize();
     match = m;
-    teacher = setup.teach ? new Teacher({ scripted: setup.teach === 'training', lesson: setup.teach === 'defence' ? 'defence' : undefined }) : null;
+    teacher = setup.teach ? new Teacher({ scripted: setup.teach === 'training', lesson: setup.teach === 'defence' || setup.teach === 'recovery' ? setup.teach : undefined }) : null;
     if (teacher) {
       teacher.onChange = (step, state) => {
         // Lesson 2: the dummy starts walking up and swinging as the last step comes (the rolls need no foe).
         if (setup.teach === 'defence' && ((state === 'used' && step === 'rollR') || (state === 'shown' && step === 'dodge'))) m.dummySwings = true;
+        // Lesson 3: after fast fall the dummy knocks the player off the edge; the ledge ends it.
+        if (setup.teach === 'recovery' && state === 'used') {
+          if (step === 'fastfall') m.knockLoop = 'armed';
+          else if (step === 'ledge') {
+            m.knockLoop = 'off';
+            m.dummySwings = false;
+          }
+        }
         window.dispatchEvent(new CustomEvent('dod:teach', { detail: { step, state, mode: setup.teach } }));
       };
     }

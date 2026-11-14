@@ -555,6 +555,16 @@
       ]
     },
     {
+      "id": "lesson-3",
+      "title": "How to play 3: prompts for neutral, side and down special and a fast fall, each ticked off by the sim; then the dummy knocks the player off the edge and the prompts go double jump, up special and ledge, ticked off when the player grabs the ledge (phone: 390x844 touch, finished with touch controls only)",
+      "description": "Taps How to play 3 on the main menu (a touch tap on a phone), then plays the lesson through real input only: keyboard K / D + K / S + K / Space then S on a desktop; on a 390x844 phone (turned to 844x390) the on-screen Special and Jump buttons and the stick as touch pointer events. Each prompt shows in order with the glyphs of the device (lesson-prompt) and ticks off within 1 s of the sim seeing the move (lesson-tick, lessonTickMaxMs). After the fast fall the player and the dummy are staged at the right edge (lesson-knockoff), the dummy swings, the player is knocked off (lesson-offstage), and the player double jumps, uses the up special and grabs the ledge (the sim ledge event ticks the last step; lesson-ledge, up to 3 tries with lesson-retry); the card reads Lesson clear! (lesson-clear). Prompts never stack, never sit under a touch control, and every touch control is 44 px or larger (lesson-touch). Events lesson-*; metrics lessonSteps, lessonTickMaxMs.",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "grab",
       "title": "Grab and throws: Shield + Attack together grabs, the stick picks forward, back, up or down, and the hold lasts longer at 100% than at 0% (touch: both buttons pressed together)",
       "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus); a second dummy starts at 100%. Played through real input only: keyboard L + J then A/D/W/S on a desktop; at phone size (390x844, turned to 844x390 landscape like touch-match, or 844x390) the on-screen Shield and Attack buttons touched together and the on-screen stick, as touch pointer events. Walks up to the dummy, grabs it (grab: through its shield when it shields; the hold in frames), throws it forward, back, up and down (throw; grab-throws when all four came out; touch-grab on a phone), and the hold on the 100% dummy must be longer than on the 0% one (grab-hold-frames, holds-longer). The versus match scenario also logs every grab and throw the bot makes. Metrics grabs, throws, throwsLanded, holdFrames0, holdFrames1000.",
