@@ -802,7 +802,7 @@ class AudioSystem {
   }
 
   /** Plays a sound effect by id. Picks among takes without immediate repeats; pitch varies 5–10%. Starts synchronously (0 ms). */
-  sfx(id: string, opts: { vary?: boolean; at?: Spatial } = {}): void {
+  sfx(id: string, opts: { vary?: boolean; at?: Spatial; gain?: number } = {}): void {
     if (!this.ctx && tapState()?.tapped) this.unlock();
     const pick = this.pickTake(id);
     if (!pick || !this.buses || !this.ctx) return;
@@ -816,13 +816,13 @@ class AudioSystem {
     const spatial = ui ? undefined : opts.at;
     const ready = this.decoded.get(pick.take.file);
     if (ready) {
-      this.startBuf(ready, bus, pick.entry.volume, rate, false, spatial, { sampleId: pick.take.id, busName });
+      this.startBuf(ready, bus, pick.entry.volume * (opts.gain ?? 1), rate, false, spatial, { sampleId: pick.take.id, busName });
       return;
     }
     void this.buffer(pick.take.file);
     const takeNum = Number(pick.take.id.split('.').pop()) || 0;
     const fb = fallbackSfxBuffer(this.ctx, id, takeNum);
-    this.startBuf(fb, bus, pick.entry.volume, rate, false, spatial, { sampleId: pick.take.id, busName });
+    this.startBuf(fb, bus, pick.entry.volume * (opts.gain ?? 1), rate, false, spatial, { sampleId: pick.take.id, busName });
   }
 
   /**

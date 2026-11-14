@@ -22,7 +22,7 @@ import { STAGES } from './sim/stage.ts';
 import { onShieldMode, setShieldActive, setShieldMode, shieldMode, releaseShieldLatch } from './input/shieldMode.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
 import { KEYBOARD_HELP, gamepadHelp, padFamily, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
-import { damageColor, damageShake, hitTier } from './hitFeel.ts';
+import { damageColor, damageShake, hitGain, hitTier } from './hitFeel.ts';
 import { clearMarkers, markerLog, markerRects, safeInsets, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
 import { clearTags, tagLog, tagRects, tagText, updateTags, type TagIn } from './ui/tags.ts';
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
@@ -1662,7 +1662,7 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
           // A special's own impact (its archetype's crack) layers on the generic hit. A light hit of a special
           // (each hit of a flurry) plays only the special's impact, so rapid hits don't stack two sounds each.
           const specialLayer = e.special ? audio.special('impact', e.special, CHARACTERS[m.state.fighters[e.attacker].char].id, at(e.x)) : false;
-          if (!(specialLayer && tier === 'light')) audio.sfx(HIT_SOUND[tier], { vary: true, at: at(e.x) });
+          if (!(specialLayer && tier === 'light')) audio.sfx(HIT_SOUND[tier], { vary: true, at: at(e.x), gain: hitGain(e.dmg) });
           // Heavy hits: the studio crowd gasps (ooh). Medium/heavy: the victim's hurt bark.
           if (e.dmg >= 130 && !koThisTick) audio.crowd('ooh');
           if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt', at(m.state.fighters[e.victim].x));
