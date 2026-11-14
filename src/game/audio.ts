@@ -1439,12 +1439,16 @@ class AudioSystem {
     g.setTargetAtTime(now * 0.72, t + 0.12, 0.35);
   }
 
-  /** The room breathes: a quiet crowd murmur every ~6 s under the bed (a fresh sample start, at a never-repeated rate). */
+  /** The room breathes: a quiet crowd murmur every ~4 s under the bed (a fresh sample start, at a never-repeated rate). */
   private startStageLife(): void {
     this.stopStageLife();
-    this.lifeTimer = setInterval(() => {
+    const murmur = () => {
       if (this.bedWant && this.ctx?.state === 'running') this.synth('crowd', 0.35);
-    }, 6000);
+    };
+    // One at once (the bed's first start is the only sound otherwise), then every 4 s: a slow or busy frame loop can
+    // delay a timer by seconds (the headless run is ~6 fps), so the gap stays well under the 10 s limit with margin.
+    murmur();
+    this.lifeTimer = setInterval(murmur, 4000);
   }
 
   private stopStageLife(): void {
