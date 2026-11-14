@@ -8566,7 +8566,11 @@ class Run {
       // ---- 0. The first match is a fight: a CPU that attacks (level 4, not a dummy), the bot trading hits with it until
       // both have landed one and someone has been launched (30 s of game time at most). Setup shortcut: straight in.
       {
-        const foe = (punk + 1) % CHARACTERS.length;
+        const fm = CHARACTERS.findIndex((c) => c.id === 'future-man');
+        const foe = fm >= 0 ? fm : (punk + 1) % CHARACTERS.length;
+        const taunts: { id: string; kind: string; text: string }[] = [];
+        const onTaunt = (ev: Event) => taunts.push((ev as CustomEvent<{ id: string; kind: string; text: string }>).detail);
+        window.addEventListener('dod:future-taunt', onTaunt);
         let dealt = 0;
         let taken = 0;
         let launched = 0;
@@ -8594,6 +8598,11 @@ class Run {
         const start = frame0(this.game);
         await this.fight(() => (dealt > 0 && taken > 0 && launched > 0) || frame0(this.game) - start > 1800, 90000);
         stopOpen();
+        await this.fight(() => taunts.length > 0 || frame0(this.game) - start > 2400, 30000);
+        window.removeEventListener('dod:future-taunt', onTaunt);
+        if (taunts.length > 0) t.event('future-taunt', `${how}: Future Man answered the fight (${taunts.map((x) => `${x.kind}: "${x.text}"`).join('; ')}), a line of 10 words or fewer, shown as one caption`);
+        else t.problem('bug', `${how}: Future Man said nothing during the opening fight (no taunt on a hit)`);
+        t.metric('futureTaunts', taunts.length);
         t.metric('openingHitsDealt', dealt);
         t.metric('openingHitsTaken', taken);
         t.metric('openingLaunches', launched);
