@@ -9,7 +9,7 @@
     "unlock": "kaelen",
     "title": "Open Mic",
     "tagline": "A walk-on with no record and one skateboard.",
-    "hint": "Hits raise damage, and damage makes launches longer. Smash attacks (I + a direction) finish.",
+    "hint": "Hits raise damage, and damage makes launches longer. Smash attacks ({smash}) finish.",
     "card": {
       "before": "Midnight at the Foundry. Tonight's walk-on has one skateboard.",
       "after": "The crowd likes the kid. Keep him on the card."

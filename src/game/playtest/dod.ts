@@ -40,7 +40,7 @@ import { OPENING_CAST, OPENING_KEY, OPENING_SKIP_AFTER, openingShowing } from '.
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
 import { PAIRS, pairFor } from '../campaign/intros.ts';
 import { SEASON_ONE_ENTRANCES, entranceKind } from '../campaign/intro.ts';
-import { PROMPTS, type TeachStep } from '../ui/teach.ts';
+import { PROMPTS, hintText, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { VoiceWatch } from './voiceWatch.ts';
@@ -1734,6 +1734,16 @@ class Run {
       await t.until(() => Boolean(document.getElementById('stage')?.classList.contains('ready')), 15000, 'the canvas to fade in');
       const logoHeld = !!this.q('#pilot-logo') && getComputedStyle(this.q('#pilot-logo')!).display !== 'none';
       t.event('first-visit-start', `storage cleared; Tap to play next (pilot backdrop up: ${logoHeld})`);
+      // Hint tokens (ui/teach.ts hintText): the pilot's smash hint and the Training hitbox hint read per device.
+      const pilotHint = CHAPTERS[0]?.hint ?? '';
+      for (const dev of ['keyboard', 'gamepad', 'touch'] as const) {
+        const smash = hintText(pilotHint, dev);
+        const box = hintText('No stocks. Press {hitbox} in the match to see hitboxes.', dev);
+        t.event('hint-device', `${dev}: "${smash}" | "${box}"`);
+        if (/\{|\bI \+/.test(smash) && dev !== 'keyboard') t.problem('bug', `the pilot hint shows a keyboard letter for ${dev}: ${smash}`);
+        if (dev !== 'keyboard' && /\bH\b/.test(box)) t.problem('bug', `the hitbox hint names the H key for ${dev}: ${box}`);
+      }
+      let hintSeen = '';
       let tries = 0;
       let control = -1;
       let firstHit = -1;
@@ -1775,6 +1785,12 @@ class Run {
         if (currentScreen() === 'main' && t0 > 0 && control < 0) sawMain = true;
         const n = document.querySelectorAll('.teach-prompt:not(.used):not(.gone)').length;
         if (n > 1) t.problem('bug', `${n} teaching prompts are on screen at once`);
+        // Every hint on screen during the pilot: no keyboard letter on touch.
+        const live = [...document.querySelectorAll('.vs-stage span, .scene-card, .hint')].filter((e) => (e as HTMLElement).offsetParent).map((e) => e.textContent ?? '').join(' | ');
+        if (live && live !== hintSeen) {
+          hintSeen = live;
+          if (touch && /\bI \+|Press [A-Z]\b/.test(live)) t.problem('bug', `a hint shows a keyboard letter on touch: ${live}`);
+        }
         const m = this.game.match();
         if (control < 0 && this.game.phase() === 'play' && m && m.state.frame > 0 && t0 > 0) {
           control = (performance.now() - t0) / 1000;

@@ -13,6 +13,7 @@ import { specialsPanel } from './specialsPreview.ts';
 import { createFighterRender, prefetchIdles } from './fighterRender.ts';
 import { swatchRow } from './lookUi.ts';
 import { audio } from '../audio.ts';
+import { hintText } from './teach.ts';
 import { landOn, resetLanding } from './nameCall.ts';
 import { currentScreen } from './screens.ts';
 import { lookCount, lookOpen, openLook, preferredLook, rememberLook, separateLooks } from '../looks.ts';
@@ -377,7 +378,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
 
   function renderRules(): void {
     if (training) {
-      rulesEl.replaceChildren(h('p', { class: 'hint' }, 'No stocks. Press H in the match to see hitboxes.'));
+      rulesEl.replaceChildren(h('p', { class: 'hint' }, hintText('No stocks. Press {hitbox} in the match to see hitboxes.')));
       return;
     }
     const times = [0, 3, 5, 7];

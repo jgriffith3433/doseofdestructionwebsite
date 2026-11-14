@@ -30,6 +30,35 @@ export const PROMPTS: Record<TeachStep, PromptDef> = {
   recover: { word: 'Up special', glyphs: { keyboard: ['W', '+', 'K'], gamepad: ['↑', '+', 'B'], touch: ['stick ↑', '+', 'Special'] }, touch: 'special' },
 };
 
+/**
+ * Control words for hint text (campaign hints, select-screen rules, menu blurbs). Write `{smash}` in the text, never a
+ * key letter; it reads as the control of the device in hand. `null` means the control has no equivalent there, and the
+ * sentence that holds it is dropped.
+ */
+export const HINT_TOKENS: Record<string, Record<InputDevice, string | null>> = {
+  smash: { keyboard: 'I + a direction', gamepad: 'the right stick', touch: 'the Smash button' },
+  hitbox: { keyboard: 'H', gamepad: null, touch: null },
+};
+
+/** Fills a hint's `{token}`s for a device and drops any sentence whose token has no control there. */
+export function hintText(text: string, dev: InputDevice = inputDevice()): string {
+  if (!text.includes('{')) return text;
+  const parts = text.match(/[^.!?]+[.!?]*\s*/g) ?? [text];
+  return parts
+    .map((s) => {
+      let gone = false;
+      const out = s.replace(/\{(\w+)\}/g, (all, k: string) => {
+        const v = HINT_TOKENS[k]?.[dev];
+        if (v === undefined) return all;
+        if (v === null) gone = true;
+        return v ?? '';
+      });
+      return gone ? '' : out;
+    })
+    .join('')
+    .trim();
+}
+
 const ORDER: TeachStep[] = ['recover', 'shield', 'jump', 'smash', 'attack', 'move'];
 /** Reactive prompts take over a proactive one: they are only useful for a moment. */
 const REACTIVE: ReadonlySet<TeachStep> = new Set(['shield', 'recover']);

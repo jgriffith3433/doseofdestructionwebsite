@@ -15,6 +15,7 @@ import { currentWinQuote } from '../winQuote.ts';
 import { quoteCaption } from './quoteCaption.ts';
 import { victoryStage } from './victory.ts';
 import { stagePreview } from './stagePreview.ts';
+import { hintText } from './teach.ts';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -160,7 +161,7 @@ export function playVersus(setup: MatchSetup): Promise<void> {
         return i < sides.length - 1 ? [group, h('div', { class: 'vs-mark', style: `--d:${i * 120 + 260}ms` }, 'VS')] : [group];
       }),
     ),
-    h('p', { class: 'vs-stage' }, stage.name, setup.subtitle ? h('span', {}, setup.subtitle) : null),
+    h('p', { class: 'vs-stage' }, stage.name, setup.subtitle ? h('span', {}, hintText(setup.subtitle)) : null),
   ));
 
   // The announcer's lines load first, so the slam and the calls play on time, in order (not
