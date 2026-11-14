@@ -8,6 +8,7 @@ import { CHARACTERS, MOVE, type SpecialKind } from '../sim/characters.ts';
 import { BTN, packInput } from '../sim/input.ts';
 import { STAGES, ledges, platformOn, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, allies, type Fighter, type GameState } from '../sim/state.ts';
+import { PLAYSTYLE, profileFor, type Playstyle, type PlaystyleId } from './profiles.ts';
 import { inWindupTell, isSmashMove, isSpecialMove, moveEndFrame, moveStartFrame } from '../hitFeel.ts';
 
 interface Step {
@@ -33,9 +34,12 @@ export class Bot {
   private pilotSince = 0;
   private pilotSmashAt = -9999;
   private pilotBase = -1;
+  /** A playstyle given by the caller (tests); otherwise the fighter's own (ai/profiles.ts). */
+  private readonly styleOverride: PlaystyleId | null;
 
   /** level runs 1 (easy) to 9 (hard); pilot makes it the slow, readable opponent of the first fight. */
-  constructor(id: number, level: number, seed: number, pilot = false) {
+  constructor(id: number, level: number, seed: number, pilot = false, style: PlaystyleId | null = null) {
+    this.styleOverride = style;
     this.id = id;
     this.level = Math.max(1, Math.min(9, level));
     this.rng = seed;
@@ -62,6 +66,11 @@ export class Bot {
     this.wait = this.reaction();
     this.decide(s);
     return packInput(this.hold.sx, this.hold.sy, 0);
+  }
+
+  /** How this bot likes to fight: the fighter's playstyle profile, which weights spacing, grabs, projectiles and air time. */
+  private style(me: Fighter): Playstyle {
+    return this.styleOverride ? PLAYSTYLE[this.styleOverride] : profileFor(me.char);
   }
 
   private random(): number {
@@ -230,12 +239,12 @@ export class Bot {
    * Up close, a fighter with a kit mixes it into its swings: a grab (through a shield) or a flurry first, a dash
    * or a counter as the fight allows. The chances grow with the level.
    */
-  private closeSpecial(me: Fighter, side: number, skill: number): boolean {
+  private closeSpecial(me: Fighter, side: number, skill: number, ps: Playstyle): boolean {
     if (!CHARACTERS[me.char].specials) return false;
     const r = this.random();
     if (r >= 0.12 + skill * 0.22) return false;
     for (const kind of ['grab', 'flurry', 'counter', 'dash'] as const) {
-      if (this.special(me, kind, side, 0.55)) return true;
+      if (this.special(me, kind, side, kind === 'grab' ? 0.55 * ps.grab : 0.55)) return true;
     }
     return false;
   }
@@ -357,6 +366,8 @@ export class Bot {
     const side = dx >= 0 ? 100 : -100;
     const reach = (50 + ch.width * 0.5 + (ch.height - 110) * 0.4) * ch.tuning.reach * k;
     const skill = this.level / 9;
+    const ps = this.style(me);
+    const keep = reach * ps.spacing;
     const busy = me.action === ACT.ATTACK || me.action === ACT.LAND || me.action === ACT.JUMPSQUAT;
     if (busy) return;
 
@@ -416,7 +427,7 @@ export class Bot {
         this.wait = 2;
         const grabReach = ch.grabReach * k;
         if (me.facing === Math.sign(dx) && adx < grabReach * 0.9) {
-          if (this.random() < 0.6 + skill * 0.4) {
+          if (this.random() < Math.min(1, (0.6 + skill * 0.4) * Math.min(1, 0.3 + ps.grab * 0.5))) {
             this.press(0, 0, BTN.ATTACK | BTN.SHIELD, 2);
             return;
           }
@@ -429,11 +440,11 @@ export class Bot {
         if (nearEdge) {
           // Facing out over the edge: the forward smash sends them far.
           this.press(side, 0, side > 0 ? BTN.C_RIGHT : BTN.C_LEFT);
-        } else if ((t.percent > killPercent || open) && this.random() < 0.5 + skill * 0.3) {
+        } else if ((t.percent > killPercent || open) && this.random() < (0.5 + skill * 0.3) * Math.min(1.4, ps.smash)) {
           this.press(side, 0, this.random() < 0.6 ? (side > 0 ? BTN.C_RIGHT : BTN.C_LEFT) : BTN.C_DOWN);
-        } else if (me.facing === Math.sign(dx) && this.closeSpecial(me, side, skill)) {
+        } else if (me.facing === Math.sign(dx) && this.closeSpecial(me, side, skill, ps)) {
           return;
-        } else if (me.facing === Math.sign(dx) && adx < ch.grabReach * k * 0.9 && t.action !== ACT.ATTACK && this.random() < 0.06 + skill * 0.1) {
+        } else if (me.facing === Math.sign(dx) && adx < ch.grabReach * k * 0.9 && t.action !== ACT.ATTACK && this.random() < (0.06 + skill * 0.1) * ps.grab) {
           // Mix in a grab: it opens a defender who is waiting to shield, and costs little against one who is not swinging.
           this.press(0, 0, BTN.ATTACK | BTN.SHIELD, 2);
         } else {
@@ -441,7 +452,7 @@ export class Bot {
           if (r < 0.35) this.press(0, 0, BTN.ATTACK);
           else if (r < 0.7) this.press(side, 0, BTN.ATTACK);
           else if (r < 0.85) this.press(side * 0.3, -100, BTN.ATTACK);
-          else if (me.facing === Math.sign(dx) && (this.special(me, 'grab', side, 0.5) || this.special(me, 'flurry', side, 0.6))) return;
+          else if (me.facing === Math.sign(dx) && (this.special(me, 'grab', side, 0.5 * ps.grab) || this.special(me, 'flurry', side, 0.6))) return;
           else this.press(side, 0, BTN.SPECIAL);
         }
         return;
@@ -491,24 +502,44 @@ export class Bot {
       if (ch.specials && me.facing === Math.sign(dx)) {
         const lane = Math.abs(dy) < 60;
         // Harder bots reach for the kit more often: every chance below grows with the level.
-        if (adx > 200 && adx < 640 && lane && this.special(me, 'projectile', side, 0.08 + skill * 0.14)) return;
-        if (adx > 110 && adx < 320 && this.special(me, 'trap', side, 0.03 + skill * 0.06, 3)) return;
+        if (adx > 200 && adx < 640 && lane && this.special(me, 'projectile', side, (0.08 + skill * 0.14) * ps.projectile)) return;
+        if (adx > 110 && adx < 320 && this.special(me, 'trap', side, (0.03 + skill * 0.06) * ps.projectile, 3)) return;
         // A trap by the ledge the target is about to be pushed off, or a stage edge they are standing at.
         const edge = t.grounded && Math.min(t.x / FX - targetHome.x1, targetHome.x2 - t.x / FX) < 90;
-        if (edge && adx > 90 && adx < 420 && this.special(me, 'trap', side, 0.04 + skill * 0.1, 3)) return;
-        if (adx > 170 && adx < 460 && lane && this.special(me, 'dash', side, 0.06 + skill * 0.1)) return;
+        if (edge && adx > 90 && adx < 420 && this.special(me, 'trap', side, (0.04 + skill * 0.1) * ps.projectile, 3)) return;
+        if (adx > 170 && adx < 460 && lane && this.special(me, 'dash', side, (0.06 + skill * 0.1) * ps.aggression)) return;
         // A grab or a flurry is a close-range move: step in with it when the swing is nearly in reach.
-        if (adx > reach * 0.8 && adx < reach * 1.5 && lane && (this.special(me, 'grab', side, 0.03 + skill * 0.06) || this.special(me, 'flurry', side, 0.03 + skill * 0.06))) return;
+        if (adx > reach * 0.8 && adx < reach * 1.5 && lane && (this.special(me, 'grab', side, (0.03 + skill * 0.06) * ps.grab) || this.special(me, 'flurry', side, (0.03 + skill * 0.06) * ps.aggression))) return;
+      }
+      // A zoner keeps its room: too close and it backs off (unless the edge is behind it), in range it holds and
+      // waits for you to come in; only now and then does it walk in itself. A rushdown never waits.
+      if (ps.spacing > 1.8 && adx < keep * 1.25) {
+        const backEdge = side > 0 ? mx - h.x1 < 70 : h.x2 - mx < 70;
+        if (adx < keep * 0.8 && !backEdge && adx > reach * 0.5) {
+          this.steer(-side);
+          this.wait = 4;
+          return;
+        }
+        if (adx >= keep * 0.8 && this.random() > ps.aggression) {
+          this.steer(0);
+          return;
+        }
       }
       if (adx > reach * 0.8) {
-        // Approach, sometimes with a short hop aerial.
-        if (adx < 240 && this.random() < 0.25 + skill * 0.15) {
+        // Approach, sometimes with a short hop aerial (an aerial fighter hops in far more).
+        const hop = Math.min(0.9, (0.25 + skill * 0.15) * ps.air);
+        if (adx < 240 * Math.max(1, ps.air * 0.8) && this.random() < hop) {
           this.press(side, 0, BTN.JUMP, 1);
           this.queue.push({ sx: side, sy: 0, btn: 0, frames: 6 });
           this.press(side, 0, BTN.ATTACK);
           return;
         }
         this.steer(nearEdge && targetHome === h ? 0 : side);
+        if (ps.air > 1.5 && adx > 240 && this.random() < 0.08 * ps.air) {
+          // Full hop across the gap, drifting in to land the aerial.
+          this.press(side, 0, BTN.JUMP, 6);
+          this.queue.push({ sx: side, sy: 0, btn: 0, frames: 12 });
+        }
         return;
       }
       this.steer(side * 0.3);

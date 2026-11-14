@@ -776,3 +776,19 @@ Season 3 has no group (it is the Orchestrator's, The Host). Fighters with no `un
 ## First blood
 
 The show reacts to the fight, not just introduces it: the first KO of a bout makes the ON AIR bug flash red over the arena with "First blood" and a broadcast sting, while the announcer calls it. Told by sound, flash and the announcer's voice; one short line of text at most.
+
+## How the CPU fights (as built)
+
+Every fighter has a playstyle, so a CPU Break doesn't fight like a CPU Evil Blue Bird (`src/game/ai/profiles.ts`; the
+sim never reads it). It is derived from the fighter's speed, weight, jumps and hit tuning plus the archetypes of its
+specials, unless `content/fighters.json` gives it a `playstyle` of its own (a story fact beats the numbers):
+
+- **Rushdown** (Ball Person, DJ Won't Read, Exit Punk, Future Man, Kaelen, Shark Dude, Slice, Try Belt): walks into your face, dashes and flurries, almost never throws anything. Closes within about 3 s of GO.
+- **Zoner** (Pyro Singer, Small Weather, Susan): keeps room, backs off when you step in (unless the edge is behind), throws projectiles and lays traps far more often.
+- **Grappler** (Break, Crystalline Intelligences, Got Ur Back, Spider Bot, SS Boulder, Wallit, Yo Bot, Yooba): stands close and grabs, through shields too, several times a minute.
+- **Aerial** (Cel, Chooser, Evil Blue Bird, Slow Rider, Uh Me): hops in and swings aerials, rarely grabs, spends most of the fight off the floor.
+- **Bruiser** (Blog Man, Crosser, Lapis Man, Not an Old Man Yet, Orchestrator, Shutup Bot, Stratabots, The Mechanic, TT): fewer hops, reaches for smashes more, trades hits.
+
+Story rivals are the same fighter in the campaign as everywhere else, so their style is their own. Overrides keep
+the roster honest (bot-vs-bot win rates stay inside 35-65%). `test/profiles.test.ts` measures it: a zoner keeps more
+distance than a rushdown, a grappler grabs at least twice as often as an aerial.

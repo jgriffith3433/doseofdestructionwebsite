@@ -638,6 +638,8 @@ export interface FighterEntry extends Spec {
   name: string;
   role: string;
   blurb: string;
+  /** CPU playstyle override (ai/profiles.ts): rushdown, zoner, grappler, aerial or bruiser. Without it the style is derived from the fighter's numbers and kit. */
+  playstyle?: string;
   /** Victory fanfare group (victory.ts): which of the 8 fanfares plays when this fighter wins. Presentation only. */
   fanfare?: string;
 }

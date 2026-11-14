@@ -11,6 +11,7 @@
 
 import { installPlaytest, type Outcome, type RunOptions, type Tracker } from './hawkes-playtest.js';
 import { Bot } from '../ai/bot.ts';
+import { styleId } from '../ai/profiles.ts';
 import { padFamilyOf, setVirtualPad } from '../input/devices.ts';
 import { readTouch, touchDevice, touchOverlay } from '../input/touch.ts';
 import { TOUCH_KEY, forceTouchUi, touchSettings } from '../touchSettings.ts';
@@ -220,6 +221,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'feet') await r.feetRun();
         else if (id === 'smooth-clips') await r.smoothClips();
         else if (id === 'specials') await r.specialsRun();
+        else if (id === 'cpu-styles') await r.cpuStylesRun();
         else if (id === 'special-sounds') await r.specialSounds();
         else if (id === 'grab') await r.grabRun();
         else if (id === 'lesson-2') await r.lessonTwo();
@@ -6570,6 +6572,84 @@ class Run {
     t.finish('done');
   }
 
+
+  /**
+   * CPU playstyles (ai/profiles.ts, docs/story.md "How the CPU fights"): Versus against a CPU while the player stands still
+   * (on a phone: the touch overlay up, 390x844 turned to 844x390). Round 1 a rushdown CPU (Kaelen) must close the distance
+   * within 3 s of GO; round 2 a zoner CPU (Exit Punk) keeps more room over the same 10 s. Events `cpu-style`, `cpu-close`,
+   * `cpu-spacing`; metrics `rushCloseSeconds`, `rushAvgDistance`, `zonerAvgDistance`.
+   */
+  async cpuStylesRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('cpu-styles');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const rounds = [
+        { cpu: 'kaelen', label: 'rushdown' },
+        { cpu: 'exit-punk', label: 'zoner' },
+      ];
+      const avg: Record<string, number> = {};
+      for (const [ri, round] of rounds.entries()) {
+        const foe = CHARACTERS.findIndex((c) => c.id === round.cpu);
+        const mine = CHARACTERS.findIndex((c) => c.id === (round.cpu === 'kaelen' ? 'exit-punk' : 'wallit'));
+        void this.game.startMatch({
+          mode: 'versus', stage: stagesFor('versus')[0]?.index ?? 0, stocks: 3, rules: {},
+          slots: [{ char: mine < 0 ? punk : mine, cpu: null }, { char: foe, cpu: 7 }],
+        });
+        await this.matchLive();
+        // The player stands still: only the keyboard or the on-screen controls would move the fighter.
+        this.manual = NO_INPUT;
+        const match = () => this.game.match()!;
+        const frame = () => this.game.match()?.state.frame ?? 0;
+        const gap = () => {
+          const fs = match().state.fighters;
+          return Math.abs(fs[0].x - fs[1].x) / 1000;
+        };
+        const f0 = frame();
+        const d0 = gap();
+        t.event('cpu-style', `${round.label}: ${CHARACTERS[foe].name} is the CPU, style ${styleId(foe)}, ${Math.round(d0)} units away at GO`);
+        let closed = -1;
+        let sum = 0;
+        let n = 0;
+        const end = f0 + 10 * 60;
+        await t.until(() => {
+          const f = frame();
+          if (f > f0 && closed < 0 && gap() < 170) closed = (f - f0) / 60;
+          if (f > f0) { sum += gap(); n++; }
+          return f >= end || !!match().state.over;
+        }, 60000, 'ten seconds of the fight');
+        avg[round.label] = n ? sum / n : 0;
+        if (ri === 0) {
+          if (closed < 0 || closed > 3) t.problem('bug', `the rushdown CPU did not close to a jab's reach within 3 s of GO (${closed < 0 ? 'never in 10 s' : closed.toFixed(1) + ' s'})`);
+          else t.event('cpu-close', `rushdown CPU closed the distance ${closed.toFixed(1)} s after GO`);
+          t.metric('rushCloseSeconds', closed < 0 ? 99 : closed);
+          t.metric('rushAvgDistance', Math.round(avg[round.label]));
+        } else t.metric('zonerAvgDistance', Math.round(avg[round.label]));
+        this.manual = null;
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+      if (avg.zoner > avg.rushdown) t.event('cpu-spacing', `zoner CPU kept ${Math.round(avg.zoner)} units on average, rushdown ${Math.round(avg.rushdown)}`);
+      else t.problem('bug', `the zoner CPU (${Math.round(avg.zoner)} units) did not keep more distance than the rushdown (${Math.round(avg.rushdown)})`);
+    } finally {
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
 
   // ---------------------------------------------------------- ledge options
 
