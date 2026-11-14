@@ -232,3 +232,14 @@ export function edgeContrast(f: Frame, x1: number, x2: number, y: number, lipPx:
   for (let yy = top - 1; yy <= top + Math.ceil(lipPx) + 1; yy++) best = Math.max(best, contrast(rowLum(yy), above));
   return { contrast: best, cols: b - a };
 }
+
+/**
+ * How much a picture behind the fighters is dimmed so they stand out from the skyline: 1 = untouched. Layers that carry
+ * platforms, and the foreground are never dimmed (the play space stays at full light); the rest lose up to
+ * 30% at the far end (z 1200 and beyond), 14% right behind the play space.
+ */
+export function backdropDim(z: number, carriesPlatforms: boolean, foreground = false): number {
+  if (carriesPlatforms || foreground || z <= 0) return 1;
+  const t = Math.min(1, Math.max(0, z / 1200));
+  return 1 - (0.14 + 0.16 * t);
+}

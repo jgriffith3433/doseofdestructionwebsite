@@ -445,6 +445,10 @@ foreground art unless 60% of that still shows (a faded element or the silhouette
 (test `src/game/test/readability.test.ts`); scenario `readability` measures it from the rendered frame on all 9 stages (the
 3 busiest on a phone on Low) and reports per-stage numbers.
 
+**Dimmed backdrop:** the pictures behind the play space (not the ones carrying platforms, not the foreground) are dimmed so the
+fighters stand out from the skyline: 14% right behind the play space up to 30% at z 1200 and beyond (`readability.ts`
+`backdropDim`, applied in `render/stageArt.ts`; the stage's own colours and grade are unchanged, only lower).
+
 ## Stage depth (every set opens up as the camera moves)
 
 The broadcast camera pans and zooms with the fight, and every stage is built to show it: pictures sit at their own depths
