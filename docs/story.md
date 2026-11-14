@@ -143,6 +143,13 @@ or "New best."). The best grade is kept in `localStorage` `dod-stars` (chapter i
 episode cleared before grades counts as 1) and the season map shows it on each cleared episode, with a season total.
 Resetting the campaign clears it. Scenario `grades` (events `grade`, `map-stars`).
 
+**Score and bests.** A won episode also scores (`scoreEpisode`): 1000 for clearing, +500 per KO, +5 per % dealt, -3 per %
+taken, +10 per second under twice the par time (never under 0). The best score and the fastest time are kept apart per
+episode in `localStorage` `dod-bests` (chapter id to `{score, frames}`; a worse replay never lowers either; reset with the
+campaign). The results card shows score, time and the parts, and flashes "New best!" (naming Score, Time or both) when a
+run beats an earlier record (a first clear just sets it). Each cleared episode's card shows Best time and Best score
+("—" until a run since scores existed). Scenario `grades` seeds a weak record and checks all of it (events `new-best`, `map-best`).
+
 ## Unlocks: who joins the card
 
 The show's roster grows as the champion clears it. A chapter's optional `unlock` in `content/campaign.json` names

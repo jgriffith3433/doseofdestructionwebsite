@@ -35,9 +35,9 @@ import type { SimEvent } from './sim/step.ts';
 import { ruleLabel, takeoverLines } from './campaign/takeover.ts';
 import { LESSON_TITLE, campaignBlurb, doneLessons, markLessonDone, nextLesson, type LessonId } from './campaign/lessons.ts';
 import { clearLosses, difficulty, foeLevels, markCleared, offerEasy, recordLoss, setDifficulty, withDifficulty, DIFFICULTY_LABEL, type Difficulty } from './campaign/difficulty.ts';
-import { gradeEpisode } from './campaign/grade.ts';
+import { gradeEpisode, scoreEpisode } from './campaign/grade.ts';
 import { earnReward, onVariantChange, setVariant } from './campaign/rewards.ts';
-import { CHAPTERS, isUnlocked, loadProgress, recordStars, loadStars, saveStars, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
+import { CHAPTERS, isUnlocked, loadProgress, recordStars, recordBest, loadStars, saveStars, saveBests, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, installPressFeedback, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
@@ -546,6 +546,7 @@ function openCampaignScreen(unlocked?: string): Promise<void> {
       progress.clear();
       saveProgress(progress);
       saveStars({});
+      saveBests({});
       openCampaignScreen();
     }, unlocked),
   );
@@ -2282,7 +2283,11 @@ function episodeGrade(m: Match, c: Chapter) {
   const g = gradeEpisode({ won: true, objective: m.setup.objective, stocksStart: start, stocksLeft: me?.stocks ?? 0, frames: m.state.frame, damageTaken: (m.stats[m.player]?.taken ?? 0) / 10, par: c.par });
   const before = loadStars()[c.id] ?? 0;
   const best = recordStars(c.id, g.stars);
-  const out = { ...g, best, improved: g.stars > before && before > 0 };
+  const kos = m.stats[m.player]?.kos ?? 0;
+  const sc = scoreEpisode({ kos, dealt: (m.stats[m.player]?.dealt ?? 0) / 10, taken: (m.stats[m.player]?.taken ?? 0) / 10, frames: m.state.frame, par: c.par });
+  const rec = recordBest(c.id, { score: sc.total, frames: m.state.frame });
+  const out = { ...g, best, improved: g.stars > before && before > 0, score: sc.total, parts: sc.parts, frames: m.state.frame, bestScore: rec.best.score, bestFrames: rec.best.frames, beat: rec.beat };
+  window.dispatchEvent(new CustomEvent('dod:episode-score', { detail: { chapter: c.id, score: sc.total, frames: m.state.frame, bestScore: rec.best.score, bestFrames: rec.best.frames, beat: rec.beat, had: !!rec.before } }));
   window.dispatchEvent(new CustomEvent('dod:episode-grade', { detail: { chapter: c.id, stars: g.stars, best, par: c.par, seconds: Math.round(m.state.frame / 60), stocksLost: start - (me?.stocks ?? 0), steps: g.steps } }));
   return out;
 }

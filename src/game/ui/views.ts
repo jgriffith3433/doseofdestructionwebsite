@@ -4,9 +4,9 @@
 import { CHARACTERS } from '../sim/characters.ts';
 import { STAGES, type StageDef } from '../sim/stage.ts';
 import type { Match, MatchSetup } from '../match.ts';
-import { CHAPTERS, SEASONS, isOpen, loadStars, seasonCleared, seasonOpen, type Chapter } from '../campaign/story.ts';
+import { CHAPTERS, SEASONS, isOpen, loadBests, loadStars, seasonCleared, seasonOpen, type Chapter } from '../campaign/story.ts';
 import { DIFFICULTIES, DIFFICULTY_LABEL, DIFFICULTY_NOTE, difficulty, easyCleared, setDifficulty } from '../campaign/difficulty.ts';
-import type { Grade } from '../campaign/grade.ts';
+import type { Grade, Score } from '../campaign/grade.ts';
 import { hasReward, pickedTitle, rewardLine, setVariant, variantsFor, type Reward } from '../campaign/rewards.ts';
 import { PLAYER_COLORS, prefetchStage } from '../render/renderer.ts';
 import { TEAM_COLORS } from './select.ts';
@@ -323,6 +323,14 @@ export interface EpisodeGrade extends Grade {
   best: number;
   /** The best was beaten by this run. */
   improved: boolean;
+  /** This run's score (campaign/grade.ts `scoreEpisode`), its parts, time in sim frames, and the best score and time kept. */
+  score: number;
+  parts: Score['parts'];
+  frames: number;
+  bestScore: number;
+  bestFrames: number;
+  /** What this run beat of an earlier best: 'score', 'time' (empty on a first clear). */
+  beat: ('score' | 'time')[];
 }
 
 const starRow = (n: number, of = 3) => '\u2605'.repeat(n) + '\u2606'.repeat(of - n);
@@ -339,6 +347,16 @@ function gradeCard(g: EpisodeGrade): HTMLElement {
       ...g.steps.map((st, i) =>
         h('li', { class: st.met ? 'met' : '', 'data-star': String(i + 1), 'data-met': st.met ? '1' : '0' }, h('b', { 'aria-hidden': 'true' }, st.met ? '\u2605' : '\u2606'), h('span', {}, st.label)),
       ),
+    ),
+    h(
+      'div',
+      { class: 'grade-score', 'data-score': String(g.score), 'data-best-score': String(g.bestScore), 'data-best-frames': String(g.bestFrames) },
+      g.beat.length
+        ? h('p', { class: 'new-best', role: 'status', 'data-beat': g.beat.join(',') }, 'New best!', h('small', {}, g.beat.length === 2 ? ' Score and time' : g.beat[0] === 'score' ? ' Score' : ' Time'))
+        : null,
+      h('p', { class: 'score-line' }, h('span', {}, 'Score'), h('strong', {}, g.score.toLocaleString('en-US')), h('span', {}, 'Time'), h('strong', {}, formatTime(g.frames))),
+      h('p', { class: 'score-parts' }, g.parts.map((p) => `${p.label} ${p.points < 0 ? '\u2212' : '+'}${Math.abs(p.points)}`).join(' \u00b7 ')),
+      h('p', { class: 'score-best' }, `Best ${g.bestScore.toLocaleString('en-US')} \u00b7 ${formatTime(g.bestFrames)}`),
     ),
     h('p', { class: 'grade-best' }, g.improved ? 'New best.' : `Best ${starRow(g.best)}`),
   );
@@ -590,12 +608,14 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
   const easy = easyCleared();
   const nextIndex = CHAPTERS.findIndex((c) => !done.has(c.id));
   const savedStars = loadStars();
+  const savedBests = loadBests();
   const focus = CHAPTERS[nextIndex < 0 ? CHAPTERS.length - 1 : nextIndex];
   const chapter = (c: Chapter, n: number) => {
     const i = CHAPTERS.indexOf(c);
     const open = isOpen(i, done);
     const cleared = done.has(c.id);
     const stars = Math.max(1, savedStars[c.id] ?? 1);
+    const best = savedBests[c.id];
     const status = cleared ? 'Cleared' : open ? 'Next' : 'Locked';
     const foe = c.fight.slots.find((s) => s.cpu !== null && s.team !== 0) ?? c.fight.slots[1];
     // The first chapter of a locked season waits on the season before, not on a chapter.
@@ -622,6 +642,14 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
             { class: 'chapter-stars', 'data-stars': String(stars), role: 'img', 'aria-label': `${stars} of 3 stars` },
             h('b', { 'aria-hidden': 'true' }, starRow(stars)),
             h('small', {}, `${stars} of 3`),
+          )
+        : null,
+      cleared
+        ? h(
+            'span',
+            { class: 'chapter-best', 'data-best-score': best ? String(best.score) : '', 'data-best-frames': best ? String(best.frames) : '' },
+            h('span', {}, h('small', {}, 'Best time'), h('b', {}, best ? formatTime(best.frames) : '\u2014')),
+            h('span', {}, h('small', {}, 'Best score'), h('b', {}, best ? best.score.toLocaleString('en-US') : '\u2014')),
           )
         : null,
     );
