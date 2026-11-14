@@ -231,6 +231,12 @@ export function pads(): Gamepad[] {
   return emulatedPads.size ? [...emulatedPads.values(), ...real] : real;
 }
 
+/** Pad indexes that joined on Versus select (Start), one per person after player 1, in slot order. Empty = assigned by position. */
+let padClaims: number[] = [];
+export function setPadClaims(list: number[]): void {
+  padClaims = list.slice();
+}
+
 /** Local versus: which controller (by position in pads()) drives which player slot. A pad given to a slot no longer drives player 1. */
 const padOwner = new Map<number, number>();
 export function assignPad(padIndex: number, slot: number | null): void {
@@ -282,6 +288,11 @@ export function assignDevices(humans: number): void {
   padOwner.clear();
   if (humans < 2) return;
   const list = pads();
+  // Pads that pressed Start on Versus select own the next slots in order; every other pad and the keyboard stay with player 1.
+  if (padClaims.length === humans - 1 && padClaims.every((c) => list.some((p) => p.index === c))) {
+    padClaims.forEach((c, k) => padOwner.set(c, k + 1));
+    return;
+  }
   const padsLead = list.length >= humans;
   list.forEach((p, j) => {
     const slot = padsLead ? j : j + 1;

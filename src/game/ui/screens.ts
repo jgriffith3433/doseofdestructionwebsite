@@ -225,11 +225,17 @@ export function holdMenuPad(on: boolean): void {
   if (!on) syncPad();
 }
 
+/** Versus select's joining pads: `skip` pads belong to another player and don't drive the menu; `noStart` pads' Start joins instead of pressing. */
+let menuPadRules: { skip: (p: Gamepad) => boolean; noStart: (p: Gamepad) => boolean } | null = null;
+export function setMenuPadRules(r: typeof menuPadRules): void {
+  menuPadRules = r;
+}
+
 export function pollMenuPad(now: number): void {
   if (busy || padHeldBack) return;
   scanPads();
   // Any connected controller can drive the menus: the one in use right now, else the first.
-  const all = menuOwner === null ? pads() : pads().filter((p) => ownerSlotOf(p) === menuOwner);
+  const all = (menuOwner === null ? pads() : pads().filter((p) => ownerSlotOf(p) === menuOwner)).filter((p) => !menuPadRules?.skip(p));
   const pad = all.find((p) => p.buttons.some((b) => b.pressed) || p.axes.some((a) => Math.abs(a) > 0.5)) ?? all[0];
   if (!pad) return;
   listenNav();
@@ -248,7 +254,7 @@ export function pollMenuPad(now: number): void {
   }
   padHeld = dir;
   const pressed = (i: number) => btn(i) && !padButtons[i];
-  if (pressed(0) || pressed(9)) {
+  if (pressed(0) || (pressed(9) && !menuPadRules?.noStart(pad))) {
     const el = document.activeElement as HTMLElement | null;
     flashPressed(el);
     el?.click();
@@ -259,7 +265,7 @@ export function pollMenuPad(now: number): void {
 
 /** Resets edge tracking so a button held from a match doesn't fire in a menu. */
 export function syncPad(): void {
-  const all = menuOwner === null ? pads() : pads().filter((p) => ownerSlotOf(p) === menuOwner);
+  const all = (menuOwner === null ? pads() : pads().filter((p) => ownerSlotOf(p) === menuOwner)).filter((p) => !menuPadRules?.skip(p));
   const pad = all.find((p) => p.buttons.some((b) => b.pressed)) ?? all[0];
   padButtons = pad ? pad.buttons.map((b) => b.pressed) : [];
 }

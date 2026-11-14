@@ -15,8 +15,9 @@ import { swatchRow } from './lookUi.ts';
 import { audio } from '../audio.ts';
 import { hintText } from './teach.ts';
 import { landOn, resetLanding } from './nameCall.ts';
-import { currentScreen } from './screens.ts';
-import { TEAM_COLORS } from '../colourVision.ts';
+import { currentScreen, setMenuPadRules } from './screens.ts';
+import { pads, setPadClaims } from '../input/devices.ts';
+import { TEAM_COLORS, SHAPE_GLYPH, shapeOf } from '../colourVision.ts';
 import { loadAutoLevel } from '../ai/autoLevel.ts';
 import { ownedOf, pickTitle, pickedTitle } from '../campaign/rewards.ts';
 import { lookCount, lookOpen, openLook, preferredLook, rememberLook, separateLooks } from '../looks.ts';
@@ -79,6 +80,10 @@ export function unlockedBy(id: string) {
 /** Versus and online picks: a locked fighter can't be picked (training is open to everyone). */
 const open = (i: number, training: boolean): boolean => training || isUnlocked(CHARACTERS[i].id);
 
+/** Hold Back on a joined pad this long to leave its slot. */
+export const LEAVE_HOLD_MS = 1000;
+let joinRun = 0;
+
 export function openSelect({ mode, config, onDone }: Options): void {
   const cfg: VersusConfig = { ...config, slots: config.slots.map((s) => ({ ...s })) };
   let active = 0;
@@ -97,6 +102,150 @@ export function openSelect({ mode, config, onDone }: Options): void {
   let slotFocus = -1;
   const autoLevel = loadAutoLevel();
   fixLooks();
+
+  // Joining: a pad pressing Start claims the next slot (replacing a CPU); holding Back on it for a second hands the slot back.
+  // With two or more pads the first is player 1's (it drives the menu); one pad joins only once the keyboard has been used.
+  const claims = new Map<number, number>(); // pad index -> slot
+  // Each joined pad has its own cursor on the roster (the tile it is over) and a ready flag (it picked a fighter).
+  // Player 1's cursor is the menu focus; the match starts when every joined player is ready and player 1 presses Fight.
+  const cursors = new Map<number, HTMLElement>(); // slot -> tile
+  const ready = new Set<number>();
+  let p1Tile: HTMLElement | null = null;
+  const padSlots = (): number[] => [...new Set(claims.values())].filter((i) => cfg.slots[i] && cfg.slots[i].cpu === null);
+  const waitingOn = (): number[] => padSlots().filter((i) => !ready.has(i));
+  let keyUsed = false;
+  let promptShown = false;
+  window.addEventListener('keydown', () => { keyUsed = true; }, { once: true });
+  setPadClaims([]);
+  const claimedPad = (p: Gamepad): boolean => claims.has(p.index);
+  /** A pad that Start would put into a slot: not claimed, not player 1's own pad. */
+  const joiner = (p: Gamepad): boolean => {
+    const all = pads();
+    if (all.length >= 2) return all[0].index !== p.index && !claims.has(p.index);
+    return all.length === 1 && keyUsed && !claims.has(p.index);
+  };
+  const freeSlot = (): number => {
+    const i = cfg.slots.findIndex((s, k) => k > 0 && s.cpu !== null);
+    return i >= 0 ? i : cfg.slots.length < 4 ? cfg.slots.length : -1;
+  };
+  /** "Press Start to join" shows only when a second device is connected (a pad besides the keyboard, or a second pad). */
+  const joinable = (): boolean => !training && !touchUi() && freeSlot() >= 0 && pads().some(joiner);
+  const syncClaims = (): void => {
+    const owners: number[] = [];
+    cfg.slots.forEach((s, i) => {
+      if (i > 0 && s.cpu === null) for (const [pad, slot] of claims) if (slot === i) owners.push(pad);
+    });
+    setPadClaims(owners);
+  };
+  const joinSlot = (padIndex: number): void => {
+    let i = freeSlot();
+    if (i < 0) return;
+    if (i >= cfg.slots.length) {
+      const used = new Set(cfg.slots.map((o) => o.char));
+      const free = CHARACTERS.findIndex((_, k) => !used.has(k) && open(k, training));
+      cfg.slots.push({ char: free < 0 ? 0 : free, cpu: null, team: cfg.slots.length % 2 });
+      i = cfg.slots.length - 1;
+    }
+    const s = cfg.slots[i];
+    s.cpu = null;
+    s.auto = undefined;
+    s.look = preferredLook(s.char);
+    claims.set(padIndex, i);
+    ready.delete(i);
+    // The new cursor starts on the fighter the slot holds.
+    const start = grid.querySelector<HTMLElement>(`.tile[data-fighter="${CHARACTERS[s.char].id}"]`);
+    if (start) cursors.set(i, start);
+    fixLooks();
+    syncClaims();
+    audio.sfx('ui-select');
+    window.dispatchEvent(new CustomEvent('dod:select-join', { detail: { slot: i, pad: padIndex, joined: true, people: cfg.slots.filter((o) => o.cpu === null).length, at: performance.now() } }));
+    renderSlots();
+  };
+  const leaveSlot = (padIndex: number): void => {
+    const i = claims.get(padIndex);
+    claims.delete(padIndex);
+    if (i !== undefined) { cursors.delete(i); ready.delete(i); }
+    if (i === undefined || !cfg.slots[i]) return;
+    cfg.slots[i].cpu = autoLevel;
+    cfg.slots[i].auto = true;
+    syncClaims();
+    window.dispatchEvent(new CustomEvent('dod:select-join', { detail: { slot: i, pad: padIndex, joined: false, people: cfg.slots.filter((o) => o.cpu === null).length, at: performance.now() } }));
+    renderSlots();
+  };
+  const padState = new Map<number, { dir: string; at: number; a: boolean; b: boolean; x: boolean }>();
+  /** One joined pad: the stick or D-pad moves its cursor, A picks (and readies), X cycles its colour, B un-readies. */
+  const padCursor = (p: Gamepad, now: number): void => {
+    const slot = claims.get(p.index);
+    if (slot === undefined || !cfg.slots[slot]) return;
+    const st = padState.get(p.index) ?? { dir: '', at: 0, a: false, b: false, x: false };
+    padState.set(p.index, st);
+    const ax = p.axes[0] ?? 0;
+    const ay = p.axes[1] ?? 0;
+    let dx = (p.buttons[15]?.pressed ? 1 : 0) - (p.buttons[14]?.pressed ? 1 : 0);
+    let dy = (p.buttons[13]?.pressed ? 1 : 0) - (p.buttons[12]?.pressed ? 1 : 0);
+    if (!dx && Math.abs(ax) > 0.5 && Math.abs(ax) >= Math.abs(ay)) dx = Math.sign(ax);
+    if (!dy && !dx && Math.abs(ay) > 0.5) dy = Math.sign(ay);
+    const dir = `${dx},${dy}`;
+    if ((dx || dy) && (dir !== st.dir || now - st.at > 230)) {
+      st.at = dir !== st.dir ? now + 120 : now;
+      moveCursor(slot, dx, dy);
+    }
+    st.dir = dir;
+    const a = !!p.buttons[0]?.pressed;
+    const b = !!p.buttons[1]?.pressed;
+    const x = !!p.buttons[2]?.pressed;
+    if (a && !st.a) pickAt(slot);
+    if (b && !st.b && ready.has(slot)) {
+      ready.delete(slot);
+      audio.sfx('ui-back');
+      window.dispatchEvent(new CustomEvent('dod:select-ready', { detail: { slot, ready: false, at: performance.now() } }));
+      renderSlots();
+    }
+    if (x && !st.x) nextLook(slot);
+    st.a = a;
+    st.b = b;
+    st.x = x;
+  };
+
+  if (mode === 'versus') {
+    const run = ++joinRun;
+    const startHeld = new Map<number, boolean>();
+    const backSince = new Map<number, number>();
+    let seen = false;
+    setMenuPadRules({ skip: claimedPad, noStart: joiner });
+    const loop = (): void => {
+      if (run !== joinRun) return;
+      const here = currentScreen() === 'select';
+      if (here) seen = true;
+      else if (seen) {
+        setMenuPadRules(null);
+        return;
+      }
+      if (here) {
+        const now = performance.now();
+        for (const p of pads()) {
+          const start = !!p.buttons[9]?.pressed;
+          if (start && !startHeld.get(p.index) && joiner(p)) joinSlot(p.index);
+          startHeld.set(p.index, start);
+          if (claims.has(p.index)) {
+            padCursor(p, now);
+            if (p.buttons[1]?.pressed || p.buttons[8]?.pressed) {
+              const from = backSince.get(p.index) ?? now;
+              backSince.set(p.index, from);
+              if (now - from >= LEAVE_HOLD_MS) {
+                backSince.delete(p.index);
+                leaveSlot(p.index);
+              }
+            } else backSince.delete(p.index);
+          }
+        }
+        for (const k of [...claims.keys()]) if (!pads().some((p) => p.index === k)) leaveSlot(k);
+        if (joinable() !== promptShown) renderSlots();
+      }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
 
   const preview = $('select-preview');
   const grid = $('select-grid');
@@ -242,19 +391,100 @@ export function openSelect({ mode, config, onDone }: Options): void {
   grid.onpointermove = follow;
   grid.onpointerup = follow;
 
-  const assign = (char: number) => {
+  const assign = (char: number, who: number = active) => {
     if (!open(char, training)) return;
     void prefetchFighters([char]);
-    cfg.slots[active].char = char;
+    cfg.slots[who].char = char;
     // A person gets the colour they last wore with this fighter; a CPU starts on Classic. Same fighter twice: the second moves on.
-    cfg.slots[active].look = cfg.slots[active].cpu === null ? preferredLook(char) : 0;
+    cfg.slots[who].look = cfg.slots[who].cpu === null ? preferredLook(char) : 0;
     fixLooks();
     showPreview(CHARACTERS[char]);
     confirmPick(CHARACTERS[char]);
-    // After you pick, move on to the next CPU so a whole match can be set from the grid.
-    if (active < cfg.slots.length - 1) active++;
+    // After you pick, move on to the next CPU so a whole match can be set from the grid (a joined pad's pick leaves that alone).
+    if (who === active && active < cfg.slots.length - 1) active++;
     renderSlots();
   };
+
+  // ---- The joined pads' cursors ----
+  function p1Over(t: HTMLElement): void {
+    p1Tile = t;
+    if (claims.size) markCursors();
+  }
+  /** The nearest tile in a direction from the cursor's, by where the tiles really are (CSS order puts Random first and the locked last). */
+  function moveCursor(slot: number, dx: number, dy: number): void {
+    const from = cursors.get(slot);
+    if (!from) return;
+    const a = from.getBoundingClientRect();
+    const ax = a.left + a.width / 2;
+    const ay = a.top + a.height / 2;
+    let best: HTMLElement | null = null;
+    let bestScore = Infinity;
+    grid.querySelectorAll<HTMLElement>('.tile').forEach((t) => {
+      if (t === from) return;
+      const r = t.getBoundingClientRect();
+      const tx = r.left + r.width / 2 - ax;
+      const ty = r.top + r.height / 2 - ay;
+      const along = dx ? tx * dx : ty * dy;
+      const across = Math.abs(dx ? ty : tx);
+      if (along < Math.min(r.width, r.height) * 0.4 || across > along * 1.2 + r.height * 0.5) return;
+      const score = along + across * 2.5;
+      if (score < bestScore) { bestScore = score; best = t; }
+    });
+    if (!best) return;
+    cursors.set(slot, best);
+    const c = CHARACTERS.find((o) => o.id === (best as HTMLElement).dataset.fighter);
+    (best as HTMLElement).scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (c) showPreview(c);
+    audio.sfx('ui-move');
+    window.dispatchEvent(new CustomEvent('dod:select-cursor', { detail: { slot, fighter: c?.id ?? 'random', at: performance.now() } }));
+    markCursors();
+  }
+  function pickAt(slot: number): void {
+    const t = cursors.get(slot);
+    if (!t) return;
+    const ok = CHARACTERS.map((_, i) => i).filter((i) => open(i, training));
+    const i = t.dataset.fighter ? CHARACTERS.findIndex((c) => c.id === t.dataset.fighter) : ok[Math.floor(Math.random() * ok.length)];
+    if (i < 0 || !open(i, training)) return;
+    assign(i, slot);
+    ready.add(slot);
+    const c = CHARACTERS[i];
+    // Random lands the cursor on the fighter it picked.
+    const own = grid.querySelector<HTMLElement>(`.tile[data-fighter="${c.id}"]`);
+    if (own) cursors.set(slot, own);
+    window.dispatchEvent(new CustomEvent('dod:select-ready', { detail: { slot, ready: true, fighter: c.id, look: cfg.slots[slot].look ?? 0, at: performance.now() } }));
+    renderSlots();
+  }
+  function nextLook(slot: number): void {
+    const s = cfg.slots[slot];
+    const n = lookCount(s.char);
+    for (let k = 1; k <= n; k++) {
+      const look = ((s.look ?? 0) + k) % n;
+      if (may(slot, look)) {
+        s.look = look;
+        rememberLook(s.char, look);
+        fixLooks();
+        if (CHARACTERS[s.char].id === shownId) render.setLook(s.look ?? 0);
+        audio.sfx('ui-select');
+        window.dispatchEvent(new CustomEvent('dod:select-look', { detail: { slot, look: s.look, at: performance.now() } }));
+        renderSlots();
+        return;
+      }
+    }
+  }
+  /** The coloured, shaped tokens over the tiles: one per human with a cursor (player 1's is the menu focus). */
+  function markCursors(): void {
+    grid.querySelectorAll('.cursor-tokens').forEach((e) => e.remove());
+    if (!claims.size || training) return;
+    const place = (slot: number, tile: HTMLElement | null) => {
+      if (!tile) return;
+      let box = tile.querySelector<HTMLElement>('.cursor-tokens');
+      if (!box) { box = h('span', { class: 'cursor-tokens' }); tile.append(box); }
+      const color = cfg.teams ? TEAM_COLORS[cfg.slots[slot].team ?? 0] : PLAYER_COLORS[slot];
+      box.append(h('span', { class: `cursor-token${ready.has(slot) ? ' ready' : ''}`, 'data-slot': String(slot), 'data-shape': shapeOf(slot), style: `--c:${color}` }, `${SHAPE_GLYPH[shapeOf(slot)]} P${slot + 1}`));
+    };
+    place(0, p1Tile ?? (grid.querySelector(`.tile[data-fighter="${CHARACTERS[cfg.slots[0].char].id}"]`) as HTMLElement | null));
+    for (const [slot, tile] of cursors) if (padSlots().includes(slot)) place(slot, tile);
+  }
 
   grid.replaceChildren(
     ...CHARACTERS.map((c, i) =>
@@ -267,8 +497,8 @@ export function openSelect({ mode, config, onDone }: Options): void {
           'aria-disabled': open(i, training) ? undefined : 'true',
           'data-fighter': c.id,
           onclick: () => assign(i),
-          onfocus: () => { showPreview(c); land(c, i, true); if (open(i, training)) void prefetchFighters([i]); },
-          onmouseenter: () => { showPreview(c); land(c, i); },
+          onfocus: (e: Event) => { p1Over(e.currentTarget as HTMLElement); showPreview(c); land(c, i, true); if (open(i, training)) void prefetchFighters([i]); },
+          onmouseenter: (e: Event) => { p1Over(e.currentTarget as HTMLElement); showPreview(c); land(c, i); },
           // A tap on a phone: the preview (and its clip) follows the finger, not only the fighter picked.
           onpointerdown: () => { showPreview(c); land(c, i); },
         },
@@ -294,6 +524,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
 
   function renderSlots(): void {
     const back = slotFocus;
+    promptShown = joinable();
     slotFocus = -1;
     slotsEl.replaceChildren(
       ...kids(...cfg.slots.map((s, i) => {
@@ -347,6 +578,8 @@ export function openSelect({ mode, config, onDone }: Options): void {
               cfg.teams && h('button', { type: 'button', onclick: () => toggleTeam(i) }, TEAM_NAMES[s.team ?? 0]),
               !training && cfg.slots.length > 2 && h('button', { type: 'button', 'aria-label': 'Remove', onclick: () => remove(i) }, '×'),
             ),
+          isCpu && !training && i > 0 && joinable() && h('p', { class: 'join-prompt', role: 'status' }, 'Press Start to join'),
+          !isCpu && i > 0 && [...claims.values()].includes(i) && h('p', { class: 'join-prompt joined', 'data-ready': String(ready.has(i)) }, ready.has(i) ? 'Ready · B to change' : 'Pick a fighter · A', ),
           !isCpu && (cfg.teams || i > 0) &&
             h(
               'div',
@@ -358,9 +591,14 @@ export function openSelect({ mode, config, onDone }: Options): void {
         );
       }),
       !training && cfg.slots.length < 4 && h('button', { type: 'button', class: 'slot add', onclick: addCpu }, '+ Add CPU'),
-      h('button', { type: 'button', class: 'primary fight', onclick: () => { resetLanding(); fixLooks(); onDone(cfg); } }, training ? 'Train' : 'Fight'),
+      (() => {
+        const wait = waitingOn();
+        return h('button', { type: 'button', class: 'primary fight', disabled: wait.length > 0, 'data-waiting': wait.map((i) => `P${i + 1}`).join(' '), onclick: () => { if (waitingOn().length) return; resetLanding(); fixLooks(); onDone(cfg); } },
+          training ? 'Train' : wait.length ? `Waiting for ${wait.map((i) => `P${i + 1}`).join(' + ')}` : 'Fight');
+      })(),
     ));
     markTiles();
+    markCursors();
     // Keep the keyboard on the row it was using after a colour pick redraws the slots.
     if (back >= 0) slotsEl.querySelector<HTMLElement>(`.swatches[data-slot="${back}"] .swatch.on`)?.focus();
   }

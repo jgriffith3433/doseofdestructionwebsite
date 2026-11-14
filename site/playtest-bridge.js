@@ -281,7 +281,7 @@
     {
       "id": "local-versus",
       "title": "Two people on one couch: in Versus each controller (pad 1, pad 2) moves its own fighter; solo still takes keyboard and pad together; a phone is still You vs CPU",
-      "description": "Desktop: Versus select, the second slot switched to Person (Player 1 and Player 2), two emulated pads: pad 1 moves only player 1, pad 2 only player 2 (pads-independent); then solo again, a pad stick moves the fighter while the keyboard attacks (solo-merged). Phone 390x844 touch (turned to 844x390): no Person switch, Versus reads You vs CPU, the touch stick moves the player (phone-you-vs-cpu, phone-touch-moves). Events two-people. test/localVersus.test.ts covers the sim side.",
+      "description": "Desktop: Versus select, the second slot switched to Person (Player 1 and Player 2), two emulated pads: pad 1 moves only player 1, pad 2 only player 2 (pads-independent); then solo again, a pad stick moves the fighter while the keyboard attacks (solo-merged). Phone 390x844 touch (turned to 844x390): no Person switch, Versus reads You vs CPU, the touch stick moves the player (phone-you-vs-cpu, phone-touch-moves). Pad join: Start on pad 2 makes slot 2 Player 2, holding Back a second returns it to CPU, \"Press Start to join\" only with a second device (join-prompt, join-start, join-leave, no-join-prompt). Events two-people. test/localVersus.test.ts covers the sim side.",
       "seconds": 150,
       "tags": [
         "full",
