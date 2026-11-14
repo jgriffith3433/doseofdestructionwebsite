@@ -210,6 +210,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'sudden-death') await r.suddenDeath();
         else if (id === 'hazard-dodge') await r.hazardDodge();
+        else if (id === 'cpu-level') await r.cpuLevel();
         else if (id === 'auto-quality') await r.autoQuality();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
@@ -4189,6 +4190,85 @@ class Run {
       t.metric('hazardDodged', dodged);
       t.metric('hazardHits', hits);
       if (!warnings) t.problem('bug', `no hazard warning showed on ${def.name} during the match`);
+      if (m.state.over || currentScreen() === 'results') {
+        await this.results();
+        await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      } else {
+        await this.quitFromPause('main');
+      }
+      await this.screen('main');
+      t.finish('done');
+    } finally {
+      this.manual = null;
+      if (touch) forceTouchUi(false);
+    }
+  }
+
+  /**
+   * CPU levels (ai/bot.ts: level drives reaction, recovery, shielding and the ledge choice). A versus match, Exit Punk (the
+   * playtest bot on the pad, touch controls on a phone) against a Break CPU at option `level` (default 1), 2 stocks, to the end.
+   * Events `cpu-level`, `cpu-ledge` (the option the CPU chose on the ledge), `cpu-recovery` (each trip off the stage and
+   * whether it got back), `cpu-result`; metrics `cpuRecoveries`, `cpuRecoveryMisses`, `cpuLedgeOptions`, `cpuWon`. A bug problem
+   * when a level-1 CPU beats the playtest bot. On a phone (390x844 turned to 844x390) the same match plays by touch.
+   */
+  async cpuLevel(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('cpu-level');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) forceTouchUi(true);
+    try {
+      const level = Math.max(1, Math.min(9, Number(this.options.level) || 1));
+      const id = (list: { id: string }[], want: string) => Math.max(0, list.findIndex((x) => x.id === want));
+      const stage = id(STAGES, String(this.options.stage ?? 'city-top'));
+      void this.game.startMatch({
+        mode: 'versus', stage, stocks: 2, rules: { timeLimit: 5 * 60 },
+        slots: [{ char: id(CHARACTERS, 'exit-punk'), cpu: null, team: 0, stocks: 2 }, { char: id(CHARACTERS, 'break'), cpu: level, team: 1, stocks: 2 }],
+      });
+      await this.matchLive();
+      const m = this.game.match()!;
+      t.event('cpu-level', `CPU level ${level} (P2) against the playtest bot${touch ? '; touch controls on' : ''}`);
+      const cpu = m.bots[1];
+      let trips = 0;
+      let misses = 0;
+      let last = '';
+      let was = false;
+      let hit = false;
+      const options = new Set<string>();
+      const sample = (): boolean => {
+        const s = m.state;
+        const f = s.fighters[1];
+        if (f.action === ACT.HITSTUN) hit = true;
+        if (cpu && cpu.recovering && !was) {
+          trips++;
+          hit = false;
+        }
+        if (cpu && was && !cpu.recovering && f.action !== ACT.DEAD && f.action !== ACT.RESPAWN) t.event('cpu-recovery', `the CPU got back to the stage (trip ${trips})`);
+        if (cpu && was && f.action === ACT.DEAD && !hit) {
+          misses++;
+          t.event('cpu-recovery', `the CPU missed its recovery and fell (trip ${trips}, level ${level})`);
+        }
+        was = !!cpu?.recovering;
+        if (cpu && cpu.lastLedge && cpu.lastLedge !== last) {
+          last = cpu.lastLedge;
+          options.add(last);
+          t.event('cpu-ledge', `the CPU chose ${last} on the ledge`);
+        }
+        return !!s.over;
+      };
+      this.manual = null;
+      await this.fight(sample, 300000).catch(() => undefined);
+      const won = m.state.winner === m.player;
+      t.metric('cpuRecoveries', trips);
+      t.metric('cpuRecoveryMisses', misses);
+      t.metric('cpuLedgeOptions', options.size);
+      t.metric('cpuWon', won ? 0 : 1);
+      t.event('cpu-result', `${won ? 'the playtest bot beat' : 'the CPU beat the playtest bot at'} level ${level}: ${trips} trips off the stage, ${misses} missed, ledge options ${[...options].join(', ') || 'none'}`);
+      if (level === 1 && m.state.over && !won) t.problem('bug', 'a level-1 CPU beat the playtest bot');
       if (m.state.over || currentScreen() === 'results') {
         await this.results();
         await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');

@@ -493,6 +493,16 @@
       ]
     },
     {
+      "id": "cpu-level",
+      "title": "CPU levels: a level-1 CPU misses recoveries and plays one ledge habit, and the playtest bot beats it (phone: 390x844 touch, turned to 844x390)",
+      "description": "options: level (1-9, default 1), stage. A versus match, Exit Punk (the playtest bot) against a Break CPU at that level, 2 stocks, to the end. Events cpu-level, cpu-ledge (the ledge option the CPU chose), cpu-recovery (got back / missed), cpu-result; metrics cpuRecoveries, cpuRecoveryMisses, cpuLedgeOptions, cpuWon. A bug when a level-1 CPU beats the playtest bot. On a phone the match plays by touch.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "ai"
+      ]
+    },
+    {
       "id": "hazard-dodge",
       "title": "Bots read stage hazards: a bot in a warned hawk dive, skater, vacuum, paint drop or fog surge's way moves out before it arrives (phone: the same warning, touch controls on)",
       "description": "A versus match on a hazard stage (option `stage`, default desert; also cursed-town, rainbow-full-pipe, watercolor-nebula, yo-house) with the playtest bot and a level 9 CPU. For each stage warning (hazard-warning) each fighter standing in the warned hazard's path is followed: it must move out by a hop, a walk or a drop (hazard-dodge, frames after the warning), and the pass ends hazard-avoided or hazard-hit; hazard-first is the first pass. Ends after two passes. On a 390x844 phone it turns to 844x390 with touch controls on. Metrics hazardWarnings, hazardThreatened, hazardDodged, hazardHits.",
