@@ -32,7 +32,7 @@ import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, SHIELD_MAX, bodySize, type Fighter, type GameState } from '../sim/state.ts';
 import { GRAB_FIRST, activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
-import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, coreFor, sparkSizeFor, tellAt, tellFrames, moveStartFrame, windupPose, isNormalMove, isSmashMove, isSpecialMove, type HitTier, type TrailKind } from '../hitFeel.ts';
+import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, killTimeScale, screenShake, shakeScale, flashScale, flashAllowed, flashStats, flashMode, reduceMotion, trailFor, coreFor, sparkSizeFor, tellAt, tellFrames, moveStartFrame, windupPose, isNormalMove, isSmashMove, isSpecialMove, type HitTier, type TrailKind } from '../hitFeel.ts';
 import { autoToastShown, graphics, markAutoToastShown, onGraphics, particleShare, pickedByHand, saveAutoLevel, savedAutoLevel, scalingLevel, type Graphics } from '../graphics.ts';
 import { AutoQuality, effectsFor, type AutoChange, type AutoEffects } from './autoQuality.ts';
 import type { Placed } from './stageLive.ts';
@@ -645,11 +645,7 @@ export class Renderer {
     this.fx = new StageFx(this.scene, this.stage, {
       sound: (id) => this.onSound?.(id),
       shake: (a) => (this.shake = Math.max(this.shake, a)),
-      flash: (color) => {
-        this.flashMat.emissiveColor = Color3.FromHexString(color);
-        this.flashMat.alpha = 0.75;
-        this.flashPlane.setEnabled(true);
-      },
+      flash: (color) => this.flashScreen(Color3.FromHexString(color), 0.75),
     }, this.glow);
 
     const body = new StandardMaterial('stage-body', this.scene);
@@ -1250,7 +1246,7 @@ export class Renderer {
         } else if (e.type === 'hit') {
           this.lastHits.set(e.victim, { kb: e.kb, tier: hitTier(e.dmg) });
           this.impact(e);
-          if (hitTier(e.dmg) === 'heavy') this.post.punch();
+          if (hitTier(e.dmg) === 'heavy') this.punchPost();
         } else {
           this.burst(e.x * S, e.y * S, 8 + Math.min(16, e.kb >> 3), 0.09 + e.kb * 0.0006);
           this.shake = Math.max(this.shake, Math.min(0.5, e.kb * 0.003));
@@ -1274,7 +1270,7 @@ export class Renderer {
         this.live?.trigger(on);
       } else if (e.type === 'launch') {
         // The launch that will carry the victim out of the blast zone: the kill cue.
-        if (e.ko) this.post.punch();
+        if (e.ko) this.punchPost();
         if (e.ko && !this.shot) this.killCue(e.x * S, e.y * S + 0.5);
         this.startTrail(e.victim, e.ko);
       } else if (e.type === 'ko') {
@@ -1315,10 +1311,8 @@ export class Renderer {
         this.shake = Math.max(this.shake, 0.3);
         // The painted parry: a white-blue flash and ring, with the sim's 6-frame freeze (step.ts COUNTER_FREEZE).
         this.flip.play('counter', x, y, -0.5, 2.1, COUNTER_TINT);
-        this.flashMat.emissiveColor = new Color3(0.7, 0.88, 1);
-        this.flashMat.alpha = Math.max(this.flashMat.alpha, 0.45);
-        this.flashPlane.setEnabled(true);
-        this.post.punch();
+        this.flashScreen(new Color3(0.7, 0.88, 1), 0.45);
+        this.punchPost();
       } else if (e.type === 'grab') {
         // The grab flash: a bright ring and star where the hands close, and both fighters light up.
         const x = e.x * S;
@@ -1581,10 +1575,8 @@ export class Renderer {
     for (let i = 0; i < fx.stars; i++) this.sprite(x, y, i * (Math.PI / 4) + Math.random(), tier === 'heavy' ? 0.4 : 0.26, 8 + i * 2, 1);
     if (fx.ring) this.sprite(x, y, 0, 0.3, 12, 3.2);
     this.shake = Math.max(this.shake, fx.shake);
-    if (fx.flash > 0 && this.flashMat.alpha < fx.flash) {
-      this.flashMat.emissiveColor = Color3.White();
-      this.flashMat.alpha = fx.flash;
-      this.flashPlane.setEnabled(true);
+    if (fx.flash > 0) {
+      this.flashScreen(Color3.White(), fx.flash);
     }
     const st = this.hitStats;
     st.hits++;
@@ -1651,22 +1643,54 @@ export class Renderer {
    * Screen shake off still removes the shake; the zoom stays.
    */
   private killCue(x: number, y: number): void {
-    this.kill = { at: performance.now(), x, y };
-    this.flashMat.emissiveColor = new Color3(1, 0.12, 0.08);
-    this.flashMat.alpha = KILL_CUE.redFlash;
-    this.flashPlane.setEnabled(true);
+    // Reduce motion keeps the sprites, whistle and sting but drops the slow motion and the punch-in zoom (`kill` drives both).
+    const calm = reduceMotion();
+    if (calm) this.camTraceNote.koUntil = performance.now() + KO_TAIL_S * 1000;
+    else this.kill = { at: performance.now(), x, y };
+    this.flashScreen(new Color3(1, 0.12, 0.08), KILL_CUE.redFlash);
     this.sprite(x, y, 0, 0.45, 12, 6);
     this.sprite(x, y, 0.5, 0.7, 16, 4);
     this.shake = Math.max(this.shake, 0.8);
     this.onSynth?.('whistle');
     const c = this.camStats;
     c.killCues++;
-    c.lastCue = { zoom: true, slow: true, whistle: !!this.onSynth, shake: screenShake() ? this.shake : 0, punch: 0 };
+    c.lastCue = { zoom: !calm, slow: !calm, whistle: !!this.onSynth, shake: this.shake * shakeScale(), punch: 0 };
+  }
+
+  /**
+   * One full-screen flash, scaled by Settings → Flashes (Full / Soft / Off) and held to 3 starts a second (hitFeel.ts
+   * `flashAllowed`). A flash already on screen is only raised, never restarted, so overlapping calls don't stack.
+   */
+  private flashScreen(color: Color3, alpha: number): void {
+    const a = alpha * flashScale();
+    if (a <= 0 || !flashAllowed(performance.now())) return;
+    if (this.flashMat.alpha >= a) return;
+    this.flashMat.emissiveColor = color;
+    this.flashMat.alpha = a;
+    this.flashPlane.setEnabled(true);
+    const st = this.flashLog;
+    st.flashes++;
+    st.maxAlpha = Math.max(st.maxAlpha, a);
+  }
+
+  /** The post chain's exposure punch and aberration: a brightness flash too, so it follows the same Flashes setting and rate gate. */
+  private punchPost(): void {
+    if (!flashAllowed(performance.now())) return;
+    this.post.punch(flashScale());
+  }
+
+  private flashLog = { flashes: 0, maxAlpha: 0 };
+
+  /** Flash counters for the playtest (the gate's own counters are in hitFeel.ts `flashStats`). */
+  flashFxStats(reset = false) {
+    const out = { ...this.flashLog, ...flashStats(reset), mode: flashMode(), scale: flashScale() };
+    if (reset) this.flashLog = { flashes: 0, maxAlpha: 0 };
+    return out;
   }
 
   /** How fast the match clock should run right now: slow motion for the kill cue's beat, else 1. */
   timeScale(): number {
-    if (!this.kill) return 1;
+    if (!this.kill || reduceMotion()) return 1;
     const t = (performance.now() - this.kill.at) / 1000;
     if (t > KILL_CUE.slowSeconds + KILL_CUE.easeBack + 0.1) this.kill = null;
     return killTimeScale(t);
@@ -2447,12 +2471,14 @@ export class Renderer {
     this.camPos.z = -d;
 
     // Screen shake off (Settings): the camera stays put, whatever the stage or a hit asked for.
-    if (!screenShake()) this.shake = 0;
+    // Screen shake 0-100% (Settings): every kick, hit, KO and stage event lands in `this.shake`, scaled here; 0 keeps the camera still.
+    const sScale = shakeScale();
+    if (sScale === 0) this.shake = 0;
     this.shake *= 0.86;
-    this.hitStats.shakeApplied = this.shake;
-    this.hitStats.shakeMax = Math.max(this.hitStats.shakeMax, this.shake);
-    const jx = (Math.random() - 0.5) * this.shake * 0.4;
-    const jy = (Math.random() - 0.5) * this.shake * 0.4;
+    this.hitStats.shakeApplied = this.shake * sScale;
+    this.hitStats.shakeMax = Math.max(this.hitStats.shakeMax, this.shake * sScale);
+    const jx = (Math.random() - 0.5) * this.shake * sScale * 0.4;
+    const jy = (Math.random() - 0.5) * this.shake * sScale * 0.4;
     this.camera.position.set(this.camPos.x + jx, this.camPos.y + jy, this.camPos.z);
     this.camera.setTarget(new Vector3(this.camTarget.x + jx, this.camTarget.y + jy, 0));
   }
@@ -2815,8 +2841,7 @@ export class Renderer {
         break;
       case 'flash':
         // A lightning strike or a flashbulb: the screen whitens for a few frames and sparks fly off the fighter.
-        this.flashMat.alpha = Math.max(this.flashMat.alpha, b.kick ? 0.5 : 0.28);
-        this.flashPlane.setEnabled(true);
+        this.flashScreen(Color3.White(), b.kick ? 0.5 : 0.28);
         this.burst(fx + (Math.random() - 0.5) * h * 0.8, fy + h * (0.4 + Math.random() * 0.6), n, 0.05, this.introMat('#ffffff'));
         break;
       case 'snap':

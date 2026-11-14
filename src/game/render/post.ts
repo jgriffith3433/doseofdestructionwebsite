@@ -92,6 +92,8 @@ export class PostChain {
   private drawn = 0;
   private probing = false;
   private glitchUntil = 0;
+  /** How hard the running punch draws (Settings → Flashes: Full 1, Soft less). */
+  private punchK = 1;
   private glitchDrawn = 0;
   private glitches = 0;
   private stats = { punches: 0, lastPunchDrawn: 0 };
@@ -121,8 +123,8 @@ export class PostChain {
       effect.setFloat('vignette', high ? 0.34 : 0.3);
       effect.setFloat('grain', high && !this.probing ? 0.035 : 0);
       effect.setFloat('seed', this.probing ? 0 : (performance.now() % 997) * 0.37);
-      effect.setFloat('aberration', punching ? 0.012 : 0);
-      effect.setFloat('punch', punching ? 1 : 0);
+      effect.setFloat('aberration', punching ? 0.012 * this.punchK : 0);
+      effect.setFloat('punch', punching ? this.punchK : 0);
       // The takeover glitch runs on Low too (one extra texture read, no grain): it is the story beat, not polish.
       const now = performance.now();
       const gl = now < this.glitchUntil ? Math.min(1, (this.glitchUntil - now) / 250) : 0;
@@ -162,7 +164,9 @@ export class PostChain {
   }
 
   /** Starts the punch: the next PUNCH_FRAMES rendered frames. */
-  punch(): void {
+  punch(strength = 1): void {
+    if (strength <= 0) return;
+    this.punchK = strength;
     if (this.frames === 0) {
       this.drawn = 0;
       this.stats.punches++;

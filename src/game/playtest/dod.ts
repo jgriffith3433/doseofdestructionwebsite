@@ -53,7 +53,7 @@ import { walkMenus, type Mode } from './menuWalk.ts';
 import { SOUND_KEY, readSoundSettings, soundSettings } from '../soundSettings.ts';
 import { GFX_KEY, HAND_KEY, AUTO_KEY, AUTO_TOAST_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
 import { colourVision } from '../colourVision.ts';
-import { SHAKE_STORAGE_KEY, screenShake, hitTier, inWindupTell, isSmashMove, isSpecialMove, moveStartFrame, tellFrames, windupPose, type HitTier } from '../hitFeel.ts';
+import { SHAKE_STORAGE_KEY, FLASH_STORAGE_KEY, MOTION_STORAGE_KEY, flashMode, reduceMotion, shakeLevel, screenShake, hitTier, inWindupTell, isSmashMove, isSpecialMove, moveStartFrame, tellFrames, windupPose, type HitTier } from '../hitFeel.ts';
 import { clipFrame, feetLift, loadAnimSet, pickClip, type AnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import { BUFFER_FRAMES, COYOTE_FRAMES, LEDGE_CHOOSE, LEDGE_HANG_MAX, type SimEvent } from '../sim/step.ts';
@@ -88,6 +88,7 @@ export interface GameHooks {
   /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
   /** The per-frame camera trace (renderer.camTrace): samples, the lens' tangent and the touch controls' rectangles as screen shares. */
   camTrace?(reset?: boolean): { samples: CamSample[]; tan: number; touch: ScreenRect[] };
+  flashFxStats?(reset?: boolean): { flashes: number; maxAlpha: number; accepted: number; refused: number; maxPerSecond: number; mode: string; scale: number };
   camFxStats?(reset?: boolean): { cameraJumps: number; framingMisses: number; killCues: number; slowFpsMin: number; killActive: boolean; lastCue: { zoom: boolean; slow: boolean; whistle: boolean; shake: number; punch: number } | null };
   /** The special-effect flipbooks: plays per archetype, the tint used, pool, atlas size (render/flipbook.ts). */
   flipStats?(reset?: boolean): { played: Record<string, number>; tint: Record<string, [number, number, number] | null>; dropped: number; pool: number; free: number; quality: 'high' | 'low'; frames: number; cell: number; standIn: boolean };
@@ -258,6 +259,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'rebind') await r.rebindRun();
         else if (id === 'text-size') await r.textSizeRun();
         else if (id === 'colour-vision') await r.colourVisionRun();
+        else if (id === 'motion-comfort') await r.motionComfort();
         else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'post-chain') await r.postChain();
         else if (id === 'lighting') await r.lighting();
@@ -8522,10 +8524,11 @@ class Run {
       await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
       await t.until(settingsShowing, 3000, 'Settings to open');
       this.checkClipping('Settings', this.q('#settings'));
-      const sw = this.q('#shake-switch');
-      if (!sw) t.problem('bug', 'Settings has no Screen shake switch');
-      else if (sw.getAttribute('aria-checked') !== 'true' || !screenShake()) t.problem('bug', 'Screen shake is not on by default');
-      else t.event('shake-default', 'Settings shows Screen shake: On');
+      const sw = this.q('#shake-level') as HTMLInputElement | null;
+      if (!sw) t.problem('bug', 'Settings has no Screen shake slider');
+      else if (reduceMotion()) t.event('shake-default', `Reduce motion is on in this browser: Screen shake defaults to ${sw.value}%`);
+      else if (Number(sw.value) !== 100 || !screenShake()) t.problem('bug', 'Screen shake is not at 100% by default');
+      else t.event('shake-default', 'Settings shows Screen shake: 100%');
       await this.tap(() => this.q('#settings-done'), 'Done');
       await t.wait(300);
 
@@ -8652,10 +8655,17 @@ class Run {
       await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
       await t.until(settingsShowing, 3000, 'Settings to open from Pause');
       await t.wait(400);
-      await this.tap(() => this.q('#shake-switch'), 'Screen shake off');
-      if (screenShake() || this.q('#shake-switch')?.getAttribute('aria-checked') !== 'false' || localStorage.getItem(SHAKE_STORAGE_KEY) !== 'off') {
-        t.problem('bug', 'Screen shake off did not apply and save');
-      } else t.event('shake-off', 'Screen shake switched Off in Settings (saved as dod.shake=off)');
+      {
+        const sl = this.q('#shake-level') as HTMLInputElement | null;
+        if (sl) {
+          sl.value = '0';
+          sl.dispatchEvent(new Event('input', { bubbles: true }));
+          sl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+      if (screenShake() || (this.q('#shake-level') as HTMLInputElement | null)?.value !== '0' || localStorage.getItem(SHAKE_STORAGE_KEY) !== '0') {
+        t.problem('bug', 'Screen shake 0% did not apply and save');
+      } else t.event('shake-off', 'Screen shake set to 0% in Settings (saved as dod.shake=0)');
       await this.tap(() => this.q('#settings-done'), 'Done');
       await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
       await this.click(() => this.q('#btn-resume'), 'Resume');
@@ -8709,8 +8719,8 @@ class Run {
           if (killsMissed > 0) t.problem('warning', `${killsMissed} of ${killsMissed + killsCued} stocks ended with no kill cue (the victim was launched inside the zone and fell out, so the launch was not a KO)`);
           if (falseCues === 0) t.event('kill-cue-exact', `${killsCued} stock-ending hits played a kill cue, no other hit did (${killsMissed} falls out of a spent launch had none)`);
           const lc = cam.lastCue;
-          if (lc && !(lc.zoom && lc.slow && lc.whistle)) t.problem('bug', 'a kill cue was missing its zoom, slow motion or whistle');
-          if (lc && lc.punch <= 0.2) t.problem('bug', 'the kill cue did not punch the camera in');
+          if (lc && !reduceMotion() && !(lc.zoom && lc.slow && lc.whistle)) t.problem('bug', 'a kill cue was missing its zoom, slow motion or whistle');
+          if (lc && !reduceMotion() && lc.punch <= 0.2) t.problem('bug', 'the kill cue did not punch the camera in');
           if (lc && cam.killCues > 0 && !screenShake() && lc.shake > 0) t.problem('bug', 'the kill cue shook the camera with Screen shake off');
           else if (lc && !screenShake()) t.event('kill-cue-no-shake', `with Screen shake off the kill cue still zoomed (punch ${lc.punch.toFixed(2)}) and the shake was ${lc.shake}`);
         }
@@ -9656,6 +9666,159 @@ class Run {
    * both modes, with the Okabe-Ito colours in Colourblind-safe. On a 390x844 phone the portrait Settings is checked, then
    * the run plays in the turned 844x390 frame by taps.
    */
+  /**
+   * Motion comfort (hitFeel.ts: Reduce motion, Screen shake 0-100%, Flashes Full/Soft/Off; renderer `flashScreen`, `killCue`,
+   * `updateCamera`; post `punch`). With Reduce motion on from Settings a stock-ending KO must play with no slow motion, no punch-in
+   * zoom, no full-screen flash and no camera shake; with Flashes Full and Shake 100 the flashes come back but never more than
+   * 3 start in any second. Touch: every control is tapped / set through pointer events, the phone is turned to 844x390.
+   */
+  async motionComfort(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const KEYS = [MOTION_STORAGE_KEY, SHAKE_STORAGE_KEY, FLASH_STORAGE_KEY];
+    const original = KEYS.map((k) => [k, localStorage.getItem(k)] as const);
+    const restore = () => {
+      for (const [k, v] of original) {
+        try {
+          if (v === null) localStorage.removeItem(k);
+          else localStorage.setItem(k, v);
+        } catch {
+          // Storage blocked.
+        }
+      }
+    };
+    const openSettings = async (from: 'menu' | 'pause') => {
+      if (from === 'menu') await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      else {
+        const pauseBtn = () => {
+          const el = this.q('.touch-pause');
+          return el && el.getClientRects().length > 0 ? el : null;
+        };
+        if (touch && pauseBtn()) await this.tap(pauseBtn, 'Pause');
+        else await tapKey('Escape');
+        await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+        await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+      }
+      await t.until(settingsShowing, 3000, `Settings to open from ${from}`);
+      await t.wait(300);
+    };
+    const closeSettings = async (from: 'menu' | 'pause') => {
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      if (from === 'pause') {
+        await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+        await this.click(() => this.q('#btn-resume'), 'Resume');
+        await t.until(() => this.game.phase() === 'play', 3000, 'the match to resume');
+      } else await t.wait(300);
+    };
+    const controls = (where: string) => {
+      const ids = ['#motion-switch', '#shake-level', '#flash-seg [data-fl="full"]', '#flash-seg [data-fl="soft"]', '#flash-seg [data-fl="off"]'];
+      const rects = ids.map((id) => ({ id, el: this.q(id) }));
+      for (const { id, el } of rects) {
+        if (!el) {
+          t.problem('bug', `${where}: Settings has no ${id}`);
+          continue;
+        }
+        const r = el.getBoundingClientRect();
+        if (r.height < 44 || r.width < 44 || r.left < 0 || r.right > innerWidth) t.problem('bug', `${where}: ${id} is ${Math.round(r.width)}x${Math.round(r.height)} at ${Math.round(r.left)},${Math.round(r.top)}`);
+      }
+      this.checkClipping(`Settings (${where})`, this.q('#settings'));
+      t.event('motion-controls', `${where} ${innerWidth}x${innerHeight}: Reduce motion ${this.q('#motion-switch')?.textContent}, Screen shake ${(this.q('#shake-level') as HTMLInputElement | null)?.value}%, Flashes ${flashMode()}`);
+    };
+    const setShake = (v: number) => {
+      const el = this.q('#shake-level') as HTMLInputElement | null;
+      if (!el) return;
+      el.value = String(v);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    const playUntil = async (stop: () => boolean, label: string) => {
+      const m0 = () => this.game.match();
+      const f0 = m0()?.state.frame ?? 0;
+      await this.fight(() => stop() || (m0()?.state.frame ?? 0) - f0 > 120 * 60, 4 * 60 * 1000);
+      t.event('motion-played', label);
+    };
+
+    forceTouchUi(touch);
+    this.useTap = touch;
+    try {
+      if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+        this.logViewport(true);
+        await this.toMainMenu();
+        await openSettings('menu');
+        controls('portrait phone');
+        await closeSettings('menu');
+        this.useTap = false;
+        forceTouchUi(false);
+        return this.touchMatchTurned('motion-comfort');
+      }
+      this.logViewport(touch);
+      for (const k of KEYS) localStorage.removeItem(k);
+      await this.toMainMenu();
+      await openSettings('menu');
+      controls('Settings');
+      // Reduce motion on by hand (a player whose OS says so already has it): the defaults of the other two follow it.
+      if (!reduceMotion()) await this.tap(() => this.q('#motion-switch'), 'Reduce motion');
+      if (!reduceMotion() || this.q('#motion-switch')?.getAttribute('aria-checked') !== 'true') t.problem('bug', 'Reduce motion did not switch on');
+      if (shakeLevel() !== 0 || flashMode() !== 'off') t.problem('bug', `Reduce motion's defaults are Screen shake ${shakeLevel()}% and Flashes ${flashMode()} (want 0% and Off)`);
+      else t.event('motion-defaults', 'Reduce motion on: Screen shake 0% and Flashes Off by default');
+      await closeSettings('menu');
+      t.progress(0.1);
+
+      await this.startVersus(3);
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      this.game.hitFxStats?.(true);
+      this.game.camFxStats?.(true);
+      this.game.flashFxStats?.(true);
+      await playUntil(() => (this.game.camFxStats?.()?.killCues ?? 0) > 0 && (this.game.hitFxStats?.()?.hits ?? 0) >= 3, 'Reduce motion: played to a stock-ending KO');
+      await t.wait(1200);
+      const cam = this.game.camFxStats?.();
+      const hit = this.game.hitFxStats?.();
+      const fl = this.game.flashFxStats?.();
+      t.metric('calmKillCues', cam?.killCues ?? 0);
+      t.metric('calmFlashes', fl?.flashes ?? 0);
+      t.metric('calmShakeMax', Number((hit?.shakeMax ?? 0).toFixed(3)));
+      if (!cam || cam.killCues === 0) t.problem('warning', 'no stock ended in the Reduce motion fight, so the KO could not be checked');
+      else {
+        const lc = cam.lastCue;
+        if (lc && (lc.zoom || lc.slow || lc.punch > 0)) t.problem('bug', `a KO with Reduce motion on still ${lc.slow ? 'slowed down ' : ''}${lc.zoom || lc.punch > 0 ? 'zoomed in' : ''}`);
+        else t.event('ko-calm', `a KO with Reduce motion on: no slow motion, no zoom punch (${cam.killCues} KO cue(s))`);
+        if ((fl?.flashes ?? 0) > 0) t.problem('bug', `${fl?.flashes} full-screen flash(es) on a KO or hit with Reduce motion on`);
+        else t.event('ko-no-flash', 'no full-screen flash on hits or the KO with Reduce motion on (Flashes Off)');
+        if ((hit?.shakeMax ?? 0) > 0) t.problem('bug', `the camera shook (${hit?.shakeMax.toFixed(2)}) with Screen shake 0%`);
+        else t.event('ko-no-shake', `the camera never shook over ${hit?.hits ?? 0} hits and the KO (Screen shake 0%)`);
+      }
+      t.progress(0.5);
+
+      // Everything back to Full from Pause, live: flashes return, still never over 3 a second.
+      await openSettings('pause');
+      if (reduceMotion()) await this.tap(() => this.q('#motion-switch'), 'Reduce motion');
+      await this.tap(() => this.q('#flash-seg [data-fl="full"]'), 'Flashes Full');
+      setShake(100);
+      if (flashMode() !== 'full' || shakeLevel() !== 100 || reduceMotion()) t.problem('bug', `the Settings choices did not apply (Flashes ${flashMode()}, shake ${shakeLevel()}, reduce ${reduceMotion()})`);
+      else t.event('motion-full', 'Reduce motion off, Screen shake 100%, Flashes Full, set from Pause');
+      await closeSettings('pause');
+      this.game.hitFxStats?.(true);
+      this.game.flashFxStats?.(true);
+      await playUntil(() => (this.game.hitFxStats?.()?.hits ?? 0) >= 10, 'Full: played ten hits');
+      const full = this.game.flashFxStats?.();
+      const fh = this.game.hitFxStats?.();
+      t.metric('fullFlashes', full?.flashes ?? 0);
+      t.metric('flashMaxPerSecond', full?.maxPerSecond ?? 0);
+      t.metric('fullShakeMax', Number((fh?.shakeMax ?? 0).toFixed(3)));
+      if ((full?.maxPerSecond ?? 0) > 3) t.problem('bug', `${full?.maxPerSecond} full-screen flashes started inside one second (the limit is 3)`);
+      else t.event('flash-rate', `at Flashes Full: ${full?.flashes ?? 0} flash(es) over the fight, at most ${full?.maxPerSecond ?? 0} in any second (limit 3), ${full?.refused ?? 0} held back`);
+      if ((fh?.shakeMax ?? 0) <= 0.05) t.problem('warning', 'no camera shake with Screen shake at 100%, so the setting could not be seen working');
+      t.progress(0.9);
+      await this.quitFromPause('main');
+    } finally {
+      restore();
+      this.useTap = false;
+      if (touch) forceTouchUi(false);
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   async colourVisionRun(): Promise<void> {
     const t = this.t;
     const KEY = 'dod.colourvision';

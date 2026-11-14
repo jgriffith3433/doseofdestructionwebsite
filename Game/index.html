@@ -286,8 +286,19 @@
         <button id="sound-switch" class="switch" type="button" role="switch" aria-checked="true" data-autofocus>On</button>
       </div>
       <div class="setting-row">
-        <span>Screen shake</span>
-        <button id="shake-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
+        <span>Reduce motion</span>
+        <button id="motion-switch" class="switch" type="button" role="switch" aria-checked="false" aria-label="Reduce motion: no KO slow motion or zoom">Off</button>
+      </div>
+      <div class="settings-levels">
+        <label class="slider"><span>Screen shake</span><input id="shake-level" type="range" min="0" max="100" step="5"><output id="shake-level-value"></output></label>
+      </div>
+      <div class="setting-row">
+        <span id="flash-label">Flashes</span>
+        <div class="seg" id="flash-seg" role="radiogroup" aria-labelledby="flash-label">
+          <button class="switch" type="button" role="radio" data-fl="full" aria-checked="true">Full</button>
+          <button class="switch" type="button" role="radio" data-fl="soft" aria-checked="false">Soft</button>
+          <button class="switch" type="button" role="radio" data-fl="off" aria-checked="false">Off</button>
+        </div>
       </div>
       <div class="setting-row">
         <span>Rumble</span>
