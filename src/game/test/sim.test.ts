@@ -72,7 +72,7 @@ const four: FighterSetup[] = [{ char: 0 }, { char: 2 }, { char: 8 }, { char: 12 
     zones: [
       { kind: 'wind', x1: -2000, x2: 2000, y1: -500, y2: 2000, during: 'storm', force: [90, 0] },
       // Off to the side: under the whole stage, bots float below the floor and never come back.
-      { kind: 'water', x1: 900, x2: 2000, y1: -900, y2: -150 },
+      { kind: 'water', x1: 1500, x2: 2000, y1: -900, y2: -150 },
       { kind: 'damage', x1: -3000, x2: 3000, y1: -900, y2: 3000, damage: 1, tick: 4, knock: 30, angle: 60 },
       { kind: 'gravity', x1: -300, x2: 300, y1: top, y2: top + 600, gravity: 60, during: 'tilt' },
     ],
