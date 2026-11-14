@@ -231,6 +231,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'rotate') await r.rotate();
         else if (id === 'first-visit') await r.firstVisit();
         else if (id === 'presentation') await r.presentation();
+        else if (id === 'share') await r.shareScenario();
         else if (id === 'replay') await r.replayScenario();
         else if (id === 'roster') await r.roster();
         else if (id === 'feet') await r.feetRun();
@@ -2152,6 +2153,98 @@ class Run {
     t.finish('done');
   }
 
+
+  /**
+   * Share on the results (`ui/share.ts`): a versus match is played to Results, which must offer Share. A tap draws the PNG
+   * card (winner, fighters, stage, KOs) and hands it to navigator.share with the file (a stand-in records the call:
+   * `share-sheet`; on a phone the tap is a real pointer press at 390x844 touch). Then navigator.share is taken away and a
+   * second tap must download the card and copy the text line (`share-fallback`). Events `share-button`, `share-sheet`,
+   * `share-fallback`, `share-card`; metrics `shareCardBytes`.
+   */
+  async shareScenario(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.phoneScenario();
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+      suppressRotate(true);
+    }
+    const nav = navigator as unknown as Record<string, unknown>;
+    const had = Object.getOwnPropertyDescriptor(navigator, 'share');
+    const hadCan = Object.getOwnPropertyDescriptor(navigator, 'canShare');
+    const calls: { files: { name: string; type: string; size: number }[]; text: string }[] = [];
+    const copied: string[] = [];
+    const clip = navigator.clipboard;
+    const events: Record<string, unknown>[] = [];
+    const onShare = (e: Event) => events.push((e as CustomEvent).detail);
+    window.addEventListener('dod:share', onShare);
+    const stubClip = (fn: ((s: string) => Promise<void>) | null) => {
+      try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: fn ? { writeText: fn } : clip }); } catch { /* read-only here */ }
+    };
+    try {
+      await this.startVersus(1);
+      await this.fight(() => false, 6 * 60 * 1000);
+      await this.screen('results', 30000);
+      await this.wait(900);
+      const share = () => this.q('#results-actions #share-result');
+      if (!share()) {
+        t.problem('bug', 'the results have no Share button');
+        return t.finish('done');
+      }
+      const r = share()!.getBoundingClientRect();
+      t.event('share-button', `Share on the results, ${Math.round(r.width)}x${Math.round(r.height)} px at ${innerWidth}x${innerHeight}`);
+      if (r.height < 44 || r.width < 44 || r.right > innerWidth || r.bottom > innerHeight) t.problem('bug', `the Share button is too small or off screen (${Math.round(r.width)}x${Math.round(r.height)})`);
+
+      // 1. The share sheet, with the card as a file.
+      Object.defineProperty(navigator, 'canShare', { configurable: true, value: (d: ShareData) => !!d.files?.length });
+      Object.defineProperty(navigator, 'share', {
+        configurable: true,
+        value: async (d: ShareData) => { calls.push({ files: (d.files ?? []).map((f) => ({ name: f.name, type: f.type, size: f.size })), text: d.text ?? '' }); },
+      });
+      await this.click(share, 'Share');
+      await t.until(() => events.length > 0, 15000, 'the share to finish');
+      const first = events[0];
+      const f = calls[0]?.files[0];
+      if (first.path !== 'share-sheet' || !f) t.problem('bug', `Share did not open the share sheet with a file (${String(first.path)})`);
+      else if (f.type !== 'image/png' || f.size < 20000) t.problem('bug', `the shared card is not a real PNG (${f.type}, ${f.size} bytes)`);
+      else t.event('share-sheet', `navigator.share got ${f.name} (${f.type}, ${f.size} bytes) with the text "${calls[0].text}"`);
+      t.metric('shareCardBytes', f?.size ?? 0);
+      const m = this.game.match() ?? this.seen;
+      const want = m && m.state.winner >= 0 ? CHARACTERS[m.state.fighters[m.state.winner].char].name : '';
+      if (want && !calls[0]?.text.includes(want)) t.problem('bug', `the share text does not name the winner ${want}`);
+      if (!/doseofdestruction\.com/.test(calls[0]?.text ?? '')) t.problem('bug', 'the share text has no game address');
+      t.event('share-card', `text line: ${calls[0]?.text}`);
+      await this.wait(500);
+
+      // 2. No navigator.share: the card downloads and the text line is copied.
+      Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+      Object.defineProperty(navigator, 'canShare', { configurable: true, value: undefined });
+      stubClip(async (s: string) => { copied.push(s); });
+      const before = events.length;
+      await this.click(share, 'Share');
+      await t.until(() => events.length > before, 15000, 'the fallback share to finish');
+      const second = events[before];
+      if (second.path !== 'download') t.problem('bug', `without navigator.share the card did not download (${String(second.path)})`);
+      else if (!copied.length || !second.copied) t.problem('bug', 'without navigator.share the text line was not copied');
+      else t.event('share-fallback', `downloaded ${second.file} (${second.bytes} bytes) and copied "${copied[0]}"`);
+      await this.wait(700);
+      this.checkClipping('results', this.q('#results'));
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      window.removeEventListener('dod:share', onShare);
+      stubClip(null);
+      for (const [k, d] of [['share', had], ['canShare', hadCan]] as const) {
+        if (d) Object.defineProperty(navigator, k, d);
+        else delete nav[k];
+      }
+      if (touch) suppressRotate(false);
+    }
+  }
 
   /**
    * Watch replay (`replay.ts`, `ui/replayBar.ts`, main.ts `watchReplay`): a versus match (1 stock) is played by the bot to

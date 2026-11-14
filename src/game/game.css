@@ -2471,6 +2471,9 @@ body.replaying.replay-bar-off .hud { bottom: max(12px, env(safe-area-inset-botto
 @keyframes newbest-pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .new-best { animation: none; } }
 
+/* Share (ui/share.ts): the note after a card is saved. */
+.share-toast { position: fixed; left: 50%; bottom: calc(88px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 60; padding: 12px 18px; border-radius: 12px; background: #000c; color: #fff; font-weight: 700; max-width: 90vw; text-align: center; pointer-events: none; }
+
 /* Couch pause: who paused, in their colour and shape. */
 .pause-owner { margin: 0 0 8px; padding: 8px 14px; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; font-size: 1.1rem; color: var(--player, #fff); border: 2px solid var(--player, #fff); border-radius: 10px; background: rgba(0, 0, 0, 0.35); }
 .pause-owner[hidden] { display: none; }
