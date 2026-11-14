@@ -9,6 +9,7 @@ import { ACT, cloneState, newGame, type BroadcastDef, type GameState, type Rules
 import { BUFFER_FRAMES, step, type SimEvent } from './sim/step.ts';
 import { SwingDummy, SWING_EVERY } from './ai/dummy.ts';
 import { Bot } from './ai/bot.ts';
+import { DEFAULT_DUMMY, TrainingDummy, type DummyMode, type DummyOptions } from './ai/trainingDummy.ts';
 import { consumeInputEdge } from './input/devices.ts';
 import { HighlightRecorder, type Highlight } from './campaign/highlight.ts';
 
@@ -62,6 +63,30 @@ export interface MatchSetup {
   online?: OnlineSlots;
   /** On-stage teaching prompts (ui/teach.ts): the pilot fight reads cues from Kaelen, How to play runs them on a timer. */
   teach?: 'pilot' | 'training' | 'defence' | 'recovery';
+  /** Training: how the dummy behaves (pause menu). Kept on the setup so Restart keeps it. */
+  dummy?: DummyOptions;
+}
+
+/**
+ * Training's combo readout for the local player's hits on the dummy. A hit extends the combo only while the dummy is still in
+ * hitstun from the same attacker (the sim's own state, so it is a true combo: it had no way out); the numbers stay on show
+ * after it ends, until the next hit. Damage is in tenths of a percent, the sim's unit.
+ */
+export interface ComboReadout {
+  /** Hits in the combo (0 before the first hit). */
+  count: number;
+  /** Damage of the whole combo. */
+  dmg: number;
+  /** Damage of the last hit. */
+  lastHit: number;
+  /** True while the dummy is still in hitstun. */
+  active: boolean;
+  /** The combo ended in a KO. */
+  ko: boolean;
+  /** Bumps on every hit, so the HUD can tell a new one. */
+  seq: number;
+  /** Sim frame the combo ended (the HUD fades it). */
+  endFrame: number;
 }
 
 export interface OnlineSlots {
@@ -130,9 +155,17 @@ export class Match {
   highlight: Highlight | null = null;
   private pendingInput: { frame: number; pollMs: number; kind: 'button' | 'stick' } | null = null;
   private combo: { by: number; count: number }[];
+  /** Training only: the dummy's behaviour, the combo readout. Never in the sim state or a snapshot. */
+  dummy: DummyOptions;
+  readonly readout: ComboReadout = { count: 0, dmg: 0, lastHit: 0, active: false, ko: false, seq: 0, endFrame: 0 };
+  private readonly trainDummy = new TrainingDummy();
+  private dummyBot: { bot: Bot; level: number } | null = null;
+  private readonly seed: number;
 
   constructor(setup: MatchSetup, seed: number) {
     this.setup = setup;
+    this.seed = seed;
+    this.dummy = { ...DEFAULT_DUMMY, ...setup.dummy };
     const training = setup.mode === 'training';
     this.state = newGame(
       setup.slots.map((s) => ({
@@ -210,6 +243,7 @@ export class Match {
       const slot = this.setup.slots[i];
       if (slot.cpu === null) return local;
       if (slot.cpu === 0 && this.dummySwings) return this.swinger.think(s, i);
+      if (slot.cpu === 0 && this.setup.mode === 'training') return this.dummyInput(i);
       return this.bots[i]?.think(s) ?? NO_INPUT;
     });
     const prev = s.fighters.map((f) => ({
@@ -296,6 +330,49 @@ export class Match {
     return events;
   }
 
+  /** Training: the dummy's input for this frame by its chosen behaviour. */
+  private dummyInput(i: number): number {
+    const s = this.state;
+    if (this.dummy.mode === 'cpu') {
+      if (!this.dummyBot || this.dummyBot.level !== this.dummy.level) {
+        this.dummyBot = { bot: new Bot(i, this.dummy.level, this.seed + i * 7919), level: this.dummy.level };
+      }
+      return this.dummyBot.bot.think(s);
+    }
+    return this.trainDummy.think(s, i, this.dummy.mode);
+  }
+
+  /** Training: the dummy's slot, or -1. */
+  get dummySlot(): number {
+    return this.setup.mode === 'training' ? this.setup.slots.findIndex((x) => x.cpu === 0) : -1;
+  }
+
+  setDummyMode(mode: DummyMode): void {
+    this.dummy.mode = mode;
+    if (this.setup.dummy) this.setup.dummy.mode = mode;
+    else this.setup.dummy = { ...this.dummy };
+  }
+
+  setDummyLevel(level: number): void {
+    this.dummy.level = Math.max(1, Math.min(9, Math.round(level)));
+    if (this.setup.dummy) this.setup.dummy.level = this.dummy.level;
+    else this.setup.dummy = { ...this.dummy };
+  }
+
+  /** Training: puts the dummy at this whole percent (0 is the reset) and clears the combo readout. */
+  setDummyPercent(whole: number): void {
+    const f = this.state.fighters[this.dummySlot];
+    if (!f) return;
+    f.percent = Math.max(0, Math.min(999, Math.round(whole))) * 10;
+    this.clearReadout();
+  }
+
+  clearReadout(): void {
+    Object.assign(this.readout, { count: 0, dmg: 0, lastHit: 0, active: false, ko: false });
+    const d = this.dummySlot;
+    if (d >= 0) this.combo[d].count = 0;
+  }
+
   /** The tick the match ends, the last seconds are kept as a replay (campaign only). */
   private freezeHighlight(): void {
     if (this.recorder && this.state.over && !this.highlight) this.highlight = this.recorder.build(this.state);
@@ -368,6 +445,15 @@ export class Match {
         const c = this.combo[e.victim];
         // A hit on someone still reeling from the same attacker extends the combo.
         const reeling = c.by === e.attacker && c.count > 0;
+        if (e.attacker === this.player && e.victim === this.dummySlot) {
+          const r = this.readout;
+          r.count = reeling ? r.count + 1 : 1;
+          r.dmg = reeling ? r.dmg + e.dmg : e.dmg;
+          r.lastHit = e.dmg;
+          r.active = true;
+          r.ko = false;
+          r.seq++;
+        }
         c.by = e.attacker;
         c.count = reeling ? c.count + 1 : 1;
         a.longestCombo = Math.max(a.longestCombo, c.count);
@@ -376,6 +462,7 @@ export class Match {
         v.falls++;
         if (e.by < 0 || e.by === e.victim) v.selfDestructs++;
         else this.stats[e.by].kos++;
+        if (e.victim === this.dummySlot && e.by === this.player && this.readout.count > 0) this.readout.ko = true;
         this.kos.push({ frame: s.frame, victim: e.victim, by: e.by, percent: before[e.victim] });
         this.sample();
       } else if (e.type === 'ledge') {
@@ -384,7 +471,13 @@ export class Match {
     }
     s.fighters.forEach((f, i) => {
       // A combo ends once the victim is free to act again.
-      if (f.action !== ACT.HITSTUN && f.hitlag === 0) this.combo[i].count = 0;
+      if (f.action !== ACT.HITSTUN && f.hitlag === 0) {
+        this.combo[i].count = 0;
+        if (i === this.dummySlot && this.readout.active) {
+          this.readout.active = false;
+          this.readout.endFrame = s.frame;
+        }
+      }
       if (!f.grounded && f.action !== ACT.DEAD) this.stats[i].airtime++;
     });
   }

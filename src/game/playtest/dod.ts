@@ -232,6 +232,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'lesson-2') await r.lessonTwo();
         else if (id === 'lesson-3') await r.lessonThree();
         else if (id === 'ledge-options') await r.ledgeOptions();
+        else if (id === 'training-combo') await r.trainingCombo();
         else if (id === 'archetype-normals') await r.archetypeNormals();
         else if (id === 'special-fx') await r.specialFx();
         else if (id === 'menu-walk') await r.menuWalk();
@@ -7464,6 +7465,212 @@ class Run {
       if (close) close.click();
     } finally {
       window.removeEventListener('dod:ledge', onLedge);
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- training combo
+
+  /**
+   * Training's combo readout and dummy options (Match.readout, main.ts updateReadout / wireTrainingOptions, ai/trainingDummy.ts).
+   * Setup shortcut: straight into Training (Exit Punk vs Break, no menus). The readout sits top left clear of the pause button,
+   * the timer and every touch control. Pause: the dummy's percent is set to 100 and read back from the sim, then Reset puts it at 0;
+   * the dummy's behaviour is set to Jump, Shield, Stand and CPU (level raised) in turn, each seen in the sim. Then a true combo from
+   * real input: the stick down plus Attack (down tilt) again and again lands a string while the dummy is still in hitstun, the
+   * readout counting to 3 or more with the combo's damage and the last hit's. Every Pause control must be 44 px and on screen.
+   * Keyboard on a desktop; at phone size (390x844, turned to 844x390 like ledge-options) the same through touch taps and the
+   * on-screen stick and Attack button. Events `training-readout`, `training-percent`, `training-reset`, `training-dummy`,
+   * `training-combo`, `training-fit`; metrics `trainingComboHits`, `trainingComboDamage`.
+   */
+  async trainingCombo(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('training-combo');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = CHARACTERS.findIndex((c) => c.id === 'break');
+      if (punk < 0 || foe < 0) {
+        t.problem('bug', 'Exit Punk or Break is not on the roster');
+        t.finish('error');
+        return;
+      }
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      void this.game.startMatch({
+        mode: 'training', stage, stocks: 1, rules: {},
+        slots: [{ char: punk, cpu: null }, { char: foe, cpu: 0 }],
+      });
+      await this.matchLive();
+      this.manual = NO_INPUT;
+      const match = () => this.game.match()!;
+      const me = () => match().state.fighters[match().player];
+      const dummy = () => match().state.fighters[match().dummySlot];
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 8000 + n * 150, 'frames to pass');
+      };
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls were not built');
+        t.finish('error');
+        return;
+      }
+      const vw = innerWidth;
+      const vh = innerHeight;
+      const rectOf = (el: Element) => el.getBoundingClientRect();
+      const overlap = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      const visible = (el: Element | null): el is HTMLElement => !!el && (el as HTMLElement).getClientRects().length > 0;
+
+      // ---- 1. the readout is up, on screen, clear of the controls.
+      const readout = this.q('#training-readout');
+      if (!visible(readout)) {
+        t.problem('bug', `${how}: no combo readout on the Training screen`);
+        t.finish('error');
+        return;
+      }
+      const rr = rectOf(readout);
+      const blockers = [...document.querySelectorAll<HTMLElement>('.touch-btn, .touch-stick, .touch-pause, #match-top, #hud .hud-card')].filter(visible);
+      const hit = blockers.find((b) => overlap(rr, rectOf(b)));
+      if (rr.left < 0 || rr.top < 0 || rr.right > vw || rr.bottom > vh) t.problem('bug', `${how}: the combo readout runs off the screen (${Math.round(rr.left)},${Math.round(rr.top)} ${Math.round(rr.width)}x${Math.round(rr.height)} in ${vw}x${vh})`);
+      else if (hit) t.problem('bug', `${how}: the combo readout is under ${hit.className || hit.id}`);
+      else t.event('training-readout', `${how}: readout top left at ${Math.round(rr.left)},${Math.round(rr.top)} (${Math.round(rr.width)}x${Math.round(rr.height)} in ${vw}x${vh}), clear of the pause button and the controls`);
+      t.progress(0.1);
+
+      // ---- 2. Pause: the options are there, every control 44 px, on screen.
+      const openPause = async () => {
+        const pauseBtn = () => (touch && visible(this.q('.touch-pause')) ? this.q('.touch-pause') : null);
+        if (pauseBtn()) await this.tap(pauseBtn, 'Pause');
+        else await tapKey('Escape');
+        await t.until(() => this.game.phase() === 'pause' && visible(this.q('#training-options')), 4000, 'Pause with the Training options');
+        await t.wait(300);
+      };
+      const closePause = async () => {
+        await this.tap(() => this.q('#btn-resume'), 'Resume');
+        await t.until(() => this.game.phase() === 'play', 4000, 'the match to resume');
+      };
+      await openPause();
+      const small: string[] = [];
+      const off: string[] = [];
+      for (const b of document.querySelectorAll<HTMLElement>('#pause button')) {
+        if (!visible(b)) continue;
+        const r = rectOf(b);
+        if (r.width < 44 || r.height < 44) small.push(`${b.textContent?.trim() || b.id} ${Math.round(r.width)}x${Math.round(r.height)}`);
+        if (r.left < 0 || r.top < 0 || r.right > vw + 1 || r.bottom > vh + 1) off.push(`${b.textContent?.trim() || b.id}`);
+      }
+      const pausePanel = this.q('#pause .panel');
+      const pr = pausePanel ? rectOf(pausePanel) : null;
+      if (small.length) t.problem('bug', `${how}: Pause controls under 44 px: ${small.join(', ')}`);
+      else if (off.length) t.problem('bug', `${how}: Pause controls off the screen: ${off.join(', ')}`);
+      else if (pr && (pr.left < 0 || pr.top < 0 || pr.right > vw + 1 || pr.bottom > vh + 1)) t.problem('bug', `${how}: the Pause panel runs off the screen (${Math.round(pr.width)}x${Math.round(pr.height)} in ${vw}x${vh})`);
+      else t.event('training-fit', `${how}: ${document.querySelectorAll('#pause button').length} Pause buttons, all at least 44x44, panel ${pr ? `${Math.round(pr.width)}x${Math.round(pr.height)}` : '?'} inside ${vw}x${vh}`);
+
+      // ---- 3. the dummy's percent: set 100, then Reset.
+      const pctBtn = (n: number) => () => this.q(`#to-percents button[data-percent="${n}"]`);
+      await this.tap(pctBtn(100), 'Dummy 100%');
+      if (dummy().percent !== 1000) t.problem('bug', `${how}: the 100% button left the dummy at ${dummy().percent / 10}%`);
+      else t.event('training-percent', `${how}: the dummy was set to 100% from Pause (sim ${dummy().percent / 10}%)`);
+      await this.tap(pctBtn(0), 'Dummy Reset');
+      if (dummy().percent !== 0) t.problem('bug', `${how}: Reset left the dummy at ${dummy().percent / 10}%`);
+      else t.event('training-reset', `${how}: Reset put the dummy back at 0%`);
+      await closePause();
+      t.progress(0.3);
+
+      // ---- 4. the dummy's behaviour: Jump, Shield, Stand, CPU. Each is seen in the sim after Resume.
+      const mode = async (id: string, seen: () => boolean, label: string, ms = 6000) => {
+        await openPause();
+        await this.tap(() => this.q(`#to-modes button[data-dummy="${id}"]`), `Dummy ${id}`);
+        if (this.q(`#to-modes button[data-dummy="${id}"]`)?.getAttribute('aria-pressed') !== 'true') t.problem('bug', `${how}: ${id} is not marked as chosen`);
+        if (id === 'cpu') {
+          await this.tap(() => this.q('#to-level-up'), 'CPU level up');
+          await this.tap(() => this.q('#to-level-up'), 'CPU level up');
+          if (!/level 7/i.test(this.q('#to-level')?.textContent ?? '')) t.problem('bug', `${how}: the CPU level did not go up ("${this.q('#to-level')?.textContent}")`);
+        }
+        await closePause();
+        try {
+          await t.until(seen, ms, label);
+          t.event('training-dummy', `${how}: dummy ${id}: ${label}`);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.problem('bug', `${how}: dummy set to ${id} but ${label} never happened`);
+        }
+      };
+      await mode('jump', () => dummy().grounded === 0, 'it jumped');
+      await mode('shield', () => dummy().action === ACT.SHIELD, 'it shielded');
+      await mode('stand', () => dummy().action === ACT.IDLE && dummy().grounded > 0, 'it stood');
+      await mode('cpu', () => dummy().action !== ACT.IDLE, 'it acted as a CPU');
+      // Back to a still dummy at 0% for the combo.
+      await openPause();
+      await this.tap(() => this.q('#to-modes button[data-dummy="stand"]'), 'Dummy stand');
+      await this.tap(pctBtn(0), 'Dummy Reset');
+      await closePause();
+      t.progress(0.55);
+
+      // ---- 5. a true combo: down tilt again and again, the dummy still in hitstun at each hit.
+      const standing = () => {
+        const f = me();
+        return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      };
+      let best = 0;
+      let bestDmg = 0;
+      let lastText = '';
+      for (let attempt = 1; attempt <= 8 && best < 3; attempt++) {
+        pad.release();
+        await t.until(() => standing() && dummy().grounded > 0 && dummy().action !== ACT.HITSTUN, 12000, 'both fighters to stand');
+        // Setup shortcut: stand the fighters 50 units apart facing each other (the hits are real input).
+        const p = me();
+        const d = dummy();
+        p.x = d.x - 50 * FX;
+        p.y = d.y;
+        p.facing = 1;
+        d.facing = -1;
+        p.vx = 0;
+        await frames(4);
+        const start = frame();
+        while (frame() - start < 6 * 19 && best < 3) {
+          pad.stick(0, -100);
+          pad.button('attack', true);
+          await frames(3);
+          pad.button('attack', false);
+          await frames(16);
+          const r = match().readout;
+          if (r.count > best) {
+            best = r.count;
+            bestDmg = r.dmg;
+            lastText = `${this.q('#training-readout .tr-count')?.textContent} ${this.q('#training-readout .tr-dmg')?.textContent} / last ${this.q('#training-readout .tr-last')?.textContent}`;
+          }
+        }
+        pad.release();
+        if (best < 3) t.event('training-retry', `${how}: attempt ${attempt} reached a ${best}-hit combo; trying again`);
+      }
+      if (best < 3) t.problem('bug', `${how}: the down tilt string never made a 3-hit true combo (best ${best})`);
+      else {
+        await frames(4);
+        const shownCount = Number(this.q('#training-readout .tr-count')?.textContent);
+        const shownDmg = this.q('#training-readout .tr-dmg')?.textContent ?? '';
+        const shownLast = this.q('#training-readout .tr-last')?.textContent ?? '';
+        if (shownCount < 3 || !/\d+\.\d%/.test(shownDmg) || shownDmg === '0.0%') t.problem('bug', `${how}: a ${best}-hit combo but the readout shows "${shownCount}" and "${shownDmg}"`);
+        else if (!visible(this.q('#training-readout .tr-tag'))) t.problem('bug', `${how}: the readout does not say the ${best}-hit combo was true`);
+        else t.event('training-combo', `${how}: ${best}-hit true combo (${touch ? 'stick down + Attack' : 'S + J'}); readout ${lastText}; after: ${shownCount} hits, combo ${shownDmg}, last hit ${shownLast}`);
+      }
+      t.metric('trainingComboHits', best);
+      t.metric('trainingComboDamage', Math.round(bestDmg) / 10);
+      pad.release();
+    } finally {
       if (touch) {
         this.useTap = false;
         forceTouchUi(false);
