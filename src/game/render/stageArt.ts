@@ -8,6 +8,7 @@
 // Layers in front of the fighters with `occluder` write depth, so the
 // renderer can draw a silhouette of anyone standing behind them.
 
+import { backdropDim } from '../readability.ts';
 import type { Scene } from '@babylonjs/core/scene.js';
 import { Color3 } from '@babylonjs/core/Maths/math.color.js';
 import { Constants } from '@babylonjs/core/Engines/constants.js';
@@ -85,18 +86,25 @@ export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, 
     mat.backFaceCulling = false;
     mat.alpha = l.opacity ?? 1;
     const size = { w: 0, h: 0 };
+    let entry: Placed | null = null;
+    // A picture that fails to load must not leave a 1x1 white plane (and a stage that is waited for forever):
+    // the layer is hidden and counted as done, and the stage's lit sky shows through.
     const tex = new Texture(`/${l.image}`, scene, false, true, Texture.TRILINEAR_SAMPLINGMODE, () => {
       const s = tex.getSize();
       size.w = at.width;
       size.h = (at.width * s.height) / Math.max(1, s.width);
       plane.scaling.set(size.w, size.h, 1);
+    }, (_msg, err) => {
+      console.error(`[dod-stage] layer ${l.id} (${l.image}) failed to load`, err);
+      if (entry) entry.failed = true;
+      plane.setEnabled(false);
     });
     tex.hasAlpha = true;
     mat.diffuseTexture = tex;
     mat.emissiveTexture = tex;
     mat.useAlphaFromDiffuseTexture = true;
     mat.diffuseColor = Color3.Black();
-    mat.emissiveColor = Color3.White();
+    mat.emissiveColor = Color3.White().scale(backdropDim(l.z, (l.platforms?.length ?? 0) > 0, l.foreground));
     if (l === farthest) softenFar(l.image, mat, scene);
     if (l.glow) mat.alphaMode = Constants.ALPHA_ADD;
     if (l.occluder && l.z < 0 && !l.foreground) {
@@ -108,7 +116,7 @@ export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, 
     plane.material = mat;
     // Fixed draw order behind the fighters, so layers at one depth never flicker.
     if (rank.has(l)) plane.alphaIndex = rank.get(l)!;
-    const entry: Placed = { layer: l, mesh: plane, mat, x: at.x, y: at.y, k: (REF_DIST + l.z) / REF_DIST, size };
+    entry = { layer: l, mesh: plane, mat, x: at.x, y: at.y, k: (REF_DIST + l.z) / REF_DIST, size };
     if (l.foreground && l.z < 0) {
       // A foreground element: its alpha is read once, so the renderer can tell when a fighter is behind a solid pixel.
       entry.fade = 1;

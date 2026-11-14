@@ -842,6 +842,44 @@ export class Renderer {
     await Promise.race([this.live.artLoaded(), new Promise((r) => setTimeout(r, timeoutMs))]);
   }
 
+  /** Frames the player has seen on the match screen, how many had stage art still loading, and how many sampled near-black. */
+  private seen = { frames: 0, pending: 0, black: 0, darkest: 255 };
+  /** Set by main.ts while the arena is on screen for the player (not under the loading veil or a wipe); only then are frames counted. */
+  private presenting = false;
+  private seenCanvas: HTMLCanvasElement | null = null;
+
+  setPresenting(on: boolean): void {
+    this.presenting = on;
+  }
+
+  /** What the player saw of the stage (playtest `stage.blackFrames`): presented frames with art pending, or whose pixels are near-black. */
+  stageSeen(reset = false): { frames: number; pending: number; black: number; darkest: number } {
+    const out = { ...this.seen };
+    if (reset) this.seen = { frames: 0, pending: 0, black: 0, darkest: 255 };
+    return out;
+  }
+
+  /** Samples the frame just drawn (same task as scene.render, so the buffer is valid) and counts it. */
+  private countSeen(): void {
+    const s = this.seen;
+    s.frames++;
+    if (this.stageArtPending()) s.pending++;
+    const cv = this.engine.getRenderingCanvas();
+    if (!cv || !cv.width) return;
+    try {
+      const pc = (this.seenCanvas ??= Object.assign(document.createElement('canvas'), { width: 16, height: 16 }));
+      const ctx = pc.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+      ctx.drawImage(cv, 0, 0, 16, 16);
+      const d = ctx.getImageData(0, 0, 16, 16).data;
+      let sum = 0;
+      for (let i = 0; i < d.length; i += 4) sum += Math.max(d[i], d[i + 1], d[i + 2]);
+      const mean = sum / (d.length / 4);
+      s.darkest = Math.min(s.darkest, mean);
+      if (mean < 14) s.black++;
+    } catch { /* tainted or lost context: nothing to count */ }
+  }
+
   /** True while some stage picture is still loading (the arena would show only the clear colour). */
   stageArtPending(): boolean {
     const l = this.live?.readyLayers();
@@ -878,6 +916,13 @@ export class Renderer {
     for (const k of FLIPBOOK_KINDS) this.flip.play(k, this.camTarget.x, this.camTarget.y, -0.4, 0.01, COUNTER_TINT, { hold: 1 });
     // The launch trail's three looks are shown once with the other spark materials, so the first trail never compiles a shader mid-fight.
     for (const mat of Object.values(this.smokeMats)) {
+      const m = this.takeSpark(mat);
+      m.position.set(this.camTarget.x, this.camTarget.y, -0.4);
+      m.scaling.set(0.2, 0.2, 1);
+      this.sparks.push({ mesh: m, vx: 0, vy: 0, life: 2, max: 2, size: 0.2 });
+    }
+    // The contact core, shield ripple, parry flash and clash spark materials are shown once too (the first hit or shield used to compile them mid-fight).
+    for (const mat of Object.values(this.fxMats)) {
       const m = this.takeSpark(mat);
       m.position.set(this.camTarget.x, this.camTarget.y, -0.4);
       m.scaling.set(0.2, 0.2, 1);
@@ -1376,11 +1421,12 @@ export class Renderer {
     // Independent check: the contact point lies on the victim's hurtbox (gap in scene units).
     const v = this.lastState?.fighters[e.victim];
     if (v) {
+      // Event and fighter coordinates are both fixed point (FX): compare them in the same unit, then convert to scene units.
       const [bw, bh] = bodySize(v);
-      const hw = bw / FX / 2;
-      const gx = Math.max(0, Math.abs(e.x - v.x / FX) - hw);
-      const gy = Math.max(0, e.y - (v.y + bh) / FX, v.y / FX - e.y);
-      st.maxHurtGap = Math.max(st.maxHurtGap, Math.hypot(gx, gy) * W);
+      const hw = bw / 2;
+      const gx = Math.max(0, Math.abs(e.x - v.x) - hw);
+      const gy = Math.max(0, e.y - (v.y + bh), v.y - e.y);
+      st.maxHurtGap = Math.max(st.maxHurtGap, Math.hypot(gx, gy) * S);
     }
     // Under the touch controls? Only the core's own rectangle counts.
     const half = across / 2;
@@ -1555,6 +1601,7 @@ export class Renderer {
     this.updateCamera(state);
     this.updateForeground(state);
     this.scene.render();
+    if (this.presenting) this.countSeen();
     this.post.endFrame();
     this.checkFraming(state);
     if (this.kill && (performance.now() - this.kill.at) / 1000 > 0.15 && (performance.now() - this.kill.at) / 1000 < KILL_CUE.slowSeconds) {
