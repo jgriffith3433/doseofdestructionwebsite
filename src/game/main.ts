@@ -17,7 +17,6 @@ import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
 import { GAMEPAD_HELP, KEYBOARD_HELP, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
-import { installPerfMonitor } from './playtest/hawkes-perf.js';
 import { damageColor, damageShake, hitTier } from './hitFeel.ts';
 import { clearMarkers, markerLog, markerRects, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
@@ -38,7 +37,7 @@ import { FX } from './sim/fixed.ts';
 import { playColdOpen, playExchange, playScene, skipScene, type SceneCard, type SceneLine, type SceneStage } from './ui/scene.ts';
 import { chunkLine, chunkTimes } from './campaign/sceneText.ts';
 import { exchangeFor, markExchangeSeen, seenExchanges, type Exchange } from './campaign/intros.ts';
-import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
+import type { MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
 import { step, SUDDEN_HOLD } from './sim/step.ts';
 import { stageIndex } from './sim/stage.ts';
@@ -2370,16 +2369,11 @@ if (playtestChapter) {
   );
 }
 
-// The perf readout (hawkes-perf.js) for playtest reports: the helper reads window.hawkesPerf.snapshot(). The scene
-// isn't a page global here, so hand it over; the monitor itself is only built at the first read (a playtest),
-// so players never run it.
-(window as unknown as { hawkesPerf: { snapshot(): unknown } }).hawkesPerf = {
-  snapshot: () => installPerfMonitor(renderer.scene).snapshot(),
-};
-
-// The Hawkes playtest contract (window.hawkesPlaytest). Idle until the runner
-// starts a scenario or the URL has ?playtest=<id>.
-installDodPlaytest({
+// The Hawkes playtest contract (window.hawkesPlaytest). The harness (playtest/dod.ts and the hawkes-*.js helpers,
+// ~600 KB) is a separate chunk that players never download: it loads with ?playtest=<id> in the URL, when the page is
+// framed by the site's playtest bridge, or the first time a runner calls the contract. Until then window.hawkesPlaytest
+// is a thin stand-in with the same shape (idle, not ready), so a runner that finds it and calls start() works as before.
+const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPlaytest>[0] = {
   match: () => match,
   phase: () => phase,
   setSeed: (seed) => (playtestSeed = seed),
@@ -2432,7 +2426,41 @@ installDodPlaytest({
   aliveStats: () => renderer.aliveStats(),
   musicBedStats: () => audio.bedStats(),
   audioCacheStats: () => audio.cacheStats(),
-});
+};
+
+type PlaytestApi = { version: 1; product: string; scenarios(): unknown[]; start(id: string, o?: unknown): Promise<void>; stop(): void; state(): Record<string, unknown>; report(): Record<string, unknown> | null; input?(a: string, d: boolean): void };
+{
+  const w = window as unknown as { hawkesPlaytest?: PlaytestApi; hawkesPerf?: { snapshot(): unknown } };
+  let real: PlaytestApi | null = null;
+  let loading: Promise<PlaytestApi> | null = null;
+  const load = (): Promise<PlaytestApi> =>
+    (loading ??= Promise.all([import('./playtest/dod.ts'), import('./playtest/hawkes-perf.js')]).then(([m, { installPerfMonitor }]) => {
+      m.installDodPlaytest(playtestHooks);
+      // The perf readout for playtest reports: the helper reads window.hawkesPerf.snapshot(); the monitor is built at the first read.
+      w.hawkesPerf = { snapshot: () => installPerfMonitor(renderer.scene).snapshot() };
+      real = w.hawkesPlaytest as PlaytestApi; // the install replaced the stand-in
+      return real;
+    }));
+  const stand: PlaytestApi = {
+    version: 1,
+    product: 'doseofdestruction',
+    scenarios: () => [],
+    start: (id, o) => load().then((api) => api.start(id, o)),
+    stop: () => void (real ?? null)?.stop(),
+    state: () => {
+      if (real) return real.state();
+      void load();
+      return { ready: false, status: 'idle', fps: 0 };
+    },
+    report: () => (real ? real.report() : null),
+    input: (a, d) => void (real ? real.input?.(a, d) : load().then((api) => api.input?.(a, d))),
+  };
+  w.hawkesPlaytest = stand;
+  const framed = (() => {
+    try { return window.parent !== window && !!(window.parent as unknown as { hawkesPlaytest?: unknown }).hawkesPlaytest; } catch { return false; }
+  })();
+  if (framed || /[?&]playtest\b/.test(location.search)) void load();
+}
 
 // Online is always on: the lobby is joined with no clicks (docs/online.md), but only now, after the game and the
 // playtest hook are up, and each part on its own guard: nothing online can stop single player.
