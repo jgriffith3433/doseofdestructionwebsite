@@ -2470,3 +2470,11 @@ body.replaying.replay-bar-off .hud { bottom: max(12px, env(safe-area-inset-botto
 .new-best small { font-size: calc(14px * var(--ts, 1)); letter-spacing: 0.06em; color: var(--text); }
 @keyframes newbest-pop { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .new-best { animation: none; } }
+
+/* Couch pause: who paused, in their colour and shape. */
+.pause-owner { margin: 0 0 8px; padding: 8px 14px; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; font-size: 1.1rem; color: var(--player, #fff); border: 2px solid var(--player, #fff); border-radius: 10px; background: rgba(0, 0, 0, 0.35); }
+.pause-owner[hidden] { display: none; }
+.pause-owner[data-shape='circle']::before { content: '●'; }
+.pause-owner[data-shape='triangle']::before { content: '▲'; }
+.pause-owner[data-shape='square']::before { content: '■'; }
+.pause-owner[data-shape='diamond']::before { content: '◆'; }
