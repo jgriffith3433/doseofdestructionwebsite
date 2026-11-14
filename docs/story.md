@@ -172,6 +172,10 @@ Man). Walk-On, with no `unlock`, gives nothing.
 
 - A fighter named by some chapter is **locked** on a fresh save: a dark "Locked" tile in Versus select (the preview
   says which episode opens them), a grey picture in Profile. Everyone no chapter names (Exit Punk first) is open.
+- **The route is shown, not hidden.** Versus select's locked tile is a silhouette reading "Locked" and "S1 · E1"; a tap
+  says "Kaelen is locked · Clear Season 1, Episode 1: Open Mic" (`unlockRoute` in `campaign/story.ts`, read from the
+  chapter's own `unlock`, no new rule). Results show a gold bar toward the next unlock when it is one episode away
+  (`nextUnlock`, `ui/views.ts` `unlockBar`). Scenario `unlock-route`.
 - Clearing the episode unlocks them for good (`localStorage` `dod-unlocks`, next to `dod-campaign`; starting the
   campaign over doesn't take it back). The map says so: "*Kaelen* joins the card. Unlocked for Versus and online."
 - The campaign itself is never gated: Exit Punk is the player and every walk-on fights as written. Training is open.
