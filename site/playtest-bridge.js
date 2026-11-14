@@ -180,7 +180,7 @@
     {
       "id": "fast-start",
       "title": "The title answers at once: Tap to play, then Press start shows the main menu within 1 s",
-      "description": "Taps the Tap to play prompt, logs how many script files and KB were fetched before that (first-load), then presses Press start (touch tap on a phone) and times the main menu (press-start, pressStartMs; a bug over 1000 ms). The playtest harness is a lazy chunk: a normal visit never loads it.",
+      "description": "Boot line (Press start answers on the press itself, progress line from real load steps above the safe area, one-line WebGL message with Retry: events boot-state, boot-line, press-response, webgl-message; metric pressRespondMs, a bug over 100 ms). Taps the Tap to play prompt, logs how many script files and KB were fetched before that (first-load), then presses Press start (touch tap on a phone) and times the main menu (press-start, pressStartMs; a bug over 1000 ms). The playtest harness is a lazy chunk: a normal visit never loads it.",
       "seconds": 30,
       "tags": [
         "smoke",

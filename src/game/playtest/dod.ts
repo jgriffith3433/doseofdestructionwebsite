@@ -6203,13 +6203,55 @@ class Run {
     t.event('first-load', `${loaded.length} script files, ${Math.round(bytes / 1024)} KB transferred before Press start`);
     t.metric('firstLoadScriptKB', Math.round(bytes / 1024));
     await t.wait(300);
+    // The boot line (Game/index.html inline script, src/game/boot.ts): real steps, never still for 5 s, above the safe area.
+    const boot = (window as unknown as { __dodBoot?: { isReady: boolean; software: boolean } }).__dodBoot;
+    const bootLine = this.q('#boot-progress');
+    if (!boot) t.problem('bug', 'the boot line (window.__dodBoot) is missing');
+    else t.event('boot-state', `ready ${boot.isReady}, software renderer ${boot.software}`);
+    if (bootLine && !bootLine.hidden) {
+      const r = bootLine.getBoundingClientRect();
+      const safe = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-bottom') || '0') || 0;
+      t.event('boot-line', `bottom ${Math.round(innerHeight - r.bottom)} px above the edge, text "${bootLine.textContent?.trim()}"`);
+      if (r.bottom > innerHeight - safe || r.left < 0 || r.right > innerWidth) t.problem('bug', 'the boot line is off the screen or under the safe area');
+    }
     const at = performance.now();
+    // The press must answer within 100 ms: the pressed look (data-pressed / .starting) or the screen already changing.
+    const btn = this.q('#btn-start');
+    let respondedMs = -1;
+    const watch = setInterval(() => {
+      if (respondedMs < 0 && (btn?.dataset.pressed !== undefined || btn?.classList.contains('starting') || document.body.dataset.screen !== 'title')) {
+        respondedMs = Math.round(performance.now() - at);
+      }
+    }, 8);
     await this.tap(() => this.q('#btn-start'), 'Press start');
+    clearInterval(watch);
+    t.metric('pressRespondMs', respondedMs);
+    t.event('press-response', respondedMs < 0 ? 'no visible response' : `Press start showed a response ${respondedMs} ms after the press (the tap itself holds 60 ms before release)`);
+    if (respondedMs < 0 || respondedMs > 100) t.problem('bug', `Press start gave no visible response within 100 ms (${respondedMs} ms)`);
     await this.screen('main', 5000);
     const ms = Math.round(performance.now() - at);
     t.metric('pressStartMs', ms);
     t.event('press-start', `Press start answered with the main menu in ${ms} ms`);
     if (ms > 1000) t.problem('bug', `Press start took ${ms} ms to answer (1000 wanted)`);
+    // Boot steps seen (dod:boot events are kept by the page's own log), and the no-WebGL line: shown by hand, measured, put away.
+    const state = (window as unknown as { __dodBoot?: { fail(m: string): void; failed: boolean } }).__dodBoot;
+    const line = this.q('#boot-progress');
+    if (state && line) {
+      line.hidden = false;
+      line.classList.remove('done');
+      state.fail('Graphics (WebGL) are not available in this browser.');
+      await t.wait(100);
+      const msg = line.querySelector<HTMLElement>('.boot-msg');
+      const retry = line.querySelector<HTMLElement>('.boot-retry');
+      const rr = retry?.getBoundingClientRect();
+      const mr = msg?.getBoundingClientRect();
+      const oneLine = !!mr && mr.height <= parseFloat(getComputedStyle(msg!).lineHeight || '24') * 1.6 + 4;
+      t.event('webgl-message', `message "${msg?.textContent}" one line ${oneLine}, Retry ${Math.round(rr?.width ?? 0)}x${Math.round(rr?.height ?? 0)} px`);
+      if (!rr || rr.height < 44 || rr.width < 44) t.problem('bug', 'the Retry button is under 44 px');
+      line.hidden = true;
+      line.querySelector<HTMLElement>('.boot-fail')!.hidden = true;
+      state.failed = false;
+    }
     t.finish('done');
   }
 
