@@ -175,7 +175,7 @@ function newChapter(from?: ChapterEntry): void {
   const c: ChapterEntry = from
     ? { ...structuredClone(from), id, title }
     : {
-        id, title, tagline: '', hint: '', intro: [{ who: 'narrator', text: '' }], outro: [],
+        id, title, par: 60, tagline: '', hint: '', intro: [{ who: 'narrator', text: '' }], outro: [],
         fight: { stage: stages[0]?.id ?? 'foundry', stocks: 2, rules: {}, slots: [{ char: 'exit-punk', cpu: null, team: 0 }, { char: store.fighters[1]?.id ?? 'kaelen', cpu: 3, team: 1 }] },
       };
   // New lines need new voice takes.

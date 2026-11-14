@@ -4,7 +4,8 @@
 import { CHARACTERS } from '../sim/characters.ts';
 import { STAGES, type StageDef } from '../sim/stage.ts';
 import type { Match, MatchSetup } from '../match.ts';
-import { CHAPTERS, SEASONS, isOpen, seasonCleared, seasonOpen, type Chapter } from '../campaign/story.ts';
+import { CHAPTERS, SEASONS, isOpen, loadStars, seasonCleared, seasonOpen, type Chapter } from '../campaign/story.ts';
+import type { Grade } from '../campaign/grade.ts';
 import { PLAYER_COLORS, prefetchStage } from '../render/renderer.ts';
 import { TEAM_COLORS } from './select.ts';
 import { $, formatTime, h, kids, pct, portraitSize, portraitUrl, thumbUrl } from './dom.ts';
@@ -301,6 +302,32 @@ function chart(m: Match, colors: string[]): SVGElement {
   return root;
 }
 
+/** A won episode's grade for the results screen: this run's steps and the best kept in the save. */
+export interface EpisodeGrade extends Grade {
+  best: number;
+  /** The best was beaten by this run. */
+  improved: boolean;
+}
+
+const starRow = (n: number, of = 3) => '\u2605'.repeat(n) + '\u2606'.repeat(of - n);
+
+/** The stars card: three rows, each star with what it needs, lit when this run earned it. */
+function gradeCard(g: EpisodeGrade): HTMLElement {
+  return h(
+    'section',
+    { class: 'results-grade', 'aria-label': `${g.stars} of 3 stars`, 'data-stars': String(g.stars), 'data-best': String(g.best) },
+    h('h3', {}, h('span', { class: 'grade-stars', 'aria-hidden': 'true' }, starRow(g.stars)), ` ${g.stars} of 3`),
+    h(
+      'ol',
+      { class: 'grade-steps' },
+      ...g.steps.map((st, i) =>
+        h('li', { class: st.met ? 'met' : '', 'data-star': String(i + 1), 'data-met': st.met ? '1' : '0' }, h('b', { 'aria-hidden': 'true' }, st.met ? '\u2605' : '\u2606'), h('span', {}, st.label)),
+      ),
+    ),
+    h('p', { class: 'grade-best' }, g.improved ? 'New best.' : `Best ${starRow(g.best)}`),
+  );
+}
+
 /** The 'ko' objective's results line: which way it ended. */
 function koLine(m: Match, won: boolean): string {
   const n = m.koTarget;
@@ -338,7 +365,7 @@ export interface ResultAction {
 }
 
 /** `online`: an online match's ending, which can come before the sim's (a forfeit, a lost link, a desync). */
-export function showResults(m: Match, actions: ResultAction[], online?: { headline: string; note?: string; winner?: number }, unlocked: string[] = [], levelChange?: { from: number; to: number; text: string }): void {
+export function showResults(m: Match, actions: ResultAction[], online?: { headline: string; note?: string; winner?: number }, unlocked: string[] = [], levelChange?: { from: number; to: number; text: string }, grade?: EpisodeGrade): void {
   const s = m.state;
   const teams = m.setup.slots.some((x) => x.team !== undefined) && new Set(m.setup.slots.map((x) => x.team)).size > 1;
   const colors = s.fighters.map((f, i) => (teams && m.setup.mode !== 'campaign' ? TEAM_COLORS[f.team < 0 ? 0 : f.team] : PLAYER_COLORS[i]));
@@ -387,6 +414,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
         levelChange && h('p', { class: 'results-note level-note', 'data-from': String(levelChange.from), 'data-to': String(levelChange.to) }, levelChange.text),
       ),
     ),
+    grade && gradeCard(grade),
     h(
       'div',
       { class: 'results-strip', 'aria-label': 'Match summary' },
@@ -499,11 +527,13 @@ export function setResultActions(actions: (ResultAction & { disabled?: boolean }
 export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => void, onReset: () => void, unlocked?: string): void {
   const path = $('chapter-path');
   const nextIndex = CHAPTERS.findIndex((c) => !done.has(c.id));
+  const savedStars = loadStars();
   const focus = CHAPTERS[nextIndex < 0 ? CHAPTERS.length - 1 : nextIndex];
   const chapter = (c: Chapter, n: number) => {
     const i = CHAPTERS.indexOf(c);
     const open = isOpen(i, done);
     const cleared = done.has(c.id);
+    const stars = Math.max(1, savedStars[c.id] ?? 1);
     const status = cleared ? 'Cleared' : open ? 'Next' : 'Locked';
     const foe = c.fight.slots.find((s) => s.cpu !== null && s.team !== 0) ?? c.fight.slots[1];
     // The first chapter of a locked season waits on the season before, not on a chapter.
@@ -523,6 +553,14 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
       h('strong', {}, open ? c.title : '???'),
       h('span', { class: 'chapter-tag' }, open ? c.tagline : why),
       h('em', { class: 'chapter-status' }, status, open ? ` · ${STAGES[c.fight.stage].name}` : ''),
+      cleared
+        ? h(
+            'span',
+            { class: 'chapter-stars', 'data-stars': String(stars), role: 'img', 'aria-label': `${stars} of 3 stars` },
+            h('b', { 'aria-hidden': 'true' }, starRow(stars)),
+            h('small', {}, `${stars} of 3`),
+          )
+        : null,
     );
   };
   const fresh = unlocked ? CHARACTERS.find((c) => c.id === unlocked) : undefined;
@@ -538,6 +576,7 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
     ...SEASONS.map((s) => {
       const open = seasonOpen(s.number, done);
       const cleared = seasonCleared(s.number, done);
+      const earned = s.chapters.reduce((n, c) => n + (done.has(c.id) ? Math.max(1, savedStars[c.id] ?? 1) : 0), 0);
       return h(
         'section',
         { class: `season ${cleared ? 'cleared' : open ? 'open' : 'locked'}`, 'data-season': s.number },
@@ -546,6 +585,7 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
           { class: 'season-head' },
           h('h3', {}, `Season ${s.number}`),
           s.subtitle ? h('span', { class: 'season-sub' }, open ? s.subtitle : '???') : null,
+          earned ? h('em', { class: 'season-stars', 'data-earned': String(earned), 'data-of': String(s.chapters.length * 3) }, `\u2605 ${earned}/${s.chapters.length * 3}`) : null,
           open ? null : h('em', { class: 'season-lock' }, `Locked · Clear Season ${s.number - 1} first`),
         ),
         h('div', { class: 'season-chapters' }, ...s.chapters.map(chapter)),
