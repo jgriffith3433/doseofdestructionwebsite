@@ -128,7 +128,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 
 /* ----------------------------------------------------------------- title */
 
-/* The brand glow sits under the art, so the title is never flat black while the key art loads (or if it fails). */
+/* The brand glow sits under the art, so the title is never flat black while the lineup image loads (or if it fails). */
 .title-screen {
   display: grid;
   place-items: end center;
@@ -137,16 +137,13 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
   background: radial-gradient(ellipse at 50% 45%, #8a3010 0%, #3a1608 45%, #100e0c 80%) #1c0d06;
 }
 .title-art { position: absolute; inset: 0; }
-/* The roster key art (site/img/key-art-*, painted by Hawkes Gen): crops to the centre of the cast on a phone, with a dark
-   scrim below so the logo and Press start stay readable. The brand glow above stays behind it. */
 .title-art img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 45%;
-  opacity: 0.92;
+  object-position: center 70%;
+  opacity: 0.55;
 }
-.title-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(16, 14, 12, 0.1) 0%, rgba(16, 14, 12, 0) 35%, rgba(16, 14, 12, 0.82) 100%); pointer-events: none; }
 .title-copy {
   position: relative;
   text-align: center;
