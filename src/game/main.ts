@@ -1981,6 +1981,8 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
           if (!(specialLayer && tier === 'light')) audio.sfx(HIT_SOUND[tier], { vary: true, at: at(e.x), gain: hitGain(e.dmg) });
           // Heavy hits: the studio crowd gasps (ooh). Medium/heavy: the victim's hurt bark.
           if (e.dmg >= 130 && !koThisTick) audio.crowd('ooh');
+          // Every launch (a medium or heavy hit) has a low body thud under the crack, scaled by the knockback, so the air never goes dry.
+          if (tier !== 'light') audio.synth('thud', 0.4 + Math.min(1, e.kb / 90) * 0.5);
           if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt', at(m.state.fighters[e.victim].x));
         }
         break;
@@ -3059,6 +3061,12 @@ document.addEventListener('dod:tapped', () => {
   const s = currentScreen();
   if (!openingShowing() && (!s || s === 'title')) audio.playMusic('music-title');
 });
+// Title music from the first frame: the loop is chosen and its file fetched now, and the context is opened at once. If the browser
+// allows sound already it plays; otherwise it starts on the very first tap (the context is resumed from that gesture).
+if (!params.has('play') && !params.has('playtest') && !params.has('chapter') && !params.has('invite')) {
+  audio.playMusic('music-title');
+  audio.unlock();
+}
 // The title screen is up: the game is playable (game_ready).
 const titleUp = go('title').then(() => analytics.ready());
 // Menus are wired and the title is up: a Press start pressed while loading goes on into the menu now.
