@@ -19,7 +19,7 @@
     {
       "id": "smoke",
       "title": "Boot, menus, a quick versus match for 20 s, quit to the menu",
-      "description": "options: stage, fighter (ids) to play specific content. Logs viewport (size + touch). On a portrait phone (390x844) it turns to an 844x390 landscape frame and plays the match there (phone-turned, viewport); a phone run at desktop size is a bug. Also checks the show's stinger (events stinger / slam-round-start / slam-game, metrics stingers, slams, screenSwitches): every screen change plays one, 0.5-0.7 s unless loading holds it.",
+      "description": "options: stage, fighter (ids) to play specific content. Logs viewport (size + touch). On a portrait phone (390x844) it turns to an 844x390 landscape frame and plays the match there (phone-turned, viewport); a phone run at desktop size is a bug. Also checks the show's stinger (events stinger / slam-round-start / slam-game, metrics stingers, slams, screenSwitches): every screen change plays one, 150-300 ms (one shared transition) unless loading holds it.",
       "seconds": 50,
       "tags": [
         "smoke"
@@ -28,7 +28,7 @@
     {
       "id": "match",
       "title": "A full 1v1 versus match against the CPU (2 stocks), to the results screen, its analytics events and the feedback card",
-      "description": "options: stage, fighter (ids) to play specific content. After the results: the \"How was that fight?\" card appears and is dismissed, and the Hawkes Analytics events of the run (screen, fighter_pick, stage_pick, level_start, death, level_end) are shown going out with the build and env (the SDK's debug log). Also logs fighter voice barks (effort / hurt / ko / taunt) from dod:fighter-voice when Season 1 fighters are in the match. Live-show mix: sound-take ids (no back-to-back repeats), music-calm / music-intense, crowd-ooh / crowd-roar / crowd-rising, music-duck / music-unduck (~8 dB, restore 400 ms). Metrics soundTakes, soundTakeRepeats, crowdRoars, musicDucks.",
+      "description": "options: stage, fighter (ids) to play specific content. After the results: the \"How was that fight?\" card appears and is dismissed, and the Hawkes Analytics events of the run (screen, fighter_pick, stage_pick, level_start, death, level_end) are shown going out with the build and env (the SDK's debug log). Also logs fighter voice barks (effort / hurt / ko / taunt) from dod:fighter-voice when Season 1 fighters are in the match. Live-show mix: sound-take ids (no back-to-back repeats), music-calm / music-intense, crowd-ooh / crowd-roar / crowd-rising, music-duck / music-unduck (~8 dB, restore 400 ms). Metrics soundTakes, soundTakeRepeats, crowdRoars, musicDucks. Camera trace (renderer camTrace, cameraRig.ts analyzeCameraTrace) of every match: camera-jitter (under 2 direction flips a second per axis outside shake), camera-zoom-out (under 40% a second outside the KO zoom), camera-margin (fighters inside a 5% screen margin in 99% of frames, launched ones are the offscreen bubble's), and on touch camera-touch-clear (nobody under the stick or buttons over 0.5 s); metrics camFlipsX, camFlipsY, camZoomOutPerSec, camMarginShare, camMarginLongestS, camAccelMax, camTouchLongestS.",
       "seconds": 160,
       "tags": [
         "full",
@@ -39,8 +39,8 @@
     {
       "id": "fighter-voice",
       "title": "Season 1 fighter voice: efforts, hurts, KO cries and taunts from each fighter's own takes, no overlap, T taunt, phone landscape",
-      "description": "Setup shortcut unlocks the Season 1 card. Versus 1v1 with two Season 1 fighters (options fighter / foe, default exit-punk vs break). Listens for dod:fighter-voice: logs effort / hurt / ko / taunt per who with the catalog id and audio path; problems for a missing take, a shared KO text, an overlapping bark from one fighter, or an effort within 1.5 s of the last. Presses T for the player taunt. On a 390x844 touch phone, turns to 844x390 landscape like smoke and checks zero missing-voice / 404 problems. Metrics voiceEfforts, voiceHurts, voiceKos, voiceTaunts.",
-      "seconds": 200,
+      "description": "Setup shortcut unlocks the Season 1 card. Versus 1v1 with two Season 1 fighters (options fighter / foe, default exit-punk vs break). Listens for dod:fighter-voice: logs effort / hurt / ko / taunt per who with the catalog id and audio path; problems for a missing take, a shared KO text, an overlapping bark from one fighter, or an effort within 1.5 s of the last. Presses T for the player taunt. On a 390x844 touch phone, turns to 844x390 landscape like smoke and checks zero missing-voice / 404 problems. Metrics voiceEfforts, voiceHurts, voiceKos, voiceTaunts. Voice director (voiceDirector.ts, audio.ts): plays three 3-stock matches back to back (one on a phone, turned to 844x390 touch) and holds the dod:voice trace to the criteria: 0 ms of two different speakers beyond the 60 ms crossfade, music and effects at least 6 dB down under any voice (fighter barks too) and back within 0.5 s, no commentary or pooled announcer line twice inside 5 minutes, no fighter bark take twice in a row, never two captions on screen at once. Option matches. Metrics voiceTakes, voiceDropped, voiceCut, voiceOverlapMs, voiceRepeats, voiceBarkRepeats, voiceDuckMusicDb, voiceDuckSfxDb, voiceRestoreMs, captionClashes.",
+      "seconds": 720,
       "tags": [
         "full",
         "sound"
@@ -199,7 +199,7 @@
     {
       "id": "hit-feel",
       "title": "Hit feedback: heavy hits freeze 3+ frames, light and heavy hits look different, Settings turns screen shake off, kill cue on stock-ending hits, smooth camera",
-      "description": "A versus match against the CPU (the bot on a virtual pad). Counts the hit-stop frames of the first light and heavy hit (events hit-stop-light/-medium/-heavy, heavy-hit-stop), logs each tier's impact effect (impact-light/-medium/-heavy: sparks, stars, ring, shake, flash) and that they differ (impact-differs), then from Pause opens Settings, turns Screen shake off (shake-off), and checks hits keep landing with the camera still (no-shake). Also the match camera and the kill cue (a hit predicted to end a stock: extra hit-stop, red flash, punch-in, slow motion, rising whistle): every stock-ending hit logs kill-cue and no other hit does (kill-cue-exact), with Screen shake off the cue still zooms (kill-cue-no-shake), the camera never jumps (camera-smooth) and every fighter stays on screen (camera-framing). Metrics hitStopLightFrames, hitStopHeavyFrames, shakeMaxOn, shakeMaxOff, cameraJumps, killCues, framingMisses, killSlowMinFps. The player's dod.shake is put back.",
+      "description": "A versus match against the CPU (the bot on a virtual pad). Counts the hit-stop frames of the first light and heavy hit (events hit-stop-light/-medium/-heavy, heavy-hit-stop), logs each tier's impact effect (impact-light/-medium/-heavy: sparks, stars, ring, shake, flash) and that they differ (impact-differs), then from Pause opens Settings, turns Screen shake off (shake-off), and checks hits keep landing with the camera still (no-shake). Also the match camera and the kill cue (a hit predicted to end a stock: extra hit-stop, red flash, punch-in, slow motion, rising whistle): every stock-ending hit logs kill-cue and no other hit does (kill-cue-exact), with Screen shake off the cue still zooms (kill-cue-no-shake), the camera never jumps (camera-smooth) and every fighter stays on screen (camera-framing). Metrics hitStopLightFrames, hitStopHeavyFrames, shakeMaxOn, shakeMaxOff, cameraJumps, killCues, framingMisses, killSlowMinFps. The player's dod.shake is put back. Camera trace (renderer camTrace, cameraRig.ts analyzeCameraTrace) of every match: camera-jitter (under 2 direction flips a second per axis outside shake), camera-zoom-out (under 40% a second outside the KO zoom), camera-margin (fighters inside a 5% screen margin in 99% of frames, launched ones are the offscreen bubble's), and on touch camera-touch-clear (nobody under the stick or buttons over 0.5 s); metrics camFlipsX, camFlipsY, camZoomOutPerSec, camMarginShare, camMarginLongestS, camAccelMax, camTouchLongestS.",
       "seconds": 300,
       "tags": [
         "full"
@@ -227,7 +227,7 @@
     {
       "id": "touch-match",
       "title": "Touch match: floating stick + flick jump + icon arc, Rotate pause/resume, menus to results at phone size, ≥44 px, fps on Low",
-      "description": "Run it with device phone. Portrait 390x844: menu clip tour, then a framed run proves Rotate covers and pauses the match, turns to 844x390 (rotate-prompt/paused/hidden/resumed). Landscape: Versus → match. A left-40% touch spawns the floating stick under the thumb and a drag past the edge keeps it following (touch-float-spawn/follow); a quick upward flick jumps (touch-flick-jump); Jump/Attack/Special/Shield/Smash are icons in a thumb arc with Attack largest, ≥44 px, clear of env(safe-area-inset-*), phone-shot of the controls; the bot plays through touch to results; metric fpsMatchLow on Quality Low (want ≥45). Metrics touchMoves, touchJumps, touchAttacks, touchSpecials, touchMinPx, fpsMatchLow. Option drop: a control to hide first.",
+      "description": "Run it with device phone. Portrait 390x844: menu clip tour, then a framed run proves Rotate covers and pauses the match, turns to 844x390 (rotate-prompt/paused/hidden/resumed). Landscape: Versus → match. A left-40% touch spawns the floating stick under the thumb and a drag past the edge keeps it following (touch-float-spawn/follow); a quick upward flick jumps (touch-flick-jump); Jump/Attack/Special/Shield/Smash are icons in a thumb arc with Attack largest, ≥44 px, clear of env(safe-area-inset-*), phone-shot of the controls; the bot plays through touch to results; metric fpsMatchLow on Quality Low (want ≥45). Metrics touchMoves, touchJumps, touchAttacks, touchSpecials, touchMinPx, fpsMatchLow. Option drop: a control to hide first. Camera trace (renderer camTrace, cameraRig.ts analyzeCameraTrace) of every match: camera-jitter (under 2 direction flips a second per axis outside shake), camera-zoom-out (under 40% a second outside the KO zoom), camera-margin (fighters inside a 5% screen margin in 99% of frames, launched ones are the offscreen bubble's), and on touch camera-touch-clear (nobody under the stick or buttons over 0.5 s); metrics camFlipsX, camFlipsY, camZoomOutPerSec, camMarginShare, camMarginLongestS, camAccelMax, camTouchLongestS.",
       "seconds": 360,
       "tags": [
         "full",
@@ -276,6 +276,16 @@
       "id": "stage-depth",
       "title": "Stage depth: every stage shows 4 or more layers moving at different speeds as the camera pans, one foreground element at the play area's edge that turns see-through (30%) while a fighter walks behind it, a distance haze tinted to the stage; Low (phone 844x390, touch) keeps three depths and the foreground, drops the haze and holds 45 fps",
       "description": "Setup shortcut: straight into a match on each of the 9 stages (option stage: one), bot off. The player walks to the stage's foreground element by the pad (keys, or the touch stick on a phone) until it fades (foreground-fade: opacity 30% with the fighter behind it), then back across the stage so it clears (foreground-clear) and the camera pans; every ~100 ms the camera and each layer's place on the page are sampled and the layers must move at 4 or more different speeds (parallax: Low needs 3). Also logs the depths built (stage-depth), the haze sheets and their tint (haze, High: 2 or more) and, on Low, that the haze is gone and the foreground stays (depth-low). Metrics depthLayers (fewest depths on any stage), depthFades (stages where it faded), fpsDepth (Low: want 45). The player's dod.gfx is put back.",
+      "seconds": 330,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "readability",
+      "title": "Readability: on every stage each fighter's ring has 3:1 contrast with the background, each platform's lit lip 3:1 with the area above it, and no fighter is over 30% under foreground art without its silhouette showing (phone 844x390 on Low: the 3 busiest stages)",
+      "description": "Setup shortcut: straight into a match on each of the 9 stages (option stage: one; a phone or option quality low takes the 3 busiest by layers, effects and zones), two fighters standing still. The player walks left by the pad first (keys, or the touch stick), then the fighters are placed at the left edge, the centre, the top platform and the foreground element's edge, and the rendered frame is measured (Renderer.readabilityProbe, readability.ts; the same frame drawn with and without the fighters and the foreground, fixed grain): (a) the contrast of each fighter's ring (the player-colour rim and the dark outline, the better of the two) with the background just outside it, (b) the contrast of each platform's lit lip (a bright core between two dark lines along its top) with the band above it, (c) the share of each fighter the foreground art covers and how much of that still shows. Bar: 3:1, at most 30% covered unless 60% of it shows. Events readability-walk, readability-fighter, readability-platform, readability (one line of numbers per stage); metrics readabilityRing, readabilityEdge, readabilityCover, readabilityFails and readability.<stage>.ring|edge|cover. The player's dod.gfx is put back.",
       "seconds": 330,
       "tags": [
         "full",
@@ -508,6 +518,17 @@
       "tags": [
         "full",
         "touch"
+      ]
+    },
+    {
+      "id": "menu-walk",
+      "title": "Menu walk: every menu screen from Tap to play by keyboard, gamepad and touch: pressed state and sound within 50 ms, screen changes under 300 ms with no blank frame, a visible focus ring, Back on every screen (phone 844x390: 44 px buttons, Back in thumb reach)",
+      "description": "Walks main, Versus select, stage pick, Settings (sound, music, effects, touch sliders on touch), controls, campaign map, tour list, extras, leaderboard, Pause (and its Settings) and the results of a fight played to its end. First by keyboard (arrows, J, Escape), then an emulated gamepad (D-pad, A, B, Start through input/devices.ts emulatePad), then touch (pointer taps, hit-tested). Per button: press to pressed state (menu-screen; problem over 50 ms or no change in look), press to ui sound (dod:sound-take, 50 ms); per screen change: press to the end of the stinger (menu-transition, under 300 ms, blank or unstyled frames counted), focus ring on every control for keys and pad, Back by Escape / pad B / the Back button (menu-back, menu-back-reach). Option input: keyboard, gamepad or touch walks one. On a 390x844 touch phone it turns to 844x390 and walks by touch only: every button 44 px tall, none off the screen sideways. Metrics menuScreens, menuButtonsPressed, menuPressedMaxMs, menuSoundMaxMs, menuTransitionMaxMs, menuBlankFrames, menuFocusMissing, menuBackFailures, menuSmallestButtonPx.",
+      "seconds": 420,
+      "tags": [
+        "full",
+        "touch",
+        "sound"
       ]
     },
     {

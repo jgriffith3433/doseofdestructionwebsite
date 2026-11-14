@@ -21,7 +21,9 @@ import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
 import { SHADOW_RANGE, hexRgb } from '../render/fighterLight.ts';
+import { analyzeCameraTrace, TRACE_LIMITS, type CamSample, type ScreenRect } from '../render/cameraRig.ts';
 import { ART, outlineWidthPx, outsideRanges } from '../artStyle.ts';
+import { MAX_COVER, MIN_CONTRAST, MIN_SHOWN, coverRead, edgeContrast, ringContrast, type Frame } from '../readability.ts';
 import { ACT, ACT_NAMES } from '../sim/state.ts';
 import { AnimTrace } from '../sim/trace.ts';
 import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
@@ -41,6 +43,8 @@ import { SEASON_ONE_ENTRANCES, entranceKind } from '../campaign/intro.ts';
 import { PROMPTS, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
+import { VoiceWatch } from './voiceWatch.ts';
+import { walkMenus, type Mode } from './menuWalk.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
 import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
@@ -74,10 +78,12 @@ export interface GameHooks {
   setCampaignProgress(ids: string[]): string[];
   /** Renderer particle and warm-up diagnostics. */
   /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
+  /** The per-frame camera trace (renderer.camTrace): samples, the lens' tangent and the touch controls' rectangles as screen shares. */
+  camTrace?(reset?: boolean): { samples: CamSample[]; tan: number; touch: ScreenRect[] };
   camFxStats?(reset?: boolean): { cameraJumps: number; framingMisses: number; killCues: number; slowFpsMin: number; killActive: boolean; lastCue: { zoom: boolean; slow: boolean; whistle: boolean; shake: number; punch: number } | null };
   /** The special-effect flipbooks: plays per archetype, the tint used, pool, atlas size (render/flipbook.ts). */
   flipStats?(reset?: boolean): { played: Record<string, number>; tint: Record<string, [number, number, number] | null>; dropped: number; pool: number; free: number; quality: 'high' | 'low'; frames: number; cell: number; standIn: boolean };
-  reactFxStats?(reset?: boolean): { squashes: number; maxSquash: number; squashFrames: number; tumbleFrames: number; bounces: number; dustBursts: number; smears: number; smearFrames: number; smashSmears: number; charges: number; quality: string };
+  reactFxStats?(reset?: boolean): { squashes: number; maxSquash: number; squashFrames: number; tumbleFrames: number; bounces: number; dustBursts: number; smears: number; smearFrames: number; smashSmears: number; charges: number; quality: string; tells: number; tellFrames: number; tellWhooshes: number; tellMisses: number; tellStarts: number; trails: number; trailFrames: number; normalActives: number; contacts: number; maxContactDist: number; maxHurtGap: number; coreFrames: number; coreMinPx: number; coreHeavyMinPx: number; coreUnderControl: number; shieldRipples: number; parryFlashes: number; clashSparks: number };
   trailStats?(reset?: boolean): { log: { seq: number; victim: number; tier: HitTier; kb: number; kind: 'none' | 'grey' | 'white' | 'streak'; ko: boolean; puffs: number }[]; active: number; puffs: number };
   markerStats?(): { shown: number; frames: number; unclear: number; last: { id: number; size: number; danger: boolean; clear: boolean; rect: { l: number; t: number; r: number; b: number } } | null; events: { id: number; size: number; danger: boolean }[]; rects: { id: number; rect: { l: number; t: number; r: number; b: number }; danger: boolean }[] };
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
@@ -86,6 +92,7 @@ export interface GameHooks {
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
   depthStats?(): { quality: string; camX: number; camDist: number; layers: { id: string; z: number; kind: 'far' | 'foreground' | 'haze' | 'stage'; screenX: number; alpha: number; fade: number | null; behind: boolean }[] };
+  readabilityProbe?(sets: { id: string; fighters: number[]; fg: boolean }[]): { w: number; h: number; quality: string; shots: Record<string, Uint8ClampedArray>; fighters: { slot: number; box: { x1: number; y1: number; x2: number; y2: number } }[]; platforms: { index: number; x1: number; x2: number; y: number; lipPx: number }[] } | null;
   styleStats?(): { quality: 'high' | 'low'; renderHeight: number; fighters: { slot: number; char: number; look: number; outline: { color: number[]; px: number; perPx: number[]; on: number }; remap: boolean; outlinePass: boolean }[] };
   lightStats?(): { stage: string; quality: 'high' | 'low'; glossy: boolean; fighters: { slot: number; plugin: { full: boolean; key: number[]; keyColor: number[]; rim: number[]; ambient: number[] }; height: number; scale: number; alpha: number; shadow: boolean; reflection: boolean }[] };
   postStats?(): { quality: 'high' | 'low'; lut: string | null; lutReady: boolean; vignette: number; grain: number; punchFrames: number; punches: number; lastPunchDrawn: number; glitches: number; glitchDrawn: number };
@@ -171,6 +178,7 @@ export function installDodPlaytest(game: GameHooks): void {
       // Every other scenario clicks through the title and main menu: only first-visit meets the pilot.
       suppressFirstVisit(id !== 'first-visit');
       const r = new Run(game, t, options, t.spot);
+      r.judgeCamera = id === 'match' || id === 'hit-feel' || id === 'touch-match';
       run = r;
       try {
         if (id === 'smoke') await r.smoke();
@@ -198,6 +206,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'special-sounds') await r.specialSounds();
         else if (id === 'grab') await r.grabRun();
         else if (id === 'special-fx') await r.specialFx();
+        else if (id === 'menu-walk') await r.menuWalk();
         else if (id === 'select-specials') await r.selectSpecials();
         else if (id === 'select-set') await r.selectSet();
         else if (id === 'portraits') await r.portraitsRun();
@@ -211,6 +220,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'post-chain') await r.postChain();
         else if (id === 'lighting') await r.lighting();
         else if (id === 'stage-depth') await r.stageDepth();
+        else if (id === 'readability') await r.readability();
         else if (id === 'mix-room') await r.mixRoom();
         else if (id === 'art-style') await r.artStyle();
         else if (id === 'stage-life') await r.stageLife();
@@ -469,9 +479,44 @@ class Run {
       this.t.event('specials-used', `${CHARACTERS[m.state.fighters[me].char].name} used ${used.length} different specials this match: ${used.join(', ') || 'none'}`);
       this.t.metric('specialsUsed', used.length);
       this.reportFeet();
+      this.judgeCameraTrace(m);
       this.t.event('anim-trace', `${this.traceFrames} frames traced, ${this.trace.problems.length} state/motion mismatches`);
     }
     this.t.progress(this.progressNow());
+  }
+
+  /**
+   * The camera trace of the match that just ended (renderer camTrace) against the limits: under 2 direction flips a second
+   * on either axis outside shake, zoom-out under 40% a second outside the KO zoom, fighters inside a 5% screen margin
+   * (launched ones are the offscreen bubble's), and on a phone nobody under the stick or buttons for more than 0.5 s.
+   */
+  private judgeCameraTrace(m: Match): void {
+    const tr = this.game.camTrace?.();
+    if (!this.judgeCamera || !tr || tr.samples.length < 60) return;
+    const touch = tr.touch;
+    const r = analyzeCameraTrace(tr.samples, touch, tr.tan);
+    this.camReports.push(r);
+    const t = this.t;
+    t.metric('camFlipsX', r.flipsX);
+    t.metric('camFlipsY', r.flipsY);
+    t.metric('camZoomOutPerSec', Number(r.zoomOutMax.toFixed(2)));
+    t.metric('camMarginShare', Number((r.marginShare * 100).toFixed(2)));
+    t.metric('camMarginLongestS', Number(r.marginLongest.toFixed(2)));
+    t.metric('camAccelMax', Number(r.accelMax.toFixed(1)));
+    if (touch.length) t.metric('camTouchLongestS', Number(r.touchLongest.toFixed(2)));
+    const where = `${STAGES[m.state.stage].name}, ${r.frames} frames over ${r.seconds.toFixed(0)} s${touch.length ? ', touch controls up' : ''}`;
+    const flips = Math.max(r.flipsX, r.flipsY);
+    if (flips >= TRACE_LIMITS.flipsPerSecond) t.problem('bug', `camera jitter on ${where}: ${r.flipsX} horizontal / ${r.flipsY} vertical direction flips in one second (under ${TRACE_LIMITS.flipsPerSecond} wanted)`);
+    else t.event('camera-jitter', `${where}: at most ${r.flipsX} horizontal / ${r.flipsY} vertical direction flips in any second (limit under ${TRACE_LIMITS.flipsPerSecond})`);
+    if (r.zoomOutMax > TRACE_LIMITS.zoomOutPerSecond) t.problem('bug', `camera zoom-out reached ${(r.zoomOutMax * 100).toFixed(0)}% a second at ${r.zoomOutAt.toFixed(1)} s on ${where} (limit ${TRACE_LIMITS.zoomOutPerSecond * 100}% outside the KO zoom)`);
+    else t.event('camera-zoom-out', `${where}: the fastest zoom-out was ${(r.zoomOutMax * 100).toFixed(0)}% a second outside the KO zoom (limit ${TRACE_LIMITS.zoomOutPerSecond * 100}%)`);
+    if (r.marginShare > TRACE_LIMITS.marginFrames || r.marginLongest > TRACE_LIMITS.marginSeconds) t.problem('bug', `a fighter sat outside the ${TRACE_LIMITS.margin * 100}% screen margin in ${(r.marginShare * 100).toFixed(1)}% of frames, longest ${r.marginLongest.toFixed(2)} s on ${where}`);
+    else t.event('camera-margin', `${where}: fighters inside the ${TRACE_LIMITS.margin * 100}% margin in ${(100 - r.marginShare * 100).toFixed(2)}% of frames (longest miss ${r.marginLongest.toFixed(2)} s)`);
+    if (touch.length) {
+      if (r.touchLongest > TRACE_LIMITS.touchSeconds) t.problem('bug', `a fighter sat under the touch stick or buttons for ${r.touchLongest.toFixed(2)} s on ${where} (limit ${TRACE_LIMITS.touchSeconds} s)`);
+      else t.event('camera-touch-clear', `${where}: no fighter under the stick or buttons for more than ${TRACE_LIMITS.touchSeconds} s (longest ${r.touchLongest.toFixed(2)} s)`);
+    }
+    this.game.camTrace?.(true);
   }
 
   /** Damage totals in percent; the sim counts tenths. */
@@ -481,8 +526,13 @@ class Run {
     this.t.metric(metric, this.totals[metric] / 10);
   }
 
+  /** Match, hit-feel and touch-match judge the camera trace of every match they play (cameraRig.ts analyzeCameraTrace). */
+  judgeCamera = false;
+  private camReports: ReturnType<typeof analyzeCameraTrace>[] = [];
+
   private onMatchStart(m: Match): void {
     this.seen = m;
+    this.game.camTrace?.(true);
     this.trace = new AnimTrace();
     this.traceFrames = 0;
     this.feetGap = new Map();
@@ -1150,7 +1200,7 @@ class Run {
 
   /**
    * The show's stinger (ui/stinger.ts) on every screen change and the slams (main.ts): each `dod:stinger` is one
-   * event with its length (0.5-0.7 s unless the next screen was still loading: loadMs), ROUND START and GAME! come
+   * event with its length (150-300 ms, the one shared screen transition, unless the next screen was still loading: loadMs), ROUND START and GAME! come
    * with `dod:slam` (GAME! with its 0.5 s freeze offline). A screen switch with no stinger is a problem.
    */
   private watchStingers(): () => void {
@@ -1165,7 +1215,7 @@ class Run {
       t.event('stinger', `${d.from} -> ${d.to}: ${d.ms} ms (loading held ${d.loadMs} ms)${d.reduced ? ' reduced-motion crossfade' : ''}`);
       t.metric('stingers', stingers);
       const loading = d.loadMs > 150;
-      if (!d.reduced && !loading && (d.ms < 480 || d.ms > 720)) t.problem('bug', `Stinger ${d.from} -> ${d.to} lasted ${d.ms} ms (want 500-700 ms unless loading runs longer)`);
+      if (!d.reduced && !loading && (d.ms < 150 || d.ms > 300)) t.problem('bug', `Stinger ${d.from} -> ${d.to} lasted ${d.ms} ms (want 150-300 ms unless loading runs longer)`);
     };
     const onSlam = (e: Event) => {
       const d = (e as CustomEvent<{ text: string; over: boolean; freezeMs: number }>).detail;
@@ -4753,6 +4803,8 @@ class Run {
     window.addEventListener('dod:announcer', onCall);
     window.addEventListener('dod:name-call', onLand);
     window.addEventListener('dod:music-duck', onDuck);
+    const vw = new VoiceWatch(t);
+    vw.start();
     if (touch) {
       this.useTap = true;
       forceTouchUi(true);
@@ -4891,8 +4943,10 @@ class Run {
       if (!ducks) t.problem('bug', 'the music never ducked under the announcer');
       t.metric('announcerCalls', calls.filter((c) => c.phase === 'play').length);
       t.metric('announcerOverlaps', overlaps);
+      vw.finish({ phone: touch });
       await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu').catch(() => null);
     } finally {
+      vw.stop();
       window.removeEventListener('dod:announcer', onCall);
       window.removeEventListener('dod:name-call', onLand);
       window.removeEventListener('dod:music-duck', onDuck);
@@ -5101,6 +5155,43 @@ class Run {
    * phone (touch pointer events, nothing else; no extra button on the overlay). Setup shortcut: straight into
    * training (no menus). Options: input (touch forces the overlay on a desktop window), at (phone).
    */
+  /**
+   * Attack reads and contact sparks (renderer reactStats): every special or smash that reached its first active frame showed a
+   * tell before it; every normal attack that reached active frames drew a swing trail; every landed hit's spark sits on the
+   * contact point (within 0.3 units, and on the hurtbox) with its bright core, big enough on a phone and clear of the touch
+   * controls; shield, parry and clash looks are counted when they happen.
+   */
+  private reportAttackFx(scope: string): void {
+    const t = this.t;
+    const rx = this.game.reactFxStats?.();
+    if (!rx) return;
+    const phone = this.isPhone() || touchDevice() || this.options.input === 'touch';
+    t.metric(`${scope}.tells`, rx.tells);
+    t.metric(`${scope}.trails`, rx.trails);
+    t.metric(`${scope}.contacts`, rx.contacts);
+    if (rx.tellStarts > 0) {
+      if (rx.tellMisses > 0) t.problem('bug', `${rx.tellMisses} of ${rx.tellStarts} specials or smashes reached their first active frame with no startup tell`);
+      else t.event('tell', `${rx.tellStarts} specials and smashes each showed a 2-4 frame tell (${rx.tellFrames} frames, ${rx.tells} player-colour rim flashes, ${rx.tellWhooshes} whooshes) before their first active frame`);
+    } else if (scope === 'specials') t.problem('bug', 'no special reached its first active frame, so the tell could not be checked');
+    if (rx.normalActives > 0) {
+      if (rx.trails !== rx.normalActives) t.problem('bug', `${rx.normalActives} normal attacks reached active frames but ${rx.trails} drew a swing trail`);
+      else t.event('trail', `${rx.trails} normal attacks reached active frames and ${rx.trails} drew a swing trail along the hitbox (${rx.trailFrames} trail frames)`);
+    }
+    if (rx.contacts > 0) {
+      if (rx.maxContactDist > 0.3 || rx.maxHurtGap > 0.3) t.problem('bug', `a hit spark sat ${Math.max(rx.maxContactDist, rx.maxHurtGap).toFixed(2)} units from the contact point (want within 0.3)`);
+      else t.event('contact-spark', `${rx.contacts} landed hits drew their spark on the contact point (worst ${rx.maxContactDist.toFixed(2)} units, ${rx.maxHurtGap.toFixed(2)} off the hurtbox) with a bright core for ${rx.coreFrames} frames in front of the hurt fighter`);
+      if (rx.coreHeavyMinPx > 0) {
+        t.metric(`${scope}.heavyCorePx`, Math.round(rx.coreHeavyMinPx));
+        if (phone && rx.coreHeavyMinPx < 24) t.problem('bug', `a heavy hit's spark core was ${Math.round(rx.coreHeavyMinPx)} CSS px across at ${innerWidth}x${innerHeight} (want at least 24)`);
+        else t.event('core-size', `heavy hit cores at least ${Math.round(rx.coreHeavyMinPx)} CSS px across at ${innerWidth}x${innerHeight}`);
+      }
+      if (phone && rx.coreUnderControl > 0) t.problem('bug', `${rx.coreUnderControl} spark core(s) sat under the touch controls`);
+    }
+    if (rx.shieldRipples > 0) t.event('shield-ripple', `${rx.shieldRipples} shielded hits drew a shield ripple`);
+    if (rx.parryFlashes > 0) t.event('parry-flash', `${rx.parryFlashes} parries drew the white parry flash`);
+    if (rx.clashSparks > 0) t.event('clash-spark', `${rx.clashSparks} clashes drew their own spark`);
+  }
+
   async specialsRun(): Promise<void> {
     const t = this.t;
     const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
@@ -5131,6 +5222,7 @@ class Run {
       await this.matchLive();
       // The virtual pad adds nothing: only the keyboard or the on-screen controls move the fighter.
       this.manual = NO_INPUT;
+      this.game.reactFxStats?.(true);
       t.progress(0.1);
 
       const match = () => this.game.match()!;
@@ -5267,6 +5359,7 @@ class Run {
       if (moved.size === 4) t.event('specials-distinct', `${how}: four different specials from four inputs (${[...moved].map((x) => MOVE_NAMES[x]).join(', ')})`);
       else t.problem('bug', `${how}: only ${moved.size} different specials came out of the four inputs (${[...moved].map((x) => MOVE_NAMES[x]).join(', ')})`);
       t.add('specialsSeen', moved.size);
+      this.reportAttackFx('specials');
       this.manual = null;
       await this.game.quitMatch();
       await this.screen('main');
@@ -5723,6 +5816,7 @@ class Run {
 
       await this.startVersus(3);
       t.progress(0.15);
+      this.game.reactFxStats?.(true);
       this.game.hitFxStats?.(true);
       this.game.camFxStats?.(true);
       cuesPrev = this.game.camFxStats?.()?.killCues ?? 0;
@@ -5822,6 +5916,11 @@ class Run {
         if (rx.bounces > 0) t.event('bounce', `${rx.bounces} ground bounces with ${rx.dustBursts} dust bursts`);
         if (rx.smashSmears > 0) t.event('smear', `${rx.smears} smears, ${rx.smearFrames} streak frames (${rx.smashSmears} on smashes), ${rx.charges} smash charges (${rx.quality} quality)`);
         else if (rx.quality === 'low') t.event('smear-low', 'Low drops smears, keeps squash and tumble');
+      }
+      this.reportAttackFx('hit-feel');
+      {
+        const r2 = this.game.reactFxStats?.();
+        if (r2 && !(r2.shieldRipples + r2.parryFlashes + r2.clashSparks)) t.problem('warning', 'no shielded hit, parry or clash happened in this fight, so their looks were not seen');
       }
       const cam = this.game.camFxStats?.();
       if (cam) {
@@ -6464,6 +6563,37 @@ class Run {
     await this.screen('main');
   }
 
+  // ---------------------------------------------------------- menu-walk
+
+  /**
+   * Every menu screen from Tap to play (main, Versus select, stage pick, Settings, controls, campaign map, tour list, extras,
+   * leaderboard, Pause, results), walked by keyboard, an emulated gamepad, then touch (menuWalk.ts has the measuring). On a
+   * 390x844 touch phone it turns to 844x390 and walks by touch only. Option `input`: keyboard, gamepad or touch, to walk one.
+   */
+  async menuWalk(): Promise<void> {
+    const touchOnly = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touchOnly && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('menu-walk');
+    }
+    this.logViewport(touchOnly && this.isPhone());
+    const asked = this.options.input;
+    const modes: Mode[] = touchOnly ? ['touch'] : asked === 'keyboard' || asked === 'gamepad' ? [asked] : ['keyboard', 'gamepad', 'touch'];
+    await walkMenus(
+      this.t,
+      {
+        toMainMenu: () => this.toMainMenu(),
+        startVersus: (stocks) => this.startVersus(stocks),
+        setTap: (on) => { this.useTap = on; },
+        setSpeed: (n) => this.game.setSpeed(n),
+        fightToEnd: async (ms) => { await this.fight(() => false, ms); },
+        phase: () => this.game.phase(),
+      },
+      modes,
+      this.isPhone(),
+    );
+  }
+
   // ---------------------------------------------------------- touch-settings
 
   /**
@@ -7096,6 +7226,171 @@ class Run {
   }
 
   /**
+   * Readability: on every stage (option `stage`: one; a phone on Low takes the 3 busiest), two fighters stand at the left edge,
+   * the centre, a top platform and the foreground element's edge, and the rendered frame is measured (`Renderer.readabilityProbe`,
+   * readability.ts): (a) the contrast of each fighter's ring (the player-colour rim and the dark outline) with the background
+   * around it, (b) the contrast of each platform's lit lip with the area just above it, (c) the share of each fighter foreground
+   * art covers and whether the silhouette still shows. The player walks by the pad first (keys, or the touch stick on a phone);
+   * the placements are a named setup shortcut. Events `readability-fighter`, `readability-platform`, `readability` (one line of
+   * numbers per stage); metrics readabilityRing (worst ring contrast), readabilityEdge (worst platform edge), readabilityCover
+   * (most covered), readabilityFails, and per stage `readability.<id>.ring|edge|cover`.
+   */
+  async readability(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('readability');
+    }
+    this.logViewport(touch && this.isPhone());
+    const original = localStorage.getItem(GFX_KEY);
+    const initial = graphics();
+    const low = touch || this.options.quality === 'low';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    setGraphics(low ? { quality: 'low', glow: false } : { quality: 'high', glow: true });
+    try {
+      // The busiest stages (layers, effects and zones) are the phone's worst case.
+      const busy = [...STAGES].sort((a, b) => (b.layers?.length ?? 0) + (b.effects?.length ?? 0) + (b.zones?.length ?? 0) - ((a.layers?.length ?? 0) + (a.effects?.length ?? 0) + (a.zones?.length ?? 0))).slice(0, 3);
+      const want = typeof this.options.stage === 'string' ? STAGES.filter((s) => s.id === this.options.stage) : low ? busy : STAGES;
+      if (!want.length) t.problem('bug', `stage "${String(this.options.stage)}" is not on the list`);
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the stick controls were not built');
+        t.finish('error');
+        return;
+      }
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = (punk + 1) % CHARACTERS.length;
+      let worstRing = 99;
+      let worstEdge = 99;
+      let mostCover = 0;
+      let fails = 0;
+      for (const [i, st] of want.entries()) {
+        t.progress(0.05 + (0.9 * i) / want.length);
+        void this.game.startMatch({ mode: 'versus', stage: STAGES.indexOf(st), stocks: 3, rules: { timeLimit: 150 }, slots: [{ char: punk, cpu: null, look: 0 }, { char: foe, cpu: null, look: 1 }] });
+        await this.matchLive();
+        this.manual = NO_INPUT;
+        pad.release();
+        await this.wait(500);
+        // Real input first: the player walks toward the left edge.
+        pad.stick(-100, 0);
+        await this.wait(600);
+        pad.release();
+        t.event('readability-walk', `${st.name}: the player walked left by ${touch ? 'the touch stick' : 'the keys'} before the placements`);
+        // Where to stand: the left edge and centre of the widest floor, the top of the highest platform, the foreground's side.
+        const plats = st.platforms.filter((p) => !p.offDuring && !p.onlyDuring);
+        const floor = [...plats].filter((p) => !p.motion).sort((a, b) => (b.x2 - b.x1) - (a.x2 - a.x1) || a.y - b.y)[0] ?? plats[0];
+        const top = [...plats].filter((p) => !p.motion && p.x2 - p.x1 >= 120).sort((a, b) => b.y - a.y)[0] ?? floor;
+        const fgSide = Math.sign(st.layers?.find((l) => l.foreground)?.x ?? 0);
+        const spots: { name: string; x: number; y: number }[] = [
+          { name: 'left edge', x: floor.x1 + 90, y: floor.y },
+          { name: 'centre', x: (floor.x1 + floor.x2) / 2, y: floor.y },
+          { name: 'top platform', x: (top.x1 + top.x2) / 2, y: top.y },
+        ];
+        if (fgSide > 0) spots.push({ name: 'foreground edge', x: floor.x2 - 90, y: floor.y });
+        const put = (x: number, y: number) => {
+          const m = this.game.match();
+          if (!m) return;
+          m.state.fighters.forEach((f, k) => {
+            f.x = (x + (k === 0 ? -70 : 70)) * FX;
+            f.y = y * FX;
+            f.vx = f.vy = f.kbx = f.kby = 0;
+            f.facing = k === 0 ? 1 : -1;
+          });
+        };
+        const rings: number[] = [];
+        const covers: number[] = [];
+        const edges = new Map<number, number>();
+        let measuredPlats = 0;
+        let who = '';
+        for (const sp of spots) {
+          put(sp.x, sp.y);
+          await this.wait(1300); // the camera eases onto them
+          put(sp.x, sp.y);
+          const probe = this.game.readabilityProbe?.([
+            { id: 'bg', fighters: [], fg: true },
+            { id: 'bare', fighters: [], fg: false },
+            { id: 'f0', fighters: [0], fg: true },
+            { id: 'f1', fighters: [1], fg: true },
+            { id: 'f0bare', fighters: [0], fg: false },
+            { id: 'f1bare', fighters: [1], fg: false },
+          ]);
+          if (!probe) {
+            t.problem('bug', `${st.name}: the renderer could not capture the frame for the readability probe`);
+            continue;
+          }
+          const fr = (id: string): Frame => ({ w: probe.w, h: probe.h, d: probe.shots[id] });
+          for (const ft of probe.fighters.slice(0, 2)) {
+            const nm = CHARACTERS[this.game.match()!.state.fighters[ft.slot].char].name;
+            const ring = ringContrast(fr(`f${ft.slot}`), fr('bg'), ft.box);
+            const cov = coverRead(fr(`f${ft.slot}bare`), fr('bare'), fr('bg'), fr(`f${ft.slot}`), ft.box);
+            if (ring.px < 60) {
+              t.problem('warning', `${st.name}, ${sp.name}: ${nm} could not be measured (${ring.px} px of silhouette in the frame)`);
+              continue;
+            }
+            rings.push(ring.best);
+            covers.push(cov.covered);
+            const coverFail = cov.covered > MAX_COVER && cov.shown < MIN_SHOWN;
+            const ringFail = ring.best < MIN_CONTRAST;
+            if (ringFail) {
+              fails++;
+              t.problem('bug', `${st.name}, ${sp.name}: ${nm}'s ring is ${ring.best.toFixed(2)}:1 against the background (rim ${ring.rim.toFixed(2)}, outline ${ring.outline.toFixed(2)}; want ${MIN_CONTRAST}:1)`);
+            }
+            if (coverFail) {
+              fails++;
+              t.problem('bug', `${st.name}, ${sp.name}: foreground art covers ${Math.round(cov.covered * 100)}% of ${nm} and only ${Math.round(cov.shown * 100)}% of that still shows (want under ${Math.round(MAX_COVER * 100)}% covered, or ${Math.round(MIN_SHOWN * 100)}% showing)`);
+            }
+            t.event('readability-fighter', `${st.name}, ${sp.name}: ${nm} ring ${ring.best.toFixed(2)}:1 (rim ${ring.rim.toFixed(2)}, outline ${ring.outline.toFixed(2)}, ${ring.ringPx} px), ${Math.round(cov.covered * 100)}% under foreground art, ${Math.round(cov.shown * 100)}% of that shows [${probe.w}x${probe.h} ${probe.quality}]`);
+            if (ring.best <= Math.min(...rings)) who = `${nm} ${sp.name}`;
+          }
+          for (const pl of probe.platforms) {
+            const r = edgeContrast(fr('bare'), Math.max(0, pl.x1), Math.min(probe.w, pl.x2), pl.y, pl.lipPx);
+            if (!r || Math.min(probe.w, pl.x2) - Math.max(0, pl.x1) < 40) continue;
+            edges.set(pl.index, Math.min(edges.get(pl.index) ?? 99, r.contrast));
+          }
+        }
+        measuredPlats = edges.size;
+        for (const [index, c] of edges) {
+          const bad = c < MIN_CONTRAST;
+          if (bad) {
+            fails++;
+            t.problem('bug', `${st.name}: platform ${index}'s top edge is ${c.toFixed(2)}:1 against the area above it (want ${MIN_CONTRAST}:1)`);
+          }
+          t.event('readability-platform', `${st.name}: platform ${index} top edge ${c.toFixed(2)}:1${bad ? ' FAIL' : ''}`);
+        }
+        const unmeasured = st.platforms.filter((p, k) => !p.offDuring && !p.onlyDuring && !edges.has(k)).length;
+        if (unmeasured) t.problem('warning', `${st.name}: ${unmeasured} platform(s) never fully on screen at a placement, edge not measured`);
+        const ringMin = rings.length ? Math.min(...rings) : 0;
+        const edgeMin = edges.size ? Math.min(...edges.values()) : 0;
+        const coverMax = covers.length ? Math.max(...covers) : 0;
+        if (rings.length) worstRing = Math.min(worstRing, ringMin);
+        if (edges.size) worstEdge = Math.min(worstEdge, edgeMin);
+        mostCover = Math.max(mostCover, coverMax);
+        t.metric(`readability.${st.id}.ring`, Math.round(ringMin * 100) / 100);
+        t.metric(`readability.${st.id}.edge`, Math.round(edgeMin * 100) / 100);
+        t.metric(`readability.${st.id}.cover`, Math.round(coverMax * 100));
+        t.event('readability', `${st.name}: worst fighter ring ${ringMin.toFixed(2)}:1 (${who}), worst platform edge ${edgeMin.toFixed(2)}:1 over ${measuredPlats} platforms, most covered ${Math.round(coverMax * 100)}% [${low ? 'Low' : 'High'}]`);
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+      t.metric('readabilityRing', worstRing === 99 ? 0 : Math.round(worstRing * 100) / 100);
+      t.metric('readabilityEdge', worstEdge === 99 ? 0 : Math.round(worstEdge * 100) / 100);
+      t.metric('readabilityCover', Math.round(mostCover * 100));
+      t.metric('readabilityFails', fails);
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      this.manual = null;
+      setGraphics(initial);
+      if (original === null) localStorage.removeItem(GFX_KEY);
+    }
+  }
+
+  /**
    * The match mix (audio.ts, roomAudio.ts): every stage is its own room (`dod:mix-room` with the room's name, its
    * length and wet share; Low sends half), fighter sounds are panned by where the fighter stands (a hit played at the
    * left edge is 6+ dB louder in the left channel, one at the right edge in the right), and the mix is levelled to
@@ -7169,6 +7464,8 @@ class Run {
       // The long match on one stage: pans from real fighters, then the measured level.
       const stage = typeof this.options.stage === 'string' ? Math.max(0, STAGES.findIndex((s) => s.id === this.options.stage)) : Math.max(0, STAGES.findIndex((s) => s.id === 'humans-in-the-loop'));
       pans.length = 0;
+      const vw = new VoiceWatch(t);
+      vw.start();
       void this.game.startMatch({ mode: 'versus', stage, stocks: 9, rules: {}, slots });
       await this.matchLive();
       await this.wait(800);
@@ -7187,6 +7484,7 @@ class Run {
         if (tick % 600 === 0) t.progress(0.5 + 0.45 * Math.min(1, ((this.game.match()?.state.frame ?? 0) - frame0) / (60 * total)));
         return (this.game.match()?.state.frame ?? 0) - frame0 > 60 * total;
       }, (total + 90) * 1000);
+      vw.finish({ phone: touch });
       const fightPans = pans.filter((p) => Math.abs(p) !== 0.8 || pans.length > 2);
       if (fightPans.length < 5) t.problem('bug', `only ${fightPans.length} panned fighter sounds in the ${total} s match`);
       else {
@@ -7481,6 +7779,11 @@ class Run {
       }
     };
     window.addEventListener('dod:fighter-voice', onVoice);
+    // The voice director's trace over the whole run: no overlap beyond the crossfade, the duck, no repeats, one caption.
+    const vw = new VoiceWatch(t);
+    const phone = this.phoneScenario();
+    // Desktop plays three 3-stock matches back to back (the 5 minute no-repeat rule); a phone plays one in the turned frame.
+    const matches = Math.max(1, Number(this.options.matches) || (phone ? 1 : 3));
 
     const koTexts = CHARACTERS.map(({ id }) => {
       const l = VOICE.lines.find((x) => x.id === `fighter.${id}.ko`);
@@ -7507,7 +7810,8 @@ class Run {
       if (!this.options.foe) this.options.foe = 'break';
       await this.toMainMenu();
       t.progress(0.08);
-      await this.startVersus(2);
+      vw.start();
+      await this.startVersus(3);
       t.progress(0.15);
       await this.matchLive();
       // Press T for the player's taunt (no touch button on phones).
@@ -7531,6 +7835,18 @@ class Run {
       if (this.game.match()?.state.over) await this.results().catch(() => null);
       else await this.quitFromPause('main');
       if (currentScreen() === 'results') await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu').catch(() => null);
+      for (let n = 2; n <= matches; n++) {
+        t.event('voice-match', `match ${n} of ${matches}, 3 stocks, back to back`);
+        await this.screen('main');
+        await this.startVersus(3);
+        await this.matchLive();
+        await this.fight(() => false, 4 * 60 * 1000);
+        if (this.game.match()?.state.over) await this.results().catch(() => null);
+        else await this.quitFromPause('main');
+        if (currentScreen() === 'results') await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu').catch(() => null);
+      }
+      t.metric('voiceMatches', matches);
+      vw.finish({ phone });
 
       const byWho = new Map<string, Set<string>>();
       for (const v of voices) {
@@ -7566,6 +7882,7 @@ class Run {
       t.metric('voiceTaunts', voices.filter((v) => v.kind === 'taunt').length);
       t.event('fighter-voice-summary', `${voices.length} barks: ${[...byWho.entries()].map(([w, k]) => `${w}[${[...k].join(',')}]`).join('; ')}`);
     } finally {
+      vw.stop();
       window.removeEventListener('dod:fighter-voice', onVoice);
       unlocks().clear();
       for (const id of savedUnlocks) unlocks().add(id);
@@ -8175,9 +8492,11 @@ class Run {
       if (!caption || caption.getAttribute('data-line') !== c.id) t.problem('bug', `no caption showed for ${c.id}`);
     };
     window.addEventListener('dod:commentary', onCall);
+    const vw = new VoiceWatch(t);
     try {
       await this.toMainMenu();
       t.progress(0.03);
+      vw.start();
       await this.startVersus(3);
       const m0 = () => this.game.match();
       this.progressNow = () => 0.05 + 0.4 * Math.min(1, (m0()?.state.frame ?? 0) / (150 * 60));
@@ -8191,6 +8510,7 @@ class Run {
       else await this.quitFromPause('main');
       if (currentScreen() === 'results') await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
       await this.screen('main');
+      vw.finish();
       t.progress(0.5);
 
       // Part 2: Blog Man's intros.
@@ -8226,6 +8546,7 @@ class Run {
         this.game.setCampaignProgress(before);
       }
     } finally {
+      vw.stop();
       window.removeEventListener('dod:commentary', onCall);
     }
     t.progress(1);

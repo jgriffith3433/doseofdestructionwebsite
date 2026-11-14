@@ -6,6 +6,7 @@ import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
 import { addWin } from './looks.ts';
 import { audio, tapState, type Spatial } from './audio.ts';
+import type { VoiceKind } from './voiceDirector.ts';
 import { panFromScreen } from './roomAudio.ts';
 import { Commentator, introCall, type Call } from './commentary.ts';
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
@@ -25,7 +26,7 @@ import type { SimEvent } from './sim/step.ts';
 import { ruleLabel, takeoverLines } from './campaign/takeover.ts';
 import { CHAPTERS, isUnlocked, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
-import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
+import { $, formatTime, h, headUrl, installPressFeedback, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playVersus, showResults, type ResultAction } from './ui/views.ts';
@@ -150,9 +151,22 @@ function wireMenus(): void {
     audio.line('announcer.title');
     go('main', spotlight);
   });
-  // Every button press in a menu clicks.
+  // Every button press in a menu clicks: on pointer down (with the pressed state, ui/dom.ts), so it sounds with the press, not
+  // after the release; a key or pad press has no pointer down, so its click plays it. The click that follows a pointer-down
+  // sound on the same control is not played again.
+  let downSound: { el: HTMLElement; at: number } | null = null;
+  installPressFeedback((el) => {
+    downSound = { el, at: performance.now() };
+    audio.sfx('ui-select');
+  });
   document.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).closest('button, a')) audio.sfx('ui-select');
+    const el = (e.target as HTMLElement).closest<HTMLElement>('button, a');
+    if (!el) return;
+    if (downSound && downSound.el === el && performance.now() - downSound.at < 2000) {
+      downSound = null;
+      return;
+    }
+    audio.sfx('ui-select');
   });
   wireSettings();
   document.querySelectorAll<HTMLButtonElement>('[data-go]').forEach((b) =>
@@ -184,6 +198,9 @@ function wireMenus(): void {
   onBack('howto', () => go('main', spotlight));
   wirePilot();
   onBack('leaderboard', () => go('main', spotlight));
+  // Pause (a pad's B, Backspace) resumes; the results step out through their last button (Main menu, Campaign map, Quit).
+  onBack('match', () => { if (phase === 'pause') pauseKey(); });
+  onBack('results', () => ([...document.querySelectorAll<HTMLButtonElement>('#results-actions button')].pop())?.click());
 
   $('btn-resume').addEventListener('click', () => setPaused(false));
   $('btn-restart').addEventListener('click', () => {
@@ -427,7 +444,7 @@ interface SceneCue {
 }
 
 /** The arena, camera and sound a scene drives, for this match. The player stands first in the cast. */
-function sceneStage(m: Match): SceneStage {
+function sceneStage(m: Match, kind: VoiceKind = 'scene'): SceneStage {
   const ids = m.state.fighters.map((f) => f.id);
   const order = m.player >= 0 ? [m.player, ...ids.filter((id) => id !== m.player)] : ids;
   return {
@@ -437,7 +454,7 @@ function sceneStage(m: Match): SceneStage {
     arrive: (id) => renderer.arrive(id),
     cue: (id) => renderer.cue(id),
     taunt: (who) => audio.fighterVoice(who, 'taunt'),
-    voice: (url) => audio.voice(url),
+    voice: (url) => audio.voice(url, kind),
     stopVoice: () => audio.stopVoice(),
     voiceMs: (url) => audio.voiceMs(url),
     synth: (kind, level) => audio.synth(kind, level),
@@ -462,7 +479,7 @@ async function runExchange(m: Match, ex: Exchange): Promise<void> {
   phase = 'scene';
   audio.playStageBed(STAGES[m.setup.stage].id);
   $('scene-next').focus();
-  const end = await playExchange(sceneStage(m), ex.id, ex.lines);
+  const end = await playExchange(sceneStage(m, 'banter'), ex.id, ex.lines);
   if (!ex.generic) markExchangeSeen(ex.id);
   analytics.scene(ex.id, { skipped: end.skipped, line: Math.max(0, end.lines - 1) }, ex.lines.length);
 }
@@ -1218,7 +1235,7 @@ function beginReady(m: Match): void {
   readyFightId = audio.pickLine('announcer.ready-fight');
   if (readyFightId) void audio.call(readyFightId);
   else audio.line('announcer.ready');
-  commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state) : null;
+  commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state, Math.random, (id) => audio.voiceFresh(id)) : null;
   introPending = (commentator && (chapter ? introCall(chapter.id) : dailyRun?.setup === setup ? introCall(dailyRun.ep.blogChapter) : null)) || null;
   audio.playStageBed(STAGES[setup.stage].id);
   audio.setMusicIntensity(audio.shouldBeIntense(m.state.fighters));
@@ -1402,7 +1419,7 @@ function startTakeover(m: Match, e: { index: number; mood?: number; hot?: number
     if (seq !== takeoverSeq || i >= lines.ids.length) return;
     const id = lines.ids[i];
     const text = VOICE.lines.find((l) => l.id === id)?.text ?? '';
-    audio.line(id);
+    void audio.line(id, 'banter');
     said.push(id);
     document.querySelector('.booth')?.remove();
     document.querySelector('.booth-orchestrator')?.remove();
@@ -1905,7 +1922,15 @@ function askOnResults(m: Match): void {
 
 /** A commentary call: spoken if it has a take, and captioned one short line at a time (and announced to the playtest). */
 function broadcast(c: Call): void {
-  audio.line(c.id);
+  // The caption goes up when the take starts, and never for a take the voice director dropped (one speaker, one caption).
+  const voiced = !!VOICE.lines.find((l) => l.id === c.id)?.audio && audio.state === 'running';
+  if (!voiced) return showBooth(c);
+  void audio.line(c.id, 'commentary').then((ms) => {
+    if (ms) showBooth(c);
+  });
+}
+
+function showBooth(c: Call): void {
   document.querySelector('.booth')?.remove();
   clearTimeout(boothTimer);
   const who = c.who === 'blog-man' ? 'Blog Man' : 'Announcer';
@@ -2254,6 +2279,7 @@ installDodPlaytest({
   hitFxStats: (reset) => renderer.hitFxStats(reset),
   flipStats: (reset) => renderer.flipStats(reset),
   camFxStats: (reset) => renderer.camFxStats(reset),
+  camTrace: (reset) => renderer.camTrace(reset),
   trailStats: (reset) => renderer.trailStats(reset),
   reactFxStats: (reset) => renderer.reactFxStats(reset),
   markerStats: () => ({ ...markerLog, rects: markerRects() }),
@@ -2264,6 +2290,7 @@ installDodPlaytest({
   postStats: () => renderer.postStats(),
   lightStats: () => renderer.lightStats(),
   depthStats: () => renderer.depthStats(),
+  readabilityProbe: (sets) => renderer.readabilityProbe(sets),
   styleStats: () => renderer.styleStats(),
   lookStats: () => renderer.lookStats(),
   aliveStats: () => renderer.aliveStats(),

@@ -135,8 +135,22 @@ function gamepadInput(pad: Gamepad): [number, number, number] {
   return [sx, sy, b];
 }
 
+/** A controller the playtest presses (menu-walk): standard mapping, button i pressed or not, left stick axes. Null outside a playtest. */
+let emulated: Gamepad | null = null;
+export function emulatePad(state: { buttons: boolean[]; axes: [number, number] } | null): void {
+  emulated = state
+    ? ({
+        id: 'playtest-pad', index: 0, connected: true, mapping: 'standard', timestamp: performance.now(),
+        axes: state.axes,
+        buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: !!state.buttons[i], touched: !!state.buttons[i], value: state.buttons[i] ? 1 : 0 })),
+        vibrationActuator: null, hapticActuators: [],
+      } as unknown as Gamepad)
+    : null;
+}
+
 export function pads(): Gamepad[] {
-  return (navigator.getGamepads?.() ?? []).filter((p): p is Gamepad => !!p && p.connected);
+  const real = (navigator.getGamepads?.() ?? []).filter((p): p is Gamepad => !!p && p.connected);
+  return emulated ? [emulated, ...real] : real;
 }
 
 /**

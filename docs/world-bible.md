@@ -433,6 +433,18 @@ Every fighter casts a soft contact shadow on the platform under them that shrink
 above 300 units; glossy floors (Humans in the Loop, Space Chess) add a faint 15% mirror image on High. Low keeps the
 ambient tint and the shadow only. No stage is underwater yet; the cold stages are Space Chess and Cursed Town.
 
+## Readability (the fighter and the platform edge, at a glance)
+
+On any stage a player finds their fighter and the edge of every platform without hunting: every fighter wears a **two-tone
+ring** (the dark outline of the art bible inside, the player-colour rim outside) and every platform the stage art draws gets a
+**lit lip** along its top (`render/renderer.ts`, built beside the platform: a bright core in the stage's edge colour, mixed
+toward white, between two dark lines, so it parts from a light picture with the dark line and from a dark one with the core).
+Collision-only platforms without art keep their block and its glowing edge. The bar is 3:1 luminance contrast (WCAG ratio) for
+the ring against the background around it and for the lip against the area just above it, and no fighter more than 30% under
+foreground art unless 60% of that still shows (a faded element or the silhouette). The maths is `src/game/readability.ts`
+(test `src/game/test/readability.test.ts`); scenario `readability` measures it from the rendered frame on all 9 stages (the
+3 busiest on a phone on Low) and reports per-stage numbers.
+
 ## Stage depth (every set opens up as the camera moves)
 
 The broadcast camera pans and zooms with the fight, and every stage is built to show it: pictures sit at their own depths

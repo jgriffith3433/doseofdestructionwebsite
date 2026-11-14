@@ -76,3 +76,70 @@ export function formatTime(frames: number): string {
 export function pct(tenths: number): string {
   return `${(tenths / 10).toFixed(1)}%`;
 }
+
+// ------------------------------------------------------------ pressed state
+
+/** What counts as a menu button for the shared pressed state (game.css `[data-pressed]`). */
+const PRESSABLE = 'button, a[href], [role="button"]';
+const SHOWN_MS = 110;
+const timers = new WeakMap<HTMLElement, number>();
+
+/** The menu control under an event target that shows a pressed state, or null (disabled, or part of the match's own controls). */
+export function pressTarget(target: EventTarget | null): HTMLElement | null {
+  const el = target instanceof Element ? target.closest<HTMLElement>(PRESSABLE) : null;
+  if (!el || (el as HTMLButtonElement).disabled || el.closest('.match-screen, .touch, #tap-to-play')) return null;
+  return el;
+}
+
+/** Shows the pressed state now (same task as the press) and keeps it up for at least SHOWN_MS; `holdUntilRelease` keeps it while a finger is down. */
+export function setPressed(el: HTMLElement): void {
+  window.clearTimeout(timers.get(el));
+  el.dataset.pressed = '';
+  el.dataset.pressedAt = String(Math.round(performance.now()));
+}
+
+export function releasePressed(el: HTMLElement, since: number): void {
+  const wait = Math.max(0, SHOWN_MS - (performance.now() - since));
+  window.clearTimeout(timers.get(el));
+  timers.set(el, window.setTimeout(() => { delete el.dataset.pressed; }, wait));
+}
+
+/** A press with no pointer (key, pad button): pressed for a short beat. */
+export function flashPressed(el: HTMLElement | null, ms = 150): void {
+  if (!el) return;
+  const t = pressTarget(el);
+  if (!t) return;
+  setPressed(t);
+  releasePressed(t, performance.now() - (ms - SHOWN_MS));
+}
+
+/**
+ * One pressed state for every menu control, for mouse, touch, keys and pad: pointer down marks it at once (CSS `:active`
+ * is late or missing on touch), up, cancel or leaving clears it after a short beat. `onPress` runs on the same event
+ * (the sound), so state and sound start together.
+ */
+export function installPressFeedback(onPress: (el: HTMLElement) => void): void {
+  const down = new Map<number, { el: HTMLElement; at: number }>();
+  document.addEventListener('pointerdown', (e) => {
+    const el = pressTarget(e.target);
+    if (!el) return;
+    setPressed(el);
+    down.set(e.pointerId, { el, at: performance.now() });
+    onPress(el);
+  }, true);
+  const up = (e: PointerEvent) => {
+    const d = down.get(e.pointerId);
+    if (!d) return;
+    down.delete(e.pointerId);
+    releasePressed(d.el, d.at);
+  };
+  document.addEventListener('pointerup', up, true);
+  document.addEventListener('pointercancel', up, true);
+  window.addEventListener('blur', () => { for (const [id, d] of down) { down.delete(id); releasePressed(d.el, 0); } });
+  // Keys: Enter, Space and J on the focused control.
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat || (e.code !== 'Enter' && e.code !== 'Space' && e.code !== 'KeyJ')) return;
+    const el = pressTarget(document.activeElement);
+    if (el) flashPressed(el);
+  }, true);
+}
