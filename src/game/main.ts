@@ -24,7 +24,7 @@ import { onBindings } from './input/bindings.ts';
 import { onShieldMode, setShieldActive, setShieldMode, shieldMode, releaseShieldLatch } from './input/shieldMode.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
 import { keyboardHelp, gamepadHelp, padFamily, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
-import { damageColor, damageShake, hitTier } from './hitFeel.ts';
+import { damageColor, damageShake, hitGain, hitTier } from './hitFeel.ts';
 import { clearMarkers, markerLog, markerRects, safeInsets, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
 import { clearTags, tagLog, tagRects, tagText, updateTags, type TagIn } from './ui/tags.ts';
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
@@ -1716,7 +1716,7 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
           // A special's own impact (its archetype's crack) layers on the generic hit. A light hit of a special
           // (each hit of a flurry) plays only the special's impact, so rapid hits don't stack two sounds each.
           const specialLayer = e.special ? audio.special('impact', e.special, CHARACTERS[m.state.fighters[e.attacker].char].id, at(e.x)) : false;
-          if (!(specialLayer && tier === 'light')) audio.sfx(HIT_SOUND[tier], { vary: true, at: at(e.x) });
+          if (!(specialLayer && tier === 'light')) audio.sfx(HIT_SOUND[tier], { vary: true, at: at(e.x), gain: hitGain(e.dmg) });
           // Heavy hits: the studio crowd gasps (ooh). Medium/heavy: the victim's hurt bark.
           if (e.dmg >= 130 && !koThisTick) audio.crowd('ooh');
           if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt', at(m.state.fighters[e.victim].x));
@@ -1872,11 +1872,12 @@ function renderSettings(): void {
   flip('quality-switch', g.quality === 'high', g.quality === 'high' ? 'High' : 'Low');
   flip('glow-switch', g.glow, g.glow ? 'On' : 'Off');
   flip('fps-switch', g.fps, g.fps ? 'On' : 'Off');
-  for (const k of ['music', 'sfx'] as const) {
+  for (const k of ['music', 'sfx', 'voice'] as const) {
     const input = $<HTMLInputElement>(`vol-${k}`);
     input.value = String(Math.round(s[k] * 100));
     $(`vol-${k}-value`).textContent = `${input.value}%`;
   }
+  flip('captions-switch', s.captions, s.captions ? 'On' : 'Off');
   // Touch size and opacity: only where there are touch controls (Rumble shows everywhere).
   $('settings-touch').hidden = !(touchDevice() || touchUiForced());
   const t = touchSettings();
@@ -1929,9 +1930,19 @@ function closeSettings(): void {
   }
 }
 
+/** Captions off hides read-along text, except with sound off: then the story lines are the only way to follow. */
+function applyCaptions(): void {
+  const st = soundSettings();
+  document.body.classList.toggle('captions-off', !st.captions && st.on);
+}
+
 function wireSettings(): void {
   renderSettings();
-  onSoundSettings(renderSettings);
+  applyCaptions();
+  onSoundSettings(() => {
+    renderSettings();
+    applyCaptions();
+  });
   const from = () => (match ? 'pause' : 'menu');
   onScreenShake(() => renderSettings());
   onColourVision(() => {
@@ -1982,7 +1993,7 @@ function wireSettings(): void {
     setSoundSettings({ on: !soundSettings().on });
     analytics.setting('sound', soundSettings().on, from());
   });
-  for (const k of ['music', 'sfx'] as const) {
+  for (const k of ['music', 'sfx', 'voice'] as const) {
     const input = $<HTMLInputElement>(`vol-${k}`);
     input.addEventListener('input', () => setSoundSettings({ [k]: Number(input.value) / 100 }));
     // Where the slider was let go, not every step of the drag.
@@ -1990,6 +2001,10 @@ function wireSettings(): void {
   }
   // A hit at the new level, so the slider is heard as it lets go.
   $('vol-sfx').addEventListener('change', () => audio.sfx('hit-medium'));
+  $('captions-switch').addEventListener('click', () => {
+    setSoundSettings({ captions: !soundSettings().captions });
+    analytics.setting('captions', soundSettings().captions, from());
+  });
   onTouchSettings(renderSettings);
   for (const k of ['size', 'opacity'] as const) {
     const input = $<HTMLInputElement>(`touch-${k}`);

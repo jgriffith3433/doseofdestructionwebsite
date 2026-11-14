@@ -283,7 +283,7 @@ export function scene(id: string, end: { skipped: boolean; line: number }, lines
 
 // ------------------------------------------------------------------ settings, pause, quit
 
-export function setting(name: 'sound' | 'music' | 'sfx' | 'shake' | 'rumble' | 'colour_vision' | 'text_size' | 'shield' | 'quality' | 'glow' | 'fps' | 'touch_size' | 'touch_opacity' | 'touch_vibrate' | 'rebind', value: boolean | number | string, from: string): void {
+export function setting(name: 'sound' | 'music' | 'sfx' | 'voice' | 'captions' | 'shake' | 'rumble' | 'colour_vision' | 'text_size' | 'shield' | 'quality' | 'glow' | 'fps' | 'touch_size' | 'touch_opacity' | 'touch_vibrate' | 'rebind', value: boolean | number | string, from: string): void {
   feature(`settings.${name}`, { value, from });
 }
 

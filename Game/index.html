@@ -328,12 +328,17 @@
       <div id="settings-levels" class="settings-levels">
         <label class="slider"><span>Music</span><input id="vol-music" type="range" min="0" max="100" step="1"><output id="vol-music-value"></output></label>
         <label class="slider"><span>Effects</span><input id="vol-sfx" type="range" min="0" max="100" step="1"><output id="vol-sfx-value"></output></label>
+        <label class="slider"><span>Voice</span><input id="vol-voice" type="range" min="0" max="100" step="1"><output id="vol-voice-value"></output></label>
+      </div>
+      <div class="setting-row">
+        <span>Captions</span>
+        <button id="captions-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
       </div>
       <div id="settings-touch" class="settings-levels" hidden>
         <label class="slider"><span>Touch size</span><input id="touch-size" type="range" min="75" max="150" step="5"><output id="touch-size-value"></output></label>
         <label class="slider"><span>Touch opacity</span><input id="touch-opacity" type="range" min="30" max="100" step="5"><output id="touch-opacity-value"></output></label>
       </div>
-      <p class="hint">Effects covers hits, menus and voices. Screen shake is the camera kick on hits and KOs. Rumble buzzes a controller or phone by how hard a hit lands (a short buzz, a jolt, a long one for a KO), softer with reduced motion. Touch size and opacity (touch devices) tune the on-screen stick. Quality Low draws fewer pixels and sparks, for phones; Glow is the bloom on bright art. Press <kbd>M</kbd> any time to turn sound on or off.</p>
+      <p class="hint">Music, Effects and Voice (announcer, commentary, story and fighter lines) are separate. Captions show the spoken lines as text; story lines still show when sound is off. Screen shake is the camera kick on hits and KOs. Rumble buzzes a controller or phone by how hard a hit lands (a short buzz, a jolt, a long one for a KO), softer with reduced motion. Touch size and opacity (touch devices) tune the on-screen stick. Quality Low draws fewer pixels and sparks, for phones; Glow is the bloom on bright art. Press <kbd>M</kbd> any time to turn sound on or off.</p>
       <button id="settings-done" class="primary" type="button">Done</button>
     </div>
   </div>

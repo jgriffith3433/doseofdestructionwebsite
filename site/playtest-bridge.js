@@ -188,6 +188,12 @@
       ]
     },
     {
+      "id": "voice-captions",
+      "title": "Music, Effects and Voice sliders, Captions on and off",
+      "description": "Opens Settings from the main menu: three separate sliders (handles at least 44 px, on screen), Voice 0 silences the voice bus but not effects, Captions off is saved, and with Sound off the story captions show anyway. Phone 390x844 plays by touch.",
+      "seconds": 60
+    },
+    {
       "id": "sound-settings",
       "title": "Tap to play, sound on, Settings from the menu and Pause, a setting kept across a reload",
       "description": "Taps the Tap to play prompt with a pointer press on the spot (hit-tested, so a covered prompt fails), checks the AudioContext runs and the menu music plays with no more taps, opens Settings from the main menu, turns Sound off and Music to 40%, reloads (the run carries on through ?playtest=sound-settings), checks the prompt and the choice are back, then opens Settings from Pause in a match. The player's own hawkes.sound is put back at the end.",
