@@ -14,7 +14,8 @@ import { graphics, onGraphics, setGraphics } from './graphics.ts';
 import { TEXT_SIZES, onTextSize, setTextSize, textSize } from './textSize.ts';
 import { colourVision, onColourVision, setColourVision, shapeOf } from './colourVision.ts';
 import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
-import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings, hitVibrate } from './touchSettings.ts';
+import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings } from './touchSettings.ts';
+import { rumble, rumbleHit } from './rumble.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
 import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
@@ -1461,11 +1462,11 @@ function afterTick(m: Match, events: SimEvent[]): void {
     if (e.type === 'sudden') suddenDeathMoment(m);
     if (e.type === 'hit' && !e.shield) {
       bumpHud(e.victim, e.dmg, m.state.fighters[e.victim]?.percent ?? 0);
-      // Phone feel: a light buzz when you land a hit (Settings → Vibrate, where supported).
-      if (m.player >= 0 && e.attacker === m.player) hitVibrate(e.dmg >= 130 ? 18 : 12);
+      // Hands feel: the pad (and a phone) rumbles by hit weight for the player who landed or took it (Settings → Rumble).
+      if (m.player >= 0 && (e.attacker === m.player || e.victim === m.player)) rumbleHit(e.dmg);
     } else if (e.type === 'ko' && m.player >= 0 && (e.by === m.player || e.victim === m.player)) {
-      // Heavier pulse on a KO you deal or take, still behind the same Settings switch.
-      hitVibrate(e.by === m.player ? 28 : 22);
+      // The longest, hardest pulse on a KO you deal or take.
+      rumble('ko');
     }
   }
   playEventSounds(m, events);
@@ -1763,16 +1764,16 @@ function renderSettings(): void {
     input.value = String(Math.round(s[k] * 100));
     $(`vol-${k}-value`).textContent = `${input.value}%`;
   }
-  // Touch size, opacity and vibrate: only where there are touch controls.
+  // Touch size and opacity: only where there are touch controls (Rumble shows everywhere).
   $('settings-touch').hidden = !(touchDevice() || touchUiForced());
   const t = touchSettings();
   for (const [k, v] of [['size', t.size], ['opacity', t.opacity]] as const) {
     $<HTMLInputElement>(`touch-${k}`).value = String(v);
     $(`touch-${k}-value`).textContent = `${v}%`;
   }
-  const vib = $('vibrate-switch');
-  vib.setAttribute('aria-checked', String(t.vibrate));
-  vib.textContent = t.vibrate ? 'On' : 'Off';
+  const rum = $('rumble-switch');
+  rum.setAttribute('aria-checked', String(t.vibrate));
+  rum.textContent = t.vibrate ? 'On' : 'Off';
 }
 
 function openSettings(): void {
@@ -1860,9 +1861,9 @@ function wireSettings(): void {
     input.addEventListener('input', () => setTouchSettings({ [k]: Number(input.value) }));
     input.addEventListener('change', () => analytics.setting(`touch_${k}`, Number(input.value), from()));
   }
-  $('vibrate-switch').addEventListener('click', () => {
+  $('rumble-switch').addEventListener('click', () => {
     setTouchSettings({ vibrate: !touchSettings().vibrate });
-    analytics.setting('touch_vibrate', touchSettings().vibrate, from());
+    analytics.setting('rumble', touchSettings().vibrate, from());
   });
   $('settings-done').addEventListener('click', () => closeSettings());
 }
