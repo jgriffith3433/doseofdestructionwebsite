@@ -771,3 +771,8 @@ slides in at about 2 s; any press skips the pose and cuts the fanfare. Code `src
 - **The Reboot** (Season 7): Evil Blue Bird, Shutup Bot, Stratabots, Future Man. Trailer brass, a heavy hit.
 
 Season 3 has no group (it is the Orchestrator's, The Host). Fighters with no `unlock` chapter sit with the cast they fight beside.
+
+
+## First blood
+
+The show reacts to the fight, not just introduces it: the first KO of a bout makes the ON AIR bug flash red over the arena with "First blood" and a broadcast sting, while the announcer calls it. Told by sound, flash and the announcer's voice; one short line of text at most.

@@ -1456,7 +1456,30 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
 .rating-you.up .rating-delta { color: #4ade80; }
 .rating-you.down .rating-delta { color: var(--hot); }
 .rating-them { color: var(--muted); }
-.results-rating em { flex-basis: 100%; font-style: normal; font-size: 13px; color: var(--muted); }
+.results-rating em { flex-basis: 100%; font-style: normal; font-size: 14px; color: var(--muted); }
+.results-rating .rating-place { color: var(--gold); }
+
+/* Online results: who you played, how you were joined, and what it cost or won. */
+.online-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; padding: 10px 14px; background: var(--card); border-radius: 12px; border-left: 4px solid var(--gold); }
+.online-card .online-face { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: #000; }
+.online-who { display: grid; min-width: 0; }
+.online-who strong { font: 600 22px Oswald, sans-serif; overflow-wrap: anywhere; }
+.online-vs, .online-fighter, .online-link { font-size: 14px; color: var(--muted); }
+.online-link { white-space: nowrap; font-weight: 600; }
+.online-card .results-rating { grid-column: 1 / -1; margin-top: 2px; }
+.results-hero .online-card .results-rating, .online-card .results-rating { color: var(--text); }
+.rating-delta, .rating-now { font-variant-numeric: tabular-nums; }
+/* Upright phone: the card replaces the long panels, so the rating and the buttons sit on one screen. */
+@media (max-width: 560px) {
+  .results-online .victory { height: clamp(150px, 20vh, 190px); }
+  .results-online .highlights, .results-online .results-grid, .results-online .results-strip, .results-online .results-look { display: none; }
+  .results-online .results-hero { gap: 10px; }
+  .results-online .results-hero img.results-portrait { display: none; }
+  .results-online .results-hero h2 { font-size: clamp(26px, 8vw, 36px); }
+  .online-card { grid-template-columns: auto minmax(0, 1fr); padding: 8px 12px; }
+  .online-card .online-link { grid-column: 2; }
+  .online-card .online-face { width: 44px; height: 44px; grid-row: span 2; }
+}
 
 @media (max-width: 560px) {
   .board-tabs { margin-left: 0; width: 100%; }
@@ -2148,3 +2171,29 @@ body[data-nav] :is(button, a[href], select, input, summary, [role="button"], [ta
   .rematch-pick .rematch-sub, .rematch-pick .rematch-stages { grid-column: 1; }
   .rematch-lock { grid-column: 2; grid-row: 1 / span 3; width: auto; padding: 0 28px; }
 }
+
+/* The show reacts to the first KO: ON AIR flashes red under the timer (never over a touch control; no pointer events). */
+.air-flash {
+  position: fixed; left: 50%; top: calc(max(12px, env(safe-area-inset-top)) + 52px); transform: translateX(-50%);
+  z-index: 6; pointer-events: none; display: flex; align-items: center; gap: 8px; white-space: nowrap;
+  padding: 6px 16px; border-radius: 4px; background: #c8201a; color: #fff;
+  font: 700 clamp(14px, 3.6vw, 20px) Oswald, sans-serif; letter-spacing: 0.16em; text-transform: uppercase;
+  box-shadow: 0 0 28px rgba(200, 32, 26, 0.85); animation: air-flash 2200ms ease-out both;
+}
+.air-flash .dot { width: 9px; height: 9px; border-radius: 50%; background: #fff; animation: pulse-dot 0.4s ease-in-out infinite; }
+.air-flash span { color: #ffd35a; }
+@keyframes air-flash {
+  0% { opacity: 0; transform: translateX(-50%) scale(1.6); }
+  10% { opacity: 1; transform: translateX(-50%) scale(1); }
+  20%, 40% { box-shadow: 0 0 60px rgba(255, 60, 40, 1); }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .air-flash { animation-duration: 1ms; animation-fill-mode: none; } }
+
+/* Sudden death: a dead-even time-out. The slam wraps to two lines so it fits a 390 px phone; the timer chip goes red. */
+.slam.sudden { color: #ff3b2f; -webkit-text-stroke: 3px #2a0805; font-size: clamp(44px, 12vw, 150px); white-space: normal; text-align: center; width: min(92vw, 900px); max-width: calc(100vw - 24px); animation-duration: 1.8s; }
+.timer.sudden { font-size: 22px; padding: 2px 16px; border: 2px solid; border-radius: 6px; color: #fff; background: #b3170d; border-color: #ff3b2f; letter-spacing: 0.12em; text-transform: uppercase; animation: sudden-pulse 0.9s ease-in-out infinite; }
+body.sudden-death .hud-card { box-shadow: 0 0 0 2px rgba(255, 59, 47, 0.7); }
+@keyframes sudden-pulse { 50% { filter: brightness(1.35); } }
+@media (prefers-reduced-motion: reduce) { .timer.sudden { animation: none; } }

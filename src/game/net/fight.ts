@@ -33,6 +33,10 @@ export interface FightEnd {
   /** The winning slot, or -1 (void, or the sim's draw). */
   winner: number;
   result: MatchResult;
+  /** How the link looked at the end, for the results' opponent card (route: direct, relay or signal; ping in ms, -1 unknown). */
+  link: { route: string; ping: number };
+  /** The bout went to sudden death. */
+  sudden: boolean;
   /**
    * The signed result for the leaderboard (docs/online.md, "The leaderboard"), once the other player's signature is
    * in (or the wait ran out): `kind` says whether it counts as it is ("full", "claim") or carries only ours
@@ -426,7 +430,8 @@ export class OnlineFight {
       endedAt: new Date().toISOString(),
       stocks: s.fighters.map((f) => Math.max(0, f.stocks)),
     };
-    const end: FightEnd = { reason, winner, result, rated: this.rate(reason, winner) };
+    const rtt = this.found.room.rttAvg;
+    const end: FightEnd = { reason, winner, result, link: { route: this.found.room.route, ping: rtt >= 0 ? Math.round(rtt) : -1 }, sudden: s.sudden > 0, rated: this.rate(reason, winner) };
     try {
       emitMatchResult(result);
     } catch (e) {

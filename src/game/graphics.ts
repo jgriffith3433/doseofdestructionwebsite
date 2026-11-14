@@ -5,6 +5,8 @@
  * and 1.5x on touch devices; Low renders at 1x and trims particles.
  */
 
+import { softwareRenderer } from './boot.ts';
+
 export type Quality = 'high' | 'low';
 export interface Graphics { quality: Quality; glow: boolean; fps: boolean }
 
@@ -19,7 +21,7 @@ export const isTouchDevice = (): boolean => {
 };
 
 /** What a visitor with nothing saved gets. */
-export const defaultGraphics = (touch = isTouchDevice()): Graphics =>
+export const defaultGraphics = (touch = isTouchDevice() || softwareRenderer()): Graphics =>
   touch ? { quality: 'low', glow: false, fps: false } : { quality: 'high', glow: true, fps: false };
 
 const read = (): Graphics => {

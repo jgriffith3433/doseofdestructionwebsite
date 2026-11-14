@@ -2,13 +2,14 @@
 // campaign's scene-fight-scene rhythm.
 
 // First: analytics (Hawkes Analytics, analytics.ts) marks the load start and stamps the build.
+import { bootFail, bootReady, bootStep, pressHandled } from './boot.ts';
 import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
 import { addWin } from './looks.ts';
 import { audio, tapState, type Spatial } from './audio.ts';
 import type { VoiceKind } from './voiceDirector.ts';
 import { panFromScreen } from './roomAudio.ts';
-import { Commentator, introCall, type Call } from './commentary.ts';
+import { Commentator, introCall, suddenDeathCall, type Call } from './commentary.ts';
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
 import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
 import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings, hitVibrate } from './touchSettings.ts';
@@ -17,7 +18,6 @@ import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
 import { GAMEPAD_HELP, KEYBOARD_HELP, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
-import { installPerfMonitor } from './playtest/hawkes-perf.js';
 import { damageColor, damageShake, hitTier } from './hitFeel.ts';
 import { clearMarkers, markerLog, markerRects, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
@@ -38,9 +38,9 @@ import { FX } from './sim/fixed.ts';
 import { playColdOpen, playExchange, playScene, skipScene, type SceneCard, type SceneLine, type SceneStage } from './ui/scene.ts';
 import { chunkLine, chunkTimes } from './campaign/sceneText.ts';
 import { exchangeFor, markExchangeSeen, seenExchanges, type Exchange } from './campaign/intros.ts';
-import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
+import type { MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
-import { step } from './sim/step.ts';
+import { step, SUDDEN_HOLD } from './sim/step.ts';
 import { stageIndex } from './sim/stage.ts';
 import type { GameState } from './sim/state.ts';
 import { HighlightPlayer, loadHighlight, nextChapterId, recapApplies, recapId, saveHighlight, teaseId } from './campaign/highlight.ts';
@@ -72,7 +72,16 @@ const TICK_MS = 1000 / 60;
 type Phase = 'idle' | 'wait' | 'ready' | 'play' | 'pause' | 'scene';
 
 const canvas = $<HTMLCanvasElement>('stage');
-const renderer = new Renderer(canvas);
+bootStep('module', 'Starting the engine');
+let renderer: Renderer;
+try {
+  renderer = new Renderer(canvas);
+} catch (err) {
+  console.error('[dod-boot] the renderer could not start', err);
+  bootFail('Your browser could not start the game graphics (WebGL).');
+  throw err;
+}
+bootStep('engine', 'Engine ready');
 renderer.onSound = (id) => audio.sfx(id);
 renderer.onSynth = (kind) => audio.synth(kind);
 listenKeyboard();
@@ -147,10 +156,15 @@ function saveVersus(): void {
 
 // ------------------------------------------------------------- menu flow
 
+function startPressed(): void {
+  audio.line('announcer.title');
+  go('main', spotlight);
+}
+
 function wireMenus(): void {
   $('btn-start').addEventListener('click', () => {
-    audio.line('announcer.title');
-    go('main', spotlight);
+    if (pressHandled()) return; // Game/index.html took this press while the engine loaded and carries it out in bootReady
+    startPressed();
   });
   // Every button press in a menu clicks: on pointer down (with the pressed state, ui/dom.ts), so it sounds with the press, not
   // after the release; a key or pad press has no pointer down, so its click plays it. The click that follows a pointer-down
@@ -590,6 +604,7 @@ function replaySounds(events: SimEvent[]): void {
       if (e.dmg >= 130 && !events.some((k) => k.type === 'ko')) audio.crowd('ooh');
     } else if (e.type === 'ko') {
       audio.sfx('ko');
+      audio.killSting();
       audio.crowd('roar');
     }
   }
@@ -1260,6 +1275,7 @@ function beginReady(m: Match): void {
   readyFightId = audio.pickLine('announcer.ready-fight');
   if (readyFightId) void audio.call(readyFightId);
   else audio.line('announcer.ready');
+  airFlashed = false;
   commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state, Math.random, (id) => audio.voiceFresh(id)) : null;
   introPending = (commentator && (chapter ? introCall(chapter.id) : dailyRun?.setup === setup ? introCall(dailyRun.ep.blogChapter) : null)) || null;
   audio.playStageBed(STAGES[setup.stage].id);
@@ -1341,6 +1357,7 @@ function afterTick(m: Match, events: SimEvent[]): void {
   analytics.matchEvents(m, events);
   for (const w of matchWatchers) w(m, events);
   for (const e of events) {
+    if (e.type === 'sudden') suddenDeathMoment(m);
     if (e.type === 'hit' && !e.shield) {
       bumpHud(e.victim, e.dmg, m.state.fighters[e.victim]?.percent ?? 0);
       // Phone feel: a light buzz when you land a hit (Settings → Vibrate, where supported).
@@ -1366,6 +1383,10 @@ function afterTick(m: Match, events: SimEvent[]): void {
       introPending = null;
     }
     if (!introPending) for (const c of commentator.onEvents(s, events)) broadcast(c);
+  }
+  if (!airFlashed && !s.over && phase === 'play' && events.some((e) => e.type === 'ko')) {
+    airFlashed = true;
+    airFlash();
   }
   if (s.over && !shownOver) {
     shownOver = true;
@@ -1536,6 +1557,7 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         break;
       case 'ko': {
         audio.sfx('ko', { at: at(e.x, true) });
+        audio.killSting(at(e.x, true));
         // Crowd: roar on every KO; rising cheer when the killer was behind and is now level-or-ahead.
         const before = crowdStocksBefore.length === m.state.fighters.length
           ? crowdStocksBefore
@@ -1893,11 +1915,15 @@ function showNetStatus(f: OnlineFight): void {
   if (el.textContent !== text) el.textContent = text;
 }
 
-const ENDINGS: Record<FightEnd['reason'], (opp: string, won: boolean) => { headline: string; note?: string }> = {
-  game: (opp, won) => ({ headline: won ? 'You win' : `${opp} wins` }),
-  time: (opp, won) => ({ headline: won ? 'You win on time' : `${opp} wins on time` }),
-  forfeit: (opp, won) => (won ? { headline: 'You win', note: `${opp} left the match.` } : { headline: 'You left the match', note: `${opp} takes the win.` }),
-  disconnect: (opp, won) => (won ? { headline: 'Connection lost', note: `${opp} didn't make it back in 10 seconds. The win is yours, and it isn't rated.` } : { headline: 'Connection lost', note: `You didn't make it back in 10 seconds. ${opp} takes the match, and it isn't rated.` }),
+/** The plain line for how an online match ended (KO, time, sudden death, a quit, a drop) and how it was scored. */
+const ENDINGS: Record<FightEnd['reason'], (opp: string, won: boolean, sudden: boolean) => { headline: string; note?: string }> = {
+  game: (opp, won, sudden) => ({
+    headline: won ? 'You win' : `${opp} wins`,
+    note: sudden ? (won ? `Sudden death: your KO decided it.` : `Sudden death: ${opp}'s KO decided it.`) : won ? `KO: you took ${opp}'s last stock.` : `KO: ${opp} took your last stock.`,
+  }),
+  time: (opp, won) => ({ headline: won ? 'You win on time' : `${opp} wins on time`, note: won ? 'Time ran out with you ahead.' : `Time ran out with ${opp} ahead.` }),
+  forfeit: (opp, won) => (won ? { headline: 'You win', note: `${opp} left the match. Rated as a quit.` } : { headline: 'You left the match', note: `${opp} takes the win. Rated as a quit.` }),
+  disconnect: (opp, won) => (won ? { headline: 'Connection lost', note: `${opp} dropped and didn't rejoin in 10 seconds. The win is yours. Not rated as a quit: no rating change.` } : { headline: 'Connection lost', note: `You dropped and didn't rejoin in 10 seconds. ${opp} takes the match. Not rated as a quit: no rating change.` }),
   desync: () => ({ headline: 'Match void', note: 'The two games fell out of step (a desync). It has been reported. Queue again for a fresh match.' }),
   'no-start': (opp) => ({ headline: 'Match void', note: `${opp}'s game never started. Back to the queue whenever you like.` }),
 };
@@ -1913,7 +1939,7 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
   $('pause').hidden = true;
   if (settingsOpen()) closeSettings();
   const won = end.winner === f.slot;
-  const ending = ENDINGS[end.reason](f.opponent, won);
+  const ending = ENDINGS[end.reason](f.opponent, won, end.sudden);
   const voided = end.reason === 'desync' || end.reason === 'no-start';
   analytics.matchEnd(m, voided || (end.reason === 'forfeit' && !won) ? 'quit' : won ? 'complete' : 'death', { reason: end.reason });
   // A game that ended in the sim has had its Game! banner; an early end gets its own.
@@ -1993,6 +2019,19 @@ function askOnResults(m: Match): void {
   }, 900);
 }
 
+let airFlashed = false;
+
+/** The show reacts to the first KO of a bout: the ON AIR bug flashes red over the arena with "First blood" and a sting. */
+function airFlash(): void {
+  document.querySelector('.air-flash')?.remove();
+  const el = h('div', { class: 'air-flash', 'data-air': 'first-blood', 'aria-hidden': 'true' },
+    h('i', { class: 'dot' }), h('b', {}, 'On air'), h('span', {}, 'First blood'));
+  document.body.appendChild(el);
+  audio.synth('sting', 0.6);
+  window.setTimeout(() => el.remove(), 2200);
+  window.dispatchEvent(new CustomEvent('dod:air-flash', { detail: { kind: 'first-blood' } }));
+}
+
 /** A commentary call: spoken if it has a take, and captioned one short line at a time (and announced to the playtest). */
 function broadcast(c: Call): void {
   // The caption goes up when the take starts, and never for a take the voice director dropped (one speaker, one caption).
@@ -2030,8 +2069,19 @@ let freezeUntil = 0;
 const slamReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 /** ROUND START / GAME!: big type punches in with a camera shake and a hit sound (the announcer's line follows). */
-function slam(text: string, over = false): void {
-  const el = h('div', { class: over ? 'slam game' : 'slam' }, text);
+/** A dead-even time-out went to sudden death: the slam card, the alarm and sting, the announcer's call. */
+function suddenDeathMoment(m: Match): void {
+  document.body.classList.add('sudden-death');
+  slam('Sudden death!', false, 'sudden');
+  audio.synth('alarm', 0.8);
+  audio.synth('sting', 1);
+  audio.setMusicIntensity(true);
+  broadcast(suddenDeathCall());
+  window.dispatchEvent(new CustomEvent('dod:sudden-death', { detail: { at: Math.round(performance.now()), frame: m.state.frame, ids: m.state.fighters.filter((f) => f.suddenIn).map((f) => f.id) } }));
+}
+
+function slam(text: string, over = false, extra = ''): void {
+  const el = h('div', { class: (over ? 'slam game' : 'slam') + (extra ? ` ${extra}` : '') }, text);
   document.body.appendChild(el);
   el.addEventListener('animationend', () => el.remove());
   audio.sfx('vs-slam');
@@ -2094,6 +2144,8 @@ function buildHud(m: Match): void {
   }
   hud.hidden = false;
   const limit = m.state.rules.timeLimit;
+  document.body.classList.remove('sudden-death');
+  $('timer').classList.remove('sudden');
   $('timer').hidden = limit <= 0;
   const objective = $('objective');
   const shown = m.setup.objective === 'survive' || m.setup.objective === 'ko' || m.setup.objective === 'quota' || m.setup.objective === 'streak';
@@ -2117,7 +2169,13 @@ let hudStreak = -1;
 function updateHud(m: Match): void {
   const s = m.state;
   const cards = $('hud').children;
-  if (s.rules.timeLimit > 0) $('timer').textContent = formatTime(s.rules.timeLimit - s.frame);
+  if (s.sudden > 0) {
+    const timer = $('timer');
+    timer.hidden = false;
+    timer.classList.add('sudden');
+    $('match-top').hidden = false;
+    timer.textContent = s.sudden > SUDDEN_HOLD ? 'Zone closing' : 'Sudden death';
+  } else if (s.rules.timeLimit > 0) $('timer').textContent = formatTime(s.rules.timeLimit - s.frame);
   if (m.setup.objective === 'ko' && hudKos !== m.koCount()) {
     hudKos = m.koCount();
     $('objective').textContent = `KOs ${Math.min(hudKos, m.koTarget)}/${m.koTarget}`;
@@ -2270,6 +2328,7 @@ renderer.engine.runRenderLoop(() => {
   frame();
   if (!firstFrame) {
     firstFrame = true;
+    bootStep('frame', 'First frame drawn');
     requestAnimationFrame(() => document.getElementById('stage')?.classList.add('ready'));
   }
 });
@@ -2289,6 +2348,8 @@ const tapped = (): Promise<void> =>
 document.addEventListener('dod:tapped', () => focusFirst());
 // The title screen is up: the game is playable (game_ready).
 const titleUp = go('title').then(() => analytics.ready());
+// Menus are wired and the title is up: a Press start pressed while loading goes on into the menu now.
+titleUp.then(() => bootReady(startPressed));
 const playtestChapter = CHAPTERS.find((c) => c.id === params.get('chapter'));
 // First visit (campaign/firstVisit.ts): nothing saved, so Tap to play is the way into Season 1 Episode 1. It is decided at
 // the tap (a playtest clears storage first), and the backdrop under the prompt is only for a visit that starts clean.
@@ -2326,16 +2387,11 @@ if (playtestChapter) {
   );
 }
 
-// The perf readout (hawkes-perf.js) for playtest reports: the helper reads window.hawkesPerf.snapshot(). The scene
-// isn't a page global here, so hand it over; the monitor itself is only built at the first read (a playtest),
-// so players never run it.
-(window as unknown as { hawkesPerf: { snapshot(): unknown } }).hawkesPerf = {
-  snapshot: () => installPerfMonitor(renderer.scene).snapshot(),
-};
-
-// The Hawkes playtest contract (window.hawkesPlaytest). Idle until the runner
-// starts a scenario or the URL has ?playtest=<id>.
-installDodPlaytest({
+// The Hawkes playtest contract (window.hawkesPlaytest). The harness (playtest/dod.ts and the hawkes-*.js helpers,
+// ~600 KB) is a separate chunk that players never download: it loads with ?playtest=<id> in the URL, when the page is
+// framed by the site's playtest bridge, or the first time a runner calls the contract. Until then window.hawkesPlaytest
+// is a thin stand-in with the same shape (idle, not ready), so a runner that finds it and calls start() works as before.
+const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPlaytest>[0] = {
   match: () => match,
   phase: () => phase,
   setSeed: (seed) => (playtestSeed = seed),
@@ -2387,7 +2443,42 @@ installDodPlaytest({
   lookStats: () => renderer.lookStats(),
   aliveStats: () => renderer.aliveStats(),
   musicBedStats: () => audio.bedStats(),
-});
+  audioCacheStats: () => audio.cacheStats(),
+};
+
+type PlaytestApi = { version: 1; product: string; scenarios(): unknown[]; start(id: string, o?: unknown): Promise<void>; stop(): void; state(): Record<string, unknown>; report(): Record<string, unknown> | null; input?(a: string, d: boolean): void };
+{
+  const w = window as unknown as { hawkesPlaytest?: PlaytestApi; hawkesPerf?: { snapshot(): unknown } };
+  let real: PlaytestApi | null = null;
+  let loading: Promise<PlaytestApi> | null = null;
+  const load = (): Promise<PlaytestApi> =>
+    (loading ??= Promise.all([import('./playtest/dod.ts'), import('./playtest/hawkes-perf.js')]).then(([m, { installPerfMonitor }]) => {
+      m.installDodPlaytest(playtestHooks);
+      // The perf readout for playtest reports: the helper reads window.hawkesPerf.snapshot(); the monitor is built at the first read.
+      w.hawkesPerf = { snapshot: () => installPerfMonitor(renderer.scene).snapshot() };
+      real = w.hawkesPlaytest as PlaytestApi; // the install replaced the stand-in
+      return real;
+    }));
+  const stand: PlaytestApi = {
+    version: 1,
+    product: 'doseofdestruction',
+    scenarios: () => [],
+    start: (id, o) => load().then((api) => api.start(id, o)),
+    stop: () => void (real ?? null)?.stop(),
+    state: () => {
+      if (real) return real.state();
+      void load();
+      return { ready: false, status: 'idle', fps: 0 };
+    },
+    report: () => (real ? real.report() : null),
+    input: (a, d) => void (real ? real.input?.(a, d) : load().then((api) => api.input?.(a, d))),
+  };
+  w.hawkesPlaytest = stand;
+  const framed = (() => {
+    try { return window.parent !== window && !!(window.parent as unknown as { hawkesPlaytest?: unknown }).hawkesPlaytest; } catch { return false; }
+  })();
+  if (framed || /[?&]playtest\b/.test(location.search)) void load();
+}
 
 // Online is always on: the lobby is joined with no clicks (docs/online.md), but only now, after the game and the
 // playtest hook are up, and each part on its own guard: nothing online can stop single player.
