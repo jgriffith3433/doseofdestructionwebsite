@@ -207,6 +207,16 @@
       ]
     },
     {
+      "id": "auto-level",
+      "title": "Auto CPU level: quick play defaults to Auto, a clear win (2+ stocks left) raises the next CPU level by 1, a loss without taking a stock lowers it by 1, the VS card shows the level and Results notes the change on one line (phone: 390x844 touch)",
+      "description": "Setup shortcut: the saved Auto level (dod.profile.cpu) is set to 4. From the main menu a 3-stock Versus match is won by the bot: the VS card reads CPU · Level 4 · Auto (vs-level), a win with 2+ stocks left moves the level to 5 (auto-win) and Results shows the one-line note \"Auto: CPU level 4 → 5\" (level-note, level-note-fit: one line, inside the screen). Then a 1-stock match with the player held idle is a loss that takes no stock: the VS card shows level 5 and the level falls to 4 with its note (auto-loss). Phone: 390x844 turned to 844x390, played by taps. The player's own saved level is put back. Metrics autoLevelAfterWin, autoLevelAfterLoss.",
+      "seconds": 420,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "rumble",
       "title": "Rumble: a light hit, a heavy hit and a KO each send their own pad rumble and phone vibrate, and Settings > Rumble off sends none",
       "description": "Versus match against the CPU. Settings shows Rumble (on by default, 44 px tall: rumble-default); the fight logs each tier's pulse with its length and strength (rumble, rumble-tiers: light < heavy < KO), from Pause Rumble off (rumble-off) and the next hits send no rumble and no navigator.vibrate call (rumble-silent). Calm limits (reduced motion) cap the pulses. A portrait phone (390x844) checks Settings, then turns to 844x390 and plays by touch. The player's own dod.touch is put back.",

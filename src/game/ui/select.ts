@@ -17,6 +17,7 @@ import { hintText } from './teach.ts';
 import { landOn, resetLanding } from './nameCall.ts';
 import { currentScreen } from './screens.ts';
 import { TEAM_COLORS } from '../colourVision.ts';
+import { loadAutoLevel } from '../ai/autoLevel.ts';
 import { lookCount, lookOpen, openLook, preferredLook, rememberLook, separateLooks } from '../looks.ts';
 
 export interface VersusConfig {
@@ -90,6 +91,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
     return separateLooks(cfg.slots, may);
   };
   let slotFocus = -1;
+  const autoLevel = loadAutoLevel();
   fixLooks();
 
   const preview = $('select-preview');
@@ -294,7 +296,8 @@ export function openSelect({ mode, config, onDone }: Options): void {
         const c = CHARACTERS[s.char];
         const color = cfg.teams ? TEAM_COLORS[s.team ?? 0] : PLAYER_COLORS[i];
         const isCpu = s.cpu !== null;
-        const label = !isCpu ? 'You' : s.cpu === 0 ? 'Dummy' : `CPU · Level ${s.cpu}`;
+        const auto = isCpu && !training && s.auto !== false;
+        const label = !isCpu ? 'You' : s.cpu === 0 ? 'Dummy' : auto ? `CPU · Auto · Level ${autoLevel}` : `CPU · Level ${s.cpu}`;
         return h(
           'div',
           { class: `slot${i === active ? ' active' : ''}`, style: `--slot:${color}` },
@@ -323,6 +326,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
             h(
               'div',
               { class: 'slot-tools' },
+              !training && h('button', { type: 'button', class: 'auto-level', 'aria-pressed': String(auto), title: 'Auto: the level follows how you do', onclick: () => { s.auto = !auto; if (s.auto === false) s.cpu = autoLevel; renderSlots(); } }, 'Auto'),
               h('button', { type: 'button', 'aria-label': 'Lower level', onclick: () => level(i, -1) }, '−'),
               h('button', { type: 'button', 'aria-label': 'Raise level', onclick: () => level(i, 1) }, '+'),
               cfg.teams && h('button', { type: 'button', onclick: () => toggleTeam(i) }, TEAM_NAMES[s.team ?? 0]),
@@ -354,7 +358,10 @@ export function openSelect({ mode, config, onDone }: Options): void {
   function level(i: number, d: number): void {
     const s = cfg.slots[i];
     const min = training ? 0 : 1;
-    s.cpu = Math.max(min, Math.min(9, (s.cpu ?? 1) + d));
+    // A manual level always wins: moving it takes the slot off Auto, starting from the level Auto had.
+    const from = !training && s.auto !== false ? autoLevel : s.cpu ?? 1;
+    s.cpu = Math.max(min, Math.min(9, from + d));
+    if (!training) s.auto = false;
     renderSlots();
   }
 

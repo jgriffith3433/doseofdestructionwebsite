@@ -40,3 +40,12 @@ Code: `src/game/balance.ts`; gate: `src/game/test/balance.test.ts` (in `npm test
 | 31 | Spider Bot (spider-bot) | 38.8% | 149 | 384 |
 | 32 | Exit Punk (exit-punk) | 35.9% | 138 | 384 |
 | 33 | Ball Person (ball-person) | 32.6% | 125 | 384 |
+
+## Auto CPU level (quick play)
+
+Versus's CPU slots default to **Auto** (`ai/autoLevel.ts`; the slot's Auto button, off as soon as + or − is used, so a manual level
+always wins). The saved level lives beside the profile in `localStorage` `dod.profile.cpu` (`{ level }`, 1 to 9, starts at 3). A match
+made from the select (and its Rematch) plays at that level, the VS card reads "CPU · Level N · Auto", and a finished match moves it:
++1 after a clear win (at most one stock lost: 2+ left of 3; fewer stocks need a flawless win), -1 after a clear loss (no stock taken, or
+under 60% dealt), else it stays. A change shows as one line on Results ("Auto: CPU level 3 → 4", `.level-note`). Campaign, Tours, Training,
+Daily and online never use it. Scenario `auto-level`; `test/autoLevel.test.ts`.
