@@ -91,6 +91,7 @@ export default defineConfig({
     // Only the game is bundled. The rest of the site is static HTML copied as-is.
     rollupOptions: {
       input: { game: path.resolve(root, 'Game/index.html') },
+      maxParallelFileOps: 2, // fewer files read at once: lower peak memory in Studio's small build cell
       output: { manualChunks },
     },
   },
