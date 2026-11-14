@@ -6,10 +6,14 @@
 import { FX, rngNext } from '../sim/fixed.ts';
 import { CHARACTERS, MOVE, type SpecialKind } from '../sim/characters.ts';
 import { BTN, packInput } from '../sim/input.ts';
-import { STAGES, ledges, platformOn, type Platform, type StageDef } from '../sim/stage.ts';
+import { STAGES, ledges, platformAt, platformOn, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, allies, type Fighter, type GameState } from '../sim/state.ts';
 import { PLAYSTYLE, profileFor, type Playstyle, type PlaystyleId } from './profiles.ts';
+import { bodyOf, clearance, readDangers, type Dangers } from './hazardRead.ts';
 import { inWindupTell, isSmashMove, isSpecialMove, moveEndFrame, moveStartFrame } from '../hitFeel.ts';
+
+/** Room (world units) a bot wants between its body and a hazard or damage zone. */
+const HAZARD_SAFE = 18;
 
 interface Step {
   sx: number;
@@ -36,6 +40,22 @@ export class Bot {
   private pilotBase = -1;
   /** A playstyle given by the caller (tests); otherwise the fighter's own (ai/profiles.ts). */
   private readonly styleOverride: PlaystyleId | null;
+  /** Stage hazards: the stage has some, the read of this frame, since when the bot has seen the current warning, whether it ignores it. */
+  private hazardous = false;
+  private dangers: Dangers | null = null;
+  private dangersAt = -1;
+  private dangerSince = -1;
+  private oblivious = false;
+  private spot: { x: number; y: number; p: Platform } | null = null;
+  private spotAt = -9999;
+  private lureHopAt = -9999;
+  private lastClose = 0;
+  /** Until this frame the bot wades through always-on fog (a stand-off across a pit that nobody breaks). */
+  private braveUntil = -1;
+  /** Solid platforms that stand in an always-on damage zone (a fog pit). */
+  private pits = new Set<number>();
+  /** True while the bot is moving out of a hazard's way (the playtest reads it). */
+  avoiding = false;
 
   /** level runs 1 (easy) to 9 (hard); pilot makes it the slow, readable opponent of the first fight. */
   constructor(id: number, level: number, seed: number, pilot = false, style: PlaystyleId | null = null) {
@@ -47,8 +67,25 @@ export class Bot {
   }
 
   think(s: GameState): number {
-    this.stage = STAGES[s.stage] ?? STAGES[0];
+    if (this.stage !== (STAGES[s.stage] ?? STAGES[0]) || !this.state) {
+      this.stage = STAGES[s.stage] ?? STAGES[0];
+      this.hazardous = !this.pilot && (!!this.stage.hazards?.length || !!this.stage.zones?.some((z) => z.kind === 'damage'));
+      this.dangersAt = -1;
+      this.dangerSince = -1;
+      this.pits = new Set();
+      if (this.hazardous && this.level >= 3) {
+        this.stage.platforms.forEach((p, i) => {
+          const always = (this.stage.zones ?? []).some((z) => z.kind === 'damage' && !z.during && z.x2 > p.x1 + 40 && z.x1 < p.x2 - 40 && z.y1 < p.y + 110 && z.y2 > p.y);
+          if (p.solid && always) this.pits.add(i);
+        });
+      }
+    }
     this.state = s;
+    if (this.hazardous && s.frame % 3 === 0 && !this.avoiding && this.hazardAlarm(s)) {
+      // A warning is up and this spot is in its way: drop what is queued and decide now.
+      this.queue.length = 0;
+      this.wait = 0;
+    }
     const next = this.queue[0];
     if (next) {
       if (--next.frames <= 0) this.queue.shift();
@@ -65,6 +102,7 @@ export class Bot {
     if (--this.wait > 0) return packInput(this.hold.sx, this.hold.sy, 0);
     this.wait = this.reaction();
     this.decide(s);
+    if (this.hazardous) this.guardSteer(s);
     return packInput(this.hold.sx, this.hold.sy, 0);
   }
 
@@ -99,6 +137,8 @@ export class Bot {
     for (const [i, p] of this.stage.platforms.entries()) {
       // Not one an event has taken away right now.
       if (!p.solid || (this.state && !platformOn(this.stage, this.state, i))) continue;
+      // Not a platform that sits in a fog pit, unless nothing else is left.
+      if (this.pits.has(i) && !(this.state && this.state.frame < this.braveUntil) && this.pits.size < this.stage.platforms.filter((q) => q.solid).length) continue;
       const d = x < p.x1 ? p.x1 - x : x > p.x2 ? x - p.x2 : 0;
       if (d < bestD) {
         best = p;
@@ -136,6 +176,8 @@ export class Bot {
       return;
     }
     if (this.offstage(me)) return this.recover(me);
+    this.avoiding = false;
+    if (this.hazardous && this.avoidHazards(s, me)) return;
 
     const target = this.pickTarget(s, me);
     if (!target) return;
@@ -168,10 +210,10 @@ export class Bot {
     return x < h.x1 - 10 || x > h.x2 + 10 || y < h.y - 20;
   }
 
-  private recover(me: Fighter): void {
+  private recover(me: Fighter, to?: Platform): void {
     const x = me.x / FX;
     const y = me.y / FX;
-    const h = this.home(x);
+    const h = to ?? this.home(x);
     const toward = x > (h.x1 + h.x2) / 2 ? -100 : 100;
     const gap = x < h.x1 ? h.x1 - x : x > h.x2 ? x - h.x2 : 0;
     this.wait = 3;
@@ -204,6 +246,226 @@ export class Bot {
     else if (r < 0.5) this.press(0, 0, BTN.JUMP, 4);
     else if (r < 0.75) this.press(0, 0, BTN.ATTACK);
     else this.press(0, 0, BTN.SHIELD, 2);
+  }
+
+
+  // ---------------------------------------------------------------- stage hazards
+
+  /** This frame's read of what the stage will hurt (cached per frame). */
+  private read(s: GameState, me: Fighter): Dangers {
+    if (!this.dangers || this.dangersAt !== s.frame) {
+      this.dangers = readDangers(this.stage, s, me, s.frame < this.braveUntil);
+      this.dangersAt = s.frame;
+    }
+    return this.dangers;
+  }
+
+  /**
+   * Whether the bot has taken in what the stage is doing. Higher levels see a warning the frame it shows; lower ones
+   * a beat later (up to 2.4 s at level 1, when the warning is nearly over), and the lowest sometimes never do, so
+   * they still get caught. Fog pits that are always there are seen from level 3.
+   */
+  private aware(s: GameState, d: Dangers): boolean {
+    if (!d.event) {
+      this.dangerSince = -1;
+      return this.level >= 3;
+    }
+    if (this.dangerSince < 0) {
+      this.dangerSince = s.frame;
+      this.oblivious = this.random() < Math.max(0, 4 - this.level) * 0.2;
+    }
+    return !this.oblivious && s.frame - this.dangerSince >= (9 - this.level) * 18;
+  }
+
+  /** Room for the bot standing at x (its height now); in the air, the least of that and the room where it would land. */
+  private room(s: GameState, me: Fighter, d: Dangers, atX = me.x / FX): number {
+    const [hw, h] = bodyOf(me);
+    const y = me.y / FX;
+    const here = clearance(d, atX, y, hw, h);
+    if (me.grounded && atX === me.x / FX) return here;
+    // Highest platform top under the body.
+    let top = -Infinity;
+    this.stage.platforms.forEach((p, i) => {
+      if (!platformOn(this.stage, s, i)) return;
+      const a = platformAt(p, s.frame);
+      if (atX < a.x1 / FX || atX > a.x2 / FX || a.y / FX > y + 4) return;
+      top = Math.max(top, a.y / FX);
+    });
+    return top === -Infinity ? here : Math.min(here, clearance(d, atX, top, hw, h));
+  }
+
+  /** True when the bot has seen a danger and its spot is in the way. */
+  private hazardAlarm(s: GameState): boolean {
+    const me = s.fighters[this.id];
+    if (me.action === ACT.DEAD || me.action === ACT.RESPAWN || me.action === ACT.HITSTUN || me.action === ACT.LEDGE || s.over) return false;
+    const d = this.read(s, me);
+    if (!d.circles.length && !d.rects.length) {
+      this.dangerSince = -1;
+      return false;
+    }
+    if (!this.aware(s, d)) return false;
+    return this.room(s, me, d) < HAZARD_SAFE;
+  }
+
+  /** Moves out of the way when the bot's spot is in a hazard's path or zone: true when it acted. */
+  private avoidHazards(s: GameState, me: Fighter): boolean {
+    const d = this.read(s, me);
+    if (!d.circles.length && !d.rects.length) {
+      this.dangerSince = -1;
+      return false;
+    }
+    if (!this.aware(s, d)) return false;
+    const [hw, h] = bodyOf(me);
+    if (this.room(s, me, d) >= HAZARD_SAFE) return false;
+    // Stick to the spot picked a moment ago while it stays clear (no dithering between two equal ways out).
+    let spot = this.spot;
+    if (!spot || s.frame - this.spotAt > 120 || clearance(d, spot.x, spot.y, hw, h) < HAZARD_SAFE) {
+      spot = this.safeSpot(s, me, d, hw, h);
+      this.spot = spot;
+      this.spotAt = s.frame;
+    }
+    if (!spot) return false;
+    this.avoiding = true;
+    this.queue.length = 0;
+    this.goTo(me, spot.x, spot.y, spot.p);
+    return true;
+  }
+
+  /** The nearest standing spot with room around it: a platform top, sampled along its length. */
+  private safeSpot(s: GameState, me: Fighter, d: Dangers, hw: number, h: number): { x: number; y: number; p: Platform } | null {
+    const mx = me.x / FX;
+    const my = me.y / FX;
+    let best: { x: number; y: number; p: Platform } | null = null;
+    let bestCost = Infinity;
+    let roomy: { x: number; y: number; p: Platform } | null = null;
+    let roomyClear = -Infinity;
+    this.stage.platforms.forEach((p, i) => {
+      if (!platformOn(this.stage, s, i)) return;
+      const a = platformAt(p, s.frame);
+      const x1 = a.x1 / FX + hw * 0.5;
+      const x2 = a.x2 / FX - hw * 0.5;
+      const y = a.y / FX;
+      const n = Math.max(1, Math.ceil((x2 - x1) / 40));
+      for (let k = 0; k <= n; k++) {
+        const x = n === 0 || x2 <= x1 ? (a.x1 + a.x2) / FX / 2 : x1 + ((x2 - x1) * k) / n;
+        const c = clearance(d, x, y, hw, h);
+        if (c > roomyClear) {
+          roomyClear = c;
+          roomy = { x, y, p };
+        }
+        if (c < HAZARD_SAFE + 12) continue;
+        // Walking is cheap, a hop up dearer, and a rise past two jumps (a climb out of a pit) dearest.
+        const rise = Math.max(0, y - my);
+        const cost = Math.abs(x - mx) + 0.4 * Math.max(0, my - y) + 1.6 * Math.min(rise, 200) + 8 * Math.max(0, rise - 200);
+        if (cost < bestCost) {
+          bestCost = cost;
+          best = { x, y, p };
+        }
+      }
+    });
+    // Nowhere with room (a damage zone over the whole stage): there is nothing to run to, so the bot fights on.
+    return best ?? (roomyClear >= HAZARD_SAFE ? roomy : null);
+  }
+
+  /** Walks, hops up or drops down to a standing spot. */
+  private goTo(me: Fighter, sx: number, sy: number, p: Platform): void {
+    const mx = me.x / FX;
+    const my = me.y / FX;
+    const dx = sx - mx;
+    const way = Math.sign(dx) * 100;
+    // A long climb (out of a fog pit) is a recovery: jumps, up special, the ledge.
+    if (sy > my + 215) {
+      const here = me.grounded && me.platform >= 0 ? this.stage.platforms[me.platform] : null;
+      // On the ground of a pit: walk to the edge nearest the way out first, so the jump starts beside it.
+      if (here) {
+        const edge = dx > 0 ? here.x2 - 40 : here.x1 + 40;
+        if (Math.abs(edge - mx) > 30 && Math.sign(edge - mx) === Math.sign(dx)) {
+          this.steer(Math.sign(dx) * 100);
+          this.wait = 3;
+          return;
+        }
+      }
+      return this.recover(me, p);
+    }
+    this.wait = 3;
+    if (!me.grounded) {
+      this.steer(Math.abs(dx) > 12 ? way : 0);
+      if (sy > my + 20 && me.vy <= 0 && me.jumpsLeft > 0 && me.action !== ACT.HELPLESS) this.press(way * 0.6, 0, BTN.JUMP, 2);
+      return;
+    }
+    if (sy > my + 50) {
+      // Up: walk under it, then jump (the second jump comes in the air).
+      if (Math.abs(dx) < 70) {
+        this.press(Math.sign(dx) * 30, 0, BTN.JUMP, 8);
+        return;
+      }
+      this.steer(way);
+      return;
+    }
+    const under = me.platform >= 0 ? this.stage.platforms[me.platform] : null;
+    if (sy < my - 50 && under?.solid) {
+      // Down off a solid platform: walk off the end toward the spot, or the nearer end when the spot is under it.
+      const out = sx > under.x2 ? 1 : sx < under.x1 ? -1 : mx - under.x1 < under.x2 - mx ? -1 : 1;
+      this.steer(out * 100);
+      return;
+    }
+    if (sy < my - 50 && Math.abs(dx) < 90) {
+      // Down: fall through a soft platform.
+      this.queue.push({ sx: 0, sy: 0, btn: 0, frames: 1 }, { sx: 0, sy: -100, btn: 0, frames: 4 });
+      return;
+    }
+    this.steer(Math.abs(dx) > 14 ? way : 0);
+  }
+
+  /** Whether a fog or other damage zone that is always there lies between two platforms. */
+  private zoneBetween(a: Platform, b: Platform): boolean {
+    const lo = Math.min(a.x2, b.x2, a.x1, b.x1);
+    const hi = Math.max(a.x2, b.x2, a.x1, b.x1);
+    return (this.stage.zones ?? []).some((z) => z.kind === 'damage' && !z.during && z.x2 > lo && z.x1 < hi);
+  }
+
+  /**
+   * Runs after a decision: from a safe spot, never walk, hop or dash into the way of a warned hazard. The held stick
+   * and the queued presses lose their sideways part when it would carry the bot into one.
+   */
+  private guardSteer(s: GameState): void {
+    if (this.avoiding) return;
+    const me = s.fighters[this.id];
+    const d = this.read(s, me);
+    if (!d.circles.length && !d.rects.length) return;
+    if (!this.aware(s, d)) return;
+    const x = me.x / FX;
+    const now = this.room(s, me, d);
+    const bad = (sx: number, reach: number): boolean => {
+      const ahead = this.room(s, me, d, x + Math.sign(sx) * reach);
+      return ahead < HAZARD_SAFE && ahead < now;
+    };
+    if (this.hold.sx !== 0 && bad(this.hold.sx, 90)) this.steer(0, this.hold.sy);
+    if (this.queue.some((q) => q.sx !== 0 && bad(q.sx, 140))) for (const q of this.queue) q.sx = 0;
+  }
+
+  /**
+   * Level 6 and up: when a hazard is about to cross near the target, the side it comes from. -1 or 1 is the direction
+   * a launch should send the target (toward the hazard); 0 means no use being made of it.
+   */
+  private lure(me: Fighter, t: Fighter): number {
+    const s = this.state;
+    if (!s || !this.hazardous || this.level < 6) return 0;
+    const d = this.read(s, me);
+    const [hw, h] = bodyOf(me);
+    if (clearance(d, me.x / FX, me.y / FX, hw, h) < HAZARD_SAFE + 20) return 0;
+    const tx = t.x / FX;
+    const ty = t.y / FX;
+    let best = 0;
+    let bestD = 650;
+    for (const c of d.circles) {
+      if (c.t > 150 || Math.abs(c.y - ty) > 420) continue;
+      const gap = Math.abs(c.x - tx);
+      if (gap < 90 || gap >= bestD) continue;
+      bestD = gap;
+      best = Math.sign(c.x - tx);
+    }
+    return best;
   }
 
   private pickTarget(s: GameState, me: Fighter): Fighter | null {
@@ -260,6 +522,11 @@ export class Bot {
   private special(me: Fighter, kind: SpecialKind, side: number, chance: number, frames = 1): boolean {
     const slot = this.slotOf(me, kind);
     if (!slot || this.random() >= chance) return false;
+    // A dash carries the bot a long way: not while the stage is warning or running something at it.
+    if (kind === 'dash' && this.hazardous && this.state) {
+      const d = this.read(this.state, me);
+      if (d.event && this.aware(this.state, d)) return false;
+    }
     const [sx, sy] = this.slotStick(slot, side);
     this.press(sx, sy, BTN.SPECIAL, frames);
     return true;
@@ -368,6 +635,7 @@ export class Bot {
     const skill = this.level / 9;
     const ps = this.style(me);
     const keep = reach * ps.spacing;
+    if (this.state && adx < reach * 2 && Math.abs(dy) < 150) this.lastClose = this.state.frame;
     const busy = me.action === ACT.ATTACK || me.action === ACT.LAND || me.action === ACT.JUMPSQUAT;
     if (busy) return;
 
@@ -437,6 +705,22 @@ export class Bot {
         }
       }
       if (adx < reach && Math.abs(dy) < 50 * k) {
+        const lure = this.lure(me, t);
+        if (lure !== 0 && me.facing === Math.sign(dx)) {
+          if (side === lure * 100) {
+            // The hazard is on the far side of them: a smash sends them into it.
+            if (this.random() < 0.75) {
+              this.press(side, 0, side > 0 ? BTN.C_RIGHT : BTN.C_LEFT);
+              return;
+            }
+          } else if (this.state && this.state.frame - this.lureHopAt > 90 && !nearEdge) {
+            // Wrong side: hop over them so the next swing launches toward the hazard.
+            this.lureHopAt = this.state.frame;
+            this.press(side, 0, BTN.JUMP, 6);
+            this.queue.push({ sx: side, sy: 0, btn: 0, frames: 22 });
+            return;
+          }
+        }
         if (nearEdge) {
           // Facing out over the edge: the forward smash sends them far.
           this.press(side, 0, side > 0 ? BTN.C_RIGHT : BTN.C_LEFT);
@@ -492,6 +776,17 @@ export class Bot {
         return;
       }
       if (targetHome !== h && nearEdge) {
+        // Over a fog pit the bot waits at the edge for them to come. A stand-off nobody breaks ends with a short
+        // wade across, then it climbs out again.
+        if (this.hazardous && this.level >= 3 && this.state && this.zoneBetween(h, targetHome) && this.state.frame >= this.braveUntil) {
+          if (this.state.frame - this.lastClose < 900) {
+            this.steer(0);
+            return;
+          }
+          this.braveUntil = this.state.frame + 360;
+          this.lastClose = this.state.frame;
+          this.dangersAt = -1;
+        }
         // The target is on another island: jump the gap.
         this.press(side, 0, BTN.JUMP, 8);
         this.queue.push({ sx: side, sy: 0, btn: 0, frames: 14 }, { sx: side, sy: 0, btn: BTN.JUMP, frames: 2 });
