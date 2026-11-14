@@ -14,7 +14,7 @@ import { hasReward, pickedTitle, rewardLine, setVariant, variantsFor, type Rewar
 import { PLAYER_COLORS, prefetchStage } from '../render/renderer.ts';
 import { SHAPE_GLYPH, shapeOf } from '../colourVision.ts';
 import { TEAM_COLORS } from './select.ts';
-import { $, formatTime, h, kids, pct, portraitSize, portraitUrl, thumbUrl } from './dom.ts';
+import { $, formatTime, h, kids, largeUrl, pct, portraitSize, portraitUrl, thumbUrl } from './dom.ts';
 import type { ModeStage } from '../modes.ts';
 import { audio } from '../audio.ts';
 import { lookChip, paintImage } from './lookUi.ts';
@@ -137,9 +137,24 @@ export function openStages(
 /** Fills the VS splash. Resolves when it has played or the player skips it. */
 /** A picture of a fighter in the colour it plays in. */
 function paintedImg(url: string, char: number, look: number, cls = ''): HTMLImageElement {
-  const img = h('img', { alt: '', class: cls || undefined }) as HTMLImageElement;
+  const img = h('img', { alt: '', class: cls || undefined, 'data-fighter': CHARACTERS[char]?.id }) as HTMLImageElement;
+  // A portrait that fails to load falls back to the fighter's large cutout, then the thumbnail, never a blank plate
+  // (character select does the same); `data-fallback` says which one is showing, so the playtest can report it.
+  const id = CHARACTERS[char]?.id;
+  const fallbacks = id ? [largeUrl(id), thumbUrl(id)] : [];
+  img.addEventListener('error', () => {
+    const next = fallbacks.shift();
+    if (!next) return;
+    img.dataset.fallback = next;
+    img.src = next;
+  });
   paintImage(img, url, char, look);
   return img;
+}
+
+/** The painted portrait on a VS card (also built by the portraits playtest for every fighter, so the real element is what it checks). */
+export function vsPortrait(char: number, look = 0, size: 256 | 512 = portraitSize()): HTMLImageElement {
+  return paintedImg(portraitUrl(CHARACTERS[char].id, size), char, look, 'vs-portrait');
 }
 
 /** Gap between two announcer calls on the VS card, and the most the calls may take (so the card is never held past its cap). */
@@ -168,7 +183,7 @@ export function playVersus(setup: MatchSetup): Promise<void> {
             return h(
               'figure',
               { class: 'vs-fighter', 'data-fighter': c.id, 'data-look': String(s.look ?? 0), style: `--slot:${color}` },
-              paintedImg(portraitUrl(c.id, portraitSize()), s.char, s.look ?? 0, 'vs-portrait'),
+              vsPortrait(s.char, s.look ?? 0),
               h(
                 'figcaption',
                 { class: 'vs-card' },

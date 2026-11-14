@@ -518,11 +518,31 @@
       ]
     },
     {
+      "id": "roster-intro",
+      "title": "Roster after Play: Press start opens the roster (every fighter, locked ones with the episode that opens them, open count, next unlock, show size); a tap on a locked tile says how to open it; Continue goes to the main menu (phone: 390x844 touch, no sideways scroll, 44 px)",
+      "description": "Tap to play, Press start, then the roster screen (ui/roster.ts): one tile per fighter (`roster`: tiles, open, locked, next unlock line, stats), the fit at the window size with 44 px targets on touch (`roster-fit`, metric rosterFits), a tap on a locked tile shows its Clear Season N, Episode M route (`roster-locked-route`), a tap on an open one names them (`roster-open-pick`), Continue goes on to the main menu (`roster-continue`). Every other scenario skips the roster so its menu clicks still work. Metrics rosterTiles, rosterLocked, rosterFits.",
+      "seconds": 60,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "tour",
       "title": "Tour: pick a fighter, play their six-fight run (fights 1 and 2, then the rival), a Continue after a loss, the voiced ending with the closing card, the Tour marked cleared and still marked after a reload (phone: 390x844 touch)",
       "description": "Option fighter (default exit-punk). Main menu → Tour (tour-select: every fighter's tile, none cleared on a fresh save, no sideways scroll, 44 px targets and no overlap on a phone; metric tourSelectFits). Setup shortcut: the Continue or Quit panel is shown without losing a fight so a portrait phone can measure it (tour-choice-fit; metric tourChoiceFits). Picks the fighter's tile and plays fights 1 and 2 with the bot on the pad: each opens in the arena with the fight's card and the foe's recorded line (tour-scene) and checks the twist, stage and CPU level from content/tours.json (tour-fight), the CPU never easier. Setup shortcut: after fight 2 the run jumps to the last fight, the rival; the player stands still until knocked out (tour-lost: Continue or Quit, both ≥44 px and on screen), Continue replays that fight (tour-continue), then the bot wins. The ending plays the fighter's own recorded win line over the final KO under the closing card \"<Fighter> clears the Tour\" (tour-ending), the results show the banner and the KO highlights (tour-cleared; metric tourCleared), the Tour select marks the Tour cleared (tour-marked), and after a page reload the mark is still there (tour-mark-after-reload; metric tourMarkedAfterReload). On a portrait phone it checks the select and the panel in the portrait window and plays in the turned 844x390 frame, all by taps. The player's own dod-tours is put back.",
       "starts": [],
       "seconds": 540,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "tour-stages",
+      "title": "Tour stages: every stage a Tour fight uses starts as the real Tour fight, in Tour order, and plays (phone: 390x844 turned to landscape, touch)",
+      "description": "Each stage in content/tours.json is started as its Tour fight (the fighter's own route first, then the first fight in any other route that uses a stage not yet seen): VS card, the foe's scene, Ready, Go. Per stage: it starts within 60 s on the right stage with the right foes, the sim clock runs, nobody is NaN or far outside the blast zone for 4 s of play, no console error or uncaught exception, then the match is left. Any stage that fails is a bug problem. Options: fighter (the route played first, default exit-punk), stage (just that one), input (touch forces the touch UI), at (phone). Metrics tourStagesPlayed, tourStagesExpected. Events tour-stage, tour-stages.",
+      "seconds": 600,
       "tags": [
         "full",
         "touch"
@@ -683,6 +703,15 @@
       ]
     },
     {
+      "id": "menu-modes",
+      "title": "Main menu mode choice and the loading bar: Story, Versus and Play are three big buttons, and a match loads under a progress bar, not bare text",
+      "description": "From Tap to play to the main menu: the Story / Versus / Play row is on screen, each 44 px or more, inside the window with no sideways scroll (mode-row, mode-fit). Then Versus is tapped from that row and a 1v1 is started; the loading veil and VS progress bar are watched (loading-bar: the veil must hold a bar, never bare text). Phone 390x844 touch: every press is a pointer tap.",
+      "seconds": 120,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "share",
       "title": "Share a result: the results offer Share, a tap sends the PNG card through navigator.share with the file, without it the card downloads and the text line is copied",
       "description": "A versus match (1 stock) is played to the results, which must offer a Share button of 44 px or more. A tap draws the card (winner, fighters, stage, KOs) and calls navigator.share with a PNG file (a stand-in records it: share-sheet, share-card). Then navigator.share is removed and a second tap must download the card and copy the text line (share-fallback). Phone 390x844 touch: every press is a pointer tap, in the turned frame. Metric shareCardBytes.",
@@ -795,6 +824,16 @@
       ]
     },
     {
+      "id": "first-round",
+      "title": "First round: a live CPU fights back within 10 s, then a launch and a blast-zone KO end the stock (phone: 390x844 touch, played turned)",
+      "description": "Versus 1v1, one stock, Exit Punk (the playtest bot) against a level 5 Break CPU on City Top (options: stage, level, fighter via seed). Logs cpu-attack and cpu-hit-back (seconds after GO; a bug if the CPU has not attacked by 10 s), first-launch and blast-ko (a launch that carries a fighter out of the blast zone; a bug if the round ends without one), first-round summary. Metrics cpuFirstAttackS, cpuFirstHitS, firstLaunches, blastKos. On a phone (390x844 turned to 844x390) the same match plays with touch controls.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "ledge-options",
       "title": "Ledge options: from the ledge Attack sweeps low and hits a fighter at the edge, Shield rolls onto the stage, Jump leaps up, stick up climbs, and holding on too long drops the fighter (phone: 390x844 touch, the same buttons)",
       "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus). The player walks off the stage edge with the stick (the sim catches the ledge), hangs with no input for a few frames (ledge-hold: nothing climbs by itself), then each option from real input: stick up is the getup (ledge-getup, stands just inside the edge), Shield rolls a body-length further in (ledge-roll), Attack climbs and sweeps low with the down tilt and hits the dummy stood at the edge (ledge-attack; setup shortcut puts the dummy there), Jump leaps well above the ledge (ledge-jump), and with no input the hang runs out and the fighter drops (ledge-drop, ledgeHangFrames, 4 s). Each logs its invincibility frames. Keyboard on a desktop; at phone size (390x844, turned to 844x390 like touch-match) the on-screen stick, Attack, Shield and Jump buttons as touch pointer events with no new button (ledge-touch). Then the All controls page is opened and its keyboard, gamepad and touch lists must each have an On the ledge row (ledge-controls). Options: input (touch forces the overlay on a desktop window), at (phone). Metric ledgeOptions (5 when every option worked).",
@@ -846,8 +885,8 @@
     },
     {
       "id": "portraits",
-      "title": "Painted portraits: the title shows the roster key art, character select shows 33 portraits framed alike (256 px ones on a phone, 64 px or more with readable names), the VS card and the results show the same pictures (phone: 390x844 turned to landscape, touch)",
-      "description": "Title: the key art (site/img/key-art-*, 16:9) is loaded and fills the screen behind the logo, cropped to the centre of the cast (title-key-art). Versus select: 33 portrait tiles (characters/portrait/<id>-256.webp), every one loaded, square, drawn at the same size so the faces sit in the same band, each with its full name beside it and no text cut off (select-portraits, select-framing, select-names; on a phone each at least 64 px wide and the 256 px file: select-phone-size, metric portraitTilePx). A tap on a tile puts the same picture in the preview where it shows (select-preview-same). A 1-stock match: the VS card shows each fighter's portrait plate (vs-portraits, same file as select) and the results show the winner's (results-portrait, results-same). Played through taps on a phone (390x844 is turned to 844x390 like select-specials). Options: fighter, foe, input (touch forces the touch UI), at (phone). Metrics portraitsShown, portraitTilePx.",
+      "title": "Painted portraits: the title shows the heroes lineup banner, character select shows 33 portraits framed alike (256 px ones on a phone, 64 px or more with readable names), the VS card and the results show the same pictures, and every one of the 33 VS portraits loads at both sizes (phone: 390x844 turned to landscape, touch)",
+      "description": "Title: the heroes lineup (site/img/lineup-*) is loaded and fills the screen behind the logo, with Play on screen (title-key-art, title-play-visible). Versus select: 33 portrait tiles (characters/portrait/<id>-256.webp), every one loaded, square, drawn at the same size so the faces sit in the same band, each with its full name beside it and no text cut off (select-portraits, select-framing, select-names; on a phone each at least 64 px wide and the 256 px file: select-phone-size, metric portraitTilePx). A tap on a tile puts the same picture in the preview where it shows (select-preview-same). A 1-stock match: the VS card shows each fighter's portrait plate (vs-portraits, same file as select) and the results show the winner's (results-portrait, results-same). Then every fighter's VS portrait element (ui/views.ts vsPortrait) are built at 256 and 512 px and must each load with naturalWidth > 0, the right fighter and size, with no fallback picture (vs-portraits-all; a failing fighter is named). The VS card must show both sides. Played through taps on a phone (390x844 is turned to 844x390 like select-specials). Options: fighter, foe, input (touch forces the touch UI), at (phone). Metrics portraitsShown, portraitTilePx, vsPortraitsLoaded.",
       "seconds": 300,
       "tags": [
         "full",

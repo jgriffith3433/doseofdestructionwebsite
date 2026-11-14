@@ -2,6 +2,7 @@
 // campaign's scene-fight-scene rhythm.
 
 // First: analytics (Hawkes Analytics, analytics.ts) marks the load start and stamps the build.
+import { FutureTaunts } from './campaign/futureTaunts.ts';
 import { bootFail, bootReady, bootStep, pressHandled } from './boot.ts';
 import { setShareExtra } from './ui/share.ts';
 import * as analytics from './analytics.ts';
@@ -77,6 +78,7 @@ import { ENDINGS as TOUR_ENDINGS, endingFor, type Ending } from './campaign/endi
 import { playEnding } from './ui/ending.ts';
 import { openingSeen, openingShowing, playOpening } from './ui/opening.ts';
 import { renderEndings } from './ui/extras.ts';
+import { renderRoster, rosterWanted } from './ui/roster.ts';
 import { renderTourChoice, renderTourSelect, tourBanner } from './ui/tour.ts';
 import { VOICE } from './audio.ts';
 import { clearWinQuote, pickWinQuote, type WinQuote } from './winQuote.ts';
@@ -178,7 +180,9 @@ function saveVersus(): void {
 
 function startPressed(): void {
   audio.line('announcer.title');
-  go('main', spotlight);
+  // Right after Play: the roster (who is open, who is locked and what opens them), then the main menu.
+  if (rosterWanted() && !isFirstVisit()) void go('roster', () => void renderRoster({ onContinue: () => void go('main', spotlight) }));
+  else go('main', spotlight);
 }
 
 let shownPadFamily = '';
@@ -243,6 +247,7 @@ function wireMenus(): void {
   document.querySelectorAll<HTMLButtonElement>('[data-back]').forEach((b) =>
     b.addEventListener('click', () => back()),
   );
+  onBack('roster', () => go('title'));
   onBack('main', () => go('title'));
   onBack('select', () => go('main', spotlight));
   onBack('stages', () => (lastSelect === 'training' ? openTraining() : openVersus()));
@@ -735,14 +740,14 @@ async function runScene(m: Match, cue: SceneCue): Promise<void> {
     // (a failed picture is skipped, never waited for) before the first beat starts its clock, under the loading veil.
     if (renderer.stageArtPending()) {
       const veil = $('loading');
-      veil.textContent = 'Loading the stage…';
+      setVeil('Loading the stage…');
       veil.hidden = false;
       await renderer.stageArtReady(STAGE_ART_HOLD_MS * 3);
       renderer.render(m.state);
       await nextFrame();
       renderer.render(m.state);
       veil.hidden = true;
-      veil.textContent = 'Loading fighters…';
+      setVeil('Loading fighters…');
       if (match !== m) return;
     }
     const end = await playColdOpen(sceneStage(m), c.coldOpen);
@@ -1538,8 +1543,12 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     fightersReady = renderer.setFighters(m.state, false, 30000).catch(() => renderer.setFighters(m.state, false, 30000));
     warm = Promise.all([fightersReady, audioReady]).then(() => renderer.warmUp(m.state)).catch((err) => console.error(err));
     // The loading screen stays up until the match's first frame is drawn (under the wipe).
+    setVeil('Loading fighters…', 0.05);
+    renderer.onLoadProgress = (done, total) => setVeil('Loading fighters…', total ? (done / total) * 0.9 : 0.05);
     $('loading').hidden = false;
     await warm;
+    renderer.onLoadProgress = null;
+    setVeil('Loading fighters…', 1);
     // Painted stage layers (and their alpha masks) are decoded before the first frame, not mid-match.
     await renderer.stageArtReady(4000);
     if (stale()) return;
@@ -1647,11 +1656,22 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
 /** How long the match waits, after the wipe, for the stage's pictures before it shows the arena anyway (a failed picture is skipped, never waited for). */
 const STAGE_ART_HOLD_MS = 8000;
 
+/** The loading veil's text and bar (0..1, or null = a sliding bar while nothing is measured). */
+function setVeil(text: string, p: number | null = null): void {
+  const t = document.getElementById('loading-text'); if (t) t.textContent = text;
+  const v = document.getElementById('loading'); const f = document.getElementById('loading-fill');
+  if (!v || !f) return;
+  v.classList.toggle('indeterminate', p === null);
+  f.style.width = p === null ? '' : `${Math.round(Math.min(1, p) * 100)}%`;
+  if (p !== null) v.setAttribute('aria-valuenow', String(Math.round(p * 100)));
+  else v.removeAttribute('aria-valuenow');
+}
+
 /** Keeps the loading veil over the arena until every stage layer is loaded (or has failed), then lets two frames paint. */
 async function holdForStageArt(m: Match): Promise<void> {
   if (!renderer.stageArtPending()) return;
   const veil = $('loading');
-  veil.textContent = 'Loading the stage\u2026';
+  setVeil('Loading the stage\u2026');
   veil.hidden = false;
   await renderer.stageArtReady(STAGE_ART_HOLD_MS);
   if (match === m) {
@@ -1660,7 +1680,7 @@ async function holdForStageArt(m: Match): Promise<void> {
     renderer.render(m.state);
   }
   veil.hidden = true;
-  veil.textContent = 'Loading fighters\u2026';
+  setVeil('Loading fighters\u2026');
 }
 
 /** The "Ready... FIGHT!" take that opened this Ready phase (its FIGHT is the Go), or null. */
@@ -1689,6 +1709,8 @@ function beginReady(m: Match): void {
   audio.setMusicIntensity(audio.shouldBeIntense(m.state.fighters));
   lastActions = m.state.fighters.map((f) => f.action);
   crowdStocksBefore = m.state.fighters.map((f) => f.stocks);
+  futureTaunts = new FutureTaunts();
+  document.querySelector('.booth-taunt')?.remove();
   canvas.focus();
 }
 
@@ -1779,6 +1801,26 @@ function showPauseOwner(slot: number | null): void {
 let lastActions: number[] = [];
 /** Stocks snapshot before each KO batch, for crowd comeback cheers (mirrors commentary). */
 let crowdStocksBefore: number[] = [];
+let futureTaunts = new FutureTaunts();
+let futureTauntTimer = 0;
+
+/** Future Man answers the fight: a hit landed or taken, the other fighter on the ledge. A recorded take plays when there is one; the caption is one short line. */
+function futureManTaunt(m: Match, events: ReturnType<Match['tick']>): void {
+  const me = m.state.fighters.findIndex((f) => CHARACTERS[f.char].id === 'future-man');
+  if (me < 0 || m.state.fighters.length < 2) return;
+  for (const e of events) {
+    const t = futureTaunts.react(e, me, m.state.frame);
+    if (!t) continue;
+    const take = audio.hasTake(t.id) ? t.id : null;
+    if (take) void audio.line(take, 'taunt');
+    document.querySelector('.booth-taunt')?.remove();
+    document.body.appendChild(h('div', { class: 'booth booth-taunt', 'data-line': t.id, 'data-kind': t.kind }, h('span', { class: 'booth-who' }, 'Future Man'), h('span', { class: 'booth-text' }, t.text)));
+    window.clearTimeout(futureTauntTimer);
+    futureTauntTimer = window.setTimeout(() => document.querySelector('.booth-taunt')?.remove(), 2600);
+    window.dispatchEvent(new CustomEvent('dod:future-taunt', { detail: { id: t.id, take, kind: t.kind, text: t.text, frame: m.state.frame } }));
+    return;
+  }
+}
 let startToken = 0;
 
 function tick(m: Match): void {
@@ -1954,6 +1996,7 @@ function showBanner(text: string, ms: number): HTMLElement {
 function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
   // A killing blow gets the KO roar, not a gasp on top of it in the same frame.
   const koThisTick = events.some((k) => k.type === 'ko');
+  futureManTaunt(m, events);
   for (const e of events) {
     switch (e.type) {
       case 'hit':
@@ -1966,6 +2009,8 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
           if (!(specialLayer && tier === 'light')) audio.sfx(HIT_SOUND[tier], { vary: true, at: at(e.x), gain: hitGain(e.dmg) });
           // Heavy hits: the studio crowd gasps (ooh). Medium/heavy: the victim's hurt bark.
           if (e.dmg >= 130 && !koThisTick) audio.crowd('ooh');
+          // Every launch (a medium or heavy hit) has a low body thud under the crack, scaled by the knockback, so the air never goes dry.
+          if (tier !== 'light') audio.synth('thud', 0.4 + Math.min(1, e.kb / 90) * 0.5);
           if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt', at(m.state.fighters[e.victim].x));
         }
         break;
@@ -3044,10 +3089,49 @@ document.addEventListener('dod:tapped', () => {
   const s = currentScreen();
   if (!openingShowing() && (!s || s === 'title')) audio.playMusic('music-title');
 });
+// Title music from the first frame: the loop is chosen and its file fetched now, and the context is opened at once. If the browser
+// allows sound already it plays; otherwise it starts on the very first tap (the context is resumed from that gesture).
+if (!params.has('play') && !params.has('playtest') && !params.has('chapter') && !params.has('invite')) {
+  audio.playMusic('music-title');
+  audio.unlock();
+}
 // The title screen is up: the game is playable (game_ready).
 const titleUp = go('title').then(() => analytics.ready());
 // Menus are wired and the title is up: a Press start pressed while loading goes on into the menu now.
 titleUp.then(() => bootReady(startPressed));
+
+/**
+ * Warm the first match while the player is still on the title and menus (feel: no menu-to-match frame over 250 ms).
+ * Network and decode only, one small step per idle slot so it never makes a hitch of its own: the roster's first
+ * fighters' art and clip sheets, the first stages' painted layers, the match audio (stage bed, fighter and announcer
+ * voices, UI sounds). startMatch then finds all of it cached. Skipped on a first visit (the pilot loads its own cast).
+ */
+function preloadFirstMatch(): void {
+  const idle = (fn: () => void) => {
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+    if (ric) ric(fn, { timeout: 2500 });
+    else setTimeout(fn, 300);
+  };
+  const steps: Array<() => unknown> = [];
+  const cast = CHARACTERS.slice(0, 4).map((_, i) => i);
+  steps.push(() => prefetchStage(0));
+  for (const c of cast) steps.push(() => prefetchFighters([c]));
+  steps.push(() => audio.preloadMatch(STAGES[0].id, cast.slice(0, 2).map((i) => CHARACTERS[i].id), 20000));
+  for (let s = 1; s < Math.min(3, STAGES.length); s++) steps.push(() => prefetchStage(s));
+  let n = 0;
+  const next = () => {
+    const step = steps[n++];
+    if (!step) {
+      window.dispatchEvent(new CustomEvent('dod:preload-done', { detail: { steps: steps.length } }));
+      return;
+    }
+    Promise.resolve().then(step).catch((err) => console.error(err)).then(() => idle(next));
+  };
+  idle(next);
+}
+titleUp.then(tapped).then(() => {
+  if (!isFirstVisit()) setTimeout(preloadFirstMatch, 800);
+});
 const playtestChapter = CHAPTERS.find((c) => c.id === params.get('chapter'));
 // First visit (campaign/firstVisit.ts): nothing saved, so Tap to play is the way into Season 1 Episode 1. It is decided at
 // the tap (a playtest clears storage first), and the backdrop under the prompt is only for a visit that starts clean.
@@ -3114,6 +3198,13 @@ const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPla
   },
   tourSkipTo: (after, to) => {
     tourSkip = { after, to };
+  },
+  tourFightAt: (fighter, index) => {
+    const tour = tourFor(fighter);
+    if (!tour || index < 0 || index >= tour.fights.length) return Promise.resolve(false);
+    tourRun = { tour, index, setup: tourSetup(tour, index), continues: 0 };
+    startTourFight(true);
+    return Promise.resolve(true);
   },
   tourChoicePreview: (fighter) => {
     const tour = tourFor(fighter) ?? TOURS[0];

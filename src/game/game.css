@@ -128,7 +128,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 
 /* ----------------------------------------------------------------- title */
 
-/* The brand glow sits under the art, so the title is never flat black while the key art loads (or if it fails). */
+/* The brand glow sits under the art, so the title is never flat black while the lineup image loads (or if it fails). */
 .title-screen {
   display: grid;
   place-items: end center;
@@ -137,16 +137,13 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
   background: radial-gradient(ellipse at 50% 45%, #8a3010 0%, #3a1608 45%, #100e0c 80%) #1c0d06;
 }
 .title-art { position: absolute; inset: 0; }
-/* The roster key art (site/img/key-art-*, painted by Hawkes Gen): crops to the centre of the cast on a phone, with a dark
-   scrim below so the logo and Press start stay readable. The brand glow above stays behind it. */
 .title-art img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 45%;
-  opacity: 0.92;
+  object-position: center 70%;
+  opacity: 0.55;
 }
-.title-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(16, 14, 12, 0.1) 0%, rgba(16, 14, 12, 0) 35%, rgba(16, 14, 12, 0.82) 100%); pointer-events: none; }
 .title-copy {
   position: relative;
   text-align: center;
@@ -926,6 +923,19 @@ body.touch-ui #controls-row { display: none; }
 .vs-progress { width: min(420px, 70vw); height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.14); overflow: hidden; margin: 10px 0 0; }
 .vs-progress-fill { height: 100%; width: 0; background: var(--gold); transition: width 160ms linear; }
 .vs-progress[hidden] { display: none; }
+.loading-text { display: block; text-align: center; }
+.loading { align-content: center; gap: 14px; }
+.loading-bar { width: min(320px, 70vw); height: 10px; border-radius: 999px; background: rgba(255,255,255,0.16); overflow: hidden; position: relative; justify-self: center; }
+.loading-fill { display: block; height: 100%; width: 0; background: var(--gold); transition: width 160ms linear; }
+.loading.indeterminate .loading-fill { width: 40%; animation: loadslide 1.1s ease-in-out infinite alternate; transition: none; }
+@keyframes loadslide { from { transform: translateX(0); } to { transform: translateX(150%); } }
+@media (prefers-reduced-motion: reduce) { .loading.indeterminate .loading-fill { animation: none; width: 100%; opacity: 0.6; } }
+.mode-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.mode-btn { min-height: 64px; min-width: 44px; display: grid; justify-items: center; align-content: center; gap: 2px; padding: 8px; background: var(--card); border: 2px solid var(--gold); border-radius: 8px; color: var(--ink, #fff); cursor: pointer; font: inherit; }
+.mode-btn strong { font-family: Oswald, sans-serif; font-size: calc(24px * var(--ts, 1)); text-transform: uppercase; letter-spacing: 0.04em; color: var(--gold); }
+.mode-btn span { color: var(--muted); font-size: calc(13px * var(--ts, 1)); }
+.mode-btn:hover, .mode-btn:focus-visible, .mode-btn[data-pressed] { background: var(--gold); }
+.mode-btn:hover strong, .mode-btn:focus-visible strong, .mode-btn:hover span, .mode-btn:focus-visible span { color: #14101c; }
 .loading {
   position: fixed;
   inset: 0;
@@ -1008,29 +1018,29 @@ body.touch-ui #controls-row { display: none; }
 .slam {
   position: fixed;
   left: 50%;
-  top: 38%;
+  top: 18%;
   transform: translate(-50%, -50%);
   font-family: Oswald, sans-serif;
   font-weight: 700;
-  font-size: calc(clamp(56px, 15vw, 170px) * var(--ts, 1));
+  /* Small and high: the banner must not cover the fighters. */
+  font-size: calc(clamp(32px, 7vw, 80px) * var(--ts, 1));
   line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--gold);
-  -webkit-text-stroke: 3px #5a2410;
-  text-shadow: 0 8px 0 #5a2410, 0 0 60px rgba(255, 90, 31, 0.8);
+  -webkit-text-stroke: 2px #5a2410;
+  text-shadow: 0 4px 0 #5a2410, 0 0 30px rgba(255, 90, 31, 0.7);
   pointer-events: none;
   z-index: 12;
-  animation: slam 900ms cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
+  /* Fades in within 0.3 s (a third of the 0.9 s life), then out. */
+  animation: slam 900ms ease-out forwards;
 }
-.slam.game { color: #fff; font-size: calc(clamp(64px, 18vw, 210px) * var(--ts, 1)); }
+.slam.game { color: #fff; font-size: calc(clamp(48px, 12vw, 130px) * var(--ts, 1)); top: 30%; }
 @keyframes slam {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(3) skewX(-8deg); }
-  16% { opacity: 1; transform: translate(-50%, -50%) scale(0.92) skewX(-8deg); }
-  26% { transform: translate(-50%, -50%) scale(1.04) skewX(-8deg); }
-  36% { transform: translate(-50%, -50%) scale(1) skewX(-8deg); }
-  80% { opacity: 1; }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.08) skewX(-8deg); }
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(1.25) skewX(-8deg); }
+  30% { opacity: 1; transform: translate(-50%, -50%) scale(1) skewX(-8deg); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.04) skewX(-8deg); }
 }
 @media (prefers-reduced-motion: reduce) {
   .wipe i { transform: none; left: 0; width: 100%; opacity: 0; }
@@ -1994,6 +2004,54 @@ body.pilot-boot .screen { visibility: hidden; }
 .daily-results.new-best .daily-score .stat:first-child { animation: daily-flash 1.2s ease-out 2; }
 @keyframes daily-flash { 0% { background: rgba(255, 209, 90, 0.75); transform: scale(1.06); } 100% { background: rgba(0, 0, 0, 0.35); transform: none; } }
 @media (prefers-reduced-motion: reduce) { .daily-card::after, .daily-results.new-best .daily-score .stat:first-child { animation: none; } }
+
+/* -------------------------------------------------------------- roster (after Press start) */
+
+.roster-screen { display: flex; flex-direction: column; gap: 10px; padding-bottom: 0; }
+.roster-screen .screen-head, .roster-progress, .roster-grid, .roster-detail, .roster-foot { width: 100%; max-width: 1280px; margin-inline: auto; box-sizing: border-box; }
+.roster-progress { display: grid; gap: 6px; }
+.roster-bar { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.roster-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--hot), var(--gold)); border-radius: 6px; }
+.roster-bar.next { height: 6px; }
+.roster-bar.next i { background: var(--gold); opacity: 0.8; }
+.roster-next { margin: 0; color: var(--muted); font-size: calc(14px * var(--ts, 1)); overflow-wrap: anywhere; }
+.roster-next b { color: var(--gold); font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.04em; }
+.roster-stats { display: flex; flex-wrap: wrap; gap: 6px 16px; list-style: none; margin: 0; padding: 0; }
+.roster-stats li { display: flex; align-items: baseline; gap: 5px; }
+.roster-stats b { font-family: Oswald, sans-serif; font-size: calc(20px * var(--ts, 1)); color: var(--gold); }
+.roster-stats span { color: var(--muted); font-size: calc(13px * var(--ts, 1)); text-transform: uppercase; letter-spacing: 0.05em; }
+.roster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.roster-tile {
+  display: grid; justify-items: center; align-content: center; gap: 2px;
+  min-width: 0; min-height: 88px; padding: 6px 4px; color: inherit; cursor: pointer;
+  background: radial-gradient(ellipse at 50% 30%, rgba(255, 90, 31, 0.18), transparent 70%), var(--card);
+  border: 2px solid transparent; border-radius: 10px;
+  transition: transform 140ms ease, border-color 140ms ease;
+}
+.roster-tile:hover, .roster-tile:focus-visible { border-color: var(--hot); outline: none; transform: translateY(-2px); }
+.roster-tile:active { transform: scale(0.97); border-color: var(--gold); }
+.roster-tile.picked { border-color: var(--gold); }
+.roster-tile img { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; background: rgba(0, 0, 0, 0.35); }
+.roster-name { font-family: Oswald, sans-serif; font-size: calc(13px * var(--ts, 1)); text-transform: uppercase; line-height: 1.1; max-width: 100%; overflow-wrap: anywhere; text-align: center; }
+.roster-tile em { font-style: normal; font-size: calc(11px * var(--ts, 1)); font-weight: 700; letter-spacing: 0.05em; color: var(--gold); }
+.roster-tile.locked { opacity: 0.7; }
+.roster-tile.locked img { filter: brightness(0) drop-shadow(0 0 1px rgba(255, 255, 255, 0.45)); }
+.roster-detail { display: grid; gap: 2px; margin: 0; min-height: 3.2em; padding: 8px 12px; border-radius: 10px; background: var(--card); border-left: 4px solid var(--hot); }
+.roster-detail.is-locked { border-left-color: var(--gold); }
+.roster-detail b { font-family: Oswald, sans-serif; text-transform: uppercase; font-size: calc(16px * var(--ts, 1)); }
+.roster-detail span { color: var(--muted); font-size: calc(14px * var(--ts, 1)); overflow-wrap: anywhere; }
+.roster-foot { position: sticky; bottom: 0; margin-top: auto; padding: 10px 0 max(12px, env(safe-area-inset-bottom)); display: flex; justify-content: center; background: linear-gradient(transparent, var(--bg) 40%); }
+.roster-foot .primary { min-height: 48px; min-width: min(320px, 100%); }
+@media (max-width: 560px) {
+  .roster-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .roster-tile { min-height: 80px; }
+  .roster-tile img { width: 44px; height: 44px; }
+}
+@media (max-height: 520px) {
+  .roster-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+  .roster-tile { min-height: 72px; }
+  .roster-tile img { width: 36px; height: 36px; }
+}
 
 /* -------------------------------------------------------------- tour */
 

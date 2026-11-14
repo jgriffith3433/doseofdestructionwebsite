@@ -57,8 +57,8 @@
 
   <section id="title" class="screen title-screen">
     <picture class="title-art">
-      <source type="image/webp" srcset="/site/img/key-art-720.webp 720w, /site/img/key-art-1280.webp 1280w, /site/img/key-art-1920.webp 1920w" sizes="100vw">
-      <img src="/site/img/key-art-1920.jpg" alt="" data-key-art="roster">
+      <source type="image/webp" srcset="/site/img/lineup-900.webp 900w, /site/img/lineup-1600.webp 1600w, /site/img/lineup-2800.webp 2800w" sizes="100vw">
+      <img src="/site/img/lineup-1600.jpg" alt="">
     </picture>
     <div class="title-copy">
       <p class="kicker">A platform fighter</p>
@@ -69,6 +69,20 @@
     <a class="version-tag" href="/whatsnew.html" data-hawkes-version hidden></a>
   </section>
 
+  <section id="roster" class="screen roster-screen" hidden>
+    <header class="screen-head">
+      <button class="back-btn" type="button" data-back>&larr; Back</button>
+      <h2>The roster</h2>
+      <span id="roster-count" class="tour-count"></span>
+    </header>
+    <div id="roster-progress" class="roster-progress"></div>
+    <div id="roster-grid" class="roster-grid"></div>
+    <p id="roster-detail" class="roster-detail" aria-live="polite"></p>
+    <footer class="roster-foot">
+      <button id="btn-roster-go" class="primary big" type="button" data-autofocus>Continue</button>
+    </footer>
+  </section>
+
   <section id="main" class="screen main-screen" hidden>
     <nav class="main-menu" aria-label="Main menu">
       <h1 class="logo small">Dose of <span>Destruction</span></h1>
@@ -77,6 +91,11 @@
         <ul id="lobby-list" class="lobby-list"></ul>
       </div>
       <section id="daily-card" class="daily-card" aria-label="Tonight's Episode"></section>
+      <div class="mode-row" role="group" aria-label="Choose a mode">
+        <button class="mode-btn" type="button" data-go="campaign"><strong>Story</strong><span>Campaign</span></button>
+        <button class="mode-btn" type="button" data-go="versus"><strong>Versus</strong><span>Local</span></button>
+        <button class="mode-btn" type="button" data-go="online"><strong>Play</strong><span>Online</span></button>
+      </div>
       <button class="menu-item" type="button" data-go="campaign" data-autofocus><strong>Campaign</strong><span id="campaign-blurb">The whole run. One way off the air.</span></button>
       <button id="btn-tour" class="menu-item" type="button" data-go="tour"><strong>Tour</strong><span>Pick a fighter. Six fights, one rival, one ending.</span></button>
       <button class="menu-item" type="button" data-go="versus"><strong>Versus</strong><span>Up to four fighters, any mix of you and bots.</span></button>
@@ -432,26 +451,26 @@
     <span class="boot-label">Loading&hellip;</span>
     <span class="boot-fail" hidden><span class="boot-msg"></span><button type="button" class="boot-retry">Retry</button></span>
   </div>
-  <div id="loading" class="loading" hidden>Loading fighters&hellip;</div>
+  <div id="loading" class="loading" hidden role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Loading"><span id="loading-text" class="loading-text">Loading fighters&hellip;</span><div class="loading-bar"><i id="loading-fill" class="loading-fill"></i></div></div>
   <div id="wipe" class="wipe" aria-hidden="true"><i></i><i class="stinger-slots"><u></u><u></u><u></u><u></u></i><i class="stinger-logo"><b>Dose of <span>Destruction</span></b></i><em class="stinger-streak"></em></div>
 
   <!-- Studio standard: one tap before the game starts turns sound on (iOS needs a gesture). -->
-  <div id="tap-to-play" class="tap-to-play" role="button" tabindex="0" aria-label="Play as guest: tap to play">
+  <div id="tap-to-play" class="tap-to-play" role="dialog" tabindex="-1" aria-label="Play as guest: tap to play">
     <!-- Key art: the whole roster, full screen, behind the card (same file as the card's picture, so one download). -->
     <picture class="tap-backdrop" aria-hidden="true">
-      <source type="image/webp" srcset="/site/img/key-art-720.webp">
-      <img src="/site/img/key-art-1920.jpg" alt="" decoding="async">
+      <source type="image/webp" srcset="/site/img/lineup-900.webp">
+      <img src="/site/img/lineup-1600.jpg" alt="" decoding="async">
     </picture>
     <div class="tap-card">
       <picture class="tap-art" aria-hidden="true">
-        <source type="image/webp" srcset="/site/img/key-art-720.webp">
-        <img src="/site/img/key-art-1920.jpg" alt="" width="720" height="405" decoding="async">
+        <source type="image/webp" srcset="/site/img/lineup-900.webp">
+        <img src="/site/img/lineup-1600.jpg" alt="" width="900" height="506" decoding="async">
       </picture>
       <div class="tap-copy">
         <p class="kicker">Live from the Foundry</p>
         <h1 class="logo">Dose of <span>Destruction</span></h1>
         <p class="tap-pitch">A platform fighter: knock every rival off the stage.</p>
-        <button class="tap-cta" type="button" tabindex="-1">Play</button>
+        <button class="tap-cta" type="button" tabindex="-1" aria-label="Play as guest">Play</button>
         <p class="tap-note">Play as guest. No sign-in. Starting&hellip;</p>
       </div>
     </div>

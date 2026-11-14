@@ -32,6 +32,7 @@ import { MAX_COVER, MIN_CONTRAST, MIN_SHOWN, coverRead, edgeContrast, ringContra
 import { ACT, ACT_NAMES, bodySize } from '../sim/state.ts';
 import { AnimTrace } from '../sim/trace.ts';
 import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
+import { vsPortrait } from '../ui/views.ts';
 import { MAX_WORDS } from '../campaign/sceneText.ts';
 import { REWARDS, reloadRewards } from '../campaign/rewards.ts';
 import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, nextUnlock, saveUnlocks, unlockRoute, unlocks } from '../campaign/story.ts';
@@ -44,6 +45,7 @@ import { ENDINGS, ENDING_BEATS, endingFor, endingUnlocked } from '../campaign/en
 import { endingShowing } from '../ui/ending.ts';
 import { OPENING_CAST, OPENING_KEY, OPENING_SKIP_AFTER, openingShowing } from '../ui/opening.ts';
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
+import { suppressRoster, rosterFacts } from '../ui/roster.ts';
 import { PAIRS, pairFor } from '../campaign/intros.ts';
 import { SEASON_ONE_ENTRANCES, entranceKind } from '../campaign/intro.ts';
 import { DEFENCE_STEPS, PROMPTS, RECOVERY_STEPS, hintText, padGlyphs, type DefenceStep, type RecoveryStep, type TeachStep } from '../ui/teach.ts';
@@ -82,6 +84,8 @@ export interface GameHooks {
   replayTick(): number;
   /** Setup shortcut (tour only): after `after` fights are won the run jumps to the fight at index `to` (the last one). */
   tourSkipTo(after: number, to: number): void;
+  /** Setup shortcut (tour-stages only): starts that fighter's Tour at fight `index` (zero-based) as the real Tour fight (VS card, scene, Ready, Go). False when there is no such fight. */
+  tourFightAt(fighter: string, index: number): Promise<boolean>;
   /** Setup shortcut (tour only): shows the Continue or Quit panel on the results screen without losing a fight, to measure it. */
   tourChoicePreview(fighter: string): Promise<void>;
   /** Setup shortcut (campaign `chapter` only): the cleared chapter ids (localStorage dod-campaign); returns the ones before. */
@@ -153,7 +157,7 @@ const CAMPAIGN_BUDGET_MS = 9.5 * 60 * 1000;
 const CORE_CLIPS = ['idle', 'walk', 'jump', 'fall', 'land', 'hurt', 'shield'];
 
 const SCREEN_NAMES: Record<ScreenId, string> = {
-  title: 'Title', main: 'Main Menu', select: 'Character Select', stages: 'Stage Select', versus: 'VS',
+  title: 'Title', roster: 'Roster', main: 'Main Menu', select: 'Character Select', stages: 'Stage Select', versus: 'VS',
   campaign: 'Campaign Map', tour: 'Tour Select', extras: 'Extras', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
 };
 
@@ -202,8 +206,12 @@ export function installDodPlaytest(game: GameHooks): void {
       run?.dispose();
       // Every other scenario clicks through the title and main menu: only first-visit meets the pilot.
       suppressFirstVisit(id !== 'first-visit');
+      // The roster screen after Press start is only for its own scenario; every other one goes straight to the main menu.
+      suppressRoster(id !== 'roster-intro');
       // Automatic quality would change the picture under every other scenario's own checks; only its own scenario runs it.
-      game.autoSetup?.({ enabled: id === 'auto-quality', slowMs: 0 });
+      // ledge-options on a phone is the exception: its checks read the sim, not the picture, and it is the long phone run (150 s) where a slowdown that stays must step quality down like it does for a player.
+      const phoneLedge = id === 'ledge-options' && Math.min(innerWidth, innerHeight) <= 560;
+      game.autoSetup?.({ enabled: id === 'auto-quality' || phoneLedge, slowMs: 0 });
       const r = new Run(game, t, options, t.spot);
       r.judgeCamera = id === 'match' || id === 'hit-feel' || id === 'touch-match';
       run = r;
@@ -214,7 +222,9 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'campaign') await r.campaign();
         else if (id === 'unlocks') await r.unlocksRun();
         else if (id === 'daily') await r.dailyRun();
+        else if (id === 'roster-intro') await r.rosterIntro();
         else if (id === 'tour') await r.tourScenario();
+        else if (id === 'tour-stages') await r.tourStagesRun();
         else if (id === 'endings') await r.endingsScenario();
         else if (id === 'opening') await r.openingScenario();
         else if (id === 'ko-objective') await r.koObjective();
@@ -223,6 +233,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'moving-platforms') await r.movingPlatforms();
         else if (id === 'hazard-rule') await r.hazardRule();
         else if (id === 'cpu-level') await r.cpuLevel();
+        else if (id === 'first-round') await r.firstRound();
         else if (id === 'auto-quality') await r.autoQuality();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'difficulty') await r.difficultyRun();
@@ -237,6 +248,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'first-visit') await r.firstVisit();
         else if (id === 'presentation') await r.presentation();
         else if (id === 'share') await r.shareScenario();
+        else if (id === 'menu-modes') await r.menuModes();
         else if (id === 'unlock-route') await r.unlockRouteRun();
         else if (id === 'replay') await r.replayScenario();
         else if (id === 'roster') await r.roster();
@@ -2219,6 +2231,35 @@ class Run {
    * second tap must download the card and copy the text line (`share-fallback`). Events `share-button`, `share-sheet`,
    * `share-fallback`, `share-card`; metrics `shareCardBytes`.
    */
+  async menuModes(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.phoneScenario();
+    this.logViewport(touch && this.isPhone());
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+      suppressRotate(true);
+    }
+    await this.toMainMenu();
+    const btns = [...document.querySelectorAll<HTMLElement>('#main .mode-row .mode-btn')];
+    if (btns.length !== 3) t.problem('bug', `the main menu has ${btns.length} mode buttons (want Story, Versus, Play)`);
+    for (const b of btns) {
+      const r = b.getBoundingClientRect();
+      const name = b.querySelector('strong')?.textContent ?? '?';
+      t.event('mode-fit', `${name} ${Math.round(r.width)}x${Math.round(r.height)} at ${innerWidth}x${innerHeight}`);
+      if (r.width < 44 || r.height < 44 || r.left < 0 || r.right > innerWidth || r.top < 0 || r.bottom > innerHeight) t.problem('bug', `mode button ${name} is too small or off screen`);
+    }
+    if (document.documentElement.scrollWidth > innerWidth + 1) t.problem('bug', 'the main menu scrolls sideways');
+    t.event('mode-row', btns.map((b) => b.querySelector('strong')?.textContent).join(' / '));
+    const veil = this.q('#loading');
+    if (!veil?.querySelector('.loading-bar')) t.problem('bug', 'the loading veil has no progress bar');
+    else t.event('loading-bar', 'the loading veil holds a progress bar');
+    await this.tap(() => this.q('#main .mode-btn[data-go="versus"]'), 'Versus (mode row)');
+    await this.screen('select');
+    t.event('mode-versus', 'Versus opened from the mode row');
+    t.finish('done');
+  }
+
   async shareScenario(): Promise<void> {
     const t = this.t;
     const touch = this.options.input === 'touch' || this.phoneScenario();
@@ -4412,6 +4453,79 @@ class Run {
   }
 
   /**
+   * The roster after Play (`ui/roster.ts`, docs/story.md "The roster"): Tap to play, Press start, and the roster screen shows
+   * every fighter's tile (open ones named, locked ones a silhouette with the episode that opens them), the count of open
+   * fighters, the next unlock with its progress, and the size of the show; a tap on a locked tile says how to open it; Continue
+   * goes on to the main menu. At 390x844 touch the screen must not scroll sideways and every control is 44 px, all by taps.
+   */
+  async rosterIntro(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.isPhone();
+    this.logViewport(touch && this.isPhone());
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    await this.screen('title', 30000);
+    if (promptShowing()) await this.tapToPlay();
+    await this.click(() => this.q('#btn-start'), 'Press start');
+    await this.screen('roster', 5000);
+    t.progress(0.3);
+    await t.wait(400);
+    const facts = rosterFacts();
+    const tiles = [...document.querySelectorAll<HTMLElement>('#roster-grid .roster-tile')];
+    const locked = tiles.filter((x) => x.dataset.locked === '1');
+    if (tiles.length !== CHARACTERS.length) t.problem('bug', `the roster shows ${tiles.length} tiles, the game has ${CHARACTERS.length} fighters`);
+    const count = this.q('#roster-count')?.textContent ?? '';
+    if (!count.includes(`${facts.open} of ${facts.fighters}`)) t.problem('bug', `the roster count reads "${count}", expected ${facts.open} of ${facts.fighters}`);
+    const next = this.q('#roster-next')?.textContent ?? '';
+    if (facts.next && !next.includes(facts.next.name)) t.problem('bug', `the next unlock line reads "${next}", expected ${facts.next.name}`);
+    t.event('roster', `${tiles.length} fighters, ${facts.open} open, ${locked.length} locked; ${next}; ${this.q('#roster-stats')?.textContent ?? ''}`);
+    t.metric('rosterTiles', tiles.length);
+    t.metric('rosterLocked', locked.length);
+    const root = this.q('#roster') as HTMLElement;
+    const sideways = document.documentElement.scrollWidth > innerWidth + 1 || document.body.scrollWidth > innerWidth + 1;
+    const off = [...root.querySelectorAll<HTMLElement>('button')].filter((b) => {
+      const r = b.getBoundingClientRect();
+      return r.width > 0 && (r.left < -0.5 || r.right > innerWidth + 0.5);
+    });
+    const small = touch ? this.phoneTargets(root) : [];
+    if (sideways) t.problem('bug', `the roster scrolls sideways at ${innerWidth}x${innerHeight}`);
+    if (off.length) t.problem('bug', `the roster has ${off.length} button(s) off the side of the window`);
+    if (small.length) t.problem('bug', `the roster: ${small.join('; ')}`);
+    t.event('roster-fit', `${sideways || off.length || small.length ? 'does not fit' : 'fits'} at ${innerWidth}x${innerHeight}${touch ? ' touch' : ''}`);
+    t.metric('rosterFits', !sideways && !off.length && !small.length ? 1 : 0);
+    // A tap on a locked tile says how to open it; a tap on an open one names the fighter.
+    const lockedTile = locked[0];
+    if (lockedTile) {
+      const id = lockedTile.dataset.fighter!;
+      await this.click(() => this.q(`#roster-grid [data-fighter="${id}"]`), `locked tile ${id}`);
+      await t.wait(200);
+      const line = this.q('#roster-detail')?.textContent ?? '';
+      const route = /Clear Season \d+, Episode \d+/.test(line);
+      if (!route) t.problem('bug', `a tap on locked ${id} says "${line}", not the episode that opens them`);
+      t.event('roster-locked-route', `${id}: ${line}`);
+    }
+    const openTile = tiles.find((x) => x.dataset.locked === '0');
+    if (openTile) {
+      const id = openTile.dataset.fighter!;
+      await this.click(() => this.q(`#roster-grid [data-fighter="${id}"]`), `open tile ${id}`);
+      await t.wait(200);
+      const d = this.q('#roster-detail');
+      if (d?.dataset.fighter !== id || d.classList.contains('is-locked')) t.problem('bug', `a tap on open ${id} did not show that fighter`);
+      t.event('roster-open-pick', `${id}: ${d?.textContent ?? ''}`);
+    }
+    t.progress(0.7);
+    const cont = this.q('#btn-roster-go');
+    if (!cont) t.problem('bug', 'the roster has no Continue button');
+    await this.click(() => this.q('#btn-roster-go'), 'Continue');
+    await this.screen('main', 5000);
+    t.event('roster-continue', 'Continue went on to the main menu');
+    t.progress(1);
+    t.finish('done');
+  }
+
+  /**
    * Tour (campaign/tour.ts, content/tours.json): the main menu's Tour opens the select screen (every fighter's tile, none
    * cleared on a fresh save, fits the window with no sideways scroll, 44 px targets on a phone), the Continue or Quit panel
    * is measured (setup shortcut: shown without losing a fight, so a portrait phone can see it), the fighter's Tour starts
@@ -5353,6 +5467,87 @@ class Run {
       t.metric('cpuWon', won ? 0 : 1);
       t.event('cpu-result', `${won ? 'the playtest bot beat' : 'the CPU beat the playtest bot at'} level ${level}: ${trips} trips off the stage, ${misses} missed, ledge options ${[...options].join(', ') || 'none'}`);
       if (level === 1 && m.state.over && !won) t.problem('bug', 'a level-1 CPU beat the playtest bot');
+      if (m.state.over || currentScreen() === 'results') {
+        await this.results();
+        await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      } else {
+        await this.quitFromPause('main');
+      }
+      await this.screen('main');
+      t.finish('done');
+    } finally {
+      this.manual = null;
+      if (touch) forceTouchUi(false);
+    }
+  }
+
+  /**
+   * The first round against a live CPU (the fun core loop): Exit Punk, the playtest bot on the pad (touch controls on a phone),
+   * against a level 5 Break CPU on one stock, to the end. Shows the CPU fights back within 10 s of GO (its first attack, and its
+   * first hit on the player), a launch the player can see (`launch`: the sim's launch event with its knockback) and the blast-zone
+   * KO that ends the stock (`blast-ko`, a launch flagged ko, or a fall). Events `cpu-attack`, `cpu-hit-back`, `first-launch`,
+   * `blast-ko`, `first-round`; metrics `cpuFirstAttackS`, `cpuFirstHitS`, `firstLaunches`, `blastKos`. A bug when the CPU has not
+   * attacked within 10 s, or the round ended with no launch KO seen. On a phone (390x844 turned to 844x390) it plays by touch.
+   */
+  async firstRound(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('first-round');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) forceTouchUi(true);
+    try {
+      const id = (list: { id: string }[], want: string) => Math.max(0, list.findIndex((x) => x.id === want));
+      const level = Math.max(1, Math.min(9, Number(this.options.level) || 5));
+      void this.game.startMatch({
+        mode: 'versus', stage: id(STAGES, String(this.options.stage ?? 'city-top')), stocks: 1, rules: { timeLimit: 0 },
+        slots: [{ char: id(CHARACTERS, 'exit-punk'), cpu: null, team: 0, stocks: 1 }, { char: id(CHARACTERS, 'break'), cpu: level, team: 1, stocks: 1 }],
+      });
+      await this.matchLive();
+      const m = this.game.match()!;
+      const f0 = m.state.frame;
+      const sec = (frame: number) => Math.round(((frame - f0) / 60) * 10) / 10;
+      let firstAttack = -1;
+      let firstHit = -1;
+      let launches = 0;
+      let blastKos = 0;
+      const stop = this.game.watch((mm, events) => {
+        const fr = mm.state.frame;
+        const foe = mm.state.fighters[1];
+        if (firstAttack < 0 && foe.action === ACT.ATTACK) {
+          firstAttack = sec(fr);
+          t.event('cpu-attack', `the CPU's first attack comes ${firstAttack}s after GO (${foe.move})`);
+        }
+        for (const e of events) {
+          if (e.type === 'hit' && !e.shield && e.attacker === 1 && e.victim === mm.player && firstHit < 0) {
+            firstHit = sec(fr);
+            t.event('cpu-hit-back', `the CPU hits the player ${firstHit}s after GO (${e.dmg}%)`);
+          } else if (e.type === 'launch') {
+            launches++;
+            if (launches === 1) t.event('first-launch', `first launch at ${sec(fr)}s: fighter ${e.victim} sent flying by ${e.by}`);
+            if (e.ko) {
+              blastKos++;
+              t.event('blast-ko', `launch at ${sec(fr)}s carries fighter ${e.victim} out of the blast zone`);
+            }
+          }
+        }
+      });
+      this.manual = null;
+      try {
+        await this.fight(() => !!m.state.over, 240000).catch(() => undefined);
+      } finally {
+        stop();
+      }
+      if (firstAttack >= 0) t.metric('cpuFirstAttackS', firstAttack);
+      if (firstHit >= 0) t.metric('cpuFirstHitS', firstHit);
+      t.metric('firstLaunches', launches);
+      t.metric('blastKos', blastKos);
+      t.event('first-round', `level ${level} CPU: first attack ${firstAttack}s, first hit on the player ${firstHit}s, ${launches} launches, ${blastKos} blast-zone KOs`);
+      if (firstAttack < 0 || firstAttack > 10) t.problem('bug', `the CPU did not attack within 10 s of GO (${firstAttack}s)`);
+      if (m.state.over && blastKos === 0) t.problem('bug', 'the round ended without a launch into the blast zone');
       if (m.state.over || currentScreen() === 'results') {
         await this.results();
         await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
@@ -6866,6 +7061,119 @@ class Run {
     t.finish('done');
   }
 
+  // ---------------------------------------------------------- every Tour stage starts and plays
+
+  /**
+   * Tour stages (content/tours.json): every stage a Tour fight uses is started as the real Tour fight, in Tour order
+   * (option `fighter`'s own route first, default exit-punk, then the first fight in any other route that uses a stage
+   * not yet seen; option `stage` plays just that one). Per fight: the VS card and the foe's scene come up, the match
+   * starts on the right stage with the right foes, the sim clock runs and nobody is NaN or out of bounds for 4 s of
+   * play, no console error or uncaught exception, no stage layer left unpainted, then the match is left. A stage
+   * that does not start in 60 s is a bug (`tour-stage-start`). Metrics `tourStagesPlayed`, `tourStagesExpected`.
+   */
+  async tourStagesRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('tour-stages');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.screen('title', 30000);
+    if (promptShowing()) await this.tapToPlay();
+    await this.t.wait(600);
+    await this.click(() => this.q('#btn-start'), 'Press start');
+    await this.screen('main');
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const first = typeof this.options.fighter === 'string' ? this.options.fighter : 'exit-punk';
+    const lead = tourFor(first);
+    if (!lead) {
+      t.problem('bug', `no Tour for "${first}" in content/tours.json`);
+      t.finish('error');
+      return;
+    }
+    const order: { fighter: string; index: number; stage: string }[] = [];
+    const wanted = typeof this.options.stage === 'string' ? this.options.stage : null;
+    for (const tour of [lead, ...TOURS]) {
+      tour.fights.forEach((f, index) => {
+        if (!order.some((o) => o.stage === f.stage) && (!wanted || wanted === f.stage)) order.push({ fighter: tour.fighter, index, stage: f.stage });
+      });
+    }
+    const all = new Set(TOURS.flatMap((x) => x.fights.map((f) => f.stage)));
+    t.metric('tourStagesExpected', wanted ? 1 : all.size);
+    if (wanted && !all.has(wanted)) t.problem('bug', `stage "${wanted}" is in no Tour fight`);
+    if (!wanted && order.length !== all.size) t.problem('bug', `Tour order covers ${order.length} of ${all.size} stages`);
+    const errors: string[] = [];
+    const onError = (e: ErrorEvent) => errors.push(e.message || String(e.error));
+    const onReject = (e: PromiseRejectionEvent) => errors.push(`unhandled rejection: ${String((e.reason as Error)?.message ?? e.reason)}`);
+    const realError = console.error;
+    console.error = (...a: unknown[]) => {
+      errors.push(a.map((x) => (x instanceof Error ? x.message : String(x))).join(' '));
+      realError.apply(console, a as []);
+    };
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onReject);
+    let played = 0;
+    try {
+      for (const [n, o] of order.entries()) {
+        t.progress(n / Math.max(1, order.length));
+        const fight = tourFor(o.fighter)!.fights[o.index];
+        const label = `${o.stage} (${o.fighter} fight ${o.index + 1}, ${fight.twist})`;
+        errors.length = 0;
+        const before = this.game.match();
+        const ok = await this.game.tourFightAt(o.fighter, o.index);
+        if (!ok) {
+          t.problem('bug', `Tour stage ${label}: the game has no such fight`);
+          continue;
+        }
+        try {
+          await t.until(() => this.game.match() !== before && (sceneShowing() || this.game.phase() === 'play'), 60000, `${label} to open`);
+          if (sceneShowing()) await this.passTourScene();
+          await t.until(() => this.game.phase() === 'play', 60000, `${label} to start`);
+        } catch {
+          t.problem('bug', `Tour stage ${label} did not start within 60 s (screen ${currentScreen()}, phase ${this.game.phase()})`);
+          await this.game.quitMatch().catch(() => undefined);
+          await this.screen('main', 20000).catch(() => undefined);
+          continue;
+        }
+        const m = this.game.match()!;
+        const want = STAGES.findIndex((x) => x.id === o.stage);
+        const foes = m.setup.slots.filter((x) => x.team === 1).length;
+        if (m.setup.stage !== want || foes !== fight.foes.length) t.problem('bug', `Tour stage ${label} started on stage ${STAGES[m.setup.stage]?.id} with ${foes} foes`);
+        const f0 = m.state.frame;
+        await this.wait(4000);
+        const frames = m.state.frame - f0;
+        const stage = STAGES[want];
+        const lost = m.state.fighters.filter((x) => !Number.isFinite(x.x) || !Number.isFinite(x.y));
+        const out = m.state.fighters.filter((x) => x.stocks > 0 && (x.x / 1000 < stage.blast.left - 400 || x.x / 1000 > stage.blast.right + 400 || x.y / 1000 > stage.blast.top + 400 || x.y / 1000 < stage.blast.bottom - 400));
+        if (frames < 60) t.problem('bug', `Tour stage ${label}: the clock ran ${frames} frames in 4 s (stuck)`);
+        if (lost.length) t.problem('bug', `Tour stage ${label}: a fighter position is NaN`);
+        if (out.length) t.problem('bug', `Tour stage ${label}: a fighter is far outside the blast zone without a KO`);
+        if (errors.length) t.problem('bug', `Tour stage ${label}: console error: ${errors.slice(0, 3).join(' | ')}`);
+        if (!errors.length && frames >= 60 && !lost.length && !out.length) {
+          played++;
+          t.event('tour-stage', `${label}: started, ${frames} frames in 4 s, ${foes} foe(s), no console errors`);
+        }
+        await this.game.quitMatch();
+        await this.screen('main', 20000);
+      }
+    } finally {
+      console.error = realError;
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onReject);
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.metric('tourStagesPlayed', played);
+    if (played !== order.length) t.problem('bug', `only ${played} of ${order.length} Tour stages played cleanly`);
+    else t.event('tour-stages', `all ${played} Tour stages started and played: ${order.map((o) => o.stage).join(', ')}`);
+    t.progress(1);
+    t.finish('done');
+  }
+
   // ---------------------------------------------------------- painted portraits and the key art
 
   /**
@@ -6884,22 +7192,23 @@ class Run {
     this.logViewport(touch && this.isPhone());
     const phone = this.isPhone();
     const baseOf = (src: string) => /\/characters\/portrait\/([a-z0-9-]+)-(256|512)\.webp/.exec(src)?.[1] ?? '';
-    // 1. The title: the key art behind the logo.
+    // 1. The title: the heroes lineup behind the logo, with Play in view.
     await this.screen('title', 30000);
     if (promptShowing()) await this.tapToPlay();
     await this.t.wait(800);
     const art = this.q('#title .title-art img') as HTMLImageElement | null;
-    if (!art || !(art.complete && art.naturalWidth > 0)) t.problem('bug', 'the title screen has no roster key art loaded');
+    if (!art || !(art.complete && art.naturalWidth > 0)) t.problem('bug', 'the title screen has no lineup banner loaded');
     else {
       const r = art.getBoundingClientRect();
-      const ratio = art.naturalWidth / art.naturalHeight;
       const fills = r.width >= innerWidth - 1 && r.height >= innerHeight - 1;
       const cs = getComputedStyle(art);
-      if (!/key-art/.test(art.currentSrc)) t.problem('bug', `the title shows ${art.currentSrc}, not the roster key art`);
-      else if (Math.abs(ratio - 16 / 9) > 0.03) t.problem('bug', `the key art is ${art.naturalWidth}x${art.naturalHeight}, not 16:9`);
-      else if (!fills || cs.objectFit !== 'cover' || !/^50%/.test(cs.objectPosition)) t.problem('bug', `the key art does not fill the title screen cropped to the centre (${Math.round(r.width)}x${Math.round(r.height)}, ${cs.objectFit} ${cs.objectPosition})`);
-      else t.event('title-key-art', `${art.naturalWidth}x${art.naturalHeight} key art fills ${innerWidth}x${innerHeight}, cropped to the centre (${cs.objectPosition}), brand gradient behind (${getComputedStyle(this.q('#title')!).backgroundImage.includes('gradient') ? 'yes' : 'no'})`);
+      if (/key-art/.test(art.currentSrc) || !/lineup-/.test(art.currentSrc)) t.problem('bug', `the title shows ${art.currentSrc}, not the heroes lineup banner`);
+      else if (!fills || cs.objectFit !== 'cover') t.problem('bug', `the lineup banner does not fill the title screen (${Math.round(r.width)}x${Math.round(r.height)}, ${cs.objectFit})`);
+      else t.event('title-key-art', `${art.naturalWidth}x${art.naturalHeight} heroes lineup (${art.currentSrc.split('/').pop()}) fills ${innerWidth}x${innerHeight}, brand gradient behind (${getComputedStyle(this.q('#title')!).backgroundImage.includes('gradient') ? 'yes' : 'no'})`);
     }
+    const play = this.q('#btn-start')?.getBoundingClientRect();
+    if (!play || play.width < 44 || play.height < 44 || play.left < 0 || play.right > innerWidth || play.bottom > innerHeight || play.top < 0) t.problem('bug', `the title's Play button is not fully on screen at 44 px or more at ${innerWidth}x${innerHeight}`);
+    else t.event('title-play-visible', `Play button ${Math.round(play.width)}x${Math.round(play.height)} on screen at ${innerWidth}x${innerHeight}`);
     await this.click(() => this.q('#btn-start'), 'Press start');
     await this.screen('main');
     if (touch) {
@@ -6964,8 +7273,9 @@ class Run {
         await t.until(() => document.querySelectorAll('#versus-body .vs-fighter img.vs-portrait').length > 0, 3000, 'the VS portraits');
         await this.wait(1200);
         const vs = [...document.querySelectorAll<HTMLImageElement>('#versus-body .vs-fighter img.vs-portrait')];
-        const wrong = vs.filter((i) => !(i.complete && i.naturalWidth > 0) || !baseOf(i.currentSrc || i.src));
-        if (!vs.length || wrong.length) t.problem('bug', `the VS card portraits did not load (${wrong.length}/${vs.length})`);
+        const wrong = vs.filter((i) => !(i.complete && i.naturalWidth > 0) || !baseOf(i.currentSrc || i.src) || !!i.dataset.fallback);
+        if (!vs.length || wrong.length) t.problem('bug', `the VS card portraits did not load (${wrong.length}/${vs.length}${wrong.length ? `: ${wrong.map((i) => `${i.dataset.fighter} naturalWidth ${i.naturalWidth}${i.dataset.fallback ? `, fell back to ${i.dataset.fallback}` : ''}`).join('; ')}` : ''})`);
+        else if (vs.length < 2) t.problem('bug', `the VS card shows ${vs.length} portrait(s), want one for each side (you and the CPU)`);
         else {
           seenIds.push(...vs.map((i) => baseOf(i.currentSrc || i.src)));
           t.event('vs-portraits', `${vs.length} painted portraits on the VS card: ${seenIds.join(', ')} (same files as select)`);
@@ -6989,12 +7299,45 @@ class Run {
       this.checkClipping('results', this.q('#results'));
       await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
       await this.screen('main');
+      // 4. Every fighter's VS portrait, on either side of the card: the real element the VS card builds (ui/views.ts
+      // vsPortrait), at both file sizes, all 33. A missing file, a wrong name or a bad path shows as naturalWidth 0
+      // (or a fallback picture) and fails the run with the fighter's name.
+      await this.everyVsPortrait(baseOf);
     } finally {
       this.useTap = false;
       forceTouchUi(false);
     }
     t.progress(1);
     t.finish('done');
+  }
+
+  private async everyVsPortrait(baseOf: (src: string) => string): Promise<void> {
+    const t = this.t;
+    const shelf = document.createElement('div');
+    shelf.style.cssText = 'position:fixed;left:-9999px;top:0;width:256px;height:256px;overflow:hidden;pointer-events:none';
+    document.body.appendChild(shelf);
+    const failed: string[] = [];
+    let loaded = 0;
+    try {
+      for (const size of [256, 512] as const) {
+        const imgs = CHARACTERS.map((c, i) => ({ c, img: vsPortrait(i, 0, size) }));
+        shelf.replaceChildren(...imgs.map((x) => x.img));
+        await t.until(() => imgs.every((x) => x.img.complete), 20000, `every ${size} px VS portrait to load`).catch(() => undefined);
+        for (const { c, img } of imgs) {
+          const src = img.currentSrc || img.src;
+          if (!(img.complete && img.naturalWidth > 0)) failed.push(`${c.name} (${c.id}) ${size}: naturalWidth 0 from ${src}`);
+          else if (img.dataset.fallback) failed.push(`${c.name} (${c.id}) ${size}: the portrait failed and ${img.dataset.fallback} showed instead`);
+          else if (baseOf(src) !== c.id) failed.push(`${c.name} (${c.id}) ${size}: shows ${src}`);
+          else if (img.naturalWidth !== size || img.naturalHeight !== size) failed.push(`${c.name} (${c.id}) ${size}: file is ${img.naturalWidth}x${img.naturalHeight}`);
+          else loaded++;
+        }
+      }
+    } finally {
+      shelf.remove();
+    }
+    t.metric('vsPortraitsLoaded', loaded);
+    if (failed.length) t.problem('bug', `VS portraits that do not load: ${failed.join('; ')}`);
+    else t.event('vs-portraits-all', `all ${CHARACTERS.length} fighters' VS portraits load at 256 and 512 px (${loaded} files, naturalWidth > 0, right fighter, right size)`);
   }
 
   // ---------------------------------------------------------- character select: the specials preview
@@ -8302,7 +8645,11 @@ class Run {
       // ---- 0. The first match is a fight: a CPU that attacks (level 4, not a dummy), the bot trading hits with it until
       // both have landed one and someone has been launched (30 s of game time at most). Setup shortcut: straight in.
       {
-        const foe = (punk + 1) % CHARACTERS.length;
+        const fm = CHARACTERS.findIndex((c) => c.id === 'future-man');
+        const foe = fm >= 0 ? fm : (punk + 1) % CHARACTERS.length;
+        const taunts: { id: string; take: string | null; kind: string; text: string }[] = [];
+        const onTaunt = (ev: Event) => taunts.push((ev as CustomEvent<{ id: string; take: string | null; kind: string; text: string }>).detail);
+        window.addEventListener('dod:future-taunt', onTaunt);
         let dealt = 0;
         let taken = 0;
         let launched = 0;
@@ -8330,6 +8677,12 @@ class Run {
         const start = frame0(this.game);
         await this.fight(() => (dealt > 0 && taken > 0 && launched > 0) || frame0(this.game) - start > 1800, 90000);
         stopOpen();
+        await this.fight(() => taunts.length > 0 || frame0(this.game) - start > 2400, 30000);
+        window.removeEventListener('dod:future-taunt', onTaunt);
+        if (taunts.length > 0) t.event('future-taunt', `${how}: Future Man answered the fight (${taunts.map((x) => `${x.kind}: "${x.text}" take ${x.take}`).join('; ')}), a line of 10 words or fewer, shown as one caption with its recorded take`);
+        if (taunts.some((x) => !x.take)) t.problem('bug', `${how}: a Future Man taunt played with no recorded take (${taunts.filter((x) => !x.take).map((x) => x.id).join(', ')})`);
+        else t.problem('bug', `${how}: Future Man said nothing during the opening fight (no taunt on a hit)`);
+        t.metric('futureTaunts', taunts.length);
         t.metric('openingHitsDealt', dealt);
         t.metric('openingHitsTaken', taken);
         t.metric('openingLaunches', launched);
@@ -9990,6 +10343,46 @@ class Run {
       return r;
     };
     try {
+      // The inner game loads behind the wrapper's gradient. Say so on screen, and don't start the scenario's
+      // steps (or let a frame be judged) until the iframe's own contract answers ready.
+      const veil = document.createElement('div');
+      veil.textContent = 'Loading game…';
+      veil.setAttribute('role', 'status');
+      veil.style.cssText = 'position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font:600 20px/1.3 system-ui,sans-serif;color:#ffd9b8;letter-spacing:.04em;pointer-events:none;z-index:1';
+      back.appendChild(veil);
+      const readyT0 = performance.now();
+      const frameReady = (): boolean => {
+        try {
+          const st = api()?.state() as { ready?: boolean } | null | undefined;
+          return !!frame.contentDocument && !!st && st.ready === true;
+        } catch {
+          return false;
+        }
+      };
+      let waited = 0;
+      try {
+        await t.until(() => {
+          waited += 1;
+          if (waited % 100 === 0) {
+            t.event('phone-frame-wait', `waiting for the phone window's game to load (${Math.round((performance.now() - readyT0) / 1000)} s)`);
+            t.progress(0.01 + Math.min(0.02, waited / 100 / 1000));
+          }
+          return frameReady();
+        }, 120000, 'the phone window\'s game to report ready');
+        t.event('phone-frame-ready', `${Math.round(performance.now() - readyT0)} ms`);
+        veil.remove();
+      } catch (e) {
+        if (!frameReady() && !String((e as Error)?.message).includes('playtest stopped')) {
+          let rs = 'no document';
+          try { rs = frame.contentDocument?.readyState ?? 'no document'; } catch { rs = 'cross-origin'; }
+          const hasApi = !!api();
+          t.problem('bug', `phone-iframe-blank: the phone window's game was not ready after ${Math.round((performance.now() - readyT0) / 1000)} s (document.readyState ${rs}, hawkesPlaytest ${hasApi ? 'present but not ready' : 'missing'}); ${scenario} was not played over a blank frame`);
+          t.progress(1);
+          t.finish('error');
+          return;
+        }
+        throw e;
+      }
       if (proveRotate) {
         t.event('phone-upright', 'a phone-sized window, 390x844 (portrait), opened over the game for touch-match');
         t.progress(0.04);
@@ -14021,8 +14414,8 @@ class Run {
       if (!pitch || !art || art.width < 40) t.problem('bug', `the Tap to play card has no pitch line or fighter art ${where}`);
       if (!cta || cta.height < 44 || cta.width < 44 || cta.left < 0 || cta.right > innerWidth || cta.bottom > innerHeight) t.problem('bug', `the Play button is under 44 px or off screen ${where}`);
       const bd = prompt.querySelector('.tap-backdrop img')?.getBoundingClientRect();
-      if (!bd || bd.width < innerWidth - 1 || bd.height < innerHeight - 1) t.problem('bug', `the Tap to play key-art backdrop does not fill the screen ${where}`);
-      else t.event('key-art-backdrop', `roster key art fills ${Math.round(bd.width)}x${Math.round(bd.height)} behind the card ${where}`);
+      if (!bd || bd.width < innerWidth - 1 || bd.height < innerHeight - 1) t.problem('bug', `the Tap to play lineup backdrop does not fill the screen ${where}`);
+      else t.event('key-art-backdrop', `lineup banner fills ${Math.round(bd.width)}x${Math.round(bd.height)} behind the card ${where}`);
       const copy = prompt.querySelector('.tap-copy')?.getBoundingClientRect();
       if (cta && copy && innerWidth < 700 && innerWidth < innerHeight && cta.width < Math.min(copy.width, 420) - 2) t.problem('bug', `the Play button is not full width of the card ${where} (${Math.round(cta.width)} of ${Math.round(copy.width)})`);
       if (document.documentElement.scrollWidth > innerWidth + 1) t.problem('bug', `the Tap to play card scrolls sideways ${where}`);

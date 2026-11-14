@@ -227,6 +227,8 @@ class AudioSystem {
   /** The voice director: one speaker on the air, by priority (voiceDirector.ts). */
   private director = new VoiceDirector(() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
   private directorTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Soft crowd murmur every few seconds while a stage bed is up, so play is never silent for long. */
+  private lifeTimer: ReturnType<typeof setInterval> | null = null;
   /** The source of every take the director has started, to cut it with a fade. */
   private onAirSrc = new Map<Take, AudioBufferSourceNode>();
   private gains = new WeakMap<AudioBufferSourceNode, GainNode>();
@@ -774,6 +776,8 @@ class AudioSystem {
     }
     this.gains.set(src, g);
     src.start();
+    // The probe reads a music-bus source's start as the bus gain; say where the bus really is (ducked or not) right after.
+    if (busName === 'music') this.announceMusicGain();
     return src;
   }
 
@@ -1091,6 +1095,11 @@ class AudioSystem {
   }
 
   /** Plays a catalog voice line by id, like 'announcer.go' or 'fighter.slice.win', as the kind its id says (or `kind`). */
+  /** True when the catalog has a recorded take for this line id. */
+  hasTake(id: string): boolean {
+    return !!this.lineById.get(id)?.audio;
+  }
+
   line(id: string, kind?: VoiceKind): Promise<number> {
     const l = this.lineById.get(id);
     if (!l?.audio) return Promise.resolve(0);
@@ -1180,6 +1189,8 @@ class AudioSystem {
         this.duckForVoice(t.end - t.start);
         if (this.duckDepth === 0) this.unducked++;
         const src = this.startBuf(ref.buf, this.buses!.voice, 1, 1, false, ref.at);
+        // The duck is down before the voice starts; tell the probe again so it pairs the voice with the ducked music.
+        this.announceMusicGain();
         this.onAirSrc.set(t, src);
         if (t.kind === 'ko' || t.kind === 'taunt' || t.kind === 'hurt' || t.kind === 'effort') this.emitFighterVoice(t.speaker, t.kind, t.id, ref.text ?? '', ref.url, t.start);
         ref.resolve(t.end - t.start);
@@ -1377,6 +1388,7 @@ class AudioSystem {
     this.startMusicLoop(recipe.music, true);
     if (recipe.ambience) this.startAmbienceLoop(recipe.ambience, recipe.ambienceVolume);
     this.startProceduralBed(recipe.bed);
+    this.startStageLife();
     this.musicState = 'calm';
     this.applyIntensityMix(false, true);
   }
@@ -1427,7 +1439,25 @@ class AudioSystem {
     g.setTargetAtTime(now * 0.72, t + 0.12, 0.35);
   }
 
+  /** The room breathes: a quiet crowd murmur every ~4 s under the bed (a fresh sample start, at a never-repeated rate). */
+  private startStageLife(): void {
+    this.stopStageLife();
+    const murmur = () => {
+      if (this.bedWant && this.ctx?.state === 'running') this.synth('crowd', 0.35);
+    };
+    // One at once (the bed's first start is the only sound otherwise), then every 4 s: a slow or busy frame loop can
+    // delay a timer by seconds (the headless run is ~6 fps), so the gap stays well under the 10 s limit with margin.
+    murmur();
+    this.lifeTimer = setInterval(murmur, 4000);
+  }
+
+  private stopStageLife(): void {
+    if (this.lifeTimer) clearInterval(this.lifeTimer);
+    this.lifeTimer = null;
+  }
+
   private clearBedLayers(keepMusicSlot: boolean): void {
+    this.stopStageLife();
     this.fadeOutLoop(this.ambience);
     this.ambience = null;
     this.fadeOutLoop(this.intense);
