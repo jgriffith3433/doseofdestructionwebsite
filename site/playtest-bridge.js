@@ -661,6 +661,16 @@
       ]
     },
     {
+      "id": "training-combo",
+      "title": "Training: a 3-hit true combo shows the combo counter, its damage and the last hit; the dummy's percent is set and reset and its behaviour (stand, jump, shield, CPU) chosen from Pause (phone: 390x844 touch, readout and options fit, controls 44 px)",
+      "description": "Setup shortcut: straight into Training with Exit Punk and a Break dummy (no menus). The combo readout (top left, `training-readout`) sits inside the screen clear of the pause button, timer and touch controls. Pause shows the dummy options: every button at least 44x44 and on screen (`training-fit`); the percent buttons set the dummy to 100% (`training-percent`) and Reset puts it back at 0 (`training-reset`); the behaviour buttons Jump, Shield, Stand and CPU (level raised twice) each change what the dummy does in the sim (`training-dummy`). Then real input, stick down + Attack (down tilt) again and again, lands a string while the dummy is still in hitstun: the readout counts to 3 or more with the combo's damage, the last hit's damage and the True combo tag (`training-combo`). Keyboard on a desktop; at phone size (390x844, turned to 844x390 like ledge-options) the same by touch taps and the on-screen stick and Attack button. Metrics trainingComboHits, trainingComboDamage.",
+      "seconds": 180,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "ledge-options",
       "title": "Ledge options: from the ledge Attack sweeps low and hits a fighter at the edge, Shield rolls onto the stage, Jump leaps up, stick up climbs, and holding on too long drops the fighter (phone: 390x844 touch, the same buttons)",
       "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus). The player walks off the stage edge with the stick (the sim catches the ledge), hangs with no input for a few frames (ledge-hold: nothing climbs by itself), then each option from real input: stick up is the getup (ledge-getup, stands just inside the edge), Shield rolls a body-length further in (ledge-roll), Attack climbs and sweeps low with the down tilt and hits the dummy stood at the edge (ledge-attack; setup shortcut puts the dummy there), Jump leaps well above the ledge (ledge-jump), and with no input the hang runs out and the fighter drops (ledge-drop, ledgeHangFrames, 4 s). Each logs its invincibility frames. Keyboard on a desktop; at phone size (390x844, turned to 844x390 like touch-match) the on-screen stick, Attack, Shield and Jump buttons as touch pointer events with no new button (ledge-touch). Then the All controls page is opened and its keyboard, gamepad and touch lists must each have an On the ledge row (ledge-controls). Options: input (touch forces the overlay on a desktop window), at (phone). Metric ledgeOptions (5 when every option worked).",
