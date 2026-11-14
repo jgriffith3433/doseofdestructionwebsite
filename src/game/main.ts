@@ -3095,6 +3095,7 @@ const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPla
     return before;
   },
   fxStats: () => renderer.fxStats(),
+  hitchStats: () => renderer.hitchStats(),
   stageSeen: (reset) => renderer.stageSeen(reset),
   hitFxStats: (reset) => renderer.hitFxStats(reset),
   flipStats: (reset) => renderer.flipStats(reset),
