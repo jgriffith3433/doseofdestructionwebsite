@@ -103,6 +103,8 @@ export interface GameHooks {
   /** The match intro (campaign/intro.ts): its clock, the camera's distance, the fastest camera move (units per second) and the beats fired. */
   introStats?(): { active: boolean; ms: number; camDist: number; camX: number; maxSpeed: number; beats: number; kinds: string[] };
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
+  /** What the player saw of the stage: presented frames, with stage art still loading, and sampled near-black (reset clears). */
+  stageSeen?(reset?: boolean): { frames: number; pending: number; black: number; darkest: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
   /** Layered stage bed: calm/intense, ambience under the theme, intensity stem. */
   musicBedStats?(): {
@@ -1385,8 +1387,10 @@ class Run {
     }
     const start = () => this.game.match()?.state.frame ?? 0;
     this.progressNow = () => 0.4 + 0.5 * Math.min(1, start() / 1200);
+    this.game.stageSeen?.(true);
     // Plays to the Results screen (1 stock, so it ends); blankFrames, vsHoldMs and wipe fps are reported there.
     await this.fight(() => false, 4 * 60 * 1000);
+    this.reportStageSeen();
     this.progressNow = () => 0.9;
     await this.results();
     t.event('smoke-results', 'the smoke match reached the Results screen');
@@ -1394,6 +1398,19 @@ class Run {
     await this.screen('main');
     t.progress(1);
     t.finish('done');
+  }
+
+  /**
+   * `stage.blackFrames`: frames the player saw of the arena (after the loading veil, from the first presented frame) whose
+   * stage pictures were still loading or whose pixels were near-black. The match holds a veil until the art is in, so it is 0.
+   */
+  private reportStageSeen(): void {
+    const seen = this.game.stageSeen?.(true);
+    if (!seen) return;
+    const bad = Math.max(seen.pending, seen.black);
+    this.t.metric('stage.blackFrames', bad);
+    this.t.event('stage-seen', `${seen.frames} arena frames presented: ${seen.pending} with stage art still loading, ${seen.black} near-black (darkest mean ${Math.round(seen.darkest)}/255)`);
+    if (seen.frames > 0 && bad > 0) this.t.problem('bug', `The stage showed as a near-black void or unloaded art for ${bad} of ${seen.frames} presented match frames (limit 0)`);
   }
 
   async match(): Promise<void> {

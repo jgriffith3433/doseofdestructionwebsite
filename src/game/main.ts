@@ -1181,6 +1181,11 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   });
   $('loading').hidden = true;
   if (match !== m) return;
+  // Never present the arena while the stage's pictures are still loading (a black void with a stray wedge of
+  // colour): the loading veil goes back up over the canvas until they are in, then the intro, scene or Ready start.
+  await holdForStageArt(m);
+  if (match !== m || stale()) return;
+  renderer.setPresenting(true);
   if (f) {
     if (f.phase === 'done') return;
     // Both pages count Ready… Go! from when both have loaded.
@@ -1217,6 +1222,25 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     return;
   }
   if (!readyUnderWipe) beginReady(m);
+}
+
+/** How long the match waits, after the wipe, for the stage's pictures before it shows the arena anyway (a failed picture is skipped, never waited for). */
+const STAGE_ART_HOLD_MS = 8000;
+
+/** Keeps the loading veil over the arena until every stage layer is loaded (or has failed), then lets two frames paint. */
+async function holdForStageArt(m: Match): Promise<void> {
+  if (!renderer.stageArtPending()) return;
+  const veil = $('loading');
+  veil.textContent = 'Loading the stage\u2026';
+  veil.hidden = false;
+  await renderer.stageArtReady(STAGE_ART_HOLD_MS);
+  if (match === m) {
+    renderer.render(m.state);
+    await nextFrame();
+    renderer.render(m.state);
+  }
+  veil.hidden = true;
+  veil.textContent = 'Loading fighters\u2026';
 }
 
 /** The "Ready... FIGHT!" take that opened this Ready phase (its FIGHT is the Go), or null. */
@@ -1258,6 +1282,7 @@ function endMatch(): void {
   $('net-status').hidden = true;
   match = null;
   phase = 'idle';
+  renderer.setPresenting(false);
   showTouchControls(false);
   $('hud').hidden = true;
   clearMarkers();
@@ -2342,6 +2367,7 @@ installDodPlaytest({
     return before;
   },
   fxStats: () => renderer.fxStats(),
+  stageSeen: (reset) => renderer.stageSeen(reset),
   hitFxStats: (reset) => renderer.hitFxStats(reset),
   flipStats: (reset) => renderer.flipStats(reset),
   camFxStats: (reset) => renderer.camFxStats(reset),
