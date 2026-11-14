@@ -293,7 +293,7 @@ class AudioSystem {
   private applyVolumes(opts: { duckRampS?: number } = {}): void {
     if (!this.buses || !this.ctx) return;
     const t = this.ctx.currentTime;
-    // Effects covers the announcer and the fighters' voices too (the studio standard has two levels).
+    // Voice (announcer, commentary, story, fighters) has its own bus and level; Effects is hits and menus.
     this.buses.master.gain.setTargetAtTime(soundSettings().on ? 1 : 0, t, 0.02);
     const duck = this.duckDepth > 0 ? VOICE_DUCK : 1;
     const ramp = opts.duckRampS;
@@ -309,9 +309,20 @@ class AudioSystem {
       }
     }
     this.buses.ui.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
-    this.buses.voice.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
+    this.buses.voice.gain.setTargetAtTime(busLevel('voice'), t, 0.02);
+    this.announceMusicGain();
+  }
+
+  /**
+   * Tells the playtest audio probe where the music bus is heading (busLevel x duck). The probe also reads a music source's
+   * start as the bus gain, so every music loop start calls this again right after `src.start()`; without it a loop that
+   * begins under a voice reset the probe to 1 and the duck read 0 dB.
+   */
+  private announceMusicGain(): void {
+    if (!this.buses) return;
+    const gain = busLevel('music') * (this.duckDepth > 0 ? VOICE_DUCK : 1);
     try {
-      window.dispatchEvent(new CustomEvent('hawkes-sound', { detail: { type: 'bus-gain', bus: 'music', gain: musicGain } }));
+      window.dispatchEvent(new CustomEvent('hawkes-sound', { detail: { type: 'bus-gain', bus: 'music', gain } }));
     } catch {
       // Node tests.
     }
@@ -802,7 +813,7 @@ class AudioSystem {
   }
 
   /** Plays a sound effect by id. Picks among takes without immediate repeats; pitch varies 5–10%. Starts synchronously (0 ms). */
-  sfx(id: string, opts: { vary?: boolean; at?: Spatial } = {}): void {
+  sfx(id: string, opts: { vary?: boolean; at?: Spatial; gain?: number } = {}): void {
     if (!this.ctx && tapState()?.tapped) this.unlock();
     const pick = this.pickTake(id);
     if (!pick || !this.buses || !this.ctx) return;
@@ -816,13 +827,13 @@ class AudioSystem {
     const spatial = ui ? undefined : opts.at;
     const ready = this.decoded.get(pick.take.file);
     if (ready) {
-      this.startBuf(ready, bus, pick.entry.volume, rate, false, spatial, { sampleId: pick.take.id, busName });
+      this.startBuf(ready, bus, pick.entry.volume * (opts.gain ?? 1), rate, false, spatial, { sampleId: pick.take.id, busName });
       return;
     }
     void this.buffer(pick.take.file);
     const takeNum = Number(pick.take.id.split('.').pop()) || 0;
     const fb = fallbackSfxBuffer(this.ctx, id, takeNum);
-    this.startBuf(fb, bus, pick.entry.volume, rate, false, spatial, { sampleId: pick.take.id, busName });
+    this.startBuf(fb, bus, pick.entry.volume * (opts.gain ?? 1), rate, false, spatial, { sampleId: pick.take.id, busName });
   }
 
   /**
@@ -877,6 +888,7 @@ class AudioSystem {
       src.connect(gain).connect(bus);
       src.onended = () => { if (!stopped) end('done'); };
       src.start();
+      this.announceMusicGain();
     });
     return () => {
       if (stopped) return;
@@ -1030,6 +1042,12 @@ class AudioSystem {
       this.duckVoiceUntil = 0;
       this.duck(false);
     }, Math.max(8, this.duckVoiceUntil - now));
+  }
+
+  /** Playtest hook: the gain each bus is heading for (voice, effects and music are separate nodes). */
+  busGains(): { music: number; sfx: number; voice: number } {
+    const g = (n: GainNode | undefined) => (n ? n.gain.value : 0);
+    return { music: g(this.buses?.music), sfx: g(this.buses?.sfx), voice: g(this.buses?.voice) };
   }
 
   /** How far music and effects sit below their level now, in dB (0 = not ducked, about -8 under a voice). For the playtest. */
@@ -1454,7 +1472,8 @@ class AudioSystem {
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.loop = true;
-      src.playbackRate.value = 1;
+      // A restarted bed never replays the same buffer at the same rate inside a minute.
+      tagBufferSource(src, `bed-music:${s.id}`, 'music', s.volume, buf.duration, 1, 0.03);
       const g = ctx.createGain();
       g.gain.value = 0;
       g.gain.setTargetAtTime(s.volume, ctx.currentTime, 0.4);
@@ -1469,6 +1488,7 @@ class AudioSystem {
         src.connect(g).connect(this.buses.music);
       }
       src.start();
+      this.announceMusicGain();
       this.music = { id: s.id, src, gain: g, filter };
       if (this.musicState === 'intense') this.applyIntensityMix(true, true);
     });
@@ -1485,6 +1505,7 @@ class AudioSystem {
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.loop = true;
+      tagBufferSource(src, `bed-ambience:${s.id}`, 'ambience', volume, buf.duration, 1, 0.03);
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
       filter.frequency.value = 900;
@@ -1509,7 +1530,7 @@ class AudioSystem {
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.loop = true;
-      src.playbackRate.value = 1.03;
+      tagBufferSource(src, `bed-intense:${s.id}`, 'music', volume, buf.duration, 1.03, 0.03);
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
       filter.frequency.value = 5200;
@@ -1518,6 +1539,7 @@ class AudioSystem {
       g.gain.setTargetAtTime(volume, ctx.currentTime, 0.55);
       src.connect(filter).connect(g).connect(this.buses.music);
       src.start();
+      this.announceMusicGain();
       this.intense = { id: s.id, src, gain: g, filter };
     });
   }

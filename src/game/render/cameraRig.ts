@@ -122,17 +122,17 @@ export function frameGoal(fighters: readonly CamFighter[], blast: CamBounds, asp
   // Portrait phone: the screen is narrow, so frame tighter (less stage kept in view, smaller padding)
   // and never stop pulling out before both fighters fit; width is what limits the zoom there.
   const portrait = aspect < 0.9;
-  minX = Math.min(minX, portrait ? -1.2 : -2.5);
-  maxX = Math.max(maxX, portrait ? 1.2 : 2.5);
+  minX = Math.min(minX, portrait ? -1.2 : -1.9);
+  maxX = Math.max(maxX, portrait ? 1.2 : 1.9);
   minY = Math.min(minY, -0.4);
-  const pad = portrait ? 1.0 : 1.6;
+  const pad = portrait ? 1.0 : 1.1;
   // Touch controls cover the bottom `bottomInset` of the screen (a share of its height): the fight uses the rest.
   const usable = 1 - Math.max(0, Math.min(0.6, bottomInset));
   const width = maxX - minX + pad * 2;
   const height = (maxY - minY + pad * 2) / usable;
   // Zoom limits: close enough to read fighters, far enough for the widest stage's ends.
   const need = Math.max(height / (2 * tan), width / (2 * tan * aspect));
-  const d = portrait ? Math.max(7, need) : Math.max(10, Math.min(40, need));
+  const d = portrait ? Math.max(7, need) : Math.max(8.5, Math.min(40, need));
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
   const x = clamp((minX + maxX) / 2, blast.left, blast.right);
   // Portrait: sit the fight lower on screen, nearer the thumbs, instead of centred under empty sky.

@@ -3,11 +3,12 @@
 // Each screen is a <section class="screen" id="..."> in the page. Only one is
 // shown at a time; go() covers the switch with the show's stinger.
 
-import { pads } from '../input/devices.ts';
+import { pads, scanPads } from '../input/devices.ts';
 import { audio } from '../audio.ts';
 import { screen as trackScreen } from '../analytics.ts';
 import { startStinger } from './stinger.ts';
 import { flashPressed } from './dom.ts';
+import { hintText } from './teach.ts';
 
 export type ScreenId =
   | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'tour' | 'extras' | 'howto' | 'results' | 'match' | 'leaderboard';
@@ -61,6 +62,10 @@ function show(id: ScreenId): void {
     el.hidden = el.id !== id;
   });
   document.body.dataset.screen = id;
+  // Hints written with control tokens (`data-hint`) read for the device in hand when the screen opens.
+  document.querySelectorAll<HTMLElement>(`#${id} [data-hint]`).forEach((el) => {
+    el.textContent = hintText(el.dataset.hint ?? '');
+  });
   trackScreen(id);
 }
 
@@ -171,6 +176,8 @@ export function listenMenuKeys(inMatch: () => boolean): void {
   listenNav();
   window.addEventListener('keydown', (e) => {
     if (inMatch() || busy) return;
+    // Another player's pause: the keyboard belongs to player 1 and stands down.
+    if (menuOwner !== null && menuOwner !== 0) return;
     // Typing a name (Profile): letters are letters; only Esc still backs out.
     if (typing(e) && e.code !== 'Escape') return;
     if (e.target instanceof HTMLSelectElement && (e.code === 'ArrowUp' || e.code === 'ArrowDown')) return;
@@ -195,14 +202,41 @@ export function listenMenuKeys(inMatch: () => boolean): void {
   });
 }
 
+/**
+ * Couch pause: while someone's pause menu is up, only that person's devices move it. `slot` is the player who paused
+ * (null = no owner, every device works); slot 0 owns the keyboard and the pads nobody else holds.
+ */
+let menuOwner: number | null = null;
+let ownerSlotOf: (p: Gamepad) => number = () => 0;
+export function setMenuOwner(slot: number | null, slotOfPad?: (p: Gamepad) => number): void {
+  menuOwner = slot;
+  if (slotOfPad) ownerSlotOf = slotOfPad;
+}
+
 // Gamepad menu controls, polled from the main loop.
 let padHeld = '';
 let padNext = 0;
 let padButtons: boolean[] = [];
 
+/** The rebinding screen is listening for a button: the menu pad stands down so the press isn't also a menu press. */
+let padHeldBack = false;
+export function holdMenuPad(on: boolean): void {
+  padHeldBack = on;
+  if (!on) syncPad();
+}
+
+/** Versus select's joining pads: `skip` pads belong to another player and don't drive the menu; `noStart` pads' Start joins instead of pressing. */
+let menuPadRules: { skip: (p: Gamepad) => boolean; noStart: (p: Gamepad) => boolean } | null = null;
+export function setMenuPadRules(r: typeof menuPadRules): void {
+  menuPadRules = r;
+}
+
 export function pollMenuPad(now: number): void {
-  if (busy) return;
-  const pad = pads()[0];
+  if (busy || padHeldBack) return;
+  scanPads();
+  // Any connected controller can drive the menus: the one in use right now, else the first.
+  const all = (menuOwner === null ? pads() : pads().filter((p) => ownerSlotOf(p) === menuOwner)).filter((p) => !menuPadRules?.skip(p));
+  const pad = all.find((p) => p.buttons.some((b) => b.pressed) || p.axes.some((a) => Math.abs(a) > 0.5)) ?? all[0];
   if (!pad) return;
   listenNav();
   const ax = pad.axes[0] ?? 0;
@@ -220,7 +254,7 @@ export function pollMenuPad(now: number): void {
   }
   padHeld = dir;
   const pressed = (i: number) => btn(i) && !padButtons[i];
-  if (pressed(0) || pressed(9)) {
+  if (pressed(0) || (pressed(9) && !menuPadRules?.noStart(pad))) {
     const el = document.activeElement as HTMLElement | null;
     flashPressed(el);
     el?.click();
@@ -231,6 +265,7 @@ export function pollMenuPad(now: number): void {
 
 /** Resets edge tracking so a button held from a match doesn't fire in a menu. */
 export function syncPad(): void {
-  const pad = pads()[0];
+  const all = (menuOwner === null ? pads() : pads().filter((p) => ownerSlotOf(p) === menuOwner)).filter((p) => !menuPadRules?.skip(p));
+  const pad = all.find((p) => p.buttons.some((b) => b.pressed)) ?? all[0];
   padButtons = pad ? pad.buttons.map((b) => b.pressed) : [];
 }

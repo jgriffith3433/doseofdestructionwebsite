@@ -3,9 +3,16 @@
 
 import { CHARACTERS } from '../sim/characters.ts';
 import { STAGES, type StageDef } from '../sim/stage.ts';
+
+/** A stage the Hazards rule changes: it has events, hazards or damage zones (what the sim gates on rules.hazards). */
+export const hasHazard = (st: StageDef): boolean => !!st.events?.length || !!st.hazards?.length || !!st.zones?.some((z) => z.kind === 'damage');
 import type { Match, MatchSetup } from '../match.ts';
-import { CHAPTERS, SEASONS, isOpen, seasonCleared, seasonOpen, type Chapter } from '../campaign/story.ts';
+import { CHAPTERS, SEASONS, isOpen, nextUnlock, loadBests, loadStars, seasonCleared, seasonOpen, type Chapter } from '../campaign/story.ts';
+import { DIFFICULTIES, DIFFICULTY_LABEL, DIFFICULTY_NOTE, difficulty, easyCleared, setDifficulty } from '../campaign/difficulty.ts';
+import type { Grade, Score } from '../campaign/grade.ts';
+import { hasReward, pickedTitle, rewardLine, setVariant, variantsFor, type Reward } from '../campaign/rewards.ts';
 import { PLAYER_COLORS, prefetchStage } from '../render/renderer.ts';
+import { SHAPE_GLYPH, shapeOf } from '../colourVision.ts';
 import { TEAM_COLORS } from './select.ts';
 import { $, formatTime, h, kids, pct, portraitSize, portraitUrl, thumbUrl } from './dom.ts';
 import type { ModeStage } from '../modes.ts';
@@ -15,6 +22,8 @@ import { currentWinQuote } from '../winQuote.ts';
 import { quoteCaption } from './quoteCaption.ts';
 import { victoryStage } from './victory.ts';
 import { stagePreview } from './stagePreview.ts';
+import { hintText } from './teach.ts';
+import { setShareInfo, hasShareInfo, shareResult } from './share.ts';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -93,15 +102,29 @@ export function openStages(
       const st = STAGES[index];
       return h(
         'button',
-        { type: 'button', class: 'stage-card', 'data-stage': st.id, 'data-autofocus': index === focus || undefined, onclick: () => onPick(index, entry), onfocus: () => prep(index), onpointerenter: () => prep(index) },
+        { type: 'button', class: 'stage-card', 'data-stage': st.id, 'data-autofocus': index === focus || undefined, onclick: () => { setVariant(null); onPick(index, entry); }, onfocus: () => { setVariant(null); prep(index); }, onpointerenter: () => prep(index) },
         h('div', { class: 'stage-shot' }, stageThumb(st), stagePreview(st)),
         h('strong', {}, entry.name || st.name),
         h('span', {}, entry.blurb || st.blurb),
+        hasHazard(st) && entry.rules?.hazards !== 0 && h('i', { class: 'hazard-icon', 'data-hazard': '', title: 'Has a stage hazard', 'aria-label': 'Has a stage hazard' }, '⚠'),
       );
+    }),
+    // Stage variants earned in Seasons 8 to 10: the same stage under another existing colour grade (campaign/rewards.ts).
+    ...variantsFor(list.map((x) => STAGES[x.index].id)).flatMap((v) => {
+      const x = list.find((y) => STAGES[y.index].id === v.stage)!;
+      const st = STAGES[x.index];
+      const src = STAGES.find((y) => y.id === v.grade);
+      return [h(
+        'button',
+        { type: 'button', class: 'stage-card variant', 'data-stage': st.id, 'data-variant': v.id, style: `--grade:${src?.grade?.tint ?? '#ffb070'}`, onclick: () => { setVariant(v.id); onPick(x.index, x.entry); }, onfocus: () => { prep(x.index); setVariant(v.id); }, onpointerenter: () => { prep(x.index); } },
+        h('div', { class: 'stage-shot' }, stageThumb(st)),
+        h('strong', {}, v.name),
+        h('span', {}, 'Stage variant'),
+      )];
     }),
     h(
       'button',
-      { type: 'button', class: 'stage-card random', onclick: () => { const x = list[Math.floor(Math.random() * list.length)]; if (x) onPick(x.index, x.entry, true); } },
+      { type: 'button', class: 'stage-card random', onclick: () => { const x = list[Math.floor(Math.random() * list.length)]; setVariant(null); if (x) onPick(x.index, x.entry, true); } },
       h('b', {}, '?'),
       h('strong', {}, 'Random'),
       h('span', {}, 'Let the broadcast decide.'),
@@ -149,9 +172,10 @@ export function playVersus(setup: MatchSetup): Promise<void> {
               h(
                 'figcaption',
                 { class: 'vs-card' },
-                h('span', {}, setup.online ? setup.online.names[slot] : s.cpu === null ? 'You' : s.cpu === 0 ? 'Dummy' : `CPU ${s.cpu}`),
+                h('span', s.cpu ? { class: 'vs-level', 'data-level': String(s.cpu), 'data-auto': s.auto ? '1' : '0' } : {}, setup.online ? setup.online.names[slot] : s.cpu === null ? (setup.slots.filter((o) => o.cpu === null).length > 1 ? `Player ${slot + 1}` : 'You') : s.cpu === 0 ? 'Dummy' : `CPU · Level ${s.cpu}${s.auto ? ' · Auto' : ''}`),
                 h('strong', {}, c.name),
                 lookChip(s.char, s.look ?? 0),
+                s.cpu === null && setup.mode === 'versus' && !setup.online && pickedTitle() ? h('small', { class: 'vs-reward-title', 'data-title': pickedTitle()!.id }, pickedTitle()!.name) : null,
               ),
               s.scale && s.scale > 100 ? h('em', { class: 'vs-tag' }, 'Giant') : null,
             );
@@ -160,7 +184,7 @@ export function playVersus(setup: MatchSetup): Promise<void> {
         return i < sides.length - 1 ? [group, h('div', { class: 'vs-mark', style: `--d:${i * 120 + 260}ms` }, 'VS')] : [group];
       }),
     ),
-    h('p', { class: 'vs-stage' }, stage.name, setup.subtitle ? h('span', {}, setup.subtitle) : null),
+    h('p', { class: 'vs-stage' }, stage.name, setup.subtitle ? h('span', {}, hintText(setup.subtitle)) : null),
   ));
 
   // The announcer's lines load first, so the slam and the calls play on time, in order (not
@@ -300,6 +324,75 @@ function chart(m: Match, colors: string[]): SVGElement {
   return root;
 }
 
+/** A won episode's grade for the results screen: this run's steps and the best kept in the save. */
+export interface EpisodeGrade extends Grade {
+  best: number;
+  /** The best was beaten by this run. */
+  improved: boolean;
+  /** This run's score (campaign/grade.ts `scoreEpisode`), its parts, time in sim frames, and the best score and time kept. */
+  score: number;
+  parts: Score['parts'];
+  frames: number;
+  bestScore: number;
+  bestFrames: number;
+  /** What this run beat of an earlier best: 'score', 'time' (empty on a first clear). */
+  beat: ('score' | 'time')[];
+}
+
+const starRow = (n: number, of = 3) => '\u2605'.repeat(n) + '\u2606'.repeat(of - n);
+
+/** The stars card: three rows, each star with what it needs, lit when this run earned it. */
+function gradeCard(g: EpisodeGrade): HTMLElement {
+  return h(
+    'section',
+    { class: 'results-grade', 'aria-label': `${g.stars} of 3 stars`, 'data-stars': String(g.stars), 'data-best': String(g.best) },
+    h('h3', {}, h('span', { class: 'grade-stars', 'aria-hidden': 'true' }, starRow(g.stars)), ` ${g.stars} of 3`),
+    h(
+      'ol',
+      { class: 'grade-steps' },
+      ...g.steps.map((st, i) =>
+        h('li', { class: st.met ? 'met' : '', 'data-star': String(i + 1), 'data-met': st.met ? '1' : '0' }, h('b', { 'aria-hidden': 'true' }, st.met ? '\u2605' : '\u2606'), h('span', {}, st.label)),
+      ),
+    ),
+    h(
+      'div',
+      { class: 'grade-score', 'data-score': String(g.score), 'data-best-score': String(g.bestScore), 'data-best-frames': String(g.bestFrames) },
+      g.beat.length
+        ? h('p', { class: 'new-best', role: 'status', 'data-beat': g.beat.join(',') }, 'New best!', h('small', {}, g.beat.length === 2 ? ' Score and time' : g.beat[0] === 'score' ? ' Score' : ' Time'))
+        : null,
+      h('p', { class: 'score-line' }, h('span', {}, 'Score'), h('strong', {}, g.score.toLocaleString('en-US')), h('span', {}, 'Time'), h('strong', {}, formatTime(g.frames))),
+      h('p', { class: 'score-parts' }, g.parts.map((p) => `${p.label} ${p.points < 0 ? '\u2212' : '+'}${Math.abs(p.points)}`).join(' \u00b7 ')),
+      h('p', { class: 'score-best' }, `Best ${g.bestScore.toLocaleString('en-US')} \u00b7 ${formatTime(g.bestFrames)}`),
+    ),
+    h('p', { class: 'grade-best' }, g.improved ? 'New best.' : `Best ${starRow(g.best)}`),
+  );
+}
+
+/** The reward line on an episode card (map tile): what clearing it gives, "Earned" once it is yours. */
+export function rewardTag(r: Reward, cleared = false): HTMLElement {
+  return h('span', { class: `chapter-reward${cleared || hasReward(r.id) ? ' earned' : ''}`, 'data-reward': r.id, 'data-kind': r.kind }, h('b', {}, cleared || hasReward(r.id) ? 'Earned' : 'Reward'), ` ${rewardLine(r)}`);
+}
+
+/** Results: how close the next fighter is, shown when one episode is all that is left (the route is the chapter's own `unlock`). */
+function unlockBar(): HTMLElement | null {
+  const n = nextUnlock();
+  if (!n) return null;
+  const who = CHARACTERS.find((c) => c.id === n.fighter)?.name ?? n.fighter;
+  const away = n.away === 1 ? 'one episode away' : `${n.away} episodes away`;
+  return h(
+    'section',
+    { class: 'results-unlock', role: 'status', 'data-fighter': n.fighter, 'data-away': String(n.away), 'data-fill': n.fill.toFixed(2) },
+    h('h3', {}, `${who} is ${away}`),
+    h('p', {}, `${n.route.text} puts them on the card.`),
+    h('div', { class: 'bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(n.fill * 100)), 'aria-label': `Progress toward ${who}` }, h('i', { style: `width:${Math.round(n.fill * 100)}%` })),
+  );
+}
+
+/** The unlock banner on results: the reward a won episode just gave, and where to use it. */
+function rewardBanner(r: Reward): HTMLElement {
+  return h('section', { class: 'results-reward', role: 'status', 'data-reward': r.id, 'data-kind': r.kind }, h('h3', {}, 'Unlocked'), h('p', { class: 'reward-name' }, rewardLine(r)), h('p', { class: 'reward-line' }, r.line));
+}
+
 /** The 'ko' objective's results line: which way it ended. */
 function koLine(m: Match, won: boolean): string {
   const n = m.koTarget;
@@ -336,8 +429,33 @@ export interface ResultAction {
   run: () => void;
 }
 
+/**
+ * A couch match (two or more people on this machine): each human's own numbers under their tag (colour + shape + P#), side
+ * by side. Solo, CPU-only and online matches get nothing, so their results are unchanged.
+ */
+function couchCards(m: Match, colors: string[]): HTMLElement | null {
+  if (m.setup.mode !== 'versus' || m.setup.online || m.humans < 2) return null;
+  const people = m.setup.slots.map((s, i) => ({ s, i })).filter(({ s }) => s.cpu === null && !s.remote);
+  const win = m.state.winnerTeam >= 0 ? (i: number) => m.state.fighters[i].team === m.state.winnerTeam : (i: number) => i === m.state.winner;
+  return h(
+    'section',
+    { class: 'couch-stats', 'aria-label': 'Player stats' },
+    ...people.map(({ i }, k) => {
+      const st = m.stats[i];
+      const f = m.state.fighters[i];
+      const cell = (key: string, label: string, value: string) => h('div', { 'data-stat': key }, h('dt', {}, label), h('dd', {}, value));
+      return h(
+        'article',
+        { class: 'couch-card', 'data-player': String(k + 1), 'data-slot': String(i), 'data-shape': shapeOf(i), 'data-winner': win(i) ? '1' : undefined, style: `--slot:${colors[i]}` },
+        h('header', {}, h('b', { class: 'couch-tag' }, `${SHAPE_GLYPH[shapeOf(i)]} P${k + 1}`), h('span', {}, CHARACTERS[f.char].name), win(i) && h('em', {}, 'Winner')),
+        h('dl', {}, cell('kos', 'KOs', String(st.kos)), cell('falls', 'Falls', String(st.falls)), cell('damage', 'Damage', pct(st.dealt)), cell('best', 'Best hit', pct(st.biggestHit))),
+      );
+    }),
+  );
+}
+
 /** `online`: an online match's ending, which can come before the sim's (a forfeit, a lost link, a desync). */
-export function showResults(m: Match, actions: ResultAction[], online?: { headline: string; note?: string; winner?: number }, unlocked: string[] = []): void {
+export function showResults(m: Match, actions: ResultAction[], online?: { headline: string; note?: string; winner?: number }, unlocked: string[] = [], levelChange?: { from: number; to: number; text: string }, grade?: EpisodeGrade, reward?: Reward | null): void {
   const s = m.state;
   const teams = m.setup.slots.some((x) => x.team !== undefined) && new Set(m.setup.slots.map((x) => x.team)).size > 1;
   const colors = s.fighters.map((f, i) => (teams && m.setup.mode !== 'campaign' ? TEAM_COLORS[f.team < 0 ? 0 : f.team] : PLAYER_COLORS[i]));
@@ -383,8 +501,12 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
         m.setup.objective === 'quota' && h('p', { class: 'results-objective' }, quotaLine(m, won)),
         m.setup.objective === 'streak' && h('p', { class: 'results-objective' }, streakLine(m, won)),
         online?.note && h('p', { class: 'results-note' }, online.note),
+        levelChange && h('p', { class: 'results-note level-note', 'data-from': String(levelChange.from), 'data-to': String(levelChange.to) }, levelChange.text),
       ),
     ),
+    reward && rewardBanner(reward),
+    !online && unlockBar(),
+    grade && gradeCard(grade),
     h(
       'div',
       { class: 'results-strip', 'aria-label': 'Match summary' },
@@ -393,6 +515,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
       stat('damage', 'Damage dealt', pct(dealt)),
       stat('kos', 'KOs', String(heroKos)),
     ),
+    couchCards(m, colors),
     h(
       'section',
       { class: 'highlights', 'aria-label': 'Highlights' },
@@ -477,6 +600,28 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
           caption: quote ? quoteCaption(quote) : null,
         })
       : null;
+  // Share (ui/share.ts): what the card draws, set for a finished match with a winner.
+  const stageDef = STAGES[m.setup.stage];
+  const foe = loser ?? order.find((f) => f.id !== hero.id);
+  setShareInfo(
+    winner || online?.winner !== undefined
+      ? {
+          headline,
+          winnerId: CHARACTERS[hero.char].id,
+          winnerName,
+          winnerColor: colors[hero.id],
+          loserId: foe ? CHARACTERS[foe.char].id : undefined,
+          loserName: foe ? CHARACTERS[foe.char].name : undefined,
+          stage: stageDef?.name ?? 'The arena',
+          context: m.setup.mode,
+          kos: heroKos,
+          bestHit: side.reduce((n, f) => Math.max(n, m.stats[f.id].biggestHit), 0) > 0 ? pct(side.reduce((n, f) => Math.max(n, m.stats[f.id].biggestHit), 0)) : '',
+          time: formatTime(s.frame),
+          extra: grade ? `${starRow(grade.stars)} ${grade.score.toLocaleString('en-US')}` : '',
+          sky: [stageDef?.theme.sky[0] ?? '#1b1b2a', stageDef?.theme.sky[2] ?? '#0b0b12'],
+        }
+      : null,
+  );
   const row = h('div', { class: `results-row${stage ? '' : ' no-stage'}`, 'data-phase': stage ? 'pose' : 'panel' }, stage?.el, panel);
   $('results-body').replaceChildren(row);
   stage?.start(row);
@@ -485,28 +630,74 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
 
 /** The results' buttons (an online result swaps them as the rematch moves on). `disabled` actions are shown but dead. */
 export function setResultActions(actions: (ResultAction & { disabled?: boolean })[]): void {
-  $('results-actions').replaceChildren(
-    ...actions.map((a, i) =>
-      h('button', { type: 'button', class: a.primary ? 'primary' : 'secondary', 'data-autofocus': i === 0 || undefined, disabled: a.disabled, onclick: a.run }, a.label),
-    ),
+  const buttons = actions.map((a, i) =>
+    h('button', { type: 'button', class: a.primary ? 'primary' : 'secondary', 'data-autofocus': i === 0 || undefined, disabled: a.disabled, onclick: a.run }, a.label),
   );
+  // Share sits before the last button (Back on this screen clicks the last one).
+  if (hasShareInfo() && buttons.length > 0) {
+    buttons.splice(
+      buttons.length - 1,
+      0,
+      h('button', { type: 'button', class: 'secondary share-btn', id: 'share-result', onclick: () => void shareResult() }, 'Share'),
+    );
+  }
+  $('results-actions').replaceChildren(...buttons);
 }
 
 // -------------------------------------------------------------- campaign
 
-export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => void, onReset: () => void, unlocked?: string): void {
+/** The season map's Easy / Normal / Hard choice (campaign/difficulty.ts): three thumb-size radio buttons, saved on a tap. */
+function renderDifficulty(): void {
+  const box = document.getElementById('difficulty');
+  if (!box) return;
+  const draw = () => {
+    const now = difficulty();
+    box.replaceChildren(
+      h('span', { class: 'difficulty-label', id: 'difficulty-label' }, 'Difficulty'),
+      h(
+        'div',
+        { class: 'difficulty-pick', role: 'radiogroup', 'aria-labelledby': 'difficulty-label' },
+        ...DIFFICULTIES.map((d) =>
+          h('button', {
+            type: 'button',
+            class: `difficulty-btn${d === now ? ' on' : ''}`,
+            role: 'radio',
+            'aria-checked': String(d === now),
+            'data-difficulty': d,
+            onclick: () => {
+              setDifficulty(d);
+              window.dispatchEvent(new CustomEvent('dod:difficulty', { detail: { phase: 'pick', difficulty: d } }));
+              draw();
+              document.querySelector<HTMLElement>(`#difficulty [data-difficulty="${d}"]`)?.focus();
+            },
+          }, DIFFICULTY_LABEL[d]),
+        ),
+      ),
+      h('span', { class: 'difficulty-note', id: 'difficulty-note' }, DIFFICULTY_NOTE[now]),
+    );
+  };
+  draw();
+}
+
+export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => void, onReset: () => void, unlocked?: string, onReplay?: (chapter: Chapter) => void): void {
   const path = $('chapter-path');
+  renderDifficulty();
+  const easy = easyCleared();
   const nextIndex = CHAPTERS.findIndex((c) => !done.has(c.id));
+  const savedStars = loadStars();
+  const savedBests = loadBests();
   const focus = CHAPTERS[nextIndex < 0 ? CHAPTERS.length - 1 : nextIndex];
   const chapter = (c: Chapter, n: number) => {
     const i = CHAPTERS.indexOf(c);
     const open = isOpen(i, done);
     const cleared = done.has(c.id);
+    const stars = Math.max(1, savedStars[c.id] ?? 1);
+    const best = savedBests[c.id];
     const status = cleared ? 'Cleared' : open ? 'Next' : 'Locked';
     const foe = c.fight.slots.find((s) => s.cpu !== null && s.team !== 0) ?? c.fight.slots[1];
     // The first chapter of a locked season waits on the season before, not on a chapter.
     const why = n === 0 && c.season > 1 ? `Clear Season ${c.season - 1} to open it.` : 'Clear the chapter before it.';
-    return h(
+    const card = h(
       'button',
       {
         type: 'button',
@@ -521,6 +712,31 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
       h('strong', {}, open ? c.title : '???'),
       h('span', { class: 'chapter-tag' }, open ? c.tagline : why),
       h('em', { class: 'chapter-status' }, status, open ? ` · ${STAGES[c.fight.stage].name}` : ''),
+      cleared && easy.has(c.id) ? h('span', { class: 'easy-badge', 'data-difficulty': 'easy' }, 'Easy') : null,
+      cleared
+        ? h(
+            'span',
+            { class: 'chapter-stars', 'data-stars': String(stars), role: 'img', 'aria-label': `${stars} of 3 stars` },
+            h('b', { 'aria-hidden': 'true' }, starRow(stars)),
+            h('small', {}, `${stars} of 3`),
+          )
+        : null,
+      cleared
+        ? h(
+            'span',
+            { class: 'chapter-best', 'data-best-score': best ? String(best.score) : '', 'data-best-frames': best ? String(best.frames) : '' },
+            h('span', {}, h('small', {}, 'Best time'), h('b', {}, best ? formatTime(best.frames) : '\u2014')),
+            h('span', {}, h('small', {}, 'Best score'), h('b', {}, best ? best.score.toLocaleString('en-US') : '\u2014')),
+          )
+        : null,
+    );
+    // A cleared episode can be played again as any unlocked fighter; the button sits under the card (a button can't hold a button).
+    if (!cleared || !onReplay) return card;
+    return h(
+      'div',
+      { class: 'chapter-cell' },
+      card,
+      h('button', { type: 'button', class: 'replay-as', 'data-chapter': c.id, onclick: () => onReplay(c) }, 'Replay as…'),
     );
   };
   const fresh = unlocked ? CHARACTERS.find((c) => c.id === unlocked) : undefined;
@@ -536,6 +752,7 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
     ...SEASONS.map((s) => {
       const open = seasonOpen(s.number, done);
       const cleared = seasonCleared(s.number, done);
+      const earned = s.chapters.reduce((n, c) => n + (done.has(c.id) ? Math.max(1, savedStars[c.id] ?? 1) : 0), 0);
       return h(
         'section',
         { class: `season ${cleared ? 'cleared' : open ? 'open' : 'locked'}`, 'data-season': s.number },
@@ -544,6 +761,7 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
           { class: 'season-head' },
           h('h3', {}, `Season ${s.number}`),
           s.subtitle ? h('span', { class: 'season-sub' }, open ? s.subtitle : '???') : null,
+          earned ? h('em', { class: 'season-stars', 'data-earned': String(earned), 'data-of': String(s.chapters.length * 3) }, `\u2605 ${earned}/${s.chapters.length * 3}`) : null,
           open ? null : h('em', { class: 'season-lock' }, `Locked · Clear Season ${s.number - 1} first`),
         ),
         h('div', { class: 'season-chapters' }, ...s.chapters.map(chapter)),

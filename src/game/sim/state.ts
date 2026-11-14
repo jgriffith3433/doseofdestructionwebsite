@@ -31,6 +31,10 @@ export const ACT = {
   GRAB_HOLD: 20,
   THROW: 21,
   GRABBED: 22,
+  /** Ledge options besides the getup (LEDGE_CLIMB): a roll onto the stage, a getup attack, a ledge jump. */
+  LEDGE_ROLL: 23,
+  LEDGE_ATTACK: 24,
+  LEDGE_JUMP: 25,
 } as const;
 
 export const ACT_NAMES = Object.fromEntries(Object.entries(ACT).map(([k, v]) => [v, k])) as Record<number, string>;

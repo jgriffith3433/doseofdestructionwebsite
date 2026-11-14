@@ -46,7 +46,53 @@ const listeners = new Set<(g: Graphics) => void>();
 
 export const graphics = (): Graphics => ({ ...current });
 
-export const setGraphics = (next: Partial<Graphics>): void => {
+export const HAND_KEY = 'dod.gfx.hand';
+export const AUTO_KEY = 'dod.gfx.auto';
+export const AUTO_TOAST_KEY = 'dod.gfx.auto-toast';
+
+const store = (key: string): string | null => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+const put = (key: string, value: string | null): void => {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {
+    // Private mode: the choice holds for this visit only.
+  }
+};
+
+/**
+ * True when the player chose Quality or Glow by hand in Settings: automatic quality then never changes anything. Also true for
+ * a saved choice that differs from the device's own default (it can only have come from Settings before this flag existed).
+ */
+export const pickedByHand = (): boolean => {
+  if (store(HAND_KEY) === '1') return true;
+  const raw = store(GFX_KEY);
+  if (!raw) return false;
+  try {
+    const p = JSON.parse(raw) as Partial<Graphics> | null;
+    const d = defaultGraphics();
+    return !!p && ((p.quality === 'low' || p.quality === 'high') && p.quality !== d.quality || typeof p.glow === 'boolean' && p.glow !== d.glow);
+  } catch {
+    return false;
+  }
+};
+
+/** The level automatic quality settled at on an earlier visit (0 = none). */
+export const savedAutoLevel = (): number => Math.max(0, Math.min(4, Number(store(AUTO_KEY)) | 0));
+export const saveAutoLevel = (level: number): void => put(AUTO_KEY, level > 0 ? String(level) : null);
+/** The one-time "eased the graphics" note: shown once ever, then never again. */
+export const autoToastShown = (): boolean => store(AUTO_TOAST_KEY) === '1';
+export const markAutoToastShown = (): void => put(AUTO_TOAST_KEY, '1');
+
+/** Settings calls this with byHand: a Quality or Glow press is the player's choice and switches automatic quality off for good. */
+export const setGraphics = (next: Partial<Graphics>, byHand = false): void => {
+  if (byHand && ('quality' in next || 'glow' in next)) put(HAND_KEY, '1');
   current = { ...current, ...next };
   try {
     localStorage.setItem(GFX_KEY, JSON.stringify(current));

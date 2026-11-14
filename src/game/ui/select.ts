@@ -7,14 +7,19 @@
 import { CHARACTERS, type CharacterDef } from '../sim/characters.ts';
 import type { SlotSetup } from '../match.ts';
 import { PLAYER_COLORS, prefetchFighters } from '../render/renderer.ts';
-import { CHAPTERS, isUnlocked } from '../campaign/story.ts';
+import { CHAPTERS, isUnlocked, unlockRoute } from '../campaign/story.ts';
 import { $, h, kids, largeUrl, portraitSize, portraitUrl, thumbUrl } from './dom.ts';
 import { specialsPanel } from './specialsPreview.ts';
 import { createFighterRender, prefetchIdles } from './fighterRender.ts';
 import { swatchRow } from './lookUi.ts';
 import { audio } from '../audio.ts';
+import { hintText } from './teach.ts';
 import { landOn, resetLanding } from './nameCall.ts';
-import { currentScreen } from './screens.ts';
+import { currentScreen, setMenuPadRules } from './screens.ts';
+import { pads, setPadClaims } from '../input/devices.ts';
+import { TEAM_COLORS, SHAPE_GLYPH, shapeOf } from '../colourVision.ts';
+import { loadAutoLevel } from '../ai/autoLevel.ts';
+import { ownedOf, pickTitle, pickedTitle } from '../campaign/rewards.ts';
 import { lookCount, lookOpen, openLook, preferredLook, rememberLook, separateLooks } from '../looks.ts';
 
 export interface VersusConfig {
@@ -23,9 +28,11 @@ export interface VersusConfig {
   /** Minutes, 0 for none. */
   time: number;
   teams: boolean;
+  /** Stage hazards in the fight (default on). */
+  hazards?: boolean;
 }
 
-export const TEAM_COLORS = ['#ff5a1f', '#3fa7ff'];
+export { TEAM_COLORS };
 const TEAM_NAMES = ['Red', 'Blue'];
 
 // Stat bars compare each fighter with the rest of the roster.
@@ -58,6 +65,9 @@ export function statBars(c: CharacterDef): HTMLElement {
   );
 }
 
+/** Phones play with the on-screen controls only: no second person on one screen. */
+const touchUi = (): boolean => document.body.classList.contains('touch-ui');
+
 interface Options {
   mode: 'versus' | 'training';
   config: VersusConfig;
@@ -69,8 +79,30 @@ export function unlockedBy(id: string) {
   return CHAPTERS.find((c) => c.unlock === id);
 }
 
+/** "S1 · E2": the locked tile's short route. */
+const routeShort = (id: string): string => {
+  const r = unlockRoute(id);
+  return r ? `S${r.season} · E${r.episode}` : '';
+};
+
+/** A tap on a locked tile says how to open it (a small status line above the bottom edge, gone after a few seconds). */
+let routeTimer: ReturnType<typeof setTimeout> | null = null;
+function routeNote(c: CharacterDef): void {
+  const r = unlockRoute(c.id);
+  document.querySelectorAll('.locked-route-note').forEach((e) => e.remove());
+  if (routeTimer) clearTimeout(routeTimer);
+  const note = h('div', { class: 'locked-route-note', role: 'status', 'data-fighter': c.id, 'data-route': r ? r.short : '' }, h('b', {}, `${c.name} is locked`), r ? ` · ${r.text}` : ' · clear the campaign to open them');
+  document.body.append(note);
+  window.dispatchEvent(new CustomEvent('dod:locked-route', { detail: { id: c.id, route: r?.text ?? '' } }));
+  routeTimer = setTimeout(() => note.remove(), 5000);
+}
+
 /** Versus and online picks: a locked fighter can't be picked (training is open to everyone). */
 const open = (i: number, training: boolean): boolean => training || isUnlocked(CHARACTERS[i].id);
+
+/** Hold Back on a joined pad this long to leave its slot. */
+export const LEAVE_HOLD_MS = 1000;
+let joinRun = 0;
 
 export function openSelect({ mode, config, onDone }: Options): void {
   const cfg: VersusConfig = { ...config, slots: config.slots.map((s) => ({ ...s })) };
@@ -88,7 +120,152 @@ export function openSelect({ mode, config, onDone }: Options): void {
     return separateLooks(cfg.slots, may);
   };
   let slotFocus = -1;
+  const autoLevel = loadAutoLevel();
   fixLooks();
+
+  // Joining: a pad pressing Start claims the next slot (replacing a CPU); holding Back on it for a second hands the slot back.
+  // With two or more pads the first is player 1's (it drives the menu); one pad joins only once the keyboard has been used.
+  const claims = new Map<number, number>(); // pad index -> slot
+  // Each joined pad has its own cursor on the roster (the tile it is over) and a ready flag (it picked a fighter).
+  // Player 1's cursor is the menu focus; the match starts when every joined player is ready and player 1 presses Fight.
+  const cursors = new Map<number, HTMLElement>(); // slot -> tile
+  const ready = new Set<number>();
+  let p1Tile: HTMLElement | null = null;
+  const padSlots = (): number[] => [...new Set(claims.values())].filter((i) => cfg.slots[i] && cfg.slots[i].cpu === null);
+  const waitingOn = (): number[] => padSlots().filter((i) => !ready.has(i));
+  let keyUsed = false;
+  let promptShown = false;
+  window.addEventListener('keydown', () => { keyUsed = true; }, { once: true });
+  setPadClaims([]);
+  const claimedPad = (p: Gamepad): boolean => claims.has(p.index);
+  /** A pad that Start would put into a slot: not claimed, not player 1's own pad. */
+  const joiner = (p: Gamepad): boolean => {
+    const all = pads();
+    if (all.length >= 2) return all[0].index !== p.index && !claims.has(p.index);
+    return all.length === 1 && keyUsed && !claims.has(p.index);
+  };
+  const freeSlot = (): number => {
+    const i = cfg.slots.findIndex((s, k) => k > 0 && s.cpu !== null);
+    return i >= 0 ? i : cfg.slots.length < 4 ? cfg.slots.length : -1;
+  };
+  /** "Press Start to join" shows only when a second device is connected (a pad besides the keyboard, or a second pad). */
+  const joinable = (): boolean => !training && !touchUi() && freeSlot() >= 0 && pads().some(joiner);
+  const syncClaims = (): void => {
+    const owners: number[] = [];
+    cfg.slots.forEach((s, i) => {
+      if (i > 0 && s.cpu === null) for (const [pad, slot] of claims) if (slot === i) owners.push(pad);
+    });
+    setPadClaims(owners);
+  };
+  const joinSlot = (padIndex: number): void => {
+    let i = freeSlot();
+    if (i < 0) return;
+    if (i >= cfg.slots.length) {
+      const used = new Set(cfg.slots.map((o) => o.char));
+      const free = CHARACTERS.findIndex((_, k) => !used.has(k) && open(k, training));
+      cfg.slots.push({ char: free < 0 ? 0 : free, cpu: null, team: cfg.slots.length % 2 });
+      i = cfg.slots.length - 1;
+    }
+    const s = cfg.slots[i];
+    s.cpu = null;
+    s.auto = undefined;
+    s.look = preferredLook(s.char);
+    claims.set(padIndex, i);
+    ready.delete(i);
+    // The new cursor starts on the fighter the slot holds.
+    const start = grid.querySelector<HTMLElement>(`.tile[data-fighter="${CHARACTERS[s.char].id}"]`);
+    if (start) cursors.set(i, start);
+    fixLooks();
+    syncClaims();
+    audio.sfx('ui-select');
+    window.dispatchEvent(new CustomEvent('dod:select-join', { detail: { slot: i, pad: padIndex, joined: true, people: cfg.slots.filter((o) => o.cpu === null).length, at: performance.now() } }));
+    renderSlots();
+  };
+  const leaveSlot = (padIndex: number): void => {
+    const i = claims.get(padIndex);
+    claims.delete(padIndex);
+    if (i !== undefined) { cursors.delete(i); ready.delete(i); }
+    if (i === undefined || !cfg.slots[i]) return;
+    cfg.slots[i].cpu = autoLevel;
+    cfg.slots[i].auto = true;
+    syncClaims();
+    window.dispatchEvent(new CustomEvent('dod:select-join', { detail: { slot: i, pad: padIndex, joined: false, people: cfg.slots.filter((o) => o.cpu === null).length, at: performance.now() } }));
+    renderSlots();
+  };
+  const padState = new Map<number, { dir: string; at: number; a: boolean; b: boolean; x: boolean }>();
+  /** One joined pad: the stick or D-pad moves its cursor, A picks (and readies), X cycles its colour, B un-readies. */
+  const padCursor = (p: Gamepad, now: number): void => {
+    const slot = claims.get(p.index);
+    if (slot === undefined || !cfg.slots[slot]) return;
+    const st = padState.get(p.index) ?? { dir: '', at: 0, a: false, b: false, x: false };
+    padState.set(p.index, st);
+    const ax = p.axes[0] ?? 0;
+    const ay = p.axes[1] ?? 0;
+    let dx = (p.buttons[15]?.pressed ? 1 : 0) - (p.buttons[14]?.pressed ? 1 : 0);
+    let dy = (p.buttons[13]?.pressed ? 1 : 0) - (p.buttons[12]?.pressed ? 1 : 0);
+    if (!dx && Math.abs(ax) > 0.5 && Math.abs(ax) >= Math.abs(ay)) dx = Math.sign(ax);
+    if (!dy && !dx && Math.abs(ay) > 0.5) dy = Math.sign(ay);
+    const dir = `${dx},${dy}`;
+    if ((dx || dy) && (dir !== st.dir || now - st.at > 230)) {
+      st.at = dir !== st.dir ? now + 120 : now;
+      moveCursor(slot, dx, dy);
+    }
+    st.dir = dir;
+    const a = !!p.buttons[0]?.pressed;
+    const b = !!p.buttons[1]?.pressed;
+    const x = !!p.buttons[2]?.pressed;
+    if (a && !st.a) pickAt(slot);
+    if (b && !st.b && ready.has(slot)) {
+      ready.delete(slot);
+      audio.sfx('ui-back');
+      window.dispatchEvent(new CustomEvent('dod:select-ready', { detail: { slot, ready: false, at: performance.now() } }));
+      renderSlots();
+    }
+    if (x && !st.x) nextLook(slot);
+    st.a = a;
+    st.b = b;
+    st.x = x;
+  };
+
+  if (mode === 'versus') {
+    const run = ++joinRun;
+    const startHeld = new Map<number, boolean>();
+    const backSince = new Map<number, number>();
+    let seen = false;
+    setMenuPadRules({ skip: claimedPad, noStart: joiner });
+    const loop = (): void => {
+      if (run !== joinRun) return;
+      const here = currentScreen() === 'select';
+      if (here) seen = true;
+      else if (seen) {
+        setMenuPadRules(null);
+        return;
+      }
+      if (here) {
+        const now = performance.now();
+        for (const p of pads()) {
+          const start = !!p.buttons[9]?.pressed;
+          if (start && !startHeld.get(p.index) && joiner(p)) joinSlot(p.index);
+          startHeld.set(p.index, start);
+          if (claims.has(p.index)) {
+            padCursor(p, now);
+            if (p.buttons[1]?.pressed || p.buttons[8]?.pressed) {
+              const from = backSince.get(p.index) ?? now;
+              backSince.set(p.index, from);
+              if (now - from >= LEAVE_HOLD_MS) {
+                backSince.delete(p.index);
+                leaveSlot(p.index);
+              }
+            } else backSince.delete(p.index);
+          }
+        }
+        for (const k of [...claims.keys()]) if (!pads().some((p) => p.index === k)) leaveSlot(k);
+        if (joinable() !== promptShown) renderSlots();
+      }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
 
   const preview = $('select-preview');
   const grid = $('select-grid');
@@ -168,9 +345,9 @@ export function openSelect({ mode, config, onDone }: Options): void {
     preview.replaceChildren(
       renderCanvas,
       h('div', { class: 'lower-third' }, portrait(c), h('div', { class: 'lt-text' },
-        h('p', { class: 'kicker' }, by ? `Locked · clear ${by.title} in the campaign` : locked ? 'Locked' : c.role),
+        h('p', { class: 'kicker' }, by ? `Locked · ${unlockRoute(c.id)!.short}` : locked ? 'Locked' : c.role),
         h('h3', {}, c.name),
-        h('p', { class: 'blurb' }, locked ? 'Clear the campaign episode to put them on the card.' : c.blurb),
+        h('p', { class: 'blurb' }, by ? `${by.title} puts them on the card.` : locked ? 'Clear the campaign episode to put them on the card.' : c.blurb),
       )),
       specialsPanel(c),
       details,
@@ -234,19 +411,100 @@ export function openSelect({ mode, config, onDone }: Options): void {
   grid.onpointermove = follow;
   grid.onpointerup = follow;
 
-  const assign = (char: number) => {
+  const assign = (char: number, who: number = active) => {
     if (!open(char, training)) return;
     void prefetchFighters([char]);
-    cfg.slots[active].char = char;
+    cfg.slots[who].char = char;
     // A person gets the colour they last wore with this fighter; a CPU starts on Classic. Same fighter twice: the second moves on.
-    cfg.slots[active].look = cfg.slots[active].cpu === null ? preferredLook(char) : 0;
+    cfg.slots[who].look = cfg.slots[who].cpu === null ? preferredLook(char) : 0;
     fixLooks();
     showPreview(CHARACTERS[char]);
     confirmPick(CHARACTERS[char]);
-    // After you pick, move on to the next CPU so a whole match can be set from the grid.
-    if (active < cfg.slots.length - 1) active++;
+    // After you pick, move on to the next CPU so a whole match can be set from the grid (a joined pad's pick leaves that alone).
+    if (who === active && active < cfg.slots.length - 1) active++;
     renderSlots();
   };
+
+  // ---- The joined pads' cursors ----
+  function p1Over(t: HTMLElement): void {
+    p1Tile = t;
+    if (claims.size) markCursors();
+  }
+  /** The nearest tile in a direction from the cursor's, by where the tiles really are (CSS order puts Random first and the locked last). */
+  function moveCursor(slot: number, dx: number, dy: number): void {
+    const from = cursors.get(slot);
+    if (!from) return;
+    const a = from.getBoundingClientRect();
+    const ax = a.left + a.width / 2;
+    const ay = a.top + a.height / 2;
+    let best: HTMLElement | null = null;
+    let bestScore = Infinity;
+    grid.querySelectorAll<HTMLElement>('.tile').forEach((t) => {
+      if (t === from) return;
+      const r = t.getBoundingClientRect();
+      const tx = r.left + r.width / 2 - ax;
+      const ty = r.top + r.height / 2 - ay;
+      const along = dx ? tx * dx : ty * dy;
+      const across = Math.abs(dx ? ty : tx);
+      if (along < Math.min(r.width, r.height) * 0.4 || across > along * 1.2 + r.height * 0.5) return;
+      const score = along + across * 2.5;
+      if (score < bestScore) { bestScore = score; best = t; }
+    });
+    if (!best) return;
+    cursors.set(slot, best);
+    const c = CHARACTERS.find((o) => o.id === (best as HTMLElement).dataset.fighter);
+    (best as HTMLElement).scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (c) showPreview(c);
+    audio.sfx('ui-move');
+    window.dispatchEvent(new CustomEvent('dod:select-cursor', { detail: { slot, fighter: c?.id ?? 'random', at: performance.now() } }));
+    markCursors();
+  }
+  function pickAt(slot: number): void {
+    const t = cursors.get(slot);
+    if (!t) return;
+    const ok = CHARACTERS.map((_, i) => i).filter((i) => open(i, training));
+    const i = t.dataset.fighter ? CHARACTERS.findIndex((c) => c.id === t.dataset.fighter) : ok[Math.floor(Math.random() * ok.length)];
+    if (i < 0 || !open(i, training)) return;
+    assign(i, slot);
+    ready.add(slot);
+    const c = CHARACTERS[i];
+    // Random lands the cursor on the fighter it picked.
+    const own = grid.querySelector<HTMLElement>(`.tile[data-fighter="${c.id}"]`);
+    if (own) cursors.set(slot, own);
+    window.dispatchEvent(new CustomEvent('dod:select-ready', { detail: { slot, ready: true, fighter: c.id, look: cfg.slots[slot].look ?? 0, at: performance.now() } }));
+    renderSlots();
+  }
+  function nextLook(slot: number): void {
+    const s = cfg.slots[slot];
+    const n = lookCount(s.char);
+    for (let k = 1; k <= n; k++) {
+      const look = ((s.look ?? 0) + k) % n;
+      if (may(slot, look)) {
+        s.look = look;
+        rememberLook(s.char, look);
+        fixLooks();
+        if (CHARACTERS[s.char].id === shownId) render.setLook(s.look ?? 0);
+        audio.sfx('ui-select');
+        window.dispatchEvent(new CustomEvent('dod:select-look', { detail: { slot, look: s.look, at: performance.now() } }));
+        renderSlots();
+        return;
+      }
+    }
+  }
+  /** The coloured, shaped tokens over the tiles: one per human with a cursor (player 1's is the menu focus). */
+  function markCursors(): void {
+    grid.querySelectorAll('.cursor-tokens').forEach((e) => e.remove());
+    if (!claims.size || training) return;
+    const place = (slot: number, tile: HTMLElement | null) => {
+      if (!tile) return;
+      let box = tile.querySelector<HTMLElement>('.cursor-tokens');
+      if (!box) { box = h('span', { class: 'cursor-tokens' }); tile.append(box); }
+      const color = cfg.teams ? TEAM_COLORS[cfg.slots[slot].team ?? 0] : PLAYER_COLORS[slot];
+      box.append(h('span', { class: `cursor-token${ready.has(slot) ? ' ready' : ''}`, 'data-slot': String(slot), 'data-shape': shapeOf(slot), style: `--c:${color}` }, `${SHAPE_GLYPH[shapeOf(slot)]} P${slot + 1}`));
+    };
+    place(0, p1Tile ?? (grid.querySelector(`.tile[data-fighter="${CHARACTERS[cfg.slots[0].char].id}"]`) as HTMLElement | null));
+    for (const [slot, tile] of cursors) if (padSlots().includes(slot)) place(slot, tile);
+  }
 
   grid.replaceChildren(
     ...CHARACTERS.map((c, i) =>
@@ -258,14 +516,16 @@ export function openSelect({ mode, config, onDone }: Options): void {
           title: open(i, training) ? c.name : `${c.name} (locked)`,
           'aria-disabled': open(i, training) ? undefined : 'true',
           'data-fighter': c.id,
-          onclick: () => assign(i),
-          onfocus: () => { showPreview(c); land(c, i, true); if (open(i, training)) void prefetchFighters([i]); },
-          onmouseenter: () => { showPreview(c); land(c, i); },
+          onclick: () => { if (!open(i, training)) routeNote(c); assign(i); },
+          onfocus: (e: Event) => { p1Over(e.currentTarget as HTMLElement); showPreview(c); land(c, i, true); if (open(i, training)) void prefetchFighters([i]); },
+          onmouseenter: (e: Event) => { p1Over(e.currentTarget as HTMLElement); showPreview(c); land(c, i); },
           // A tap on a phone: the preview (and its clip) follows the finger, not only the fighter picked.
           onpointerdown: () => { showPreview(c); land(c, i); },
         },
         thumb(c),
-        h('span', {}, open(i, training) ? c.name : 'Locked'),
+        open(i, training)
+          ? h('span', {}, c.name)
+          : h('span', { class: 'lock-route' }, 'Locked', h('small', {}, routeShort(c.id))),
       ),
     ),
     h(
@@ -286,13 +546,15 @@ export function openSelect({ mode, config, onDone }: Options): void {
 
   function renderSlots(): void {
     const back = slotFocus;
+    promptShown = joinable();
     slotFocus = -1;
     slotsEl.replaceChildren(
       ...kids(...cfg.slots.map((s, i) => {
         const c = CHARACTERS[s.char];
         const color = cfg.teams ? TEAM_COLORS[s.team ?? 0] : PLAYER_COLORS[i];
         const isCpu = s.cpu !== null;
-        const label = !isCpu ? 'You' : s.cpu === 0 ? 'Dummy' : `CPU · Level ${s.cpu}`;
+        const auto = isCpu && !training && s.auto !== false;
+        const label = !isCpu ? (i === 0 && cfg.slots.every((o, k) => k === 0 || o.cpu !== null) ? 'You' : `Player ${i + 1}`) : s.cpu === 0 ? 'Dummy' : auto ? `CPU · Auto · Level ${autoLevel}` : `CPU · Level ${s.cpu}`;
         return h(
           'div',
           { class: `slot${i === active ? ' active' : ''}`, style: `--slot:${color}` },
@@ -317,22 +579,48 @@ export function openSelect({ mode, config, onDone }: Options): void {
               renderSlots();
             },
           }),
+          // Titles earned in Seasons 8 to 10: one is worn on your VS card (campaign/rewards.ts).
+          !isCpu && !training && i === 0 && ownedOf('title').length
+            ? h(
+                'div',
+                { class: 'title-pick', role: 'radiogroup', 'aria-label': 'Title' },
+                ...[null, ...ownedOf('title')].map((t) =>
+                  h('button', { type: 'button', class: 'title-chip', role: 'radio', 'aria-checked': String((pickedTitle()?.id ?? null) === (t?.id ?? null)), 'data-title': t?.id ?? 'none', onclick: () => { pickTitle(t?.id ?? null); slotFocus = i; renderSlots(); } }, t?.name ?? 'No title'),
+                ),
+              )
+            : null,
           isCpu &&
             h(
               'div',
               { class: 'slot-tools' },
+              !training && !touchUi() && i > 0 && h('button', { type: 'button', class: 'human-toggle', title: 'A second person plays this fighter on their own controller', onclick: () => { s.cpu = null; s.auto = undefined; s.look = preferredLook(s.char); fixLooks(); renderSlots(); } }, 'Person'),
+              !training && h('button', { type: 'button', class: 'auto-level', 'aria-pressed': String(auto), title: 'Auto: the level follows how you do', onclick: () => { s.auto = !auto; if (s.auto === false) s.cpu = autoLevel; renderSlots(); } }, 'Auto'),
               h('button', { type: 'button', 'aria-label': 'Lower level', onclick: () => level(i, -1) }, '−'),
               h('button', { type: 'button', 'aria-label': 'Raise level', onclick: () => level(i, 1) }, '+'),
               cfg.teams && h('button', { type: 'button', onclick: () => toggleTeam(i) }, TEAM_NAMES[s.team ?? 0]),
               !training && cfg.slots.length > 2 && h('button', { type: 'button', 'aria-label': 'Remove', onclick: () => remove(i) }, '×'),
             ),
-          !isCpu && cfg.teams && h('div', { class: 'slot-tools' }, h('button', { type: 'button', onclick: () => toggleTeam(i) }, TEAM_NAMES[s.team ?? 0])),
+          isCpu && !training && i > 0 && joinable() && h('p', { class: 'join-prompt', role: 'status' }, 'Press Start to join'),
+          !isCpu && i > 0 && [...claims.values()].includes(i) && h('p', { class: 'join-prompt joined', 'data-ready': String(ready.has(i)) }, ready.has(i) ? 'Ready · B to change' : 'Pick a fighter · A', ),
+          !isCpu && (cfg.teams || i > 0) &&
+            h(
+              'div',
+              { class: 'slot-tools' },
+              i > 0 && h('button', { type: 'button', class: 'human-toggle', 'aria-pressed': 'true', title: 'Back to a CPU', onclick: () => { s.cpu = autoLevel; s.auto = true; renderSlots(); } }, 'Person'),
+              cfg.teams && h('button', { type: 'button', onclick: () => toggleTeam(i) }, TEAM_NAMES[s.team ?? 0]),
+              !training && i > 0 && cfg.slots.length > 2 && h('button', { type: 'button', 'aria-label': 'Remove', onclick: () => remove(i) }, '×'),
+            ),
         );
       }),
       !training && cfg.slots.length < 4 && h('button', { type: 'button', class: 'slot add', onclick: addCpu }, '+ Add CPU'),
-      h('button', { type: 'button', class: 'primary fight', onclick: () => { resetLanding(); fixLooks(); onDone(cfg); } }, training ? 'Train' : 'Fight'),
+      (() => {
+        const wait = waitingOn();
+        return h('button', { type: 'button', class: 'primary fight', disabled: wait.length > 0, 'data-waiting': wait.map((i) => `P${i + 1}`).join(' '), onclick: () => { if (waitingOn().length) return; resetLanding(); fixLooks(); onDone(cfg); } },
+          training ? 'Train' : wait.length ? `Waiting for ${wait.map((i) => `P${i + 1}`).join(' + ')}` : 'Fight');
+      })(),
     ));
     markTiles();
+    markCursors();
     // Keep the keyboard on the row it was using after a colour pick redraws the slots.
     if (back >= 0) slotsEl.querySelector<HTMLElement>(`.swatches[data-slot="${back}"] .swatch.on`)?.focus();
   }
@@ -352,7 +640,10 @@ export function openSelect({ mode, config, onDone }: Options): void {
   function level(i: number, d: number): void {
     const s = cfg.slots[i];
     const min = training ? 0 : 1;
-    s.cpu = Math.max(min, Math.min(9, (s.cpu ?? 1) + d));
+    // A manual level always wins: moving it takes the slot off Auto, starting from the level Auto had.
+    const from = !training && s.auto !== false ? autoLevel : s.cpu ?? 1;
+    s.cpu = Math.max(min, Math.min(9, from + d));
+    if (!training) s.auto = false;
     renderSlots();
   }
 
@@ -377,7 +668,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
 
   function renderRules(): void {
     if (training) {
-      rulesEl.replaceChildren(h('p', { class: 'hint' }, 'No stocks. Press H in the match to see hitboxes.'));
+      rulesEl.replaceChildren(h('p', { class: 'hint' }, hintText('No stocks. Press {hitbox} in the match to see hitboxes.')));
       return;
     }
     const times = [0, 3, 5, 7];
@@ -405,6 +696,16 @@ export function openSelect({ mode, config, onDone }: Options): void {
         { class: 'rule' },
         h('span', {}, 'Teams'),
         h('button', { type: 'button', class: 'value', onclick: () => { cfg.teams = !cfg.teams; renderRules(); renderSlots(); } }, cfg.teams ? 'On' : 'Off'),
+      ),
+      h(
+        'div',
+        { class: 'rule', 'data-rule': 'hazards' },
+        h('span', {}, 'Hazards'),
+        h(
+          'button',
+          { type: 'button', class: 'value', 'aria-pressed': String(cfg.hazards !== false), onclick: () => { cfg.hazards = cfg.hazards === false; renderRules(); } },
+          cfg.hazards === false ? 'Off' : 'On',
+        ),
       ),
     );
   }

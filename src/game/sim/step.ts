@@ -24,6 +24,9 @@ import {
 import { predictLaunchKo } from '../hitFeel.ts';
 import { ACT, SHIELD_MAX, allies, bodySize, newShot, type Fighter, type GameState, type Shot, type TakeoverRule } from './state.ts';
 
+/** What a fighter chose on the ledge. */
+export type LedgeOption = 'getup' | 'roll' | 'attack' | 'jump' | 'drop';
+
 export type SimEvent =
   /** special: the archetype of the special that landed it (a shot is projectile or trap), for the impact sound. Presentation only. */
   | { type: 'hit'; attacker: number; victim: number; x: number; y: number; dmg: number; kb: number; shield: boolean; lag: number; special?: SpecialKind }
@@ -39,6 +42,8 @@ export type SimEvent =
   /** A dead-even time-out went to sudden death: the tied fighters respawn at 300%, first KO wins. */
   | { type: 'sudden'; ids: number[] }
   | { type: 'jump' | 'land' | 'ledge' | 'shieldbreak' | 'respawn'; id: number; x: number; y: number }
+  /** What a fighter chose on the ledge (or 'drop': the hang ran out, or the stick pushed down or away). */
+  | { type: 'ledge-option'; id: number; option: LedgeOption; x: number; y: number }
   /** A counter special turned a hit back on its attacker. */
   | { type: 'counter'; id: number; x: number; y: number }
   /** Two fighters' active hitboxes met each other on the same frame (a trade): where the circles touch. Presentation only. */
@@ -231,6 +236,23 @@ function updateFighter(s: GameState, f: Fighter, inp: number, ev: SimEvent[]): v
     case ACT.LEDGE_CLIMB:
       ledgeClimb(f, ch, c);
       break;
+    case ACT.LEDGE_ROLL:
+      ledgeRoll(f, ch, c);
+      break;
+    case ACT.LEDGE_ATTACK:
+      ledgeAttack(f, ch, c);
+      break;
+    case ACT.LEDGE_JUMP:
+      // A jump off the ledge is a short action of its own, but the fighter can act out of it (air jump, aerial) after a few frames.
+      if (f.frame >= LEDGE_JUMP_ACT && tryAir(f, ch, c, ev)) break;
+      drift(f, ch, c, 1);
+      fastFall(f, ch, c);
+      // Back to the ordinary air state without restarting the frame count (the jump clip carries on).
+      if (f.frame >= f.length) {
+        f.action = ACT.AIR;
+        f.length = 0;
+      }
+      break;
     case ACT.HELPLESS:
       drift(f, ch, c, 2);
       break;
@@ -260,7 +282,7 @@ function updateFighter(s: GameState, f: Fighter, inp: number, ev: SimEvent[]): v
 
   if (f.coyote > 0) f.coyote--;
 
-  if (f.action !== ACT.LEDGE && f.action !== ACT.LEDGE_CLIMB && f.action !== ACT.RESPAWN) {
+  if (!PINNED.has(f.action)) {
     physics(s, f, ch, c, ev);
   }
 }
@@ -1117,26 +1139,88 @@ function hangPosition(f: Fighter): [number, number] {
   return [l.x * FX + l.side * (w >> 1), l.y * FX - h + 20 * FX];
 }
 
+// The ledge is a choice. Held for LEDGE_CHOOSE frames (the grab's own invincibility covers them), then:
+//   getup  (stick up or toward the stage)  22 frames, invincible all of it; stand at the edge
+//   roll   (Shield)                        34 frames, invincible 28; lands a body-length further in
+//   attack (Attack, or the smash stick)    12 frames climbing, then the fighter's down tilt, invincible 14; a low sweep
+//   jump   (Jump)                          a higher hop, a little inward, invincible 14; air jump and aerials open at frame 6
+//   drop   (stick down or away, or the hang runs out after LEDGE_HANG_MAX)
+// Special does nothing here. All of it is integers in the fighter's own state (action, frame, ledge), so it rolls back.
+
+/** Frames from grabbing before an option is read. */
+export const LEDGE_CHOOSE = 8;
+/** The longest a fighter can hang (4 s); then they let go. */
+export const LEDGE_HANG_MAX = 240;
+export const LEDGE_GETUP_FRAMES = 22;
+export const LEDGE_ROLL_FRAMES = 34;
+export const LEDGE_ROLL_INVULN = 28;
+/** Climbing frames of a roll and a ledge attack (the fighter rises over the edge, then moves). */
+export const LEDGE_RISE = 8;
+export const LEDGE_ATTACK_FRAMES = 12;
+export const LEDGE_ATTACK_INVULN = 14;
+export const LEDGE_JUMP_FRAMES = 16;
+export const LEDGE_JUMP_INVULN = 14;
+/** The frame a ledge jump can air jump or throw an aerial. */
+const LEDGE_JUMP_ACT = 6;
+/** Frames before the same ledge can be grabbed again after letting go on purpose, or after the hang ran out. */
+const LEDGE_REGRAB = 30;
+const LEDGE_REGRAB_TIMEOUT = 90;
+
+/** Actions the sim moves by hand (the ledge ones, the respawn drop), so physics leaves them alone. */
+const PINNED: ReadonlySet<number> = new Set([ACT.LEDGE, ACT.LEDGE_CLIMB, ACT.LEDGE_ROLL, ACT.LEDGE_ATTACK, ACT.RESPAWN]);
+
+function ledgeOption(f: Fighter, option: LedgeOption, ev: SimEvent[]): void {
+  ev.push({ type: 'ledge-option', id: f.id, option, x: f.x, y: f.y });
+}
+
 function ledge(f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): void {
-  if (!platformOn(stage, clock, heldLedge(f).platform)) {
+  const l = heldLedge(f);
+  if (!platformOn(stage, clock, l.platform)) {
     leaveLedge(f, 30);
     return;
   }
   [f.x, f.y] = hangPosition(f);
-  if (f.frame < 8) return;
-  const toward = -heldLedge(f).side;
-  if (f.buffer & BTN.JUMP) {
+  const toward = -l.side;
+  if (f.frame > LEDGE_HANG_MAX) {
+    ledgeOption(f, 'drop', ev);
+    leaveLedge(f, LEDGE_REGRAB_TIMEOUT);
+    f.x -= toward * 4 * FX;
+    return;
+  }
+  if (f.frame < LEDGE_CHOOSE) return;
+  const b = f.buffer;
+  if (b & BTN.JUMP) {
     consume(f);
-    leaveLedge(f, 20);
-    f.vy = ch.jumpVel;
-    f.vx = toward * 2 * FX;
+    f.ledge = 0;
+    f.ledgeCooldown = 20;
+    f.grounded = 0;
+    f.platform = -1;
+    f.fastFall = 0;
+    setAction(f, ACT.LEDGE_JUMP, LEDGE_JUMP_FRAMES);
+    f.intangible = LEDGE_JUMP_INVULN;
+    f.vy = idiv(ch.jumpVel * 115, 100);
+    f.vx = toward * 3 * FX;
+    ledgeOption(f, 'jump', ev);
     ev.push({ type: 'jump', id: f.id, x: f.x, y: f.y });
-  } else if (c.sy > 60 || c.sx * toward > 60 || f.buffer & (BTN.ATTACK | BTN.SPECIAL | BTN.SHIELD)) {
+  } else if (b & BTN.SHIELD) {
     consume(f);
-    setAction(f, ACT.LEDGE_CLIMB, 22);
-    f.intangible = 22;
-  } else if (c.sy < -60 || c.sx * toward < -60 || f.frame > 300) {
-    leaveLedge(f, 30);
+    setAction(f, ACT.LEDGE_ROLL, LEDGE_ROLL_FRAMES);
+    f.intangible = LEDGE_ROLL_INVULN;
+    ledgeOption(f, 'roll', ev);
+  } else if (b & (BTN.ATTACK | C_ANY)) {
+    consume(f);
+    setAction(f, ACT.LEDGE_ATTACK, LEDGE_ATTACK_FRAMES);
+    f.intangible = LEDGE_ATTACK_INVULN;
+    ledgeOption(f, 'attack', ev);
+  } else if (b & BTN.SPECIAL) {
+    consume(f);
+  } else if (c.sy > 60 || c.sx * toward > 60) {
+    setAction(f, ACT.LEDGE_CLIMB, LEDGE_GETUP_FRAMES);
+    f.intangible = LEDGE_GETUP_FRAMES;
+    ledgeOption(f, 'getup', ev);
+  } else if (c.sy < -60 || c.sx * toward < -60) {
+    ledgeOption(f, 'drop', ev);
+    leaveLedge(f, LEDGE_REGRAB);
     f.x -= toward * 4 * FX;
   }
 }
@@ -1149,6 +1233,23 @@ function leaveLedge(f: Fighter, cooldown: number): void {
   setAction(f, ACT.AIR, 0);
 }
 
+/** Where a fighter who climbed the ledge stands: just inside the edge. */
+function ledgeTopX(f: Fighter, l: Ledge): number {
+  return l.x * FX - l.side * ((bodySize(f)[0] >> 1) + 6 * FX);
+}
+
+/** Puts the fighter on the platform at x and hands them back to the ground states. */
+function standOnLedge(f: Fighter, l: Ledge, x: number): void {
+  f.x = x;
+  f.y = l.y * FX;
+  f.ledge = 0;
+  f.ledgeCooldown = 10;
+  f.grounded = 1;
+  f.platform = l.platform;
+  f.vx = 0;
+  f.vy = 0;
+}
+
 function ledgeClimb(f: Fighter, ch: CharacterDef, c: Ctx): void {
   const l = heldLedge(f);
   if (!platformOn(stage, clock, l.platform)) {
@@ -1156,9 +1257,8 @@ function ledgeClimb(f: Fighter, ch: CharacterDef, c: Ctx): void {
     return;
   }
   const [hx, hy] = hangPosition(f);
-  const [w] = bodySize(f);
   const top = l.y * FX;
-  const endX = l.x * FX - l.side * ((w >> 1) + 6 * FX);
+  const endX = ledgeTopX(f, l);
   if (f.frame <= 11) {
     f.x = hx;
     f.y = hy + idiv((top - hy) * f.frame, 11);
@@ -1167,15 +1267,64 @@ function ledgeClimb(f: Fighter, ch: CharacterDef, c: Ctx): void {
     f.x = hx + idiv((endX - hx) * (f.frame - 11), 11);
   }
   if (f.frame >= f.length) {
-    f.x = endX;
-    f.y = top;
-    f.ledge = 0;
-    f.ledgeCooldown = 10;
-    f.grounded = 1;
-    f.platform = l.platform;
-    f.vx = 0;
-    f.vy = 0;
+    standOnLedge(f, l, endX);
     finishGround(f, ch, c);
+  }
+}
+
+/** Where the ledge roll ends: a body-length inside the getup's spot, but never past the middle of a small platform. */
+export function ledgeRollEndX(f: Fighter, l: Ledge): number {
+  const [w] = bodySize(f);
+  const p = stage.platforms[l.platform];
+  const room = idiv((p.x2 - p.x1) * FX, 2);
+  const inward = Math.min((w >> 1) + 6 * FX + w, room);
+  return l.x * FX - l.side * inward;
+}
+
+function ledgeRoll(f: Fighter, ch: CharacterDef, c: Ctx): void {
+  const l = heldLedge(f);
+  if (!platformOn(stage, clock, l.platform)) {
+    leaveLedge(f, 30);
+    return;
+  }
+  const [hx, hy] = hangPosition(f);
+  const top = l.y * FX;
+  const endX = ledgeRollEndX(f, l);
+  f.facing = -l.side;
+  if (f.frame <= LEDGE_RISE) {
+    f.x = hx;
+    f.y = hy + idiv((top - hy) * f.frame, LEDGE_RISE);
+  } else {
+    f.y = top;
+    f.x = hx + idiv((endX - hx) * (f.frame - LEDGE_RISE), f.length - LEDGE_RISE);
+  }
+  if (f.frame >= f.length) {
+    standOnLedge(f, l, endX);
+    finishGround(f, ch, c);
+  }
+}
+
+/** The ledge attack climbs like the getup, then swings the fighter's own down tilt (a low sweep) from the top. */
+function ledgeAttack(f: Fighter, ch: CharacterDef, c: Ctx): void {
+  const l = heldLedge(f);
+  if (!platformOn(stage, clock, l.platform)) {
+    leaveLedge(f, 30);
+    return;
+  }
+  const [hx, hy] = hangPosition(f);
+  const top = l.y * FX;
+  const endX = ledgeTopX(f, l);
+  if (f.frame <= LEDGE_RISE) {
+    f.x = hx;
+    f.y = hy + idiv((top - hy) * f.frame, LEDGE_RISE);
+  } else {
+    f.y = top;
+    f.x = hx + idiv((endX - hx) * (f.frame - LEDGE_RISE), f.length - LEDGE_RISE);
+  }
+  if (f.frame >= f.length) {
+    standOnLedge(f, l, endX);
+    f.facing = -l.side;
+    startMove(f, ch, MOVE.DTILT);
   }
 }
 
@@ -1203,7 +1352,7 @@ function tryGrabLedge(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: Si
     const hangX = lx + l.side * half;
     const top = f.y + h - ly;
     if (Math.abs(f.x - hangX) > 45 * FX || top < -25 * FX || top > 70 * FX) continue;
-    if (s.fighters.some((o) => o !== f && (o.action === ACT.LEDGE || o.action === ACT.LEDGE_CLIMB) && o.ledge === i + 1)) continue;
+    if (s.fighters.some((o) => o !== f && o.ledge === i + 1 && (o.action === ACT.LEDGE || o.action === ACT.LEDGE_CLIMB || o.action === ACT.LEDGE_ROLL || o.action === ACT.LEDGE_ATTACK))) continue;
 
     f.ledge = i + 1;
     f.facing = -l.side;
@@ -1566,6 +1715,7 @@ function land(f: Fighter, ch: CharacterDef, platform: number, y: number, ev: Sim
       setAction(f, ACT.LAND, 10);
       break;
     case ACT.AIR:
+    case ACT.LEDGE_JUMP:
       if (f.buffer) f.bufferAge = 0;
       setAction(f, ACT.LAND, 4);
       break;

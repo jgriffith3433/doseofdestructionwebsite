@@ -21,6 +21,7 @@ call out where the live build is still thin.
   front. Layered bed: arena murmur (`bed: arena`) under `music-foundry` ambience + theme `music-humans-in-the-loop`;
   lifts on last stock / 100%; final-KO sting. Crowd noise, cheer on every KO (`go-wild`).
 - **Size:** wide main deck with side platforms; the camera opens wide for scene cards then tightens on speakers.
+- **Moves:** the light truss over centre deck drifts across the stage, about 190 units either way over 15 s: a rider crosses high. Layout, not a hazard: Hazards Off keeps it.
 - **In / out:** Season 1 Encore, Season 2 Sponsored, Season 3 Walk-On, Season 5 Clip Show, Season 8 Best in Show,
   Season 10 First Cut. The city tunes here first every midnight.
 - **Now:** strongest "show" stage (crowd + KO reaction). **Short:** no day/night shift of the house lights outside
@@ -32,6 +33,7 @@ call out where the live build is still thin.
   Layered bed: night wind/city hum (`bed: city-night`) under `music-rooftop` ambience + theme `music-city-top`;
   lifts on last stock / 100%; final-KO sting. Fireworks on falls.
 - **Size:** long main roof, side ledges, a high solid perch; blast left/right into the city.
+- **Moves:** the two inner catwalks fade out and back on a steady 10 s timer (flash 1.5 s, gone 3 s, half a cycle apart, so one is always up). Layout, not a hazard: Hazards Off keeps them.
 - **In / out:** Open Mic, Title Defense, Cold Open, Pilot Remake, Series Finale, Teaser, Final Cut (and returns).
 - **Now:** painted and playable. **Short / vertical-slice fix:** add a soft timed beat every ~8–10 s (billboard
   flicker, distant firework volley, or antenna spark) plus denser night wind and city hum so stalling never leaves a
@@ -89,6 +91,7 @@ call out where the live build is still thin.
   (`bed: void`) under `music-pit` ambience + theme `music-space-chess`; lifts on last stock / 100%; final-KO sting.
   Kings topple on KO.
 - **Size:** flat board with side floats.
+- **Moves:** the two inner floating squares drift in and out together, 50 units either way over 9 s, never touching the outer pairs. Layout, not a hazard: Hazards Off keeps them.
 - **In / out:** Dead Weight, Cut to Size, Standards and Practices, Lifetime Achievement.
 - **Now:** `king-falls` on KO. **Short:** pawn drift should be constant; board needs more idle motion when nobody falls.
 
@@ -182,6 +185,15 @@ the floor like a bowling lane), **Skate dash** (side, he rides it straight throu
 **Ollie** (up, the pop that gets him back to the ledge) and **Kickflip trap** (down, he flips a board onto the
 floor and walks away from it; whoever steps on it eats it). Dry as ever: no one on the show says what the moves
 are called.
+
+**How a fighter's hands move (archetypes).** The same button reads differently by build, from `content/archetypes.json`
+(every fighter is listed; `archetype` in `fighters.json` overrides; `src/game/sim/fighterDefs.ts` `applyArchetype`). A
+**heavy** (Break, SS Boulder, Shutup Bot, Got Ur Back, Stratabots, TT, Spider Bot, Yo Bot) jabs like a shove: it starts
+later, reaches further and launches harder. A **fast** fighter (Kaelen, Slice, DJ Won't Read, Shark Dude, Try Belt,
+Ball Person) answers one press with a three-hit flurry and pokes with short aerials. A **floaty** fighter (Cel, Evil Blue
+Bird, Uh Me, Slow Rider, Chooser, Small Weather, Yooba) leaves aerials hanging in the air and lands them quickly, softer.
+Everyone else is standard. Smashes and specials are untouched. The show never names any of it; the crowd just flinches
+at a heavy's jab. Scenario `archetype-normals`; `test/archetypes.test.ts`.
 
 The other twelve Season 1 fighters each have their own kit, drawn from their blurb and the show, and no two share
 the same four kinds (neutral / side / up / down): Kaelen (Hi, bye · Gone · Bye · Slip: a flurry, a dash, a straight
@@ -575,3 +587,15 @@ Every screen change is the show cutting between segments: three slanted panels (
 
 ### Story beat: first blood
 The booth reacts to play. First KO of a bout: the ON AIR bug flashes red under the timer (`.air-flash`, `main.ts` `airFlash`), a sting, and the announcer's first-blood call. Fits phones (top centre, no pointer events).
+
+## Name tags (on-stage identity)
+Every fighter wears the show's name tag: P1-P4 for people, CPU for bots, DUMMY in Training, the profile name online. It sits above the head in the player colour with a dark outline (ui/tags.ts), and rides the edge bubble when the fighter is knocked out of view, so a player knows which fighter is theirs without relying on colour.
+
+## The first bout (the opening beat)
+
+- **Areas:** the stage the first match of a visit is on (Training or a Versus bout); no new area.
+- **Landmarks:** the fly-in from the far layers, the stage-name lower third, the rival's entrance spot.
+- **Who lives here:** whoever stands across from the player: Break, Wallit, Kaelen and the rest each enter as in "The broadcast opens"; the announcer calls the stage.
+- **Characters:** no new character; entrances use each fighter's existing voice and look.
+- **What happens:** the first fight of every page visit, however it starts (the Versus card, Training, a setup shortcut), plays the match intro once (`openingBeatSeen` in `main.ts` `startMatch`): the rival drops in with dust and a thud, the crowd and bed play, then Ready. No input is asked for until Ready; any press skips it. Retry and later bouts go straight to Ready. Lessons, online, Tonight's Episode and episodes with their own scene are unchanged.
+- **Story beats:** told by camera, entrance, crowd and the announcer's call, with one caption line (the stage name).

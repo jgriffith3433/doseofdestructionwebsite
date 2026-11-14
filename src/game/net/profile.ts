@@ -134,3 +134,7 @@ export function profileKey(): NostrKey {
 export function profileId(): string {
   return profileKey().pubkey;
 }
+
+// The last match replay kept with the profile (`dod.profile.replay`, bounded size).
+export { REPLAY_KEY, saveReplay, loadReplay, type Replay } from '../replay.ts';
+

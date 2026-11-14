@@ -1,6 +1,7 @@
 // Draws a GameState with Babylon. Nothing here feeds back into the sim: the
 // renderer only reads state and the events step() returns.
 
+import { gradeSource } from '../campaign/rewards.ts';
 import { Engine } from '@babylonjs/core/Engines/engine.js';
 import { Scene } from '@babylonjs/core/scene.js';
 import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera.js';
@@ -11,6 +12,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder.js';
 import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder.js';
+import { CreateGround } from '@babylonjs/core/Meshes/Builders/groundBuilder.js';
 import { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder.js';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
 import { LookPlugin } from './lookPlugin.ts';
@@ -31,15 +33,18 @@ import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, SHIELD_MAX, bodySize, type Fighter, type GameState } from '../sim/state.ts';
 import { GRAB_FIRST, activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
-import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, coreFor, sparkSizeFor, tellAt, tellFrames, moveStartFrame, windupPose, isNormalMove, isSmashMove, isSpecialMove, type HitTier, type TrailKind } from '../hitFeel.ts';
-import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
+import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, killTimeScale, screenShake, shakeScale, flashScale, flashAllowed, flashStats, flashMode, reduceMotion, trailFor, coreFor, sparkSizeFor, tellAt, tellFrames, moveStartFrame, windupPose, isNormalMove, isSmashMove, isSpecialMove, type HitTier, type TrailKind } from '../hitFeel.ts';
+import { autoToastShown, graphics, markAutoToastShown, onGraphics, particleShare, pickedByHand, saveAutoLevel, savedAutoLevel, scalingLevel, type Graphics } from '../graphics.ts';
+import { AutoQuality, effectsFor, type AutoChange, type AutoEffects } from './autoQuality.ts';
+import type { Placed } from './stageLive.ts';
 import { cameraFighters, followCamera, frameGoal, KO_TAIL_S, punchGoal, type CamBounds, type CamSample, type CamState } from './cameraRig.ts';
 import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms, layersFor } from './stageArt.ts';
 import { behindForeground, bodyPoints, fadeToward } from './foreground.ts';
 import { StageLive } from './stageLive.ts';
-import { StageAlive } from './stageAlive.ts';
+import { StageAlive, aliveTexturesBuilt } from './stageAlive.ts';
 import { PostChain } from './post.ts';
+import { PLAYER_COLORS, colourVision, shapeOf } from '../colourVision.ts';
 import { Constants } from '@babylonjs/core/Engines/constants.js';
 
 /** Sim units to scene units: 100 world units per scene unit. */
@@ -68,12 +73,14 @@ function mixHex(a: string, b: string, t: number): string {
 }
 /** How far a hanging fighter's hands come up over the ledge's top edge, in scene units. */
 const GRIP = 0.04;
+/** The share of a hanging sprite's frame allowed past the ledge's edge (the empty margin round the pose). */
+const HANG_OVERLAP = 0.12;
 /** How long a fighter's drop-in takes in a story scene. */
 const ARRIVE_MS = 520;
 /** The art stands a little taller than the hurtbox. */
 const ART_SCALE = 1.18;
 
-export const PLAYER_COLORS = ['#ff5a1f', '#3fa7ff', '#ffd15a', '#5ce08a'];
+export { PLAYER_COLORS };
 
 interface FighterView {
   root: TransformNode;
@@ -332,13 +339,162 @@ export class Renderer {
   }
 
   private gfx: Graphics = graphics();
+
+  // ---- Auto quality: the frame-time governor (render/autoQuality.ts) lives here, in the render loop ----
+  private auto = new AutoQuality(savedAutoLevel());
+  /** Scenarios that need a fixed picture switch the governor off; it is on for every player. */
+  private autoAllowed = true;
+  private autoLastFrame = -1;
+  private autoToastEl: HTMLElement | null = null;
+  private autoToasts = 0;
+  /** Playtest only: a simulated slow device (ms a frame costs at full quality; 0 = off). */
+  private slowFullMs = 0;
+  private placedLayers: Placed[] = [];
+
+  /** The effects drawn right now: a step down lands one part per frame, so this trails `auto.level`'s full effects. */
+  private autoApplied: AutoEffects = effectsFor(this.auto.level);
+  /** Parts of the last step still to land, one per rendered frame. */
+  private autoQueue: { part: 'glow' | 'post' | 'parallax'; level: number }[] = [];
+
+  /** The effects drawn, or none while the governor is off or the player chose by hand. */
+  private autoFx(): AutoEffects {
+    return this.auto.enabled ? this.autoApplied : effectsFor(0);
+  }
+
+  /** What the settings alone would render and draw: the base the governor steps down from. */
+  private autoBase(g: Graphics = this.gfx) {
+    return { scale: 1 / scalingLevel(g.quality, window.devicePixelRatio), glow: g.glow, quality: g.quality as string };
+  }
+
+  private effectiveScalingLevel(g: Graphics): number {
+    const base = scalingLevel(g.quality, window.devicePixelRatio);
+    return 1 / Math.min(1 / base, this.autoFx().scaleMax);
+  }
+
+  /** Parallax layers between the backdrop and the stage, and the haze sheets, are hidden from level 3 (the backdrop stays). */
+  private applyParallax(): void {
+    const hide = this.autoFx().hideParallax;
+    const zFar = Math.max(0, ...this.placedLayers.filter((p) => !p.haze).map((p) => p.layer.z));
+    for (const p of this.placedLayers) {
+      if (p.haze) {
+        p.mesh.setEnabled(!hide);
+        continue;
+      }
+      const l = p.layer;
+      p.culled = hide && l.z > 0 && l.z < zFar && !l.foreground && !(l.platforms?.length) && !l.follows && !l.showDuring && !l.hideDuring;
+    }
+  }
+
+  /** The governor's changes only land through here: render scale, glow, post, parallax, the note, the saved level. */
+  private onAutoChange(c: AutoChange): void {
+    // A step is never taken in one frame: the render scale (a new framebuffer) lands now, glow, post and parallax on the
+    // frames after it, one per frame (autoStepParts).
+    const to = effectsFor(c.to);
+    const was = this.autoApplied;
+    this.autoQueue = [];
+    this.autoApplied = { ...was, scaleMax: to.scaleMax };
+    if (was.glowOff !== to.glowOff) this.autoQueue.push({ part: 'glow', level: c.to });
+    if (was.postLow !== to.postLow) this.autoQueue.push({ part: 'post', level: c.to });
+    if (was.hideParallax !== to.hideParallax) this.autoQueue.push({ part: 'parallax', level: c.to });
+    this.applyGraphics(this.gfx);
+    saveAutoLevel(this.auto.level);
+    window.dispatchEvent(new CustomEvent('dod:auto-quality', { detail: { ...c, level: this.auto.level, scale: Number((1 / this.engine.getHardwareScalingLevel()).toFixed(3)) } }));
+    if (c.dir === 'down') this.autoToast();
+  }
+
+  /** The one quiet note, the first time quality is lowered (ever on this device): mid-screen, clear of every control. */
+  private autoToast(): void {
+    if (autoToastShown() || this.autoToastEl) return;
+    markAutoToastShown();
+    this.autoToasts++;
+    const el = document.createElement('div');
+    el.id = 'auto-quality-toast';
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    el.textContent = 'Graphics eased to keep the fight smooth.';
+    el.style.cssText = 'position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:55;max-width:min(60vw,420px);padding:8px 14px;border-radius:16px;font:600 calc(13px * var(--ts,1))/1.3 system-ui,sans-serif;text-align:center;color:#f4ead8;background:rgba(16,14,12,.72);pointer-events:none;opacity:0;transition:opacity 300ms';
+    document.body.appendChild(el);
+    this.autoToastEl = el;
+    requestAnimationFrame(() => (el.style.opacity = '1'));
+    window.setTimeout(() => (el.style.opacity = '0'), 3800);
+    window.setTimeout(() => el.remove(), 4300);
+  }
+
+  /** Playtest: whether the governor runs, and a simulated slow device. */
+  autoSetup(opts: { enabled?: boolean; slowMs?: number; reset?: boolean }): void {
+    if (opts.enabled !== undefined) this.autoAllowed = opts.enabled;
+    if (opts.slowMs !== undefined) this.slowFullMs = opts.slowMs;
+    if (opts.reset) {
+      this.auto = new AutoQuality(0);
+      this.autoApplied = effectsFor(0);
+      this.autoQueue = [];
+      saveAutoLevel(0);
+    }
+    this.applyGraphics(this.gfx);
+  }
+
+  autoStats() {
+    return {
+      enabled: this.auto.enabled,
+      hand: pickedByHand(),
+      level: this.auto.level,
+      changes: this.auto.changes.map((c) => ({ ...c })),
+      settled: this.auto.settled,
+      settledAtMs: Math.round(this.auto.settledAtMs),
+      fps: Math.round(this.auto.lastFps),
+      toasts: this.autoToasts,
+      toastRect: (() => {
+        const r = this.autoToastEl?.getBoundingClientRect();
+        return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null;
+      })(),
+      slowMs: this.slowFullMs,
+    };
+  }
+
+  /** A simulated device's frame cost: the full-quality ms scaled by what the current level still draws. */
+  private burnSlow(): void {
+    const g = this.gfx;
+    const base = 1 / scalingLevel(g.quality, window.devicePixelRatio);
+    const s = 1 / this.engine.getHardwareScalingLevel();
+    const parallax = this.autoFx().hideParallax ? 0 : 0.15;
+    const cost = 0.55 * (s / base) ** 2 + (this.glow.isEnabled ? 0.2 : 0) + (g.quality === 'high' && !this.autoFx().postLow ? 0.1 : 0) + parallax;
+    const until = performance.now() + this.slowFullMs * cost;
+    while (performance.now() < until) { /* a slow device is busy, not idle */ }
+  }
+
+  /** Lands the next part of a step down (one per rendered frame, so no frame carries glow, post and parallax together). */
+  private autoStepParts(state: GameState): void {
+    // Like the decision itself, never during a hit-stop or punch frame: the rest of the step waits for a calm frame.
+    if (!this.autoQueue.length || this.post.punching() || state.fighters.some((f) => f.hitlag > 0)) return;
+    const q = this.autoQueue.shift();
+    if (!q) return;
+    const to = effectsFor(q.level);
+    if (q.part === 'glow') this.autoApplied = { ...this.autoApplied, glowOff: to.glowOff };
+    else if (q.part === 'post') this.autoApplied = { ...this.autoApplied, postLow: to.postLow };
+    else this.autoApplied = { ...this.autoApplied, hideParallax: to.hideParallax };
+    this.applyGraphics(this.gfx);
+    window.dispatchEvent(new CustomEvent('dod:auto-quality-part', { detail: { part: q.part, level: q.level, left: this.autoQueue.length } }));
+  }
+
+  /** One rendered frame of play for the governor: only advancing sim frames, never the intro, never a hit-stop or punch frame. */
+  private autoTick(state: GameState): void {
+    this.autoStepParts(state);
+    const advancing = state.frame !== this.autoLastFrame;
+    this.autoLastFrame = state.frame;
+    if (!this.auto.enabled || !this.presenting || this.intro || !advancing) return;
+    const calm = !this.post.punching() && !state.fighters.some((f) => f.hitlag > 0);
+    const c = this.auto.frame(this.engine.getDeltaTime(), calm, this.autoBase());
+    if (c) this.onAutoChange(c);
+  }
+
   private fpsEl: HTMLElement | null = null;
 
   /** Quality, Glow and Show FPS, applied live: render scale, the glow layer, particle counts, the readout. */
   private applyGraphics(g: Graphics): void {
     const qualityChanged = g.quality !== this.gfx.quality;
     this.gfx = g;
-    this.engine.setHardwareScalingLevel(scalingLevel(g.quality, window.devicePixelRatio));
+    this.auto.enabled = this.autoAllowed && !pickedByHand();
+    this.engine.setHardwareScalingLevel(this.effectiveScalingLevel(g));
     if (qualityChanged && this.alive) this.showStage(this.stage);
     if (qualityChanged) this.engine.resize();
     // Low loads half-resolution clip sheets when present; drop cached textures so the next preload picks the right file.
@@ -349,8 +505,10 @@ export class Renderer {
       void this.preloadClips(0);
     }
     if (qualityChanged) this.flip.setQuality(g.quality);
-    this.glow.isEnabled = g.glow;
-    this.post.setQuality(g.quality);
+    const fx = this.autoFx();
+    this.glow.isEnabled = g.glow && !fx.glowOff;
+    this.post.setQuality(fx.postLow ? 'low' : g.quality);
+    this.applyParallax();
     this.applyLight();
     if (this.fpsEl) this.fpsEl.hidden = !g.fps;
   }
@@ -369,6 +527,11 @@ export class Renderer {
   /** Stage life pieces and the screen mode, for the playtest. */
   aliveStats() {
     return this.alive?.stats() ?? null;
+  }
+
+  /** What could build something in the middle of a frame, for the playtest's hitch trace: particle meshes made after warm-up, StageAlive textures made so far. */
+  hitchStats(): { fxGrown: number; aliveTextures: number } {
+    return { fxGrown: this.fx?.meshesGrown() ?? 0, aliveTextures: aliveTexturesBuilt() };
   }
 
   /** The render scale and glow actually in use, for the playtest. */
@@ -391,7 +554,7 @@ export class Renderer {
     el.id = 'fps-meter';
     el.setAttribute('aria-hidden', 'true');
     el.hidden = !this.gfx.fps;
-    el.style.cssText = 'position:fixed;right:6px;bottom:6px;z-index:60;padding:2px 6px;font:700 11px/1.3 monospace;color:#ffd15a;background:rgba(16,14,12,.7);border-radius:3px;pointer-events:none';
+    el.style.cssText = 'position:fixed;right:6px;bottom:6px;z-index:60;padding:2px 6px;font:700 12px/1.3 monospace;color:#ffd15a;background:rgba(16,14,12,.7);border-radius:3px;pointer-events:none';
     document.body.appendChild(el);
     this.fpsEl = el;
     let last = 0;
@@ -461,6 +624,11 @@ export class Renderer {
     this.showStage(next);
   }
 
+  /** The stage on screen drawn with the grade it has now (a Season 8-10 stage variant picked or put back). */
+  regrade(): void {
+    if (this.stage) this.post.setStage(gradeSource(this.stage.id));
+  }
+
   /** Builds any stage, saved or not (devtools previews unsaved ones). */
   showStage(stage: StageDef): void {
     this.stageRoot?.dispose(false, true);
@@ -468,7 +636,7 @@ export class Renderer {
     this.alive?.dispose();
     this.movers = [];
     this.stage = stage;
-    this.post.setStage(stage.id);
+    this.post.setStage(gradeSource(stage.id));
     this.applyLight();
     this.camCut = true;
     this.kill = null;
@@ -482,17 +650,15 @@ export class Renderer {
     this.fgMs = 0;
     this.occluders = built.occluders;
     this.live = new StageLive(this.scene, root, this.stage, built.placed, this.glow);
+    this.placedLayers = built.placed;
+    this.applyParallax();
     this.alive = new StageAlive(this.scene, root, this.stage, this.glow, this.gfx.quality, () => this.views.map((v) => v.body), this.camera);
     // Collision-only platforms whose art isn't painted yet still get a block, so the stage is playable.
     const drawn = drawnPlatforms(this.stage);
     this.fx = new StageFx(this.scene, this.stage, {
       sound: (id) => this.onSound?.(id),
       shake: (a) => (this.shake = Math.max(this.shake, a)),
-      flash: (color) => {
-        this.flashMat.emissiveColor = Color3.FromHexString(color);
-        this.flashMat.alpha = 0.75;
-        this.flashPlane.setEnabled(true);
-      },
+      flash: (color) => this.flashScreen(Color3.FromHexString(color), 0.75),
     }, this.glow);
 
     const body = new StandardMaterial('stage-body', this.scene);
@@ -516,7 +682,7 @@ export class Renderer {
       node.parent = root;
       node.position.set(cx, p.y * W, 0);
       // Blocks that events switch off come and go with them.
-      if (p.offDuring || p.onlyDuring) this.live.addToggle(node, index);
+      if (p.offDuring || p.onlyDuring || p.fade) this.live.addToggle(node, index);
       if (artDraws) {
         // The stage art draws the platform; the game adds a lit lip along its top so the edge reads on any picture.
         const k = LIP_KEYLINE;
@@ -608,7 +774,12 @@ export class Renderer {
 
   /** Stable id for a match's fighter lineup (meshes only care about character and scale). */
   static fightersKey(state: GameState, looks: number[] = []): string {
-    return state.fighters.map((f) => `${f.char}:${f.scale}:${looks[f.id] ?? 0}`).join('|');
+    return state.fighters.map((f) => `${f.char}:${f.scale}:${looks[f.id] ?? 0}`).join('|') + `#${colourVision()}`;
+  }
+
+  /** The shape each fighter's ring was built as (playtest). */
+  ringShapes(): { slot: number; shape: string; color: string }[] {
+    return this.views.map((v, slot) => ({ slot, shape: (v.ring.metadata as { shape?: string } | null)?.shape ?? 'circle', color: PLAYER_COLORS[slot % PLAYER_COLORS.length] }));
   }
 
   /** What each built fighter wears (playtest): the look index and whether the palette shader is on its material. */
@@ -697,9 +868,19 @@ export class Renderer {
 
       const k = f.scale / 100;
       const color = PLAYER_COLORS[f.id % PLAYER_COLORS.length];
-      const ring = CreateDisc(`ring-${f.id}`, { radius: ch.width * W * 0.8 * k, tessellation: 32 }, this.scene);
-      ring.rotation.x = Math.PI / 2;
-      ring.scaling.y = 0.35;
+      // The ring is the player's shape (circle, triangle, square, diamond), so colour is never the only cue.
+      const shape = shapeOf(f.id);
+      const rr = ch.width * W * 0.8 * k;
+      const ring =
+        shape === 'square'
+          ? CreateGround(`ring-${f.id}`, { width: rr * 1.7, height: rr * 1.7 }, this.scene)
+          : CreateDisc(`ring-${f.id}`, { radius: shape === 'circle' ? rr : rr * 1.15, tessellation: shape === 'circle' ? 32 : shape === 'triangle' ? 3 : 4 }, this.scene);
+      if (shape === 'square') ring.scaling.z = 0.35;
+      else {
+        ring.rotation.x = Math.PI / 2;
+        ring.scaling.y = 0.35;
+      }
+      ring.metadata = { shape };
       ring.position.y = 0.01;
       ring.material = this.flatMaterial(`ring-${f.id}`, color, 0.55);
       ring.parent = root;
@@ -849,6 +1030,12 @@ export class Renderer {
   private seenCanvas: HTMLCanvasElement | null = null;
 
   setPresenting(on: boolean): void {
+    // A match begins: measuring starts over, and a level that had headroom last match is tried one step higher (never mid-match).
+    if (on && !this.presenting) {
+      this.auto.enabled = this.autoAllowed && !pickedByHand();
+      const c = this.auto.beginMatch(this.autoBase());
+      if (c) this.onAutoChange(c);
+    }
     this.presenting = on;
   }
 
@@ -1072,7 +1259,7 @@ export class Renderer {
         } else if (e.type === 'hit') {
           this.lastHits.set(e.victim, { kb: e.kb, tier: hitTier(e.dmg) });
           this.impact(e);
-          if (hitTier(e.dmg) === 'heavy') this.post.punch();
+          if (hitTier(e.dmg) === 'heavy') this.punchPost();
         } else {
           this.burst(e.x * S, e.y * S, 8 + Math.min(16, e.kb >> 3), 0.09 + e.kb * 0.0006);
           this.shake = Math.max(this.shake, Math.min(0.5, e.kb * 0.003));
@@ -1096,7 +1283,7 @@ export class Renderer {
         this.live?.trigger(on);
       } else if (e.type === 'launch') {
         // The launch that will carry the victim out of the blast zone: the kill cue.
-        if (e.ko) this.post.punch();
+        if (e.ko) this.punchPost();
         if (e.ko && !this.shot) this.killCue(e.x * S, e.y * S + 0.5);
         this.startTrail(e.victim, e.ko);
       } else if (e.type === 'ko') {
@@ -1137,10 +1324,8 @@ export class Renderer {
         this.shake = Math.max(this.shake, 0.3);
         // The painted parry: a white-blue flash and ring, with the sim's 6-frame freeze (step.ts COUNTER_FREEZE).
         this.flip.play('counter', x, y, -0.5, 2.1, COUNTER_TINT);
-        this.flashMat.emissiveColor = new Color3(0.7, 0.88, 1);
-        this.flashMat.alpha = Math.max(this.flashMat.alpha, 0.45);
-        this.flashPlane.setEnabled(true);
-        this.post.punch();
+        this.flashScreen(new Color3(0.7, 0.88, 1), 0.45);
+        this.punchPost();
       } else if (e.type === 'grab') {
         // The grab flash: a bright ring and star where the hands close, and both fighters light up.
         const x = e.x * S;
@@ -1403,10 +1588,8 @@ export class Renderer {
     for (let i = 0; i < fx.stars; i++) this.sprite(x, y, i * (Math.PI / 4) + Math.random(), tier === 'heavy' ? 0.4 : 0.26, 8 + i * 2, 1);
     if (fx.ring) this.sprite(x, y, 0, 0.3, 12, 3.2);
     this.shake = Math.max(this.shake, fx.shake);
-    if (fx.flash > 0 && this.flashMat.alpha < fx.flash) {
-      this.flashMat.emissiveColor = Color3.White();
-      this.flashMat.alpha = fx.flash;
-      this.flashPlane.setEnabled(true);
+    if (fx.flash > 0) {
+      this.flashScreen(Color3.White(), fx.flash);
     }
     const st = this.hitStats;
     st.hits++;
@@ -1473,22 +1656,54 @@ export class Renderer {
    * Screen shake off still removes the shake; the zoom stays.
    */
   private killCue(x: number, y: number): void {
-    this.kill = { at: performance.now(), x, y };
-    this.flashMat.emissiveColor = new Color3(1, 0.12, 0.08);
-    this.flashMat.alpha = KILL_CUE.redFlash;
-    this.flashPlane.setEnabled(true);
+    // Reduce motion keeps the sprites, whistle and sting but drops the slow motion and the punch-in zoom (`kill` drives both).
+    const calm = reduceMotion();
+    if (calm) this.camTraceNote.koUntil = performance.now() + KO_TAIL_S * 1000;
+    else this.kill = { at: performance.now(), x, y };
+    this.flashScreen(new Color3(1, 0.12, 0.08), KILL_CUE.redFlash);
     this.sprite(x, y, 0, 0.45, 12, 6);
     this.sprite(x, y, 0.5, 0.7, 16, 4);
     this.shake = Math.max(this.shake, 0.8);
     this.onSynth?.('whistle');
     const c = this.camStats;
     c.killCues++;
-    c.lastCue = { zoom: true, slow: true, whistle: !!this.onSynth, shake: screenShake() ? this.shake : 0, punch: 0 };
+    c.lastCue = { zoom: !calm, slow: !calm, whistle: !!this.onSynth, shake: this.shake * shakeScale(), punch: 0 };
+  }
+
+  /**
+   * One full-screen flash, scaled by Settings → Flashes (Full / Soft / Off) and held to 3 starts a second (hitFeel.ts
+   * `flashAllowed`). A flash already on screen is only raised, never restarted, so overlapping calls don't stack.
+   */
+  private flashScreen(color: Color3, alpha: number): void {
+    const a = alpha * flashScale();
+    if (a <= 0 || !flashAllowed(performance.now())) return;
+    if (this.flashMat.alpha >= a) return;
+    this.flashMat.emissiveColor = color;
+    this.flashMat.alpha = a;
+    this.flashPlane.setEnabled(true);
+    const st = this.flashLog;
+    st.flashes++;
+    st.maxAlpha = Math.max(st.maxAlpha, a);
+  }
+
+  /** The post chain's exposure punch and aberration: a brightness flash too, so it follows the same Flashes setting and rate gate. */
+  private punchPost(): void {
+    if (!flashAllowed(performance.now())) return;
+    this.post.punch(flashScale());
+  }
+
+  private flashLog = { flashes: 0, maxAlpha: 0 };
+
+  /** Flash counters for the playtest (the gate's own counters are in hitFeel.ts `flashStats`). */
+  flashFxStats(reset = false) {
+    const out = { ...this.flashLog, ...flashStats(reset), mode: flashMode(), scale: flashScale() };
+    if (reset) this.flashLog = { flashes: 0, maxAlpha: 0 };
+    return out;
   }
 
   /** How fast the match clock should run right now: slow motion for the kill cue's beat, else 1. */
   timeScale(): number {
-    if (!this.kill) return 1;
+    if (!this.kill || reduceMotion()) return 1;
     const t = (performance.now() - this.kill.at) / 1000;
     if (t > KILL_CUE.slowSeconds + KILL_CUE.easeBack + 0.1) this.kill = null;
     return killTimeScale(t);
@@ -1579,7 +1794,8 @@ export class Renderer {
   render(state: GameState): void {
     this.lastState = state;
     for (const m of this.movers) {
-      const p = platformAt(m.platform, state.frame);
+      // The sim moves a platform with the frame it is stepping, one behind the count it shows afterwards.
+      const p = platformAt(m.platform, Math.max(0, state.frame - 1));
       m.node.position.set(((p.x1 + p.x2) / 2) * S, p.y * S, 0);
     }
     this.live?.update(state);
@@ -1611,7 +1827,9 @@ export class Renderer {
     this.drawDebug(state);
     this.updateCamera(state);
     this.updateForeground(state);
+    if (this.slowFullMs > 0 && this.presenting) this.burnSlow();
     this.scene.render();
+    this.autoTick(state);
     if (this.presenting) this.countSeen();
     this.post.endFrame();
     this.checkFraming(state);
@@ -1724,7 +1942,7 @@ export class Renderer {
       return { slot, box: { x1: Math.min(...pts.map((q) => q.x)), y1: Math.min(...pts.map((q) => q.y)), x2: Math.max(...pts.map((q) => q.x)), y2: Math.max(...pts.map((q) => q.y)) } };
     });
     const platforms = this.stage.platforms.flatMap((p, index) => {
-      if (p.offDuring || p.onlyDuring) return [];
+      if (p.offDuring || p.onlyDuring || p.fade) return [];
       const at = platformAt(p, state.frame);
       const a = proj(at.x1 * S, at.y * S, 0);
       const b = proj(at.x2 * S, at.y * S, 0);
@@ -1784,6 +2002,21 @@ export class Renderer {
     const b = Vector3.Project(new Vector3(p.x + 1, p.y, p.z), Matrix.IdentityReadOnly, m, vp);
     const pxPerWorld = Math.max(1, Math.abs(b.x - a.x));
     v.outline.setWidth(outlineWidthPx(h), 1 / (Math.max(0.01, v.body.scaling.x) * pxPerWorld), 1 / (Math.max(0.01, v.body.scaling.y) * pxPerWorld));
+  }
+
+  /** Where a platform is on the canvas right now, in render px with the render size (playtest: the moving platform stays in frame). */
+  platformBox(index: number): { x1: number; x2: number; y: number; w: number; h: number } | null {
+    const st = this.lastState;
+    const p = this.stage.platforms[index];
+    if (!st || !p) return null;
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const at = platformAt(p, Math.max(0, st.frame - 1));
+    const a = Vector3.Project(new Vector3(at.x1 * S, at.y * S, 0), Matrix.IdentityReadOnly, m, vp);
+    const b = Vector3.Project(new Vector3(at.x2 * S, at.y * S, 0), Matrix.IdentityReadOnly, m, vp);
+    return { x1: a.x, x2: b.x, y: a.y, w, h };
   }
 
   /** Every fighter's outline as drawn (playtest): colour, width in device px, and the render height it was sized for. */
@@ -1849,7 +2082,17 @@ export class Renderer {
       // sprite (the gripping hands) on the ledge's top edge instead.
       if (pick.key === 'ledge' && pick.exact && f.ledge > 0) {
         const l = ledges(this.stage)[f.ledge - 1];
-        if (l) v.body.position.y += l.y * W + GRIP - f.y * S - c.ay * px;
+        if (l) {
+          v.body.position.y += l.y * W + GRIP - f.y * S - c.ay * px;
+          // The hang pose kicks the legs toward the wall, so the sprite sank into the stage face (and into an arched
+          // platform's art). Slide it out until at most HANG_OVERLAP of its frame is past the ledge's edge. Visual only.
+          const fw = c.fw * px;
+          const centre = x + f.facing * v.body.position.x;
+          const inner = centre - l.side * (fw / 2);
+          const limit = l.x * W - l.side * fw * HANG_OVERLAP;
+          const over = (inner - limit) * -l.side;
+          if (over > 0) x += l.side * over;
+        }
       }
     } else {
       setTexture(v.mat, v.still);
@@ -2195,7 +2438,14 @@ export class Renderer {
 
     let smooth = 0.18;
     let smoothZoom = 0.25;
-    if (this.shot) {
+    const freeOrScene = !!this.shot || !!this.freeCam;
+    if (this.freeCam) {
+      cx = this.freeCam.x;
+      cy = this.freeCam.y;
+      cd = this.freeCam.d;
+      smooth = 0.12;
+      smoothZoom = 0.14;
+    } else if (this.shot) {
       // Story scene: ease slower, like a camera operator, onto the speaker or out to the whole stage.
       smooth = 0.6;
       smoothZoom = 0.8;
@@ -2245,11 +2495,11 @@ export class Renderer {
       this.camSide = sideGoal;
       this.camTilt = tiltGoal;
       this.camCut = false;
-    } else if (followCamera(this.camRig, { x: cx, y: cy, d: cd }, { smooth, smoothZoom, dt, tan, side: this.camSide, tilt: this.camTilt, aspect, zoomAsym: !this.shot, deadZone: !this.shot && !this.kill, keep: this.shot ? null : { fighters: live, tan, aspect, bottomInset: inset } }) && !this.shot) {
+    } else if (followCamera(this.camRig, { x: cx, y: cy, d: cd }, { smooth, smoothZoom, dt, tan, side: this.camSide, tilt: this.camTilt, aspect, zoomAsym: !freeOrScene, deadZone: !freeOrScene && !this.kill, keep: freeOrScene ? null : { fighters: live, tan, aspect, bottomInset: inset } }) && !freeOrScene) {
       // A frame that moved or zoomed past the threshold (scaled for a slow frame) is a jump, scenes aside.
       this.camStats.cameraJumps++;
     }
-    this.camTraceNote.cut = !!this.shot || !!this.intro || wasCut;
+    this.camTraceNote.cut = freeOrScene || !!this.intro || wasCut;
     this.camTraceNote.ko = !!this.kill || now < this.camTraceNote.koUntil;
     this.camTarget.x = this.camRig.x;
     this.camTarget.y = this.camRig.y;
@@ -2260,12 +2510,14 @@ export class Renderer {
     this.camPos.z = -d;
 
     // Screen shake off (Settings): the camera stays put, whatever the stage or a hit asked for.
-    if (!screenShake()) this.shake = 0;
+    // Screen shake 0-100% (Settings): every kick, hit, KO and stage event lands in `this.shake`, scaled here; 0 keeps the camera still.
+    const sScale = shakeScale();
+    if (sScale === 0) this.shake = 0;
     this.shake *= 0.86;
-    this.hitStats.shakeApplied = this.shake;
-    this.hitStats.shakeMax = Math.max(this.hitStats.shakeMax, this.shake);
-    const jx = (Math.random() - 0.5) * this.shake * 0.4;
-    const jy = (Math.random() - 0.5) * this.shake * 0.4;
+    this.hitStats.shakeApplied = this.shake * sScale;
+    this.hitStats.shakeMax = Math.max(this.hitStats.shakeMax, this.shake * sScale);
+    const jx = (Math.random() - 0.5) * this.shake * sScale * 0.4;
+    const jy = (Math.random() - 0.5) * this.shake * sScale * 0.4;
     this.camera.position.set(this.camPos.x + jx, this.camPos.y + jy, this.camPos.z);
     this.camera.setTarget(new Vector3(this.camTarget.x + jx, this.camTarget.y + jy, 0));
   }
@@ -2323,10 +2575,52 @@ export class Renderer {
     return { x, y, off: x < edge || x > cw - edge || y < edge || y > ch - edge, gap: Math.max(0, gap) };
   }
 
+  /** Replay free camera target (`null` while in follow mode). */
+  private freeCam: { x: number; y: number; d: number } | null = null;
+
+  /** Switches between the automatic follow camera and a user-controlled free camera for replays. */
+  setFreeCamera(on: boolean): { x: number; y: number; d: number } | null {
+    if (on) {
+      if (!this.freeCam) {
+        this.freeCam = {
+          x: this.camRig.x,
+          y: this.camRig.y + 0.4,
+          d: Math.min(28, Math.max(8, this.camRig.d * 1.22)),
+        };
+      }
+      return { ...this.freeCam };
+    }
+    this.freeCam = null;
+    this.camTraceNote.cut = true;
+    return null;
+  }
+
+  /** Pans and zooms the replay free camera within the stage's blast zone. */
+  panFreeCamera(dx: number, dy: number, dd = 0): void {
+    if (!this.freeCam) return;
+    const b = this.stage.blast;
+    const minX = b.left * W * 0.75;
+    const maxX = b.right * W * 0.75;
+    const minY = b.bottom * W * 0.55;
+    const maxY = b.top * W * 0.75;
+    this.freeCam.x = Math.max(minX, Math.min(maxX, this.freeCam.x + dx));
+    this.freeCam.y = Math.max(minY, Math.min(maxY, this.freeCam.y + dy));
+    this.freeCam.d = Math.max(5, Math.min(32, this.freeCam.d + dd));
+  }
+
+  freeCameraState(): { active: boolean; x: number; y: number; d: number } {
+    return {
+      active: this.freeCam !== null,
+      x: this.freeCam?.x ?? this.camRig.x,
+      y: this.freeCam?.y ?? this.camRig.y,
+      d: this.freeCam?.d ?? this.camRig.d,
+    };
+  }
+
   /** After a render: counts a living fighter whose body is outside the view (the playtest wants none). */
   private checkFraming(state: GameState): void {
     const note = this.camTraceNote;
-    if (this.shot || this.camCut || this.intro || note.cut) {
+    if (this.shot || this.camCut || this.intro || this.freeCam || note.cut) {
       this.camTraceBuf.length = 0;
       return;
     }
@@ -2586,8 +2880,7 @@ export class Renderer {
         break;
       case 'flash':
         // A lightning strike or a flashbulb: the screen whitens for a few frames and sparks fly off the fighter.
-        this.flashMat.alpha = Math.max(this.flashMat.alpha, b.kick ? 0.5 : 0.28);
-        this.flashPlane.setEnabled(true);
+        this.flashScreen(Color3.White(), b.kick ? 0.5 : 0.28);
         this.burst(fx + (Math.random() - 0.5) * h * 0.8, fy + h * (0.4 + Math.random() * 0.6), n, 0.05, this.introMat('#ffffff'));
         break;
       case 'snap':

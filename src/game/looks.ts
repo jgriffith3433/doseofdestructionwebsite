@@ -8,15 +8,42 @@
 import { CHARACTERS } from './sim/characters.ts';
 import { CLASSIC, type Look } from './sim/fighterDefs.ts';
 import { ART, hexToRgb } from './artStyle.ts';
+import { hasReward, ownedOf } from './campaign/rewards.ts';
 
 export { CLASSIC, type Look } from './sim/fighterDefs.ts';
 export const MIN_LOOKS = 4;
 
-export const looksOf = (char: number): Look[] => CHARACTERS[char]?.looks ?? [CLASSIC];
+/**
+ * A fighter's looks: its own four, then one more for each tint reward earned (Seasons 8 to 10, campaign/rewards.ts),
+ * made from the fighter's second look so it turns the same outfit colour. Not earned: not there (the swatch row stays four).
+ */
+const tinted = new Map<string, Look[]>();
+export function looksOf(char: number): Look[] {
+  const base = CHARACTERS[char]?.looks ?? [CLASSIC];
+  const tints = ownedOf('tint');
+  if (!tints.length || !base[1]) return base;
+  const key = `${char}:${tints.map((t) => t.id).join(',')}`;
+  let out = tinted.get(key);
+  if (!out) {
+    const flip = base[1];
+    out = [...base, ...tints.map((t): Look => ({
+      name: t.name,
+      from: flip.from,
+      range: flip.range,
+      hue: flip.from !== undefined && flip.from < 0 ? ((t.hue ?? 0) % 360 + 360) % 360 : t.hue ?? 0,
+      sat: flip.from !== undefined && flip.from < 0 ? 0.55 * (t.sat ?? 1) : t.sat ?? 1,
+      val: t.val ?? 1,
+      wins: 0,
+      reward: t.id,
+    }))];
+    tinted.set(key, out);
+  }
+  return out;
+}
 export const lookOf = (char: number, i: number): Look => looksOf(char)[i] ?? looksOf(char)[0];
 export const lookCount = (char: number): number => looksOf(char).length;
 /** What the select screen says on a locked swatch. */
-export const winsToUnlock = (look: Look): string => `${look.wins} wins to unlock`;
+export const winsToUnlock = (look: Look): string => look.lockedText ?? `${look.wins} wins to unlock`;
 
 // ------------------------------------------------------------------ wins and picks (localStorage)
 const WINS_KEY = 'dod-wins';
@@ -44,7 +71,7 @@ export const winsWith = (id: string): number => readMap(WINS_KEY)[id] ?? 0;
 
 export function lookOpen(char: number, i: number): boolean {
   const l = looksOf(char)[i];
-  return !!l && winsWith(CHARACTERS[char].id) >= l.wins;
+  return !!l && (l.reward ? hasReward(l.reward) : winsWith(CHARACTERS[char].id) >= l.wins);
 }
 
 /** A win with this fighter (any mode). Returns the names of the looks it just unlocked. */

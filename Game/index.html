@@ -42,7 +42,14 @@
   <canvas id="stage" aria-label="Game view"></canvas>
 
   <div id="hud" class="hud" hidden></div>
+  <div id="training-readout" class="training-readout" aria-live="off" hidden>
+    <div class="tr-combo"><span class="tr-count">0</span><span class="tr-unit">HIT COMBO</span></div>
+    <div class="tr-line"><span>Combo</span><b class="tr-dmg">0.0%</b></div>
+    <div class="tr-line"><span>Last hit</span><b class="tr-last">0.0%</b></div>
+    <div class="tr-tag">True combo</div>
+  </div>
   <div id="edge-markers" class="edge-markers" aria-hidden="true"></div>
+  <div id="fighter-tags" class="fighter-tags" aria-hidden="true"></div>
   <div id="match-top" class="match-top" hidden>
     <div id="timer" class="timer" hidden></div>
     <p id="objective" class="objective" hidden></p>
@@ -70,15 +77,18 @@
         <ul id="lobby-list" class="lobby-list"></ul>
       </div>
       <section id="daily-card" class="daily-card" aria-label="Tonight's Episode"></section>
-      <button class="menu-item" type="button" data-go="campaign" data-autofocus><strong>Campaign</strong><span>Eight chapters. One way off the air.</span></button>
+      <button class="menu-item" type="button" data-go="campaign" data-autofocus><strong>Campaign</strong><span id="campaign-blurb">The whole run. One way off the air.</span></button>
       <button id="btn-tour" class="menu-item" type="button" data-go="tour"><strong>Tour</strong><span>Pick a fighter. Six fights, one rival, one ending.</span></button>
       <button class="menu-item" type="button" data-go="versus"><strong>Versus</strong><span>Up to four fighters, any mix of you and bots.</span></button>
       <button id="btn-find" class="menu-item online-item" type="button" data-go="online"><strong>Find match</strong><span id="find-sub">Fight another player online. Play on while you wait.</span></button>
+      <button id="btn-invite" class="menu-item online-item" type="button" data-go="invite"><strong>Invite a friend</strong><span>Send a link. They open it and you are in the same fight.</span></button>
       <button id="btn-profile" class="menu-item profile-item" type="button" data-go="profile"><img id="profile-img" alt=""><strong>Profile</strong><span id="profile-sub">Your name and picture.</span></button>
       <button id="btn-board" class="menu-item board-item" type="button" data-go="leaderboard"><strong>Leaderboard</strong><span id="board-sub">Top 100 online, this week and all time.</span></button>
       <button id="btn-extras" class="menu-item" type="button" data-go="extras"><strong>Extras</strong><span>Endings: replay every Tour's last scene.</span></button>
-      <button class="menu-item" type="button" data-go="training"><strong>Training</strong><span>A dummy, no stocks, hitboxes on H.</span></button>
+      <button class="menu-item" type="button" data-go="training"><strong>Training</strong><span data-hint="A dummy, no stocks. Hitboxes on {hitbox}.">A dummy, no stocks.</span></button>
       <button class="menu-item" type="button" data-go="howto"><strong>How to play</strong><span>Learn it on the stage, one move at a time.</span></button>
+      <button class="menu-item" type="button" data-go="howto2"><strong>How to play 2</strong><span>Grab, throw, roll and dodge.</span></button>
+      <button class="menu-item" type="button" data-go="howto3"><strong>How to play 3</strong><span>Specials, fast fall and the way back.</span></button>
       <button class="menu-item quiet" type="button" data-go="controls"><strong>All controls</strong></button>
       <button class="menu-item" type="button" data-go="settings"><strong>Settings</strong><span>Sound on or off, music and effects.</span></button>
       <a class="menu-item quiet" href="/"><strong>Back to site</strong></a>
@@ -130,7 +140,10 @@
       <h2>Campaign</h2>
       <button id="btn-campaign-reset" class="secondary small" type="button">Start over</button>
     </header>
-    <p class="lede">A walk-on fighter, a nightly broadcast, and the man who runs it. Clear each chapter to open the next.</p>
+    <div class="campaign-bar">
+      <p class="lede">A walk-on fighter, a nightly broadcast, and the man who runs it. Clear each chapter to open the next.</p>
+      <div id="difficulty" class="difficulty"></div>
+    </div>
     <div id="chapter-path" class="chapter-path"></div>
   </section>
 
@@ -167,6 +180,7 @@
           <li><strong>Hits add damage.</strong> The percent under each fighter is how far the next hit sends them.</li>
           <li><strong>Launch them off.</strong> Past the edge of the screen, that fighter loses a stock.</li>
           <li><strong>Get back.</strong> Jump, use your air jumps, then up special (up + special) to reach the ledge.</li>
+          <li><strong>On the ledge, choose.</strong> Stick up gets you up, Attack sweeps low, Shield rolls in, Jump leaps. Hang too long and you drop.</li>
           <li><strong>Special changes with the stick.</strong> Hold a direction with Special for the side, up or down special; each fighter's are their own.</li>
           <li><strong>Last one standing</strong> takes the match.</li>
         </ol>
@@ -245,12 +259,26 @@
   <div id="pause" class="overlay" hidden>
     <div class="panel small">
       <h2>Paused</h2>
+      <p id="pause-owner" class="pause-owner" hidden></p>
+      <div class="pause-body">
+      <div id="training-options" class="training-options" hidden>
+        <h3>Dummy</h3>
+        <div class="to-group" role="group" aria-label="Dummy behaviour" id="to-modes"></div>
+        <div class="to-level" id="to-level-row" hidden>
+          <button id="to-level-down" class="secondary" type="button" aria-label="CPU level down">−</button>
+          <span id="to-level">CPU level 5</span>
+          <button id="to-level-up" class="secondary" type="button" aria-label="CPU level up">+</button>
+        </div>
+        <h3>Dummy percent</h3>
+        <div class="to-group pct" role="group" aria-label="Dummy percent" id="to-percents"></div>
+      </div>
       <div class="actions column">
         <button id="btn-resume" class="primary" type="button" data-autofocus>Resume</button>
         <button id="btn-restart" class="secondary" type="button">Restart</button>
         <button id="btn-pause-controls" class="secondary" type="button">All controls</button>
         <button id="btn-pause-settings" class="secondary" type="button">Settings</button>
         <button id="btn-quit" class="secondary" type="button">Quit</button>
+      </div>
       </div>
     </div>
   </div>
@@ -263,8 +291,43 @@
         <button id="sound-switch" class="switch" type="button" role="switch" aria-checked="true" data-autofocus>On</button>
       </div>
       <div class="setting-row">
-        <span>Screen shake</span>
-        <button id="shake-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
+        <span>Reduce motion</span>
+        <button id="motion-switch" class="switch" type="button" role="switch" aria-checked="false" aria-label="Reduce motion: no KO slow motion or zoom">Off</button>
+      </div>
+      <div class="settings-levels">
+        <label class="slider"><span>Screen shake</span><input id="shake-level" type="range" min="0" max="100" step="5"><output id="shake-level-value"></output></label>
+      </div>
+      <div class="setting-row">
+        <span id="flash-label">Flashes</span>
+        <div class="seg" id="flash-seg" role="radiogroup" aria-labelledby="flash-label">
+          <button class="switch" type="button" role="radio" data-fl="full" aria-checked="true">Full</button>
+          <button class="switch" type="button" role="radio" data-fl="soft" aria-checked="false">Soft</button>
+          <button class="switch" type="button" role="radio" data-fl="off" aria-checked="false">Off</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span>Rumble</span>
+        <button id="rumble-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
+      </div>
+      <div class="setting-row">
+        <span>Colour vision</span>
+        <button id="colour-switch" class="switch" type="button" role="switch" aria-checked="false">Standard</button>
+      </div>
+      <div class="setting-row">
+        <span>Shield</span>
+        <button id="shield-switch" class="switch" type="button" role="switch" aria-checked="false" aria-label="Shield: Hold or Toggle">Hold</button>
+      </div>
+      <div class="setting-row" id="controls-row">
+        <span>Controls</span>
+        <button id="rebind-open" class="switch" type="button">Rebind</button>
+      </div>
+      <div class="setting-row">
+        <span id="textsize-label">Text size</span>
+        <div class="seg" id="textsize-seg" role="radiogroup" aria-labelledby="textsize-label">
+          <button class="switch" type="button" role="radio" data-ts="100" aria-checked="true">100%</button>
+          <button class="switch" type="button" role="radio" data-ts="125" aria-checked="false">125%</button>
+          <button class="switch" type="button" role="radio" data-ts="150" aria-checked="false">150%</button>
+        </div>
       </div>
       <div class="setting-row">
         <span>Quality</span>
@@ -281,17 +344,35 @@
       <div id="settings-levels" class="settings-levels">
         <label class="slider"><span>Music</span><input id="vol-music" type="range" min="0" max="100" step="1"><output id="vol-music-value"></output></label>
         <label class="slider"><span>Effects</span><input id="vol-sfx" type="range" min="0" max="100" step="1"><output id="vol-sfx-value"></output></label>
+        <label class="slider"><span>Voice</span><input id="vol-voice" type="range" min="0" max="100" step="1"><output id="vol-voice-value"></output></label>
+      </div>
+      <div class="setting-row">
+        <span>Captions</span>
+        <button id="captions-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
       </div>
       <div id="settings-touch" class="settings-levels" hidden>
         <label class="slider"><span>Touch size</span><input id="touch-size" type="range" min="75" max="150" step="5"><output id="touch-size-value"></output></label>
         <label class="slider"><span>Touch opacity</span><input id="touch-opacity" type="range" min="30" max="100" step="5"><output id="touch-opacity-value"></output></label>
-        <div class="setting-row">
-          <span>Vibrate</span>
-          <button id="vibrate-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
-        </div>
       </div>
-      <p class="hint">Effects covers hits, menus and voices. Screen shake is the camera kick on hits and KOs. Touch size, opacity and vibrate (touch devices) tune the on-screen stick and a light buzz on a landed hit. Quality Low draws fewer pixels and sparks, for phones; Glow is the bloom on bright art. Press <kbd>M</kbd> any time to turn sound on or off.</p>
+      <p class="hint">Music, Effects and Voice (announcer, commentary, story and fighter lines) are separate. Captions show the spoken lines as text; story lines still show when sound is off. Screen shake is the camera kick on hits and KOs. Rumble buzzes a controller or phone by how hard a hit lands (a short buzz, a jolt, a long one for a KO), softer with reduced motion. Touch size and opacity (touch devices) tune the on-screen stick. Quality Low draws fewer pixels and sparks, for phones; Glow is the bloom on bright art. Press <kbd>M</kbd> any time to turn sound on or off.</p>
       <button id="settings-done" class="primary" type="button">Done</button>
+    </div>
+  </div>
+
+  <div id="rebind" class="overlay" role="dialog" aria-modal="true" aria-labelledby="rebind-title" hidden>
+    <div class="panel rebind-panel">
+      <h2 id="rebind-title">Controls</h2>
+      <div class="seg" id="rebind-tabs" role="radiogroup" aria-label="Device">
+        <button class="switch" type="button" role="radio" data-tab="keyboard" aria-checked="true" data-autofocus>Keyboard</button>
+        <button class="switch" type="button" role="radio" data-tab="gamepad" aria-checked="false">Gamepad</button>
+      </div>
+      <div id="rebind-rows" class="rebind-rows"></div>
+      <p id="rebind-note" class="rebind-note" role="status" aria-live="polite" data-warn="false"></p>
+      <p id="rebind-hint" class="hint"></p>
+      <div class="actions">
+        <button id="rebind-reset" class="secondary" type="button">Reset to defaults</button>
+        <button id="rebind-done" class="primary" type="button">Done</button>
+      </div>
     </div>
   </div>
 
@@ -307,6 +388,25 @@
       <div class="actions">
         <button id="profile-save" class="primary" type="button" data-autofocus>Save</button>
         <button id="profile-cancel" class="secondary" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="invite" class="overlay" role="dialog" aria-modal="true" aria-labelledby="invite-title" hidden>
+    <div class="panel invite-panel">
+      <h2 id="invite-title">Invite a friend</h2>
+      <p id="invite-status" class="invite-status" role="status" aria-live="polite"></p>
+      <div id="invite-share-row" class="invite-share" hidden>
+        <input id="invite-link" type="text" readonly aria-label="Invite link" spellcheck="false" autocomplete="off">
+        <div class="actions">
+          <button id="invite-share" class="primary" type="button" data-autofocus>Share</button>
+          <button id="invite-copy" class="secondary" type="button">Copy link</button>
+        </div>
+        <p id="invite-note" class="hint" role="status" aria-live="polite"></p>
+      </div>
+      <div class="actions">
+        <button id="invite-quick" class="primary" type="button" hidden>Quick match</button>
+        <button id="invite-cancel" class="secondary" type="button">Cancel</button>
       </div>
     </div>
   </div>
@@ -369,12 +469,26 @@
         if (!tap.onTap) {
           try {
             var Ctor = window.AudioContext || window.webkitAudioContext;
-            if (Ctor) {
+            if (Ctor && !tap.ctx) {
               tap.ctx = new Ctor();
               if (tap.ctx.resume) tap.ctx.resume().catch(function () {});
             }
           } catch (e) {}
         }
+        // The press answers with a sound on the same frame (every input has one, within 150 ms). It is a short blip on a
+        // context of its own, reported to the sound probe as a sound start like the game's other synth sounds.
+        try {
+          var Bctor = window.AudioContext || window.webkitAudioContext;
+          var bctx = tap.ctx || (Bctor ? (tap.ctx = new Bctor()) : null);
+          if (bctx) {
+            if (bctx.resume) bctx.resume().catch(function () {});
+            var bt = bctx.currentTime, bo = bctx.createOscillator(), bg = bctx.createGain();
+            bo.type = 'triangle'; bo.frequency.setValueAtTime(660, bt); bo.frequency.exponentialRampToValueAtTime(990, bt + 0.07);
+            bg.gain.setValueAtTime(0.0001, bt); bg.gain.exponentialRampToValueAtTime(0.07, bt + 0.01); bg.gain.exponentialRampToValueAtTime(0.0001, bt + 0.16);
+            bo.connect(bg); bg.connect(bctx.destination); bo.start(bt); bo.stop(bt + 0.18);
+            window.dispatchEvent(new CustomEvent('hawkes-sound', { detail: { type: 'sound-start', sample: 'ui-tap-to-play', bus: 'ui', rate: 1, gain: 0.07, dur: 0.18 } }));
+          }
+        } catch (e) {}
         // It keeps catching taps while it fades, so the tap's own click never lands on the title below.
         prompt.classList.add('gone');
         setTimeout(function () { prompt.hidden = true; document.dispatchEvent(new Event('dod:tapped')); }, 400);

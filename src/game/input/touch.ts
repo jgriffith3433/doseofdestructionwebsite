@@ -3,6 +3,7 @@
 // right-thumb icon buttons in a thumb arc, and a pause button.
 
 import { BTN } from '../sim/input.ts';
+import { onShieldLatch, shieldLatched } from './shieldMode.ts';
 import { onTouchSettings, touchSettings, touchUiForced, type TouchSettings } from '../touchSettings.ts';
 
 /** Pointer capture keeps a drag on its control, but a pointer that is already gone (or a synthetic one) throws: play on. */
@@ -286,6 +287,15 @@ export function initTouchControls(onPause: () => void, forceBuild = false): void
     el.addEventListener('pointerup', up);
     el.addEventListener('pointercancel', up);
     el.addEventListener('contextmenu', (e) => e.preventDefault());
+    if (b.bit === BTN.SHIELD) {
+      // Toggle: the button stays lit (and reads as pressed to assistive tech) while the shield is latched up.
+      const showLatch = (on: boolean) => {
+        el.classList.toggle('latched', on);
+        el.setAttribute('aria-pressed', String(on));
+      };
+      showLatch(shieldLatched());
+      onShieldLatch(showLatch);
+    }
     pad.append(el);
   }
 

@@ -135,6 +135,8 @@ export class Matchmaker extends Emitter {
   /** Two links in a row failed: this network may not allow peer-to-peer links. */
   natTrouble = false;
   attempts = 0;
+  /** An invite match (Invite a friend): paired by the invite room, not the queue. Null in the queue. */
+  invited: { partner: QueueEntry; host: boolean } | null = null;
   private linkFailures = 0;
   private readonly skip = new Map<string, number>();
   private pending: Pending | null = null;
@@ -162,6 +164,19 @@ export class Matchmaker extends Emitter {
     this.think();
   }
 
+  /** Invite a friend: pairs with `partner` (found in the invite room, both sides call this) with no queue. The two
+   *  searches are fixed numbers (host 1, guest 2) so each side's hello names the other's. */
+  invite(partner: string, host: boolean): boolean {
+    if (this.state !== 'idle') return false;
+    this.invited = { partner: { id: partner, queuedAt: host ? 2 : 1 }, host };
+    this.queuedAt = host ? 1 : 2;
+    this.setState('searching');
+    clearInterval(this.timer);
+    this.timer = setInterval(() => this.think(), 1000);
+    this.think();
+    return true;
+  }
+
   /** Cancel: leaves the queue; during the countdown it tells the opponent. */
   cancel(): void {
     if (this.state === 'idle') return;
@@ -181,6 +196,7 @@ export class Matchmaker extends Emitter {
 
   private stop(): void {
     clearInterval(this.timer);
+    this.invited = null;
     this.queuedAt = this.state === 'found' ? 0 : this.queuedAt;
     this.lobby.update({ status: 'idle' });
     this.setState('idle');
@@ -196,6 +212,17 @@ export class Matchmaker extends Emitter {
     if (this.state !== 'searching') return;
     const t = now();
     for (const [id, until] of this.skip) if (until <= t) this.skip.delete(id);
+    if (this.invited) {
+      // No queue to follow: the same friend, again if a try fell through.
+      const p0 = this.pending;
+      if (!p0) this.begin(this.invited.partner, this.invited.host);
+      else if (p0.committed) {
+        if (!p0.host && t - p0.committedAt > SETUP_MS) this.fail(p0, 'no setup from the host', SKIP_DECLINED_MS);
+      } else if (t - p0.startedAt > HANDSHAKE_MS) {
+        this.fail(p0, p0.room.everOpened ? 'the handshake timed out' : 'could not link in 20 s', SKIP_DECLINED_MS, !p0.room.everOpened);
+      }
+      return;
+    }
     const queue = this.lobby.queue().map((p) => ({ id: p.id, queuedAt: p.queuedAt }));
     const pairing = pairFor(queue, this.lobby.id, new Set(this.skip.keys()));
     const p = this.pending;
@@ -303,6 +330,11 @@ export class Matchmaker extends Emitter {
       this.drop(p);
       this.pending = null;
       this.emit('cancelled', { name: p.name });
+      if (this.invited) {
+        // An invite match has no queue to go back to.
+        this.stop();
+        return;
+      }
       // Back in the queue in the same place: they backed out, not us.
       this.state = 'idle';
       this.queue(true);
@@ -350,7 +382,7 @@ export class Matchmaker extends Emitter {
     this.drop(p);
     if (this.pending === p) this.pending = null;
     this.skip.set(p.partner.id, now() + skipMs);
-    if (p.committed) this.lobby.update({ status: 'queued', queuedAt: this.queuedAt });
+    if (p.committed) this.lobby.update(this.invited ? { status: 'idle' } : { status: 'queued', queuedAt: this.queuedAt });
     if (unreachable) {
       this.linkFailures++;
       if (this.linkFailures >= 2) this.natTrouble = true;

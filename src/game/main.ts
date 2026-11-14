@@ -3,31 +3,46 @@
 
 // First: analytics (Hawkes Analytics, analytics.ts) marks the load start and stamps the build.
 import { bootFail, bootReady, bootStep, pressHandled } from './boot.ts';
+import { setShareExtra } from './ui/share.ts';
 import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
-import { addWin } from './looks.ts';
+import { addWin, lookCount, lookOpen, preferredLook } from './looks.ts';
+import { openReplayPicker } from './ui/replayPicker.ts';
 import { audio, tapState, type Spatial } from './audio.ts';
 import type { VoiceKind } from './voiceDirector.ts';
 import { panFromScreen } from './roomAudio.ts';
 import { Commentator, introCall, suddenDeathCall, type Call } from './commentary.ts';
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
-import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
-import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings, hitVibrate } from './touchSettings.ts';
+import { TEXT_SIZES, onTextSize, setTextSize, textSize } from './textSize.ts';
+import { colourVision, onColourVision, setColourVision, shapeOf } from './colourVision.ts';
+import { flashMode, onScreenShake, reduceMotion, setFlashMode, setReduceMotion, setShakeLevel, shakeLevel, shakeScale, type FlashMode } from './hitFeel.ts';
+import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings } from './touchSettings.ts';
+import { rumble, rumbleHit } from './rumble.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
-import { ACT } from './sim/state.ts';
+import { ACT, hashState } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
+import { openRebind, backRebind, wireRebind, onRebind } from './ui/rebind.ts';
+import { onBindings } from './input/bindings.ts';
+import { onShieldMode, setShieldActive, setShieldMode, shieldMode, releaseShieldLatch } from './input/shieldMode.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
-import { GAMEPAD_HELP, KEYBOARD_HELP, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
-import { damageColor, damageShake, hitTier } from './hitFeel.ts';
-import { clearMarkers, markerLog, markerRects, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
+import { keyboardHelp, gamepadHelp, padFamily, TOUCH_HELP, listenKeyboard, onKey, pausePressedBy, padSlot, readLocal, readHumans, assignDevices, tauntPressed } from './input/devices.ts';
+import { damageColor, damageShake, hitGain, hitTier } from './hitFeel.ts';
+import { clearMarkers, markerLog, markerRects, safeInsets, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
+import { clearTags, tagLog, tagRects, tagText, updateTags, type TagIn } from './ui/tags.ts';
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
-import { Match, type MatchSetup } from './match.ts';
+import { Match, type MatchSetup, type SlotSetup } from './match.ts';
+import { DUMMY_MODES, DUMMY_PERCENTS } from './ai/trainingDummy.ts';
+import { applyResult as applyAutoResult, levelNote, loadAutoLevel } from './ai/autoLevel.ts';
 import type { SimEvent } from './sim/step.ts';
 import { ruleLabel, takeoverLines } from './campaign/takeover.ts';
-import { CHAPTERS, isUnlocked, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
+import { LESSON_TITLE, campaignBlurb, doneLessons, markLessonDone, nextLesson, type LessonId } from './campaign/lessons.ts';
+import { clearLosses, difficulty, foeLevels, markCleared, offerEasy, recordLoss, setDifficulty, withDifficulty, DIFFICULTY_LABEL, type Difficulty } from './campaign/difficulty.ts';
+import { gradeEpisode, scoreEpisode } from './campaign/grade.ts';
+import { earnReward, onVariantChange, setVariant } from './campaign/rewards.ts';
+import { CHAPTERS, isUnlocked, loadProgress, recordStars, recordBest, loadStars, saveStars, saveBests, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, installPressFeedback, largeUrl, thumbUrl } from './ui/dom.ts';
-import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
+import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, setMenuOwner, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playVersus, setResultActions, showResults, type ResultAction } from './ui/views.ts';
 import { clearRematchPanel, renderRematch } from './ui/rematch.ts';
@@ -43,14 +58,16 @@ import { NO_INPUT } from './sim/input.ts';
 import { step, SUDDEN_HOLD } from './sim/step.ts';
 import { stageIndex } from './sim/stage.ts';
 import type { GameState } from './sim/state.ts';
+import { ReplayPlayer, saveReplay, type Replay } from './replay.ts';
+import { emit as replayEmit, openReplayBar, type ReplayBar } from './ui/replayBar.ts';
 import { HighlightPlayer, loadHighlight, nextChapterId, recapApplies, recapId, saveHighlight, teaseId } from './campaign/highlight.ts';
 import { playSegment, type SegmentEnv, type Showcase } from './ui/segment.ts';
 // Online code is never imported here: it loads after boot through the loader (a failure there can't stop the game).
 import type { OnlineFight, FightEnd } from './net/fight.ts';
 import type { Found, OnlineSetup } from './net/matchmaker.ts';
-import { bootOnline, onlineApi } from './net/loader.ts';
+import { bootOnline, onlineApi, onlineReady } from './net/loader.ts';
 import { switching } from './ui/screens.ts';
-import { initRotatePrompt, rotateShowing } from './ui/rotate.ts';
+import { initRotatePrompt, rotateShowing, rotateSuppressed, suppressRotate } from './ui/rotate.ts';
 import { Teacher } from './ui/teach.ts';
 import { DAILY_POOL, dailyEpisode, dailyScore, dailySetup, liveStreak, msToNext, recordClear, type DailyEpisode } from './campaign/daily.ts';
 import { dailyDate, loadDaily, saveDaily } from './campaign/dailyStore.ts';
@@ -63,7 +80,7 @@ import { renderEndings } from './ui/extras.ts';
 import { renderTourChoice, renderTourSelect, tourBanner } from './ui/tour.ts';
 import { VOICE } from './audio.ts';
 import { clearWinQuote, pickWinQuote, type WinQuote } from './winQuote.ts';
-import { PILOT_CHAPTER, PILOT_KAELEN, isFirstVisit, markPilotSeen, pilotState } from './campaign/firstVisit.ts';
+import { PILOT_CHAPTER, PILOT_KAELEN, isFirstVisit, markPilotSeen } from './campaign/firstVisit.ts';
 
 const TICK_MS = 1000 / 60;
 
@@ -76,6 +93,7 @@ bootStep('module', 'Starting the engine');
 let renderer: Renderer;
 try {
   renderer = new Renderer(canvas);
+  onVariantChange(() => renderer.regrade());
 } catch (err) {
   console.error('[dod-boot] the renderer could not start', err);
   bootFail('Your browser could not start the game graphics (WebGL).');
@@ -104,6 +122,8 @@ let shownOver = false;
 /** The announcer and Blog Man for the running match (versus and campaign; not training or online). */
 let commentator: Commentator | null = null;
 let introPending: Call | null = null;
+/** The first fight of a page visit gets the entrance beat once (see startMatch); later bouts and Retry go straight to Ready. */
+let openingBeatSeen = false;
 let chapter: Chapter | null = null;
 /** On-stage teaching prompts for the pilot fight and How to play (ui/teach.ts). */
 let teacher: Teacher | null = null;
@@ -161,6 +181,20 @@ function startPressed(): void {
   go('main', spotlight);
 }
 
+let shownPadFamily = '';
+/** The controls lists; the pad one is named for the family of whichever pad last gave input (refilled when it changes). */
+function fillControlLists(): void {
+  const fill = (id: string, rows: [string, string][]) =>
+    $(id).replaceChildren(...rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]));
+  shownPadFamily = padFamily();
+  fill('keys-kb', keyboardHelp());
+  fill('keys-pad', gamepadHelp());
+  fill('keys-touch', TOUCH_HELP);
+  fill('ctl-kb', keyboardHelp());
+  fill('ctl-pad', gamepadHelp());
+  fill('ctl-touch', TOUCH_HELP);
+}
+
 function wireMenus(): void {
   $('btn-start').addEventListener('click', () => {
     if (pressHandled()) return; // Game/index.html took this press while the engine loaded and carries it out in bootReady
@@ -174,6 +208,8 @@ function wireMenus(): void {
     downSound = { el, at: performance.now() };
     audio.sfx('ui-select');
   });
+  // The Tap to play prompt is no menu button (no pressed state), but its press answers with the same click, on pointer down.
+  document.getElementById('tap-to-play')?.addEventListener('pointerdown', () => audio.sfx('ui-select'));
   document.addEventListener('click', (e) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('button, a');
     if (!el) return;
@@ -194,9 +230,12 @@ function wireMenus(): void {
       else if (to === 'versus') openVersus();
       else if (to === 'training') openTraining();
       else if (to === 'howto') startHowToPlay();
+      else if (to === 'howto2') startHowToPlay('defence');
+      else if (to === 'howto3') startHowToPlay('recovery');
       else if (to === 'controls') go('howto');
       else if (to === 'settings') openSettings();
       else if (to === 'online') onlineCall('find match', (o) => o.findMatch());
+      else if (to === 'invite') onlineCall('invite a friend', (o) => o.inviteFriend());
       else if (to === 'profile') onlineCall('profile', (o) => o.openProfile());
       else if (to === 'leaderboard') go('leaderboard', () => onlineCall('leaderboard', (o) => o.renderBoard()));
     }),
@@ -225,6 +264,7 @@ function wireMenus(): void {
       startMatch(match.setup, false);
     }
   });
+  wireTrainingOptions();
   $('btn-pause-settings').addEventListener('click', () => openSettings());
   $('btn-pause-controls').addEventListener('click', () => openControlsPanel(true));
   $('btn-controls-close').addEventListener('click', () => openControlsPanel(false));
@@ -258,14 +298,55 @@ function wireMenus(): void {
     if (match) banner(on ? 'Sound on' : 'Sound off');
   });
 
-  const fill = (id: string, rows: [string, string][]) =>
-    $(id).replaceChildren(...rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]));
-  fill('keys-kb', KEYBOARD_HELP);
-  fill('keys-pad', GAMEPAD_HELP);
-  fill('keys-touch', TOUCH_HELP);
-  fill('ctl-kb', KEYBOARD_HELP);
-  fill('ctl-pad', GAMEPAD_HELP);
-  fill('ctl-touch', TOUCH_HELP);
+  fillControlLists();
+}
+
+/** Free Training (not a How to play lesson): the combo readout and the dummy options in Pause are on. */
+function trainingFree(m: Match | null): m is Match {
+  return !!m && m.setup.mode === 'training' && !m.setup.teach && !m.setup.online;
+}
+
+/** Pause → Training: the dummy's behaviour, its CPU level and its percent (Reset is 0). Built once; synced each time Pause opens. */
+function wireTrainingOptions(): void {
+  const modes = $('to-modes');
+  for (const { id, label } of DUMMY_MODES) {
+    modes.appendChild(
+      h('button', { type: 'button', class: 'secondary', 'data-dummy': id, 'aria-pressed': 'false', onclick: () => {
+        if (!trainingFree(match)) return;
+        match.setDummyMode(id);
+        analytics.feature('training_dummy', { value: id });
+        syncTrainingOptions();
+      } }, label),
+    );
+  }
+  const pcts = $('to-percents');
+  for (const pct of DUMMY_PERCENTS) {
+    pcts.appendChild(
+      h('button', { type: 'button', class: 'secondary', 'data-percent': String(pct), onclick: () => {
+        if (!trainingFree(match)) return;
+        match.setDummyPercent(pct);
+        analytics.feature('training_percent', { value: pct });
+        updateHud(match);
+      } }, pct === 0 ? 'Reset' : `${pct}%`),
+    );
+  }
+  const level = (d: number) => () => {
+    if (!trainingFree(match)) return;
+    match.setDummyLevel(match.dummy.level + d);
+    syncTrainingOptions();
+  };
+  $('to-level-down').addEventListener('click', level(-1));
+  $('to-level-up').addEventListener('click', level(1));
+}
+
+function syncTrainingOptions(): void {
+  const on = trainingFree(match);
+  $('training-options').hidden = !on;
+  $('pause').querySelector('.panel')!.classList.toggle('training', on);
+  if (!on || !match) return;
+  document.querySelectorAll<HTMLElement>('#to-modes button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.dummy === match!.dummy.mode)));
+  $('to-level-row').hidden = match.dummy.mode !== 'cpu';
+  $('to-level').textContent = `CPU level ${match.dummy.level}`;
 }
 
 /** The key list as a panel over Pause ("All controls"); the same lists are the All controls screen in the menu. */
@@ -294,6 +375,9 @@ let spotBusy = false;
 /** Shows the current spotlight fighter: picture and name change together, once the picture is ready. */
 async function spotlight(animate = false): Promise<void> {
   updateNextEpisode();
+  updateLessonTicks();
+  const blurb = document.getElementById('campaign-blurb');
+  if (blurb) blurb.textContent = campaignBlurb();
   renderDaily();
   const i = spotIndex % CHARACTERS.length;
   const c = CHARACTERS[i];
@@ -328,6 +412,45 @@ setInterval(() => {
 }, 4000);
 
 let lastSelect: 'versus' | 'training' = 'versus';
+
+/**
+ * The slots for a quick-play match. In versus, each CPU on Auto (the default; a manual level turns it off) plays at the
+ * profile's Auto level (ai/autoLevel.ts), which a finished match moves. Training never uses it.
+ */
+function quickSlots(cfg: VersusConfig, mode: 'versus' | 'training'): SlotSetup[] {
+  const level = loadAutoLevel();
+  return cfg.slots.map((s) => {
+    const base = { ...s, team: cfg.teams ? (s.team ?? 0) : undefined };
+    if (mode !== 'versus' || s.cpu === null || s.cpu === 0 || s.auto === false) return { ...base, auto: undefined };
+    return { ...base, cpu: level, auto: true };
+  });
+}
+
+/** After a finished versus match with an Auto CPU: moves the saved level and returns the note for the Results, if it changed. */
+function autoLevelAfter(m: Match): { from: number; to: number; text: string } | null {
+  const setup = m.setup;
+  if (setup.mode !== 'versus' || m.state.winner < 0 || !setup.slots.some((s) => s.auto)) return null;
+  const me = m.state.fighters[m.player];
+  const foes = m.state.fighters.filter((f) => setup.slots[f.id]?.cpu && setup.slots[f.id].cpu! > 0);
+  if (!me || !foes.length) return null;
+  const stocks = setup.stocks;
+  const change = applyAutoResult({
+    won: m.playerWon(),
+    stocks,
+    stocksLeft: me.stocks,
+    foeStocksLost: foes.reduce((n, f) => n + Math.max(0, stocks - f.stocks), 0),
+    dealt: m.stats[me.id].dealt,
+  });
+  window.dispatchEvent(new CustomEvent('dod:auto-level', { detail: { won: m.playerWon(), stocksLeft: me.stocks, from: change?.from ?? loadAutoLevel(), to: change?.to ?? loadAutoLevel(), changed: !!change } }));
+  return change ? { ...change, text: levelNote(change.from, change.to) } : null;
+}
+
+/** A rematch plays at the level the last match left (Auto CPUs only). */
+function rematchSetup(setup: MatchSetup): MatchSetup {
+  if (!setup.slots.some((s) => s.auto)) return setup;
+  const level = loadAutoLevel();
+  return { ...setup, slots: setup.slots.map((s) => (s.auto ? { ...s, cpu: level } : s)) };
+}
 
 function openVersus(): void {
   lastSelect = 'versus';
@@ -382,8 +505,8 @@ function prepStageSelect(stage: number, immediate = false): void {
       mode: lastSelect,
       stage,
       stocks: cfg.stocks,
-      rules: { timeLimit: cfg.time * 60 * 60 },
-      slots: cfg.slots.map((s) => ({ ...s, team: cfg.teams ? (s.team ?? 0) : undefined })),
+      rules: { ...(lastSelect === 'versus' && cfg.hazards === false ? { hazards: 0 } : {}), timeLimit: cfg.time * 60 * 60 },
+      slots: quickSlots(cfg, lastSelect),
     };
     // keepStage: don't rebuild the arena we just set; clipWait 0: sheets finish later via warmTick.
     renderer.setLooks(setup.slots.map((s) => s.look ?? 0));
@@ -401,6 +524,7 @@ function pickStage(stage: number, entry: ModeStage, random = false): void {
   prepGen++;
   prefetchStage(stage);
   renderer.setStage(stage);
+  renderer.regrade();
   selectedAt = performance.now();
   const cfg = lastSelect === 'training' ? training : versus;
   analytics.stagePick(lastSelect, stage, random);
@@ -411,8 +535,8 @@ function pickStage(stage: number, entry: ModeStage, random = false): void {
     stage,
     stocks: cfg.stocks,
     // The mode's version of the stage can change its rules (a calm version with hazards off).
-    rules: { ...entry.rules, timeLimit: cfg.time * 60 * 60 },
-    slots: cfg.slots.map((s) => ({ ...s, team: cfg.teams ? (s.team ?? 0) : undefined })),
+    rules: { ...entry.rules, ...(lastSelect === 'versus' && cfg.hazards === false ? { hazards: 0 } : {}), timeLimit: cfg.time * 60 * 60 },
+    slots: quickSlots(cfg, lastSelect),
   };
   // Build (or no-op reuse) on the stages screen; startMatch drains the lock before the VS wipe.
   renderer.setLooks(setup.slots.map((s) => s.look ?? 0));
@@ -428,26 +552,84 @@ function openCampaignScreen(unlocked?: string): Promise<void> {
     openCampaign(progress, playChapter, () => {
       progress.clear();
       saveProgress(progress);
+      saveStars({});
+      saveBests({});
       openCampaignScreen();
-    }, unlocked),
+    }, unlocked, replayChapter),
   );
 }
 
-async function playChapter(c: Chapter): Promise<void> {
+/** The fighter a cleared episode is being replayed as (index into CHARACTERS), or null for the story's Exit Punk. */
+let replayAs: number | null = null;
+
+/** "Replay as…" on a cleared episode's card: the picker of unlocked fighters, then the same episode with that fighter. */
+function replayChapter(c: Chapter): void {
+  openReplayPicker({
+    title: c.title,
+    chapter: c.id,
+    current: c.fight.slots[0]?.char ?? 0,
+    onPick: (char) => void playChapter(c, char),
+  });
+}
+
+/** The episode's fight with the player's slot swapped for another fighter: foes, stage, objective and rules unchanged. */
+function replayFight(fight: MatchSetup, char: number): MatchSetup {
+  const slots = fight.slots.map((s) => ({ ...s }));
+  const me = slots.findIndex((s) => s.cpu === null);
+  if (me < 0) return fight;
+  slots[me].char = char;
+  let look = preferredLook(char);
+  const clash = (l: number) => slots.some((o, i) => i !== me && o.char === char && (o.look ?? 0) === l);
+  for (let k = 0; clash(look) && k < lookCount(char); k++) {
+    look = (look + 1) % lookCount(char);
+    if (!lookOpen(char, look)) look = 0;
+  }
+  slots[me].look = look;
+  return { ...fight, slots };
+}
+
+async function playChapter(c: Chapter, as?: number): Promise<void> {
+  replayAs = as ?? null;
   chapter = c;
   analytics.chapterPlayed(c);
   // The episode opens on "Previously on Dose of Destruction": the last episode's final KO, replayed under Blog Man's recap.
   await playRecap(c);
   if (chapter !== c) return;
   const n = CHAPTERS.indexOf(c) + 1;
+  // The map's difficulty (campaign/difficulty.ts) shapes this episode's fight; Retry replays the setup it made.
+  const fight = chapterFight(c, difficulty());
   // The story card and scene take a while to read: the fight's fighters and arena load meanwhile.
-  void prefetchFighters(c.fight.slots.map((s) => s.char));
+  void prefetchFighters(fight.slots.map((s) => s.char));
   prefetchStage(c.fight.stage);
   renderer.setStage(c.fight.stage);
-  renderer.setLooks(c.fight.slots.map((s) => s.look ?? 0));
-  void renderer.setFighters(new Match({ ...c.fight, title: undefined, subtitle: undefined }, 1).state, true, 0);
+  renderer.setLooks(fight.slots.map((s) => s.look ?? 0));
+  void renderer.setFighters(new Match({ ...fight, title: undefined, subtitle: undefined }, 1).state, true, 0);
   // The episode opens in the arena: the VS card, then the intro plays live with the fighters (ui/scene.ts).
-  startMatch({ ...c.fight, title: `Chapter ${n} · ${c.title}`, subtitle: c.hint }, true, undefined, { chapter: c, which: 'intro' });
+  startMatch({ ...fight, title: `Chapter ${n} · ${c.title}`, subtitle: c.hint }, true, undefined, { chapter: c, which: 'intro' });
+}
+
+/** The difficulty this episode is being played on (what its clear is badged with). */
+let chapterDiff: Difficulty = 'normal';
+
+/** An episode's fight on a difficulty; logs it (`dod:difficulty`) so the playtest can read the CPU level that was used. */
+function chapterFight(c: Chapter, d: Difficulty, why: 'start' | 'offer' = 'start'): MatchSetup {
+  chapterDiff = d;
+  const base = replayAs === null ? c.fight : replayFight(c.fight, replayAs);
+  const fight = withDifficulty(base, d);
+  window.dispatchEvent(new CustomEvent('dod:difficulty', { detail: { phase: why, chapter: c.id, difficulty: d, cpuFrom: foeLevels(c.fight), cpuTo: foeLevels(fight) } }));
+  if (replayAs !== null) {
+    const foes = fight.slots.filter((s) => s.cpu !== null).map((s) => CHARACTERS[s.char].id);
+    window.dispatchEvent(new CustomEvent('dod:replay-as', { detail: { phase: 'fight', chapter: c.id, fighter: CHARACTERS[replayAs].id, foes, stage: STAGES[fight.stage].id, objective: fight.objective ?? 'win', original: c.fight.slots.filter((s) => s.cpu !== null).map((s) => CHARACTERS[s.char].id) } }));
+  }
+  return fight;
+}
+
+/** "Try it on Easy?" accepted: Easy becomes the map's choice and the same episode starts again with the softer foes. */
+function tryOnEasy(c: Chapter, m: Match): void {
+  setDifficulty('easy');
+  clearLosses();
+  const fight = chapterFight(c, 'easy', 'offer');
+  void startMatch({ ...fight, title: m.setup.title, subtitle: m.setup.subtitle }, false);
 }
 
 /** What a story scene plays: the chapter's intro (before Ready) or outro (after the episode is won). */
@@ -548,6 +730,21 @@ async function runScene(m: Match, cue: SceneCue): Promise<void> {
     phase = 'scene';
     audio.playStageBed(STAGES[m.setup.stage].id);
     $('scene-next').focus();
+    // The cold open's first beat is the empty stage (the cast waits in the wings), so it is only the painted stage that carries
+    // it: on a slow phone holdForStageArt gives up after 8 s and the beat played over a bare gradient. Wait for the layers
+    // (a failed picture is skipped, never waited for) before the first beat starts its clock, under the loading veil.
+    if (renderer.stageArtPending()) {
+      const veil = $('loading');
+      veil.textContent = 'Loading the stage…';
+      veil.hidden = false;
+      await renderer.stageArtReady(STAGE_ART_HOLD_MS * 3);
+      renderer.render(m.state);
+      await nextFrame();
+      renderer.render(m.state);
+      veil.hidden = true;
+      veil.textContent = 'Loading fighters…';
+      if (match !== m) return;
+    }
     const end = await playColdOpen(sceneStage(m), c.coldOpen);
     analytics.scene(`${c.id}.cold-open`, { skipped: end.skipped, line: 0 }, c.coldOpen.length);
     return;
@@ -610,6 +807,116 @@ function replaySounds(events: SimEvent[]): void {
   }
 }
 
+
+// ------------------------------------------------ Watch replay (Results)
+
+/** The replay on screen: the player (a fresh Match fed the recorded inputs), its control bar and the way back. */
+let replayRun: { rotateWas: boolean; player: ReplayPlayer; bar: ReplayBar; hudFor: Match; back: () => void; ended: boolean; seq: number } | null = null;
+let replaySeq = 0;
+
+/** Keeps the finished match's replay with the profile (bounded) and returns the full one for Watch replay. */
+function keepReplay(m: Match): Replay | null {
+  if (m.setup.mode === 'training' || m.setup.teach === 'pilot') return null;
+  const r = m.buildReplay();
+  if (r) saveReplay(r);
+  return r;
+}
+
+/** Adds Watch replay after the primary result button. `reshow` puts the same results back. */
+function addWatchReplay(actions: (ResultAction & { disabled?: boolean })[], m: Match, reshow: () => void): void {
+  const r = keepReplay(m);
+  if (!r) return;
+  actions.splice(Math.min(1, actions.length), 0, { label: 'Watch replay', run: () => void watchReplay(r, reshow) });
+}
+
+function endReplay(): void {
+  const run = replayRun;
+  if (!run) return;
+  replayRun = null;
+  run.bar.destroy();
+  renderer.setFreeCamera(false);
+  suppressRotate(run.rotateWas);
+  audio.stopVoice();
+  replayEmit('exit', { tick: run.player.tick });
+}
+
+async function watchReplay(r: Replay, back: () => void): Promise<void> {
+  const player = new ReplayPlayer(r);
+  const setup = player.match.setup;
+  await go('match', async () => {
+    endMatch();
+    $('hud').hidden = true;
+    audio.stopVoice();
+    await arenaFor(setup.stage, setup.slots.map((x) => x.look ?? 0), player.state, 4000);
+    audio.playStageBed(STAGES[setup.stage].id);
+    buildHud(player.match);
+    renderer.render(player.state);
+  });
+  const seq = ++replaySeq;
+  const exit = (): void => {
+    if (!replayRun || replayRun.seq !== seq) return;
+    endReplay();
+    back();
+  };
+  const note = (phase: string): void => replayEmit(phase, { speed: player.speed, paused: player.paused, camera: player.camera, tick: player.tick, total: player.totalTicks });
+  const bar = openReplayBar(
+    {
+      total: () => player.totalTicks,
+      tick: () => player.tick,
+      paused: () => player.paused || player.done,
+      speed: () => player.speed,
+      camera: () => player.camera,
+      togglePause: () => {
+        if (player.done) { player.restart(); player.paused = false; replayRun!.ended = false; } else player.togglePause();
+        note('pause');
+      },
+      setSpeed: (sp) => { player.setSpeed(sp); note('speed'); },
+      toggleCamera: () => {
+        renderer.setFreeCamera(player.toggleCamera() === 'free');
+        note('camera');
+      },
+      back: (sec) => { player.seek(player.tick - sec * 60); replayRun!.ended = false; note('seek'); },
+      exit,
+      pan: (dx, dy) => { const k = renderer.freeCameraState().d * 0.0016; renderer.panFreeCamera(-dx * k, dy * k); },
+      zoom: (st) => renderer.panFreeCamera(0, 0, st * 1.5),
+    },
+    canvas,
+  );
+  // The replay shows in portrait too: the bar sits along the bottom of a 390x844 phone (the Rotate prompt would cover it).
+  const rotateWas = rotateSuppressed();
+  suppressRotate(true);
+  replayRun = { rotateWas, player, bar, hudFor: player.match, back, ended: false, seq };
+  note('start');
+}
+
+/** One frame of the replay: advance by wall time at the chosen speed, draw, keep the HUD on the replayed match. */
+function replayFrame(dtMs: number, draw: boolean): void {
+  const run = replayRun;
+  if (!run) return;
+  const p = run.player;
+  const { events } = p.advance(dtMs);
+  if (events.length) {
+    renderer.onEvents(events);
+    replaySounds(events);
+  }
+  if (run.hudFor !== p.match) {
+    run.hudFor = p.match;
+    buildHud(p.match);
+  }
+  updateHud(p.match);
+  if (p.done && !run.ended) {
+    run.ended = true;
+    const s = p.state;
+    replayEmit('end', {
+      winner: s.winner, stocks: s.fighters.map((f) => f.stocks), percents: s.fighters.map((f) => f.percent),
+      want: p.replay.result.winner, wantStocks: p.replay.result.stocks, hash: hashState(s), wantHash: p.replay.result.hash,
+      tick: p.tick, total: p.totalTicks,
+    });
+  }
+  run.bar.update();
+  if (draw) renderer.render(p.state);
+}
+
 /** A fight's cast standing on their stage, idling: what the tease cuts to. */
 function idleShowcase(setup: MatchSetup): Showcase {
   const state = new Match({ ...setup, title: undefined, subtitle: undefined }, 1).state;
@@ -654,6 +961,7 @@ const blogLine = (id: string): { id: string; text: string; audio?: string | null
 async function episodeEnd(m: Match, c: Chapter): Promise<void> {
   phase = 'scene';
   clearMarkers();
+  clearTags();
   const hl = m.highlight;
   if (hl) {
     hl.chapter = c.id;
@@ -734,13 +1042,15 @@ async function playRecap(c: Chapter): Promise<void> {
 async function chapterCleared(c: Chapter): Promise<void> {
   // The outro already played in the arena after Game! (finish).
   const firstTime = !progress.has(c.id);
+  markCleared(c.id, chapterDiff);
+  clearLosses();
   progress.add(c.id);
   saveProgress(progress);
   analytics.chapterCleared(c, firstTime, progress);
   // The hero this episode unlocks (once): the map says so.
   await openCampaignScreen(unlockFor(c) ?? undefined);
   // Back on the map, the episode over: the stars card.
-  if (currentScreen() === 'campaign') analytics.askAfterEpisode(c);
+  if (currentScreen() === 'campaign' && replayAs === null) analytics.askAfterEpisode(c);
 }
 
 // ------------------------------------------------------------------ tour
@@ -928,8 +1238,8 @@ async function pilotCleared(c: Chapter): Promise<void> {
   await go('main', spotlight);
 }
 
-/** How to play: the same prompted fight in Training against a dummy, with no setup screens. */
-function startHowToPlay(): void {
+/** How to play: the same prompted fight in Training against a dummy, with no setup screens. Lesson 2 ('defence'): grab, throw, roll, spot-dodge. Lesson 3 ('recovery'): the four specials, fast fall, the way back to the ledge. */
+function startHowToPlay(lesson: 'training' | 'defence' | 'recovery' = 'training'): void {
   chapter = null;
   analytics.setMode('training');
   const ep = CHARACTERS.findIndex((x) => x.id === 'exit-punk');
@@ -941,12 +1251,69 @@ function startHowToPlay(): void {
       stage,
       stocks: 1,
       rules: {},
-      teach: 'training',
-      title: 'How to play',
+      teach: lesson,
+      title: lesson === 'defence' ? 'How to play 2' : lesson === 'recovery' ? 'How to play 3' : 'How to play',
       slots: [{ char: ep, cpu: null }, { char: dummy, cpu: 0 }],
     },
     false,
   );
+}
+
+/** The ticks on the How to play menu items: a lesson done stays ticked after a reload (campaign/lessons.ts). */
+function updateLessonTicks(): void {
+  const done = doneLessons();
+  const ids: Record<string, LessonId> = { howto: 'training', howto2: 'defence', howto3: 'recovery' };
+  for (const [go, id] of Object.entries(ids)) {
+    const btn = document.querySelector<HTMLElement>(`.menu-item[data-go="${go}"]`);
+    if (!btn) continue;
+    const on = done.has(id);
+    btn.classList.toggle('lesson-done', on);
+    btn.dataset.done = on ? '1' : '0';
+    let tick = btn.querySelector<HTMLElement>('.lesson-tick');
+    if (on && !tick) {
+      tick = h('em', { class: 'lesson-tick', 'aria-label': 'Done' }, '✓ Done') as HTMLElement;
+      btn.prepend(tick);
+    } else if (!on && tick) tick.remove();
+  }
+}
+
+function lessonCardOff(): void {
+  document.getElementById('lesson-card')?.remove();
+}
+
+/** A finished lesson: the match stands still under a card with Next lesson (Fight a CPU after the last) and Back to menu. */
+function lessonCard(id: LessonId): void {
+  lessonCardOff();
+  phase = 'pause';
+  syncPad();
+  const next = nextLesson(id);
+  const leave = (then: () => void) => () => {
+    lessonCardOff();
+    if (match) analytics.matchEnd(match, 'quit', { reason: 'lesson_done' });
+    endMatch();
+    then();
+  };
+  const primary = h('button', { class: 'menu-item lesson-primary', type: 'button', 'data-lesson-next': next ?? 'fight' }, h('strong', {}, next ? 'Next lesson' : 'Fight a CPU'), h('span', {}, next ? LESSON_TITLE[next] : 'Straight into a real match.'));
+  primary.addEventListener('click', leave(() => {
+    if (next) startHowToPlay(next);
+    else startCpuFight();
+  }));
+  const back = h('button', { class: 'menu-item quiet lesson-back', type: 'button' }, h('strong', {}, 'Back to menu'));
+  back.addEventListener('click', leave(() => void go('main', spotlight)));
+  const card = h('div', { id: 'lesson-card', class: 'lesson-card', role: 'dialog', 'aria-label': 'Lesson complete' }, h('h2', {}, 'Lesson complete'), h('p', {}, LESSON_TITLE[id]), primary, back);
+  document.body.appendChild(card);
+  audio.sfx('ui-select');
+  primary.focus();
+}
+
+/** After the last lesson: a real 2-stock match against a CPU, no setup screens. */
+function startCpuFight(): void {
+  chapter = null;
+  analytics.setMode('versus');
+  const ep = CHARACTERS.findIndex((x) => x.id === 'exit-punk');
+  const foe = CHARACTERS.findIndex((x) => x.id === 'kaelen');
+  const stage = Math.max(0, STAGES.findIndex((x) => x.id === 'city-top'));
+  void startMatch({ mode: 'versus', stage, stocks: 2, rules: {}, slots: [{ char: ep, cpu: null }, { char: foe, cpu: 3 }] }, true);
 }
 
 /** The Campaign button on the main menu says "Next episode" once the pilot is won and the player hasn't gone on yet. */
@@ -954,7 +1321,8 @@ function updateNextEpisode(): void {
   const btn = document.querySelector<HTMLElement>('.menu-item[data-go="campaign"]');
   if (!btn) return;
   const idx = CHAPTERS.findIndex((x) => !progress.has(x.id));
-  const fresh = pilotState() === 'won' && progress.size === 1 && progress.has(PILOT_CHAPTER) && idx > 0;
+  // Visible whenever an episode is left to play, not just right after the pilot: a reason to come back.
+  const fresh = idx > 0 && progress.has(PILOT_CHAPTER);
   btn.classList.toggle('next-episode', fresh);
   let tag = btn.querySelector<HTMLElement>('.next-tag');
   if (fresh && !tag) {
@@ -1047,6 +1415,7 @@ function dailyFinished(m: Match, ep: DailyEpisode, won: boolean): void {
     longest: after.longest,
     breakdown: `${formatTime(s.frame)} played, ${taken}% taken.`,
   });
+  setShareExtra(`Tonight's Episode · ${score.toLocaleString('en-US')}`);
   const strip = $('results-body').querySelector('.results-strip');
   if (strip) strip.after(panel);
   else $('results-body').prepend(panel);
@@ -1077,6 +1446,11 @@ let warmUpMs: number | null = null;
 
 async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { seed: number; found: Found }, scene?: SceneCue): Promise<void> {
   endMatch();
+  // A stage variant (campaign/rewards.ts) is a Versus and Training choice: the show, the Tour and online play the stage as it is.
+  if (setup.mode !== 'versus' && setup.mode !== 'training') {
+    setVariant(null);
+    renderer.regrade();
+  }
   // A newer start (an online match found meanwhile) wins over this one.
   const token = ++startToken;
   const stale = () => token !== startToken || (f !== null && f.phase === 'done');
@@ -1129,7 +1503,9 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     const loading = Promise.all([fightersReady, audioReady]);
     // The warm-up (shader compiles, particle pools) never starts until the VS card has been painted, and runs
     // one scene render per animation frame (renderer.warmUp yields between them); it carries on behind the match intro.
-    warm = loading.then(() => nextFrame()).then(() => nextFrame()).then(async () => {
+    // It waits for the fighter meshes only, never for audio: a slow audio decode used to push the warm-up's first (synchronous,
+    // shader-compiling) render late into the VS hold, where it blocked the main thread past the hold cap (6-14 s holds).
+    warm = fightersReady.then(() => nextFrame()).then(() => nextFrame()).then(async () => {
       const w0 = performance.now();
       await renderer.warmUp(m.state);
       warmUpMs = Math.round(performance.now() - w0);
@@ -1164,6 +1540,8 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     // The loading screen stays up until the match's first frame is drawn (under the wipe).
     $('loading').hidden = false;
     await warm;
+    // Painted stage layers (and their alpha masks) are decoded before the first frame, not mid-match.
+    await renderer.stageArtReady(4000);
     if (stale()) return;
   }
 
@@ -1178,14 +1556,41 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
   // Every offline match with a VS card opens like a broadcast (a fly-in and the entrances); an episode's own scene,
   // Tonight's Episode (its leaderboard needs the same start for everyone), the pilot, Training and online matches skip it.
   const matchIntro = withVersus && !f && !intro && !scene && setup.mode !== 'training' && setup.mode !== 'online' && !setup.teach && dailyRun?.setup !== setup;
-  const readyUnderWipe = !f && !intro && !versusExchange && !matchIntro;
+  // The first fight of a visit opens with the same in-engine beat whatever started it (Training, the shortcut into a bout):
+  // the rival drops in, the stage is called, and nothing asks for input until Ready (docs/world-bible.md "The first bout").
+  const openingBeat = !openingBeatSeen && !matchIntro && !f && !intro && !scene && !setup.teach && (setup.mode === 'training' || setup.mode === 'versus') && dailyRun?.setup !== setup;
+  if (openingBeat || matchIntro) openingBeatSeen = true;
+  const playIntro = matchIntro || openingBeat;
+  const readyUnderWipe = !f && !intro && !versusExchange && !playIntro;
   await go('match', () => {
     window.dispatchEvent(new CustomEvent('dod:scene-timing', { detail: { selectToVs: fromSelect, vsToMatch: vsMs, vsHoldMs, warmUpMs, selectToMatch: pickedAt === null ? null : performance.now() - pickedAt, withVersus } }));
     // The canvas may have changed size while menus were up.
     renderer.engine.resize();
     match = m;
-    teacher = setup.teach ? new Teacher({ scripted: setup.teach === 'training' }) : null;
-    if (teacher) teacher.onChange = (step, state) => window.dispatchEvent(new CustomEvent('dod:teach', { detail: { step, state, mode: setup.teach } }));
+    lessonCardOff();
+    teacher = setup.teach ? new Teacher({ scripted: setup.teach === 'training', lesson: setup.teach === 'defence' || setup.teach === 'recovery' ? setup.teach : undefined }) : null;
+    if (teacher) {
+      const lessonId: LessonId = setup.teach === 'defence' || setup.teach === 'recovery' ? setup.teach : 'training';
+      teacher.onComplete = () => {
+        markLessonDone(lessonId);
+        updateLessonTicks();
+        // Let the "Lesson clear!" pop land, then the card.
+        window.setTimeout(() => { if (match === m && phase === 'play') lessonCard(lessonId); }, 1300);
+      };
+      teacher.onChange = (step, state) => {
+        // Lesson 2: the dummy starts walking up and swinging as the last step comes (the rolls need no foe).
+        if (setup.teach === 'defence' && ((state === 'used' && step === 'rollR') || (state === 'shown' && step === 'dodge'))) m.dummySwings = true;
+        // Lesson 3: after fast fall the dummy knocks the player off the edge; the ledge ends it.
+        if (setup.teach === 'recovery' && state === 'used') {
+          if (step === 'fastfall') m.knockLoop = 'armed';
+          else if (step === 'ledge') {
+            m.knockLoop = 'off';
+            m.dummySwings = false;
+          }
+        }
+        window.dispatchEvent(new CustomEvent('dod:teach', { detail: { step, state, mode: setup.teach } }));
+      };
+    }
     showTouchControls(true);
     buildHud(m);
     shownOver = false;
@@ -1222,7 +1627,7 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     beginReady(m);
     return;
   }
-  if (matchIntro) {
+  if (playIntro) {
     await runMatchIntro(m);
     if (match !== m) return;
     if (!versusExchange) {
@@ -1262,6 +1667,7 @@ async function holdForStageArt(m: Match): Promise<void> {
 let readyFightId: string | null = null;
 
 function beginReady(m: Match): void {
+  releaseShieldLatch();
   const setup = m.setup;
   analytics.matchStart(m, chapter);
   clearTakeover();
@@ -1272,7 +1678,8 @@ function beginReady(m: Match): void {
   slam('Round start');
   renderer.stageEvent('start');
   // "Ready... FIGHT!" is one call (2 takes) that lands its FIGHT on the Go frame; without a take it is "Ready?" then "Go!".
-  readyFightId = audio.pickLine('announcer.ready-fight');
+  // "Round 1... FIGHT!" (announcer.round-fight.N) is preferred once recorded; every match is round 1 (stocks, not rounds).
+  readyFightId = audio.pickLine('announcer.round-fight') ?? audio.pickLine('announcer.ready-fight');
   if (readyFightId) void audio.call(readyFightId);
   else audio.line('announcer.ready');
   airFlashed = false;
@@ -1286,6 +1693,8 @@ function beginReady(m: Match): void {
 }
 
 function endMatch(): void {
+  endReplay();
+  releaseShieldLatch();
   skipScene();
   // A match left any other way than its end, a restart or Quit (another match starting over it) ends its level here.
   if (match) analytics.matchEnd(match, 'quit', { reason: 'left' });
@@ -1294,6 +1703,7 @@ function endMatch(): void {
   fight = null;
   teacher?.end();
   teacher = null;
+  lessonCardOff();
   $('pilot-menu').hidden = true;
   $('net-status').hidden = true;
   match = null;
@@ -1301,24 +1711,34 @@ function endMatch(): void {
   renderer.setPresenting(false);
   showTouchControls(false);
   $('hud').hidden = true;
+  $('training-readout').hidden = true;
   clearMarkers();
+  clearTags();
   $('match-top').hidden = true;
   clearTakeover();
   $('pause').hidden = true;
+  pauseOwner = null;
+  setMenuOwner(null);
   renderer.debug = false;
 }
 
 /** Esc, Start or the on-screen pause button in a match: closes Settings if it is open, else pauses or resumes. */
-function pauseKey(): void {
+function pauseKey(by?: number): void {
   if (!match || phase === 'idle') return;
+  // Couch pause: while P2's menu is up, P1's Esc or Start does nothing (the on-screen button and mouse still work).
+  if (phase === 'pause' && pauseOwner !== null && by !== undefined && by !== pauseOwner) return;
   // Esc or Start in a story scene skips it.
   if (phase === 'scene') return skipScene();
+  if (document.getElementById('lesson-card')) return;
   if (!$('controls-panel').hidden) openControlsPanel(false);
   else if (settingsOpen()) closeSettings();
-  else setPaused(phase !== 'pause');
+  else setPaused(phase !== 'pause', by);
 }
 
-function setPaused(paused: boolean): void {
+/** The player slot whose pause is up on a couch match with 2+ people (null: solo, online, or not paused). */
+let pauseOwner: number | null = null;
+
+function setPaused(paused: boolean, by?: number): void {
   if (!match) return;
   if (!paused && settingsOpen()) closeSettings();
   if (!paused) $('controls-panel').hidden = true;
@@ -1327,8 +1747,13 @@ function setPaused(paused: boolean): void {
   if (paused && phase !== 'pause') analytics.paused(match);
   phase = paused ? 'pause' : 'play';
   $('pause').hidden = !paused;
+  const couch = paused && !fight && match.setup.mode === 'versus' && match.humans >= 2;
+  pauseOwner = couch ? by ?? 0 : null;
+  setMenuOwner(pauseOwner, padSlot);
+  showPauseOwner(pauseOwner);
   $('btn-restart').hidden = !!fight;
   $('pause').querySelector('h2')!.textContent = fight ? 'Menu (the match goes on)' : 'Paused';
+  syncTrainingOptions();
   if (paused) {
     $('btn-quit').textContent = fight ? 'Leave match (you lose)' : inTour() ? 'Quit to Tour' : chapter ? 'Quit to campaign' : 'Quit to menu';
     ($('btn-resume') as HTMLButtonElement).focus();
@@ -1338,12 +1763,33 @@ function setPaused(paused: boolean): void {
   }
 }
 
+/** "P2 paused" in P2's colour and shape, over the pause menu; gone for solo pause. */
+function showPauseOwner(slot: number | null): void {
+  const el = $('pause-owner');
+  el.hidden = slot === null;
+  if (slot === null || !match) return;
+  const colour = slotColor(match, slot);
+  el.style.setProperty('--player', colour);
+  el.dataset.shape = shapeOf(slot);
+  el.dataset.slot = String(slot);
+  el.textContent = `P${slot + 1} paused`;
+  (window as unknown as { __dodPause?: unknown }).__dodPause = { slot, text: el.textContent };
+}
+
 let lastActions: number[] = [];
 /** Stocks snapshot before each KO batch, for crowd comeback cheers (mirrors commentary). */
 let crowdStocksBefore: number[] = [];
 let startToken = 0;
 
 function tick(m: Match): void {
+  // Two or more people on this machine: each device (keyboard, pad 1-4) drives its own fighter. Solo play is unchanged.
+  const humans = m.setup.mode === 'versus' && !m.setup.online ? m.humans : 1;
+  if (humans >= 2) {
+    const [first, ...rest] = readHumans(humans);
+    afterTick(m, m.tick(first, rest));
+    return;
+  }
+  assignDevices(1);
   afterTick(m, m.tick(readLocal()));
 }
 
@@ -1353,6 +1799,9 @@ function onlineTick(m: Match, f: OnlineFight): void {
 }
 
 function afterTick(m: Match, events: SimEvent[]): void {
+  // Toggle shield lets go of its latch when the local fighter is no longer shielding (hit, broke, KO'd).
+  const me = m.state.fighters[m.player];
+  setShieldActive(!!me && (me.action === ACT.SHIELD || me.action === ACT.SHIELD_STUN));
   renderer.onEvents(events);
   analytics.matchEvents(m, events);
   for (const w of matchWatchers) w(m, events);
@@ -1360,11 +1809,11 @@ function afterTick(m: Match, events: SimEvent[]): void {
     if (e.type === 'sudden') suddenDeathMoment(m);
     if (e.type === 'hit' && !e.shield) {
       bumpHud(e.victim, e.dmg, m.state.fighters[e.victim]?.percent ?? 0);
-      // Phone feel: a light buzz when you land a hit (Settings → Vibrate, where supported).
-      if (m.player >= 0 && e.attacker === m.player) hitVibrate(e.dmg >= 130 ? 18 : 12);
+      // Hands feel: the pad (and a phone) rumbles by hit weight for the player who landed or took it (Settings → Rumble).
+      if (m.player >= 0 && (e.attacker === m.player || e.victim === m.player)) rumbleHit(e.dmg);
     } else if (e.type === 'ko' && m.player >= 0 && (e.by === m.player || e.victim === m.player)) {
-      // Heavier pulse on a KO you deal or take, still behind the same Settings switch.
-      hitVibrate(e.by === m.player ? 28 : 22);
+      // The longest, hardest pulse on a KO you deal or take.
+      rumble('ko');
     }
   }
   playEventSounds(m, events);
@@ -1514,7 +1963,7 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
           // A special's own impact (its archetype's crack) layers on the generic hit. A light hit of a special
           // (each hit of a flurry) plays only the special's impact, so rapid hits don't stack two sounds each.
           const specialLayer = e.special ? audio.special('impact', e.special, CHARACTERS[m.state.fighters[e.attacker].char].id, at(e.x)) : false;
-          if (!(specialLayer && tier === 'light')) audio.sfx(HIT_SOUND[tier], { vary: true, at: at(e.x) });
+          if (!(specialLayer && tier === 'light')) audio.sfx(HIT_SOUND[tier], { vary: true, at: at(e.x), gain: hitGain(e.dmg) });
           // Heavy hits: the studio crowd gasps (ooh). Medium/heavy: the victim's hurt bark.
           if (e.dmg >= 130 && !koThisTick) audio.crowd('ooh');
           if (e.dmg >= 70) audio.fighterVoice(CHARACTERS[m.state.fighters[e.victim].char].id, 'hurt', at(m.state.fighters[e.victim].x));
@@ -1599,6 +2048,16 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
       case 'ledge':
         audio.sfx('ledge', { vary: true, at: at(e.x) });
         break;
+      case 'ledge-option':
+        window.dispatchEvent(new CustomEvent('dod:ledge', { detail: { option: e.option, id: e.id, frame: m.state.frame } }));
+        // Each choice has its own cue; the jump already plays the jump sound from its own event, the attack's swing from its action.
+        if (e.option === 'getup') {
+          audio.synth('whoosh', 0.22);
+          audio.sfx('land-soft', { vary: true, at: at(e.x) });
+        } else if (e.option === 'roll') audio.synth('whoosh', 0.4);
+        else if (e.option === 'attack') audio.synth('grab', 0.5);
+        else if (e.option === 'drop') audio.synth('thud', 0.3);
+        break;
       case 'shieldbreak':
         audio.sfx('shield-break', { at: at(e.x) });
         break;
@@ -1620,10 +2079,13 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         if (SMASHES.has(f.move) || VOICE_SPECIALS.has(f.move)) {
           audio.fighterVoice(CHARACTERS[f.char].id, 'effort', at(f.x));
         }
+      } else if (f.action === ACT.WALK && f.grounded > 0) {
+        // Pressing the stick to walk answers with a soft scuff on the first frame, not silence.
+        audio.sfx('land-soft', { vary: true, at: at(f.x), gain: 0.5 });
       } else if (f.action === ACT.SHIELD) {
         // Raising the shield answers the press with a soft bubble-up, not silence.
         audio.synth('whoosh', 0.25);
-      } else if (f.action === ACT.ROLL || f.action === ACT.SPOTDODGE || f.action === ACT.AIRDODGE) audio.sfx('dodge', { vary: true, at: at(f.x) });
+      } else if (f.action === ACT.ROLL || f.action === ACT.SPOTDODGE || f.action === ACT.AIRDODGE || f.action === ACT.LEDGE_ROLL) audio.sfx('dodge', { vary: true, at: at(f.x) });
     }
     lastActions[i] = f.action;
   });
@@ -1642,9 +2104,20 @@ function renderSettings(): void {
   sw.setAttribute('aria-checked', String(s.on));
   sw.textContent = s.on ? 'On' : 'Off';
   $('settings-levels').dataset.off = String(!s.on);
-  const shake = $('shake-switch');
-  shake.setAttribute('aria-checked', String(screenShake()));
-  shake.textContent = screenShake() ? 'On' : 'Off';
+  const mo = $('motion-switch');
+  mo.setAttribute('aria-checked', String(reduceMotion()));
+  mo.textContent = reduceMotion() ? 'On' : 'Off';
+  const shake = $('shake-level') as HTMLInputElement;
+  shake.value = String(shakeLevel());
+  $('shake-level-value').textContent = `${shakeLevel()}%`;
+  document.querySelectorAll<HTMLElement>('#flash-seg [data-fl]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.fl === flashMode())));
+  const sh = $('shield-switch');
+  sh.setAttribute('aria-checked', String(shieldMode() === 'toggle'));
+  sh.textContent = shieldMode() === 'toggle' ? 'Toggle' : 'Hold';
+  const cv = $('colour-switch');
+  cv.setAttribute('aria-checked', String(colourVision() === 'safe'));
+  cv.textContent = colourVision() === 'safe' ? 'Colourblind-safe' : 'Standard';
+  document.querySelectorAll<HTMLElement>('#textsize-seg [data-ts]').forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.ts) === textSize())));
   const g = graphics();
   const flip = (id: string, on: boolean, text: string) => {
     $(id).setAttribute('aria-checked', String(on));
@@ -1653,21 +2126,39 @@ function renderSettings(): void {
   flip('quality-switch', g.quality === 'high', g.quality === 'high' ? 'High' : 'Low');
   flip('glow-switch', g.glow, g.glow ? 'On' : 'Off');
   flip('fps-switch', g.fps, g.fps ? 'On' : 'Off');
-  for (const k of ['music', 'sfx'] as const) {
+  for (const k of ['music', 'sfx', 'voice'] as const) {
     const input = $<HTMLInputElement>(`vol-${k}`);
     input.value = String(Math.round(s[k] * 100));
     $(`vol-${k}-value`).textContent = `${input.value}%`;
   }
-  // Touch size, opacity and vibrate: only where there are touch controls.
+  flip('captions-switch', s.captions, s.captions ? 'On' : 'Off');
+  // Touch size and opacity: only where there are touch controls (Rumble shows everywhere).
   $('settings-touch').hidden = !(touchDevice() || touchUiForced());
   const t = touchSettings();
   for (const [k, v] of [['size', t.size], ['opacity', t.opacity]] as const) {
     $<HTMLInputElement>(`touch-${k}`).value = String(v);
     $(`touch-${k}-value`).textContent = `${v}%`;
   }
-  const vib = $('vibrate-switch');
-  vib.setAttribute('aria-checked', String(t.vibrate));
-  vib.textContent = t.vibrate ? 'On' : 'Off';
+  const rum = $('rumble-switch');
+  rum.setAttribute('aria-checked', String(t.vibrate));
+  rum.textContent = t.vibrate ? 'On' : 'Off';
+}
+
+function openRebindScreen(): void {
+  analytics.feature('rebind_open', { from: match ? 'pause' : 'menu' });
+  $('settings').hidden = true;
+  openRebind();
+  onPanelBack(() => {
+    if (backRebind()) closeRebindScreen();
+  });
+  focusFirst();
+}
+
+function closeRebindScreen(): void {
+  $('settings').hidden = false;
+  onPanelBack(closeSettings);
+  $('rebind-open').focus();
+  syncPad();
 }
 
 function openSettings(): void {
@@ -1693,26 +2184,71 @@ function closeSettings(): void {
   }
 }
 
+/** Captions off hides read-along text, except with sound off: then the story lines are the only way to follow. */
+function applyCaptions(): void {
+  const st = soundSettings();
+  document.body.classList.toggle('captions-off', !st.captions && st.on);
+}
+
 function wireSettings(): void {
   renderSettings();
-  onSoundSettings(renderSettings);
+  applyCaptions();
+  onSoundSettings(() => {
+    renderSettings();
+    applyCaptions();
+  });
   const from = () => (match ? 'pause' : 'menu');
   onScreenShake(() => renderSettings());
-  $('shake-switch').addEventListener('click', () => {
-    setScreenShake(!screenShake());
-    analytics.setting('shake', screenShake(), from());
+  onColourVision(() => {
+    renderSettings();
+    // Cards already on screen (Pause in a match) take the new colours now; the rings follow at the next match.
+    if (match) document.querySelectorAll<HTMLElement>('.hud-card').forEach((el, i) => el.style.setProperty('--player', slotColor(match!, i)));
   });
+  onShieldMode(() => renderSettings());
+  $('shield-switch').addEventListener('click', () => {
+    setShieldMode(shieldMode() === 'toggle' ? 'hold' : 'toggle');
+    analytics.setting('shield', shieldMode(), from());
+  });
+  onTextSize(() => renderSettings());
+  document.querySelectorAll<HTMLElement>('#textsize-seg [data-ts]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const v = Number(b.dataset.ts);
+      if (!(TEXT_SIZES as readonly number[]).includes(v)) return;
+      setTextSize(v as (typeof TEXT_SIZES)[number]);
+      analytics.setting('text_size', v, from());
+    }),
+  );
+  $('colour-switch').addEventListener('click', () => {
+    setColourVision(colourVision() === 'safe' ? 'standard' : 'safe');
+    analytics.setting('colour_vision', colourVision(), from());
+  });
+  $('motion-switch').addEventListener('click', () => {
+    setReduceMotion(!reduceMotion());
+    analytics.setting('reduce_motion', reduceMotion(), from());
+  });
+  $('shake-level').addEventListener('input', (e) => {
+    setShakeLevel(Number((e.target as HTMLInputElement).value));
+  });
+  $('shake-level').addEventListener('change', () => analytics.setting('shake', shakeLevel(), from()));
+  document.querySelectorAll<HTMLElement>('#flash-seg [data-fl]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const v = b.dataset.fl as FlashMode;
+      if (v !== 'full' && v !== 'soft' && v !== 'off') return;
+      setFlashMode(v);
+      analytics.setting('flashes', v, from());
+    }),
+  );
   analytics.graphics(graphics());
   onGraphics((g) => {
     renderSettings();
     analytics.graphics(g);
   });
   $('quality-switch').addEventListener('click', () => {
-    setGraphics({ quality: graphics().quality === 'high' ? 'low' : 'high' });
+    setGraphics({ quality: graphics().quality === 'high' ? 'low' : 'high' }, true);
     analytics.setting('quality', graphics().quality, from());
   });
   $('glow-switch').addEventListener('click', () => {
-    setGraphics({ glow: !graphics().glow });
+    setGraphics({ glow: !graphics().glow }, true);
     analytics.setting('glow', graphics().glow, from());
   });
   $('fps-switch').addEventListener('click', () => {
@@ -1723,7 +2259,7 @@ function wireSettings(): void {
     setSoundSettings({ on: !soundSettings().on });
     analytics.setting('sound', soundSettings().on, from());
   });
-  for (const k of ['music', 'sfx'] as const) {
+  for (const k of ['music', 'sfx', 'voice'] as const) {
     const input = $<HTMLInputElement>(`vol-${k}`);
     input.addEventListener('input', () => setSoundSettings({ [k]: Number(input.value) / 100 }));
     // Where the slider was let go, not every step of the drag.
@@ -1731,17 +2267,29 @@ function wireSettings(): void {
   }
   // A hit at the new level, so the slider is heard as it lets go.
   $('vol-sfx').addEventListener('change', () => audio.sfx('hit-medium'));
+  $('captions-switch').addEventListener('click', () => {
+    setSoundSettings({ captions: !soundSettings().captions });
+    analytics.setting('captions', soundSettings().captions, from());
+  });
   onTouchSettings(renderSettings);
   for (const k of ['size', 'opacity'] as const) {
     const input = $<HTMLInputElement>(`touch-${k}`);
     input.addEventListener('input', () => setTouchSettings({ [k]: Number(input.value) }));
     input.addEventListener('change', () => analytics.setting(`touch_${k}`, Number(input.value), from()));
   }
-  $('vibrate-switch').addEventListener('click', () => {
+  $('rumble-switch').addEventListener('click', () => {
     setTouchSettings({ vibrate: !touchSettings().vibrate });
-    analytics.setting('touch_vibrate', touchSettings().vibrate, from());
+    analytics.setting('rumble', touchSettings().vibrate, from());
   });
   $('settings-done').addEventListener('click', () => closeSettings());
+  $('rebind-open').addEventListener('click', () => openRebindScreen());
+  wireRebind(closeRebindScreen);
+  onRebind((kind, value) => {
+    analytics.setting('rebind', kind, from());
+    window.dispatchEvent(new CustomEvent('dod:rebind', { detail: { kind, value } }));
+  });
+  // The Controls pages show the player's actual bindings.
+  onBindings(() => fillControlLists());
 }
 
 // Menus play the menu loop; matches pick their stage's loop when they start.
@@ -1819,12 +2367,49 @@ function winningSlots(m: Match): number[] {
   return s.winner >= 0 ? [s.winner] : [];
 }
 
+/** A campaign result's difficulty lines: the small Easy badge on a clear, or the producer's "Try it on Easy?" after the third loss. */
+function difficultyNotes(won: boolean, offer: boolean): void {
+  const at = document.querySelector('#results-body .results-hero > div');
+  if (!at) return;
+  if (won && chapterDiff === 'easy') at.append(h('p', { class: 'easy-badge', 'data-difficulty': 'easy' }, 'Easy'));
+  if (!won && offer) {
+    at.append(h('p', { class: 'easy-offer', role: 'status' }, h('b', {}, 'Try it on Easy?'), ' Softer foes, they start at 30%. Stars still count.'));
+    window.dispatchEvent(new CustomEvent('dod:difficulty', { detail: { phase: 'offer-shown', chapter: chapter?.id ?? '', difficulty: chapterDiff, label: DIFFICULTY_LABEL.easy } }));
+  }
+}
+
+/** A won episode's grade (campaign/grade.ts): graded from the match, the best kept in the save, and told to the playtest. */
+function episodeGrade(m: Match, c: Chapter) {
+  const me = m.state.fighters[m.player];
+  const start = m.setup.slots[m.player]?.stocks ?? m.setup.stocks;
+  const g = gradeEpisode({ won: true, objective: m.setup.objective, stocksStart: start, stocksLeft: me?.stocks ?? 0, frames: m.state.frame, damageTaken: (m.stats[m.player]?.taken ?? 0) / 10, par: c.par });
+  const before = loadStars()[c.id] ?? 0;
+  const best = recordStars(c.id, g.stars);
+  const kos = m.stats[m.player]?.kos ?? 0;
+  const sc = scoreEpisode({ kos, dealt: (m.stats[m.player]?.dealt ?? 0) / 10, taken: (m.stats[m.player]?.taken ?? 0) / 10, frames: m.state.frame, par: c.par });
+  const rec = recordBest(c.id, { score: sc.total, frames: m.state.frame });
+  const out = { ...g, best, improved: g.stars > before && before > 0, score: sc.total, parts: sc.parts, frames: m.state.frame, bestScore: rec.best.score, bestFrames: rec.best.frames, beat: rec.beat };
+  window.dispatchEvent(new CustomEvent('dod:episode-score', { detail: { chapter: c.id, score: sc.total, frames: m.state.frame, bestScore: rec.best.score, bestFrames: rec.best.frames, beat: rec.beat, had: !!rec.before } }));
+  window.dispatchEvent(new CustomEvent('dod:episode-grade', { detail: { chapter: c.id, stars: g.stars, best, par: c.par, seconds: Math.round(m.state.frame / 60), stocksLost: start - (me?.stocks ?? 0), steps: g.steps } }));
+  return out;
+}
+
+/** A won Season 8-10 episode's reward (campaign/rewards.ts): earned and kept, told to the playtest, shown as the unlock banner. */
+function episodeReward(c: Chapter) {
+  const r = earnReward(c);
+  if (r) window.dispatchEvent(new CustomEvent('dod:reward', { detail: { chapter: c.id, reward: r.id, kind: r.kind, name: r.name } }));
+  return r;
+}
+
 function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   phase = 'idle';
   // Training has no winner; a campaign loss or a CPU's win credits nobody.
   const newLooks = m.setup.mode === 'training' ? [] : creditWins(m, winningSlots(m));
+  const levelChange = autoLevelAfter(m);
   analytics.matchEnd(m, won ? 'complete' : 'death');
   const actions: ResultAction[] = [];
+  let easyOffer = false;
+  let campaignResult = false;
   if (m.setup.teach === 'pilot' && c) {
     // The pilot's result: a win opens the main menu on "Next episode"; a loss is a retry (Kaelen is built to lose).
     if (won) actions.push({ label: 'Continue', primary: true, run: () => pilotCleared(c) });
@@ -1841,22 +2426,47 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
     actions.push({ label: won ? 'Beat your score' : 'Try again', primary: true, run: () => startMatch(m.setup, false) });
     actions.push({ label: 'Main menu', run: () => go('main', spotlight) });
   } else if (m.setup.mode === 'campaign' && c) {
+    campaignResult = true;
     if (won) actions.push({ label: 'Continue', primary: true, run: () => chapterCleared(c) });
-    else actions.push({ label: 'Retry', primary: true, run: () => startMatch(m.setup, false) });
+    else {
+      // The third loss in a row on one episode: the producer offers the easier setup (campaign/difficulty.ts).
+      recordLoss(c.id);
+      easyOffer = offerEasy(c.id);
+      if (easyOffer) actions.push({ label: 'Try it on Easy', primary: true, run: () => tryOnEasy(c, m) });
+      actions.push({ label: 'Retry', primary: !easyOffer, run: () => startMatch(m.setup, false) });
+    }
     actions.push({ label: 'Campaign map', run: () => openCampaignScreen() });
   } else {
-    actions.push({ label: 'Rematch', primary: true, run: () => startMatch(m.setup, false) });
+    actions.push({ label: 'Rematch', primary: true, run: () => startMatch(rematchSetup(m.setup), false) });
     actions.push({ label: 'Change fighters', run: () => openVersus() });
+    // The next-episode choice: after any versus match, one tap to the campaign map where the next episode waits.
+    if (m.setup.mode === 'versus' && CHAPTERS.some((x) => !progress.has(x.id))) actions.push({ label: 'Next episode', run: () => openCampaignScreen() });
     actions.push({ label: 'Main menu', run: () => go('main', spotlight) });
   }
   // The winner's quote, picked before the screen opens so the caption and the voice are the same line.
   const quote = announceWinQuote(m, m.state.winner, tourRun?.setup === m.setup && won);
+  const grade = m.setup.mode === 'campaign' && c && won && !dailyRun && !tourRun ? episodeGrade(m, c) : undefined;
+  const reward = m.setup.mode === 'campaign' && c && won && !dailyRun && !tourRun ? episodeReward(c) : null;
+  // Watch replay: the whole match from its recorded inputs (not on the Tour's lost-fight choice, which has its own panel).
+  const tourLost = tourRun?.setup === m.setup && !won;
+  if (!tourLost) {
+    addWatchReplay(actions, m, () => void go('results', () => {
+      endMatch();
+      showResults(m, actions, undefined, [], levelChange ?? undefined, grade, reward);
+      if (campaignResult) difficultyNotes(won, easyOffer);
+      if (tourRun?.setup === m.setup && won) $('results-body').prepend(tourBanner(tourRun.tour, tourRun.continues));
+      startResultsMusic();
+    }));
+  }
   void go('results', () => {
     endMatch();
     if (tourRun?.setup === m.setup && !won) {
       showResults(m, actions, undefined, newLooks);
       renderTourChoice({ tour: tourRun.tour, index: tourRun.index, fight: tourRun.tour.fights[tourRun.index], continues: tourRun.continues, onContinue: () => tourContinue(), onQuit: () => { analytics.tour('quit', { fighter: tourRun!.tour.fighter, fight: tourRun!.index + 1 }); void openTourScreen(); } });
-    } else showResults(m, actions, undefined, newLooks);
+    } else {
+      showResults(m, actions, undefined, newLooks, levelChange ?? undefined, grade, reward);
+      if (campaignResult) difficultyNotes(won, easyOffer);
+    }
     if (tourRun?.setup === m.setup && won) $('results-body').prepend(tourBanner(tourRun.tour, tourRun.continues));
     if (dailyRun?.setup === m.setup && m.setup.mode === 'campaign') dailyFinished(m, dailyRun.ep, won);
     startResultsMusic();
@@ -1952,7 +2562,7 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
     session?.decline();
     clearRematchPanel();
   };
-  const actionsFor = (): (ResultAction & { disabled?: boolean })[] => {
+  let actionsFor = (): (ResultAction & { disabled?: boolean })[] => {
     const live = session?.active ?? false;
     const out: (ResultAction & { disabled?: boolean })[] = [];
     if (live && session!.phase === 'open') out.push({ label: 'Rematch', primary: true, run: () => { analytics.feature('rematch', { value: 'press' }); session!.press(); } });
@@ -1969,6 +2579,24 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
     return out;
   };
   const actions = actionsFor();
+  const reshow = (): void => void go('results', () => {
+    endMatch();
+    showResults(m, actionsFor(), { ...ending, winner: end.winner >= 0 ? end.winner : undefined }, []);
+    if (session) renderRematch(session);
+    onlineCall('rating change', (o) => o.showRatingChange(end, f.slot));
+    startResultsMusic();
+  });
+  // Online replays are the confirmed inputs only (net/rollback truncates a rolled-back tick before it is replaced).
+  const replayAction = voided ? null : keepReplay(m);
+  if (replayAction) {
+    const orig = actionsFor;
+    actionsFor = () => {
+      const out = orig();
+      out.splice(Math.min(1, out.length), 0, { label: 'Watch replay', run: () => void watchReplay(replayAction, reshow) });
+      return out;
+    };
+    actions.splice(0, actions.length, ...actionsFor());
+  }
   if (session) {
     let shown = '';
     const redraw = () => {
@@ -2066,7 +2694,6 @@ let boothTimer = 0;
 /** The GAME! freeze on the final KO. */
 const GAME_FREEZE_MS = 500;
 let freezeUntil = 0;
-const slamReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 /** ROUND START / GAME!: big type punches in with a camera shake and a hit sound (the announcer's line follows). */
 /** A dead-even time-out went to sudden death: the slam card, the alarm and sting, the announcer's call. */
@@ -2085,7 +2712,7 @@ function slam(text: string, over = false, extra = ''): void {
   document.body.appendChild(el);
   el.addEventListener('animationend', () => el.remove());
   audio.sfx('vs-slam');
-  if (!slamReduced.matches) renderer.kick(over ? 0.7 : 0.4);
+  if (!reduceMotion()) renderer.kick(over ? 0.7 : 0.4);
   window.dispatchEvent(new CustomEvent('dod:slam', { detail: { text, over, at: Math.round(performance.now()), freezeMs: over && !fight ? GAME_FREEZE_MS : 0 } }));
 }
 
@@ -2133,7 +2760,7 @@ function buildHud(m: Match): void {
     const avatar = online?.avatars[f.id];
     const card = h(
       'div',
-      { class: `hud-card${online ? ' online' : ''}`, style: `--player:${slotColor(m, f.id)}` },
+      { class: `hud-card${online ? ' online' : ''}`, style: `--player:${slotColor(m, f.id)}`, 'data-shape': shapeOf(f.id), 'data-slot': String(f.id) },
       h('img', { src: thumbUrl(ch.id), alt: '' }),
       avatar && avatar !== ch.id ? h('img', { class: 'hud-avatar', src: headUrl(avatar), alt: '' }) : null,
       h('div', { class: 'hud-pct' }),
@@ -2155,8 +2782,42 @@ function buildHud(m: Match): void {
   hudKos = -1;
   hudQuota = -1;
   hudStreak = -1;
+  trainingShown = { seq: -1, count: -1, active: null, ko: null, dmg: -1 };
+  // The combo panel stays away until a combo exists (updateReadout shows it on the first hit).
+  $('training-readout').hidden = true;
   $('match-top').hidden = limit <= 0 && !shown;
   updateHud(m);
+}
+
+/** What Training's combo readout last drew, so the DOM is only touched when a number changes. */
+let trainingShown: { seq: number; count: number; active: boolean | null; ko: boolean | null; dmg: number } = { seq: -1, count: -1, active: null, ko: null, dmg: -1 };
+
+const tenths = (n: number): string => `${Math.floor(n / 10)}.${n % 10}%`;
+
+/** Training: the hits in the combo, its damage, the last hit's damage, and whether it ended in a KO. Stays up after the combo ends, until the next hit. */
+function updateReadout(m: Match): void {
+  const r = m.readout;
+  const shown = trainingShown;
+  if (shown.seq === r.seq && shown.count === r.count && shown.active === r.active && shown.ko === r.ko && shown.dmg === r.dmg) return;
+  const el = $('training-readout');
+  el.hidden = !trainingFree(m) || r.count < 1;
+  const count = el.querySelector<HTMLElement>('.tr-count')!;
+  count.textContent = String(r.count);
+  if (r.count !== shown.count && r.count > 0) {
+    count.classList.remove('bump');
+    void count.offsetWidth;
+    count.classList.add('bump');
+  }
+  el.querySelector('.tr-unit')!.textContent = r.count === 1 ? 'HIT' : 'HIT COMBO';
+  el.querySelector('.tr-dmg')!.textContent = tenths(r.dmg);
+  el.querySelector('.tr-last')!.textContent = tenths(r.lastHit);
+  const tag = el.querySelector<HTMLElement>('.tr-tag')!;
+  tag.hidden = r.count < 2;
+  tag.textContent = r.ko ? 'KO' : 'True combo';
+  el.dataset.live = String(r.active);
+  el.dataset.ko = String(r.ko);
+  el.dataset.count = String(r.count);
+  trainingShown = { seq: r.seq, count: r.count, active: r.active, ko: r.ko, dmg: r.dmg };
 }
 
 /** The KO count last shown on the 'ko' objective's chip. */
@@ -2194,6 +2855,7 @@ function updateHud(m: Match): void {
       $('objective').textContent = `Clean streak ${got}/${m.streakTarget}`;
     }
   }
+  if (trainingFree(m)) updateReadout(m);
   for (const f of s.fighters) {
     const card = cards[f.id] as HTMLElement | undefined;
     const cache = hudCache[f.id];
@@ -2225,7 +2887,10 @@ function updateHud(m: Match): void {
 function bumpHud(id: number, dmg = 0, tenths = 0): void {
   const pct = $('hud').children[id]?.querySelector<HTMLElement>('.hud-pct');
   if (!pct) return;
-  const { amp, pop } = damageShake(dmg, tenths);
+  const shaken = damageShake(dmg, tenths);
+  // The number's own shake follows Screen shake, and its pop follows Reduce motion.
+  const amp = shaken.amp * shakeScale();
+  const pop = shaken.pop && !reduceMotion();
   pct.style.setProperty('--amp', `${amp.toFixed(1)}px`);
   pct.classList.remove('bump', 'pop');
   void pct.offsetWidth;
@@ -2245,13 +2910,17 @@ function frame(draw = true): void {
   // Upright phone: the match waits under the Rotate prompt (online it can't stop, so the fighter just stands still).
   if (rotateShowing() && !fight) acc = 0;
 
-  if (match && phase !== 'idle' && pausePressed()) pauseKey();
+  {
+    const by = pausePressedBy();
+    if (by !== null && match && phase !== 'idle') pauseKey(by);
+  }
   // Taunt is presentation-only (T / D-pad up): not packed into sim input, so rollback never sees it.
   if (match && phase === 'play' && tauntPressed()) {
     const me = match.player >= 0 ? match.state.fighters[match.player] : null;
     if (me) audio.fighterVoice(CHARACTERS[me.char].id, 'taunt');
   }
   if (phase !== 'play' && phase !== 'ready' && !showcase) pollMenuPad(now);
+  if (padFamily() !== shownPadFamily) fillControlLists();
 
   if (match && phase === 'ready') {
     // Offline, Ready waits (up to READY_ART_WAIT_MS) for the stage pictures, so "Go!" never opens on a black arena.
@@ -2289,7 +2958,9 @@ function frame(draw = true): void {
   }
   if (fight) showNetStatus(fight);
 
-  if (showcase && currentScreen() === 'match') {
+  if (replayRun && currentScreen() === 'match') {
+    replayFrame(dtReal, draw);
+  } else if (showcase && currentScreen() === 'match') {
     // A replay, recap or tease (ui/segment.ts) is on the arena: it advances itself and is drawn instead of the match.
     showcase.advance(dtReal);
     if (showcase && draw) renderer.render(showcase.state);
@@ -2299,7 +2970,9 @@ function frame(draw = true): void {
     // The teaching prompt rides above the player's head, and is hidden while paused or in a scene.
     if (teacher) {
       const me = match.state.fighters[match.player];
-      teacher.place(me && phase === 'play' ? renderer.fighterScreen(me) : null);
+      // Lifted by the name tag's height so the two never sit on top of each other.
+      const head = me && phase === 'play' ? renderer.fighterScreen(me) : null;
+      teacher.place(head ? { ...head, y: head.y - 24 } : null);
     }
   }
 }
@@ -2307,15 +2980,35 @@ function frame(draw = true): void {
 /** Edge bubbles for fighters out of view: the portrait, an arrow at them, bigger the nearer the blast line. */
 function drawEdgeMarkers(m: Match): void {
   const list: MarkerIn[] = [];
-  if (phase === 'play' || phase === 'pause') {
+  const tags: TagIn[] = [];
+  const live = phase === 'play' || phase === 'pause' || phase === 'ready';
+  if (live) {
     for (const f of m.state.fighters) {
+      const text = tagText(m.setup.slots, f.id, m.setup.online?.names[f.id]);
       const e = renderer.fighterEdge(f);
-      if (!e?.off) continue;
-      const avatar = m.setup.online?.avatars[f.id];
-      list.push({ id: f.id, x: e.x, y: e.y, gap: e.gap, color: slotColor(m, f.id), portrait: headUrl(avatar || CHARACTERS[f.char].id) });
+      if (e?.off && (phase === 'play' || phase === 'pause')) {
+        const avatar = m.setup.online?.avatars[f.id];
+        list.push({ id: f.id, x: e.x, y: e.y, gap: e.gap, color: slotColor(m, f.id), shape: shapeOf(f.id), portrait: headUrl(avatar || CHARACTERS[f.char].id), tag: text });
+      } else if (e) {
+        // On the stage: the tag rides above the head (the renderer's head point), moving with it.
+        const head = renderer.fighterScreen(f);
+        if (head) tags.push({ id: f.id, x: head.x, y: head.y, text, color: slotColor(m, f.id), shape: shapeOf(f.id) });
+      }
     }
   }
   updateMarkers(list);
+  let safe: ReturnType<typeof safeInsets> | null = null;
+  let blocked: ReturnType<typeof safeInsets>[] = [];
+  if (tags.length) {
+    safe = safeInsets();
+    for (const sel of ['.touch-stick', '.touch-buttons', '.touch-pause', '.hud-card', '#match-top']) {
+      document.querySelectorAll(sel).forEach((e) => {
+        const r = e.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) blocked.push({ l: r.left, t: r.top, r: r.right, b: r.bottom });
+      });
+    }
+  }
+  updateTags(tags, safe ?? { l: 0, t: 0, r: innerWidth, b: innerHeight }, blocked);
 }
 
 wireMenus();
@@ -2345,7 +3038,12 @@ const tapped = (): Promise<void> =>
     else document.addEventListener('dod:tapped', () => resolve(), { once: true });
   });
 // Once the prompt has gone, the title's Press start takes the focus.
-document.addEventListener('dod:tapped', () => focusFirst());
+document.addEventListener('dod:tapped', () => {
+  focusFirst();
+  // The title theme starts on the tap itself (the first moment sound is allowed), not on the next 300 ms menu check.
+  const s = currentScreen();
+  if (!openingShowing() && (!s || s === 'title')) audio.playMusic('music-title');
+});
 // The title screen is up: the game is playable (game_ready).
 const titleUp = go('title').then(() => analytics.ready());
 // Menus are wired and the title is up: a Press start pressed while loading goes on into the menu now.
@@ -2353,8 +3051,16 @@ titleUp.then(() => bootReady(startPressed));
 const playtestChapter = CHAPTERS.find((c) => c.id === params.get('chapter'));
 // First visit (campaign/firstVisit.ts): nothing saved, so Tap to play is the way into Season 1 Episode 1. It is decided at
 // the tap (a playtest clears storage first), and the backdrop under the prompt is only for a visit that starts clean.
-if (isFirstVisit()) document.body.classList.add('pilot-boot');
-if (!playtestChapter && !params.has('play')) {
+// An invite link (?invite=CODE) skips all of it: tap, then straight into that room's lobby.
+const inviteCode = /^[A-Za-z0-9]{4,12}$/.test(params.get('invite') ?? '') ? (params.get('invite') as string).toUpperCase() : '';
+if (isFirstVisit() && !inviteCode) document.body.classList.add('pilot-boot');
+if (inviteCode && !playtestChapter && !params.has('play')) {
+  titleUp
+    .then(tapped)
+    .then(() => go('main', spotlight))
+    .then(() => onlineReady())
+    .then((o) => o?.openInvite(inviteCode));
+} else if (!playtestChapter && !params.has('play')) {
   titleUp.then(tapped).then(() => {
     if (isFirstVisit()) startPilot();
     else document.body.classList.remove('pilot-boot');
@@ -2401,6 +3107,7 @@ const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPla
     return () => matchWatchers.delete(w);
   },
   startMatch: (setup) => startMatch(setup, false),
+  replayTick: () => (replayRun ? replayRun.player.tick : -1),
   quitMatch: () => {
     endMatch();
     return go('main', spotlight);
@@ -2423,15 +3130,20 @@ const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPla
     return before;
   },
   fxStats: () => renderer.fxStats(),
+  hitchStats: () => renderer.hitchStats(),
   stageSeen: (reset) => renderer.stageSeen(reset),
   hitFxStats: (reset) => renderer.hitFxStats(reset),
   flipStats: (reset) => renderer.flipStats(reset),
   camFxStats: (reset) => renderer.camFxStats(reset),
+  flashFxStats: (reset) => renderer.flashFxStats(reset),
   camTrace: (reset) => renderer.camTrace(reset),
   trailStats: (reset) => renderer.trailStats(reset),
   reactFxStats: (reset) => renderer.reactFxStats(reset),
   markerStats: () => ({ ...markerLog, rects: markerRects() }),
+  tagStats: () => ({ ...tagLog, rects: tagRects() }),
   gfxStats: () => renderer.gfxStats(),
+  autoStats: () => renderer.autoStats(),
+  autoSetup: (o: { enabled?: boolean; slowMs?: number; reset?: boolean }) => renderer.autoSetup(o),
   introStats: () => renderer.introStats(),
   mixStats: () => audio.mixStats(),
   probeHit: (pan) => audio.sfx('hit-heavy', { vary: false, at: { pan } }),
@@ -2439,8 +3151,10 @@ const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPla
   lightStats: () => renderer.lightStats(),
   depthStats: () => renderer.depthStats(),
   readabilityProbe: (sets) => renderer.readabilityProbe(sets),
+  platformBox: (i) => renderer.platformBox(i),
   styleStats: () => renderer.styleStats(),
   lookStats: () => renderer.lookStats(),
+  ringShapes: () => renderer.ringShapes(),
   aliveStats: () => renderer.aliveStats(),
   musicBedStats: () => audio.bedStats(),
   audioCacheStats: () => audio.cacheStats(),

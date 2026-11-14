@@ -114,6 +114,52 @@ A new season just adds `"season": N` chapters (it shows locked until the season 
 
 The names and end lines live in `src/game/campaign/story.ts` (`SEASON_TEXT`) next to the chapter reader.
 
+## Producer's notes: Easy, Normal, Hard (as built)
+
+The show has a producer's desk. On the Campaign map, above the seasons, the player picks how the night is run: **Easy**,
+**Normal** (the show as written) or **Hard**. It is saved (`dod-difficulty`) and every episode's fight starts from it
+(`campaign/difficulty.ts`): Easy plays the foes two CPU levels softer and starts them at 30%; Hard plays them one level
+sharper and starts the player at 20%. Allies are never changed. Nobody calls it a "mode": it is how the producer runs
+the night, and the lines stay about ratings.
+
+After three losses in a row on the same episode the results show the producer's offer, "Try it on Easy?", beside Retry.
+Accepting makes Easy the map's choice and replays the episode with the softer foes. A clear on Easy still counts like any
+other and carries a small green **Easy** badge on the map and the results; clearing it again on Normal or Hard takes the
+badge off. Retry on its own always replays the same setup.
+
+## Replay as…: a favourite episode, a different fighter (as built)
+
+The campaign is told as Exit Punk's season, but the show reruns. A cleared episode's card on the Campaign map carries a
+**Replay as…** button (uncleared episodes don't). It opens a sheet of every fighter the player has unlocked; a tap plays the
+episode again with that fighter in Exit Punk's place: the same foes, stage, objective, rules, intro and outro (the
+scene's lines stay Exit Punk's and Blog Man's, heard over the wide shot when the speaker isn't in the fight). Difficulty
+applies as usual. Stars earned this way go through the same best-of rule, so a better run as anyone raises the episode's
+best. Replays unlock nothing and don't ask for the episode rating again. Code: `ui/replayPicker.ts`, `main.ts`
+`replayChapter`/`replayFight`; scenario `replay-as`.
+
+## Grades: stars on every episode (as built)
+
+A won episode is graded 1 to 3 stars (`campaign/grade.ts`, pure; `test/grade.test.ts`):
+
+| Stars | What it needs |
+|---|---|
+| 1 | Clear the episode. |
+| 2 | Clear it without losing a stock. |
+| 3 | Also beat the episode's par time (`par`, seconds, in `content/campaign.json`). A `survive` episode always runs its whole clock, so its third star is a clean night instead: no stock lost and under 100% damage taken. |
+
+Par is a first guess (24 s per foe stock plus 10; 60% of the clock for KO, quota and streak episodes) and wants tuning
+from play. The results of a won episode show the card ("N of 3", each star with its test, lit when earned, "Best ..."
+or "New best."). The best grade is kept in `localStorage` `dod-stars` (chapter id to 1-3; a replay never lowers it; an
+episode cleared before grades counts as 1) and the season map shows it on each cleared episode, with a season total.
+Resetting the campaign clears it. Scenario `grades` (events `grade`, `map-stars`).
+
+**Score and bests.** A won episode also scores (`scoreEpisode`): 1000 for clearing, +500 per KO, +5 per % dealt, -3 per %
+taken, +10 per second under twice the par time (never under 0). The best score and the fastest time are kept apart per
+episode in `localStorage` `dod-bests` (chapter id to `{score, frames}`; a worse replay never lowers either; reset with the
+campaign). The results card shows score, time and the parts, and flashes "New best!" (naming Score, Time or both) when a
+run beats an earlier record (a first clear just sets it). Each cleared episode's card shows Best time and Best score
+("—" until a run since scores existed). Scenario `grades` seeds a weak record and checks all of it (events `new-best`, `map-best`).
+
 ## Unlocks: who joins the card
 
 The show's roster grows as the champion clears it. A chapter's optional `unlock` in `content/campaign.json` names
@@ -126,6 +172,10 @@ Man). Walk-On, with no `unlock`, gives nothing.
 
 - A fighter named by some chapter is **locked** on a fresh save: a dark "Locked" tile in Versus select (the preview
   says which episode opens them), a grey picture in Profile. Everyone no chapter names (Exit Punk first) is open.
+- **The route is shown, not hidden.** Versus select's locked tile is a silhouette reading "Locked" and "S1 · E1"; a tap
+  says "Kaelen is locked · Clear Season 1, Episode 1: Open Mic" (`unlockRoute` in `campaign/story.ts`, read from the
+  chapter's own `unlock`, no new rule). Results show a gold bar toward the next unlock when it is one episode away
+  (`nextUnlock`, `ui/views.ts` `unlockBar`). Scenario `unlock-route`.
 - Clearing the episode unlocks them for good (`localStorage` `dod-unlocks`, next to `dod-campaign`; starting the
   campaign over doesn't take it back). The map says so: "*Kaelen* joins the card. Unlocked for Versus and online."
 - The campaign itself is never gated: Exit Punk is the player and every walk-on fights as written. Training is open.
@@ -133,6 +183,29 @@ Man). Walk-On, with no `unlock`, gives nothing.
   `campaign/story.ts`, used by select, Profile and the online setup). A save that cleared chapters before unlocks
   existed gets their fighters from `dod-campaign`. The leaderboard rates what was played; it can't see another
   player's unlocks, so it trusts each client to pick only fighters it may.
+
+## Rewards: what the last three seasons give (as built)
+
+Seasons 8 to 10 (ten episodes) used to unlock nothing. Each now has a `reward` in `content/campaign.json`, made from
+what the game already has (no new art), told on the episode card before play, announced on Results, and usable in Versus.
+Three kinds (`campaign/rewards.ts`):
+
+- **Title** (Prime-time, Best in Show, Cliffhanger Kid, Finale Survivor): a chip row under "You" in Versus select
+  picks one to wear; it shows on your VS card.
+- **Stage variant** (Yo House: Green Room, City Top: Rough Cut, Dust Devil Mesa: After Hours, Humans In The Loop: Final
+  Draft): the same stage under another existing stage's colour grade (`stages/<grade>/lut.png`), a second card beside the
+  stage in Versus and Training Stage Select. The show, the Tour and online always play the stage as it is.
+- **Colour** (Spotlight gold, Trailer Cut moody): one more swatch for every fighter, made from its second look's outfit
+  hue (`looks.ts` `looksOf`); it only appears once earned, so the swatch row stays four until then.
+
+Season 8: Red Carpet (Prime-time), Best Supporting (Green Room), Lifetime Achievement (Spotlight), Best in Show (Best in
+Show). Season 9: Teaser (Rough Cut), Trailer (Trailer Cut), Table Read (After Hours), Cliffhanger (Cliffhanger Kid).
+Season 10: First Cut (Final Draft), Final Cut (Finale Survivor).
+
+- The map's episode card reads "Reward · Title · Prime-time" (green "Earned" once yours); a win shows an "Unlocked"
+  banner on Results above the stars (`dod:reward` event). Kept in `localStorage` `dod-rewards` (the picked title in
+  `dod-reward-title`), next to `dod-unlocks`; starting the campaign over doesn't take them back, and a save that cleared
+  these episodes before rewards existed gets them from `dod-campaign`.
 
 ## Season 2: The card is yours (as built)
 
@@ -776,3 +849,19 @@ Season 3 has no group (it is the Orchestrator's, The Host). Fighters with no `un
 ## First blood
 
 The show reacts to the fight, not just introduces it: the first KO of a bout makes the ON AIR bug flash red over the arena with "First blood" and a broadcast sting, while the announcer calls it. Told by sound, flash and the announcer's voice; one short line of text at most.
+
+## How the CPU fights (as built)
+
+Every fighter has a playstyle, so a CPU Break doesn't fight like a CPU Evil Blue Bird (`src/game/ai/profiles.ts`; the
+sim never reads it). It is derived from the fighter's speed, weight, jumps and hit tuning plus the archetypes of its
+specials, unless `content/fighters.json` gives it a `playstyle` of its own (a story fact beats the numbers):
+
+- **Rushdown** (Ball Person, DJ Won't Read, Exit Punk, Future Man, Kaelen, Shark Dude, Slice, Try Belt): walks into your face, dashes and flurries, almost never throws anything. Closes within about 3 s of GO.
+- **Zoner** (Pyro Singer, Small Weather, Susan): keeps room, backs off when you step in (unless the edge is behind), throws projectiles and lays traps far more often.
+- **Grappler** (Break, Crystalline Intelligences, Got Ur Back, Spider Bot, SS Boulder, Wallit, Yo Bot, Yooba): stands close and grabs, through shields too, several times a minute.
+- **Aerial** (Cel, Chooser, Evil Blue Bird, Slow Rider, Uh Me): hops in and swings aerials, rarely grabs, spends most of the fight off the floor.
+- **Bruiser** (Blog Man, Crosser, Lapis Man, Not an Old Man Yet, Orchestrator, Shutup Bot, Stratabots, The Mechanic, TT): fewer hops, reaches for smashes more, trades hits.
+
+Story rivals are the same fighter in the campaign as everywhere else, so their style is their own. Overrides keep
+the roster honest (bot-vs-bot win rates stay inside 35-65%). `test/profiles.test.ts` measures it: a zoner keeps more
+distance than a rushdown, a grappler grabs at least twice as often as an aerial.

@@ -136,7 +136,8 @@ export function specialsPanel(c: CharacterDef): HTMLElement {
     requestAnimationFrame(draw);
     const dt = last ? Math.min(100, now - last) : 16;
     last = now;
-    if (!ctx || document.hidden || !panel.offsetParent) return;
+    // The panel is display:contents (no box, so its offsetParent is always null): ask the canvas whether it is shown.
+    if (!ctx || document.hidden || !canvas.offsetParent) return;
     // The sim runs at its own 60 Hz, a few steps at most per drawn frame.
     acc += dt;
     for (let n = 0; acc >= 1000 / 60 && n < 4; n++, acc -= 1000 / 60) {
@@ -145,6 +146,8 @@ export function specialsPanel(c: CharacterDef): HTMLElement {
     }
     paint(ctx, sim, sets);
   };
+  // First frame at once (backdrop, floor and stand-in blocks), so the inset is never an empty box while sheets load.
+  if (ctx) paint(ctx, sim, sets);
   requestAnimationFrame(draw);
   return panel;
 }

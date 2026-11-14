@@ -11,24 +11,30 @@
 
 import { installPlaytest, type Outcome, type RunOptions, type Tracker } from './hawkes-playtest.js';
 import { Bot } from '../ai/bot.ts';
-import { setVirtualPad } from '../input/devices.ts';
+import { styleId } from '../ai/profiles.ts';
+import { emulatePad, padFamilyOf, setVirtualPad } from '../input/devices.ts';
+import { bindings as currentBindings } from '../input/bindings.ts';
 import { readTouch, touchDevice, touchOverlay } from '../input/touch.ts';
 import { TOUCH_KEY, forceTouchUi, touchSettings } from '../touchSettings.ts';
-import { forceTouchPrompt, lockLandscape, rotateShowing } from '../ui/rotate.ts';
+import { SHIELD_KEY_NAME, shieldLatched, shieldMode } from '../input/shieldMode.ts';
+import { rumbleLog, rumbleStats, type RumbleSent } from '../rumble.ts';
+import { forceTouchPrompt, lockLandscape, rotateShowing, suppressRotate } from '../ui/rotate.ts';
 import { currentScreen, switching, type ScreenId } from '../ui/screens.ts';
 import { CHARACTERS, FIGHTERS as FIGHTERS_DATA, MOVE, MOVE_KEYS } from '../sim/characters.ts';
 import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
-import { STAGES } from '../sim/stage.ts';
+import { STAGES, EV_IDLE, EV_RUN, EV_WARN, ledges, platformAt, fadeState, platformOn } from '../sim/stage.ts';
+import { bodyOf, clearance, readDangers } from '../ai/hazardRead.ts';
 import { FX } from '../sim/fixed.ts';
 import { SHADOW_RANGE, hexRgb } from '../render/fighterLight.ts';
 import { analyzeCameraTrace, TRACE_LIMITS, type CamSample, type ScreenRect } from '../render/cameraRig.ts';
 import { ART, outlineWidthPx, outsideRanges } from '../artStyle.ts';
 import { MAX_COVER, MIN_CONTRAST, MIN_SHOWN, coverRead, edgeContrast, ringContrast, type Frame } from '../readability.ts';
-import { ACT, ACT_NAMES } from '../sim/state.ts';
+import { ACT, ACT_NAMES, bodySize } from '../sim/state.ts';
 import { AnimTrace } from '../sim/trace.ts';
 import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
 import { MAX_WORDS } from '../campaign/sceneText.ts';
-import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, saveUnlocks, unlocks } from '../campaign/story.ts';
+import { REWARDS, reloadRewards } from '../campaign/rewards.ts';
+import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, nextUnlock, saveUnlocks, unlockRoute, unlocks } from '../campaign/story.ts';
 import { SCENARIOS } from './scenarios.ts';
 import { DAILY_POOL, dailyEpisode, msToNext, objectiveLine, twistLine } from '../campaign/daily.ts';
 import { DAILY_KEY, dailyDate } from '../campaign/dailyStore.ts';
@@ -40,17 +46,19 @@ import { OPENING_CAST, OPENING_KEY, OPENING_SKIP_AFTER, openingShowing } from '.
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
 import { PAIRS, pairFor } from '../campaign/intros.ts';
 import { SEASON_ONE_ENTRANCES, entranceKind } from '../campaign/intro.ts';
-import { PROMPTS, type TeachStep } from '../ui/teach.ts';
+import { DEFENCE_STEPS, PROMPTS, RECOVERY_STEPS, hintText, padGlyphs, type DefenceStep, type RecoveryStep, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
+import { DIFFICULTY_KEY, reloadDifficulty } from '../campaign/difficulty.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { VoiceWatch } from './voiceWatch.ts';
 import { walkMenus, type Mode } from './menuWalk.ts';
-import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
-import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
-import { SHAKE_STORAGE_KEY, screenShake, hitTier, inWindupTell, isSmashMove, isSpecialMove, moveStartFrame, tellFrames, windupPose, type HitTier } from '../hitFeel.ts';
+import { SOUND_KEY, readSoundSettings, soundSettings } from '../soundSettings.ts';
+import { GFX_KEY, HAND_KEY, AUTO_KEY, AUTO_TOAST_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
+import { colourVision } from '../colourVision.ts';
+import { SHAKE_STORAGE_KEY, FLASH_STORAGE_KEY, MOTION_STORAGE_KEY, flashMode, reduceMotion, shakeLevel, screenShake, hitTier, inWindupTell, isSmashMove, isSpecialMove, moveStartFrame, tellFrames, windupPose, type HitTier } from '../hitFeel.ts';
 import { clipFrame, feetLift, loadAnimSet, pickClip, type AnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
-import { BUFFER_FRAMES, COYOTE_FRAMES, type SimEvent } from '../sim/step.ts';
+import { BUFFER_FRAMES, COYOTE_FRAMES, LEDGE_CHOOSE, LEDGE_HANG_MAX, type SimEvent } from '../sim/step.ts';
 import { onlineReady } from '../net/loader.ts';
 import { analyticsDebug } from '../analytics.ts';
 
@@ -70,6 +78,8 @@ export interface GameHooks {
   startMatch(setup: MatchSetup): Promise<void>;
   /** Setup shortcut (roster only): leave the match for the main menu. */
   quitMatch(): Promise<void>;
+  /** The replay on screen: its current tick, or -1 (Watch replay). */
+  replayTick(): number;
   /** Setup shortcut (tour only): after `after` fights are won the run jumps to the fight at index `to` (the last one). */
   tourSkipTo(after: number, to: number): void;
   /** Setup shortcut (tour only): shows the Continue or Quit panel on the results screen without losing a fight, to measure it. */
@@ -80,18 +90,24 @@ export interface GameHooks {
   /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
   /** The per-frame camera trace (renderer.camTrace): samples, the lens' tangent and the touch controls' rectangles as screen shares. */
   camTrace?(reset?: boolean): { samples: CamSample[]; tan: number; touch: ScreenRect[] };
+  flashFxStats?(reset?: boolean): { flashes: number; maxAlpha: number; accepted: number; refused: number; maxPerSecond: number; mode: string; scale: number };
   camFxStats?(reset?: boolean): { cameraJumps: number; framingMisses: number; killCues: number; slowFpsMin: number; killActive: boolean; lastCue: { zoom: boolean; slow: boolean; whistle: boolean; shake: number; punch: number } | null };
   /** The special-effect flipbooks: plays per archetype, the tint used, pool, atlas size (render/flipbook.ts). */
   flipStats?(reset?: boolean): { played: Record<string, number>; tint: Record<string, [number, number, number] | null>; dropped: number; pool: number; free: number; quality: 'high' | 'low'; frames: number; cell: number; standIn: boolean };
   reactFxStats?(reset?: boolean): { squashes: number; maxSquash: number; squashFrames: number; tumbleFrames: number; bounces: number; dustBursts: number; smears: number; smearFrames: number; smashSmears: number; charges: number; quality: string; tells: number; tellFrames: number; tellWhooshes: number; tellMisses: number; tellStarts: number; trails: number; trailFrames: number; normalActives: number; contacts: number; maxContactDist: number; maxHurtGap: number; coreFrames: number; coreMinPx: number; coreHeavyMinPx: number; coreUnderControl: number; shieldRipples: number; parryFlashes: number; clashSparks: number };
   trailStats?(reset?: boolean): { log: { seq: number; victim: number; tier: HitTier; kb: number; kind: 'none' | 'grey' | 'white' | 'streak'; ko: boolean; puffs: number }[]; active: number; puffs: number };
-  markerStats?(): { shown: number; frames: number; unclear: number; last: { id: number; size: number; danger: boolean; clear: boolean; rect: { l: number; t: number; r: number; b: number } } | null; events: { id: number; size: number; danger: boolean }[]; rects: { id: number; rect: { l: number; t: number; r: number; b: number }; danger: boolean }[] };
+  tagStats?(): { frames: number; unclear: number; minHeight: number; texts: Record<number, string>; rects: { id: number; text: string; fontPx: number; rect: { l: number; t: number; r: number; b: number } }[] };
+  markerStats?(): { shown: number; frames: number; unclear: number; last: { id: number; size: number; danger: boolean; clear: boolean; rect: { l: number; t: number; r: number; b: number } } | null; events: { id: number; size: number; danger: boolean }[]; rects: { id: number; rect: { l: number; t: number; r: number; b: number }; danger: boolean; tag?: string }[] };
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
   /** The colour look each built fighter wears and whether its material runs the palette shader (renderer.lookStats). */
   lookStats?(): { slot: number; char: number; look: number; shader: boolean }[];
+  /** The shape and colour each fighter's ring was built with (renderer.ringShapes). */
+  ringShapes?(): { slot: number; shape: string; color: string }[];
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
   depthStats?(): { quality: string; camX: number; camDist: number; layers: { id: string; z: number; kind: 'far' | 'foreground' | 'haze' | 'stage'; screenX: number; alpha: number; fade: number | null; behind: boolean }[] };
+  /** A platform's screen box in render px at this moment (renderer.platformBox). */
+  platformBox?(index: number): { x1: number; x2: number; y: number; w: number; h: number } | null;
   readabilityProbe?(sets: { id: string; fighters: number[]; fg: boolean }[]): { w: number; h: number; quality: string; shots: Record<string, Uint8ClampedArray>; fighters: { slot: number; box: { x1: number; y1: number; x2: number; y2: number } }[]; platforms: { index: number; x1: number; x2: number; y: number; lipPx: number }[] } | null;
   styleStats?(): { quality: 'high' | 'low'; renderHeight: number; fighters: { slot: number; char: number; look: number; outline: { color: number[]; px: number; perPx: number[]; on: number }; remap: boolean; outlinePass: boolean }[] };
   lightStats?(): { stage: string; quality: 'high' | 'low'; glossy: boolean; fighters: { slot: number; plugin: { full: boolean; key: number[]; keyColor: number[]; rim: number[]; ambient: number[] }; height: number; scale: number; alpha: number; shadow: boolean; reflection: boolean }[] };
@@ -102,9 +118,14 @@ export interface GameHooks {
   probeHit?(pan: number): void;
   /** The match intro (campaign/intro.ts): its clock, the camera's distance, the fastest camera move (units per second) and the beats fired. */
   introStats?(): { active: boolean; ms: number; camDist: number; camX: number; maxSpeed: number; beats: number; kinds: string[] };
+  /** Automatic quality (render/autoQuality.ts): its level, changes, the one toast and where it sits; autoSetup switches it and a simulated slow device. */
+  autoStats?(): { enabled: boolean; hand: boolean; level: number; changes: { from: number; to: number; medianMs: number; atMs: number; dir: string }[]; settled: boolean; settledAtMs: number; fps: number; toasts: number; toastRect: { x: number; y: number; w: number; h: number } | null; slowMs: number };
+  autoSetup?(o: { enabled?: boolean; slowMs?: number; reset?: boolean }): void;
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   /** What the player saw of the stage: presented frames, with stage art still loading, and sampled near-black (reset clears). */
   stageSeen?(reset?: boolean): { frames: number; pending: number; black: number; darkest: number };
+  /** Mid-frame builders (renderer.hitchStats): particle meshes made after warm-up, StageAlive textures made so far. */
+  hitchStats?(): { fxGrown: number; aliveTextures: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
   /** Decoded-audio cache (audio.ts): bytes held, its ceiling, peak, evictions. */
   audioCacheStats?(): { decodedBytes: number; decodedMB: number; peakMB: number; budgetMB: number; entries: number; pinned: number; evictions: number; rawMB: number };
@@ -181,6 +202,8 @@ export function installDodPlaytest(game: GameHooks): void {
       run?.dispose();
       // Every other scenario clicks through the title and main menu: only first-visit meets the pilot.
       suppressFirstVisit(id !== 'first-visit');
+      // Automatic quality would change the picture under every other scenario's own checks; only its own scenario runs it.
+      game.autoSetup?.({ enabled: id === 'auto-quality', slowMs: 0 });
       const r = new Run(game, t, options, t.spot);
       r.judgeCamera = id === 'match' || id === 'hit-feel' || id === 'touch-match';
       run = r;
@@ -196,7 +219,16 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'opening') await r.openingScenario();
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'sudden-death') await r.suddenDeath();
+        else if (id === 'hazard-dodge') await r.hazardDodge();
+        else if (id === 'moving-platforms') await r.movingPlatforms();
+        else if (id === 'hazard-rule') await r.hazardRule();
+        else if (id === 'cpu-level') await r.cpuLevel();
+        else if (id === 'auto-quality') await r.autoQuality();
         else if (id === 'quota') await r.quotaObjective();
+        else if (id === 'difficulty') await r.difficultyRun();
+        else if (id === 'grades') await r.gradesRun();
+        else if (id === 'replay-as') await r.replayAsRun();
+        else if (id === 'rewards') await r.rewardsRun();
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'finale-hijack') await r.finaleHijack();
         else if (id === 'story-cards') await r.storyCards();
@@ -204,12 +236,23 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'rotate') await r.rotate();
         else if (id === 'first-visit') await r.firstVisit();
         else if (id === 'presentation') await r.presentation();
+        else if (id === 'share') await r.shareScenario();
+        else if (id === 'unlock-route') await r.unlockRouteRun();
+        else if (id === 'replay') await r.replayScenario();
         else if (id === 'roster') await r.roster();
         else if (id === 'feet') await r.feetRun();
         else if (id === 'smooth-clips') await r.smoothClips();
         else if (id === 'specials') await r.specialsRun();
+        else if (id === 'hurtbox-fit') await r.hurtboxFitRun();
+        else if (id === 'extra-jumps') await r.extraJumpsRun();
+        else if (id === 'cpu-styles') await r.cpuStylesRun();
         else if (id === 'special-sounds') await r.specialSounds();
         else if (id === 'grab') await r.grabRun();
+        else if (id === 'lesson-2') await r.lessonTwo();
+        else if (id === 'lesson-3') await r.lessonThree();
+        else if (id === 'ledge-options') await r.ledgeOptions();
+        else if (id === 'training-combo') await r.trainingCombo();
+        else if (id === 'archetype-normals') await r.archetypeNormals();
         else if (id === 'special-fx') await r.specialFx();
         else if (id === 'menu-walk') await r.menuWalk();
         else if (id === 'select-specials') await r.selectSpecials();
@@ -217,11 +260,20 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'portraits') await r.portraitsRun();
         else if (id === 'colours') await r.coloursRun();
         else if (id === 'sound-settings') await r.soundSettings();
+        else if (id === 'voice-captions') await r.voiceCaptions();
         else if (id === 'fast-start') await r.fastStart();
         else if (id === 'hit-feel') await r.hitFeel();
+        else if (id === 'rumble') await r.rumbleRun();
+        else if (id === 'auto-level') await r.autoLevelRun();
         else if (id === 'input-feel') await r.inputFeel();
         else if (id === 'touch-match') await r.touchMatch();
         else if (id === 'touch-settings') await r.touchSettingsRun();
+        else if (id === 'shield-toggle') await r.shieldToggleRun();
+        else if (id === 'local-versus') await r.localVersusRun();
+        else if (id === 'rebind') await r.rebindRun();
+        else if (id === 'text-size') await r.textSizeRun();
+        else if (id === 'colour-vision') await r.colourVisionRun();
+        else if (id === 'motion-comfort') await r.motionComfort();
         else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'post-chain') await r.postChain();
         else if (id === 'lighting') await r.lighting();
@@ -240,6 +292,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'intro-exchange') await r.introExchange();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
+        else if (id === 'invite') await r.inviteRun();
         else if (id === 'reconnect') {
           r.cutMode = true;
           await r.online();
@@ -576,6 +629,7 @@ class Run {
     const st = STAGES[m.state.stage];
     const who = m.state.fighters.map((f) => name(m, f.id)).join(' vs ');
     this.t.event('match-start', `${who} on ${st.name}`);
+    this.t.milestone('gameplay', `${who} on ${st.name}`); // the page-load budget ends when a match is on screen (first call only)
     const fx = this.game.fxStats?.();
     if (fx) {
       this.t.event('warmup', `${st.name}: ${fx.readyLayers}/${fx.totalLayers} stage layers, ${fx.readyClips}/${fx.totalClips} fighter clips, ${fx.sparkPool} sparks warmed up`);
@@ -1236,15 +1290,104 @@ class Run {
     return () => { stop = true; };
   }
 
+  /**
+   * `feel.autoQualityStepMs`: the longest frame within 3 frames either side of every auto-quality step (the decision's
+   * `dod:auto-quality` and each part that lands after it, `dod:auto-quality-part`), so the playtest confirms or clears the
+   * governor as the cause of a hitch. A step frame over 100 ms is a bug.
+   */
+  private watchAutoStep(): () => void {
+    const t = this.t;
+    const dts: number[] = [];
+    const marks: { at: number; what: string }[] = [];
+    let last = 0;
+    let on = true;
+    const tick = (now: number) => {
+      if (!on) return;
+      if (last) dts.push(now - last);
+      last = now;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    const mark = (e: Event) => marks.push({ at: dts.length, what: e.type === 'dod:auto-quality' ? 'step' : `part ${(e as CustomEvent).detail?.part}` });
+    window.addEventListener('dod:auto-quality', mark);
+    window.addEventListener('dod:auto-quality-part', mark);
+    return () => {
+      on = false;
+      window.removeEventListener('dod:auto-quality', mark);
+      window.removeEventListener('dod:auto-quality-part', mark);
+      let worst = 0;
+      for (const m of marks) {
+        const w = Math.max(0, ...dts.slice(Math.max(0, m.at - 3), m.at + 4));
+        worst = Math.max(worst, w);
+        t.event('auto-quality-step', `${m.what}: longest frame within 3 frames ${Math.round(w)} ms`);
+      }
+      t.metric('feel.autoQualityStepMs', Math.round(worst));
+      if (worst > 100) t.problem('bug', `a frame next to an auto-quality step took ${Math.round(worst)} ms (want 100 or less)`);
+    };
+  }
+
+  /**
+   * Where the longest frame of a run falls (`hitch-at`, playtest only; nothing runs in normal play). Every animation frame's
+   * length is kept; for the longest one it records when it came (seconds into the watch), the last 3 marks before it (the
+   * `dod:` events and whatever the scenario passes to `mark`: stage warn/event/eventEnd, hazard hurt, KO), whether StageFx
+   * built a particle mesh past its warmed pools that frame (`fxGrown`) and whether StageAlive built a texture
+   * (`aliveTextures`). `stop()` logs `hitch-at`, the metrics `hitchWorstMs` / `hitchWorstAtS`, and returns the text.
+   */
+  private watchHitch(): { mark: (what: string) => void; stop: () => string } {
+    const t = this.t;
+    const MARKS = ['dod:air-flash', 'dod:slam', 'dod:stinger', 'dod:commentary', 'dod:sudden-death', 'dod:auto-quality', 'dod:feet-gap'];
+    const t0 = performance.now();
+    const marks: { at: number; what: string }[] = [];
+    const mark = (what: string) => { marks.push({ at: performance.now(), what }); if (marks.length > 3) marks.shift(); };
+    const onEvent = (e: Event) => mark(e.type);
+    for (const n of MARKS) window.addEventListener(n, onEvent);
+    let worst = { dt: 0, at: 0, before: [] as string[], grew: 0, textures: 0, totals: '' };
+    let lastNow = 0;
+    let prev = this.game.hitchStats?.() ?? { fxGrown: 0, aliveTextures: 0 };
+    let on = true;
+    const tick = (now: number) => {
+      if (!on) return;
+      const cur = this.game.hitchStats?.() ?? prev;
+      if (lastNow && now - lastNow > worst.dt) {
+        worst = {
+          dt: now - lastNow,
+          at: (now - t0) / 1000,
+          before: marks.map((m) => `${m.what} ${Math.round(now - m.at)} ms before`),
+          grew: cur.fxGrown - prev.fxGrown,
+          textures: cur.aliveTextures - prev.aliveTextures,
+          totals: `particle meshes built since warm-up ${cur.fxGrown}, StageAlive textures ${cur.aliveTextures}`,
+        };
+      }
+      prev = cur;
+      lastNow = now;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    return {
+      mark,
+      stop: () => {
+        on = false;
+        for (const n of MARKS) window.removeEventListener(n, onEvent);
+        const text = `longest frame ${Math.round(worst.dt)} ms at ${worst.at.toFixed(1)} s into the fight; last marks: ${worst.before.join('; ') || 'none'}; built that frame: ${worst.grew} particle meshes, ${worst.textures} StageAlive textures (${worst.totals})`;
+        t.event('hitch-at', text);
+        t.metric('hitchWorstMs', Math.round(worst.dt));
+        t.metric('hitchWorstAtS', Number(worst.at.toFixed(1)));
+        return text;
+      },
+    };
+  }
+
   async smoke(): Promise<void> {
     const t = this.t;
     const stopWatch = this.watchWipe();
     const stopBlank = this.watchBlank();
     this.vsHoldWanted = true;
     const stopStinger = this.watchStingers();
+    const stopAutoStep = this.watchAutoStep();
     try {
       await this.smokeRun();
     } finally {
+      stopAutoStep();
       stopStinger();
       stopBlank();
       stopWatch();
@@ -1690,6 +1833,33 @@ class Run {
       await t.until(() => Boolean(document.getElementById('stage')?.classList.contains('ready')), 15000, 'the canvas to fade in');
       const logoHeld = !!this.q('#pilot-logo') && getComputedStyle(this.q('#pilot-logo')!).display !== 'none';
       t.event('first-visit-start', `storage cleared; Tap to play next (pilot backdrop up: ${logoHeld})`);
+      // Hint tokens (ui/teach.ts hintText): the pilot's smash hint and the Training hitbox hint read per device.
+      const pilotHint = CHAPTERS[0]?.hint ?? '';
+      for (const dev of ['keyboard', 'gamepad', 'touch'] as const) {
+        const smash = hintText(pilotHint, dev);
+        const box = hintText('No stocks. Press {hitbox} in the match to see hitboxes.', dev);
+        t.event('hint-device', `${dev}: "${smash}" | "${box}"`);
+        if (/\{|\bI \+/.test(smash) && dev !== 'keyboard') t.problem('bug', `the pilot hint shows a keyboard letter for ${dev}: ${smash}`);
+        if (dev !== 'keyboard' && /\bH\b/.test(box)) t.problem('bug', `the hitbox hint names the H key for ${dev}: ${box}`);
+      }
+      // Pad families (ui/teach.ts padGlyphs, input/devices.ts padFamilyOf): the glyphs each pad id shows in teach prompts.
+      const famIds: [string, string][] = [
+        ['Sony DualSense (054c)', 'Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)'],
+        ['Nintendo Pro Controller (057e)', 'Pro Controller (STANDARD GAMEPAD Vendor: 057e Product: 2009)'],
+        ['Xbox (045e)', 'Xbox 360 Controller (STANDARD GAMEPAD Vendor: 045e Product: 028e)'],
+      ];
+      for (const [label, id] of famIds) {
+        const f = padFamilyOf(id);
+        const names = (['attack', 'jump', 'shield', 'recover'] as TeachStep[]).map((st) => padGlyphs(st, f).map((g) => g.name).join(' ')).join(' | ');
+        t.event('pad-family', `${label}: ${f}: ${names}`);
+        const want = { playstation: ['Cross', 'Square', 'L1', 'Circle'], switch: ['B', 'Y', 'L', 'A'], xbox: ['A', 'X', 'LB', 'B'] }[f];
+        const got = [padGlyphs('attack', f)[0]!.name, padGlyphs('jump', f)[0]!.name, padGlyphs('shield', f)[0]!.name, padGlyphs('recover', f)[2]!.name];
+        if (got.join() !== want.join()) t.problem('bug', `${label} shows ${got.join('/')} instead of ${want.join('/')}`);
+      }
+      if (padFamilyOf('Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)') !== 'playstation') t.problem('bug', 'a Sony pad id is not read as PlayStation');
+      if (padFamilyOf('Pro Controller (STANDARD GAMEPAD Vendor: 057e Product: 2009)') !== 'switch') t.problem('bug', 'a Nintendo pad id is not read as Switch');
+      if (touch) t.event('pad-family-touch', `touch only, no pad: prompts use touch glyphs (${PROMPTS.attack.glyphs.touch.join(' ')}), no pad glyphs`);
+      let hintSeen = '';
       let tries = 0;
       let control = -1;
       let firstHit = -1;
@@ -1731,6 +1901,13 @@ class Run {
         if (currentScreen() === 'main' && t0 > 0 && control < 0) sawMain = true;
         const n = document.querySelectorAll('.teach-prompt:not(.used):not(.gone)').length;
         if (n > 1) t.problem('bug', `${n} teaching prompts are on screen at once`);
+        if (touch && document.querySelector('.teach-glyph.gamepad')) t.problem('bug', 'a pad glyph shows in a teach prompt on a touch-only phone');
+        // Every hint on screen during the pilot: no keyboard letter on touch.
+        const live = [...document.querySelectorAll('.vs-stage span, .scene-card, .hint')].filter((e) => (e as HTMLElement).offsetParent).map((e) => e.textContent ?? '').join(' | ');
+        if (live && live !== hintSeen) {
+          hintSeen = live;
+          if (touch && /\bI \+|Press [A-Z]\b/.test(live)) t.problem('bug', `a hint shows a keyboard letter on touch: ${live}`);
+        }
         const m = this.game.match();
         if (control < 0 && this.game.phase() === 'play' && m && m.state.frame > 0 && t0 > 0) {
           control = (performance.now() - t0) / 1000;
@@ -1825,7 +2002,7 @@ class Run {
       fire(stick, 'pointerup', cx, cy);
       return;
     }
-    const cls = PROMPTS[step].touch;
+    const cls = [PROMPTS[step].touch ?? []].flat()[0];
     const btn = cls ? root.querySelector(`.touch-btn.${cls}`) : null;
     if (!btn) return;
     const r = btn.getBoundingClientRect();
@@ -2034,6 +2211,237 @@ class Run {
     t.finish('done');
   }
 
+
+  /**
+   * Share on the results (`ui/share.ts`): a versus match is played to Results, which must offer Share. A tap draws the PNG
+   * card (winner, fighters, stage, KOs) and hands it to navigator.share with the file (a stand-in records the call:
+   * `share-sheet`; on a phone the tap is a real pointer press at 390x844 touch). Then navigator.share is taken away and a
+   * second tap must download the card and copy the text line (`share-fallback`). Events `share-button`, `share-sheet`,
+   * `share-fallback`, `share-card`; metrics `shareCardBytes`.
+   */
+  async shareScenario(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.phoneScenario();
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+      suppressRotate(true);
+    }
+    const nav = navigator as unknown as Record<string, unknown>;
+    const had = Object.getOwnPropertyDescriptor(navigator, 'share');
+    const hadCan = Object.getOwnPropertyDescriptor(navigator, 'canShare');
+    const calls: { files: { name: string; type: string; size: number }[]; text: string }[] = [];
+    const copied: string[] = [];
+    const clip = navigator.clipboard;
+    const events: Record<string, unknown>[] = [];
+    const onShare = (e: Event) => events.push((e as CustomEvent).detail);
+    window.addEventListener('dod:share', onShare);
+    const stubClip = (fn: ((s: string) => Promise<void>) | null) => {
+      try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: fn ? { writeText: fn } : clip }); } catch { /* read-only here */ }
+    };
+    try {
+      await this.startVersus(1);
+      await this.fight(() => false, 6 * 60 * 1000);
+      await this.screen('results', 30000);
+      await this.wait(900);
+      const share = () => this.q('#results-actions #share-result');
+      if (!share()) {
+        t.problem('bug', 'the results have no Share button');
+        return t.finish('done');
+      }
+      const r = share()!.getBoundingClientRect();
+      t.event('share-button', `Share on the results, ${Math.round(r.width)}x${Math.round(r.height)} px at ${innerWidth}x${innerHeight}`);
+      if (r.height < 44 || r.width < 44 || r.right > innerWidth || r.bottom > innerHeight) t.problem('bug', `the Share button is too small or off screen (${Math.round(r.width)}x${Math.round(r.height)})`);
+
+      // 1. The share sheet, with the card as a file.
+      Object.defineProperty(navigator, 'canShare', { configurable: true, value: (d: ShareData) => !!d.files?.length });
+      Object.defineProperty(navigator, 'share', {
+        configurable: true,
+        value: async (d: ShareData) => { calls.push({ files: (d.files ?? []).map((f) => ({ name: f.name, type: f.type, size: f.size })), text: d.text ?? '' }); },
+      });
+      await this.click(share, 'Share');
+      await t.until(() => events.length > 0, 15000, 'the share to finish');
+      const first = events[0];
+      const f = calls[0]?.files[0];
+      if (first.path !== 'share-sheet' || !f) t.problem('bug', `Share did not open the share sheet with a file (${String(first.path)})`);
+      else if (f.type !== 'image/png' || f.size < 20000) t.problem('bug', `the shared card is not a real PNG (${f.type}, ${f.size} bytes)`);
+      else t.event('share-sheet', `navigator.share got ${f.name} (${f.type}, ${f.size} bytes) with the text "${calls[0].text}"`);
+      t.metric('shareCardBytes', f?.size ?? 0);
+      const m = this.game.match() ?? this.seen;
+      const want = m && m.state.winner >= 0 ? CHARACTERS[m.state.fighters[m.state.winner].char].name : '';
+      if (want && !calls[0]?.text.includes(want)) t.problem('bug', `the share text does not name the winner ${want}`);
+      if (!/doseofdestruction\.com/.test(calls[0]?.text ?? '')) t.problem('bug', 'the share text has no game address');
+      t.event('share-card', `text line: ${calls[0]?.text}`);
+      await this.wait(500);
+
+      // 2. No navigator.share: the card downloads and the text line is copied.
+      Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+      Object.defineProperty(navigator, 'canShare', { configurable: true, value: undefined });
+      stubClip(async (s: string) => { copied.push(s); });
+      const before = events.length;
+      await this.click(share, 'Share');
+      await t.until(() => events.length > before, 15000, 'the fallback share to finish');
+      const second = events[before];
+      if (second.path !== 'download') t.problem('bug', `without navigator.share the card did not download (${String(second.path)})`);
+      else if (!copied.length || !second.copied) t.problem('bug', 'without navigator.share the text line was not copied');
+      else t.event('share-fallback', `downloaded ${second.file} (${second.bytes} bytes) and copied "${copied[0]}"`);
+      await this.wait(700);
+      this.checkClipping('results', this.q('#results'));
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      window.removeEventListener('dod:share', onShare);
+      stubClip(null);
+      for (const [k, d] of [['share', had], ['canShare', hadCan]] as const) {
+        if (d) Object.defineProperty(navigator, k, d);
+        else delete nav[k];
+      }
+      if (touch) suppressRotate(false);
+    }
+  }
+
+  /**
+   * Watch replay (`replay.ts`, `ui/replayBar.ts`, main.ts `watchReplay`): a versus match (1 stock) is played by the bot to
+   * Results, which must offer Watch replay (`replay-button`). The replay opens with its control bar on screen and fitting
+   * (`replay-fit`: every button at least 44 px, 8 px apart, inside the window; a bottom bar on a 390x844 phone), then plays
+   * from the recorded inputs: Pause holds the tick (`replay-pause`), 0.5x / 1x / 2x change how fast the ticks come
+   * (`replay-speed`), a tap on the arena hides and shows the bar (`replay-bar-tap`), Camera toggles Follow / Free
+   * (`replay-camera`), and the replay's end has the same winner, stocks and final hash as the match (`replay-result`).
+   * Back to results returns to the same results (`replay-exit`). On a phone every press is a pointer tap, and the
+   * portrait window is kept (the replay shows in portrait; the match itself runs with the Rotate prompt set aside).
+   */
+  async replayScenario(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.phoneScenario();
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+      suppressRotate(true);
+    }
+    const log: { phase: string; tick: number; speed?: number; paused?: boolean; camera?: string; hash?: number; wantHash?: number; winner?: number; want?: number; stocks?: number[]; wantStocks?: number[]; hidden?: boolean }[] = [];
+    const onReplay = (e: Event) => log.push((e as CustomEvent).detail);
+    window.addEventListener('dod:replay', onReplay);
+    try {
+      await this.startVersus(1);
+      t.progress(0.1);
+      await this.fight(() => false, 6 * 60 * 1000);
+      const m = this.game.match() ?? this.seen;
+      await this.screen('results', 30000);
+      await this.wait(900);
+      const watch = () => this.button('#results-actions', 'Watch replay');
+      if (!watch()) {
+        t.problem('bug', 'the results have no Watch replay button');
+        return t.finish('done');
+      }
+      const wantWinner = m?.state.winner ?? -1;
+      const wantStocks = m?.state.fighters.map((f) => f.stocks) ?? [];
+      t.event('replay-button', `Results offer Watch replay (match won by P${wantWinner + 1}, stocks ${wantStocks.join('/')})`);
+      await this.click(watch, 'Watch replay');
+      await t.until(() => log.some((l) => l.phase === 'start') && currentScreen() === 'match', 30000, 'the replay to start');
+      await this.wait(600);
+      t.progress(0.3);
+
+      // The bar fits: every button 44 px or more, 8 px apart, inside the window (and along the bottom on a phone).
+      const btns = [...document.querySelectorAll<HTMLElement>('#replay-bar button')];
+      const rects = btns.map((b) => b.getBoundingClientRect());
+      const small = btns.filter((_, i) => rects[i].width < 44 || rects[i].height < 44).map((b) => `${b.textContent} ${Math.round(b.getBoundingClientRect().width)}x${Math.round(b.getBoundingClientRect().height)}`);
+      const off = btns.filter((_, i) => rects[i].left < 0 || rects[i].right > innerWidth || rects[i].top < 0 || rects[i].bottom > innerHeight).map((b) => b.textContent);
+      let tight = 0;
+      for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+        const a = rects[i];
+        const b = rects[j];
+        const gapX = Math.max(b.left - a.right, a.left - b.right);
+        const gapY = Math.max(b.top - a.bottom, a.top - b.bottom);
+        if (Math.max(gapX, gapY) < 7.5) tight++;
+      }
+      const bottom = Math.max(...rects.map((r) => r.bottom));
+      if (btns.length < 6) t.problem('bug', `the replay bar has only ${btns.length} buttons`);
+      if (small.length) t.problem('bug', `replay buttons under 44 px: ${small.join(', ')}`);
+      if (off.length) t.problem('bug', `replay buttons off screen at ${innerWidth}x${innerHeight}: ${off.join(', ')}`);
+      if (tight) t.problem('bug', `${tight} pairs of replay buttons are closer than 8 px`);
+      if (innerHeight > innerWidth && bottom < innerHeight * 0.7) t.problem('bug', `the replay bar is not along the bottom (lowest button ends at ${Math.round(bottom)} of ${innerHeight})`);
+      t.event('replay-fit', `${btns.length} buttons, smallest ${Math.round(Math.min(...rects.map((r) => Math.min(r.width, r.height))))} px, bar ends at ${Math.round(bottom)} of ${innerHeight} (${innerWidth}x${innerHeight})`);
+      t.metric('replayButtonsMinPx', Math.round(Math.min(...rects.map((r) => Math.min(r.width, r.height)))));
+      this.checkClipping('replay', this.q('#replay'));
+
+      const tickNow = () => this.game.replayTick();
+      // Speeds: ticks gained over the same wall time at 0.5x, 1x and 2x.
+      const gained = async (speed: string, ms: number) => {
+        await this.click(() => this.q(`#replay-bar [data-speed="${speed}"]`), `speed ${speed}x`);
+        await this.wait(300);
+        const a = tickNow();
+        await this.wait(ms);
+        return tickNow() - a;
+      };
+      // Pause holds the tick.
+      await this.click(() => this.q('#replay-pause'), 'Pause');
+      await this.wait(300);
+      const p0 = tickNow();
+      await this.wait(900);
+      const p1 = tickNow();
+      if (p1 !== p0) t.problem('bug', `the replay kept playing while paused (${p0} → ${p1})`);
+      else t.event('replay-pause', `paused at tick ${p0}, held for 0.9 s; button now reads "${this.q('#replay-pause')?.textContent}"`);
+      await this.click(() => this.q('#replay-pause'), 'Play');
+      const g1 = await gained('1', 1500);
+      const gHalf = await gained('0.5', 1500);
+      const g2 = await gained('2', 1500);
+      if (!(gHalf < g1 && g1 < g2)) t.problem('bug', `replay speed buttons do not change the pace (0.5x ${gHalf}, 1x ${g1}, 2x ${g2} ticks in 1.5 s)`);
+      else t.event('replay-speed', `ticks in 1.5 s: 0.5x ${gHalf}, 1x ${g1}, 2x ${g2}`);
+      t.metric('replayTicks1x', g1);
+      t.progress(0.5);
+
+      // Tap the arena: the bar hides, another tap brings it back.
+      await this.tap(() => this.q('#stage'), 'tap the arena');
+      const hidden = !!this.q('#replay')?.classList.contains('bar-hidden');
+      await this.tap(() => this.q('#stage'), 'tap the arena again');
+      const shown = !this.q('#replay')?.classList.contains('bar-hidden');
+      if (!hidden || !shown) t.problem('bug', `a tap on the arena did not hide then show the replay bar (hidden ${hidden}, shown again ${shown})`);
+      else t.event('replay-bar-tap', 'a tap hid the bar, another brought it back');
+
+      // Camera: Follow → Free → Follow.
+      const cam = () => this.q('#replay-camera')?.textContent ?? '';
+      await this.click(() => this.q('#replay-camera'), 'Camera');
+      const free = cam();
+      await this.click(() => this.q('#replay-camera'), 'Camera');
+      const follow = cam();
+      if (!/Free/.test(free) || !/Follow/.test(follow)) t.problem('bug', `the camera button read "${free}" then "${follow}", wanted Free then Follow`);
+      else t.event('replay-camera', `camera toggled ${free} → ${follow}`);
+
+      // Back 5 s works, then run to the end at 2x.
+      const b0 = tickNow();
+      await this.click(() => this.q('#replay-back'), '-5 s');
+      await this.wait(200);
+      const b1 = tickNow();
+      if (!(b1 < b0 || b0 < 300)) t.problem('bug', `-5 s did not go back (${b0} → ${b1})`);
+      else t.event('replay-back', `tick ${b0} → ${b1}`);
+      await this.click(() => this.q('#replay-bar [data-speed="2"]'), 'speed 2x');
+      await t.until(() => log.some((l) => l.phase === 'end'), 6 * 60 * 1000, 'the replay to end');
+      const end = log.find((l) => l.phase === 'end')!;
+      const same = end.winner === wantWinner && (end.stocks ?? []).join() === wantStocks.join() && end.hash === end.wantHash;
+      if (!same) t.problem('bug', `the replay ended differently from the match: winner P${(end.winner ?? -2) + 1} vs P${wantWinner + 1}, stocks ${(end.stocks ?? []).join('/')} vs ${wantStocks.join('/')}, hash ${end.hash} vs ${end.wantHash}`);
+      else t.event('replay-result', `same winner P${wantWinner + 1}, stocks ${wantStocks.join('/')} and final hash ${end.hash}`);
+      t.progress(0.85);
+
+      await this.click(() => this.q('#replay-exit'), 'Back to results');
+      await this.screen('results', 20000);
+      if (!watch()) t.problem('bug', 'Back to results did not bring the results with Watch replay back');
+      else t.event('replay-exit', 'Back to results shows the results again');
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      window.removeEventListener('dod:replay', onReplay);
+      if (touch) suppressRotate(false);
+    }
+  }
+
   async campaign(): Promise<void> {
     const t = this.t;
     const t0 = performance.now();
@@ -2103,10 +2511,13 @@ class Run {
         const won = await this.results();
         await this.checkQuotaResult(c);
         await this.checkStreakResult(c);
+        if (won) await this.checkGradeCard(c);
+        if (won) await this.checkRewardBanner(c);
         if (won) {
           await this.click(() => this.button('#results-actions', 'Continue'), 'Continue');
           await this.playDialogue();
           await this.screen('campaign');
+          this.checkMapStars(c);
           cleared++;
           t.metric('chaptersCleared', cleared);
           t.event('chapter-cleared', label);
@@ -2341,6 +2752,465 @@ class Run {
     } finally {
       this.game.setCampaignProgress(before);
     }
+  }
+
+  /**
+   * Campaign difficulty (campaign/difficulty.ts): the Easy / Normal / Hard choice on the season map (44 px targets, kept after
+   * leaving the map), then an episode lost three times in a row from real play (the bot's pad held still): no offer after
+   * one or two losses, "Try it on Easy?" on the third (buttons 44 px tall), and accepting starts the episode again with the
+   * foes' CPU level two lower (`dod:difficulty` logs both). Option `chapter` (default title-defense, a level 5-6 foe).
+   * 390x844 touch: the map is checked in portrait, the fights play in the turned 844x390 frame by taps.
+   */
+  async difficultyRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const asked = this.options.chapter ?? 'title-defense';
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    if (from < 0) {
+      t.problem('bug', `chapter "${String(asked)}" is not in content/campaign.json`);
+      t.finish('error');
+      return;
+    }
+    const keys = [DIFFICULTY_KEY, 'dod-campaign-losses', 'dod-campaign-easy'];
+    const saved = keys.map((k) => localStorage.getItem(k));
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((c) => c.id));
+    const restore = () => {
+      keys.forEach((k, i) => (saved[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, saved[i]!)));
+      reloadDifficulty();
+      this.game.setCampaignProgress(before);
+    };
+    keys.forEach((k) => localStorage.removeItem(k));
+    reloadDifficulty();
+    t.log(`setup shortcut: chapters 1-${from} marked cleared, difficulty back to the default`);
+    if (touch) this.useTap = true;
+    try {
+      await this.toMainMenu();
+      await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+      await this.screen('campaign');
+      // 1. The picker: three thumb-size choices that persist.
+      const picks = () => [...document.querySelectorAll<HTMLElement>('#difficulty .difficulty-btn')];
+      const names = picks().map((b) => b.textContent?.trim());
+      const small = picks().filter((b) => { const r = b.getBoundingClientRect(); return r.height < 44 || r.width < 44 || r.left < 0 || r.right > innerWidth; });
+      if (names.join('/') !== 'Easy/Normal/Hard') t.problem('bug', `the season map's difficulty choice reads ${names.join('/') || 'nothing'}`);
+      if (small.length) t.problem('bug', `difficulty buttons under 44 px or off screen at ${innerWidth}x${innerHeight}: ${small.map((b) => b.textContent).join(', ')}`);
+      t.event('difficulty-picker', `${names.join(' / ')} on the season map at ${innerWidth}x${innerHeight}, smallest ${Math.round(Math.min(...picks().map((b) => b.getBoundingClientRect().height)))} px tall; on ${document.querySelector('#difficulty .on')?.textContent}`);
+      await this.click(() => document.querySelector<HTMLElement>('#difficulty [data-difficulty="hard"]'), 'Hard');
+      const stored = () => JSON.parse(localStorage.getItem(DIFFICULTY_KEY) ?? '"normal"');
+      if (stored() !== 'hard') t.problem('bug', `Hard was tapped but ${DIFFICULTY_KEY} is ${stored()}`);
+      await this.click(() => this.q('.back-btn'), 'Back');
+      await this.screen('main');
+      await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+      await this.screen('campaign');
+      const now = document.querySelector('#difficulty .on')?.textContent;
+      if (now !== 'Hard') t.problem('bug', `Hard did not stay: the map shows ${now} after leaving and coming back`);
+      t.event('difficulty-persist', `Hard saved (${DIFFICULTY_KEY}=${stored()}) and still chosen on the map after leaving it`);
+      await this.click(() => document.querySelector<HTMLElement>('#difficulty [data-difficulty="normal"]'), 'Normal');
+      t.metric('difficultyPicker', 1);
+      if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+        restore();
+        this.logViewport(true);
+        return this.touchMatchTurned('difficulty');
+      }
+      if (touch) forceTouchUi(true);
+
+      // 2. Three losses in a row on one episode.
+      const c = CHAPTERS[from];
+      const log: { phase: string; difficulty: string; cpuFrom: number[]; cpuTo: number[] }[] = [];
+      const onDiff = (ev: Event) => log.push((ev as CustomEvent).detail);
+      window.addEventListener('dod:difficulty', onDiff);
+      try {
+        await this.click(() => this.q(`#chapter-path .chapter[data-chapter="${c.id}"]`), `Chapter ${from + 1} · ${c.title}`);
+        await this.playDialogue();
+        await this.matchLive();
+        const started = log.find((e) => e.phase === 'start');
+        t.event('difficulty-start', `${c.id} on ${started?.difficulty}: foe CPU ${started?.cpuTo.join(', ')}`);
+        for (let loss = 1; loss <= 3; loss++) {
+          this.manual = NO_INPUT;
+          const idleFrom = performance.now();
+          while (currentScreen() !== 'results' && performance.now() - idleFrom < 240000) await this.t.wait(500);
+          this.manual = null;
+          if (currentScreen() !== 'results') {
+            t.problem('warning', `the foe did not beat a standing player in 240 s (loss ${loss}), so the offer was not reached`);
+            await this.quitFromPause('campaign');
+            t.finish('done');
+            return;
+          }
+          await this.results();
+          const offer = this.q('#results .easy-offer');
+          const easyBtn = this.button('#results-actions', 'Try it on Easy');
+          t.event('difficulty-loss', `loss ${loss} on ${c.id}: ${offer ? 'offers "Try it on Easy?"' : 'no offer'}; buttons ${[...document.querySelectorAll<HTMLElement>('#results-actions button')].map((b) => `${b.textContent} (${Math.round(b.getBoundingClientRect().height)} px)`).join(', ')}`);
+          if (loss < 3) {
+            if (offer || easyBtn) t.problem('bug', `the Easy offer showed after only ${loss} loss${loss > 1 ? 'es' : ''}`);
+            await this.click(() => this.button('#results-actions', 'Retry'), 'Retry');
+            await this.matchLive();
+            continue;
+          }
+          if (!offer || !easyBtn) {
+            t.problem('bug', 'the third loss in a row on one episode did not offer "Try it on Easy?"');
+            await this.click(() => this.button('#results-actions', 'Campaign map'), 'Campaign map');
+            await this.screen('campaign');
+            t.finish('done');
+            return;
+          }
+          const bad = [...document.querySelectorAll<HTMLElement>('#results-actions button')].filter((b) => b.getBoundingClientRect().height < 44);
+          if (bad.length) t.problem('bug', `the offer's buttons are under 44 px tall at ${innerWidth}x${innerHeight}: ${bad.map((b) => b.textContent).join(', ')}`);
+          const r = easyBtn.getBoundingClientRect();
+          if (r.top < 0 || r.bottom > innerHeight || r.left < 0 || r.right > innerWidth) t.problem('bug', `"Try it on Easy" is off screen at ${innerWidth}x${innerHeight}`);
+          t.event('difficulty-offer', `third loss: "Try it on Easy?" with ${[...document.querySelectorAll<HTMLElement>('#results-actions button')].map((b) => `${b.textContent} ${Math.round(b.getBoundingClientRect().height)} px`).join(', ')} at ${innerWidth}x${innerHeight}`);
+          t.metric('offerButtonMinPx', Math.round(Math.min(...[...document.querySelectorAll<HTMLElement>('#results-actions button')].map((b) => b.getBoundingClientRect().height))));
+          await this.click(() => this.button('#results-actions', 'Try it on Easy'), 'Try it on Easy');
+          await this.matchLive();
+          const e = log.find((x) => x.phase === 'offer');
+          const m = this.game.match();
+          const level = m ? Math.max(...m.setup.slots.filter((s) => s.cpu !== null && s.cpu > 0 && s.team === 1).map((s) => s.cpu as number)) : 0;
+          const was = Math.max(...(started?.cpuTo ?? [0]));
+          if (!e || Math.max(...e.cpuTo) >= Math.max(...e.cpuFrom) || level >= was) t.problem('bug', `accepting Easy did not lower the CPU level (was ${was}, now ${level})`);
+          if (stored() !== 'easy') t.problem('bug', `accepting Easy left the map's difficulty on ${stored()}`);
+          t.metric('cpuLevelBefore', was);
+          t.metric('cpuLevelEasy', level);
+          t.event('difficulty-easy', `Easy accepted: foe CPU ${was} -> ${level} (${e?.cpuFrom.join(', ')} -> ${e?.cpuTo.join(', ')}), difficulty saved as ${stored()}`);
+          await t.wait(1500);
+          await this.quitFromPause('campaign');
+          const chosen = document.querySelector('#difficulty .on')?.textContent;
+          if (chosen !== 'Easy') t.problem('bug', `after accepting, the season map shows ${chosen} chosen, not Easy`);
+        }
+      } finally {
+        window.removeEventListener('dod:difficulty', onDiff);
+      }
+    } finally {
+      this.manual = null;
+      restore();
+    }
+    t.progress(1);
+    t.finish('won');
+  }
+
+  /**
+   * Replay as… (main.ts `replayChapter`, ui/replayPicker.ts): a cleared episode's card has a "Replay as…" button and an
+   * uncleared one does not; it opens the picker of unlocked fighters (44 px+ tiles inside the window, no locked fighter), and a
+   * tap plays the same episode (opponents, stage, objective) with that fighter in the player's place. Option `chapter`
+   * (default open-mic): it and the chapters before it are marked cleared (setup shortcut, put back). 390x844 touch: the map and
+   * picker are checked in portrait by taps, the episode plays in the turned 844x390 frame.
+   */
+  async replayAsRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const asked = this.options.chapter ?? 'open-mic';
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    if (from < 0) {
+      t.problem('bug', `chapter "${String(asked)}" is not in content/campaign.json`);
+      t.finish('error');
+      return;
+    }
+    const c = CHAPTERS[from];
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from + 1).map((x) => x.id));
+    t.log(`setup shortcut: chapters 1-${from + 1} marked cleared; ${CHAPTERS[from + 1]?.id ?? 'none'} is the next, uncleared one`);
+    if (touch) this.useTap = true;
+    const fit = (el: HTMLElement) => { const r = el.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight; };
+    const events: { phase: string; fighter?: string; foes?: string[]; stage?: string; objective?: string; original?: string[] }[] = [];
+    const onEv = (ev: Event) => events.push((ev as CustomEvent).detail);
+    window.addEventListener('dod:replay-as', onEv);
+    try {
+      await this.toMainMenu();
+      await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+      await this.screen('campaign');
+      // 1. Only cleared episodes offer it.
+      const all = [...document.querySelectorAll<HTMLElement>('#chapter-path .replay-as')];
+      const ids = all.map((b) => b.dataset.chapter);
+      const wrong = ids.filter((id) => !CHAPTERS.slice(0, from + 1).some((x) => x.id === id));
+      const missing = CHAPTERS.slice(0, from + 1).filter((x) => !ids.includes(x.id));
+      if (wrong.length || missing.length) t.problem('bug', `Replay as… on an uncleared episode (${wrong.join(', ') || 'none'}) or missing on a cleared one (${missing.map((x) => x.id).join(', ') || 'none'})`);
+      const next = CHAPTERS[from + 1];
+      t.event('replay-cleared-only', `${ids.length} cleared episode(s) show Replay as…${next ? `; ${next.id} (uncleared) ${this.q(`#chapter-path [data-chapter="${next.id}"].replay-as`) ? 'SHOWS it' : 'does not'}` : ''}`);
+      t.metric('replayButtons', ids.length);
+      const btn = () => this.q(`#chapter-path .replay-as[data-chapter="${c.id}"]`);
+      btn()?.scrollIntoView({ block: 'center' });
+      const small = btn() ? btn()!.getBoundingClientRect() : null;
+      if (!small || small.height < 44 || small.width < 44) t.problem('bug', `Replay as… is under 44 px at ${innerWidth}x${innerHeight}`);
+      await this.click(btn, 'Replay as…');
+      // 2. The picker: unlocked fighters only, big targets, inside the window.
+      await t.until(() => !!this.q('#replay-picker .replay-tile'), 5000, 'the Replay as picker');
+      const tiles = [...document.querySelectorAll<HTMLElement>('#replay-picker .replay-tile')];
+      const lockedShown = tiles.filter((x) => !isUnlocked(x.dataset.fighter ?? ''));
+      const lockedAll = CHARACTERS.filter((x) => !isUnlocked(x.id));
+      const smallTiles = tiles.filter((x) => { const r = x.getBoundingClientRect(); return r.width < 44 || r.height < 44; });
+      const sheet = this.q('#replay-picker .replay-sheet')!;
+      const sideways = sheet.scrollWidth > sheet.clientWidth + 1;
+      const hidden = tiles.filter((x) => { const r = x.getBoundingClientRect(); return r.left < 0 || r.right > innerWidth; });
+      if (lockedShown.length) t.problem('bug', `the picker lists locked fighters: ${lockedShown.map((x) => x.dataset.fighter).join(', ')}`);
+      if (smallTiles.length || sideways || hidden.length) t.problem('bug', `the picker is not usable at ${innerWidth}x${innerHeight}: ${smallTiles.length} tiles under 44 px, ${hidden.length} off the sides, sideways scroll ${sideways}`);
+      const cancel = this.q('#replay-picker .replay-cancel')!;
+      t.event('replay-picker', `${tiles.length} unlocked fighters (${lockedAll.length} locked left out), smallest tile ${Math.round(Math.min(...tiles.map((x) => Math.min(x.getBoundingClientRect().width, x.getBoundingClientRect().height))))} px, Cancel ${Math.round(cancel.getBoundingClientRect().height)} px, at ${innerWidth}x${innerHeight}`);
+      t.metric('replayPickerTiles', tiles.length);
+      if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+        await this.click(() => this.q('#replay-picker .replay-cancel'), 'Cancel');
+        this.game.setCampaignProgress(before);
+        this.logViewport(true);
+        return this.touchMatchTurned('replay-as');
+      }
+      if (touch) forceTouchUi(true);
+      // 3. A tap on another fighter plays the same episode.
+      const origin = c.fight.slots[0] ? CHARACTERS[c.fight.slots[0].char].id : 'exit-punk';
+      const pick = tiles.find((x) => x.dataset.fighter !== origin && !!x.dataset.fighter) ?? tiles[0];
+      const chosen = pick.dataset.fighter ?? '';
+      if (!fit(pick)) pick.scrollIntoView({ block: 'center' });
+      await this.click(() => pick, `Replay as ${chosen}`);
+      await this.playDialogue();
+      await this.matchLive();
+      const m = this.game.match();
+      const e = events.find((x) => x.phase === 'fight');
+      const mine = m?.setup.slots.find((s) => s.cpu === null);
+      const foes = (m?.setup.slots ?? []).filter((s) => s.cpu !== null).map((s) => CHARACTERS[s.char].id);
+      const was = c.fight.slots.filter((s) => s.cpu !== null).map((s) => CHARACTERS[s.char].id);
+      const sameFoes = foes.join() === was.join();
+      const sameObj = (m?.setup.objective ?? 'win') === (c.fight.objective ?? 'win');
+      const sameStage = m?.setup.stage === c.fight.stage;
+      if (!mine || CHARACTERS[mine.char].id !== chosen) t.problem('bug', `Replay as ${chosen} started with ${mine ? CHARACTERS[mine.char].id : 'nobody'} as the player`);
+      if (!sameFoes || !sameObj || !sameStage) t.problem('bug', `the replay changed the episode: foes ${foes.join('/')} (was ${was.join('/')}), objective ${m?.setup.objective ?? 'win'}, stage ${m?.setup.stage} (was ${c.fight.stage})`);
+      t.event('replay-same-episode', `${c.id} replayed as ${chosen}: foes ${foes.join(', ')} (${sameFoes ? 'same' : 'DIFFERENT'}), objective ${m?.setup.objective ?? 'win'} (${sameObj ? 'same' : 'DIFFERENT'}), stage ${sameStage ? 'same' : 'DIFFERENT'}; event ${e ? 'seen' : 'missing'}`);
+      t.metric('replaySameEpisode', sameFoes && sameObj && sameStage ? 1 : 0);
+      await t.wait(2500);
+      await this.quitFromPause('campaign');
+    } finally {
+      window.removeEventListener('dod:replay-as', onEv);
+      this.game.setCampaignProgress(before);
+    }
+    t.progress(1);
+    t.finish('won');
+  }
+
+  private seededBest = false;
+
+  /** The grades scenario: the chapter (option `chapter`, default house-heavy) played from the map, then the map opened again from the save. */
+  async gradesRun(): Promise<void> {
+    const t = this.t;
+    const asked = this.options.chapter ?? 'house-heavy';
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    if (from < 0) {
+      t.problem('bug', `chapter "${String(asked)}" is not in content/campaign.json`);
+      t.finish('error');
+      return;
+    }
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((c) => c.id));
+    const savedStars = localStorage.getItem('dod-stars');
+    const savedBests = localStorage.getItem('dod-bests');
+    localStorage.removeItem('dod-stars');
+    // Setup shortcut: a weak earlier record (1 point, 99 minutes), so any win beats both and must flash New best!.
+    this.seededBest = true;
+    localStorage.setItem('dod-bests', JSON.stringify({ [CHAPTERS[from].id]: { score: 1, frames: 99 * 60 * 60 } }));
+    t.log(`setup shortcut: chapters 1-${from} marked cleared, starting at ${CHAPTERS[from].id}`);
+    const t0 = performance.now();
+    try {
+      await this.campaignFrom(from, () => performance.now() - t0 > CAMPAIGN_BUDGET_MS, from);
+      const best = JSON.parse(localStorage.getItem('dod-stars') ?? '{}')[CHAPTERS[from].id];
+      if (best) {
+        // Back to the menu and onto the map again: the map reads the grade from the save.
+        await this.toMainMenu();
+        await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+        await this.screen('campaign');
+        this.checkMapStars(CHAPTERS[from], 'after-reopen');
+        const saved = JSON.parse(localStorage.getItem('dod-bests') ?? '{}')[CHAPTERS[from].id];
+        if (!saved || saved.score <= 1 || saved.frames >= 99 * 60 * 60) t.problem('bug', 'the best score and time were not kept in dod-bests after the win');
+      } else t.note('the chapter was not won, so no grade was kept');
+    } finally {
+      this.game.setCampaignProgress(before);
+      if (savedStars === null) localStorage.removeItem('dod-stars');
+      else localStorage.setItem('dod-stars', savedStars);
+      if (savedBests === null) localStorage.removeItem('dod-bests');
+      else localStorage.setItem('dod-bests', savedBests);
+    }
+  }
+
+  /**
+   * The rewards scenario: every Season 8-10 episode card on the map shows its reward before play (inside the window,
+   * unclipped; on a portrait phone checked in the 390x844 window by taps), then option `chapter` (default red-carpet) is
+   * played from the map: the win shows the unlock banner, and the reward is on offer in Versus.
+   */
+  async rewardsRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.phoneScenario();
+    const asked = this.options.chapter ?? 'red-carpet';
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    if (from < 0 || !CHAPTERS[from].reward) {
+      t.problem('bug', `chapter "${String(asked)}" has no reward in content/campaign.json`);
+      t.finish('error');
+      return;
+    }
+    const portrait = touch && innerHeight > innerWidth;
+    this.logViewport(touch && this.isPhone());
+    const KEYS = ['dod-rewards', 'dod-reward-title'];
+    const saved = KEYS.map((k) => localStorage.getItem(k));
+    for (const k of KEYS) localStorage.removeItem(k);
+    reloadRewards();
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((c) => c.id));
+    let restored = false;
+    const restore = () => {
+      if (restored) return;
+      restored = true;
+      this.game.setCampaignProgress(before);
+      KEYS.forEach((k, i) => (saved[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, saved[i]!)));
+      reloadRewards();
+    };
+    try {
+      await this.toMainMenu();
+      if (touch) {
+        this.useTap = true;
+        forceTouchUi(true);
+      }
+      await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+      await this.screen('campaign');
+      // 1. Before play: every reward episode's card names its reward, on screen and not cut off.
+      let shown = 0;
+      for (const { reward, chapter } of REWARDS) {
+        const el = this.q(`#chapter-path .chapter[data-chapter="${chapter.id}"] .chapter-reward`);
+        if (!el) {
+          t.problem('bug', `the episode card for ${chapter.id} shows no reward line`);
+          continue;
+        }
+        el.scrollIntoView({ block: 'center' });
+        const r = el.getBoundingClientRect();
+        const tile = el.closest('.chapter')!.getBoundingClientRect();
+        const px = parseFloat(getComputedStyle(el).fontSize);
+        const clipped = el.scrollWidth > el.clientWidth + 1 || r.left < -1 || r.right > innerWidth + 1 || r.width < 2 || r.height < 8 || r.bottom > tile.bottom + 1 || !(el.textContent ?? '').includes(reward.name);
+        if (clipped) t.problem('bug', `${innerWidth}x${innerHeight}: the reward line on ${chapter.id} is clipped or missing its name ("${el.textContent}")`);
+        else if (px < 11) t.problem('bug', `the reward line on ${chapter.id} is ${px}px, under 11 px`);
+        else {
+          shown++;
+          t.event('reward-card', `${chapter.id}: "${el.textContent}" at ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)} in ${innerWidth}x${innerHeight}`);
+        }
+      }
+      t.metric('rewardCards', shown);
+      if (shown !== REWARDS.length) t.problem('bug', `${shown} of ${REWARDS.length} reward episodes show their reward on the card`);
+      if (portrait) {
+        // A portrait phone can't hold a match: turn it, and play the episode in the landscape frame.
+        restore();
+        return this.touchMatchTurned('rewards');
+      }
+      // 2. Win it: the unlock banner (campaignFrom checks it), then the reward in Versus.
+      const t0 = performance.now();
+      await this.campaignFrom(from, () => performance.now() - t0 > CAMPAIGN_BUDGET_MS, from);
+      const got = JSON.parse(localStorage.getItem('dod-rewards') ?? '[]') as string[];
+      if (got.includes(CHAPTERS[from].reward!.id)) await this.checkRewardInVersus(CHAPTERS[from].reward!);
+      else t.note('the episode was not won, so no reward was earned');
+    } finally {
+      restore();
+    }
+  }
+
+  /** The unlock banner on a won episode's results: the reward, what it is, on screen. */
+  private async checkRewardBanner(c: (typeof CHAPTERS)[number]): Promise<void> {
+    const t = this.t;
+    if (!c.reward) return;
+    const banner = () => this.q('#results-body .results-reward');
+    await t.until(() => !!banner(), 8000, 'the unlock banner').catch((e) => {
+      if (String(e).includes('stopped')) throw e;
+    });
+    const el = banner();
+    if (!el) return void t.problem('bug', `winning ${c.id} shows no unlock banner for "${c.reward.name}" on the results screen`);
+    el.scrollIntoView({ block: 'nearest' });
+    const r = el.getBoundingClientRect();
+    if (el.dataset.reward !== c.reward.id || !(el.textContent ?? '').includes(c.reward.name)) t.problem('bug', `the unlock banner on ${c.id} does not name "${c.reward.name}" ("${el.textContent}")`);
+    if (r.width < 2 || r.left < -1 || r.right > innerWidth + 1) t.problem('bug', `${innerWidth}x${innerHeight}: the unlock banner on ${c.id} is off screen`);
+    t.event('reward-banner', `${c.id}: "${el.textContent}" ${innerWidth}x${innerHeight}`);
+    t.metric('rewardBanners', 1);
+  }
+
+  /** Versus offers the reward: the title chip, the colour swatch or the stage variant card. */
+  private async checkRewardInVersus(rw: NonNullable<(typeof CHAPTERS)[number]['reward']>): Promise<void> {
+    const t = this.t;
+    await this.toMainMenu();
+    await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+    await this.screen('select');
+    if (rw.kind === 'title') {
+      const chip = () => this.q(`#select-slots .title-chip[data-title="${rw.id}"]`);
+      await t.until(() => !!chip(), 6000, `the "${rw.name}" title chip`);
+      chip()!.scrollIntoView({ block: 'center' });
+      await this.click(chip, `title ${rw.name}`);
+      if (chip()?.getAttribute('aria-checked') !== 'true') t.problem('bug', `picking the title "${rw.name}" in Versus did not select it`);
+      else t.event('reward-versus', `title "${rw.name}" picked in Versus`);
+    } else if (rw.kind === 'tint') {
+      const sw = () => [...document.querySelectorAll<HTMLElement>('#select-slots .swatches[data-slot="0"] .swatch')].find((e) => e.getAttribute('aria-label') === rw.name);
+      await t.until(() => !!sw(), 6000, `the "${rw.name}" colour swatch`);
+      sw()!.scrollIntoView({ block: 'center' });
+      await this.click(sw, `colour ${rw.name}`);
+      if (!sw()?.classList.contains('on') || sw()?.classList.contains('locked')) t.problem('bug', `the colour "${rw.name}" could not be picked in Versus`);
+      else t.event('reward-versus', `colour "${rw.name}" picked in Versus`);
+    } else {
+      await this.click(() => this.q('#select-slots .fight'), 'Fight');
+      await this.screen('stages');
+      const card = () => this.q(`#stage-grid .stage-card.variant[data-variant="${rw.id}"]`);
+      await t.until(() => !!card(), 6000, `the "${rw.name}" stage variant`);
+      card()!.scrollIntoView({ block: 'center' });
+      t.event('reward-versus', `stage variant "${rw.name}" offered in Stage Select`);
+    }
+    t.metric('rewardInVersus', 1);
+    await this.toMainMenu();
+  }
+
+  /** The stars card on a won episode's results: 1-3 stars, a line for each star's test, all on screen (and big enough on a phone). */
+  private async checkGradeCard(c: (typeof CHAPTERS)[number]): Promise<void> {
+    const t = this.t;
+    const card = () => this.q('#results-body .results-grade');
+    await t.until(() => !!card(), 8000, 'the stars card').catch((e) => {
+      if (String(e).includes('stopped')) throw e;
+    });
+    const el = card();
+    if (!el) return void t.problem('bug', `winning ${c.id} shows no stars on the results screen`);
+    const stars = Number(el.dataset.stars);
+    const steps = [...el.querySelectorAll<HTMLElement>('.grade-steps li')];
+    if (!(stars >= 1 && stars <= 3) || steps.length !== 3) t.problem('bug', `the stars card says ${stars} stars with ${steps.length} labelled steps`);
+    el.scrollIntoView({ block: 'nearest' });
+    const bad = steps.filter((li) => {
+      const r = li.getBoundingClientRect();
+      return r.width < 2 || r.left < -1 || r.right > innerWidth + 1 || r.bottom > innerHeight + 1 || r.top < -1 || !li.textContent?.trim();
+    });
+    const px = Math.min(...steps.map((li) => parseFloat(getComputedStyle(li).fontSize)));
+    if (bad.length) t.problem('bug', `${innerWidth}x${innerHeight}: ${bad.length} star label(s) are off screen on the results`);
+    if (px < 12) t.problem('bug', `the star labels are ${px}px, under 12 px`);
+    t.event('grade', `${c.id}: ${stars} of 3 (par ${c.par} s) · ${steps.map((li) => `${li.dataset.met === '1' ? '★' : '☆'} ${li.textContent?.replace(/[★☆]/g, '').trim()}`).join(' | ')} · ${innerWidth}x${innerHeight}`);
+    t.metric('gradeStars', stars);
+    // The score card: score, time, and New best! (the weak record seeded by gradesRun is beaten by any win).
+    const sc = el.querySelector<HTMLElement>('.grade-score');
+    const nb = el.querySelector<HTMLElement>('.new-best');
+    if (!sc || !Number(sc.dataset.score)) t.problem('bug', `winning ${c.id} shows no score on the results`);
+    if (this.seededBest && !nb) t.problem('bug', `${c.id}: the win beat the saved best but results show no "New best!"`);
+    if (nb) {
+      nb.scrollIntoView({ block: 'nearest' });
+      const r = nb.getBoundingClientRect();
+      if (r.width < 2 || r.left < -1 || r.right > innerWidth + 1) t.problem('bug', `${innerWidth}x${innerHeight}: "New best!" is off screen`);
+    }
+    t.event('new-best', `${c.id}: score ${sc?.dataset.score} · "${nb?.textContent?.trim() ?? 'none'}" (beat ${nb?.dataset.beat ?? '-'}) · ${innerWidth}x${innerHeight}`);
+    t.metric('episodeScore', Number(sc?.dataset.score ?? 0));
+    t.metric('newBest', nb ? 1 : 0);
+  }
+
+  /** The season map shows a cleared episode's best stars with their count in words. */
+  private checkMapStars(c: (typeof CHAPTERS)[number], when = 'after-win'): void {
+    const t = this.t;
+    const el = this.q(`#chapter-path .chapter[data-chapter="${c.id}"] .chapter-stars`);
+    if (!el) return void t.problem('bug', `the season map shows no stars on the cleared episode ${c.id}`);
+    el.scrollIntoView({ block: 'nearest' });
+    const r = el.getBoundingClientRect();
+    const saved = JSON.parse(localStorage.getItem('dod-stars') ?? '{}')[c.id] ?? 1;
+    const label = el.querySelector('small')?.textContent ?? '';
+    if (Number(el.dataset.stars) !== saved) t.problem('bug', `the map shows ${el.dataset.stars} stars on ${c.id} but the save has ${saved}`);
+    if (r.width < 2 || r.height < 2 || r.left < -1 || r.right > innerWidth + 1) t.problem('bug', `${innerWidth}x${innerHeight}: the map's stars for ${c.id} are off screen`);
+    // Best time and score on the episode card, fully inside the window (a phone included), matching the save.
+    const bt = this.q(`#chapter-path .chapter[data-chapter="${c.id}"] .chapter-best`);
+    if (!bt) t.problem('bug', `the episode card for ${c.id} shows no best time and score`);
+    else {
+      bt.scrollIntoView({ block: 'nearest' });
+      const b = bt.getBoundingClientRect();
+      const rec = JSON.parse(localStorage.getItem('dod-bests') ?? '{}')[c.id];
+      const text = bt.textContent ?? '';
+      if (b.width < 2 || b.height < 2 || b.left < -1 || b.right > innerWidth + 1 || b.bottom > innerHeight + 1 || b.top < -1) t.problem('bug', `${innerWidth}x${innerHeight}: best time and score on ${c.id}'s card are not fully on screen`);
+      if (rec && bt.dataset.bestScore !== String(rec.score)) t.problem('bug', `${c.id}'s card shows best score ${bt.dataset.bestScore} but the save has ${rec.score}`);
+      if (!/Best time/.test(text) || !/Best score/.test(text) || text.includes('\u2014')) t.problem('bug', `${c.id}'s card best reads "${text}"`);
+      const px = Math.min(...[...bt.querySelectorAll('small, b')].map((e) => parseFloat(getComputedStyle(e).fontSize)));
+      if (px < 12) t.problem('bug', `best time and score on the card are ${px}px, under 12 px`);
+      t.event('map-best', `${when}: ${c.id} "${text}" at ${Math.round(b.left)},${Math.round(b.top)} ${Math.round(b.width)}x${Math.round(b.height)} ${innerWidth}x${innerHeight}`);
+    }
+    t.event('map-stars', `${when}: ${c.id} ${el.dataset.stars} of 3 ("${label}") at ${Math.round(r.left)},${Math.round(r.top)} ${innerWidth}x${innerHeight}`);
   }
 
   /** A chapter with a quota: the HUD chip must show it from the start and follow the damage dealt. Call it every poll. */
@@ -2625,6 +3495,99 @@ class Run {
       await this.closeSelect();
       t.progress(1);
       t.finish(stillLocked || picked !== name ? 'lost' : 'won');
+    } finally {
+      this.game.setCampaignProgress(before);
+      unlocks().clear();
+      for (const id of savedUnlocks) unlocks().add(id);
+      saveUnlocks(unlocks());
+    }
+  }
+
+  /**
+   * Locked fighters say how to open them. Setup shortcut: a fresh save (no chapters cleared, nothing unlocked; put back).
+   * Versus select: every locked tile is a silhouette with its route under "Locked" (`locked-tile`), a tap shows the full
+   * route in a status note (`locked-route`, checked against the chapter's own `unlock`, on screen). Then a versus match is
+   * played to Results, which shows the bar toward the next unlock when it is one episode away (`unlock-bar`).
+   * Phone 390x844: every press is a pointer tap.
+   */
+  async unlockRouteRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.phoneScenario();
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+      suppressRotate(true);
+    }
+    const savedUnlocks = [...unlocks()];
+    const before = this.game.setCampaignProgress([]);
+    unlocks().clear();
+    saveUnlocks(unlocks());
+    t.log('setup shortcut: a fresh save (no chapters cleared, nothing unlocked)');
+    try {
+      await this.openSelect();
+      await t.until(() => document.querySelectorAll('#select-grid .tile').length > 0, 5000, 'fighter tiles');
+      const tiles = [...document.querySelectorAll<HTMLElement>('#select-grid .tile.locked')];
+      t.metric('lockedTiles', tiles.length);
+      if (tiles.length !== LOCKABLE.size) t.problem('bug', `a fresh save should show ${LOCKABLE.size} locked tiles, not ${tiles.length}`);
+      let shown = 0;
+      for (const [k, tile] of tiles.entries()) {
+        t.progress(0.05 + (0.5 * k) / tiles.length);
+        const id = tile.dataset.fighter!;
+        const route = unlockRoute(id);
+        const c = CHARACTERS.find((x) => x.id === id);
+        if (!route || !c) {
+          t.problem('bug', `locked tile ${id} has no episode that unlocks it`);
+          continue;
+        }
+        const img = tile.querySelector('img');
+        const dark = !!img && /brightness\(0\)/.test(getComputedStyle(img).filter);
+        const label = tile.querySelector('.lock-route small')?.textContent ?? '';
+        if (!dark) t.problem('bug', `${c.name}'s locked tile is not a silhouette`);
+        if (label !== `S${route.season} · E${route.episode}`) t.problem('bug', `${c.name}'s locked tile reads "${label}", not S${route.season} · E${route.episode}`);
+        tile.scrollIntoView({ block: 'center' });
+        await this.click(() => tile, `locked tile ${c.name}`);
+        const note = () => this.q(`.locked-route-note[data-fighter="${id}"]`);
+        await t.until(() => !!note(), 3000, `the route note for ${c.name}`).catch((e) => {
+          if (String(e).includes('stopped')) throw e;
+        });
+        const n = note();
+        const r = n?.getBoundingClientRect();
+        if (!n || !r) {
+          t.problem('bug', `tapping the locked ${c.name} tile showed no unlock route`);
+          continue;
+        }
+        const bad = !(n.textContent ?? '').includes(route.text) || r.left < -1 || r.right > innerWidth + 1 || r.bottom > innerHeight + 1 || r.top < 0 || n.scrollWidth > n.clientWidth + 1;
+        if (bad) t.problem('bug', `${innerWidth}x${innerHeight}: the route note for ${c.name} is wrong or off screen ("${n.textContent}")`);
+        else {
+          shown++;
+          t.event('locked-route', `${c.name}: "${n.textContent}" (${Math.round(r.width)}x${Math.round(r.height)} at ${innerWidth}x${innerHeight})`);
+        }
+      }
+      t.metric('lockedRoutes', shown);
+      if (shown !== tiles.length) t.problem('bug', `${shown} of ${tiles.length} locked tiles showed their unlock route on a tap`);
+      t.progress(0.6);
+      // Results: one episode from Kaelen.
+      const next = nextUnlock();
+      t.event('next-unlock', next ? `${next.fighter}: ${next.away} episode(s) away (${next.route.text})` : 'none');
+      await this.closeSelect();
+      await this.startVersus(1);
+      await this.fight(() => false, 6 * 60 * 1000);
+      await this.screen('results', 30000);
+      await this.wait(900);
+      const bar = this.q('#results-body .results-unlock');
+      if (!bar) t.problem('bug', 'the results show no progress bar toward the next unlock, one episode before it');
+      else {
+        bar.scrollIntoView({ block: 'nearest' });
+        const r = bar.getBoundingClientRect();
+        const fill = bar.querySelector<HTMLElement>('.bar i')?.getBoundingClientRect().width ?? 0;
+        if (r.width < 2 || r.left < -1 || r.right > innerWidth + 1) t.problem('bug', `${innerWidth}x${innerHeight}: the unlock bar on the results is off screen`);
+        if (bar.dataset.fighter !== next?.fighter) t.problem('bug', `the results bar is for ${bar.dataset.fighter}, the next unlock is ${next?.fighter}`);
+        t.event('unlock-bar', `"${bar.textContent}" fill ${bar.dataset.fill} (${Math.round(fill)} px of ${Math.round(r.width)}) at ${innerWidth}x${innerHeight}`);
+        t.metric('unlockBars', 1);
+      }
+      t.finish('done');
     } finally {
       this.game.setCampaignProgress(before);
       unlocks().clear();
@@ -3037,6 +4000,103 @@ class Run {
       const hit = r.left < pct.right && r.right > pct.left && r.top < pct.bottom && r.bottom > pct.top;
       if (hit) t.problem('bug', `the connection bars of card ${i} overlap the percent`);
     });
+  }
+
+
+  /**
+   * Invite a friend (peers: 2, ?room=<id>&peer=0/1; docs/online.md): peer 0 taps Invite a friend (the share sheet, or the
+   * copy fallback), a stand-in third browser takes the second seat so peer 1's link meets a full room (message and Quick
+   * match), the seat is freed and peer 1 opens the link past the title: both are in the same room, pair and see Match
+   * found. Taps only when the window is a touch phone.
+   */
+  async inviteRun(): Promise<void> {
+    const t = this.t;
+    const net = await Promise.race([onlineReady(), new Promise<null>((r) => setTimeout(() => r(null), 60000))]);
+    const parts = net?.onlineParts() ?? null;
+    if (!net || !parts) {
+      t.problem('bug', 'online play did not start on this page (see the console)');
+      t.finish('error');
+      return;
+    }
+    const { PLAYTEST_PEER, TEST_LOBBY } = net;
+    const peer = Math.max(0, PLAYTEST_PEER);
+    if (!TEST_LOBBY) {
+      t.problem('warning', 'the invite scenario needs ?room=<id> (Hawkes Gen playtest.run with peers: 2); without it there is nobody to meet');
+      t.finish('done');
+      return;
+    }
+    const { lobby, mm } = parts;
+    this.useTap = this.phoneScenario();
+    this.logViewport(this.phoneScenario());
+    if (this.options.at !== 'phone-turned' && innerHeight > innerWidth) this.useTap = true;
+    await this.toMainMenu();
+    t.progress(0.05);
+    const panel = () => this.q('#invite');
+    const panelOpen = () => !!panel() && !panel()!.hidden;
+    const log: string[] = [];
+    window.addEventListener('dod:invite', (e) => log.push((e as CustomEvent).detail?.phase));
+    const code = 'TEST42';
+    const link = net.inviteUrl(code);
+    const roomId = new URL(link).searchParams.get('room');
+    if (net.inviteCodeFrom(new URL(link).search) !== code || roomId !== new URLSearchParams(location.search).get('room')) {
+      t.problem('bug', `the invite link ${link} does not carry its code and test room`);
+    }
+
+    // 1. Peer 0: Invite a friend. The share sheet opens (a phone) or the link is copied (the fallback); the link is shown.
+    if (peer === 0) {
+      await this.click(() => this.q('#btn-invite'), 'Invite a friend');
+      await t.until(() => panelOpen(), 5000, 'the Invite panel');
+      await t.until(() => log.includes('shared') || log.includes('copied') || log.includes('share-failed') || log.includes('share-cancelled'), 8000, 'the link shared or copied');
+      const how = log.includes('shared') ? 'share sheet' : log.includes('copied') ? 'copied' : 'selected for copying';
+      const shown = (this.q('#invite-link') as HTMLInputElement)?.value ?? '';
+      if (!/[?&]invite=TEST42\b/.test(shown)) t.problem('bug', `the invite link shown is "${shown}"`);
+      t.event('invite-created', `Invite a friend: link ${shown} (${how}; ${this.q('#invite-note')?.textContent ?? ''})`);
+      t.event(log.includes('shared') ? 'invite-shared' : 'invite-copied', how);
+      const rect = (this.q('#invite .panel') as HTMLElement).getBoundingClientRect();
+      if (rect.left < 0 || rect.right > innerWidth + 1 || rect.bottom > innerHeight + 1) t.problem('bug', `the Invite panel runs off the window (${Math.round(rect.left)}..${Math.round(rect.right)} x ${Math.round(rect.bottom)})`);
+      for (const b of document.querySelectorAll<HTMLElement>('#invite button:not([hidden]), #invite input')) {
+        const r = b.getBoundingClientRect();
+        if (r.height < 43.5 || r.width < 43.5) t.problem('bug', `an Invite control is ${Math.round(r.width)}x${Math.round(r.height)}: ${b.id}`);
+      }
+      // A stand-in third browser takes the second seat, quietly, so peer 1 meets a full room.
+      await t.until(() => net.inviteInfo().state === 'waiting', 30000, 'the invite room to open');
+      const seat = new net.Invite(code, false, { id: net.standInId(), name: 'Seat', avatar: '' }, true);
+      await seat.start();
+      t.event('invite-seat-taken', `a stand-in browser holds the second seat (${seat.state})`);
+      await t.wait(35000);
+      seat.close();
+      t.event('invite-seat-freed', 'the stand-in left the room');
+      await t.until(() => net.inviteInfo().state === 'paired' || mm.state === 'found', 120000, 'the friend to come in');
+      t.event('invite-paired', `${net.inviteInfo().friend || 'a friend'} opened the link and is in the room`);
+    } else {
+      // 2. Peer 1 opens the link while the seat is taken: Hawkes Net refuses, the panel says so and offers Quick match.
+      await t.wait(15000);
+      net.openInvite(net.inviteCodeFrom(new URL(link).search));
+      await t.until(() => panel()?.dataset.state === 'full', 30000, 'the full-room message');
+      const msg = this.q('#invite-status')?.textContent ?? '';
+      const quick = this.q('#invite-quick') as HTMLButtonElement | null;
+      if (!/full/i.test(msg)) t.problem('bug', `the full-room message says "${msg}"`);
+      if (!quick || quick.hidden || quick.getClientRects().length === 0) t.problem('bug', 'a full room has no Quick match button');
+      else if (quick.getBoundingClientRect().height < 43.5) t.problem('bug', 'Quick match is under 44 px tall');
+      t.event('invite-full', `${msg} [${quick?.textContent?.trim() ?? 'no button'}]`);
+      await this.click(() => this.q('#invite-quick'), 'Quick match');
+      await t.until(() => mm.state === 'searching', 5000, 'Quick match to start searching');
+      t.event('invite-quick-match', 'Quick match from the full-room message started a search');
+      mm.cancel();
+      // 3. The seat is free: peer 1 opens the link again and lands in peer 0's room.
+      await t.wait(25000);
+      net.openInvite('TEST42');
+      await t.until(() => net.inviteInfo().state === 'paired', 30000, "peer 0's room");
+      t.event('invite-paired', `in the room with ${net.inviteInfo().friend}`);
+    }
+    t.progress(0.7);
+    // 4. Both in the same room: the pair handshake runs and both see Match found.
+    await t.until(() => (this.q('#mm-found') && !this.q('#mm-found')!.hidden) || this.game.match()?.setup.mode === 'online', 60000, 'Match found');
+    t.event('match-found', (this.q('#mm-found')?.textContent ?? '').replace(/\s+/g, ' ').trim());
+    if (lobby.count() < 2) t.problem('bug', 'the invite pair is not in the shared lobby');
+    t.metric('inviteBoth', 1);
+    mm.cancel();
+    t.finish('done');
   }
 
   /** Two tabs (peers: 2) in one private test lobby: see each other, rename, queue, get matched, fight, results. */
@@ -3997,6 +5057,491 @@ class Run {
     }
   }
 
+  /**
+   * Bots read stage hazards (`ai/hazardRead.ts`, `ai/bot.ts`). A versus match on a hazard stage (option `stage`, default
+   * desert; hazards on, the first warning comes inside 45 s of play) with the playtest bot on the player's side and a level
+   * 9 CPU opposite. For each warning (`hazard-warning`) every fighter standing in the warned hazard's way is followed: a
+   * level 9 bot must visibly move out, by a hop, a walk or a drop, before the hazard arrives (`hazard-dodge`: frames after
+   * the warning, the distance moved), and the pass ends with `hazard-avoided` or `hazard-hit` per fighter. On a phone
+   * (390x844 turned to 844x390, touch controls forced on) the bot reads the same warning state the player sees: the alarm,
+   * the stage art. Metrics `hazardWarnings`, `hazardThreatened`, `hazardDodged`, `hazardHits`; the first pass is
+   * `hazard-first` ("the bot avoids the first hazard after its warning").
+   */
+  async hazardDodge(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('hazard-dodge');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) forceTouchUi(true);
+    try {
+      const id = (list: { id: string }[], want: string) => Math.max(0, list.findIndex((x) => x.id === want));
+      const stageId = String(this.options.stage ?? 'desert');
+      const stage = id(STAGES, stageId);
+      const def = STAGES[stage];
+      if (!def.hazards?.length) {
+        t.problem('bug', `stage ${stageId} has no hazards to dodge`);
+        return t.finish('error');
+      }
+      void this.game.startMatch({
+        mode: 'versus', stage, stocks: 3, rules: { timeLimit: 10 * 60 },
+        slots: [{ char: id(CHARACTERS, 'exit-punk'), cpu: null, team: 0, stocks: 3 }, { char: id(CHARACTERS, 'break'), cpu: 9, team: 1, stocks: 3 }],
+      });
+      await this.matchLive();
+      const m = this.game.match()!;
+      t.event('hazard-setup', `${def.name}: ${(def.hazards ?? []).map((h) => h.id).join(', ')} on events ${(def.events ?? []).filter((e) => def.hazards!.some((h) => h.during === e.id)).map((e) => e.id).join(', ')}; level 9 bots on both sides${touch ? '; touch controls on' : ''}`);
+      const evOf = (def.events ?? []).map((e, i) => ({ e, i })).filter(({ e }) => def.hazards!.some((h) => h.during === e.id));
+      const prev = evOf.map(() => EV_IDLE as number);
+      interface Watch { fighter: number; event: number; at: number; x: number; y: number; moved: boolean; first: boolean }
+      let watches: Watch[] = [];
+      let warnings = 0;
+      let threatened = 0;
+      let dodged = 0;
+      let hits = 0;
+      let passes = 0;
+      const botOf = (i: number) => (i === m.player ? this.bot : m.bots[i]);
+      const hitch = this.watchHitch();
+      const stocksSeen = m.state.fighters.map((f) => f.stocks);
+      const hurtSeen = m.state.fighters.map(() => false);
+      const sample = (): boolean => {
+        const s = m.state;
+        if (s.over) return true;
+        s.fighters.forEach((f, i) => {
+          if (f.stocks < stocksSeen[i]) hitch.mark(`KO P${i + 1}`);
+          stocksSeen[i] = f.stocks;
+          const hurt = s.hazHit.some((h) => (h & (1 << i)) !== 0);
+          if (hurt && !hurtSeen[i]) hitch.mark(`hazard hurt P${i + 1}`);
+          hurtSeen[i] = hurt;
+        });
+        evOf.forEach(({ e, i }, k) => {
+          const now = s.evPhase[i];
+          if (now !== prev[k]) hitch.mark(`${now === EV_WARN ? 'warn' : now === EV_RUN ? 'event' : 'eventEnd'}:${e.id}`);
+          if (now === EV_WARN && prev[k] !== EV_WARN) {
+            warnings++;
+            t.event('hazard-warning', `${e.name ?? e.id} warns on ${def.name}, ${e.warn ?? 0} s before it arrives`);
+            for (const f of s.fighters) {
+              if (f.stocks <= 0 || f.action === ACT.DEAD || f.action === ACT.RESPAWN || f.action === ACT.HITSTUN) continue;
+              const d = readDangers(def, s, f);
+              const [hw, h] = bodyOf(f);
+              if (!d.event || clearance(d, f.x / FX, f.y / FX, hw, h) >= 10) continue;
+              threatened++;
+              watches.push({ fighter: f.id, event: i, at: s.frame, x: f.x / FX, y: f.y / FX, moved: false, first: passes === 0 });
+            }
+          }
+          if (prev[k] === EV_RUN && now === EV_IDLE) {
+            const ride = (def.hazards ?? []).map((hz, j) => ({ hz, j })).filter(({ hz }) => hz.during === e.id);
+            for (const w of watches.filter((x) => x.event === i)) {
+              const hit = ride.some(({ j }) => (s.hazHit[j] & (1 << w.fighter)) !== 0);
+              const who = w.fighter === m.player ? 'playtest bot' : 'CPU';
+              if (hit) hits++;
+              t.event(hit ? 'hazard-hit' : 'hazard-avoided', `${who} (P${w.fighter + 1}) ${hit ? 'was hit by' : 'got clear of'} the ${e.name ?? e.id}`);
+              if (w.first) t.event('hazard-first', `first hazard after its warning: ${who} ${hit ? 'was hit' : 'avoided it'}${w.moved ? ', after moving' : ''}`);
+              if (!w.moved) t.problem('bug', `a level 9 bot stood still in the way of the ${e.name ?? e.id} after its warning`);
+            }
+            if (watches.some((x) => x.event === i)) passes++;
+            watches = watches.filter((x) => x.event !== i);
+          }
+          prev[k] = now;
+        });
+        for (const w of watches) {
+          if (w.moved) continue;
+          const f = s.fighters[w.fighter];
+          const moved = Math.hypot(f.x / FX - w.x, f.y / FX - w.y);
+          if (botOf(w.fighter)?.avoiding || moved >= 120) {
+            w.moved = true;
+            dodged++;
+            t.event('hazard-dodge', `${w.fighter === m.player ? 'playtest bot' : 'CPU'} (P${w.fighter + 1}) moves out of the way ${s.frame - w.at} frames after the warning (${Math.round(moved)} units from where it stood)`);
+          }
+        }
+        return passes >= 2 && watches.length === 0;
+      };
+      this.manual = null;
+      await this.fight(sample, 240000).catch(() => undefined);
+      hitch.stop();
+      t.metric('hazardWarnings', warnings);
+      t.metric('hazardThreatened', threatened);
+      t.metric('hazardDodged', dodged);
+      t.metric('hazardHits', hits);
+      if (!warnings) t.problem('bug', `no hazard warning showed on ${def.name} during the match`);
+      if (m.state.over || currentScreen() === 'results') {
+        await this.results();
+        await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      } else {
+        await this.quitFromPause('main');
+      }
+      await this.screen('main');
+      t.finish('done');
+    } finally {
+      this.manual = null;
+      if (touch) forceTouchUi(false);
+    }
+  }
+
+  /**
+   * The Hazards rule (`ui/select.ts` Versus rules, `main.ts` `pickStage`, `net/online.ts` `hostHazardsOff`). Versus select:
+   * the Hazards row shows On, fits the rules panel with 44 px targets, a tap turns it Off and it is saved (`dod-versus`), and
+   * it is still Off after leaving and reopening Versus (`hazards-rule`, `hazards-fit`, `hazards-persist`). The stage select
+   * marks the stages that have a hazard and only those (`hazards-icons`). Then a 2-minute match (option `stage`, default
+   * desert) with the rule Off: the stage's events never warn or run and no hazard hits anyone (`hazards-off-match`;
+   * metric `hazardEventsFired` must be 0). The rule is put back to On. Phone: the select is checked at 390x844 by taps,
+   * then the match plays in the turned 844x390 frame by taps.
+   */
+  async hazardRule(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch) this.useTap = true;
+    const turn = touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560;
+    this.logViewport(touch && this.isPhone());
+    if (touch && !turn) forceTouchUi(true);
+    const row = () => document.querySelector<HTMLElement>('#select-rules .rule[data-rule="hazards"]');
+    const value = () => row()?.querySelector<HTMLElement>('.value');
+    const saved = () => { try { return JSON.parse(localStorage.getItem('dod-versus') ?? 'null')?.hazards; } catch { return undefined; } };
+    const wasSaved = saved();
+    try {
+      await this.toMainMenu();
+      await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+      await this.screen('select');
+      await t.until(() => !!value(), 5000, 'the Hazards rule');
+      const r = value()!.getBoundingClientRect();
+      const panel = this.q('#select-rules')!.getBoundingClientRect();
+      const inside = r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight && r.left >= panel.left - 1 && r.right <= panel.right + 1;
+      const big = r.width >= 44 && r.height >= 44;
+      t.event('hazards-rule', `Versus rules list "${row()!.querySelector('span')?.textContent}" = ${value()!.textContent}`);
+      if (value()!.textContent !== 'On') t.problem('bug', `Hazards should start On (it reads ${value()!.textContent})`);
+      t.event('hazards-fit', `toggle ${Math.round(r.width)}x${Math.round(r.height)} at ${Math.round(r.left)},${Math.round(r.top)} in ${innerWidth}x${innerHeight}`);
+      if (!inside || !big) t.problem('bug', `the Hazards toggle ${inside ? 'is under 44 px' : 'is not inside the rules panel and the window'} at ${innerWidth}x${innerHeight}`);
+      await this.click(() => value(), 'Hazards');
+      await t.until(() => value()?.textContent === 'Off', 3000, 'Hazards Off');
+      if (saved() !== false) t.problem('bug', 'Hazards Off was not saved with the Versus rules');
+      // Leave and come back: the choice stays.
+      await this.click(() => this.q('#select [data-back]'), 'Back');
+      await this.screen('main');
+      await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+      await this.screen('select');
+      await t.until(() => !!value(), 5000, 'the Hazards rule again');
+      t.event('hazards-persist', `after leaving and reopening Versus the rule reads ${value()!.textContent}, saved ${String(saved())}`);
+      if (value()!.textContent !== 'Off') t.problem('bug', 'Hazards did not stay Off after reopening Versus');
+      if (turn) {
+        await this.click(() => value(), 'Hazards');
+        await t.until(() => value()?.textContent === 'On', 3000, 'Hazards On');
+        await this.click(() => this.q('#select [data-back]'), 'Back');
+        await this.screen('main');
+        return this.touchMatchTurned('hazard-rule');
+      }
+      // Stage select: the mark is on the stages that have something to switch off, and only those.
+      const stageId = String(this.options.stage ?? 'desert');
+      (this.options as Record<string, unknown>).stage = stageId;
+      this.onStages = async (cards) => {
+        const marked = cards.filter((c) => !!c.querySelector('[data-hazard]'));
+        const wrong = cards.filter((c) => {
+          const st = STAGES.find((x) => x.id === c.dataset.stage);
+          return !!c.querySelector('[data-hazard]') !== (!!st && (!!st.events?.length || !!st.hazards?.length || !!st.zones?.some((z) => z.kind === 'damage')));
+        });
+        t.event('hazards-icons', `${marked.length} of ${cards.length} stage cards carry the hazard mark (${marked.map((c) => c.dataset.stage).join(', ')})`);
+        if (!marked.length || wrong.length) t.problem('bug', `hazard marks are wrong on: ${wrong.map((c) => c.dataset.stage).join(', ') || 'every stage (none shown)'}`);
+        const small = marked.map((c) => c.getBoundingClientRect()).filter((b) => b.right > innerWidth || b.left < 0);
+        if (small.length) t.problem('bug', 'a stage card with the hazard mark runs off the screen');
+        t.metric('hazardMarks', marked.length);
+      };
+      await this.startVersus(9, true);
+      this.onStages = null;
+      await this.matchLive();
+      const m = this.game.match()!;
+      const def = STAGES[m.setup.stage];
+      if (m.state.rules.hazards !== 0) t.problem('bug', `the match started with rules.hazards ${m.state.rules.hazards} although Hazards is Off`);
+      t.event('hazards-off-match', `${def.name}: rules.hazards ${m.state.rules.hazards}; ${def.events?.length ?? 0} events, ${def.hazards?.length ?? 0} hazards; playing 2 minutes`);
+      let fired = 0;
+      let hit = 0;
+      const sample = (): boolean => {
+        const s = m.state;
+        fired += s.evPhase.filter((p) => p !== EV_IDLE).length ? 1 : 0;
+        hit += s.hazHit.filter((x) => x !== 0).length;
+        return s.frame >= 7200;
+      };
+      this.manual = null;
+      await this.fight(sample, 420000).catch(() => undefined);
+      t.metric('hazardEventsFired', fired);
+      t.metric('hazardHitsOff', hit);
+      t.metric('hazardMatchSeconds', Math.round(m.state.frame / 60));
+      if (fired || hit) t.problem('bug', `with Hazards Off ${def.name}'s hazard still ran (${fired} frames with an event up, ${hit} hits)`);
+      else t.event('hazards-off-2min', `${Math.round(m.state.frame / 60)} s of play on ${def.name}: no event warned or ran, no hazard hit anyone`);
+      if (m.state.frame < 7200) t.problem('bug', `the match ended at ${Math.round(m.state.frame / 60)} s, before the 2 minutes were played`);
+      if (m.state.over || currentScreen() === 'results') {
+        await this.results();
+        await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      } else {
+        await this.quitFromPause('main');
+      }
+      await this.screen('main');
+      t.finish('done');
+    } finally {
+      this.onStages = null;
+      this.manual = null;
+      try {
+        const v = JSON.parse(localStorage.getItem('dod-versus') ?? 'null');
+        if (v) { if (wasSaved === undefined) delete v.hazards; else v.hazards = wasSaved; localStorage.setItem('dod-versus', JSON.stringify(v)); }
+      } catch { /* storage blocked */ }
+      if (touch && !turn) forceTouchUi(false);
+    }
+  }
+
+  /**
+   * CPU levels (ai/bot.ts: level drives reaction, recovery, shielding and the ledge choice). A versus match, Exit Punk (the
+   * playtest bot on the pad, touch controls on a phone) against a Break CPU at option `level` (default 1), 2 stocks, to the end.
+   * Events `cpu-level`, `cpu-ledge` (the option the CPU chose on the ledge), `cpu-recovery` (each trip off the stage and
+   * whether it got back), `cpu-result`; metrics `cpuRecoveries`, `cpuRecoveryMisses`, `cpuLedgeOptions`, `cpuWon`. A bug problem
+   * when a level-1 CPU beats the playtest bot. On a phone (390x844 turned to 844x390) the same match plays by touch.
+   */
+  async cpuLevel(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('cpu-level');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) forceTouchUi(true);
+    try {
+      const level = Math.max(1, Math.min(9, Number(this.options.level) || 1));
+      const id = (list: { id: string }[], want: string) => Math.max(0, list.findIndex((x) => x.id === want));
+      const stage = id(STAGES, String(this.options.stage ?? 'city-top'));
+      void this.game.startMatch({
+        mode: 'versus', stage, stocks: 2, rules: { timeLimit: 5 * 60 },
+        slots: [{ char: id(CHARACTERS, 'exit-punk'), cpu: null, team: 0, stocks: 2 }, { char: id(CHARACTERS, 'break'), cpu: level, team: 1, stocks: 2 }],
+      });
+      await this.matchLive();
+      const m = this.game.match()!;
+      t.event('cpu-level', `CPU level ${level} (P2) against the playtest bot${touch ? '; touch controls on' : ''}`);
+      const cpu = m.bots[1];
+      let trips = 0;
+      let misses = 0;
+      let last = '';
+      let was = false;
+      let hit = false;
+      const options = new Set<string>();
+      const sample = (): boolean => {
+        const s = m.state;
+        const f = s.fighters[1];
+        if (f.action === ACT.HITSTUN) hit = true;
+        if (cpu && cpu.recovering && !was) {
+          trips++;
+          hit = false;
+        }
+        if (cpu && was && !cpu.recovering && f.action !== ACT.DEAD && f.action !== ACT.RESPAWN) t.event('cpu-recovery', `the CPU got back to the stage (trip ${trips})`);
+        if (cpu && was && f.action === ACT.DEAD && !hit) {
+          misses++;
+          t.event('cpu-recovery', `the CPU missed its recovery and fell (trip ${trips}, level ${level})`);
+        }
+        was = !!cpu?.recovering;
+        if (cpu && cpu.lastLedge && cpu.lastLedge !== last) {
+          last = cpu.lastLedge;
+          options.add(last);
+          t.event('cpu-ledge', `the CPU chose ${last} on the ledge`);
+        }
+        return !!s.over;
+      };
+      this.manual = null;
+      await this.fight(sample, 300000).catch(() => undefined);
+      const won = m.state.winner === m.player;
+      t.metric('cpuRecoveries', trips);
+      t.metric('cpuRecoveryMisses', misses);
+      t.metric('cpuLedgeOptions', options.size);
+      t.metric('cpuWon', won ? 0 : 1);
+      t.event('cpu-result', `${won ? 'the playtest bot beat' : 'the CPU beat the playtest bot at'} level ${level}: ${trips} trips off the stage, ${misses} missed, ledge options ${[...options].join(', ') || 'none'}`);
+      if (level === 1 && m.state.over && !won) t.problem('bug', 'a level-1 CPU beat the playtest bot');
+      if (m.state.over || currentScreen() === 'results') {
+        await this.results();
+        await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      } else {
+        await this.quitFromPause('main');
+      }
+      await this.screen('main');
+      t.finish('done');
+    } finally {
+      this.manual = null;
+      if (touch) forceTouchUi(false);
+    }
+  }
+
+  /**
+   * Auto quality (render/autoQuality.ts, in the renderer's own frame loop). A slow device is simulated (option `slowMs`, the ms a
+   * frame costs at full quality, default 60; `slow: false` plays the real device): match 1 must settle to a lower level within
+   * 5 s of play with the median fps at 45 or more afterwards (`auto-lowered`, `auto-settled`, `auto-fps`), show one quiet toast
+   * clear of every touch control (`auto-toast`, `auto-toast-clear`); match 2, slower still, lowers again with no second toast
+   * (`auto-no-repeat`); then Quality is pressed by hand in Settings and match 3 changes nothing (`auto-hand`). On a phone it is
+   * played in the turned 844x390 frame and the fighter is driven by the touch stick and Attack button only.
+   */
+  async autoQuality(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('auto-quality');
+    }
+    this.logViewport(touch && this.isPhone());
+    const slowMs = this.options.slow === false ? 0 : Number(this.options.slowMs) || 60;
+    const keys = [GFX_KEY, HAND_KEY, AUTO_KEY, AUTO_TOAST_KEY];
+    const saved = keys.map((k) => [k, localStorage.getItem(k)] as const);
+    const initial = graphics();
+    for (const k of keys) localStorage.removeItem(k);
+    setGraphics(touch || this.options.quality === 'low' ? { quality: 'low', glow: false } : { quality: 'high', glow: true });
+    // setGraphics saved dod.gfx as the device default; that is not a hand pick.
+    const stats = () => this.game.autoStats?.();
+    if (!stats()) {
+      t.problem('bug', 'the game has no autoStats hook');
+      return t.finish('done');
+    }
+    await this.toMainMenu();
+    if (touch) forceTouchUi(true);
+    const pointer = (el: Element, type: string, x: number, y: number) =>
+      el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: 91, isPrimary: true, bubbles: true, cancelable: true, clientX: x, clientY: y, buttons: type === 'pointerup' ? 0 : 1 }));
+    const changes: { at: number; detail: { dir: string; from: number; to: number; level: number; atMs: number; scale: number } }[] = [];
+    const onChange = (e: Event) => changes.push({ at: performance.now(), detail: (e as CustomEvent).detail });
+    window.addEventListener('dod:auto-quality', onChange);
+    const id = (list: { id: string }[], want: string) => Math.max(0, list.findIndex((x) => x.id === want));
+    const median = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[xs.length >> 1] : 0);
+    /** Plays one match for `ms` of play; by the touch stick and Attack on a phone, else by the bot. Returns the fps samples with their time. */
+    const play = async (ms: number) => {
+      this.manual = touch ? NO_INPUT : null;
+      void this.game.startMatch({
+        mode: 'versus', stage: id(STAGES, 'yo-house'), stocks: 3, rules: { timeLimit: 10 * 60, hazards: 0 },
+        slots: [{ char: id(CHARACTERS, 'exit-punk'), cpu: null, team: 0, stocks: 3 }, { char: id(CHARACTERS, 'break'), cpu: 3, team: 1, stocks: 3 }],
+      });
+      await this.matchLive();
+      const m = this.game.match()!;
+      const t0 = performance.now();
+      const f0 = m.state.frame;
+      const samples: { at: number; fps: number }[] = [];
+      let beat = 0;
+      const root = touchOverlay();
+      const stick = root?.querySelector('.touch-stick') ?? null;
+      const atk = root?.querySelector('.touch-btn.attack') ?? null;
+      const sr = stick?.getBoundingClientRect();
+      const scx = sr ? sr.left + sr.width / 2 : 0;
+      const scy = sr ? sr.top + sr.height / 2 : 0;
+      if (touch && stick && sr) pointer(stick, 'pointerdown', scx, scy);
+      try {
+        await t.until(() => {
+          const g = this.game.gfxStats?.();
+          if (g && g.fpsNow > 0) samples.push({ at: performance.now() - t0, fps: g.fpsNow });
+          if (touch && stick && sr && atk) {
+            beat++;
+            // The stick swings left and right every 1.2 s and Attack is tapped every 0.5 s: real pointer events, no pad.
+            const dir = Math.floor(beat / 24) % 2 ? -1 : 1;
+            pointer(stick, 'pointermove', scx + dir * sr.width * 0.38, scy);
+            if (beat % 10 === 0) {
+              const br = atk.getBoundingClientRect();
+              pointer(atk, 'pointerdown', br.left + br.width / 2, br.top + br.height / 2);
+              window.setTimeout(() => pointer(atk, 'pointerup', br.left + br.width / 2, br.top + br.height / 2), 120);
+            }
+          }
+          return m.state.over === 1 || performance.now() - t0 >= ms;
+        }, ms + 20000, 'the measured play');
+      } finally {
+        if (touch && stick && sr) pointer(stick, 'pointerup', scx, scy);
+      }
+      return { samples, play: ((m.state.frame - f0) / 60) * 1000 };
+    };
+    const leave = async () => {
+      this.manual = null;
+      if (currentScreen() === 'match') await this.quitFromPause('main').catch(() => undefined);
+    };
+    try {
+      // 1. The slow device settles lower, quickly, and says so once.
+      this.game.autoSetup?.({ enabled: true, reset: true, slowMs });
+      t.event('auto-setup', slowMs ? `a simulated slow device: ${slowMs} ms a frame at full quality` : 'the real device, no simulation');
+      const g0 = this.game.gfxStats?.();
+      t.event('auto-start', `level 0, render scale ${g0?.scale}, glow ${g0?.glowOn}, quality ${g0?.quality}`);
+      const a = await play(16000);
+      const s1 = stats()!;
+      const downs = changes.filter((c) => c.detail.dir === 'down');
+      const g1 = this.game.gfxStats?.();
+      t.metric('autoLevel', s1.level);
+      if (!downs.length) {
+        if (slowMs) t.problem('bug', `the slow device (${slowMs} ms a frame) never stepped quality down (median ${s1.fps} fps)`);
+        else t.event('auto-lowered', `no step needed: the device holds ${s1.fps} fps at level 0`);
+      } else {
+        const last = downs[downs.length - 1].detail;
+        t.metric('autoSettleMs', Math.round(s1.settledAtMs > 0 ? s1.settledAtMs : last.atMs));
+        t.event('auto-lowered', `${downs.length} step(s) down to level ${s1.level} (${downs.map((d) => `${d.detail.from}→${d.detail.to} at ${(d.detail.atMs / 1000).toFixed(1)} s`).join(', ')}); render scale ${g0?.scale} → ${g1?.scale}, glow ${g0?.glowOn} → ${g1?.glowOn}`);
+        if (last.atMs > 5000) t.problem('bug', `quality was still stepping down ${(last.atMs / 1000).toFixed(1)} s into the match (want settled within 5 s)`);
+        else t.event('auto-settled', `last step at ${(last.atMs / 1000).toFixed(1)} s of play${s1.settled ? `, settled at ${(s1.settledAtMs / 1000).toFixed(1)} s` : ''}`);
+        const lastAt = a.samples.length ? a.samples[a.samples.length - 1].at : 0;
+        const before = median(a.samples.filter((x) => x.at < 1500).map((x) => x.fps));
+        const after = median(a.samples.filter((x) => x.at > Math.min(last.atMs + 1500, lastAt - 1500)).map((x) => x.fps));
+        t.metric('autoFpsBefore', Math.round(before));
+        t.metric('autoFpsAfter', Math.round(after));
+        t.metric('fpsMatch', Math.round(after));
+        t.event('auto-fps', `median ${Math.round(before)} fps at the start, ${Math.round(after)} fps after it settled`);
+        if (slowMs && after < 45) t.problem('bug', `median ${Math.round(after)} fps after auto quality settled (want 45 or more)`);
+      }
+      // The toast: one, short, quiet, and clear of every control.
+      if (downs.length) {
+        const toast = document.getElementById('auto-quality-toast');
+        const rect = s1.toastRect;
+        if (s1.toasts !== 1 || !rect) t.problem('bug', `expected one auto quality toast, saw ${s1.toasts}${rect ? '' : ' (none on screen)'}`);
+        else {
+          const text = toast?.textContent ?? '';
+          t.event('auto-toast', `"${text}" (${text.split(/\s+/).length} words) at ${Math.round(rect.x)},${Math.round(rect.y)} ${Math.round(rect.w)}x${Math.round(rect.h)} in ${innerWidth}x${innerHeight}`);
+          const inside = rect.x >= 0 && rect.y >= 0 && rect.x + rect.w <= innerWidth && rect.y + rect.h <= innerHeight;
+          const hits = [...document.querySelectorAll('.touch-btn, .touch-stick, .touch-pause, #pause-btn')]
+            .map((el) => el.getBoundingClientRect())
+            .filter((r) => r.width > 0 && r.height > 0 && r.left < rect.x + rect.w && r.right > rect.x && r.top < rect.y + rect.h && r.bottom > rect.y);
+          if (!inside || hits.length) t.problem('bug', `the auto quality toast ${inside ? `covers ${hits.length} control(s)` : 'is off screen'}`);
+          else t.event('auto-toast-clear', `inside the window and clear of every control${touch ? ' (touch stick, buttons, Pause)' : ''}`);
+        }
+      }
+      await leave();
+      await this.toMainMenu();
+
+      // 2. A slower second match lowers again and never shows the note twice.
+      this.game.autoSetup?.({ slowMs: slowMs * 2 });
+      const before2 = changes.length;
+      await play(9000);
+      const s2 = stats()!;
+      const moved = changes.length - before2;
+      t.event('auto-second-match', `${moved} change(s) in the second match, level ${s1.level} → ${s2.level}`);
+      if (s2.toasts !== 1 || document.querySelectorAll('#auto-quality-toast').length > 1) t.problem('bug', `the auto quality toast came again (${s2.toasts} shown)`);
+      else t.event('auto-no-repeat', `still ${s2.toasts} toast after ${changes.filter((c) => c.detail.dir === 'down').length} step(s) down`);
+      await leave();
+      await this.toMainMenu();
+
+      // 3. A quality picked by hand is never overridden.
+      this.game.autoSetup?.({ reset: true, slowMs });
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, 'Settings');
+      const was = this.game.gfxStats?.();
+      await this.tap(() => this.q('#quality-switch'), 'Quality');
+      await this.tap(() => this.q('#quality-switch'), 'Quality (back)');
+      await this.tap(() => this.q('#settings-done'), 'Done').catch(() => undefined);
+      if (settingsShowing()) await tapKey('Escape');
+      const h = stats()!;
+      if (!h.hand || h.enabled) t.problem('bug', `a hand-picked quality did not switch auto quality off (hand ${h.hand}, enabled ${h.enabled})`);
+      const before3 = changes.length;
+      await play(9000);
+      const s3 = stats()!;
+      const g3 = this.game.gfxStats?.();
+      if (changes.length !== before3 || s3.level !== 0 || (was && g3 && (g3.scale !== was.scale || g3.glowOn !== was.glowOn))) t.problem('bug', `auto quality changed a hand-picked quality (level ${s3.level}, scale ${was?.scale} → ${g3?.scale})`);
+      else t.event('auto-hand', `Quality set by hand in Settings: ${changes.length - before3} changes in a ${slowMs} ms-a-frame match, level ${s3.level}, render scale held at ${g3?.scale}`);
+      await leave();
+      t.finish('done');
+    } finally {
+      window.removeEventListener('dod:auto-quality', onChange);
+      this.manual = null;
+      this.game.autoSetup?.({ enabled: false, slowMs: 0, reset: true });
+      for (const [k, v] of saved) {
+        if (v === null) localStorage.removeItem(k);
+        else localStorage.setItem(k, v);
+      }
+      setGraphics(initial);
+      if (touch) forceTouchUi(false);
+    }
+  }
+
   /** The 'ko' objective, both ways it ends: on the third KO, and on time. */
   async koObjective(): Promise<void> {
     const t = this.t;
@@ -4656,6 +6201,466 @@ class Run {
       else t.problem('bug', `the hold did not grow with damage (0%: ${low ?? 'no grab'} frames, 100%: ${high ?? 'no grab'} frames)`);
       t.metric('throwsLanded', thrown);
     } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- How to play 2: grab, throw, roll, spot-dodge
+
+  /**
+   * How to play 2 (`ui/teach.ts` lesson 'defence', `ai/dummy.ts`): the main menu's second lesson in Training. Five prompts in
+   * turn (grab, throw, roll left, roll right, spot-dodge), each ticked off by the sim seeing the move. Played from real
+   * input only (keys, or the touch stick, Shield and Attack buttons on a phone turned to 844x390).
+   */
+  async lessonTwo(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('lesson-2');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const seen: { step: DefenceStep; state: string; at: number; glyphs: string; device: string }[] = [];
+    const onTeach = (ev: Event) => {
+      const d = (ev as CustomEvent<{ step: DefenceStep; state: string }>).detail;
+      const el = document.querySelector<HTMLElement>('.teach-prompt');
+      seen.push({ step: d.step, state: d.state, at: performance.now(), glyphs: el?.dataset.glyphs ?? '', device: el?.dataset.device ?? '' });
+    };
+    window.addEventListener('dod:teach', onTeach);
+    let stacked = 0;
+    const poll = window.setInterval(() => {
+      if (document.querySelectorAll('.teach-prompt:not(.used):not(.gone)').length > 1) stacked++;
+    }, 50);
+    try {
+      await this.click(() => this.q('#main .menu-item[data-go="howto2"]'), 'How to play 2');
+      await this.matchLive();
+      this.manual = NO_INPUT;
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls (stick, Attack and Shield) were not built');
+        t.finish('error');
+        return;
+      }
+      const match = () => this.game.match()!;
+      const me = () => match().state.fighters[match().player];
+      const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+      };
+      const standing = () => {
+        const f = me();
+        return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      };
+      const settle = async () => {
+        pad.release();
+        await t.until(standing, 10000, 'the fighter to stand');
+        await frames(6);
+      };
+      const toward = () => (dummy().x >= me().x ? 1 : -1);
+      const gap = () => Math.abs(dummy().x - me().x) / FX;
+      const shownNow = (step: DefenceStep) => document.querySelector(`.teach-prompt[data-step="${step}"]:not(.used):not(.gone)`) as HTMLElement | null;
+      if (touch) t.event('phone-shot', `How to play 2 with the touch overlay: Shield and Attack buttons, the stick (${innerWidth}x${innerHeight})`);
+
+      // The moves, each from real input.
+      const reach = CHARACTERS[me().char].grabReach * 0.7;
+      const doStep: Record<DefenceStep, () => Promise<void>> = {
+        grab: async () => {
+          await settle();
+          if (gap() > reach || me().facing !== toward()) {
+            pad.stick(toward() * 100, 0);
+            try {
+              await t.until(() => gap() < reach && me().facing === toward(), 8000, 'Exit Punk to walk up to the dummy');
+            } finally {
+              pad.stick(0, 0);
+            }
+            await frames(6);
+          }
+          pad.button('shield', true);
+          pad.button('attack', true);
+          await frames(3);
+          pad.button('attack', false);
+          pad.button('shield', false);
+        },
+        throw: async () => {
+          await t.until(() => me().action === ACT.GRAB_HOLD, 3000, 'the grab to hold the dummy');
+          await frames(10);
+          pad.stick(toward() * 100, 0);
+          await frames(3);
+          pad.stick(0, 0);
+        },
+        rollL: async () => {
+          await settle();
+          pad.button('shield', true);
+          await frames(6);
+          pad.stick(-100, 0);
+          await frames(4);
+          pad.stick(0, 0);
+          pad.button('shield', false);
+        },
+        rollR: async () => {
+          await settle();
+          pad.button('shield', true);
+          await frames(6);
+          pad.stick(100, 0);
+          await frames(4);
+          pad.stick(0, 0);
+          pad.button('shield', false);
+        },
+        dodge: async () => {
+          await settle();
+          // The dummy walks up and swings on its own: log the gap between its swings.
+          const swings: number[] = [];
+          let last = -1;
+          let wasSwinging = false;
+          const watchSwing = window.setInterval(() => {
+            const d = dummy();
+            const swinging = d.action === ACT.ATTACK;
+            if (swinging && !wasSwinging) {
+              if (last >= 0) swings.push(frame() - last);
+              last = frame();
+            }
+            wasSwinging = swinging;
+          }, 16);
+          try {
+            await t.until(() => dummy().action === ACT.ATTACK || last >= 0, 20000, 'the dummy to swing');
+            t.event('lesson-dummy-swing', `the dummy swung at the player (${Math.round(gap())} units away); it swings every ${150} frames at most`);
+            // Shield up, then a tap down, on the rhythm of its next swing.
+            await t.until(() => standing(), 5000, 'the fighter to stand');
+            pad.button('shield', true);
+            await frames(4);
+            pad.stick(0, -100);
+            await frames(4);
+            pad.stick(0, 0);
+            pad.button('shield', false);
+          } finally {
+            clearInterval(watchSwing);
+          }
+          if (swings.length && Math.min(...swings) < 120) t.problem('bug', `the lesson's dummy swung again after ${Math.min(...swings)} frames (slow means 2 s or more)`);
+        },
+      };
+
+      let tickMax = 0;
+      let done = 0;
+      for (const step of DEFENCE_STEPS) {
+        // The prompt for this step shows, alone, with this device's glyphs.
+        await t.until(() => !!shownNow(step), 20000, `the ${step} prompt`);
+        const el = shownNow(step)!;
+        const dev = el.dataset.device ?? '';
+        const word = PROMPTS[step].word;
+        t.event('lesson-prompt', `${step}: "${word}" (${dev}: ${el.dataset.glyphs ?? ''}) after ${done} ticked`);
+        if (dev !== (touch ? 'touch' : 'keyboard')) t.problem('bug', `the ${step} prompt shows ${dev} glyphs on ${how}`);
+        if (el.textContent?.trim() === '') t.problem('bug', `the ${step} prompt is empty`);
+        if (touch) {
+          // Clear of the touch controls, and the buttons it names pulse.
+          const r = el.getBoundingClientRect();
+          for (const b of document.querySelectorAll<HTMLElement>('.touch .touch-btn, .touch .touch-stick, .touch .touch-pause')) {
+            const q = b.getBoundingClientRect();
+            if (q.width && r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top) t.problem('bug', `the ${step} prompt sits under the ${b.className} control`);
+          }
+        }
+        await doStep[step]();
+        // The tick lands within a second of the move.
+        const moved = performance.now();
+        try {
+          await t.until(() => seen.some((e) => e.step === step && e.state === 'used'), 3000, `the ${step} tick`);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.problem('bug', `${how}: the ${step} step was not ticked off within 3 s of the move (${ACT_NAMES[me().action]})`);
+          continue;
+        }
+        const tick = seen.find((e) => e.step === step && e.state === 'used')!;
+        const ms = Math.max(0, Math.round(tick.at - moved));
+        tickMax = Math.max(tickMax, ms);
+        done++;
+        t.event('lesson-tick', `${step} ticked off ${ms} ms after the move was done (${how})`);
+        if (ms > 1000) t.problem('bug', `${how}: the ${step} step ticked off ${ms} ms after the move (over 1 s)`);
+        t.progress(0.1 + 0.15 * done);
+        await t.wait(700);
+      }
+      t.metric('lessonSteps', done);
+      t.metric('lessonTickMaxMs', tickMax);
+      if (done === DEFENCE_STEPS.length) {
+        try {
+          await t.until(() => !!document.getElementById('teach-reward'), 2000, 'the lesson-clear card');
+          t.event('lesson-clear', `"${document.getElementById('teach-reward')?.textContent ?? ''}" after all ${done} steps (${how})`);
+          await this.lessonCardCheck('back', how);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.problem('bug', 'the lesson showed no clear card after the last step');
+        }
+      }
+      if (stacked) t.problem('bug', `${stacked} samples had more than one teaching prompt on screen`);
+      if (touch) {
+        let small = 0;
+        for (const b of document.querySelectorAll<HTMLElement>('.touch .touch-btn, .touch .touch-pause')) {
+          const q = b.getBoundingClientRect();
+          if (q.width < 44 || q.height < 44) small++;
+        }
+        t.event('lesson-touch', small === 0 ? 'every touch control is 44 px or larger and the lesson was finished with touch only' : `${small} touch controls under 44 px`);
+        if (small) t.problem('bug', `${small} touch controls are under 44 px`);
+      }
+    } finally {
+      clearInterval(poll);
+      window.removeEventListener('dod:teach', onTeach);
+      this.manual = null;
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  /**
+   * The Lesson complete card (main.ts `lessonCard`): shown after the clear pop with a primary button (Next lesson, or Fight a
+   * CPU after the last) and Back to menu, both 44 px tall or more on touch. `next` taps the primary button, `back` taps Back to
+   * menu and then checks the How to play menu ticks the lessons done (localStorage `dod-lessons`) and the Campaign line counts
+   * the real seasons and episodes.
+   */
+  private async lessonCardCheck(action: 'next' | 'back', how: string): Promise<void> {
+    const t = this.t;
+    await t.until(() => !!document.getElementById('lesson-card'), 4000, 'the Lesson complete card');
+    const primary = () => document.querySelector<HTMLElement>('#lesson-card .lesson-primary');
+    const backBtn = () => document.querySelector<HTMLElement>('#lesson-card .lesson-back');
+    const pr = primary()!.getBoundingClientRect();
+    const br = backBtn()!.getBoundingClientRect();
+    t.event('lesson-card', `"${document.querySelector('#lesson-card h2')?.textContent}" with "${primary()!.querySelector('strong')?.textContent}" (${Math.round(pr.height)} px) and "${backBtn()!.querySelector('strong')?.textContent}" (${Math.round(br.height)} px) (${how})`);
+    if (pr.height < 44 || br.height < 44 || pr.width < 44 || br.width < 44) t.problem('bug', `the Lesson complete buttons are under 44 px (${Math.round(pr.height)} and ${Math.round(br.height)})`);
+    if (pr.left < 0 || pr.right > innerWidth || br.bottom > innerHeight) t.problem('bug', 'the Lesson complete card runs off the screen');
+    if (action === 'next') {
+      await this.tap(primary, 'Next lesson');
+      await t.until(() => !document.getElementById('lesson-card'), 4000, 'the card to close');
+      t.event('lesson-next', 'Next lesson started the following lesson');
+      return;
+    }
+    await this.tap(backBtn, 'Back to menu');
+    await this.screen('main');
+    await t.until(() => document.querySelectorAll('.menu-item.lesson-done').length > 0, 4000, 'the ticks on the How to play menu');
+    const ticks = [...document.querySelectorAll<HTMLElement>('.menu-item.lesson-done')].map((b) => b.dataset.go);
+    const stored = localStorage.getItem('dod-lessons');
+    t.event('lesson-ticks', `ticked on the menu: ${ticks.join(', ')}; saved as ${stored}`);
+    const blurb = document.getElementById('campaign-blurb')?.textContent ?? '';
+    t.event('campaign-blurb', blurb);
+    if (/eight/i.test(blurb) || !/\d+ seasons?, \d+ episodes?/.test(blurb)) t.problem('bug', `the Campaign menu line is stale: "${blurb}"`);
+  }
+
+  // ---------------------------------------------------------- How to play 3: specials, fast fall, the way back
+
+  /**
+   * How to play 3 (`ui/teach.ts` lesson 'recovery', `match.ts` `knockLoop`): the main menu's third lesson in Training. Neutral,
+   * side and down special, then a jump with fast fall, each ticked off by the sim; then the dummy knocks the player off the
+   * edge and the prompts go double jump, up special, ledge, the ledge grab clearing the lesson. Real input only (keys, or the
+   * touch stick, Jump and Special buttons on a phone turned to 844x390).
+   */
+  async lessonThree(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('lesson-3');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const seen: { step: RecoveryStep; state: string; at: number }[] = [];
+    const onTeach = (ev: Event) => {
+      const d = (ev as CustomEvent<{ step: RecoveryStep; state: string }>).detail;
+      seen.push({ step: d.step, state: d.state, at: performance.now() });
+    };
+    window.addEventListener('dod:teach', onTeach);
+    let stacked = 0;
+    const poll = window.setInterval(() => {
+      if (document.querySelectorAll('.teach-prompt:not(.used):not(.gone)').length > 1) stacked++;
+    }, 50);
+    try {
+      await this.click(() => this.q('#main .menu-item[data-go="howto3"]'), 'How to play 3');
+      await this.matchLive();
+      this.manual = NO_INPUT;
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls (stick, Jump and Special) were not built');
+        t.finish('error');
+        return;
+      }
+      const match = () => this.game.match()!;
+      const me = () => match().state.fighters[match().player];
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+      };
+      const standing = () => {
+        const f = me();
+        return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      };
+      const settle = async () => {
+        pad.release();
+        await t.until(standing, 10000, 'the fighter to stand');
+        await frames(6);
+      };
+      const shownNow = (step: RecoveryStep) => document.querySelector(`.teach-prompt[data-step="${step}"]:not(.used):not(.gone)`) as HTMLElement | null;
+      const ticked = (step: RecoveryStep, since = 0) => seen.some((e) => e.step === step && e.state === 'used' && e.at >= since);
+      if (touch) t.event('phone-shot', `How to play 3 with the touch overlay: stick, Jump and Special buttons (${innerWidth}x${innerHeight})`);
+
+      /** One prompt: shown alone with this device's glyphs, clear of the touch controls. */
+      const checkPrompt = (step: RecoveryStep, done: number) => {
+        const el = shownNow(step)!;
+        const dev = el.dataset.device ?? '';
+        t.event('lesson-prompt', `${step}: "${PROMPTS[step].word}" (${dev}: ${el.dataset.glyphs ?? ''}) after ${done} ticked`);
+        if (dev !== (touch ? 'touch' : 'keyboard')) t.problem('bug', `the ${step} prompt shows ${dev} glyphs on ${how}`);
+        if (el.textContent?.trim() === '') t.problem('bug', `the ${step} prompt is empty`);
+        if (touch) {
+          const r = el.getBoundingClientRect();
+          for (const b of document.querySelectorAll<HTMLElement>('.touch .touch-btn, .touch .touch-stick, .touch .touch-pause')) {
+            const q = b.getBoundingClientRect();
+            if (q.width && r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top) t.problem('bug', `the ${step} prompt sits under the ${b.className} control`);
+          }
+        }
+      };
+      let tickMax = 0;
+      let done = 0;
+      const tickOf = async (step: RecoveryStep, since: number): Promise<boolean> => {
+        try {
+          await t.until(() => ticked(step, since), 3000, `the ${step} tick`);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.problem('bug', `${how}: the ${step} step was not ticked off within 3 s of the move (${ACT_NAMES[me().action]})`);
+          return false;
+        }
+        const tick = seen.find((e) => e.step === step && e.state === 'used' && e.at >= since)!;
+        const ms = Math.max(0, Math.round(tick.at - since));
+        tickMax = Math.max(tickMax, ms);
+        done++;
+        t.event('lesson-tick', `${step} ticked off ${ms} ms after the move was done (${how})`);
+        if (ms > 1000) t.problem('bug', `${how}: the ${step} step ticked off ${ms} ms after the move (over 1 s)`);
+        t.progress(0.1 + 0.1 * done);
+        return true;
+      };
+
+      // 1-4: the specials and the fast fall, each from real input.
+      const special = async (sx: number, sy: number) => {
+        await settle();
+        pad.stick(sx, sy);
+        await frames(2);
+        pad.special(true);
+        await frames(3);
+        pad.special(false);
+        pad.stick(0, 0);
+      };
+      const basics: Partial<Record<RecoveryStep, () => Promise<void>>> = {
+        spN: () => special(0, 0),
+        spS: () => special(100, 0),
+        spD: () => special(0, -100),
+        fastfall: async () => {
+          await settle();
+          pad.button('jump', true);
+          await frames(3);
+          pad.button('jump', false);
+          // Up, then at the top of the jump the stick goes down: the fall is fast.
+          await t.until(() => !me().grounded && me().vy <= 0, 4000, 'the top of the jump');
+          pad.stick(0, -100);
+          await t.until(() => me().fastFall === 1 || me().grounded > 0, 3000, 'the fast fall');
+          await frames(3);
+          pad.stick(0, 0);
+        },
+      };
+      for (const step of ['spN', 'spS', 'spD', 'fastfall'] as RecoveryStep[]) {
+        await t.until(() => !!shownNow(step), 20000, `the ${step} prompt`);
+        checkPrompt(step, done);
+        const moved = performance.now();
+        await basics[step]!();
+        if (!(await tickOf(step, moved))) continue;
+        await t.wait(500);
+      }
+
+      // 5-7: the knock-off and the way back; a missed recovery restages the knock-off, so up to three tries.
+      let cleared = false;
+      for (let attempt = 1; attempt <= 3 && !cleared; attempt++) {
+        await t.until(() => match().knockLoop === 'live', 20000, 'the dummy to be staged at the edge');
+        t.event('lesson-knockoff', `attempt ${attempt}: the player is at the edge (${Math.round(me().x / FX)}), the dummy swings next`);
+        await t.until(() => me().action === ACT.HITSTUN, 8000, 'the dummy to knock the player off');
+        const hitAt = performance.now();
+        await t.until(() => !!shownNow('dJump') || ticked('ledge', hitAt) || me().action === ACT.DEAD, 8000, 'the double jump prompt');
+        if (!shownNow('dJump')) continue;
+        checkPrompt('dJump', done);
+        t.event('lesson-offstage', `knocked to x ${Math.round(me().x / FX)}, y ${Math.round(me().y / FX)}; prompts now go double jump, up special, ledge`);
+        await t.until(() => me().action !== ACT.HITSTUN, 3000, 'the hit-stun to end');
+        // Double jump back toward the stage (the left).
+        let moved = performance.now();
+        pad.stick(-100, 0);
+        pad.button('jump', true);
+        await frames(3);
+        pad.button('jump', false);
+        const jumped = await tickOf('dJump', moved);
+        if (!jumped) continue;
+        await t.until(() => !!shownNow('upB') || ticked('ledge', hitAt), 4000, 'the up special prompt');
+        if (shownNow('upB')) checkPrompt('upB', done);
+        await t.until(() => me().action === ACT.AIR && me().vy <= 4000, 4000, 'the jump to slow');
+        moved = performance.now();
+        pad.stick(-100, 100);
+        pad.special(true);
+        await frames(3);
+        pad.special(false);
+        pad.stick(-100, 40);
+        if (!(await tickOf('upB', moved))) continue;
+        await t.until(() => !!shownNow('ledge') || ticked('ledge', hitAt), 4000, 'the ledge prompt');
+        if (shownNow('ledge')) checkPrompt('ledge', done);
+        moved = performance.now();
+        pad.stick(-100, 0);
+        // Holding toward the stage, the player reaches the ledge (the sim's ledge event) or lands back and the knock-off restages.
+        try {
+          await t.until(() => ticked('ledge', hitAt) || me().action === ACT.DEAD || standing(), 6000, 'the ledge grab');
+        } finally {
+          pad.stick(0, 0);
+        }
+        if (ticked('ledge', hitAt)) {
+          cleared = await tickOf('ledge', hitAt);
+          t.event('lesson-ledge', `the player grabbed the ledge on attempt ${attempt}`);
+        } else {
+          t.event('lesson-retry', `attempt ${attempt}: the player did not reach the ledge (${ACT_NAMES[me().action]}); the knock-off is staged again`);
+        }
+      }
+      if (!cleared) t.problem('bug', 'the recovery step was not completed: no ledge grab in three tries');
+      t.metric('lessonSteps', done);
+      t.metric('lessonTickMaxMs', tickMax);
+      if (cleared) {
+        try {
+          await t.until(() => !!document.getElementById('teach-reward'), 2000, 'the lesson-clear card');
+          t.event('lesson-clear', `"${document.getElementById('teach-reward')?.textContent ?? ''}" after the ledge grab (${how})`);
+          await this.lessonCardCheck('next', how);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.problem('bug', 'the lesson showed no clear card after the last step');
+        }
+      }
+      if (stacked) t.problem('bug', `${stacked} samples had more than one teaching prompt on screen`);
+      if (touch) {
+        let small = 0;
+        for (const b of document.querySelectorAll<HTMLElement>('.touch .touch-btn, .touch .touch-pause')) {
+          const q = b.getBoundingClientRect();
+          if (q.width < 44 || q.height < 44) small++;
+        }
+        t.event('lesson-touch', small === 0 ? 'every touch control is 44 px or larger and the lesson was finished with touch only' : `${small} touch controls under 44 px`);
+        if (small) t.problem('bug', `${small} touch controls are under 44 px`);
+      }
+    } finally {
+      clearInterval(poll);
+      window.removeEventListener('dod:teach', onTeach);
+      this.manual = null;
       this.useTap = false;
       forceTouchUi(false);
     }
@@ -5386,8 +7391,8 @@ class Run {
       } else t.problem('bug', `the VS card called ${order.map((i) => i.replace('announcer.name.', '')).join(', ') || 'nothing'}, want ${meId} then ${foeId}`);
       if (stagePlay && vs[0] && stagePlay.at + stagePlay.ms > vs[0].at + 40) t.problem('bug', `the VS names began before the stage's name had finished`);
       // Match start: Ready... FIGHT!
-      await t.until(() => calls.some((c) => c.phase === 'play' && c.at >= mark && c.id.startsWith('announcer.ready-fight.')), 8000, '"Ready... FIGHT!"').catch(() => null);
-      const rf = calls.find((c) => c.phase === 'play' && c.at >= mark && c.id.startsWith('announcer.ready-fight.'));
+      await t.until(() => calls.some((c) => c.phase === 'play' && c.at >= mark && /^announcer\.(round|ready)-fight\./.test(c.id)), 8000, '"Ready... FIGHT!"').catch(() => null);
+      const rf = calls.find((c) => c.phase === 'play' && c.at >= mark && /^announcer\.(round|ready)-fight\./.test(c.id));
       if (rf) t.event('ready-fight-call', `"${rf.text}" (${rf.id}) played at the match start`);
       else t.problem('bug', 'the match start did not play "Ready... FIGHT!"');
       t.progress(0.4);
@@ -5663,6 +7668,219 @@ class Run {
     if (rx.clashSparks > 0) t.event('clash-spark', `${rx.clashSparks} clashes drew their own spark`);
   }
 
+  /**
+   * Extra jumps by touch (balance pass on the multi-jump fighters): in Training the fighter (option `fighter`, default
+   * evil-blue-bird) takes off with a left-side upward flick and then flicks again in the air until its jumps run out.
+   * Real touch pointer events on the floating-stick zone, nothing teleported. Events `extra-jump` (each one),
+   * `extra-jumps`; metric `extraJumps`. The power-index rule itself is `test/jumpPower.test.ts`.
+   */
+  async extraJumpsRun(): Promise<void> {
+    const t = this.t;
+    if (innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560 && this.options.at !== 'phone-turned') {
+      this.logViewport(true);
+      return this.touchMatchTurned('extra-jumps');
+    }
+    this.logViewport(this.isPhone());
+    await this.toMainMenu();
+    this.useTap = true;
+    forceTouchUi(true);
+    const id = String(this.options.fighter ?? 'evil-blue-bird');
+    const idx = CHARACTERS.findIndex((c) => c.id === id);
+    if (idx < 0) {
+      t.problem('bug', `fighter ${id} is not on the roster`);
+      t.finish('error');
+      return;
+    }
+    const wanted = CHARACTERS[idx].airJumps;
+    const stage = stagesFor('training')[0]?.index ?? 0;
+    void this.game.startMatch({
+      mode: 'training', stage, stocks: 1, rules: {},
+      slots: [{ char: idx, cpu: null }, { char: (idx + 1) % CHARACTERS.length, cpu: 0 }],
+    });
+    await this.matchLive();
+    this.manual = NO_INPUT;
+    const root = touchOverlay() ?? document.querySelector<HTMLElement>('.touch');
+    if (!root) {
+      t.problem('bug', 'the touch controls were not built');
+      t.finish('error');
+      return;
+    }
+    if (root.hidden) root.hidden = false;
+    t.event('phone-shot', `training with the touch overlay as ${id} at ${innerWidth}x${innerHeight}`);
+    const me = () => {
+      const m = this.game.match()!;
+      return m.state.fighters[m.player];
+    };
+    const frame = () => this.game.match()?.state.frame ?? 0;
+    const frames = async (n: number) => {
+      const end = frame() + n;
+      await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+    };
+    await t.until(() => me().grounded > 0, 10000, 'the fighter to stand');
+    await frames(8);
+    let pid = 300;
+    const send = (el: HTMLElement, type: string, x: number, y: number, pointer: number) =>
+      el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: pointer, isPrimary: true, button: 0, buttons: type === 'pointerup' ? 0 : 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y }));
+    const flick = async () => {
+      const fx = Math.round(innerWidth * 0.2);
+      const fy = Math.round(innerHeight * 0.7);
+      const hit = document.elementFromPoint(fx, fy) as HTMLElement | null;
+      const zone = (hit?.closest('.touch-move-zone, .touch-stick') as HTMLElement | null) ?? root;
+      const p = ++pid;
+      send(zone, 'pointerdown', fx, fy, p);
+      await t.wait(16);
+      send(document.querySelector<HTMLElement>('.touch-stick') ?? zone, 'pointermove', fx, fy - 28, p);
+      await t.wait(16);
+      send(document.querySelector<HTMLElement>('.touch-stick') ?? zone, 'pointerup', fx, fy - 56, p);
+    };
+    t.progress(0.2);
+    await flick();
+    try {
+      await t.until(() => me().grounded === 0, 2000, 'the first flick to leave the ground');
+    } catch (e) {
+      if (String(e).includes('stopped')) throw e;
+      t.problem('bug', `${id}: the first upward flick did not jump`);
+    }
+    let got = 0;
+    for (let n = 1; n <= wanted; n++) {
+      await frames(14);
+      const before = me().jumpsLeft;
+      await flick();
+      let ok = false;
+      try {
+        await t.until(() => me().jumpsLeft < before, 1500, `air flick ${n}`);
+        ok = true;
+      } catch (e) {
+        if (String(e).includes('stopped')) throw e;
+      }
+      if (!ok) {
+        t.problem('bug', `${id}: air flick ${n} of ${wanted} did not make an extra jump (jumps left ${me().jumpsLeft})`);
+        break;
+      }
+      got++;
+      t.event('extra-jump', `${id}: extra jump ${n} of ${wanted} from a touch flick (jumps left ${me().jumpsLeft}, y ${Math.round(me().y)})`);
+      t.progress(0.2 + (0.6 * n) / wanted);
+    }
+    t.metric('extraJumps', got);
+    if (got === wanted) t.event('extra-jumps', `${id} got all ${wanted} extra jumps from swipes, plus the takeoff`);
+    else t.problem('bug', `${id}: only ${got} of ${wanted} extra jumps came from swipes`);
+    await frames(30);
+    t.finish();
+  }
+
+  /**
+   * Hurtboxes hug the art (tools/hurtbox-art.mjs, tools/hurtbox.test.mjs): in Training Exit Punk jabs a Spider-Bot dummy from just
+   * outside its body (a near miss that must visibly miss, `hurtbox-near-miss`), then from just inside (`hurtbox-hit`). The gaps come
+   * from the jab's own hitbox and Spider-Bot's hurtbox, so they move with the data. Touch (a phone is turned to 844x390): the stick
+   * and the Attack button as pointer events.
+   */
+  async hurtboxFitRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('hurtbox-fit');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const spider = CHARACTERS.findIndex((c) => c.id === 'spider-bot');
+      if (punk < 0 || spider < 0) {
+        t.problem('bug', 'Exit Punk or Spider-Bot is not on the roster');
+        t.finish('error');
+        return;
+      }
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      void this.game.startMatch({
+        mode: 'training', stage, stocks: 1, rules: {},
+        slots: [{ char: punk, cpu: null }, { char: spider, cpu: 0 }],
+      });
+      await this.matchLive();
+      this.manual = NO_INPUT;
+      const match = () => this.game.match()!;
+      const me = () => match().state.fighters[match().player];
+      const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+      };
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls were not built');
+        t.finish('error');
+        return;
+      }
+      if (touch) t.event('phone-shot', `training against Spider-Bot with the touch overlay at ${innerWidth}x${innerHeight}`);
+
+      // The jab's tip (world units from the fighter's centre) and Spider-Bot's half width.
+      const box = CHARACTERS[punk].moves[MOVE.JAB].hits[0].boxes[0];
+      const tip = box.x + box.r;
+      const half = CHARACTERS[spider].width / 2;
+      t.event('hurtbox-fit', `Spider-Bot hurtbox ${CHARACTERS[spider].width}x${CHARACTERS[spider].height} (was 100 wide); Exit Punk's jab reaches ${tip}`);
+      t.metric('spiderBotHurtW', CHARACTERS[spider].width);
+
+      const standing = () => {
+        const f = me();
+        return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      };
+      const gap = () => Math.abs(dummy().x - me().x) / FX;
+      const dir = () => (dummy().x >= me().x ? 1 : -1);
+      /** Walks to a centre gap (stepping back if too close), lets go and stands still. */
+      const approach = async (want: number) => {
+        for (let i = 0; i < 6 && Math.abs(gap() - want) > 3; i++) {
+          const d = gap() > want ? dir() : -dir();
+          pad.stick(d * 100, 0);
+          try {
+            await t.until(() => (d === dir() ? gap() <= want + 2 : gap() >= want - 2), 12000, 'the fighter to reach the gap');
+          } finally {
+            pad.stick(0, 0);
+          }
+          await t.until(standing, 10000, 'the fighter to stand');
+          await frames(6);
+        }
+      };
+      const jab = async (): Promise<number> => {
+        const before = dummy().percent;
+        pad.button('attack', true);
+        await frames(3);
+        pad.button('attack', false);
+        await frames(30);
+        return dummy().percent - before;
+      };
+
+      // Face it first: a jab only reaches forward.
+      pad.stick(dir() * 100, 0);
+      await frames(4);
+      pad.stick(0, 0);
+      await approach(tip + half + 16);
+      const missGap = gap();
+      const missDmg = await jab();
+      if (missDmg > 0) t.problem('bug', `a jab from ${missGap.toFixed(0)} units away (16 outside Spider-Bot's body) hit it: its hurtbox is wider than it looks`);
+      t.event('hurtbox-near-miss', `jab from ${missGap.toFixed(0)} units (body edge ${half}, jab tip ${tip}): ${missDmg > 0 ? 'HIT' : 'visibly missed'}`);
+      t.metric('nearMissHit', missDmg > 0 ? 1 : 0);
+      t.progress(0.55);
+
+      await approach(tip + half - 8);
+      const hitGap = gap();
+      const hitDmg = await jab();
+      if (hitDmg <= 0) t.problem('bug', `a jab from ${hitGap.toFixed(0)} units away (8 inside Spider-Bot's body) missed`);
+      t.event('hurtbox-hit', `jab from ${hitGap.toFixed(0)} units: ${hitDmg > 0 ? 'connected' : 'MISSED'}`);
+      t.metric('closeJabHit', hitDmg > 0 ? 1 : 0);
+      pad.release();
+      await frames(30);
+      t.finish();
+    } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+  }
+
   async specialsRun(): Promise<void> {
     const t = this.t;
     const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
@@ -5834,6 +8052,752 @@ class Run {
       this.manual = null;
       await this.game.quitMatch();
       await this.screen('main');
+    } finally {
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+
+  /**
+   * CPU playstyles (ai/profiles.ts, docs/story.md "How the CPU fights"): Versus against a CPU while the player stands still
+   * (on a phone: the touch overlay up, 390x844 turned to 844x390). Round 1 a rushdown CPU (Kaelen) must close the distance
+   * within 3 s of GO; round 2 a zoner CPU (Exit Punk) keeps more room over the same 10 s. Events `cpu-style`, `cpu-close`,
+   * `cpu-spacing`; metrics `rushCloseSeconds`, `rushAvgDistance`, `zonerAvgDistance`.
+   */
+  async cpuStylesRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('cpu-styles');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const rounds = [
+        { cpu: 'kaelen', label: 'rushdown' },
+        { cpu: 'exit-punk', label: 'zoner' },
+      ];
+      const avg: Record<string, number> = {};
+      for (const [ri, round] of rounds.entries()) {
+        const foe = CHARACTERS.findIndex((c) => c.id === round.cpu);
+        const mine = CHARACTERS.findIndex((c) => c.id === (round.cpu === 'kaelen' ? 'exit-punk' : 'wallit'));
+        void this.game.startMatch({
+          mode: 'versus', stage: stagesFor('versus')[0]?.index ?? 0, stocks: 3, rules: {},
+          slots: [{ char: mine < 0 ? punk : mine, cpu: null }, { char: foe, cpu: 7 }],
+        });
+        await this.matchLive();
+        // The player stands still: only the keyboard or the on-screen controls would move the fighter.
+        this.manual = NO_INPUT;
+        const match = () => this.game.match()!;
+        const frame = () => this.game.match()?.state.frame ?? 0;
+        const gap = () => {
+          const fs = match().state.fighters;
+          return Math.abs(fs[0].x - fs[1].x) / 1000;
+        };
+        const f0 = frame();
+        const d0 = gap();
+        t.event('cpu-style', `${round.label}: ${CHARACTERS[foe].name} is the CPU, style ${styleId(foe)}, ${Math.round(d0)} units away at GO`);
+        let closed = -1;
+        let sum = 0;
+        let n = 0;
+        const end = f0 + 10 * 60;
+        await t.until(() => {
+          const f = frame();
+          if (f > f0 && closed < 0 && gap() < 170) closed = (f - f0) / 60;
+          if (f > f0) { sum += gap(); n++; }
+          return f >= end || !!match().state.over;
+        }, 60000, 'ten seconds of the fight');
+        avg[round.label] = n ? sum / n : 0;
+        if (ri === 0) {
+          if (closed < 0 || closed > 3) t.problem('bug', `the rushdown CPU did not close to a jab's reach within 3 s of GO (${closed < 0 ? 'never in 10 s' : closed.toFixed(1) + ' s'})`);
+          else t.event('cpu-close', `rushdown CPU closed the distance ${closed.toFixed(1)} s after GO`);
+          t.metric('rushCloseSeconds', closed < 0 ? 99 : closed);
+          t.metric('rushAvgDistance', Math.round(avg[round.label]));
+        } else t.metric('zonerAvgDistance', Math.round(avg[round.label]));
+        this.manual = null;
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+      if (avg.zoner > avg.rushdown) t.event('cpu-spacing', `zoner CPU kept ${Math.round(avg.zoner)} units on average, rushdown ${Math.round(avg.rushdown)}`);
+      else t.problem('bug', `the zoner CPU (${Math.round(avg.zoner)} units) did not keep more distance than the rushdown (${Math.round(avg.rushdown)})`);
+    } finally {
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- archetype normals
+
+  /**
+   * Archetype normals (`sim/fighterDefs.ts` `applyArchetype`, content/archetypes.json): in Training a fast fighter (Kaelen) and a
+   * heavy (Break) each walk up to a dummy and press Attack once, from real input (keyboard, or on a phone, 390x844 turned to
+   * 844x390, the Attack button as a touch pointer event). The sim's own hit events are counted: the fast jab lands its three-hit
+   * flurry from one press, the heavy's one hit comes later and launches harder; a fast and a floaty fighter's neutral air are
+   * compared in the data. Events `archetype-jab`, `archetype-data`, `archetype-touch`; metrics `fastJabHits`, `heavyJabHits`,
+   * `fastJabStartup`, `heavyJabStartup`.
+   */
+  async archetypeNormals(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('archetype-normals');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      const dummyChar = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const results: Record<string, { hits: number; startup: number; kb: number; arch: string }> = {};
+      for (const [round, id] of [['fast', 'kaelen'], ['heavy', 'break']] as const) {
+        const ix = CHARACTERS.findIndex((c) => c.id === id);
+        if (ix < 0) {
+          t.problem('bug', `${id} is not on the roster`);
+          t.finish('error');
+          return;
+        }
+        void this.game.startMatch({ mode: 'training', stage, stocks: 1, rules: {}, slots: [{ char: ix, cpu: null }, { char: dummyChar, cpu: 0 }] });
+        await this.matchLive();
+        this.manual = NO_INPUT;
+        const match = () => this.game.match()!;
+        const me = () => match().state.fighters[match().player];
+        const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+        const frame = () => match().state.frame;
+        const pad = touch ? makeTouchPad() : makeKeyboardPad();
+        if (!pad) {
+          t.problem('bug', 'the touch controls were not built');
+          t.finish('error');
+          return;
+        }
+        if (touch && round === 'fast') {
+          const small: string[] = [];
+          for (const b of document.querySelectorAll<HTMLElement>('.touch .touch-btn')) {
+            const r = b.getBoundingClientRect();
+            if (r.width && (r.width < 44 || r.height < 44)) small.push(`${b.className} ${Math.round(r.width)}x${Math.round(r.height)}`);
+          }
+          if (small.length) t.problem('bug', `touch buttons under 44 px: ${small.join(', ')}`);
+          else t.event('archetype-touch', `Attack is the same button for every archetype (${document.querySelectorAll('.touch .touch-btn').length} on the overlay, ${innerWidth}x${innerHeight}); nothing new`);
+        }
+        const c = CHARACTERS[ix];
+        const reach = Math.max(...c.moves[MOVE.JAB].hits.flatMap((w) => w.boxes.map((b) => b.x))) * 0.5;
+        // Walk up to the dummy with the stick until it is close, then stand still.
+        await t.until(() => me().grounded > 0 && me().action === ACT.IDLE, 12000, 'the fighter to stand');
+        const toward = () => (dummy().x >= me().x ? 1 : -1);
+        for (let i = 0; i < 400 && Math.abs(dummy().x - me().x) / FX > reach + 10; i++) {
+          pad.stick(toward() * 100, 0);
+          await t.wait(40);
+        }
+        pad.stick(0, 0);
+        await t.until(() => me().action === ACT.IDLE || me().action === ACT.WALK, 3000, 'the fighter to stop');
+        await t.wait(250);
+        // One press of Attack, from a still stick, facing the dummy.
+        const before = dummy().percent;
+        let hits = 0;
+        let last = before;
+        let startup = -1;
+        const f0 = frame();
+        pad.button('attack', true);
+        await t.wait(70);
+        pad.button('attack', false);
+        const end = f0 + c.moves[MOVE.JAB].total + 30;
+        while (frame() < end) {
+          if (me().action === ACT.ATTACK && startup < 0 && dummy().percent > last) startup = me().frame;
+          if (dummy().percent > last) {
+            hits++;
+            last = dummy().percent;
+          }
+          await t.wait(16);
+        }
+        const hitboxes = c.moves[MOVE.JAB].hits;
+        const kb = Math.max(...hitboxes.flatMap((w) => w.boxes.map((b) => b.kbg)));
+        const first = Math.min(...hitboxes.map((w) => w.start));
+        results[round] = { hits, startup: first, kb, arch: c.archetype };
+        t.event('archetype-jab', `${how}: ${c.name} (${c.archetype}) one Attack press: ${hits} hit${hits === 1 ? '' : 's'} on the dummy, first hitbox on frame ${first}, ${hitboxes.length} hit window${hitboxes.length === 1 ? '' : 's'}, launch growth ${kb}`);
+        t.metric(round === 'fast' ? 'fastJabHits' : 'heavyJabHits', hits);
+        t.metric(round === 'fast' ? 'fastJabStartup' : 'heavyJabStartup', first);
+        pad.release();
+        this.manual = null;
+        await this.game.quitMatch();
+        await this.screen('main');
+        t.progress(round === 'fast' ? 0.45 : 0.85);
+      }
+      const f = results.fast, h = results.heavy;
+      if (f.hits < 3) t.problem('bug', `${how}: the fast jab landed ${f.hits} hits from one Attack press (want 3)`);
+      if (h.hits < 1) t.problem('bug', `${how}: the heavy jab hit nothing from one Attack press`);
+      if (h.startup <= f.startup) t.problem('bug', `a heavy's jab starts on frame ${h.startup}, not later than the fast one's (${f.startup})`);
+      if (h.kb <= f.kb) t.problem('bug', 'a heavy\'s jab does not launch harder than the fast one\'s');
+      // The data side: every fighter has an archetype, and floaty aerials hang out longer than fast ones.
+      const active = (ch: (typeof CHARACTERS)[number]) => Math.max(...ch.moves[MOVE.NAIR].hits.map((w) => w.end)) - Math.min(...ch.moves[MOVE.NAIR].hits.map((w) => w.start)) + 1;
+      const floaty = CHARACTERS.filter((ch) => ch.archetype === 'floaty'), fast = CHARACTERS.filter((ch) => ch.archetype === 'fast');
+      const minF = Math.min(...floaty.map(active)), maxQ = Math.max(...fast.map(active));
+      if (minF > maxQ && CHARACTERS.every((ch) => ch.archetype)) t.event('archetype-data', `every fighter has an archetype (${['heavy', 'floaty', 'fast', 'standard'].map((a) => `${a} ${CHARACTERS.filter((ch) => ch.archetype === a).length}`).join(', ')}); floaty neutral air stays out ${minF}+ frames, fast ${maxQ} at most`);
+      else t.problem('bug', `archetype data: floaty neutral air ${minF}, fast ${maxQ}`);
+    } finally {
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- ledge options
+
+  /**
+   * The ledge is a choice (`sim/step.ts` "The ledge is a choice", docs/ledge.md): in Training Exit Punk walks off the stage
+   * edge (the sim grabs the ledge by itself), then each option is played from real input: stick up (getup), Shield (roll, a
+   * body-length further in), Attack (a low sweep that hits a dummy stood at the edge, setup shortcut), Jump (a higher leap) and
+   * finally nothing at all until the hang runs out and the fighter drops. Keyboard, or on a phone (390x844 turned to 844x390)
+   * the on-screen stick, Attack, Shield and Jump buttons, with no new button. The All controls page lists the options.
+   * Events `ledge-hold`, `ledge-getup`, `ledge-roll`, `ledge-attack`, `ledge-jump`, `ledge-drop`, `ledge-controls`,
+   * `ledge-touch`; metrics `ledgeOptions` (how many worked), `ledgeHangFrames`.
+   */
+  async ledgeOptions(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('ledge-options');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const chosen: { option: string; id: number; frame: number }[] = [];
+    const onLedge = (ev: Event) => chosen.push((ev as CustomEvent<{ option: string; id: number; frame: number }>).detail);
+    window.addEventListener('dod:ledge', onLedge);
+    try {
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      if (punk < 0) {
+        t.problem('bug', 'Exit Punk is not on the roster');
+        t.finish('error');
+        return;
+      }
+      const stage = stagesFor('training')[0]?.index ?? 0;
+
+      // ---- 0. The first match is a fight: a CPU that attacks (level 4, not a dummy), the bot trading hits with it until
+      // both have landed one and someone has been launched (30 s of game time at most). Setup shortcut: straight in.
+      {
+        const foe = (punk + 1) % CHARACTERS.length;
+        let dealt = 0;
+        let taken = 0;
+        let launched = 0;
+        const stopOpen = this.game.watch((m, events) => {
+          for (const e of events) {
+            if (e.type === 'hit' && !e.shield) {
+              if (e.attacker === m.player) dealt++;
+              else if (e.victim === m.player) taken++;
+            } else if (e.type === 'launch') launched++;
+          }
+        });
+        // The first fight opens with an in-engine beat (the rival drops in, the stage is called) before any input is read.
+        const beats: string[] = [];
+        const onBeat = (e: Event) => { const d = (e as CustomEvent<{ phase: string }>).detail; beats.push(d.phase); };
+        window.addEventListener('dod:match-intro', onBeat);
+        void this.game.startMatch({
+          mode: 'versus', stage, stocks: 2, rules: {},
+          slots: [{ char: punk, cpu: null }, { char: foe, cpu: 4 }],
+        });
+        await this.matchLive();
+        window.removeEventListener('dod:match-intro', onBeat);
+        if (beats.includes('end') || beats.length > 0) t.event('opening-beat', `${how}: the first match opened with the rival's entrance (match intro: ${[...new Set(beats)].join(', ')}) before Ready and before any input`);
+        else t.problem('bug', `${how}: the first match started with no entrance beat`);
+        t.event('opening-bout', `${how}: the first match is a versus fight against a level 4 CPU that swings back (no stationary dummy)`);
+        const start = frame0(this.game);
+        await this.fight(() => (dealt > 0 && taken > 0 && launched > 0) || frame0(this.game) - start > 1800, 90000);
+        stopOpen();
+        t.metric('openingHitsDealt', dealt);
+        t.metric('openingHitsTaken', taken);
+        t.metric('openingLaunches', launched);
+        if (dealt > 0 && taken > 0 && launched > 0) {
+          t.event('opening-trade', `${how}: in the first ${((frame0(this.game) - start) / 60).toFixed(0)} s the player landed ${dealt} hit(s), took ${taken} and ${launched} launch(es) happened`);
+        } else {
+          t.problem('bug', `${how}: the opening bout had no trade of hits and a launch within 30 s (dealt ${dealt}, taken ${taken}, launches ${launched})`);
+        }
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+
+      // Setup shortcut: straight into Training, no menus.
+      void this.game.startMatch({
+        mode: 'training', stage, stocks: 1, rules: {},
+        slots: [{ char: punk, cpu: null }, { char: (punk + 1) % CHARACTERS.length, cpu: 0 }],
+      });
+      await this.matchLive();
+      this.manual = NO_INPUT;
+      t.progress(0.08);
+
+      const match = () => this.game.match()!;
+      const me = () => match().state.fighters[match().player];
+      const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 8000 + n * 150, 'frames to pass');
+      };
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls (stick, Attack, Shield, Jump) were not built');
+        t.finish('error');
+        return;
+      }
+      if (touch) {
+        t.event('phone-shot', `training with the touch overlay at ${innerWidth}x${innerHeight}: the ledge options use the stick, Attack, Shield and Jump`);
+        const small: string[] = [];
+        for (const b of document.querySelectorAll<HTMLElement>('.touch .touch-btn')) {
+          const r = b.getBoundingClientRect();
+          if (r.width && (r.width < 44 || r.height < 44)) small.push(`${b.className} ${Math.round(r.width)}x${Math.round(r.height)}`);
+        }
+        if (small.length) t.problem('bug', `touch buttons under 44 px: ${small.join(', ')}`);
+        else t.event('ledge-touch', `Attack, Shield and Jump are the same buttons as everywhere else, no new buttons (${document.querySelectorAll('.touch .touch-btn').length} on the overlay)`);
+      }
+      const standing = () => {
+        const f = me();
+        return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      };
+      const settle = async () => {
+        pad.release();
+        await t.until(standing, 12000, 'the fighter to stand');
+        await frames(8);
+      };
+      const sideOf = () => (me().x >= 0 ? 1 : -1);
+      /** The ledge the fighter is hanging on: where it is, and which side of the stage. */
+      const held = () => ledges(STAGES[stage])[me().ledge - 1];
+
+      /** Walks off the nearer stage edge; the sim catches the ledge. Real input: the stick, then let go. */
+      const toLedge = async (): Promise<boolean> => {
+        for (let attempt = 1; attempt <= 4; attempt++) {
+          await settle();
+          const dir = sideOf();
+          pad.stick(dir * 100, 0);
+          try {
+            await t.until(() => !me().grounded || me().action === ACT.DEAD, 25000, 'the fighter to walk off the edge');
+          } finally {
+            pad.stick(0, 0);
+          }
+          try {
+            await t.until(() => me().action === ACT.LEDGE || me().grounded > 0 || me().action === ACT.DEAD, 4000, 'the ledge grab');
+          } catch (e) {
+            if (String(e).includes('stopped')) throw e;
+          }
+          if (me().action === ACT.LEDGE) return true;
+          t.event('ledge-retry', `${how}: attempt ${attempt} did not catch the ledge (${ACT_NAMES[me().action]}); walking off again`);
+        }
+        return false;
+      };
+      const results = new Map<string, boolean>();
+      const fail = (option: string, why: string) => {
+        results.set(option, false);
+        t.problem('bug', `${how}: ledge ${option}: ${why}`);
+      };
+      const optionSince = (option: string, since: number) => chosen.some((c) => c.option === option && c.id === me().id && c.frame >= since);
+      const w = () => bodySize(me())[0];
+      const insideBy = (l: { x: number; side: number }) => ((me().x - l.x * FX) * -l.side) / FX;
+
+      // ---- 1. getup: stick up. The fighter keeps hanging until it chooses.
+      if (!(await toLedge())) {
+        t.problem('bug', `${how}: could not reach the ledge by walking off the stage`);
+        t.finish('error');
+        return;
+      }
+      let l = held();
+      await frames(LEDGE_CHOOSE + 6);
+      if (me().action === ACT.LEDGE) t.event('ledge-hold', `${how}: hanging on the ledge with no input for ${LEDGE_CHOOSE + 6} frames; nothing climbs by itself`);
+      else fail('hold', `the fighter did not keep hanging with no input (${ACT_NAMES[me().action]})`);
+      let at = frame();
+      pad.stick(0, 100);
+      await t.until(() => me().action !== ACT.LEDGE, 3000, 'the getup to start');
+      // Held past the touch stick's flick window (a quick flick up is a jump), so this is a held stick up, the getup.
+      await t.wait(260);
+      pad.stick(0, 0);
+      const climb = me();
+      const getupInvuln = climb.intangible;
+      if (climb.action !== ACT.LEDGE_CLIMB || !optionSince('getup', at)) fail('getup', `stick up did not start a getup (${ACT_NAMES[climb.action]})`);
+      else {
+        await t.until(standing, 6000, 'the getup to end on the stage');
+        await frames(2);
+        const inside = insideBy(l);
+        if (inside <= 0 || inside > w() / FX) fail('getup', `stood ${Math.round(inside)} units inside the edge (body ${Math.round(w() / FX)})`);
+        else {
+          results.set('getup', true);
+          t.event('ledge-getup', `${how}: ${touch ? 'stick up' : 'W'} climbed back on the stage (${Math.round(frame() - at)} frames, invincible ${getupInvuln} frames), standing ${Math.round(inside)} units inside the edge`);
+        }
+      }
+      t.progress(0.25);
+
+      // ---- 2. roll: Shield. Lands a body-length further in than the getup, invincible for most of it.
+      if (!(await toLedge())) fail('roll', 'could not reach the ledge again');
+      else {
+        l = held();
+        await frames(LEDGE_CHOOSE + 3);
+        at = frame();
+        pad.button('shield', true);
+        await t.until(() => me().action !== ACT.LEDGE, 3000, 'the roll to start');
+        pad.button('shield', false);
+        const roll = me();
+        const rollInvuln = roll.intangible;
+        if (roll.action !== ACT.LEDGE_ROLL || !optionSince('roll', at)) fail('roll', `Shield did not roll onto the stage (${ACT_NAMES[roll.action]})`);
+        else {
+          await t.until(standing, 8000, 'the roll to end on the stage');
+          await frames(2);
+          const inside = insideBy(l);
+          // The getup lands about half a body plus 6 units in; a roll lands a body further.
+          if (inside < w() / FX) fail('roll', `landed ${Math.round(inside)} units inside the edge, less than a body-length (${Math.round(w() / FX)})`);
+          else {
+            results.set('roll', true);
+            t.event('ledge-roll', `${how}: ${touch ? 'Shield' : 'L'} rolled onto the stage (${Math.round(frame() - at)} frames, invincible ${rollInvuln} frames), landing ${Math.round(inside)} units inside the edge (body ${Math.round(w() / FX)})`);
+          }
+        }
+      }
+      t.progress(0.4);
+
+      // ---- 3. ledge attack: Attack. A low sweep that hits a fighter standing at the edge (setup shortcut: the dummy is put there).
+      let swept = false;
+      for (let attempt = 1; attempt <= 3 && !swept; attempt++) {
+        if (!(await toLedge())) {
+          fail('attack', 'could not reach the ledge again');
+          break;
+        }
+        l = held();
+        const d = dummy();
+        d.x = l.x * FX - l.side * w();
+        d.y = l.y * FX;
+        d.vx = d.vy = 0;
+        d.grounded = 1;
+        d.platform = me().platform >= 0 ? me().platform : d.platform;
+        const before = d.percent;
+        await frames(LEDGE_CHOOSE + 3);
+        at = frame();
+        pad.button('attack', true);
+        await t.until(() => me().action !== ACT.LEDGE, 3000, 'the ledge attack to start');
+        pad.button('attack', false);
+        const atk = me();
+        const atkInvuln = atk.intangible;
+        if (atk.action !== ACT.LEDGE_ATTACK || !optionSince('attack', at)) {
+          fail('attack', `Attack did not start a ledge attack (${ACT_NAMES[atk.action]})`);
+          break;
+        }
+        let sweepSeen = false;
+        await t.until(() => {
+          if (me().action === ACT.ATTACK && me().move === MOVE.DTILT) sweepSeen = true;
+          return sweepSeen && me().action !== ACT.ATTACK;
+        }, 6000, 'the sweep to finish');
+        const dmg = dummy().percent - before;
+        if (dmg > 0) {
+          swept = true;
+          results.set('attack', true);
+          t.event('ledge-attack', `${how}: ${touch ? 'Attack' : 'J'} climbed and swept low (invincible ${atkInvuln} frames) and hit the fighter at the edge for ${(dmg / 10).toFixed(1)}%`);
+        } else t.event('ledge-retry', `${how}: the ledge attack missed the dummy (attempt ${attempt}); trying again`);
+        await settle();
+      }
+      if (!swept && !results.has('attack')) fail('attack', 'the sweep never hit a fighter standing at the edge');
+      t.progress(0.55);
+
+      // ---- 4. ledge jump: Jump. A higher leap off the ledge.
+      if (!(await toLedge())) fail('jump', 'could not reach the ledge again');
+      else {
+        l = held();
+        const hangY = me().y;
+        await frames(LEDGE_CHOOSE + 3);
+        at = frame();
+        pad.button('jump', true);
+        await t.until(() => me().action !== ACT.LEDGE, 3000, 'the ledge jump to start');
+        pad.button('jump', false);
+        const jump = me();
+        const jumpInvuln = jump.intangible;
+        if (jump.action !== ACT.LEDGE_JUMP || !optionSince('jump', at)) fail('jump', `Jump did not leap off the ledge (${ACT_NAMES[jump.action]})`);
+        else {
+          let top = me().y;
+          await t.until(() => {
+            top = Math.max(top, me().y);
+            return me().vy <= 0;
+          }, 4000, 'the top of the jump');
+          const rise = Math.round((top - hangY) / FX);
+          if (rise < 60 || top <= l.y * FX) fail('jump', `rose only ${rise} units (the top ${Math.round(top / FX)} vs the ledge ${l.y})`);
+          else {
+            results.set('jump', true);
+            t.event('ledge-jump', `${how}: ${touch ? 'Jump' : 'Space'} leapt ${rise} units up and clear of the ledge (invincible ${jumpInvuln} frames)`);
+          }
+        }
+      }
+      t.progress(0.7);
+      await settle();
+
+      // ---- 5. the hang limit: no input at all, and the fighter lets go.
+      if (!(await toLedge())) fail('drop', 'could not reach the ledge again');
+      else {
+        at = frame();
+        let hung = 0;
+        await t.until(() => {
+          if (me().action === ACT.LEDGE) hung = frame() - at;
+          return me().action !== ACT.LEDGE;
+        }, 20000 + LEDGE_HANG_MAX * 150, 'the hang to run out');
+        await frames(2);
+        const fell = me().ledge === 0 && me().action !== ACT.LEDGE;
+        if (!optionSince('drop', at) || !fell) fail('drop', `holding the ledge never dropped the fighter (${hung} frames, ${ACT_NAMES[me().action]})`);
+        else if (hung < LEDGE_HANG_MAX - 5) fail('drop', `let go after only ${hung} frames (the limit is ${LEDGE_HANG_MAX})`);
+        else {
+          results.set('drop', true);
+          t.metric('ledgeHangFrames', hung);
+          t.event('ledge-drop', `${how}: holding the ledge with no input dropped the fighter after ${hung} frames (${(hung / 60).toFixed(1)} s)`);
+        }
+      }
+      pad.release();
+      await settle();
+      t.metric('ledgeOptions', [...results.values()].filter(Boolean).length);
+      t.progress(0.85);
+
+      // ---- the All controls page lists the ledge options for every device.
+      this.manual = null;
+      await this.game.quitMatch();
+      await this.screen('main');
+      await this.click(() => this.q('#main .menu-item[data-go="controls"]'), 'All controls');
+      await t.until(() => !!document.querySelector('#ctl-kb dt'), 6000, 'the controls lists');
+      for (const [id, name] of [['ctl-kb', 'keyboard'], ['ctl-pad', 'gamepad'], ['ctl-touch', 'touch']] as const) {
+        const row = [...document.querySelectorAll(`#${id} dt`)].find((e) => /ledge/i.test(e.textContent ?? ''));
+        const text = row?.nextElementSibling?.textContent ?? '';
+        const need = name === 'touch' ? ['Attack', 'Shield', 'Jump'] : name === 'keyboard' ? ['J', 'L', 'Space'] : ['jump'];
+        if (!row || need.some((n) => !text.toLowerCase().includes(n.toLowerCase()))) t.problem('bug', `the All controls ${name} list has no complete "On the ledge" row ("${text}")`);
+        else t.event('ledge-controls', `${name}: "${row.textContent}": ${text}`);
+      }
+      const close = document.getElementById('btn-controls-close');
+      if (close) close.click();
+    } finally {
+      window.removeEventListener('dod:ledge', onLedge);
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- training combo
+
+  /**
+   * Training's combo readout and dummy options (Match.readout, main.ts updateReadout / wireTrainingOptions, ai/trainingDummy.ts).
+   * Setup shortcut: straight into Training (Exit Punk vs Break, no menus). The readout sits top left clear of the pause button,
+   * the timer and every touch control. Pause: the dummy's percent is set to 100 and read back from the sim, then Reset puts it at 0;
+   * the dummy's behaviour is set to Jump, Shield, Stand and CPU (level raised) in turn, each seen in the sim. Then a true combo from
+   * real input: the stick down plus Attack (down tilt) again and again lands a string while the dummy is still in hitstun, the
+   * readout counting to 3 or more with the combo's damage and the last hit's. Every Pause control must be 44 px and on screen.
+   * Keyboard on a desktop; at phone size (390x844, turned to 844x390 like ledge-options) the same through touch taps and the
+   * on-screen stick and Attack button. Events `training-readout`, `training-percent`, `training-reset`, `training-dummy`,
+   * `training-combo`, `training-fit`; metrics `trainingComboHits`, `trainingComboDamage`.
+   */
+  async trainingCombo(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('training-combo');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = CHARACTERS.findIndex((c) => c.id === 'break');
+      if (punk < 0 || foe < 0) {
+        t.problem('bug', 'Exit Punk or Break is not on the roster');
+        t.finish('error');
+        return;
+      }
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      void this.game.startMatch({
+        mode: 'training', stage, stocks: 1, rules: {},
+        slots: [{ char: punk, cpu: null }, { char: foe, cpu: 0 }],
+      });
+      await this.matchLive();
+      this.manual = NO_INPUT;
+      const match = () => this.game.match()!;
+      const me = () => match().state.fighters[match().player];
+      const dummy = () => match().state.fighters[match().dummySlot];
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 8000 + n * 150, 'frames to pass');
+      };
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls were not built');
+        t.finish('error');
+        return;
+      }
+      const vw = innerWidth;
+      const vh = innerHeight;
+      const rectOf = (el: Element) => el.getBoundingClientRect();
+      const overlap = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      const visible = (el: Element | null): el is HTMLElement => !!el && (el as HTMLElement).getClientRects().length > 0;
+
+      // ---- 1. no combo yet, so the panel is not drawn (no "0.0%" beside empty labels).
+      const readout = this.q('#training-readout');
+      if (!readout) {
+        t.problem('bug', `${how}: no combo readout element on the Training screen`);
+        t.finish('error');
+        return;
+      }
+      if (visible(readout)) t.problem('bug', `${how}: the combo panel shows before any combo exists`);
+      else t.event('readout-hidden', `${how}: the combo panel is hidden until a combo exists`);
+      const checkReadoutFit = () => {
+        const rr = rectOf(readout);
+        const blockers = [...document.querySelectorAll<HTMLElement>('.touch-btn, .touch-stick, .touch-pause, #match-top, #hud .hud-card')].filter(visible);
+        const hit = blockers.find((b) => overlap(rr, rectOf(b)));
+        if (rr.left < 0 || rr.top < 0 || rr.right > vw || rr.bottom > vh) t.problem('bug', `${how}: the combo readout runs off the screen (${Math.round(rr.left)},${Math.round(rr.top)} ${Math.round(rr.width)}x${Math.round(rr.height)} in ${vw}x${vh})`);
+        else if (hit) t.problem('bug', `${how}: the combo readout is under ${hit.className || hit.id}`);
+        else t.event('training-readout', `${how}: readout top left at ${Math.round(rr.left)},${Math.round(rr.top)} (${Math.round(rr.width)}x${Math.round(rr.height)} in ${vw}x${vh}), clear of the pause button and the controls`);
+      };
+      t.progress(0.1);
+
+      // ---- 2. Pause: the options are there, every control 44 px, on screen.
+      const openPause = async () => {
+        const pauseBtn = () => (touch && visible(this.q('.touch-pause')) ? this.q('.touch-pause') : null);
+        if (pauseBtn()) await this.tap(pauseBtn, 'Pause');
+        else await tapKey('Escape');
+        await t.until(() => this.game.phase() === 'pause' && visible(this.q('#training-options')), 4000, 'Pause with the Training options');
+        await t.wait(300);
+      };
+      const closePause = async () => {
+        await this.tap(() => this.q('#btn-resume'), 'Resume');
+        await t.until(() => this.game.phase() === 'play', 4000, 'the match to resume');
+      };
+      await openPause();
+      const small: string[] = [];
+      const off: string[] = [];
+      for (const b of document.querySelectorAll<HTMLElement>('#pause button')) {
+        if (!visible(b)) continue;
+        const r = rectOf(b);
+        if (r.width < 44 || r.height < 44) small.push(`${b.textContent?.trim() || b.id} ${Math.round(r.width)}x${Math.round(r.height)}`);
+        if (r.left < 0 || r.top < 0 || r.right > vw + 1 || r.bottom > vh + 1) off.push(`${b.textContent?.trim() || b.id}`);
+      }
+      const pausePanel = this.q('#pause .panel');
+      const pr = pausePanel ? rectOf(pausePanel) : null;
+      if (small.length) t.problem('bug', `${how}: Pause controls under 44 px: ${small.join(', ')}`);
+      else if (off.length) t.problem('bug', `${how}: Pause controls off the screen: ${off.join(', ')}`);
+      else if (pr && (pr.left < 0 || pr.top < 0 || pr.right > vw + 1 || pr.bottom > vh + 1)) t.problem('bug', `${how}: the Pause panel runs off the screen (${Math.round(pr.width)}x${Math.round(pr.height)} in ${vw}x${vh})`);
+      else t.event('training-fit', `${how}: ${document.querySelectorAll('#pause button').length} Pause buttons, all at least 44x44, panel ${pr ? `${Math.round(pr.width)}x${Math.round(pr.height)}` : '?'} inside ${vw}x${vh}`);
+
+      // ---- 3. the dummy's percent: set 100, then Reset.
+      const pctBtn = (n: number) => () => this.q(`#to-percents button[data-percent="${n}"]`);
+      await this.tap(pctBtn(100), 'Dummy 100%');
+      if (dummy().percent !== 1000) t.problem('bug', `${how}: the 100% button left the dummy at ${dummy().percent / 10}%`);
+      else t.event('training-percent', `${how}: the dummy was set to 100% from Pause (sim ${dummy().percent / 10}%)`);
+      await this.tap(pctBtn(0), 'Dummy Reset');
+      if (dummy().percent !== 0) t.problem('bug', `${how}: Reset left the dummy at ${dummy().percent / 10}%`);
+      else t.event('training-reset', `${how}: Reset put the dummy back at 0%`);
+      await closePause();
+      t.progress(0.3);
+
+      // ---- 4. the dummy's behaviour: Jump, Shield, Stand, CPU. Each is seen in the sim after Resume.
+      const mode = async (id: string, seen: () => boolean, label: string, ms = 6000) => {
+        await openPause();
+        await this.tap(() => this.q(`#to-modes button[data-dummy="${id}"]`), `Dummy ${id}`);
+        if (this.q(`#to-modes button[data-dummy="${id}"]`)?.getAttribute('aria-pressed') !== 'true') t.problem('bug', `${how}: ${id} is not marked as chosen`);
+        if (id === 'cpu') {
+          await this.tap(() => this.q('#to-level-up'), 'CPU level up');
+          await this.tap(() => this.q('#to-level-up'), 'CPU level up');
+          if (!/level 7/i.test(this.q('#to-level')?.textContent ?? '')) t.problem('bug', `${how}: the CPU level did not go up ("${this.q('#to-level')?.textContent}")`);
+        }
+        await closePause();
+        try {
+          await t.until(seen, ms, label);
+          t.event('training-dummy', `${how}: dummy ${id}: ${label}`);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.problem('bug', `${how}: dummy set to ${id} but ${label} never happened`);
+        }
+      };
+      await mode('jump', () => dummy().grounded === 0, 'it jumped');
+      await mode('shield', () => dummy().action === ACT.SHIELD, 'it shielded');
+      await mode('stand', () => dummy().action === ACT.IDLE && dummy().grounded > 0, 'it stood');
+      await mode('cpu', () => dummy().action !== ACT.IDLE, 'it acted as a CPU');
+      // Back to a still dummy at 0% for the combo.
+      await openPause();
+      await this.tap(() => this.q('#to-modes button[data-dummy="stand"]'), 'Dummy stand');
+      await this.tap(pctBtn(0), 'Dummy Reset');
+      await closePause();
+      t.progress(0.55);
+
+      // ---- 5. a true combo: down tilt again and again, the dummy still in hitstun at each hit.
+      const standing = () => {
+        const f = me();
+        return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      };
+      let best = 0;
+      let bestDmg = 0;
+      let lastText = '';
+      for (let attempt = 1; attempt <= 8 && best < 3; attempt++) {
+        pad.release();
+        await t.until(() => standing() && dummy().grounded > 0 && dummy().action !== ACT.HITSTUN, 12000, 'both fighters to stand');
+        // Setup shortcut: stand the fighters 50 units apart facing each other (the hits are real input).
+        const p = me();
+        const d = dummy();
+        p.x = d.x - 50 * FX;
+        p.y = d.y;
+        p.facing = 1;
+        d.facing = -1;
+        p.vx = 0;
+        await frames(4);
+        const start = frame();
+        while (frame() - start < 6 * 19 && best < 3) {
+          pad.stick(0, -100);
+          pad.button('attack', true);
+          await frames(3);
+          pad.button('attack', false);
+          await frames(16);
+          const r = match().readout;
+          if (r.count > best) {
+            best = r.count;
+            bestDmg = r.dmg;
+            lastText = `${this.q('#training-readout .tr-count')?.textContent} ${this.q('#training-readout .tr-dmg')?.textContent} / last ${this.q('#training-readout .tr-last')?.textContent}`;
+          }
+        }
+        pad.release();
+        if (best < 3) t.event('training-retry', `${how}: attempt ${attempt} reached a ${best}-hit combo; trying again`);
+      }
+      if (best < 3) t.problem('bug', `${how}: the down tilt string never made a 3-hit true combo (best ${best})`);
+      else {
+        await frames(4);
+        checkReadoutFit();
+        const shownCount = Number(this.q('#training-readout .tr-count')?.textContent);
+        const shownDmg = this.q('#training-readout .tr-dmg')?.textContent ?? '';
+        const shownLast = this.q('#training-readout .tr-last')?.textContent ?? '';
+        if (shownCount < 3 || !/\d+\.\d%/.test(shownDmg) || shownDmg === '0.0%') t.problem('bug', `${how}: a ${best}-hit combo but the readout shows "${shownCount}" and "${shownDmg}"`);
+        else if (!visible(this.q('#training-readout .tr-tag'))) t.problem('bug', `${how}: the readout does not say the ${best}-hit combo was true`);
+        else t.event('training-combo', `${how}: ${best}-hit true combo (${touch ? 'stick down + Attack' : 'S + J'}); readout ${lastText}; after: ${shownCount} hits, combo ${shownDmg}, last hit ${shownLast}`);
+      }
+      t.metric('trainingComboHits', best);
+      t.metric('trainingComboDamage', Math.round(bestDmg) / 10);
+      pad.release();
     } finally {
       if (touch) {
         this.useTap = false;
@@ -6303,6 +9267,12 @@ class Run {
     let trailSeq = 0;
     let markerSeen = 0;
     let markerProblems = 0;
+    let tagMissing = 0;
+    let tagProblems = 0;
+    let tagFrames = 0;
+    const tagLogged = new Set<number>();
+    const tagBubbleLogged = new Set<number>();
+    const phaseIsPlay = () => !!this.game.match();
     let windupTellsLogged = 0;
     let windupDodges = 0;
     let cpuWindup: { move: number; name: string; frame: number; char: number; dodged: boolean } | null = null;
@@ -6327,6 +9297,27 @@ class Run {
           markerProblems++;
           if (markerProblems <= 3) t.problem('bug', `an edge marker (${Math.round(r.l)},${Math.round(r.t)} to ${Math.round(r.r)},${Math.round(r.b)}) ${hit ? 'sits under a control or damage card' : 'leaves the window'}${touchUi ? ' on the phone layout' : ''}`);
         }
+      }
+      // Name tags: every fighter shows one (on the stage over the head, or on its edge bubble with the same text), at least 12 px
+      // tall, inside the window, clear of the touch controls.
+      const ts = this.game.tagStats?.();
+      const mt = this.game.match();
+      if (ts && mt && phaseIsPlay()) {
+        const bubbles = new Map(ms.rects.map((b) => [b.id, b.tag ?? '']));
+        for (const f of mt.state.fighters) {
+          if (f.stocks <= 0 || f.action === ACT.DEAD) continue;
+          const tg = ts.rects.find((q) => q.id === f.id);
+          if (!tg && !bubbles.has(f.id)) { tagMissing++; continue; }
+          if (!tg) { if (!bubbles.get(f.id)) tagMissing++; else if (!tagBubbleLogged.has(f.id)) { tagBubbleLogged.add(f.id); t.event('tag-bubble', `fighter ${f.id}'s edge bubble shows the tag "${bubbles.get(f.id)}"`); } continue; }
+          const r = tg.rect;
+          if (!tagLogged.has(f.id)) { tagLogged.add(f.id); t.event('tag', `fighter ${f.id} shows the tag "${tg.text}" (${Math.round(r.r - r.l)}x${Math.round(r.b - r.t)} px, font ${tg.fontPx}px${touchUi ? ', phone layout' : ''})`); }
+          const under = blockers.find((b) => overlap(r, { l: b.left, t: b.top, r: b.right, b: b.bottom }));
+          if (r.b - r.t < 12 || r.r - r.l < 12 || r.l < 0 || r.t < 0 || r.r > innerWidth || r.b > innerHeight || under) {
+            tagProblems++;
+            if (tagProblems <= 3) t.problem('bug', `the tag "${tg.text}" (${Math.round(r.l)},${Math.round(r.t)} to ${Math.round(r.r)},${Math.round(r.b)}) is ${under ? 'under a control' : 'too small or off the window'}${touchUi ? ' on the phone layout' : ''}`);
+          }
+        }
+        tagFrames++;
       }
       // Damage numbers: inside the window and clear of the touch buttons.
       for (const el of document.querySelectorAll('.hud-pct')) {
@@ -6441,10 +9432,11 @@ class Run {
       await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
       await t.until(settingsShowing, 3000, 'Settings to open');
       this.checkClipping('Settings', this.q('#settings'));
-      const sw = this.q('#shake-switch');
-      if (!sw) t.problem('bug', 'Settings has no Screen shake switch');
-      else if (sw.getAttribute('aria-checked') !== 'true' || !screenShake()) t.problem('bug', 'Screen shake is not on by default');
-      else t.event('shake-default', 'Settings shows Screen shake: On');
+      const sw = this.q('#shake-level') as HTMLInputElement | null;
+      if (!sw) t.problem('bug', 'Settings has no Screen shake slider');
+      else if (reduceMotion()) t.event('shake-default', `Reduce motion is on in this browser: Screen shake defaults to ${sw.value}%`);
+      else if (Number(sw.value) !== 100 || !screenShake()) t.problem('bug', 'Screen shake is not at 100% by default');
+      else t.event('shake-default', 'Settings shows Screen shake: 100%');
       await this.tap(() => this.q('#settings-done'), 'Done');
       await t.wait(300);
 
@@ -6510,6 +9502,9 @@ class Run {
           }
         }
       }
+      t.metric('tagFrames', tagFrames);
+      t.metric('tagMissing', tagMissing);
+      if (tagFrames > 0 && tagMissing > tagFrames * 0.05) t.problem('bug', `a fighter had no name tag (on the stage or on its edge bubble) in ${tagMissing} checks over ${tagFrames} frames`);
       if (!this.game.markerStats?.()?.shown) t.problem('warning', 'no fighter went off screen, so no edge marker was seen (the kill cue usually shows one)');
       else t.metric('markersShown', this.game.markerStats!()!.shown);
       // Ensure at least one wind-up tell dodge was observed; if the CPU only threw normals in the window, stage one close CPU smash so the bot reads the wind-up tell and dodges it live.
@@ -6568,10 +9563,17 @@ class Run {
       await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
       await t.until(settingsShowing, 3000, 'Settings to open from Pause');
       await t.wait(400);
-      await this.tap(() => this.q('#shake-switch'), 'Screen shake off');
-      if (screenShake() || this.q('#shake-switch')?.getAttribute('aria-checked') !== 'false' || localStorage.getItem(SHAKE_STORAGE_KEY) !== 'off') {
-        t.problem('bug', 'Screen shake off did not apply and save');
-      } else t.event('shake-off', 'Screen shake switched Off in Settings (saved as dod.shake=off)');
+      {
+        const sl = this.q('#shake-level') as HTMLInputElement | null;
+        if (sl) {
+          sl.value = '0';
+          sl.dispatchEvent(new Event('input', { bubbles: true }));
+          sl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+      if (screenShake() || (this.q('#shake-level') as HTMLInputElement | null)?.value !== '0' || localStorage.getItem(SHAKE_STORAGE_KEY) !== '0') {
+        t.problem('bug', 'Screen shake 0% did not apply and save');
+      } else t.event('shake-off', 'Screen shake set to 0% in Settings (saved as dod.shake=0)');
       await this.tap(() => this.q('#settings-done'), 'Done');
       await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
       await this.click(() => this.q('#btn-resume'), 'Resume');
@@ -6625,8 +9627,8 @@ class Run {
           if (killsMissed > 0) t.problem('warning', `${killsMissed} of ${killsMissed + killsCued} stocks ended with no kill cue (the victim was launched inside the zone and fell out, so the launch was not a KO)`);
           if (falseCues === 0) t.event('kill-cue-exact', `${killsCued} stock-ending hits played a kill cue, no other hit did (${killsMissed} falls out of a spent launch had none)`);
           const lc = cam.lastCue;
-          if (lc && !(lc.zoom && lc.slow && lc.whistle)) t.problem('bug', 'a kill cue was missing its zoom, slow motion or whistle');
-          if (lc && lc.punch <= 0.2) t.problem('bug', 'the kill cue did not punch the camera in');
+          if (lc && !reduceMotion() && !(lc.zoom && lc.slow && lc.whistle)) t.problem('bug', 'a kill cue was missing its zoom, slow motion or whistle');
+          if (lc && !reduceMotion() && lc.punch <= 0.2) t.problem('bug', 'the kill cue did not punch the camera in');
           if (lc && cam.killCues > 0 && !screenShake() && lc.shake > 0) t.problem('bug', 'the kill cue shook the camera with Screen shake off');
           else if (lc && !screenShake()) t.event('kill-cue-no-shake', `with Screen shake off the kill cue still zoomed (punch ${lc.punch.toFixed(2)}) and the shake was ${lc.shake}`);
         }
@@ -6651,6 +9653,281 @@ class Run {
       } catch {
         // Storage blocked.
       }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- rumble
+
+  /**
+   * Rumble (rumble.ts): Settings has a Rumble switch (on by default, 44 px tall); in a versus match each light, heavy and KO
+   * the player lands or takes sends its own pulse (logged `rumble` with strength and length, different per tier), and from
+   * Pause turning Rumble off sends no more rumble and no phone vibrate. A phone (390x844, turned to 844x390) plays it by taps.
+   * The pad's actuator and the phone's vibrator are counted at the browser call (navigator.vibrate is wrapped here).
+   */
+  async rumbleRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      this.useTap = true;
+      forceTouchUi(true);
+      try {
+        await this.toMainMenu();
+        await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+        await t.until(settingsShowing, 3000, 'Settings to open');
+        this.checkClipping('Settings (portrait)', this.q('#settings'));
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.wait(300);
+      } finally {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+      return this.touchMatchTurned('rumble');
+    }
+    this.logViewport(touch && (this.isPhone() || this.options.at === 'phone-turned'));
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const original = localStorage.getItem(TOUCH_KEY);
+    try {
+      localStorage.removeItem(TOUCH_KEY);
+    } catch {
+      // Storage blocked.
+    }
+    // Count the browser's own vibrate calls.
+    let vibrateCalls = 0;
+    const nav = navigator as Navigator & { vibrate?: (p: number | number[]) => boolean };
+    const hadOwn = Object.prototype.hasOwnProperty.call(nav, 'vibrate');
+    const realVibrate = nav.vibrate?.bind(navigator);
+    Object.defineProperty(navigator, 'vibrate', { configurable: true, writable: true, value: (p: number | number[]) => { vibrateCalls++; return realVibrate ? realVibrate(p) : true; } });
+    let hits = 0;
+    const unwatch = this.game.watch((m, events) => {
+      for (const e of events) if (e.type === 'hit' && !e.shield && (e.attacker === m.player || e.victim === m.player)) hits++;
+    });
+    const m0 = () => this.game.match();
+    const logged = (r: RumbleSent) => t.event('rumble', `${r.kind}: ${r.ms} ms, strong ${r.strong}, weak ${r.weak}${r.calm ? ' (calm limits)' : ''}; pad ${r.pad ? 'rumbled' : 'none'}, phone ${r.phone ? 'vibrated' : 'no vibrator'}`);
+    try {
+      await this.toMainMenu();
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, 'Settings to open');
+      this.checkClipping('Settings', this.q('#settings'));
+      const sw = this.q('#rumble-switch');
+      const h = sw?.getBoundingClientRect().height ?? 0;
+      if (!sw) t.problem('bug', 'Settings has no Rumble switch');
+      else if (sw.getAttribute('aria-checked') !== 'true' || !touchSettings().vibrate) t.problem('bug', 'Rumble is not on by default');
+      else if (h < 44) t.problem('bug', `the Rumble switch is only ${Math.round(h)} px tall`);
+      else t.event('rumble-default', `Settings shows Rumble: On (${Math.round(h)} px tall)`);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(300);
+      t.progress(0.1);
+
+      await this.startVersus(3);
+      if (touch) {
+        const root = touchOverlay() ?? this.q('.touch');
+        if (root && root.hidden) root.hidden = false;
+        document.body.classList.add('touch-ui');
+      }
+      const start = rumbleLog.length;
+      vibrateCalls = 0;
+      this.progressNow = () => 0.1 + 0.5 * Math.min(1, ((m0()?.state.frame ?? 0) / (90 * 60)));
+      const kinds = () => new Set(rumbleLog.slice(start).map((r) => r.kind));
+      const ended = await this.fight(() => (kinds().has('light') && kinds().has('heavy') && kinds().has('ko')) || (m0()?.state.frame ?? 0) > 90 * 60, 5 * 60 * 1000);
+      if (ended === 'over') t.problem('warning', 'the match ended before a light hit, a heavy hit and a KO were all rumbled');
+      const seen = new Map<string, RumbleSent>();
+      for (const r of rumbleLog.slice(start)) if (!seen.has(r.kind)) { seen.set(r.kind, r); logged(r); }
+      for (const k of ['light', 'heavy', 'ko'] as const) if (!seen.has(k)) t.problem('bug', `no ${k} rumble was sent in this fight`);
+      const [a, b, c] = [seen.get('light'), seen.get('heavy'), seen.get('ko')];
+      if (a && b && c) {
+        const differ = a.ms < b.ms && b.ms < c.ms && a.strong < b.strong && b.strong <= c.strong;
+        if (!differ) t.problem('bug', 'light, heavy and KO rumbles are not each longer and stronger than the one before');
+        else t.event('rumble-tiers', `light ${a.ms} ms / ${a.strong}, heavy ${b.ms} ms / ${b.strong}, KO ${c.ms} ms / ${c.strong}`);
+      }
+      t.metric('rumblesOn', rumbleLog.length - start);
+      if (touch) {
+        if (vibrateCalls === 0) t.problem('warning', 'no navigator.vibrate call was made on a hit with Rumble on');
+        else t.event('vibrate-on', `${vibrateCalls} phone vibrate call(s) on hits with Rumble on`);
+      }
+      t.progress(0.65);
+
+      // Pause → Settings → Rumble off; the fight goes on and nothing rumbles or vibrates.
+      const pauseBtn = () => {
+        const el = this.q('.touch-pause');
+        return el && el.getClientRects().length > 0 ? el : null;
+      };
+      if (touch && pauseBtn()) await this.tap(pauseBtn, 'Pause');
+      else await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+      await t.until(settingsShowing, 3000, 'Settings to open from Pause');
+      await t.wait(400);
+      await this.tap(() => this.q('#rumble-switch'), 'Rumble off');
+      if (touchSettings().vibrate || this.q('#rumble-switch')?.getAttribute('aria-checked') !== 'false') t.problem('bug', 'Rumble off did not apply');
+      else t.event('rumble-off', 'Rumble switched Off in Settings (shared by pad rumble and phone vibrate)');
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+      await this.click(() => this.q('#btn-resume'), 'Resume');
+      await t.until(() => this.game.phase() === 'play', 3000, 'the match to resume');
+      const sentBefore = rumbleLog.length;
+      const hitsBefore = hits;
+      const supBefore = rumbleStats.suppressed;
+      vibrateCalls = 0;
+      const f0 = m0()?.state.frame ?? 0;
+      await this.fight(() => hits - hitsBefore >= 4 || (m0()?.state.frame ?? 0) - f0 > 90 * 60, 3 * 60 * 1000);
+      const landed = hits - hitsBefore;
+      if (landed === 0) t.problem('warning', 'no hit landed with Rumble off, so it could not be checked');
+      else if (rumbleLog.length !== sentBefore) t.problem('bug', `${rumbleLog.length - sentBefore} rumble(s) were sent with Rumble off`);
+      else if (touch && vibrateCalls > 0) t.problem('bug', `${vibrateCalls} phone vibrate call(s) with Rumble off`);
+      else t.event('rumble-silent', `${landed} hit(s) with Rumble off: 0 rumbles sent, 0 phone vibrate calls (${rumbleStats.suppressed - supBefore} held back)`);
+      t.metric('rumblesOff', rumbleLog.length - sentBefore);
+      t.metric('vibrateCallsOff', vibrateCalls);
+      t.progress(0.9);
+
+      if (touch && pauseBtn()) await this.tap(pauseBtn, 'Pause');
+      else await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.click(() => this.q('#btn-quit'), 'Quit');
+      await this.screen('main');
+    } finally {
+      unwatch();
+      if (hadOwn) Object.defineProperty(navigator, 'vibrate', { configurable: true, writable: true, value: realVibrate });
+      else delete (nav as { vibrate?: unknown }).vibrate;
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+      try {
+        if (original === null) localStorage.removeItem(TOUCH_KEY);
+        else localStorage.setItem(TOUCH_KEY, original);
+      } catch {
+        // Storage blocked.
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- auto-level
+
+  /**
+   * Auto CPU level (ai/autoLevel.ts): quick play's CPU is on Auto by default. Setup shortcut: the saved Auto level (`dod.profile.cpu`)
+   * is set to 4. Match 1 (3 stocks) is a win by the bot and, with 2+ stocks left, raises the level by 1; match 2 (1 stock, the player
+   * held idle through the virtual pad) is a loss that takes no stock and lowers it by 1. Each match is entered from the menu so the
+   * VS card is read (`vs-level`: "CPU · Level N · Auto"), and the Results' one-line note is measured (`level-note`, `level-note-fit`).
+   * A phone (390x844) turns to 844x390 and plays by taps.
+   */
+  async autoLevelRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('auto-level');
+    }
+    this.logViewport(touch && (this.isPhone() || this.options.at === 'phone-turned'));
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const KEY = 'dod.profile.cpu';
+    const original = localStorage.getItem(KEY);
+    const saved = () => (JSON.parse(localStorage.getItem(KEY) ?? '{}') as { level?: number }).level ?? 3;
+    localStorage.setItem(KEY, JSON.stringify({ level: 4 }));
+    let vsText = '';
+    let vsLevel = 0;
+    const onVs = () => {
+      const el = document.querySelector<HTMLElement>('.vs-level[data-level]');
+      vsText = el?.textContent ?? '';
+      vsLevel = Number(el?.dataset.level ?? 0);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        const inside = r.left >= 0 && r.right <= innerWidth && r.height < 40 * 1.6;
+        if (!inside) t.problem('bug', `the VS card's level label runs off the screen or wraps ("${vsText}")`);
+      }
+    };
+    window.addEventListener('dod:vs-calls', onVs);
+    type AutoChange = { won: boolean; stocksLeft: number; from: number; to: number; changed: boolean };
+    let change = null as AutoChange | null;
+    const onAuto = (e: Event) => { change = (e as CustomEvent).detail; };
+    window.addEventListener('dod:auto-level', onAuto);
+    const note = () => this.q('.results-hero .level-note');
+    const checkNote = (want: number) => {
+      const el = note();
+      if (!el) return t.problem('bug', 'Results has no level-change note after an Auto match that moved the level');
+      const r = el.getBoundingClientRect();
+      const lh = parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.3;
+      const oneLine = r.height <= lh * 1.5 && el.scrollWidth <= el.clientWidth + 1;
+      const inside = r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight + 2;
+      t.event('level-note', `"${el.textContent}" (${Math.round(r.width)}x${Math.round(r.height)} px)`);
+      if (!oneLine || !inside) t.problem('bug', `the level-change note is not on one line inside the screen (${Math.round(r.width)}x${Math.round(r.height)} px, scroll ${el.scrollWidth}/${el.clientWidth}, window ${innerWidth}x${innerHeight})`);
+      else t.event('level-note-fit', `one line, ${Math.round(r.width)} px wide in a ${innerWidth}x${innerHeight} window`);
+      if (!el.textContent?.includes(`→ ${want}`)) t.problem('bug', `the note says "${el.textContent}", the level moved to ${want}`);
+    };
+    const toResults = async () => {
+      await this.results();
+      await t.until(() => this.q('.results-row')?.getAttribute('data-phase') === 'panel', 12000, 'the results panel').catch(() => undefined);
+      await t.wait(400);
+    };
+    try {
+      await this.toMainMenu();
+      t.progress(0.05);
+
+      // Match 1: a win with 2+ stocks left.
+      await this.startVersus(3);
+      if (vsLevel !== 4 || !/Level 4/.test(vsText) || !/Auto/.test(vsText)) t.problem('bug', `the VS card shows "${vsText}", wanted CPU · Level 4 · Auto`);
+      else t.event('vs-level', `VS card: "${vsText}"`);
+      this.progressNow = () => 0.05 + 0.4 * Math.min(1, (this.game.match()?.state.frame ?? 0) / (180 * 60));
+      await this.fight(() => false, 8 * 60 * 1000);
+      await toResults();
+      const won1 = change as AutoChange | null;
+      if (!won1) t.problem('bug', 'no dod:auto-level event after the first match');
+      else {
+        t.event('auto-win', `won ${won1.won}, ${won1.stocksLeft} stocks left: level ${won1.from} → ${won1.to}`);
+        if (won1.won && won1.stocksLeft >= 2) {
+          if (won1.to !== won1.from + 1 || saved() !== 5) t.problem('bug', `a win with ${won1.stocksLeft} stocks left moved the Auto level ${won1.from} → ${won1.to} (saved ${saved()}), wanted +1`);
+          else checkNote(5);
+        } else t.problem('warning', `the bot ${won1.won ? `won with only ${won1.stocksLeft} stock(s) left` : 'lost'}: no clear win to check +1 on (try another seed)`);
+      }
+      t.metric('autoLevelAfterWin', saved());
+      t.progress(0.5);
+
+      // Match 2: a loss that takes no stock (the player stands still).
+      change = null;
+      await this.click(() => [...document.querySelectorAll<HTMLElement>('#results-actions button')].find((b) => b.textContent === 'Main menu'), 'Main menu');
+      await this.screen('main');
+      await this.startVersus(1, false);
+      if (vsLevel !== saved() || !/Auto/.test(vsText)) t.problem('bug', `the second VS card shows "${vsText}", the Auto level is ${saved()}`);
+      else t.event('vs-level', `VS card: "${vsText}"`);
+      const before = saved();
+      this.manual = NO_INPUT;
+      try {
+        await this.fight(() => false, 8 * 60 * 1000);
+      } finally {
+        this.manual = null;
+      }
+      await toResults();
+      const lost = change as AutoChange | null;
+      if (!lost) t.problem('bug', 'no dod:auto-level event after the second match');
+      else {
+        t.event('auto-loss', `won ${lost.won}: level ${lost.from} → ${lost.to}`);
+        if (lost.won) t.problem('warning', 'the idle player won?');
+        else if (lost.to !== before - 1 || saved() !== before - 1) t.problem('bug', `a loss without taking a stock moved the Auto level ${lost.from} → ${lost.to}, wanted ${before - 1}`);
+        else checkNote(before - 1);
+      }
+      t.metric('autoLevelAfterLoss', saved());
+      await this.click(() => [...document.querySelectorAll<HTMLElement>('#results-actions button')].find((b) => b.textContent === 'Main menu'), 'Main menu');
+      await this.screen('main');
+    } finally {
+      window.removeEventListener('dod:vs-calls', onVs);
+      window.removeEventListener('dod:auto-level', onAuto);
+      this.manual = null;
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+      if (original === null) localStorage.removeItem(KEY);
+      else localStorage.setItem(KEY, original);
     }
     t.progress(1);
     t.finish('done');
@@ -7291,6 +10568,1182 @@ class Run {
    * live in a match (size and fade measured on the real elements, all kept inside the window), are saved in
    * localStorage "dod.touch", and are still set after a reload. The run treats the desktop browser as a touch device.
    */
+  /**
+   * Settings > Colour vision (colourVision.ts): the switch is on Settings (menu and Pause), the choice survives a reload,
+   * and in a match every fighter's ring, tag and HUD card carries its own shape (circle, triangle, square, diamond) in
+   * both modes, with the Okabe-Ito colours in Colourblind-safe. On a 390x844 phone the portrait Settings is checked, then
+   * the run plays in the turned 844x390 frame by taps.
+   */
+  /**
+   * Motion comfort (hitFeel.ts: Reduce motion, Screen shake 0-100%, Flashes Full/Soft/Off; renderer `flashScreen`, `killCue`,
+   * `updateCamera`; post `punch`). With Reduce motion on from Settings a stock-ending KO must play with no slow motion, no punch-in
+   * zoom, no full-screen flash and no camera shake; with Flashes Full and Shake 100 the flashes come back but never more than
+   * 3 start in any second. Touch: every control is tapped / set through pointer events, the phone is turned to 844x390.
+   */
+  async motionComfort(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const KEYS = [MOTION_STORAGE_KEY, SHAKE_STORAGE_KEY, FLASH_STORAGE_KEY];
+    const original = KEYS.map((k) => [k, localStorage.getItem(k)] as const);
+    const restore = () => {
+      for (const [k, v] of original) {
+        try {
+          if (v === null) localStorage.removeItem(k);
+          else localStorage.setItem(k, v);
+        } catch {
+          // Storage blocked.
+        }
+      }
+    };
+    const openSettings = async (from: 'menu' | 'pause') => {
+      if (from === 'menu') await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      else {
+        const pauseBtn = () => {
+          const el = this.q('.touch-pause');
+          return el && el.getClientRects().length > 0 ? el : null;
+        };
+        if (touch && pauseBtn()) await this.tap(pauseBtn, 'Pause');
+        else await tapKey('Escape');
+        await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+        await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+      }
+      await t.until(settingsShowing, 3000, `Settings to open from ${from}`);
+      await t.wait(300);
+    };
+    const closeSettings = async (from: 'menu' | 'pause') => {
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      if (from === 'pause') {
+        await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+        await this.click(() => this.q('#btn-resume'), 'Resume');
+        await t.until(() => this.game.phase() === 'play', 3000, 'the match to resume');
+      } else await t.wait(300);
+    };
+    const controls = (where: string) => {
+      const ids = ['#motion-switch', '#shake-level', '#flash-seg [data-fl="full"]', '#flash-seg [data-fl="soft"]', '#flash-seg [data-fl="off"]'];
+      const rects = ids.map((id) => ({ id, el: this.q(id) }));
+      for (const { id, el } of rects) {
+        if (!el) {
+          t.problem('bug', `${where}: Settings has no ${id}`);
+          continue;
+        }
+        const r = el.getBoundingClientRect();
+        if (r.height < 44 || r.width < 44 || r.left < 0 || r.right > innerWidth) t.problem('bug', `${where}: ${id} is ${Math.round(r.width)}x${Math.round(r.height)} at ${Math.round(r.left)},${Math.round(r.top)}`);
+      }
+      this.checkClipping(`Settings (${where})`, this.q('#settings'));
+      t.event('motion-controls', `${where} ${innerWidth}x${innerHeight}: Reduce motion ${this.q('#motion-switch')?.textContent}, Screen shake ${(this.q('#shake-level') as HTMLInputElement | null)?.value}%, Flashes ${flashMode()}`);
+    };
+    const setShake = (v: number) => {
+      const el = this.q('#shake-level') as HTMLInputElement | null;
+      if (!el) return;
+      el.value = String(v);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    const playUntil = async (stop: () => boolean, label: string) => {
+      const m0 = () => this.game.match();
+      const f0 = m0()?.state.frame ?? 0;
+      await this.fight(() => stop() || (m0()?.state.frame ?? 0) - f0 > 120 * 60, 4 * 60 * 1000);
+      t.event('motion-played', label);
+    };
+
+    forceTouchUi(touch);
+    this.useTap = touch;
+    try {
+      if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+        this.logViewport(true);
+        await this.toMainMenu();
+        await openSettings('menu');
+        controls('portrait phone');
+        await closeSettings('menu');
+        this.useTap = false;
+        forceTouchUi(false);
+        return this.touchMatchTurned('motion-comfort');
+      }
+      this.logViewport(touch);
+      for (const k of KEYS) localStorage.removeItem(k);
+      await this.toMainMenu();
+      await openSettings('menu');
+      controls('Settings');
+      // Reduce motion on by hand (a player whose OS says so already has it): the defaults of the other two follow it.
+      if (!reduceMotion()) await this.tap(() => this.q('#motion-switch'), 'Reduce motion');
+      if (!reduceMotion() || this.q('#motion-switch')?.getAttribute('aria-checked') !== 'true') t.problem('bug', 'Reduce motion did not switch on');
+      if (shakeLevel() !== 0 || flashMode() !== 'off') t.problem('bug', `Reduce motion's defaults are Screen shake ${shakeLevel()}% and Flashes ${flashMode()} (want 0% and Off)`);
+      else t.event('motion-defaults', 'Reduce motion on: Screen shake 0% and Flashes Off by default');
+      await closeSettings('menu');
+      t.progress(0.1);
+
+      await this.startVersus(3);
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      this.game.hitFxStats?.(true);
+      this.game.camFxStats?.(true);
+      this.game.flashFxStats?.(true);
+      await playUntil(() => (this.game.camFxStats?.()?.killCues ?? 0) > 0 && (this.game.hitFxStats?.()?.hits ?? 0) >= 3, 'Reduce motion: played to a stock-ending KO');
+      await t.wait(1200);
+      const cam = this.game.camFxStats?.();
+      const hit = this.game.hitFxStats?.();
+      const fl = this.game.flashFxStats?.();
+      t.metric('calmKillCues', cam?.killCues ?? 0);
+      t.metric('calmFlashes', fl?.flashes ?? 0);
+      t.metric('calmShakeMax', Number((hit?.shakeMax ?? 0).toFixed(3)));
+      if (!cam || cam.killCues === 0) t.problem('warning', 'no stock ended in the Reduce motion fight, so the KO could not be checked');
+      else {
+        const lc = cam.lastCue;
+        if (lc && (lc.zoom || lc.slow || lc.punch > 0)) t.problem('bug', `a KO with Reduce motion on still ${lc.slow ? 'slowed down ' : ''}${lc.zoom || lc.punch > 0 ? 'zoomed in' : ''}`);
+        else t.event('ko-calm', `a KO with Reduce motion on: no slow motion, no zoom punch (${cam.killCues} KO cue(s))`);
+        if ((fl?.flashes ?? 0) > 0) t.problem('bug', `${fl?.flashes} full-screen flash(es) on a KO or hit with Reduce motion on`);
+        else t.event('ko-no-flash', 'no full-screen flash on hits or the KO with Reduce motion on (Flashes Off)');
+        if ((hit?.shakeMax ?? 0) > 0) t.problem('bug', `the camera shook (${hit?.shakeMax.toFixed(2)}) with Screen shake 0%`);
+        else t.event('ko-no-shake', `the camera never shook over ${hit?.hits ?? 0} hits and the KO (Screen shake 0%)`);
+      }
+      t.progress(0.5);
+
+      // Everything back to Full from Pause, live: flashes return, still never over 3 a second.
+      await openSettings('pause');
+      if (reduceMotion()) await this.tap(() => this.q('#motion-switch'), 'Reduce motion');
+      await this.tap(() => this.q('#flash-seg [data-fl="full"]'), 'Flashes Full');
+      setShake(100);
+      if (flashMode() !== 'full' || shakeLevel() !== 100 || reduceMotion()) t.problem('bug', `the Settings choices did not apply (Flashes ${flashMode()}, shake ${shakeLevel()}, reduce ${reduceMotion()})`);
+      else t.event('motion-full', 'Reduce motion off, Screen shake 100%, Flashes Full, set from Pause');
+      await closeSettings('pause');
+      this.game.hitFxStats?.(true);
+      this.game.flashFxStats?.(true);
+      await playUntil(() => (this.game.hitFxStats?.()?.hits ?? 0) >= 10, 'Full: played ten hits');
+      const full = this.game.flashFxStats?.();
+      const fh = this.game.hitFxStats?.();
+      t.metric('fullFlashes', full?.flashes ?? 0);
+      t.metric('flashMaxPerSecond', full?.maxPerSecond ?? 0);
+      t.metric('fullShakeMax', Number((fh?.shakeMax ?? 0).toFixed(3)));
+      if ((full?.maxPerSecond ?? 0) > 3) t.problem('bug', `${full?.maxPerSecond} full-screen flashes started inside one second (the limit is 3)`);
+      else t.event('flash-rate', `at Flashes Full: ${full?.flashes ?? 0} flash(es) over the fight, at most ${full?.maxPerSecond ?? 0} in any second (limit 3), ${full?.refused ?? 0} held back`);
+      if ((fh?.shakeMax ?? 0) <= 0.05) t.problem('warning', 'no camera shake with Screen shake at 100%, so the setting could not be seen working');
+      t.progress(0.9);
+      await this.quitFromPause('main');
+    } finally {
+      restore();
+      this.useTap = false;
+      if (touch) forceTouchUi(false);
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  async colourVisionRun(): Promise<void> {
+    const t = this.t;
+    const KEY = 'dod.colourvision';
+    const RUN = 'hawkes.playtest.colour-vision';
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const carried = sessionStorage.getItem(RUN);
+    const openSettings = async () => {
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, 'Settings to open');
+    };
+    const switchLook = (where: string) => {
+      const sw = this.q('#colour-switch');
+      if (!sw) {
+        t.problem('bug', `${where}: Settings has no Colour vision switch`);
+        return null;
+      }
+      const r = sw.getBoundingClientRect();
+      if (r.height < 44 || r.width < 44 || r.left < 0 || r.right > innerWidth || r.bottom > innerHeight + 400) t.problem('bug', `${where}: the Colour vision switch is ${Math.round(r.width)}x${Math.round(r.height)} at ${Math.round(r.left)},${Math.round(r.top)}`);
+      return sw;
+    };
+    const shapesInMatch = async (mode: string) => {
+      const want = ['circle', 'triangle', 'square', 'diamond'];
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      await t.wait(1200);
+      const m = this.game.match();
+      const n = m?.state.fighters.length ?? 0;
+      const rings = this.game.ringShapes?.() ?? [];
+      const tags = [...document.querySelectorAll<HTMLElement>('.fighter-tag:not(.edge-tag)')].filter((e) => !e.hidden);
+      const cards = [...document.querySelectorAll<HTMLElement>('.hud-card')];
+      const ringSet = new Set(rings.map((r) => r.shape));
+      const cardSet = new Set(cards.map((c) => c.dataset.shape));
+      const tagSet = new Set(tags.map((e) => e.dataset.shape));
+      if (rings.length < n || ringSet.size !== n || rings.some((r, i) => r.shape !== want[i])) t.problem('bug', `${mode}: the rings are ${rings.map((r) => r.shape).join(', ')} (want ${want.slice(0, n).join(', ')})`);
+      if (cards.length < n || cardSet.size !== n) t.problem('bug', `${mode}: the HUD cards show ${[...cardSet].join(', ')} for ${n} fighters`);
+      if (tags.length && tagSet.size !== tags.length) t.problem('bug', `${mode}: the name tags repeat a shape (${tags.map((e) => e.dataset.shape).join(', ')})`);
+      // The shape itself is drawn (::before glyph) and big enough to read on a phone.
+      for (const c of cards) {
+        const nm = c.querySelector('.hud-name');
+        const glyph = nm ? getComputedStyle(nm, '::before').content : '';
+        const px = nm ? parseFloat(getComputedStyle(nm).fontSize) : 0;
+        const r = c.getBoundingClientRect();
+        if (!/[●▲■◆]/.test(glyph)) t.problem('bug', `${mode}: HUD card ${c.dataset.slot} draws no shape (${glyph})`);
+        else if (px < 10 || r.left < 0 || r.right > innerWidth) t.problem('bug', `${mode}: HUD card ${c.dataset.slot}'s shape is ${px}px or off screen`);
+      }
+      const colours = rings.map((r) => r.color);
+      t.event('shapes', `${mode}: rings ${rings.map((r) => `${r.shape} ${r.color}`).join(', ')}; tags ${tags.map((e) => e.dataset.shape).join(', ') || 'none in view'}; HUD ${cards.map((c) => `${c.dataset.shape} ${c.style.getPropertyValue('--player')}`).join(', ')}${touch ? ' (phone layout, ' + innerWidth + 'x' + innerHeight + ')' : ''}`);
+      t.metric('shapeCount', ringSet.size);
+      return colours;
+    };
+
+    forceTouchUi(touch);
+    this.useTap = touch;
+    try {
+      // A portrait phone: Settings in the portrait window, then the rest in the turned frame.
+      if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+        this.logViewport(true);
+        await this.toMainMenu();
+        await openSettings();
+        const sw = switchLook('portrait phone');
+        if (sw) t.event('colour-switch', `portrait ${innerWidth}x${innerHeight}: Colour vision reads "${sw.textContent}", ${Math.round(sw.getBoundingClientRect().height)} px tall`);
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        this.useTap = false;
+        forceTouchUi(false);
+        return this.touchMatchTurned('colour-vision');
+      }
+      this.logViewport(touch);
+      if (!carried) {
+        const original = localStorage.getItem(KEY);
+        try {
+          localStorage.removeItem(KEY);
+        } catch {
+          // Storage blocked.
+        }
+        sessionStorage.setItem(RUN, JSON.stringify({ original }));
+        await this.toMainMenu();
+        await openSettings();
+        const sw = switchLook('Settings');
+        if (!sw) return;
+        if (sw.textContent !== 'Standard' || colourVision() !== 'standard') t.problem('bug', `Colour vision starts on "${sw.textContent}" (want Standard)`);
+        t.event('colour-switch', `Settings shows Colour vision: ${sw.textContent}`);
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.wait(200);
+        // Standard: a match with four distinct shapes in the orange, blue, yellow, green set.
+        await this.startVersus(3);
+        await shapesInMatch('Standard');
+        // Pause → Settings → Colourblind-safe, live.
+        await tapKey('Escape');
+        await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+        await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+        await t.until(settingsShowing, 3000, 'Settings from Pause');
+        switchLook('Settings (Pause)');
+        await this.tap(() => this.q('#colour-switch'), 'Colour vision');
+        if (localStorage.getItem(KEY) !== 'safe') t.problem('bug', `Colour vision did not save: ${localStorage.getItem(KEY)}`);
+        else t.event('colour-saved', `dod.colourvision = ${localStorage.getItem(KEY)}`);
+        const cards = [...document.querySelectorAll<HTMLElement>('.hud-card')].map((c) => c.style.getPropertyValue('--player').trim().toLowerCase());
+        if (cards[0] !== '#d55e00') t.problem('bug', `the HUD did not take the colourblind-safe colours at once (${cards.join(', ')})`);
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+        await this.click(() => this.q('#btn-quit'), 'Quit');
+        await this.screen('main');
+        t.progress(0.5);
+        t.event('reload', 'the page reloads; the run carries on after it');
+        const url = new URL(location.href);
+        url.searchParams.set('playtest', 'colour-vision');
+        url.searchParams.set('seed', String(this.options.seed ?? 1));
+        await t.wait(300);
+        location.replace(url.toString());
+        await new Promise(() => {});
+        return;
+      }
+
+      const original = (JSON.parse(carried) as { original: string | null }).original;
+      sessionStorage.removeItem(RUN);
+      try {
+        await this.toMainMenu();
+        await openSettings();
+        const sw = switchLook('Settings after the reload');
+        if (sw?.textContent !== 'Colourblind-safe' || colourVision() !== 'safe') t.problem('bug', `after the reload Colour vision reads "${sw?.textContent}" (want Colourblind-safe)`);
+        else t.event('colour-kept', `after the reload: Colour vision ${sw.textContent} (${localStorage.getItem(KEY)})`);
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.wait(200);
+        await this.startVersus(3);
+        const colours = await shapesInMatch('Colourblind-safe');
+        if (colours[0] !== '#d55e00' || colours[1] !== '#56b4e9') t.problem('bug', `the safe colours are ${colours.join(', ')} (want the Okabe-Ito set)`);
+        await this.quitFromPause('main');
+      } finally {
+        try {
+          if (original === null) localStorage.removeItem(KEY);
+          else localStorage.setItem(KEY, original);
+        } catch {
+          // Storage blocked.
+        }
+      }
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+  }
+
+  /**
+   * Settings > Shield: Hold (default) / Toggle. With Toggle one press keeps the shield up with nothing held, a second
+   * press, a roll or a jump drops it; on a phone the touch Shield button shows it is latched. Played from real input:
+   * taps on the switch and the overlay buttons and a stick drag on touch, key presses otherwise.
+   */
+  /**
+   * Rebinding (Settings → Controls, input/bindings.ts, ui/rebind.ts). Desktop: the Rebind screen is opened from Settings;
+   * a clash is warned about and swaps the key; Reset restores every default; Attack is rebound to H by pressing the slot
+   * and then the key, saved, and the page reloads; after it the binding is still there, the Controls page shows H for
+   * Attack, and in a match H attacks while J no longer does; a second connected gamepad (emulated pad 2, no pad 1) also
+   * plays. Phone (390x844 touch): Settings shows no rebinding row, fits, and nothing overlaps.
+   * Events `rebind-open`, `rebind-clash`, `rebind-reset`, `rebind-set`, `rebind-saved`, `rebind-survived-reload`,
+   * `rebind-controls-page`, `rebind-key-works`, `rebind-old-key-dead`, `rebind-second-pad`, `rebind-phone-hidden`, `rebind-phone-fit`.
+   */
+  async rebindRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const carried = (() => {
+      try {
+        return JSON.parse(sessionStorage.getItem(REBIND_RUN_KEY) ?? 'null') as { original: string | null } | null;
+      } catch {
+        return null;
+      }
+    })();
+    const rebindShowing = () => document.getElementById('rebind')?.hidden === false;
+    const openSettings = async () => {
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, 'Settings to open');
+    };
+    const note = () => (this.q('#rebind-note')?.textContent ?? '').trim();
+    const slotBtn = (action: string, slot = 0) => this.q(`#rebind-rows [data-action="${action}"] [data-slot="${slot}"]`);
+    const stored = () => {
+      try {
+        return JSON.parse(localStorage.getItem(REBIND_KEY) ?? 'null') as { keys?: Record<string, string[]> } | null;
+      } catch {
+        return null;
+      }
+    };
+    const restore = (original: string | null) => {
+      try {
+        if (original === null) localStorage.removeItem(REBIND_KEY);
+        else localStorage.setItem(REBIND_KEY, original);
+      } catch {
+        // Storage blocked.
+      }
+    };
+
+    if (touch) {
+      forceTouchUi(true);
+      this.useTap = true;
+      this.logViewport(true);
+      try {
+        await this.toMainMenu();
+        await openSettings();
+        await t.wait(300);
+        const row = this.q('#controls-row');
+        const btn = this.q('#rebind-open');
+        if (row && row.getClientRects().length > 0) t.problem('bug', 'the rebinding row shows in Settings on a touch phone');
+        else if (btn && btn.getClientRects().length > 0) t.problem('bug', 'the Rebind button shows on a touch phone');
+        else t.event('rebind-phone-hidden', `touch ${innerWidth}x${innerHeight}: Settings has no rebinding row (touch has its own layout settings)`);
+        // Settings fits: nothing off a side edge, no sideways scroll, no two controls on top of each other.
+        const panel = this.q('#settings .settings-panel');
+        const items = [...document.querySelectorAll<HTMLElement>('#settings button, #settings input')].filter((e) => e.getClientRects().length > 0);
+        let bad = 0;
+        for (const el of items) {
+          const r = el.getBoundingClientRect();
+          if (r.left < -0.5 || r.right > innerWidth + 0.5) {
+            bad++;
+            t.problem('bug', `a Settings control runs off the screen sideways (${el.id || el.textContent?.trim()}, ${Math.round(r.left)}..${Math.round(r.right)} of ${innerWidth})`);
+          }
+        }
+        for (let i = 0; i < items.length; i++) {
+          for (let j = i + 1; j < items.length; j++) {
+            const a = items[i].getBoundingClientRect();
+            const b = items[j].getBoundingClientRect();
+            if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) {
+              bad++;
+              t.problem('bug', `two Settings controls overlap (${items[i].id || items[i].textContent?.trim()} and ${items[j].id || items[j].textContent?.trim()})`);
+            }
+          }
+        }
+        if (document.documentElement.scrollWidth > innerWidth + 1 || (panel && panel.scrollWidth > panel.clientWidth + 1)) {
+          bad++;
+          t.problem('bug', 'Settings scrolls sideways on the phone');
+        }
+        const done = this.q('#settings-done')?.getBoundingClientRect();
+        if (!done || done.height < 44) t.problem('bug', `Done is under 44 px tall (${Math.round(done?.height ?? 0)})`);
+        if (!bad) t.event('rebind-phone-fit', `Settings at ${innerWidth}x${innerHeight}: ${items.length} controls inside the screen, none overlapping, Done ${Math.round(done?.height ?? 0)} px`);
+        await this.tap(() => this.q('#settings-done'), 'Done');
+      } finally {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+      t.progress(1);
+      t.finish('done');
+      return;
+    }
+
+    const me = () => {
+      const m = this.game.match();
+      return m ? m.state.fighters[m.player] : null;
+    };
+    const attacking = () => me()?.action === ACT.ATTACK;
+    const calm = async () => {
+      try {
+        await t.until(() => me()?.action === ACT.IDLE || me()?.action === ACT.WALK, 4000, 'the fighter to stand free');
+      } catch {
+        // Hit meanwhile: carry on.
+      }
+      await t.wait(150);
+    };
+    /** Presses `go` (down, hold, up) and says whether an Attack came out within 700 ms. */
+    const triesAttack = async (down: () => void, up: () => void): Promise<boolean> => {
+      await calm();
+      down();
+      let hit = false;
+      for (let i = 0; i < 14 && !hit; i++) {
+        await t.wait(50);
+        hit = attacking();
+      }
+      up();
+      await t.wait(400);
+      return hit;
+    };
+
+    await this.screen('title', 30000);
+    if (!carried) {
+      const original = localStorage.getItem(REBIND_KEY);
+      try {
+        localStorage.removeItem(REBIND_KEY);
+        await this.toMainMenu();
+        await openSettings();
+        await this.tap(() => this.q('#rebind-open'), 'Rebind');
+        await t.until(rebindShowing, 3000, 'the rebinding screen');
+        const tiny = [...document.querySelectorAll<HTMLElement>('#rebind button')].filter((e) => e.getClientRects().length > 0 && e.getBoundingClientRect().height < 44);
+        if (tiny.length) t.problem('bug', `${tiny.length} rebinding buttons are under 44 px tall`);
+        const rows = document.querySelectorAll('#rebind-rows .rebind-row').length;
+        t.event('rebind-open', `Settings > Controls: ${rows} actions, Attack reads "${slotBtn('attack')?.textContent}", Jump "${slotBtn('jump')?.textContent} / ${slotBtn('jump', 1)?.textContent}"`);
+
+        // A clash: Special onto J (Attack's key). The warning says so, and Attack takes Special's old K (a swap).
+        await this.tap(() => slotBtn('special'), 'Special slot');
+        if (!/press/i.test(slotBtn('special')?.textContent ?? '')) t.problem('bug', 'picking a slot did not ask for a key');
+        await tapKey('KeyJ');
+        await t.wait(200);
+        const warn = this.q('#rebind-note')?.dataset.warn === 'true' && /Attack/.test(note());
+        const k = currentBindings().keys;
+        if (!warn) t.problem('bug', `no clash warning when Special took Attack's J (note: "${note()}")`);
+        else if (k.special[0] !== 'KeyJ' || k.attack.every((c) => !c)) t.problem('bug', `after the clash Special is ${k.special[0]} and Attack has ${k.attack.join('/')}`);
+        else t.event('rebind-clash', `"${note()}"`);
+
+        // Reset restores the defaults.
+        await this.tap(() => this.q('#rebind-reset'), 'Reset to defaults');
+        const d = currentBindings().keys;
+        if (d.special[0] !== 'KeyK' || d.attack[0] !== 'KeyJ' || stored()?.keys?.special?.[0] !== 'KeyK') t.problem('bug', `Reset did not restore the defaults (Special ${d.special[0]}, Attack ${d.attack[0]})`);
+        else t.event('rebind-reset', `Attack ${d.attack[0]}, Special ${d.special[0]} again, saved ${JSON.stringify(stored()?.keys?.attack)}`);
+
+        // Attack onto H.
+        await this.tap(() => slotBtn('attack'), 'Attack slot');
+        await tapKey('KeyH');
+        await t.wait(200);
+        if (currentBindings().keys.attack[0] !== 'KeyH' || slotBtn('attack')?.textContent !== 'H') t.problem('bug', `Attack did not take H (${currentBindings().keys.attack[0]}, shows "${slotBtn('attack')?.textContent}")`);
+        else t.event('rebind-set', `Attack = H: "${note()}"`);
+        if (stored()?.keys?.attack?.[0] !== 'KeyH') t.problem('bug', 'the new binding was not saved');
+        else t.event('rebind-saved', `dod.bindings attack = ${JSON.stringify(stored()?.keys?.attack)}`);
+
+        // Gamepad tab lists the actions with the family's names.
+        await this.tap(() => this.q('#rebind-tabs [data-tab="gamepad"]'), 'Gamepad tab');
+        const padRows = [...document.querySelectorAll('#rebind-rows .rebind-key')].map((e) => e.textContent).join(' | ');
+        t.event('rebind-pad-tab', `Gamepad: ${padRows}`);
+        await this.tap(() => this.q('#rebind-done'), 'Done');
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        t.progress(0.4);
+      } catch (e) {
+        restore(original);
+        throw e;
+      }
+      sessionStorage.setItem(REBIND_RUN_KEY, JSON.stringify({ original }));
+      t.event('reload', 'the page reloads; the run carries on after it');
+      const url = new URL(location.href);
+      url.searchParams.set('playtest', 'rebind');
+      url.searchParams.set('seed', String(this.options.seed ?? 1));
+      url.searchParams.set('speed', String(this.options.speed ?? 1));
+      await t.wait(300);
+      location.replace(url.toString());
+      await new Promise(() => {}); // the page is going away
+      return;
+    }
+
+    sessionStorage.removeItem(REBIND_RUN_KEY);
+    try {
+      if (currentBindings().keys.attack[0] !== 'KeyH') t.problem('bug', `the binding did not survive the reload (Attack is ${currentBindings().keys.attack[0]})`);
+      else t.event('rebind-survived-reload', 'Attack is still H after the reload');
+      await this.toMainMenu();
+      // The Controls page shows the player's actual bindings.
+      await this.click(() => this.q('[data-go="controls"]'), 'Controls');
+      await this.screen('howto');
+      const attackRow = [...document.querySelectorAll('#keys-kb dt')].find((e) => e.textContent === 'Attack')?.nextElementSibling?.textContent ?? '';
+      if (attackRow.trim() !== 'H') t.problem('bug', `the Controls page shows Attack as "${attackRow}" but it is bound to H`);
+      else t.event('rebind-controls-page', `Controls: Attack = "${attackRow}"`);
+      await this.click(() => this.q('#howto [data-back]'), 'Back');
+      await this.screen('main');
+
+      await this.startVersus(3);
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      await t.wait(1500);
+      const newKey = await triesAttack(
+        () => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyH', key: 'h', bubbles: true })),
+        () => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyH', key: 'h', bubbles: true })),
+      );
+      if (!newKey) t.problem('bug', 'H, bound to Attack, did not attack in the match');
+      else t.event('rebind-key-works', 'H attacked in the match');
+      const oldKey = await triesAttack(
+        () => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyJ', key: 'j', bubbles: true })),
+        () => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyJ', key: 'j', bubbles: true })),
+      );
+      if (oldKey) t.problem('bug', 'J still attacks after Attack was moved to H');
+      else t.event('rebind-old-key-dead', 'J no longer attacks');
+      t.progress(0.7);
+
+      // A second connected gamepad (pad 2 only; no pad 1 plugged in) drives the player.
+      const pressed = Array.from({ length: 17 }, (_, i) => i === 0);
+      const second = await triesAttack(
+        () => emulatePad({ buttons: pressed, axes: [0, 0], id: 'Xbox 360 Controller (second pad)' }, 1),
+        () => emulatePad(null, 1),
+      );
+      if (!second) t.problem('bug', 'a second connected gamepad did not control the player');
+      else t.event('rebind-second-pad', 'pad 2 button A attacked with no pad 1 connected');
+
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.click(() => this.q('#btn-quit'), 'Quit');
+      await this.screen('main');
+    } finally {
+      emulatePad(null, 1);
+      restore(carried.original);
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  /**
+   * Local versus (docs/story.md "Two on one couch"): two people, each device its own fighter. Desktop: Versus select, the
+   * second slot turned to a Person, two emulated pads; pad 1 moves only player 1 and pad 2 only player 2 (`pads-independent`),
+   * then solo again (second slot back to a CPU): keyboard and pad together drive the one fighter (`solo-merged`). Phone
+   * (390x844 touch, turned to 844x390): no Person switch, Versus is You vs CPU, the touch stick still moves you
+   * (`phone-you-vs-cpu`, `phone-touch-moves`).
+   */
+  async localVersusRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const fighters = () => this.game.match()?.state.fighters ?? [];
+    const pad = (right: boolean, left = false, attack = false) => ({ buttons: Array.from({ length: 17 }, (_, i) => (i === 15 && right) || (i === 14 && left) || (i === 0 && attack)), axes: [0, 0] as [number, number] });
+    const fire = (el: Element, type: string, x: number, y: number) =>
+      el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: 71, isPrimary: true, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, buttons: type === 'pointerup' ? 0 : 1 }));
+    const x = (i: number) => fighters()[i]?.x ?? 0;
+    const quit = async () => {
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.click(() => this.q('#btn-quit'), 'Quit');
+      await this.screen('main');
+    };
+    const openVersus = async () => {
+      await this.toMainMenu();
+      await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+      await this.screen('select');
+    };
+
+    forceTouchUi(touch);
+    this.useTap = touch;
+    try {
+      if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+        this.logViewport(true);
+        this.useTap = false;
+        forceTouchUi(false);
+        return this.touchMatchTurned('local-versus');
+      }
+      this.logViewport(touch);
+      await openVersus();
+      if (touch) {
+        const toggles = document.querySelectorAll('#select-slots .human-toggle').length;
+        const labels = [...document.querySelectorAll('#select-slots .slot-label')].map((e) => e.textContent ?? '');
+        const prompts = document.querySelectorAll('#select-slots .join-prompt').length;
+        if (prompts > 0) t.problem('bug', `a touch-only phone shows ${prompts} "Press Start to join" prompt(s)`);
+        else t.event('no-join-prompt', '390x844 touch, no pads: no "Press Start to join" on any slot');
+        if (toggles > 0) t.problem('bug', 'a phone offers a second person on one screen');
+        else if (!labels[0]?.startsWith('You') || !labels[1]?.startsWith('CPU')) t.problem('bug', `phone Versus is not You vs CPU: ${labels.join(' | ')}`);
+        else t.event('phone-you-vs-cpu', `390x844 touch: ${labels.join(' vs ')}, no Person switch`);
+        const firstTile = document.querySelector<HTMLElement>('#select-grid .tile[data-fighter]:not(.locked)');
+        const wantName = firstTile?.querySelector('span')?.textContent ?? '';
+        if (document.querySelectorAll('#select-grid .cursor-token').length > 0) t.problem('bug', 'a touch-only phone shows extra player cursors');
+        await this.click(() => firstTile, 'a roster tile');
+        const got = document.querySelectorAll('#select-slots .slot')[0]?.querySelector('strong')?.textContent ?? '';
+        if (!wantName || got !== wantName) t.problem('bug', `a tap on ${wantName} left slot 1 as ${got}`);
+        else t.event('one-cursor', `390x844 touch, no pads: one cursor, a tap picked ${got} into slot 1`);
+        await this.startVersus(3, true);
+        await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+        await t.wait(1500);
+        const stick = touchOverlay()?.querySelector<HTMLElement>('.touch-stick');
+        const m = this.game.match();
+        if (!stick || !m) return t.problem('bug', 'no touch stick or match');
+        if (m.humans !== 1) t.problem('bug', `a phone match has ${m.humans} people`);
+        const r = stick.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const x0 = x(m.player);
+        fire(stick, 'pointerdown', cx, cy);
+        fire(stick, 'pointermove', cx + r.width * 0.4, cy);
+        await t.wait(900);
+        fire(stick, 'pointerup', cx, cy);
+        if (Math.abs(x(m.player) - x0) < 200) t.problem('bug', 'the touch stick did not move the player');
+        else t.event('phone-touch-moves', `the touch stick moved the player ${Math.round(Math.abs(x(m.player) - x0) / 1000)} units, one human against the CPU`);
+        // Touch pause is unchanged: the on-screen button pauses (no "paused by" line solo), Resume carries on.
+        const pauseBtn = touchOverlay()?.querySelector<HTMLElement>('.touch-pause');
+        if (!pauseBtn) return t.problem('bug', 'no touch pause button');
+        const pr = pauseBtn.getBoundingClientRect();
+        fire(pauseBtn, 'pointerdown', pr.left + pr.width / 2, pr.top + pr.height / 2);
+        fire(pauseBtn, 'pointerup', pr.left + pr.width / 2, pr.top + pr.height / 2);
+        await t.until(() => this.game.phase() === 'pause', 3000, 'the touch pause button to pause');
+        const ow = document.getElementById('pause-owner');
+        if (ow && !ow.hidden) t.problem('bug', 'solo touch pause shows a "paused by" line');
+        await this.click(() => this.q('#btn-resume'), 'Resume');
+        await t.until(() => this.game.phase() === 'play', 3000, 'Resume to carry on');
+        t.event('touch-pause-resume', 'touch pause and Resume work as before, no player line solo');
+        await quit();
+        t.finish('done');
+        return;
+      }
+
+      // Joining by Start: no second device, no prompt; two pads, Start on pad 2 makes slot 2 Player 2; holding Back on it returns the CPU.
+      const slotLabel = (i: number) => document.querySelectorAll('#select-slots .slot')[i]?.querySelector('.slot-label')?.textContent ?? '';
+      const promptCount = () => document.querySelectorAll('#select-slots .join-prompt:not(.joined)').length;
+      const tap = (i: number, on: boolean) => ({ buttons: Array.from({ length: 17 }, (_, k) => on && k === i), axes: [0, 0] as [number, number] });
+      if (promptCount() > 0) t.problem('bug', 'Press Start to join shows with only the keyboard connected');
+      else t.event('no-join-prompt', 'desktop, keyboard only: no "Press Start to join"');
+      emulatePad(pad(false), 0);
+      emulatePad(pad(false), 1);
+      await t.until(() => promptCount() > 0, 3000, 'the join prompt with two pads');
+      t.event('join-prompt', `${promptCount()} open slot(s) read "Press Start to join" with two pads`);
+      emulatePad(tap(9, true), 1);
+      await t.wait(150);
+      emulatePad(tap(9, false), 1);
+      await t.wait(150);
+      if (slotLabel(1) !== 'Player 2') t.problem('bug', `Start on pad 2 left slot 2 as "${slotLabel(1)}" (want Player 2)`);
+      else t.event('join-start', 'Start on pad 2 turned slot 2 into Player 2');
+      emulatePad(tap(1, true), 1);
+      await t.wait(500);
+      if (slotLabel(1) !== 'Player 2') t.problem('bug', 'Back held for half a second already left the slot');
+      await t.wait(800);
+      emulatePad(tap(1, false), 1);
+      await t.wait(150);
+      if (!slotLabel(1).startsWith('CPU')) t.problem('bug', `holding Back on pad 2 left slot 2 as "${slotLabel(1)}" (want CPU)`);
+      else t.event('join-leave', 'holding Back on pad 2 for a second returned slot 2 to CPU');
+
+      // Each joined player has their own cursor: pad 2 joins, its token appears beside player 1's, moves alone, picks into its own slot,
+      // the Fight button waits until it is ready, and the match starts with both fighters.
+      const tokens = () => [...document.querySelectorAll<HTMLElement>('#select-grid .cursor-token')];
+      const tokenTile = (slot: number) => tokens().find((e) => e.dataset.slot === String(slot))?.closest<HTMLElement>('.tile')?.dataset.fighter ?? '';
+      const fightBtn = () => document.querySelector<HTMLButtonElement>('#select-slots .primary.fight');
+      const stick = (right: boolean, down = false) => ({ buttons: Array.from({ length: 17 }, (_, k) => (k === 15 && right) || (k === 13 && down)), axes: [0, 0] as [number, number] });
+      emulatePad(tap(9, true), 1);
+      await t.wait(150);
+      emulatePad(tap(9, false), 1);
+      await t.until(() => tokenTile(1) !== '', 3000, 'the second cursor');
+      const p1Before = tokenTile(0);
+      const p2Before = tokenTile(1);
+      if (tokens().length < 2 || tokens()[0].dataset.shape === tokens()[1].dataset.shape) t.problem('bug', 'two cursors do not have their own shape');
+      if (!fightBtn()?.disabled) t.problem('bug', 'Fight is open while player 2 has not picked');
+      emulatePad(stick(true), 1);
+      await t.wait(120);
+      emulatePad(stick(false), 1);
+      await t.wait(120);
+      emulatePad(stick(false, true), 1);
+      await t.wait(120);
+      emulatePad(stick(false), 1);
+      await t.wait(200);
+      const p2After = tokenTile(1);
+      if (p2After === p2Before || tokenTile(0) !== p1Before) t.problem('bug', `cursors are not independent (P2 ${p2Before} -> ${p2After}, P1 ${p1Before} -> ${tokenTile(0)})`);
+      else t.event('cursors-independent', `pad 2 moved its cursor ${p2Before} -> ${p2After}; player 1's stayed on ${p1Before}`);
+      emulatePad(tap(0, true), 1);
+      await t.wait(150);
+      emulatePad(tap(0, false), 1);
+      await t.wait(250);
+      const slotName = (i: number) => document.querySelectorAll('#select-slots .slot')[i]?.querySelector('strong')?.textContent ?? '';
+      const tileName = document.querySelector(`#select-grid .tile[data-fighter="${p2After}"] span`)?.textContent ?? '';
+      if (!tileName || slotName(1) !== tileName) t.problem('bug', `pad 2's pick (${tileName}) is not in slot 2 (${slotName(1)})`);
+      else t.event('pick-own-slot', `pad 2 picked ${slotName(1)} into slot 2; slot 1 still ${slotName(0)}`);
+      if (fightBtn()?.disabled) t.problem('bug', 'Fight stays closed after player 2 is ready');
+      else t.event('all-ready', 'every joined player is ready: Fight is open for player 1');
+      await this.startVersus(3, true);
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      const both = this.game.match();
+      if (!both || both.humans !== 2 || fighters().length !== 2) t.problem('bug', 'the match did not start with both humans');
+      else t.event('match-both', `match started with ${fighters().length} fighters, ${both.humans} humans`);
+      await quit();
+      await openVersus();
+      emulatePad(pad(false), 0);
+      emulatePad(pad(false), 1);
+      emulatePad(null, 0);
+      emulatePad(null, 1);
+      await openVersus();
+
+      // Two people: the second slot is a Person, each pad its own fighter.
+      await this.click(() => this.q('#select-slots .slot:nth-child(2) .human-toggle'), 'second slot: Person');
+      const labels = [...document.querySelectorAll('#select-slots .slot-label')].map((e) => e.textContent ?? '');
+      if (labels[0] !== 'Player 1' || labels[1] !== 'Player 2') t.problem('bug', `two people read "${labels.join(' | ')}" (want Player 1 | Player 2)`);
+      else t.event('two-people', labels.join(' and '));
+      emulatePad(pad(false), 0);
+      emulatePad(pad(false), 1);
+      await this.startVersus(3, true);
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      const m = this.game.match()!;
+      if (m.humans !== 2) t.problem('bug', `${m.humans} people in the match (want 2)`);
+      await t.wait(1500);
+      const a0 = x(0);
+      const b0 = x(1);
+      emulatePad(pad(true), 0);
+      await t.wait(1000);
+      emulatePad(pad(false), 0);
+      const a1 = x(0);
+      const b1 = x(1);
+      const moved = Math.abs(a1 - a0);
+      const stayed = Math.abs(b1 - b0);
+      emulatePad(pad(false, true), 1);
+      await t.wait(1000);
+      emulatePad(pad(false), 1);
+      const a2 = x(0);
+      const b2 = x(1);
+      const movedB = Math.abs(b2 - b1);
+      const stayedA = Math.abs(a2 - a1);
+      if (moved < 300 || movedB < 300) t.problem('bug', `pads did not both move their fighter (pad 1 ${moved}, pad 2 ${movedB})`);
+      else if (stayed > moved / 2 || stayedA > movedB / 2) t.problem('bug', `a pad moved the other fighter too (player 2 drifted ${stayed} while pad 1 moved ${moved}; player 1 ${stayedA} while pad 2 moved ${movedB})`);
+      else t.event('pads-independent', `pad 1 moved player 1 ${Math.round(moved / 1000)} units, player 2 ${Math.round(stayed / 1000)}; pad 2 then moved player 2 ${Math.round(movedB / 1000)}, player 1 ${Math.round(stayedA / 1000)}`);
+      // Couch pause: P2's Start pauses and names P2; P1's pad can't move the menu or resume; P2's Start resumes.
+      const startPad = (idx: number, on: boolean) => emulatePad({ buttons: Array.from({ length: 17 }, (_, i) => i === 9 && on), axes: [0, 0] }, idx);
+      const tapStart = async (idx: number) => { startPad(idx, true); await t.wait(150); startPad(idx, false); await t.wait(150); };
+      await tapStart(1);
+      await t.until(() => this.game.phase() === 'pause', 3000, "P2's Start to pause");
+      const owner = document.getElementById('pause-owner');
+      const ownerOk = !!owner && !owner.hidden && /P2 paused/.test(owner.textContent ?? '') && owner.dataset.shape === 'triangle' && !!owner.style.getPropertyValue('--player');
+      if (!ownerOk) t.problem('bug', `the pause screen does not say "P2 paused" in P2's colour and shape (${owner?.textContent ?? 'missing'})`);
+      else t.event('pause-owner', `${owner!.textContent} (${owner!.dataset.shape}, ${owner!.style.getPropertyValue('--player')})`);
+      const focusBefore = document.activeElement?.id ?? '';
+      emulatePad({ buttons: Array.from({ length: 17 }, (_, i) => i === 13), axes: [0, 0] }, 0);
+      await t.wait(400);
+      emulatePad(null, 0);
+      emulatePad(pad(false), 0);
+      await tapStart(0);
+      emulatePad({ buttons: Array.from({ length: 17 }, (_, i) => i === 1), axes: [0, 0] }, 0);
+      await t.wait(300);
+      emulatePad(pad(false), 0);
+      await tapKey('Escape');
+      await t.wait(300);
+      if (this.game.phase() !== 'pause') t.problem('bug', "P1's pad or keyboard resumed while P2's pause was up");
+      else if ((document.activeElement?.id ?? '') !== focusBefore) t.problem('bug', "P1's pad moved the pause menu while P2's pause was up");
+      else t.event('pause-locked', "P1's Start, B, d-pad and Esc did nothing while P2's pause was up");
+      await tapStart(1);
+      await t.until(() => this.game.phase() === 'play', 3000, "P2's Start to resume");
+      t.event('pause-resumed', "P2's Start resumed the match");
+      emulatePad(null, 0);
+      emulatePad(null, 1);
+
+      // Couch results (setup shortcut: player 2 is on its last stock and thrown past the blast line): each person's own numbers
+      // under their tag, then Rematch keeps both people, their pads and their fighters.
+      const chars = fighters().map((f) => f.char);
+      const foe = fighters()[1];
+      foe.stocks = 1;
+      foe.x = (STAGES[m.state.stage].blast.right + 400) * FX;
+      await t.until(() => currentScreen() === 'results', 30000, 'the couch results');
+      await t.until(() => !!this.q('#results-body .couch-card'), 8000, 'the player cards');
+      const cards = [...document.querySelectorAll<HTMLElement>('#results-body .couch-card')];
+      const tags = cards.map((c) => c.querySelector('.couch-tag')?.textContent?.replace(/^\S+\s/, '') ?? '');
+      const stats = cards.map((c) => [...c.querySelectorAll('dd')].map((d) => d.textContent ?? ''));
+      if (cards.length !== 2 || tags[0] !== 'P1' || tags[1] !== 'P2' || stats.some((s) => s.length !== 4 || s.some((v) => !v))) t.problem('bug', `couch results: ${cards.length} cards, tags ${tags.join('/')} (want P1 and P2 with KOs, Falls, Damage, Best hit)`);
+      else if (cards[0].dataset.shape === cards[1].dataset.shape || cards[0].style.getPropertyValue('--slot') === cards[1].style.getPropertyValue('--slot')) t.problem('bug', 'couch results: both cards share a colour or shape');
+      else t.event('couch-results', `P1 ${stats[0].join(' / ')} | P2 ${stats[1].join(' / ')} (KOs / Falls / Damage / Best hit)`);
+      const keptSetup = m.setup.slots.map((s) => `${s.char}:${s.cpu}`).join(',');
+      await this.click(() => this.button('#results-actions', 'Rematch'), 'Rematch');
+      await t.until(() => this.game.phase() === 'play' && this.game.match() !== m, 30000, 'the rematch to begin');
+      const again = this.game.match()!;
+      const sameChars = again.state.fighters.map((f) => f.char).join() === chars.join();
+      if (again.humans !== 2 || !sameChars || again.setup.slots.map((s) => `${s.char}:${s.cpu}`).join(',') !== keptSetup) t.problem('bug', `Rematch changed the lineup (${again.humans} humans, fighters ${again.state.fighters.map((f) => f.char).join('/')} vs ${chars.join('/')})`);
+      else {
+        const px = x(0);
+        emulatePad(pad(true), 0);
+        await t.wait(800);
+        emulatePad(pad(false), 0);
+        const pb = x(1);
+        emulatePad(pad(false, true), 1);
+        await t.wait(800);
+        emulatePad(pad(false), 1);
+        if (Math.abs(x(0) - px) < 200 || Math.abs(x(1) - pb) < 200) t.problem('bug', 'after Rematch a pad no longer moves its own fighter');
+        else t.event('rematch-same', `Rematch: ${again.humans} people, same fighters, each pad still moves its own`);
+      }
+      emulatePad(null, 0);
+      emulatePad(null, 1);
+      await quit();
+      t.progress(0.6);
+
+      // Solo again: the second slot back to a CPU; the keyboard and a pad together drive the one fighter.
+      await openVersus();
+      await this.click(() => this.q('#select-slots .slot:nth-child(2) .human-toggle'), 'second slot: back to a CPU');
+      await this.startVersus(3, true);
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      const solo = this.game.match()!;
+      if (solo.humans !== 1) t.problem('bug', `solo play has ${solo.humans} people`);
+      await t.wait(1500);
+      const s0 = x(solo.player);
+      emulatePad(pad(true), 0);
+      pressAction('attack', true);
+      await t.wait(120);
+      const attacked = fighters()[solo.player]?.action === ACT.ATTACK;
+      await t.wait(900);
+      pressAction('attack', false);
+      emulatePad(null, 0);
+      if (Math.abs(x(solo.player) - s0) < 300) t.problem('bug', 'solo: the pad did not move the player');
+      else if (!attacked) t.problem('bug', 'solo: the keyboard did not attack while the pad moved');
+      else t.event('solo-merged', 'solo Versus: pad stick moved the fighter while the keyboard attacked, both at once');
+      await quit();
+      t.finish('done');
+    } finally {
+      emulatePad(null, 0);
+      emulatePad(null, 1);
+      forceTouchUi(false);
+    }
+  }
+
+  async shieldToggleRun(): Promise<void> {
+    const t = this.t;
+    const KEY = SHIELD_KEY_NAME;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const switchLook = (where: string) => {
+      const sw = this.q('#shield-switch');
+      if (!sw) {
+        t.problem('bug', `${where}: Settings has no Shield switch`);
+        return null;
+      }
+      const r = sw.getBoundingClientRect();
+      if (r.height < 44 || r.width < 44 || r.left < 0 || r.right > innerWidth) t.problem('bug', `${where}: the Shield switch is ${Math.round(r.width)}x${Math.round(r.height)} at ${Math.round(r.left)},${Math.round(r.top)}`);
+      return sw;
+    };
+    const openSettings = async () => {
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, 'Settings to open');
+    };
+    const me = () => {
+      const m = this.game.match();
+      return m ? m.state.fighters[m.player] : null;
+    };
+    const act = () => me()?.action ?? -1;
+    const shielding = () => act() === ACT.SHIELD || act() === ACT.SHIELD_STUN;
+    const btnEl = () => touchOverlay()?.querySelector<HTMLElement>('.touch-btn.shield') ?? null;
+    const fire = (el: Element, type: string, x: number, y: number) =>
+      el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: 61, isPrimary: true, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, buttons: type === 'pointerup' ? 0 : 1 }));
+    const centre = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + r.height / 2] as const;
+    };
+    // One press of the Shield control, then let go (a tap): the touch button or the L key.
+    const tapShield = async () => {
+      if (touch) {
+        const b = btnEl();
+        if (!b) return t.problem('bug', 'no touch Shield button to press');
+        const [x, y] = centre(b);
+        fire(b, 'pointerdown', x, y);
+        await t.wait(90);
+        fire(b, 'pointerup', x, y);
+      } else {
+        pressAction('shield', true);
+        await t.wait(90);
+        pressAction('shield', false);
+      }
+    };
+    const press = async (action: 'jump' | 'attack', cls: string) => {
+      if (touch) {
+        const b = touchOverlay()?.querySelector<HTMLElement>(`.touch-btn.${cls}`);
+        if (!b) return;
+        const [x, y] = centre(b);
+        fire(b, 'pointerdown', x, y);
+        await t.wait(90);
+        fire(b, 'pointerup', x, y);
+      } else {
+        pressAction(action, true);
+        await t.wait(90);
+        pressAction(action, false);
+      }
+    };
+    // Roll: stick sideways while shielding (a drag on the touch stick, the D key otherwise).
+    const roll = async () => {
+      if (touch) {
+        const stick = touchOverlay()?.querySelector<HTMLElement>('.touch-stick');
+        if (!stick) return;
+        const r = stick.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        fire(stick, 'pointerdown', cx, cy);
+        fire(stick, 'pointermove', cx + r.width * 0.3, cy);
+        await t.wait(200);
+        fire(stick, 'pointerup', cx, cy);
+      } else {
+        pressAction('right', true);
+        await t.wait(200);
+        pressAction('right', false);
+      }
+    };
+    const calm = async () => {
+      try {
+        await t.until(() => act() === ACT.IDLE || act() === ACT.WALK, 4000, 'the fighter to stand free');
+      } catch {
+        // Hit by the CPU meanwhile: carry on from wherever it is.
+      }
+      await t.wait(150);
+    };
+    const handsFree = () => !(touch && touchOverlay()?.querySelector('.touch-btn.down'));
+    const latchedLook = () => (touch ? !!btnEl()?.classList.contains('latched') && btnEl()?.getAttribute('aria-pressed') === 'true' : true);
+
+    forceTouchUi(touch);
+    this.useTap = touch;
+    const original = localStorage.getItem(KEY);
+    try {
+      // A portrait phone: Settings in the portrait window, then the rest in the turned frame.
+      if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+        this.logViewport(true);
+        await this.toMainMenu();
+        await openSettings();
+        const sw = switchLook('portrait phone');
+        if (sw) t.event('shield-switch', `portrait ${innerWidth}x${innerHeight}: Shield reads "${sw.textContent}", ${Math.round(sw.getBoundingClientRect().height)} px tall`);
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        this.useTap = false;
+        forceTouchUi(false);
+        return this.touchMatchTurned('shield-toggle');
+      }
+      this.logViewport(touch);
+      try {
+        localStorage.removeItem(KEY);
+      } catch {
+        // Storage blocked.
+      }
+      await this.toMainMenu();
+      await openSettings();
+      const sw = switchLook('Settings');
+      if (!sw) return;
+      if (sw.textContent !== 'Hold' || shieldMode() !== 'hold') t.problem('bug', `Shield starts on "${sw.textContent}" (want Hold)`);
+      t.event('shield-switch', `Settings shows Shield: ${sw.textContent}`);
+      await this.tap(() => this.q('#shield-switch'), 'Shield');
+      if (shieldMode() !== 'toggle' || localStorage.getItem(KEY) !== 'toggle' || this.q('#shield-switch')?.textContent !== 'Toggle') t.problem('bug', `the Shield switch did not turn to Toggle (${shieldMode()}, ${localStorage.getItem(KEY)})`);
+      else t.event('shield-saved', `dod.shield = ${localStorage.getItem(KEY)}`);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(200);
+
+      await this.startVersus(3);
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      await t.wait(1800);
+      await calm();
+
+      // 1. One press, nothing held: the shield stays up.
+      await tapShield();
+      await t.until(shielding, 1000, 'the shield to rise from one press').catch(() => t.problem('bug', 'Toggle: one press did not raise the shield'));
+      await t.wait(1400);
+      const stayed = shielding() && shieldLatched() && handsFree();
+      if (!stayed) t.problem('bug', `Toggle: the shield did not stay up with nothing held (action ${ACT_NAMES[act()] ?? act()}, latched ${shieldLatched()})`);
+      else t.event('shield-latched', `one press, 1.4 s later still shielding with no button held (${touch ? 'touch' : 'keyboard'})`);
+      if (touch) {
+        if (!latchedLook()) t.problem('bug', `the touch Shield button does not show it is latched (class "${btnEl()?.className}", aria-pressed ${btnEl()?.getAttribute('aria-pressed')})`);
+        else {
+          const r = btnEl()!.getBoundingClientRect();
+          t.event('shield-button-latched', `the Shield button shows latched while shielding (${Math.round(r.width)}x${Math.round(r.height)} px at ${innerWidth}x${innerHeight})`);
+        }
+      }
+
+      // 2. A second press drops it.
+      await tapShield();
+      await t.until(() => !shielding(), 1000, 'the shield to drop on the second press').catch(() => t.problem('bug', 'Toggle: the second press did not drop the shield'));
+      await t.wait(250);
+      if (shieldLatched() || (touch && btnEl()?.classList.contains('latched'))) t.problem('bug', 'Toggle: the latched look stayed after the second press');
+      else t.event('shield-dropped-press', 'a second press dropped the shield and the latched look went');
+      await calm();
+
+      // 3. A roll drops it.
+      await tapShield();
+      await t.until(shielding, 1000, 'the shield to rise again');
+      await t.wait(500);
+      await roll();
+      let rolled = false;
+      try {
+        await t.until(() => (rolled = rolled || act() === ACT.ROLL), 800, 'a roll out of the shield');
+      } catch {
+        t.problem('bug', 'Toggle: stick sideways in the shield did not roll');
+      }
+      await t.wait(900);
+      if (shielding() || shieldLatched()) t.problem('bug', 'Toggle: the shield stayed up after the roll');
+      else if (rolled) t.event('shield-dropped-roll', 'a roll dropped the shield');
+      await calm();
+
+      // 4. A jump drops it.
+      await tapShield();
+      await t.until(shielding, 1000, 'the shield to rise a third time');
+      await t.wait(400);
+      await press('jump', 'jump');
+      await t.wait(900);
+      if (shielding() || shieldLatched()) t.problem('bug', 'Toggle: the shield stayed up after the jump');
+      else t.event('shield-dropped-jump', 'a jump dropped the shield');
+
+      // Back to Hold from Pause: a press held is a shield held, let go is down.
+      await this.quitFromPause('main');
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      try {
+        if (original === null) localStorage.removeItem(KEY);
+        else localStorage.setItem(KEY, original);
+      } catch {
+        // Storage blocked.
+      }
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+  }
+
+  // ---------------------------------------------------------- text-size
+
+  /**
+   * Settings → Text size 100 / 125 / 150% (textSize.ts, the --ts variable). At 100% no visible text on the screen is
+   * under 12 px; at 150% menus, HUD and captions are measurably larger, nothing is clipped or runs off the window, and
+   * the choice is in localStorage "dod.textsize". On a portrait phone the menus are checked in the portrait window and
+   * the match in the turned frame.
+   */
+  async textSizeRun(): Promise<void> {
+    const t = this.t;
+    const KEY = 'dod.textsize';
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const original = (() => {
+      try {
+        return localStorage.getItem(KEY);
+      } catch {
+        return null;
+      }
+    })();
+    const restore = () => {
+      try {
+        if (original === null) localStorage.removeItem(KEY);
+        else localStorage.setItem(KEY, original);
+      } catch {
+        // Storage blocked.
+      }
+    };
+    /** Every visible element that owns text: its font size, and whether it is clipped or off the window. */
+    const scan = (where: string, level: number) => {
+      let small = 0;
+      let clipped = 0;
+      let off = 0;
+      const biggest = new Map<string, number>();
+      for (const el of document.body.querySelectorAll<HTMLElement>('*')) {
+        if (el.closest('[hidden], #tap-to-play, .hawkes-ask') || el.closest('svg')) continue;
+        const own = [...el.childNodes].some((n) => n.nodeType === 3 && (n.textContent ?? '').trim().length > 0);
+        if (!own) continue;
+        const cs = getComputedStyle(el);
+        const r = el.getBoundingClientRect();
+        if (cs.visibility === 'hidden' || cs.display === 'none' || Number(cs.opacity) < 0.05 || r.width < 2 || r.height < 2) continue;
+        const label = `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : ''} "${(el.textContent ?? '').trim().slice(0, 24)}"`;
+        const px = parseFloat(cs.fontSize);
+        if (px < 11.95) {
+          small++;
+          t.problem('bug', `${where}: ${label} is ${px.toFixed(1)}px at ${level}% (minimum 12px)`);
+        }
+        const hides = cs.overflowX !== 'visible' || cs.textOverflow === 'clip';
+        if (hides && el.scrollWidth > el.clientWidth + 2 && el.clientWidth > 0 && cs.overflowX !== 'auto' && cs.overflowX !== 'scroll') {
+          clipped++;
+          t.problem('bug', `${where}: ${label} is clipped at ${level}% (${el.scrollWidth}px of text in ${el.clientWidth}px)`);
+        }
+        if (r.left < -1 || r.right > innerWidth + 1) {
+          off++;
+          t.problem('bug', `${where}: ${label} runs off the ${innerWidth}px window at ${level}% (${Math.round(r.left)} to ${Math.round(r.right)})`);
+        }
+        biggest.set(el.tagName, Math.max(biggest.get(el.tagName) ?? 0, px));
+      }
+      t.event('text-scan', `${where} at ${level}%: ${small} under 12px, ${clipped} clipped, ${off} off screen (${innerWidth}x${innerHeight})`);
+      t.metric(`textUnder12.${where}.${level}`, small);
+      return { small, clipped, off };
+    };
+    const px = (sel: string) => {
+      const el = document.querySelector<HTMLElement>(sel);
+      return el ? parseFloat(getComputedStyle(el).fontSize) : 0;
+    };
+    const chooseSize = async (level: number) => {
+      await this.tap(() => this.q(`#textsize-seg [data-ts="${level}"]`), `Text size ${level}%`);
+      await t.wait(200);
+      const saved = localStorage.getItem(KEY);
+      const v = getComputedStyle(document.documentElement).getPropertyValue('--ts').trim();
+      if (saved !== String(level) || Number(v) !== level / 100) t.problem('bug', `Text size ${level}% saved "${saved}" and set --ts to "${v}"`);
+      else t.event('text-saved', `dod.textsize = ${saved}, --ts = ${v}`);
+    };
+    const openSettings = async (from: 'menu' | 'pause') => {
+      if (from === 'menu') await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      else await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+      await t.until(settingsShowing, 3000, `Settings from ${from}`);
+    };
+    const menuScans = async (level: number) => {
+      scan('main-menu', level);
+      await openSettings('menu');
+      const seg = this.q('#textsize-seg');
+      if (!seg || seg.getBoundingClientRect().width === 0) t.problem('bug', 'Settings has no Text size 100% / 125% / 150% choice');
+      scan('settings', level);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(300);
+      await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+      await this.screen('select');
+      await t.wait(400);
+      scan('select', level);
+      await this.click(() => this.q('#select [data-back]'), 'Back');
+      await this.screen('main');
+    };
+
+    forceTouchUi(touch);
+    this.useTap = touch;
+    try {
+      this.logViewport(touch);
+      try {
+        localStorage.removeItem(KEY);
+      } catch {
+        // Storage blocked.
+      }
+      const portrait = touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560;
+      await this.toMainMenu();
+      // 100%: the baseline, then 150%.
+      await openSettings('menu');
+      await chooseSize(100);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(300);
+      await menuScans(100);
+      const base = { menu: px('.menu-item strong'), body: px('.setting-row') };
+      t.progress(0.25);
+      await openSettings('menu');
+      await chooseSize(125);
+      await chooseSize(150);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(300);
+      const big = { menu: px('.menu-item strong') };
+      if (!(big.menu > base.menu * 1.4)) t.problem('bug', `the menu text did not grow at 150% (${base.menu}px → ${big.menu}px)`);
+      else t.event('text-bigger', `menu item ${base.menu.toFixed(1)}px → ${big.menu.toFixed(1)}px at 150%`);
+      await menuScans(150);
+      t.progress(0.5);
+      if (portrait) {
+        // The match and its HUD play in the turned frame (it starts from the saved 150%).
+        restore();
+        return this.touchMatchTurned('text-size');
+      }
+      await this.startVersus(3);
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      await t.wait(1500);
+      const hud150 = px('.hud-pct');
+      scan('hud', 150);
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await openSettings('pause');
+      await chooseSize(100);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+      const hud100 = px('.hud-pct');
+      if (!(hud150 > hud100 * 1.4)) t.problem('bug', `the HUD percent did not grow at 150% (${hud100}px → ${hud150}px)`);
+      else t.event('hud-bigger', `HUD percent ${hud100.toFixed(1)}px at 100% → ${hud150.toFixed(1)}px at 150%`);
+      await this.click(() => this.q('#btn-resume, [data-resume]'), 'Resume');
+      await t.wait(500);
+      scan('hud', 100);
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.click(() => this.q('#btn-quit'), 'Quit');
+      await this.screen('main');
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+      restore();
+    }
+  }
+
   async touchSettingsRun(): Promise<void> {
     const t = this.t;
     const carried = (() => {
@@ -7974,6 +12427,186 @@ class Run {
       this.manual = null;
       setGraphics(initial);
       if (original === null) localStorage.removeItem(GFX_KEY);
+    }
+  }
+
+  /**
+   * Moving and fading platforms (`Platform.motion` / `Platform.fade`, sim/stageMath.ts): with Hazards Off (they are layout) on each
+   * stage (option `stage`; default Humans In The Loop, Space Chess, City Top). A moving platform: a fighter placed on it (setup
+   * shortcut) stands with no input and is carried, keeping its place on the platform (`platform-moves`, `platform-ride`); across
+   * a whole cycle with both fighters on the floor the platform's screen box stays inside the window (`platform-frame`, phone
+   * 844x390 turned); then the bots play and ride it (`platform-bot-ride`). A fading one: it warns (flash), goes, comes back on a
+   * steady timer, a rider drops when it goes, and the pair is never both gone (`platform-flash`, `platform-gone`,
+   * `platform-back`, `platform-rider-drops`, `platform-pair`). Metrics `platformTravel`, `platformRideDrift`, `platformOffscreen`.
+   */
+  async movingPlatforms(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('moving-platforms');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) forceTouchUi(true);
+    try {
+      const ids = typeof this.options.stage === 'string' ? [this.options.stage] : ['humans-in-the-loop', 'space-chess', 'city-top'];
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = (punk + 1) % CHARACTERS.length;
+      let worstDrift = 0;
+      let offscreen = 0;
+      let bestTravel = 0;
+      for (const [n, sid] of ids.entries()) {
+        const si = STAGES.findIndex((x) => x.id === sid);
+        const def = STAGES[si];
+        if (!def) {
+          t.problem('bug', `stage "${sid}" is not on the list`);
+          continue;
+        }
+        t.progress(0.05 + (0.9 * n) / ids.length);
+        void this.game.startMatch({ mode: 'versus', stage: si, stocks: 3, rules: { timeLimit: 600, hazards: 0 }, slots: [{ char: punk, cpu: null, look: 0 }, { char: foe, cpu: null, look: 1 }] });
+        await this.matchLive();
+        const m = this.game.match()!;
+        this.manual = NO_INPUT;
+        await this.wait(400);
+        const hazardsOff = m.state.rules.hazards === 0;
+        if (!hazardsOff) t.problem('bug', `${def.name}: the match did not start with Hazards Off`);
+        const put = (x: number, y: number, slot: number) => {
+          const f = m.state.fighters[slot];
+          f.x = x * FX;
+          f.y = y * FX;
+          f.vx = f.vy = f.kbx = f.kby = 0;
+          f.facing = slot === 0 ? 1 : -1;
+        };
+        const until = (frames: number, each: () => void, label: string) => {
+          const to = m.state.frame + frames;
+          return t.until(() => {
+            each();
+            return m.state.frame >= to || m.state.over;
+          }, 90000, label);
+        };
+        const movers = def.platforms.map((p, i) => ({ p, i })).filter(({ p }) => p.motion);
+        const fades = def.platforms.map((p, i) => ({ p, i })).filter(({ p }) => p.fade);
+        if (!movers.length && !fades.length) t.problem('bug', `${def.name} has no moving or fading platform`);
+
+        for (const { p, i } of movers) {
+          const cycle = p.motion!.period;
+          // A rider placed on the platform stands with no input and is carried.
+          const at0 = platformAt(p, m.state.frame);
+          put((at0.x1 + at0.x2) / 2 / FX, at0.y / FX, 0);
+          put(-700, 0, 1);
+          await this.wait(200);
+          let lo = Infinity;
+          let hi = -Infinity;
+          let drift = 0;
+          let onFrames = 0;
+          let base: number | null = null;
+          const rider = m.state.fighters[0];
+          await until(Math.round(cycle * 0.75), () => {
+            const a = platformAt(p, m.state.frame);
+            lo = Math.min(lo, a.x1);
+            hi = Math.max(hi, a.x1);
+            if (rider.grounded && rider.platform === i) {
+              onFrames++;
+              const off = rider.x - a.x1;
+              if (base === null) base = off;
+              if (rider.action === ACT.IDLE) drift = Math.max(drift, Math.abs(off - base));
+            }
+          }, `${def.name}: the rider on platform ${i + 1}`);
+          const travel = Math.round((hi - lo) / FX);
+          bestTravel = Math.max(bestTravel, travel);
+          worstDrift = Math.max(worstDrift, drift / FX);
+          t.event('platform-moves', `${def.name}: platform ${i + 1} drifts ${travel} units over ${(cycle / 60).toFixed(1)} s (a lap is ${(cycle / 60).toFixed(0)} s, Hazards ${hazardsOff ? 'Off' : 'On'})`);
+          t.event('platform-ride', `${def.name}: the fighter stood on platform ${i + 1} for ${onFrames} frames with no input and stayed ${(drift / FX).toFixed(2)} units from its place on it while it moved ${travel} units`);
+          if (travel < 40) t.problem('bug', `${def.name}: platform ${i + 1} moves only ${travel} units`);
+          if (onFrames < cycle * 0.5) t.problem('bug', `${def.name}: the rider was carried off platform ${i + 1} (${onFrames} frames of ${Math.round(cycle * 0.75)})`);
+          if (drift > 2 * FX) t.problem('bug', `${def.name}: a fighter slid ${(drift / FX).toFixed(1)} units on platform ${i + 1} while it moved`);
+        }
+
+        if (movers.length) {
+          // Both on the floor for a whole lap of the longest platform: the platform's box must stay on the screen.
+          put(-120, 0, 0);
+          put(120, 0, 1);
+          await this.wait(1200);
+          const lap = Math.max(...movers.map(({ p }) => p.motion!.period));
+          let samples = 0;
+          let out = 0;
+          let minMargin = Infinity;
+          await until(lap, () => {
+            if (m.state.frame % 10) return;
+            for (const { i } of movers) {
+              const b = this.game.platformBox?.(i);
+              if (!b) continue;
+              samples++;
+              const margin = Math.min(b.x1, b.w - b.x2, b.y, b.h - b.y) / b.w;
+              minMargin = Math.min(minMargin, margin);
+              if (b.x1 < 0 || b.x2 > b.w || b.y < 0 || b.y > b.h) out++;
+            }
+          }, `${def.name}: a lap of the moving platform`);
+          offscreen += out;
+          t.event('platform-frame', `${def.name}: the moving platform stayed on screen in ${samples - out} of ${samples} samples over a lap (least margin ${(minMargin * 100).toFixed(1)}% of the width${touch ? ', phone window' : ''})`);
+          if (out) t.problem('bug', `${def.name}: the moving platform left the screen in ${out} of ${samples} samples`);
+          // Then the bots play on it.
+          this.manual = null;
+          let ride = 0;
+          let frames = 0;
+          await until(1500, () => {
+            frames++;
+            for (const f of m.state.fighters) if (f.grounded && movers.some(({ i }) => i === f.platform)) ride++;
+          }, `${def.name}: the bots playing`);
+          t.event('platform-bot-ride', `${def.name}: the bots stood on the moving platform for ${ride} fighter-frames of ${frames * 2} while playing`);
+          this.manual = NO_INPUT;
+        }
+
+        if (fades.length) {
+          const f0 = fades[0];
+          const cycle = Math.round(f0.p.fade!.cycle * 60);
+          // Park a rider at the start of the platform's solid time, then follow one whole cycle.
+          while (fadeState(f0.p, m.state.frame) !== 0 && m.state.frame < 4000) await this.wait(100);
+          const a = platformAt(f0.p, m.state.frame);
+          put((a.x1 + a.x2) / 2 / FX, a.y / FX, 0);
+          put(-700, 0, 1);
+          const seen = { flash: 0, gone: 0, back: 0, drop: 0, both: 0, prev: fadeState(f0.p, m.state.frame) as number };
+          let onSince = 0;
+          await until(cycle + 30, () => {
+            const st = fadeState(f0.p, m.state.frame);
+            if (st === 1 && seen.prev === 0) {
+              seen.flash++;
+              t.event('platform-flash', `${def.name}: platform ${f0.i + 1} flashes at frame ${m.state.frame}, ${f0.p.fade!.warn} s before it goes`);
+            }
+            if (st === 2 && seen.prev !== 2) {
+              seen.gone++;
+              t.event('platform-gone', `${def.name}: platform ${f0.i + 1} is gone at frame ${m.state.frame} for ${f0.p.fade!.gone} s`);
+            }
+            if (st === 0 && seen.prev === 2) {
+              seen.back++;
+              t.event('platform-back', `${def.name}: platform ${f0.i + 1} is back at frame ${m.state.frame}`);
+            }
+            const rider = m.state.fighters[0];
+            if (st === 1 && rider.grounded && rider.platform === f0.i) onSince = 1;
+            if (st === 2 && onSince === 1 && !seen.drop && (!rider.grounded || rider.platform !== f0.i)) {
+              seen.drop = 1;
+              t.event('platform-rider-drops', `${def.name}: the fighter standing on platform ${f0.i + 1} dropped when it went`);
+            }
+            seen.prev = st;
+            if (fades.length > 1 && fades.every(({ i }) => !platformOn(def, m.state, i))) seen.both++;
+          }, `${def.name}: a fade cycle`);
+          t.event('platform-pair', `${def.name}: ${fades.length} fading platforms, ${seen.both} frames with every one of them gone (Hazards ${hazardsOff ? 'Off' : 'On'})`);
+          if (!seen.flash) t.problem('bug', `${def.name}: the fading platform never flashed a warning`);
+          if (!seen.gone || !seen.back) t.problem('bug', `${def.name}: the fading platform did not go and come back`);
+          if (seen.drop < 1) t.problem('bug', `${def.name}: a fighter standing on the platform did not drop when it went`);
+          if (seen.both) t.problem('bug', `${def.name}: both fading platforms were gone for ${seen.both} frames`);
+        }
+        this.manual = null;
+        await this.quitFromPause('main');
+      }
+      t.metric('platformTravel', bestTravel);
+      t.metric('platformRideDrift', Math.round(worstDrift * 100) / 100);
+      t.metric('platformOffscreen', offscreen);
+      t.finish('done');
+    } finally {
+      this.manual = null;
+      if (touch) forceTouchUi(false);
     }
   }
 
@@ -9305,6 +13938,59 @@ class Run {
     t.finish('done');
   }
 
+  async voiceCaptions(): Promise<void> {
+    const t = this.t;
+    const back = localStorage.getItem(SOUND_KEY);
+    const slide = (id: string, percent: number) => {
+      const input = this.q(id) as HTMLInputElement;
+      input.value = String(percent);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      t.add('interactions');
+    };
+    await this.screen('title', 30000);
+    await this.tapToPlay();
+    await this.tap(() => this.q('#btn-start'), 'Press start');
+    await this.screen('main');
+    await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+    await t.until(settingsShowing, 3000, 'Settings to open');
+    if (!soundSettings().on) await this.tap(() => this.q('#sound-switch'), 'Sound on');
+    // 1: three separate sliders, handles 44 px, panel inside the window.
+    const ids = ['#vol-music', '#vol-sfx', '#vol-voice'];
+    const rects = ids.map((id) => this.q(id)?.getBoundingClientRect());
+    if (rects.some((r) => !r)) t.problem('bug', 'Settings is missing one of the Music, Effects, Voice sliders');
+    for (const [i, r] of rects.entries()) {
+      if (!r) continue;
+      if (r.height < 44) t.problem('bug', `${ids[i]} handle is ${Math.round(r.height)} px tall, under 44`);
+      if (r.left < 0 || r.right > innerWidth) t.problem('bug', `${ids[i]} runs off the screen`);
+    }
+    t.event('sliders', ids.map((id, i) => `${id} ${Math.round(rects[i]?.width ?? 0)}x${Math.round(rects[i]?.height ?? 0)}`).join(', '));
+    if (document.documentElement.scrollWidth > innerWidth + 1) t.problem('bug', 'Settings scrolls sideways');
+    await t.wait(300);
+    slide('#vol-voice', 0);
+    slide('#vol-sfx', 80);
+    await t.wait(400);
+    const g = audio.busGains();
+    if (g.voice > 0.001 || g.sfx < 0.1) t.problem('bug', `Voice 0 should silence voices but not effects (voice ${g.voice}, sfx ${g.sfx})`);
+    else t.event('voice-zero', `voice bus ${g.voice.toFixed(2)}, effects bus ${g.sfx.toFixed(2)}`);
+    // 2: captions off is saved (and read back the way a reload reads it).
+    await this.tap(() => this.q('#captions-switch'), 'Captions off');
+    await t.wait(300);
+    const saved = JSON.parse(localStorage.getItem(SOUND_KEY) ?? 'null') as { captions?: boolean } | null;
+    if (saved?.captions !== false || readSoundSettings().captions !== false || !document.body.classList.contains('captions-off')) t.problem('bug', 'Captions off did not save or apply');
+    else t.event('captions-off-saved', JSON.stringify(saved));
+    // 3: sound muted, story lines still show.
+    await this.tap(() => this.q('#sound-switch'), 'Sound off');
+    await t.wait(300);
+    if (document.body.classList.contains('captions-off')) t.problem('bug', 'With sound off the story captions are still hidden');
+    else t.event('captions-with-sound-off', 'captions show with sound off');
+    await this.tap(() => this.q('#sound-switch'), 'Sound on');
+    await this.tap(() => this.q('#captions-switch'), 'Captions on');
+    await this.tap(() => this.q('#settings-done'), 'Done');
+    if (back === null) localStorage.removeItem(SOUND_KEY);
+    else localStorage.setItem(SOUND_KEY, back);
+  }
+
   async soundSettings(): Promise<void> {
     const t = this.t;
     const carried = (() => {
@@ -9742,7 +14428,7 @@ class Run {
 // ---------------------------------------------------------------- helpers
 
 /** A way to drive a fighter's stick and Special button the way a player does: the keyboard, or the on-screen controls. */
-export interface Pad { stick(sx: number, sy: number): void; special(on: boolean): void; button(name: 'attack' | 'shield', on: boolean): void; release(): void }
+export interface Pad { stick(sx: number, sy: number): void; special(on: boolean): void; button(name: 'attack' | 'shield' | 'jump', on: boolean): void; release(): void }
 export function makeKeyboardPad(): Pad {
   const on = new Set<string>();
   const set = (a: string, v: boolean) => {
@@ -9843,10 +14529,16 @@ const HAWKES_BIOMEDICAL = 'https://hawkesbiomedical.com';
 /** Carries the touch-settings run across its reload. */
 const TOUCH_RUN_KEY = 'hawkes.playtest.touch-settings';
 const SOUND_RUN_KEY = 'hawkes.playtest.sound-settings';
+const REBIND_RUN_KEY = 'hawkes.playtest.rebind';
+const REBIND_KEY = 'dod.bindings';
 /** The feedback card after a versus match (analytics.ts askAfterMatch). */
 const MATCH_ASK = 'after-match';
 
 /** Lets the feedback card `id` show again in this browser (the SDK's once-per-session and 7-day snooze marks). */
+function frame0(g: { match(): { state: { frame: number } } | null }): number {
+  return g.match()?.state.frame ?? 0;
+}
+
 function resetAsk(id: string): void {
   try {
     const shown = JSON.parse(sessionStorage.getItem('hawkes.asked') ?? '[]');

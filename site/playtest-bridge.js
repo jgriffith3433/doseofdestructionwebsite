@@ -188,6 +188,12 @@
       ]
     },
     {
+      "id": "voice-captions",
+      "title": "Music, Effects and Voice sliders, Captions on and off",
+      "description": "Opens Settings from the main menu: three separate sliders (handles at least 44 px, on screen), Voice 0 silences the voice bus but not effects, Captions off is saved, and with Sound off the story captions show anyway. Phone 390x844 plays by touch.",
+      "seconds": 60
+    },
+    {
       "id": "sound-settings",
       "title": "Tap to play, sound on, Settings from the menu and Pause, a setting kept across a reload",
       "description": "Taps the Tap to play prompt with a pointer press on the spot (hit-tested, so a covered prompt fails), checks the AudioContext runs and the menu music plays with no more taps, opens Settings from the main menu, turns Sound off and Music to 40%, reloads (the run carries on through ?playtest=sound-settings), checks the prompt and the choice are back, then opens Settings from Pause in a match. The player's own hawkes.sound is put back at the end.",
@@ -201,6 +207,25 @@
       "id": "finale-hijack",
       "title": "The Orchestrator's finale takeover: the feed glitches, he appears in a picture-in-picture and says voiced lines for how the fight is going, and a new rule shows on the HUD within 1 s (phone: 390x844 touch, picture-in-picture clear of the controls at 844x390)",
       "description": "Plays one season finale (option `chapter`, default encore; the finales are encore, sponsored, walk-on, hostile-takeover, clip-show, global-feed, series-finale, best-in-show, cliffhanger, final-cut) from the Campaign map with the bot: setup shortcut marks the chapters before it cleared. The takeover fires 60 s in or when the player is down to 2 stocks. Events takeover-start (mood ahead/behind, over 100%, the lines), takeover-glitch, takeover-pip (clear of the HUD and the touch controls), takeover-line (each voiced line), takeover-rule (the rule on the HUD, frames after the takeover). Touch: played in the turned 844x390 frame.",
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "auto-level",
+      "title": "Auto CPU level: quick play defaults to Auto, a clear win (2+ stocks left) raises the next CPU level by 1, a loss without taking a stock lowers it by 1, the VS card shows the level and Results notes the change on one line (phone: 390x844 touch)",
+      "description": "Setup shortcut: the saved Auto level (dod.profile.cpu) is set to 4. From the main menu a 3-stock Versus match is won by the bot: the VS card reads CPU · Level 4 · Auto (vs-level), a win with 2+ stocks left moves the level to 5 (auto-win) and Results shows the one-line note \"Auto: CPU level 4 → 5\" (level-note, level-note-fit: one line, inside the screen). Then a 1-stock match with the player held idle is a loss that takes no stock: the VS card shows level 5 and the level falls to 4 with its note (auto-loss). Phone: 390x844 turned to 844x390, played by taps. The player's own saved level is put back. Metrics autoLevelAfterWin, autoLevelAfterLoss.",
+      "seconds": 420,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "rumble",
+      "title": "Rumble: a light hit, a heavy hit and a KO each send their own pad rumble and phone vibrate, and Settings > Rumble off sends none",
+      "description": "Versus match against the CPU. Settings shows Rumble (on by default, 44 px tall: rumble-default); the fight logs each tier's pulse with its length and strength (rumble, rumble-tiers: light < heavy < KO), from Pause Rumble off (rumble-off) and the next hits send no rumble and no navigator.vibrate call (rumble-silent). Calm limits (reduced motion) cap the pulses. A portrait phone (390x844) checks Settings, then turns to 844x390 and plays by touch. The player's own dod.touch is put back.",
       "seconds": 240,
       "tags": [
         "full"
@@ -223,6 +248,62 @@
       "tags": [
         "full",
         "feel"
+      ]
+    },
+    {
+      "id": "colour-vision",
+      "title": "Colour vision: Settings has Standard / Colourblind-safe (Okabe-Ito), it persists after a reload, and every player has a shape (circle, triangle, square, diamond) on ring, tag and HUD card",
+      "description": "Settings from the main menu shows the Colour vision switch (44 px, on screen); a versus match in Standard checks each fighter's ring, name tag and HUD card carry distinct shapes (event shapes, metric shapeCount); from Pause the switch is turned to Colourblind-safe (colour-saved, dod.colourvision) and the HUD takes the new colours at once; the page reloads and Settings still reads Colourblind-safe (colour-kept); a second match checks the Okabe-Ito colours and shapes again. On a 390x844 phone the portrait Settings is checked (colour-switch), then the run plays in the turned 844x390 frame by taps. Puts dod.colourvision back.",
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "motion-comfort",
+      "title": "Motion comfort: Reduce motion, Screen shake 0-100% and Flashes Full/Soft/Off apply in hits and KOs, and never more than 3 flashes a second",
+      "description": "Settings (menu) shows Reduce motion, the Screen shake slider and Flashes (44 px, on screen); Reduce motion is switched on and the other two default to 0% and Off; a versus match is played to a stock-ending KO: no slow motion, no zoom punch, no full-screen flash, no camera shake (ko-calm, ko-no-flash, ko-no-shake; metrics calmFlashes, calmShakeMax). From Pause everything goes back to Full / 100% live and ten hits are played: flashes return and never more than 3 start in any second (flash-rate, metric flashMaxPerSecond). On a 390x844 phone the portrait Settings is checked, then the run plays in the turned 844x390 frame by taps. Puts dod.motion, dod.shake and dod.flash back.",
+      "seconds": 300,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "rebind",
+      "title": "Rebind controls: Settings > Controls, pick an action, press the new key, clash warning, Reset, saved across a reload, the new key works in a match, a second gamepad plays (phone 390x844 touch: no rebinding row, Settings fits, nothing overlaps)",
+      "description": "Desktop: main menu > Settings > Rebind (44 px buttons). Special is put on J (Attack's key): the clash note names Attack and Attack takes K (a swap); Reset to defaults restores Attack J / Special K and saves; Attack is put on H by tapping its slot and pressing H (saved in dod.bindings); the page reloads and the run carries on: Attack is still H, the All controls page lists Attack as H, and in a Versus match H attacks while J no longer does; then a second emulated gamepad (pad 2 only, no pad 1) presses A and attacks. Phone (390x844 touch, hit-tested taps): Settings has no rebinding row, every control is inside the screen and none overlaps, Done is 44 px. Puts dod.bindings back. Events rebind-open, rebind-clash, rebind-reset, rebind-set, rebind-saved, rebind-survived-reload, rebind-controls-page, rebind-key-works, rebind-old-key-dead, rebind-second-pad, rebind-phone-hidden, rebind-phone-fit.",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "local-versus",
+      "title": "Two people on one couch: in Versus each controller (pad 1, pad 2) moves its own fighter; solo still takes keyboard and pad together; a phone is still You vs CPU",
+      "description": "Desktop: Versus select, the second slot switched to Person (Player 1 and Player 2), two emulated pads: pad 1 moves only player 1, pad 2 only player 2 (pads-independent); then solo again, a pad stick moves the fighter while the keyboard attacks (solo-merged). Phone 390x844 touch (turned to 844x390): no Person switch, Versus reads You vs CPU, the touch stick moves the player (phone-you-vs-cpu, phone-touch-moves). Pad join: Start on pad 2 makes slot 2 Player 2, holding Back a second returns it to CPU, \"Press Start to join\" only with a second device (join-prompt, join-start, join-leave, no-join-prompt). Events two-people. test/localVersus.test.ts covers the sim side.",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "shield-toggle",
+      "title": "Shield Hold / Toggle: Settings > Shield; with Toggle one press keeps the shield up with no button held, a second press, a roll or a jump drops it, and on a phone the Shield button shows it is latched",
+      "description": "Settings from the main menu shows the Shield switch (Hold by default, 44 px, on screen); one tap turns it to Toggle and it is saved (shield-saved, dod.shield). In a versus match one press of Shield (the L key, or the touch Shield button) raises the shield and 1.4 s later it is still up with nothing held (shield-latched); on touch the Shield button carries the latched look and aria-pressed (shield-button-latched); a second press drops it (shield-dropped-press); a press then a roll (stick sideways) rolls and drops it (shield-dropped-roll); a press then a jump drops it (shield-dropped-jump). On a 390x844 phone the portrait Settings is checked, then the run plays in the turned 844x390 frame by taps and a stick drag. Puts dod.shield back.",
+      "seconds": 150,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "text-size",
+      "title": "Text size: Settings has 100% / 125% / 150%, every visible text is at least 12 px at 100%, 150% is bigger on menus and HUD without clipping, and it is kept",
+      "description": "Main menu → Settings → Text size 100% (text-saved: localStorage dod.textsize, --ts); scans the main menu, Settings and the select screen for text under 12 px, clipped text and text off the window (text-scan; metrics textUnder12.<screen>.<level>); sets 125% then 150% (text-bigger: the menu item grows), scans the same screens again, plays a match and scans the HUD at 150% (hud-bigger: the HUD percent against its 100% size from Pause). A 390x844 phone runs the menus by touch in portrait and the match in the turned frame. The player's own dod.textsize is put back.",
+      "seconds": 150,
+      "tags": [
+        "full"
       ]
     },
     {
@@ -375,6 +456,17 @@
       ]
     },
     {
+      "id": "invite",
+      "title": "Invite a friend (peers: 2): Invite a friend makes a private room and offers its link to the share sheet or copies it; a full room says so and offers Quick match; opening the link puts both players in the same room and Match found",
+      "description": "Needs Hawkes Gen playtest.run with peers: 2 (private test lobby, ?room=<id>&peer=0/1). Peer 0 taps Invite a friend: the Invite panel shows the link and the system share sheet opens, or the link is copied (invite-created, invite-shared / invite-copied; panel and controls checked against the window and 44 px). A stand-in third browser takes the second seat; peer 1 opens the link and sees the full-room message with a Quick match button (invite-full), taps it and searches (invite-quick-match). The seat is freed, peer 1 opens the link again past the title, lands in peer 0's room (invite-paired) and both see Match found (match-found). Taps only, so a 390x844 touch phone run plays the same path.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "online",
+        "touch"
+      ]
+    },
+    {
       "id": "reconnect",
       "title": "Reconnecting (peers: 2): a 3 s cut pauses both sides under \"Reconnecting…\" with a countdown and play resumes with the same stocks and percents; a drop past 10 s ends the match as an unrated disconnect",
       "description": "Needs Hawkes Gen playtest.run with peers: 2 (private test lobby, ?room=<id>&peer=0/1). Plays online's lobby and match, then peer 1 cuts its Hawkes Net connection for 3 s (the real thing: it leaves the room and joins again as the same player). Both pages show \"Reconnecting… N s\" top centre, clear of every touch control (reconnecting-banner, reconnect-banner-clear), the match stands still on its frame (reconnect-paused), the countdown counts (reconnect-countdown), and play resumes (reconnect-resumed) with no stock gained. Then peer 1 cuts for 14 s: both end on Connection lost, not \"left the match\" (disconnect-result), with no rating change (disconnect-unrated). On a 390x844 touch phone the banner is measured against the touch overlay.",
@@ -437,6 +529,16 @@
       ]
     },
     {
+      "id": "auto-quality",
+      "title": "Auto quality: on a slow device the renderer steps quality down inside 5 s and holds 45 fps, says so once with a quiet toast clear of every control, never overrides a quality set by hand (phone 390x844 turned to 844x390, touch)",
+      "description": "A simulated slow device (option slowMs, ms a frame costs at full quality, default 60; slow: false plays the real device) in a versus match against the CPU. Match 1: auto-lowered (steps, render scale and glow before and after), auto-settled (last step within 5 s of play), auto-fps (median before and after, 45 wanted), auto-toast and auto-toast-clear (one toast, inside the window, clear of the touch stick, buttons and Pause). Match 2, twice as slow: auto-no-repeat (no second toast). Then Quality is pressed by hand in Settings and match 3 must change nothing (auto-hand). Metrics autoLevel, autoSettleMs, autoFpsBefore, autoFpsAfter, fpsMatch. On a phone it plays in the turned 844x390 frame and drives the fighter with the touch stick and Attack button only. The player's dod.gfx and auto-quality keys are put back.",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "sudden-death",
       "title": "Sudden death: a dead-even time-out respawns both at 300%, the slam and announcer call it, the zone closes, first KO wins inside 30 s (phone: slam fits, touch live)",
       "description": "Setup shortcut: a versus match, two idle fighters (2 stocks, 0% each) on a 10 s clock, so stocks and percent are exactly level at time-out. Checks it goes to sudden death instead of naming a winner (sudden-start), the SUDDEN DEATH slam card inside the screen (sudden-slam, sudden-slam-fit), the announcer call (sudden-call), both at 300% with one stock (sudden-percent); then the bot plays and the bout ends on a KO within 30 s, not as a time-out (sudden-end, metric suddenSeconds). On a 390x844 phone it turns to 844x390 and presses the touch stick and Attack with pointer events during sudden death (sudden-touch).",
@@ -447,12 +549,82 @@
       ]
     },
     {
+      "id": "cpu-level",
+      "title": "CPU levels: a level-1 CPU misses recoveries and plays one ledge habit, and the playtest bot beats it (phone: 390x844 touch, turned to 844x390)",
+      "description": "options: level (1-9, default 1), stage. A versus match, Exit Punk (the playtest bot) against a Break CPU at that level, 2 stocks, to the end. Events cpu-level, cpu-ledge (the ledge option the CPU chose), cpu-recovery (got back / missed), cpu-result; metrics cpuRecoveries, cpuRecoveryMisses, cpuLedgeOptions, cpuWon. A bug when a level-1 CPU beats the playtest bot. On a phone the match plays by touch.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "ai"
+      ]
+    },
+    {
+      "id": "hazard-dodge",
+      "title": "Bots read stage hazards: a bot in a warned hawk dive, skater, vacuum, paint drop or fog surge's way moves out before it arrives (phone: the same warning, touch controls on)",
+      "description": "A versus match on a hazard stage (option `stage`, default desert; also cursed-town, rainbow-full-pipe, watercolor-nebula, yo-house) with the playtest bot and a level 9 CPU. For each stage warning (hazard-warning) each fighter standing in the warned hazard's path is followed: it must move out by a hop, a walk or a drop (hazard-dodge, frames after the warning), and the pass ends hazard-avoided or hazard-hit; hazard-first is the first pass. Ends after two passes. On a 390x844 phone it turns to 844x390 with touch controls on. Metrics hazardWarnings, hazardThreatened, hazardDodged, hazardHits.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "hazard-rule",
+      "title": "Versus rules: Hazards On/Off saved, hazard marks on stage cards, no hazard fires in 2 minutes with it Off",
+      "description": "Versus select shows the Hazards rule (On by default, 44 px, inside the rules panel), a tap turns it Off and it is saved and still Off after leaving and reopening Versus (hazards-rule, hazards-fit, hazards-persist); the stage select marks exactly the stages with events, hazards or damage zones (hazards-icons); then a 2-minute match (option stage, default desert) with the rule Off: rules.hazards is 0 and no event warns or runs and no hazard hits (hazards-off-match, hazards-off-2min; metrics hazardEventsFired, hazardHitsOff, hazardMarks). The rule is put back. Phone: the select checked at 390x844 by taps, the match played in the turned 844x390 frame by taps.",
+      "seconds": 240,
+      "tags": [
+        "rules",
+        "phone"
+      ]
+    },
+    {
       "id": "ko-objective",
       "title": "The ko objective: \"KOs 0/3\" with the clock, counting up, won on the third KO; then a round lost when time runs out",
       "description": "Setup shortcut: straight into each match as a campaign fight, no menus (the ko objective has no chapter yet). Round 1: Exit Punk (the bot) vs Kaelen (CPU 1, 9 stocks, every life at 120%) on Yo House, 3 KOs before a 2-minute clock; it ends on the third KO. Round 2: vs a giant Break (CPU 9, 9 stocks), 3 KOs before a 20-second clock; it ends on time. Each round checks the chip and the clock as the match starts, every change of the chip against the KOs scored, and the results line saying which way it ended. Events ko-chip, ko-clock, ko-count, ko-result.",
       "seconds": 240,
       "tags": [
         "full"
+      ]
+    },
+    {
+      "id": "difficulty",
+      "title": "Campaign difficulty: Easy / Normal / Hard on the season map (saved), and after a third loss in a row on one episode the results offer \"Try it on Easy?\", which retries with the foes two CPU levels softer (phone: 390x844 touch, turned to 844x390 to fight)",
+      "description": "Opens the Campaign map, checks the Easy/Normal/Hard choice (three 44 px buttons, Hard stays chosen after leaving the map), then plays one episode (option `chapter`, default title-defense) and loses it three times with the bot standing still: no offer after one or two losses, \"Try it on Easy?\" with 44 px buttons on the third, and accepting starts the episode with a lower CPU level. Events difficulty-picker, difficulty-persist, difficulty-start, difficulty-loss, difficulty-offer, difficulty-easy; metrics cpuLevelBefore, cpuLevelEasy, offerButtonMinPx.",
+      "seconds": 600,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "grades",
+      "title": "Episode grades: a won episode shows 1-3 stars on Results with what each star needs, and the season map keeps the best",
+      "description": "Option chapter (default house-heavy). Setup shortcut: the chapters before it are marked cleared and dod-stars is emptied (both put back). The bot plays the chapter from the Campaign map; on a win the results show the stars card (1 clear, 2 no stock lost, 3 under par time, or under 100% damage taken on a survive episode; labels on screen, 12 px or more: grade, metric gradeStars) and the map shows the stars with \"N of 3\" on the episode (map-stars, checked against dod-stars); the map is then opened again from the save (map-stars after-reopen). Scores: a weak record is seeded in dod-bests (put back), so the win must flash New best! on the results (new-best, metrics episodeScore, newBest) and the episode card must show Best time and Best score matching the save, fully inside the window (map-best, also after-reopen). On a 390x844 phone the run plays by taps and everything is checked inside the window.",
+      "starts": [],
+      "seconds": 300,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "replay-as",
+      "title": "Replay as…: a cleared episode can be played again as any unlocked fighter, with the same foes, stage and objective",
+      "description": "Option chapter (default open-mic). Setup shortcut: that chapter and those before it are marked cleared (put back). On the Campaign map every cleared episode shows Replay as… and the next, uncleared one does not (replay-cleared-only; metric replayButtons); a tap opens the picker of unlocked fighters only, tiles 44 px or more, inside the window, no sideways scroll (replay-picker; metric replayPickerTiles); a tap on a fighter other than the story's plays the episode with them as the player and the same foes, stage and objective (replay-same-episode; metric replaySameEpisode; events dod:replay-as). Stars earned this way keep the better grade (recordStars). On a 390x844 phone the map and picker are checked in portrait by taps and the episode plays in the turned 844x390 frame.",
+      "starts": [],
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "rewards",
+      "title": "Season 8-10 rewards: every episode card shows its reward before play, a win shows the unlock banner, and the reward can be picked in Versus (phone: 390x844 touch)",
+      "description": "Option chapter (default red-carpet, any Season 8-10 episode). Setup shortcut: the chapters before it are marked cleared and dod-rewards emptied (both put back). On the Campaign map every one of the ten reward episodes shows its reward line (Title / Stage / Colour and the name) inside the window, unclipped, 11 px or more (reward-card; metric rewardCards 10). The bot plays the chapter; the win shows the unlock banner on Results (reward-banner), and Versus then offers the reward: a title chip, a colour swatch or a stage variant card (reward-versus). On a 390x844 phone the map is checked in the portrait window by taps and the episode played in the turned 844x390 frame.",
+      "starts": [],
+      "seconds": 300,
+      "tags": [
+        "full",
+        "touch"
       ]
     },
     {
@@ -493,12 +665,40 @@
       ]
     },
     {
+      "id": "replay",
+      "title": "Watch replay: Results offers it, the replay plays back from the recorded inputs with Pause, 0.5x and 2x, a Follow or Free camera and a tap-to-hide bar whose buttons are all at least 44 px, and it ends with the same winner and stocks as the match",
+      "description": "A versus 1v1 (1 stock) is played by the bot to Results, which must have a Watch replay button (replay-button). The replay opens in the same arena with its bar fitting the window (replay-fit: every button at least 44 px and 8 px apart, inside the screen, along the bottom on a 390x844 phone), Pause holds the tick (replay-pause), 0.5x / 1x / 2x change the pace (replay-speed), a tap on the arena hides then shows the bar (replay-bar-tap), Camera toggles Follow / Free (replay-camera), -5 s goes back (replay-back), and the end has the same winner, stocks and final state hash as the match (replay-result). Back to results returns to the results (replay-exit). On a phone every press is a pointer tap and the portrait window is kept. Options: stage, fighter. Metrics replayButtonsMinPx, replayTicks1x.",
+      "seconds": 420,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "presentation",
       "title": "Menu, VS screen and results presentation: the broadcast menu, a name card animating in for each VS fighter, results with winner, time, damage dealt and highlights, no text clipped",
       "description": "Main menu: the ON AIR bug and Tonight ticker are shown (menu-broadcast). Versus 1v1 (1 stock): on the VS screen each fighter lands and its name card animates in (vs-start, vs-name-card per fighter). The match is played by the bot to its end; the results must show the winner, the time and the damage dealt in the summary strip (results-summary, checked against the match) and list the knockouts as highlights (results-highlights). Each screen is checked for text cut off or pushed off the sides at the window's shape (no-clipping, with the size and 16:9 / 20:9 / phone). The character and stage select screens are checked too. At phone size (390x844, 844x390) every button must be at least 44 px tall and none overlap (phone-targets). Options: stage, fighter. Metric highlights.",
       "seconds": 200,
       "tags": [
         "full"
+      ]
+    },
+    {
+      "id": "share",
+      "title": "Share a result: the results offer Share, a tap sends the PNG card through navigator.share with the file, without it the card downloads and the text line is copied",
+      "description": "A versus match (1 stock) is played to the results, which must offer a Share button of 44 px or more. A tap draws the card (winner, fighters, stage, KOs) and calls navigator.share with a PNG file (a stand-in records it: share-sheet, share-card). Then navigator.share is removed and a second tap must download the card and copy the text line (share-fallback). Phone 390x844 touch: every press is a pointer tap, in the turned frame. Metric shareCardBytes.",
+      "seconds": 200,
+      "tags": [
+        "full"
+      ]
+    },
+    {
+      "id": "unlock-route",
+      "title": "Locked fighters show how to open them: a silhouette and its route on every locked tile, a tap names the episode, and the results show a bar toward the next unlock when it is one episode away (phone 390x844 touch)",
+      "description": "Setup shortcut: a fresh save (no chapters cleared, nothing unlocked; both put back). Versus select: every locked tile is a silhouette with its route under \"Locked\" (S1 · E1, from the chapter's own unlock), and a tap shows \"Clear Season N, Episode M: Title\" in a status note inside the window (locked-route; metrics lockedTiles, lockedRoutes). Then a versus 1v1 is played to Results, which shows the bar toward the next unlock (unlock-bar; metric unlockBars). Phone 390x844: every press is a pointer tap.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "touch"
       ]
     },
     {
@@ -514,9 +714,39 @@
       ]
     },
     {
+      "id": "extra-jumps",
+      "title": "Extra jumps by touch: Evil Blue Bird takes off with an upward flick and gets every extra jump from more flicks in the air",
+      "description": "Setup shortcut: straight into Training with the fighter (option fighter, default evil-blue-bird) and a dummy. On a 390x844 phone (turned to 844x390) real touch pointer events on the floating-stick zone: one quick upward flick takes off, then one flick per extra jump in the air; each is read from the sim (jumps left drops). Events extra-jump, extra-jumps; metric extraJumps.",
+      "seconds": 60,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "hurtbox-fit",
+      "title": "Hurtboxes hug the art: Exit Punk's jab from just outside Spider-Bot's body visibly misses, from just inside it connects (phone: stick + Attack by touch)",
+      "description": "Setup shortcut: Training, Exit Punk against an idle Spider-Bot (hurtbox fitted to its idle art by tools/hurtbox-art.mjs; it was 100 wide against a roster average of 55). The bot walks with the stick to a gap computed from the jab's own hitbox tip and Spider-Bot's hurtbox half width: 16 units outside (near miss, hurtbox-near-miss: must deal no damage), then 8 units inside (hurtbox-hit: must connect). Played from the keyboard, or on a phone (390x844 turned to 844x390) from the touch stick and Attack button as pointer events. Metrics spiderBotHurtW, nearMissHit (0), closeJabHit (1).",
+      "seconds": 90,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "specials",
       "title": "Specials: Exit Punk in Training does four different specials from K, K+side, K+down, K+up (touch: stick + Special), and the thrown board crosses the stage, hits the dummy and disappears",
       "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus). Played through real input only: keyboard K plus A/D/S/W on a desktop; at phone size (390x844, turned to 844x390 landscape like touch-match, or 844x390) the on-screen stick and Special button as touch pointer events, with no extra button on the overlay. Walks into the board's range, then: neutral Special throws the board (projectile-hit: it crosses the stage, hurts the dummy and is gone), thrown the other way it hits nobody and disappears at its lifetime (projectile-lifetime); Special + side is the skate dash (special-side; touch-side-special), Special + down places the kickflip trap (special-down; touch-down-special), Special + up is the ollie recovery (special-up); specials-distinct when all four were different moves. Options: input (touch forces the overlay on a desktop window), at (phone). Metric specialsSeen.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "cpu-styles",
+      "title": "CPU playstyles: a rushdown CPU closes the distance within 3 s of GO and a zoner CPU keeps more room",
+      "description": "Versus against a CPU while the player stands still (phone 390x844 turned to 844x390 with the touch overlay up). Round 1 a rushdown CPU (Kaelen) closes to a jab's reach within 3 s of GO (cpu-close); round 2 a zoner CPU (Exit Punk) keeps a larger average distance over the same 10 s (cpu-spacing). Events cpu-style, cpu-close, cpu-spacing; metrics rushCloseSeconds, rushAvgDistance, zonerAvgDistance.",
       "seconds": 120,
       "tags": [
         "full",
@@ -532,6 +762,56 @@
         "full",
         "touch",
         "sound"
+      ]
+    },
+    {
+      "id": "lesson-2",
+      "title": "How to play 2: a prompt for grab, throw, roll left, roll right and spot-dodge in turn, each ticked off within a second of the move (phone: 390x844 touch, finished with touch controls only)",
+      "description": "Taps How to play 2 on the main menu (a touch tap on a phone), then plays the lesson through real input only: keyboard L + J / A D / L + A / L + D / L + S on a desktop; on a 390x844 phone (turned to 844x390) the on-screen Shield and Attack buttons and the stick as touch pointer events. Each prompt must show in order with the glyphs of the device (lesson-prompt: keys, or touch icons), tick off within 1 s of the sim seeing the move (lesson-tick, lessonTickMaxMs), the dummy swings slowly before the spot-dodge (lesson-dummy-swing, a swing every 2 s or more), and the card reads Lesson clear! (lesson-clear), then the Lesson complete card with Next lesson and Back to menu, 44 px tall (lesson-card, lesson-next, lesson-ticks, campaign-blurb). Prompts never stack (one on screen at a time), never sit under a touch control, and every touch control is 44 px or larger (lesson-touch). Events lesson-*; metrics lessonSteps, lessonTickMaxMs.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "archetype-normals",
+      "title": "Archetype normals: a fast fighter's jab is a three-hit flurry from one Attack press, a heavy's is one slower, harder hit; floaty aerials hang out longer than fast ones (phone: 390x844 touch, the same Attack button)",
+      "description": "Setup shortcut: straight into Training with Kaelen (fast) and a dummy, then Break (heavy), no menus. Each walks up to the dummy with the stick and presses Attack once from real input (keyboard, or on a phone turned to 844x390 the Attack button as a touch pointer event, archetype-touch: every control 44 px, no new button). The sim's hits are counted: Kaelen's jab lands 3 hits, Break's 1, later and with more launch growth (archetype-jab; metrics fastJabHits, heavyJabHits, fastJabStartup, heavyJabStartup). archetype-data checks every fighter has an archetype in content/archetypes.json and floaty neutral air stays out longer than fast.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "training-combo",
+      "title": "Training: a 3-hit true combo shows the combo counter, its damage and the last hit; the dummy's percent is set and reset and its behaviour (stand, jump, shield, CPU) chosen from Pause (phone: 390x844 touch, readout and options fit, controls 44 px)",
+      "description": "Setup shortcut: straight into Training with Exit Punk and a Break dummy (no menus). The combo readout (top left, `training-readout`) sits inside the screen clear of the pause button, timer and touch controls. Pause shows the dummy options: every button at least 44x44 and on screen (`training-fit`); the percent buttons set the dummy to 100% (`training-percent`) and Reset puts it back at 0 (`training-reset`); the behaviour buttons Jump, Shield, Stand and CPU (level raised twice) each change what the dummy does in the sim (`training-dummy`). Then real input, stick down + Attack (down tilt) again and again, lands a string while the dummy is still in hitstun: the readout counts to 3 or more with the combo's damage, the last hit's damage and the True combo tag (`training-combo`). Keyboard on a desktop; at phone size (390x844, turned to 844x390 like ledge-options) the same by touch taps and the on-screen stick and Attack button. Metrics trainingComboHits, trainingComboDamage.",
+      "seconds": 180,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "ledge-options",
+      "title": "Ledge options: from the ledge Attack sweeps low and hits a fighter at the edge, Shield rolls onto the stage, Jump leaps up, stick up climbs, and holding on too long drops the fighter (phone: 390x844 touch, the same buttons)",
+      "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus). The player walks off the stage edge with the stick (the sim catches the ledge), hangs with no input for a few frames (ledge-hold: nothing climbs by itself), then each option from real input: stick up is the getup (ledge-getup, stands just inside the edge), Shield rolls a body-length further in (ledge-roll), Attack climbs and sweeps low with the down tilt and hits the dummy stood at the edge (ledge-attack; setup shortcut puts the dummy there), Jump leaps well above the ledge (ledge-jump), and with no input the hang runs out and the fighter drops (ledge-drop, ledgeHangFrames, 4 s). Each logs its invincibility frames. Keyboard on a desktop; at phone size (390x844, turned to 844x390 like touch-match) the on-screen stick, Attack, Shield and Jump buttons as touch pointer events with no new button (ledge-touch). Then the All controls page is opened and its keyboard, gamepad and touch lists must each have an On the ledge row (ledge-controls). Options: input (touch forces the overlay on a desktop window), at (phone). Metric ledgeOptions (5 when every option worked).",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "lesson-3",
+      "title": "How to play 3: prompts for neutral, side and down special and a fast fall, each ticked off by the sim; then the dummy knocks the player off the edge and the prompts go double jump, up special and ledge, ticked off when the player grabs the ledge (phone: 390x844 touch, finished with touch controls only)",
+      "description": "Taps How to play 3 on the main menu (a touch tap on a phone), then plays the lesson through real input only: keyboard K / D + K / S + K / Space then S on a desktop; on a 390x844 phone (turned to 844x390) the on-screen Special and Jump buttons and the stick as touch pointer events. Each prompt shows in order with the glyphs of the device (lesson-prompt) and ticks off within 1 s of the sim seeing the move (lesson-tick, lessonTickMaxMs). After the fast fall the player and the dummy are staged at the right edge (lesson-knockoff), the dummy swings, the player is knocked off (lesson-offstage), and the player double jumps, uses the up special and grabs the ledge (the sim ledge event ticks the last step; lesson-ledge, up to 3 tries with lesson-retry); the card reads Lesson clear! (lesson-clear). Prompts never stack, never sit under a touch control, and every touch control is 44 px or larger (lesson-touch). Events lesson-*; metrics lessonSteps, lessonTickMaxMs.",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "touch"
       ]
     },
     {
@@ -629,6 +909,16 @@
       "title": "Idle and run at 30 fps with fringe-clean sheets, hitboxes on jab and side smash, phone Low ≥45 fps (Season 1 cast; option cast \"rest\": the 20 other fighters)",
       "description": "Setup shortcut: each of the 13 Season 1 fighters into training (option fighter: one; option cast \"rest\": the 20 fighters outside Season 1, checking idle and walk/run at 30 fps, then jab with hitboxes). Logs clip-fps for idle, walk (run), jab and fsmash (want 30) and half-sheet when Quality is Low. Hitbox view (H) on; jab and side smash (fsmash) so active frames are on screen (hitbox-jab, hitbox-fsmash). 2x zoom screenshot beats (clip-zoom) for fringe review. On a 390x844 phone turns to 844x390, forces Low, and samples fpsMatchLow (want ≥45). Metrics clipFps30, halfSheets, fpsMatchLow.",
       "seconds": 480,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "moving-platforms",
+      "title": "Moving and fading platforms: a platform drifts across Humans In The Loop and Space Chess and carries a standing fighter without sliding; City Top's inner catwalks flash, go and come back on a steady timer (Hazards Off; phone 844x390: the moving platform stays on screen)",
+      "description": "Setup shortcut: straight into each match with Hazards Off, a fighter placed on the platform (no input), then both on the floor for a full lap. Checks that the platform moves (platform-moves), the rider keeps its place on it (platform-ride), the platform's screen box stays inside the window all lap (platform-frame, phone turned to 844x390), the bots ride it (platform-bot-ride); the fading catwalks flash (platform-flash), go (platform-gone), come back (platform-back), drop a rider (platform-rider-drops) and are never both gone (platform-pair). Option stage runs one. Metrics platformTravel, platformRideDrift, platformOffscreen.",
+      "seconds": 240,
       "tags": [
         "full",
         "touch"

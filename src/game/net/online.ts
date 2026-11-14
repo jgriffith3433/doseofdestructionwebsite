@@ -38,6 +38,15 @@ function me() {
   return { name: p.name, avatar: p.avatar, char, look: preferredLook(char), pid: profileId() };
 }
 
+/** The host's saved Versus Hazards rule (ui/select.ts, `dod-versus`): off only when they switched it off. */
+export function hostHazardsOff(): boolean {
+  try {
+    return JSON.parse(localStorage.getItem('dod-versus') ?? 'null')?.hazards === false;
+  } catch {
+    return false;
+  }
+}
+
 function makeSetup(host: ReturnType<typeof me> & { id: string }, guest: ReturnType<typeof me> & { id: string }): OnlineSetup {
   const stages = stagesFor('versus');
   // The same fighter twice never share a colour: the guest moves to the next (the host's own pick stays).
@@ -50,7 +59,7 @@ function makeSetup(host: ReturnType<typeof me> & { id: string }, guest: ReturnTy
     seed,
     stage: entry?.index ?? 0,
     // The Versus version of the stage (a calm one keeps its hazards off).
-    rules: entry?.entry.rules ?? {},
+    rules: { ...(entry?.entry.rules ?? {}), ...(hostHazardsOff() ? { hazards: 0 } : {}) },
     stocks: ONLINE_RULES.stocks,
     timeLimit: Math.round(ONLINE_RULES.minutes * 60 * 60),
     ids: [host.id, guest.id],

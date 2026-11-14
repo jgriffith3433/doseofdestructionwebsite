@@ -2,12 +2,17 @@
 // for the end screen. Stats are gathered from sim events, outside the sim.
 
 import { CHARACTERS } from './sim/characters.ts';
+import { FX } from './sim/fixed.ts';
+import { STAGES } from './sim/stage.ts';
 import { NO_INPUT, stickX, stickY } from './sim/input.ts';
 import { ACT, cloneState, newGame, type BroadcastDef, type GameState, type Rules } from './sim/state.ts';
 import { BUFFER_FRAMES, step, type SimEvent } from './sim/step.ts';
+import { SwingDummy, SWING_EVERY } from './ai/dummy.ts';
 import { Bot } from './ai/bot.ts';
+import { DEFAULT_DUMMY, TrainingDummy, type DummyMode, type DummyOptions } from './ai/trainingDummy.ts';
 import { consumeInputEdge } from './input/devices.ts';
 import { HighlightRecorder, type Highlight } from './campaign/highlight.ts';
+import { ReplayRecorder, type Replay } from './replay.ts';
 
 export type Mode = 'versus' | 'training' | 'campaign' | 'online';
 
@@ -23,6 +28,8 @@ export interface SlotSetup {
   stocks?: number;
   /** Colour look (looks.ts), 0 is the original art. Cosmetic: the renderer reads it, the sim never does. */
   look?: number;
+  /** Quick play: this CPU's level is the profile's Auto level (ai/autoLevel.ts), set when the match was made. */
+  auto?: boolean;
   /** The pilot's gentle Kaelen (ai/bot.ts pilotFight). */
   pilot?: boolean;
 }
@@ -56,7 +63,31 @@ export interface MatchSetup {
   /** Online matches: who is in each slot (net/online.ts). */
   online?: OnlineSlots;
   /** On-stage teaching prompts (ui/teach.ts): the pilot fight reads cues from Kaelen, How to play runs them on a timer. */
-  teach?: 'pilot' | 'training';
+  teach?: 'pilot' | 'training' | 'defence' | 'recovery';
+  /** Training: how the dummy behaves (pause menu). Kept on the setup so Restart keeps it. */
+  dummy?: DummyOptions;
+}
+
+/**
+ * Training's combo readout for the local player's hits on the dummy. A hit extends the combo only while the dummy is still in
+ * hitstun from the same attacker (the sim's own state, so it is a true combo: it had no way out); the numbers stay on show
+ * after it ends, until the next hit. Damage is in tenths of a percent, the sim's unit.
+ */
+export interface ComboReadout {
+  /** Hits in the combo (0 before the first hit). */
+  count: number;
+  /** Damage of the whole combo. */
+  dmg: number;
+  /** Damage of the last hit. */
+  lastHit: number;
+  /** True while the dummy is still in hitstun. */
+  active: boolean;
+  /** The combo ended in a KO. */
+  ko: boolean;
+  /** Bumps on every hit, so the HUD can tell a new one. */
+  seq: number;
+  /** Sim frame the combo ended (the HUD fades it). */
+  endFrame: number;
 }
 
 export interface OnlineSlots {
@@ -74,6 +105,7 @@ export interface MatchSnapshot {
   combo: { by: number; count: number }[];
   timeline: number;
   kos: number;
+  replayTicks?: number;
 }
 
 export interface FighterStats {
@@ -123,11 +155,22 @@ export class Match {
   private readonly recorder: HighlightRecorder | null;
   /** The replayable final KO, built the tick the match ends (campaign only). */
   highlight: Highlight | null = null;
+  /** Full-match replay recorder: seed, setup and per-tick inputs (replay.ts). */
+  private readonly replayRecorder = new ReplayRecorder();
+  private cachedReplay: Replay | null = null;
   private pendingInput: { frame: number; pollMs: number; kind: 'button' | 'stick' } | null = null;
   private combo: { by: number; count: number }[];
+  /** Training only: the dummy's behaviour, the combo readout. Never in the sim state or a snapshot. */
+  dummy: DummyOptions;
+  readonly readout: ComboReadout = { count: 0, dmg: 0, lastHit: 0, active: false, ko: false, seq: 0, endFrame: 0 };
+  private readonly trainDummy = new TrainingDummy();
+  private dummyBot: { bot: Bot; level: number } | null = null;
+  private readonly seed: number;
 
   constructor(setup: MatchSetup, seed: number) {
     this.setup = setup;
+    this.seed = seed;
+    this.dummy = { ...DEFAULT_DUMMY, ...setup.dummy };
     const training = setup.mode === 'training';
     this.state = newGame(
       setup.slots.map((s) => ({
@@ -149,12 +192,76 @@ export class Match {
     this.sample();
   }
 
-  /** Runs one frame with the local player's input. */
-  tick(local: number): SimEvent[] {
+  /** How to play lesson 2: the training dummy walks up and swings slowly (ai/dummy.ts). Set by the lesson, never in the sim. */
+  dummySwings = false;
+  private readonly swinger = new SwingDummy();
+
+  /**
+   * How to play lesson 3 (the recovery step): 'armed' waits for the player to stand, then stages the knock-off (both fighters
+   * at the stage's right edge, the dummy about to swing, the player at 20%); 'live' watches for the hit and re-arms once the
+   * player is back on the ground without having grabbed the ledge. Training lessons only: online and the rollback never see it.
+   */
+  knockLoop: 'off' | 'armed' | 'live' = 'off';
+  private knockHit = false;
+  private knockRest = 0;
+
+  /** Lesson 3: once the player has been hit and stands on the ground again for a second, the knock-off is staged again. */
+  private watchKnockoff(events: SimEvent[]): void {
+    const f = this.state.fighters[this.player];
+    if (!f) return;
+    if (events.some((e) => (e.type === 'hit' && !e.shield && e.victim === this.player) || (e.type === 'ko' && e.victim === this.player))) this.knockHit = true;
+    const standing = f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK);
+    this.knockRest = standing ? this.knockRest + 1 : 0;
+    if (this.knockHit && this.knockRest >= 60) this.knockLoop = 'armed';
+  }
+
+  /** Puts the player and the dummy at the right edge of the main platform, the dummy facing the edge and swinging within a second. */
+  private stageKnockoff(): void {
+    const me = this.state.fighters[this.player];
+    const dummy = this.state.fighters.find((f) => f.id !== this.player);
+    if (!me || !dummy) return;
+    const edge = Math.max(...STAGES[this.state.stage].platforms.filter((p) => p.solid).map((p) => p.x2));
+    const base = STAGES[this.state.stage].platforms.findIndex((p) => p.solid && p.x2 === edge);
+    for (const [f, x, facing] of [[me, edge - 60, -1], [dummy, edge - 120, 1]] as const) {
+      f.x = x * FX;
+      f.y = STAGES[this.state.stage].platforms[base].y * FX;
+      f.platform = base;
+      f.vx = f.vy = 0;
+      f.facing = facing;
+    }
+    me.percent = 200;
+    this.swinger.prime(SWING_EVERY - 60);
+    this.dummySwings = true;
+    this.knockHit = false;
+    this.knockRest = 0;
+    this.knockLoop = 'live';
+  }
+
+  /** How many people play on this machine: every slot that is a person and not the other end of an online match. */
+  get humans(): number {
+    return this.setup.slots.filter((s) => s.cpu === null && !s.remote).length;
+  }
+
+  /**
+   * Runs one frame with the local player's input. In a local versus match with two or more people, `others` holds the
+   * input of each further person in slot order (the second person is others[0]); without it every person slot reads `local`.
+   */
+  tick(local: number, others?: readonly number[]): SimEvent[] {
     const s = this.state;
+    if (this.knockLoop === 'armed') {
+      const f = s.fighters[this.player];
+      if (f && f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK)) this.stageKnockoff();
+    }
+    let person = 0;
     const inputs = s.fighters.map((_, i) => {
       const slot = this.setup.slots[i];
-      if (slot.cpu === null) return local;
+      if (slot.cpu === null) {
+        if (slot.remote || !others) return local;
+        const k = person++;
+        return k === 0 ? local : others[k - 1] ?? NO_INPUT;
+      }
+      if (slot.cpu === 0 && this.dummySwings) return this.swinger.think(s, i);
+      if (slot.cpu === 0 && this.setup.mode === 'training') return this.dummyInput(i);
       return this.bots[i]?.think(s) ?? NO_INPUT;
     });
     const prev = s.fighters.map((f) => ({
@@ -188,7 +295,10 @@ export class Match {
     }
     const before = s.fighters.map((f) => f.percent);
     this.recorder?.record(s, inputs);
+    const recTick = this.replayRecorder.recordTick(inputs);
+    this.cachedReplay = null;
     const events = step(s, inputs);
+    if (this.knockLoop === 'live') this.watchKnockoff(events);
     this.recorder?.events(events);
     for (const f of s.fighters) {
       const p = prev[f.id];
@@ -200,7 +310,10 @@ export class Match {
             f.action === ACT.SHIELD ||
             f.action === ACT.AIRDODGE ||
             f.action === ACT.LEDGE_CLIMB ||
-            (p.action === ACT.LEDGE && f.action === ACT.AIR) ||
+            f.action === ACT.LEDGE_ROLL ||
+            f.action === ACT.LEDGE_ATTACK ||
+            f.action === ACT.LEDGE_JUMP ||
+            ((p.action === ACT.LEDGE || p.action === ACT.LEDGE_JUMP) && f.action === ACT.AIR) ||
             (p.action === ACT.RESPAWN && f.action === ACT.AIR))) ||
         (f.action === ACT.ATTACK && f.frame === 0) ||
         jumped;
@@ -232,14 +345,71 @@ export class Match {
     }
     this.record(events, before);
     this.checkObjective();
+    this.replayRecorder.afterTick(recTick, s);
     this.freezeHighlight();
     if (s.frame % SAMPLE_EVERY === 0) this.sample();
     return events;
   }
 
+  /** Training: the dummy's input for this frame by its chosen behaviour. */
+  private dummyInput(i: number): number {
+    const s = this.state;
+    if (this.dummy.mode === 'cpu') {
+      if (!this.dummyBot || this.dummyBot.level !== this.dummy.level) {
+        this.dummyBot = { bot: new Bot(i, this.dummy.level, this.seed + i * 7919), level: this.dummy.level };
+      }
+      return this.dummyBot.bot.think(s);
+    }
+    return this.trainDummy.think(s, i, this.dummy.mode);
+  }
+
+  /** Training: the dummy's slot, or -1. */
+  get dummySlot(): number {
+    return this.setup.mode === 'training' ? this.setup.slots.findIndex((x) => x.cpu === 0) : -1;
+  }
+
+  setDummyMode(mode: DummyMode): void {
+    this.dummy.mode = mode;
+    if (this.setup.dummy) this.setup.dummy.mode = mode;
+    else this.setup.dummy = { ...this.dummy };
+  }
+
+  setDummyLevel(level: number): void {
+    this.dummy.level = Math.max(1, Math.min(9, Math.round(level)));
+    if (this.setup.dummy) this.setup.dummy.level = this.dummy.level;
+    else this.setup.dummy = { ...this.dummy };
+  }
+
+  /** Training: puts the dummy at this whole percent (0 is the reset) and clears the combo readout. */
+  setDummyPercent(whole: number): void {
+    const f = this.state.fighters[this.dummySlot];
+    if (!f) return;
+    f.percent = Math.max(0, Math.min(999, Math.round(whole))) * 10;
+    this.clearReadout();
+  }
+
+  clearReadout(): void {
+    Object.assign(this.readout, { count: 0, dmg: 0, lastHit: 0, active: false, ko: false });
+    const d = this.dummySlot;
+    if (d >= 0) this.combo[d].count = 0;
+  }
+
   /** The tick the match ends, the last seconds are kept as a replay (campaign only). */
   private freezeHighlight(): void {
     if (this.recorder && this.state.over && !this.highlight) this.highlight = this.recorder.build(this.state);
+  }
+
+  /** Full-match replay built from the recorded ticks so far (local, CPU, campaign and confirmed online). */
+  get replay(): Replay | null {
+    if (!this.cachedReplay) {
+      this.cachedReplay = this.replayRecorder.build(this.setup, this.seed, this.state);
+    }
+    return this.cachedReplay;
+  }
+
+  buildReplay(): Replay | null {
+    this.cachedReplay = this.replayRecorder.build(this.setup, this.seed, this.state);
+    return this.cachedReplay;
   }
 
   /** Median and worst input-to-action latency (ms) measured in this match. */
@@ -257,9 +427,12 @@ export class Match {
   tickInputs(inputs: number[]): SimEvent[] {
     const s = this.state;
     const before = s.fighters.map((f) => f.percent);
+    const recTick = this.replayRecorder.recordTick(inputs);
+    this.cachedReplay = null;
     const events = step(s, inputs);
     this.record(events, before);
     this.checkObjective();
+    this.replayRecorder.afterTick(recTick, s);
     if (s.frame % SAMPLE_EVERY === 0) this.sample();
     return events;
   }
@@ -271,6 +444,7 @@ export class Match {
       combo: this.combo.map((c) => ({ ...c })),
       timeline: this.timeline.length,
       kos: this.kos.length,
+      replayTicks: this.replayRecorder.length,
     };
   }
 
@@ -282,6 +456,10 @@ export class Match {
     snap.combo.forEach((c, i) => Object.assign(this.combo[i], c));
     this.timeline.length = snap.timeline;
     this.kos.length = snap.kos;
+    if (snap.replayTicks !== undefined) {
+      this.replayRecorder.truncate(snap.replayTicks);
+      this.cachedReplay = null;
+    }
   }
 
   private sample(): void {
@@ -309,6 +487,15 @@ export class Match {
         const c = this.combo[e.victim];
         // A hit on someone still reeling from the same attacker extends the combo.
         const reeling = c.by === e.attacker && c.count > 0;
+        if (e.attacker === this.player && e.victim === this.dummySlot) {
+          const r = this.readout;
+          r.count = reeling ? r.count + 1 : 1;
+          r.dmg = reeling ? r.dmg + e.dmg : e.dmg;
+          r.lastHit = e.dmg;
+          r.active = true;
+          r.ko = false;
+          r.seq++;
+        }
         c.by = e.attacker;
         c.count = reeling ? c.count + 1 : 1;
         a.longestCombo = Math.max(a.longestCombo, c.count);
@@ -317,6 +504,7 @@ export class Match {
         v.falls++;
         if (e.by < 0 || e.by === e.victim) v.selfDestructs++;
         else this.stats[e.by].kos++;
+        if (e.victim === this.dummySlot && e.by === this.player && this.readout.count > 0) this.readout.ko = true;
         this.kos.push({ frame: s.frame, victim: e.victim, by: e.by, percent: before[e.victim] });
         this.sample();
       } else if (e.type === 'ledge') {
@@ -325,7 +513,13 @@ export class Match {
     }
     s.fighters.forEach((f, i) => {
       // A combo ends once the victim is free to act again.
-      if (f.action !== ACT.HITSTUN && f.hitlag === 0) this.combo[i].count = 0;
+      if (f.action !== ACT.HITSTUN && f.hitlag === 0) {
+        this.combo[i].count = 0;
+        if (i === this.dummySlot && this.readout.active) {
+          this.readout.active = false;
+          this.readout.endFrame = s.frame;
+        }
+      }
       if (!f.grounded && f.action !== ACT.DEAD) this.stats[i].airtime++;
     });
   }
