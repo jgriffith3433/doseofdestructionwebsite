@@ -244,6 +244,17 @@
       ]
     },
     {
+      "id": "audio-cache",
+      "title": "Decoded audio stays under a ceiling over 5 stages in a row, and a stage played earlier still starts its music inside 1 s",
+      "description": "options: stages (ids; default five from the seed). Plays 5 versus matches on 5 different stages a few seconds each, leaving from Pause, and reads the decoded-audio cache after each (cache-size; metrics audioCacheMB, audioCachePeakMB, audioCacheBudgetMB, audioCacheEvictions): peak under 120 MB on desktop, 60 MB on a 390x844 phone (turned to 844x390, played by touch). Then the first stage again: its music is up within 1 s of the match going live (cache-return, returnMusicMs).",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "sound",
+        "touch"
+      ]
+    },
+    {
       "id": "stage-bed",
       "title": "Stage sound bed: ambience under the theme, music lifts to intense on last stock or 100%, final-KO sting, mute still covers every layer",
       "description": "Versus 2 stocks on the stage from the seed (option stage). Checks the calm bed with its ambience layer (music-calm, stage-ambience), fights until someone is on their last stock or over 100% (music-intense), plays to the final KO (music-sting, no abrupt cut), then from Pause toggles Sound off/on and Music so every layer still follows hawkes.sound. Metrics bedStateChanges. The player's hawkes.sound is put back.",
