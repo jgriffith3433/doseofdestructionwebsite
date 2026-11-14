@@ -127,6 +127,16 @@ Accepting makes Easy the map's choice and replays the episode with the softer fo
 other and carries a small green **Easy** badge on the map and the results; clearing it again on Normal or Hard takes the
 badge off. Retry on its own always replays the same setup.
 
+## Replay as…: a favourite episode, a different fighter (as built)
+
+The campaign is told as Exit Punk's season, but the show reruns. A cleared episode's card on the Campaign map carries a
+**Replay as…** button (uncleared episodes don't). It opens a sheet of every fighter the player has unlocked; a tap plays the
+episode again with that fighter in Exit Punk's place: the same foes, stage, objective, rules, intro and outro (the
+scene's lines stay Exit Punk's and Blog Man's, heard over the wide shot when the speaker isn't in the fight). Difficulty
+applies as usual. Stars earned this way go through the same best-of rule, so a better run as anyone raises the episode's
+best. Replays unlock nothing and don't ask for the episode rating again. Code: `ui/replayPicker.ts`, `main.ts`
+`replayChapter`/`replayFight`; scenario `replay-as`.
+
 ## Grades: stars on every episode (as built)
 
 A won episode is graded 1 to 3 stars (`campaign/grade.ts`, pure; `test/grade.test.ts`):

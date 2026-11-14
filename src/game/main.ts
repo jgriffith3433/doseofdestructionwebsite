@@ -5,7 +5,8 @@
 import { bootFail, bootReady, bootStep, pressHandled } from './boot.ts';
 import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
-import { addWin } from './looks.ts';
+import { addWin, lookCount, lookOpen, preferredLook } from './looks.ts';
+import { openReplayPicker } from './ui/replayPicker.ts';
 import { audio, tapState, type Spatial } from './audio.ts';
 import type { VoiceKind } from './voiceDirector.ts';
 import { panFromScreen } from './roomAudio.ts';
@@ -544,11 +545,41 @@ function openCampaignScreen(unlocked?: string): Promise<void> {
       saveProgress(progress);
       saveStars({});
       openCampaignScreen();
-    }, unlocked),
+    }, unlocked, replayChapter),
   );
 }
 
-async function playChapter(c: Chapter): Promise<void> {
+/** The fighter a cleared episode is being replayed as (index into CHARACTERS), or null for the story's Exit Punk. */
+let replayAs: number | null = null;
+
+/** "Replay as…" on a cleared episode's card: the picker of unlocked fighters, then the same episode with that fighter. */
+function replayChapter(c: Chapter): void {
+  openReplayPicker({
+    title: c.title,
+    chapter: c.id,
+    current: c.fight.slots[0]?.char ?? 0,
+    onPick: (char) => void playChapter(c, char),
+  });
+}
+
+/** The episode's fight with the player's slot swapped for another fighter: foes, stage, objective and rules unchanged. */
+function replayFight(fight: MatchSetup, char: number): MatchSetup {
+  const slots = fight.slots.map((s) => ({ ...s }));
+  const me = slots.findIndex((s) => s.cpu === null);
+  if (me < 0) return fight;
+  slots[me].char = char;
+  let look = preferredLook(char);
+  const clash = (l: number) => slots.some((o, i) => i !== me && o.char === char && (o.look ?? 0) === l);
+  for (let k = 0; clash(look) && k < lookCount(char); k++) {
+    look = (look + 1) % lookCount(char);
+    if (!lookOpen(char, look)) look = 0;
+  }
+  slots[me].look = look;
+  return { ...fight, slots };
+}
+
+async function playChapter(c: Chapter, as?: number): Promise<void> {
+  replayAs = as ?? null;
   chapter = c;
   analytics.chapterPlayed(c);
   // The episode opens on "Previously on Dose of Destruction": the last episode's final KO, replayed under Blog Man's recap.
@@ -558,11 +589,11 @@ async function playChapter(c: Chapter): Promise<void> {
   // The map's difficulty (campaign/difficulty.ts) shapes this episode's fight; Retry replays the setup it made.
   const fight = chapterFight(c, difficulty());
   // The story card and scene take a while to read: the fight's fighters and arena load meanwhile.
-  void prefetchFighters(c.fight.slots.map((s) => s.char));
+  void prefetchFighters(fight.slots.map((s) => s.char));
   prefetchStage(c.fight.stage);
   renderer.setStage(c.fight.stage);
-  renderer.setLooks(c.fight.slots.map((s) => s.look ?? 0));
-  void renderer.setFighters(new Match({ ...c.fight, title: undefined, subtitle: undefined }, 1).state, true, 0);
+  renderer.setLooks(fight.slots.map((s) => s.look ?? 0));
+  void renderer.setFighters(new Match({ ...fight, title: undefined, subtitle: undefined }, 1).state, true, 0);
   // The episode opens in the arena: the VS card, then the intro plays live with the fighters (ui/scene.ts).
   startMatch({ ...fight, title: `Chapter ${n} · ${c.title}`, subtitle: c.hint }, true, undefined, { chapter: c, which: 'intro' });
 }
@@ -573,8 +604,13 @@ let chapterDiff: Difficulty = 'normal';
 /** An episode's fight on a difficulty; logs it (`dod:difficulty`) so the playtest can read the CPU level that was used. */
 function chapterFight(c: Chapter, d: Difficulty, why: 'start' | 'offer' = 'start'): MatchSetup {
   chapterDiff = d;
-  const fight = withDifficulty(c.fight, d);
+  const base = replayAs === null ? c.fight : replayFight(c.fight, replayAs);
+  const fight = withDifficulty(base, d);
   window.dispatchEvent(new CustomEvent('dod:difficulty', { detail: { phase: why, chapter: c.id, difficulty: d, cpuFrom: foeLevels(c.fight), cpuTo: foeLevels(fight) } }));
+  if (replayAs !== null) {
+    const foes = fight.slots.filter((s) => s.cpu !== null).map((s) => CHARACTERS[s.char].id);
+    window.dispatchEvent(new CustomEvent('dod:replay-as', { detail: { phase: 'fight', chapter: c.id, fighter: CHARACTERS[replayAs].id, foes, stage: STAGES[fight.stage].id, objective: fight.objective ?? 'win', original: c.fight.slots.filter((s) => s.cpu !== null).map((s) => CHARACTERS[s.char].id) } }));
+  }
   return fight;
 }
 
@@ -989,7 +1025,7 @@ async function chapterCleared(c: Chapter): Promise<void> {
   // The hero this episode unlocks (once): the map says so.
   await openCampaignScreen(unlockFor(c) ?? undefined);
   // Back on the map, the episode over: the stars card.
-  if (currentScreen() === 'campaign') analytics.askAfterEpisode(c);
+  if (currentScreen() === 'campaign' && replayAs === null) analytics.askAfterEpisode(c);
 }
 
 // ------------------------------------------------------------------ tour

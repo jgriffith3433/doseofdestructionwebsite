@@ -576,6 +576,16 @@
       ]
     },
     {
+      "id": "replay-as",
+      "title": "Replay as…: a cleared episode can be played again as any unlocked fighter, with the same foes, stage and objective",
+      "description": "Option chapter (default open-mic). Setup shortcut: that chapter and those before it are marked cleared (put back). On the Campaign map every cleared episode shows Replay as… and the next, uncleared one does not (replay-cleared-only; metric replayButtons); a tap opens the picker of unlocked fighters only, tiles 44 px or more, inside the window, no sideways scroll (replay-picker; metric replayPickerTiles); a tap on a fighter other than the story's plays the episode with them as the player and the same foes, stage and objective (replay-same-episode; metric replaySameEpisode; events dod:replay-as). Stars earned this way keep the better grade (recordStars). On a 390x844 phone the map and picker are checked in portrait by taps and the episode plays in the turned 844x390 frame.",
+      "starts": [],
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "quota",
       "title": "The quota objective in a campaign chapter: \"Quota 0/300%\" on the HUD with the clock, counting up as damage lands, and a results line saying how it ended",
       "description": "Plays one chapter that uses the quota objective (Season 5's Product Placement by default, or option `chapter`) from the Campaign map with the bot on a virtual pad: setup shortcut marks the chapters before it cleared. Checks the chip as the match starts and as damage lands (an event every 100%), the clock, and the results line (quota met, time ran out or out of stocks), two tries. Events chapter, quota-chip, quota-count, quota-result, chapter-cleared / chapter-failed.",

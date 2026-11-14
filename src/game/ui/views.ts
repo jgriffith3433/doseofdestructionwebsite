@@ -558,7 +558,7 @@ function renderDifficulty(): void {
   draw();
 }
 
-export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => void, onReset: () => void, unlocked?: string): void {
+export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => void, onReset: () => void, unlocked?: string, onReplay?: (chapter: Chapter) => void): void {
   const path = $('chapter-path');
   renderDifficulty();
   const easy = easyCleared();
@@ -574,7 +574,7 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
     const foe = c.fight.slots.find((s) => s.cpu !== null && s.team !== 0) ?? c.fight.slots[1];
     // The first chapter of a locked season waits on the season before, not on a chapter.
     const why = n === 0 && c.season > 1 ? `Clear Season ${c.season - 1} to open it.` : 'Clear the chapter before it.';
-    return h(
+    const card = h(
       'button',
       {
         type: 'button',
@@ -598,6 +598,14 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
             h('small', {}, `${stars} of 3`),
           )
         : null,
+    );
+    // A cleared episode can be played again as any unlocked fighter; the button sits under the card (a button can't hold a button).
+    if (!cleared || !onReplay) return card;
+    return h(
+      'div',
+      { class: 'chapter-cell' },
+      card,
+      h('button', { type: 'button', class: 'replay-as', 'data-chapter': c.id, onclick: () => onReplay(c) }, 'Replay as…'),
     );
   };
   const fresh = unlocked ? CHARACTERS.find((c) => c.id === unlocked) : undefined;
