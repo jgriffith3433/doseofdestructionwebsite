@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'vite';
 import { devApi } from './tools/devApi.mjs';
@@ -11,11 +12,22 @@ const artRoot = sharedRoot('AllTheCharacters', 'DOD_ART_ROOT', root);
 // Stage concepts (a folder per stage with images and reference.txt). Override with DOD_MAPS_ROOT.
 const mapsRoot = sharedRoot('AllTheMaps', 'DOD_MAPS_ROOT', root);
 
+// Game/fx holds art the game fetches by path (the flipbook sheets, content/flipbooks.json), never imports: Vite only
+// bundles what Game/index.html imports, so copy the folder into dist/Game/fx or those requests 404 in the build.
+const copyGameFx = () => ({
+  name: 'dod-copy-game-fx',
+  apply: 'build',
+  closeBundle() {
+    const from = path.resolve(root, 'Game/fx');
+    if (fs.existsSync(from)) fs.cpSync(from, path.resolve(root, 'dist/Game/fx'), { recursive: true });
+  },
+});
+
 export default defineConfig({
   base: './',
   appType: 'mpa',
   // devtools.html and its API exist only on the dev server. buildStamp: which build this is, for Hawkes Analytics.
-  plugins: [devApi({ root, artRoot, mapsRoot }), buildStamp(root)],
+  plugins: [devApi({ root, artRoot, mapsRoot }), buildStamp(root), copyGameFx()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
