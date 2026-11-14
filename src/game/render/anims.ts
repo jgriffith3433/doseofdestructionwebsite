@@ -4,6 +4,7 @@
 
 import { CHARACTERS, MOVE_KEYS, THROW_CLIPS } from '../sim/characters.ts';
 import { ACT, type Fighter } from '../sim/state.ts';
+import { LEDGE_RISE } from '../sim/step.ts';
 
 export interface Clip {
   file: string;
@@ -108,6 +109,13 @@ function wanted(f: Fighter): string[] {
       return ['ledge', 'fall', 'idle'];
     case ACT.LEDGE_CLIMB:
       return ['climb', 'jump', 'idle'];
+    // The roll climbs over the edge, then rolls across; the attack climbs, then swings the down tilt (the sim hands over to it).
+    case ACT.LEDGE_ROLL:
+      return f.frame <= LEDGE_RISE ? ['climb', 'jump', 'idle'] : ['roll', 'idle'];
+    case ACT.LEDGE_ATTACK:
+      return ['climb', 'jump', 'idle'];
+    case ACT.LEDGE_JUMP:
+      return f.vy > 0 ? ['jump', 'fall', 'idle'] : ['fall', 'jump', 'idle'];
     case ACT.HELPLESS:
       return ['helpless', 'fall', 'idle'];
     case ACT.DIZZY:
@@ -167,7 +175,10 @@ export function clipFrame(f: Fighter, pick: Pick): number {
       return Math.max(0, Math.min(n - 1, Math.round(i)));
     }
   }
+  else if (f.action === ACT.LEDGE_ROLL && pick.key === 'roll') span = f.length - LEDGE_RISE;
+  else if (f.action === ACT.LEDGE_JUMP) span = 0;
   else if (pick.exact && f.length > 0 && !clip.loop) span = f.length;
+  if (f.action === ACT.LEDGE_ROLL && pick.key === 'roll') return Math.min(n - 1, Math.floor(((f.frame - LEDGE_RISE) / span) * n));
   if (span > 0) return Math.min(n - 1, Math.floor((f.frame / span) * n));
   if (f.action === ACT.WALK && pick.key === 'walk' && clip.loop) return walkFrame(f, clip, pick.refHeight);
   const i = Math.floor((f.frame * clip.fps) / 60);

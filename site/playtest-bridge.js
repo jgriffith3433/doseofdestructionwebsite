@@ -601,6 +601,16 @@
       ]
     },
     {
+      "id": "ledge-options",
+      "title": "Ledge options: from the ledge Attack sweeps low and hits a fighter at the edge, Shield rolls onto the stage, Jump leaps up, stick up climbs, and holding on too long drops the fighter (phone: 390x844 touch, the same buttons)",
+      "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus). The player walks off the stage edge with the stick (the sim catches the ledge), hangs with no input for a few frames (ledge-hold: nothing climbs by itself), then each option from real input: stick up is the getup (ledge-getup, stands just inside the edge), Shield rolls a body-length further in (ledge-roll), Attack climbs and sweeps low with the down tilt and hits the dummy stood at the edge (ledge-attack; setup shortcut puts the dummy there), Jump leaps well above the ledge (ledge-jump), and with no input the hang runs out and the fighter drops (ledge-drop, ledgeHangFrames, 4 s). Each logs its invincibility frames. Keyboard on a desktop; at phone size (390x844, turned to 844x390 like touch-match) the on-screen stick, Attack, Shield and Jump buttons as touch pointer events with no new button (ledge-touch). Then the All controls page is opened and its keyboard, gamepad and touch lists must each have an On the ledge row (ledge-controls). Options: input (touch forces the overlay on a desktop window), at (phone). Metric ledgeOptions (5 when every option worked).",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "lesson-3",
       "title": "How to play 3: prompts for neutral, side and down special and a fast fall, each ticked off by the sim; then the dummy knocks the player off the edge and the prompts go double jump, up special and ledge, ticked off when the player grabs the ledge (phone: 390x844 touch, finished with touch controls only)",
       "description": "Taps How to play 3 on the main menu (a touch tap on a phone), then plays the lesson through real input only: keyboard K / D + K / S + K / Space then S on a desktop; on a 390x844 phone (turned to 844x390) the on-screen Special and Jump buttons and the stick as touch pointer events. Each prompt shows in order with the glyphs of the device (lesson-prompt) and ticks off within 1 s of the sim seeing the move (lesson-tick, lessonTickMaxMs). After the fast fall the player and the dummy are staged at the right edge (lesson-knockoff), the dummy swings, the player is knocked off (lesson-offstage), and the player double jumps, uses the up special and grabs the ledge (the sim ledge event ticks the last step; lesson-ledge, up to 3 tries with lesson-retry); the card reads Lesson clear! (lesson-clear). Prompts never stack, never sit under a touch control, and every touch control is 44 px or larger (lesson-touch). Events lesson-*; metrics lessonSteps, lessonTickMaxMs.",

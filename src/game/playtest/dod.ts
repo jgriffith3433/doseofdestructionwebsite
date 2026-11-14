@@ -20,14 +20,14 @@ import { forceTouchPrompt, lockLandscape, rotateShowing } from '../ui/rotate.ts'
 import { currentScreen, switching, type ScreenId } from '../ui/screens.ts';
 import { CHARACTERS, FIGHTERS as FIGHTERS_DATA, MOVE, MOVE_KEYS } from '../sim/characters.ts';
 import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
-import { STAGES, EV_IDLE, EV_RUN, EV_WARN } from '../sim/stage.ts';
+import { STAGES, EV_IDLE, EV_RUN, EV_WARN, ledges } from '../sim/stage.ts';
 import { bodyOf, clearance, readDangers } from '../ai/hazardRead.ts';
 import { FX } from '../sim/fixed.ts';
 import { SHADOW_RANGE, hexRgb } from '../render/fighterLight.ts';
 import { analyzeCameraTrace, TRACE_LIMITS, type CamSample, type ScreenRect } from '../render/cameraRig.ts';
 import { ART, outlineWidthPx, outsideRanges } from '../artStyle.ts';
 import { MAX_COVER, MIN_CONTRAST, MIN_SHOWN, coverRead, edgeContrast, ringContrast, type Frame } from '../readability.ts';
-import { ACT, ACT_NAMES } from '../sim/state.ts';
+import { ACT, ACT_NAMES, bodySize } from '../sim/state.ts';
 import { AnimTrace } from '../sim/trace.ts';
 import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
 import { MAX_WORDS } from '../campaign/sceneText.ts';
@@ -54,7 +54,7 @@ import { colourVision } from '../colourVision.ts';
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, inWindupTell, isSmashMove, isSpecialMove, moveStartFrame, tellFrames, windupPose, type HitTier } from '../hitFeel.ts';
 import { clipFrame, feetLift, loadAnimSet, pickClip, type AnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
-import { BUFFER_FRAMES, COYOTE_FRAMES, type SimEvent } from '../sim/step.ts';
+import { BUFFER_FRAMES, COYOTE_FRAMES, LEDGE_CHOOSE, LEDGE_HANG_MAX, type SimEvent } from '../sim/step.ts';
 import { onlineReady } from '../net/loader.ts';
 import { analyticsDebug } from '../analytics.ts';
 
@@ -226,6 +226,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'grab') await r.grabRun();
         else if (id === 'lesson-2') await r.lessonTwo();
         else if (id === 'lesson-3') await r.lessonThree();
+        else if (id === 'ledge-options') await r.ledgeOptions();
         else if (id === 'special-fx') await r.specialFx();
         else if (id === 'menu-walk') await r.menuWalk();
         else if (id === 'select-specials') await r.selectSpecials();
@@ -6673,6 +6674,298 @@ class Run {
       await this.game.quitMatch();
       await this.screen('main');
     } finally {
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+
+  // ---------------------------------------------------------- ledge options
+
+  /**
+   * The ledge is a choice (`sim/step.ts` "The ledge is a choice", docs/ledge.md): in Training Exit Punk walks off the stage
+   * edge (the sim grabs the ledge by itself), then each option is played from real input: stick up (getup), Shield (roll, a
+   * body-length further in), Attack (a low sweep that hits a dummy stood at the edge, setup shortcut), Jump (a higher leap) and
+   * finally nothing at all until the hang runs out and the fighter drops. Keyboard, or on a phone (390x844 turned to 844x390)
+   * the on-screen stick, Attack, Shield and Jump buttons, with no new button. The All controls page lists the options.
+   * Events `ledge-hold`, `ledge-getup`, `ledge-roll`, `ledge-attack`, `ledge-jump`, `ledge-drop`, `ledge-controls`,
+   * `ledge-touch`; metrics `ledgeOptions` (how many worked), `ledgeHangFrames`.
+   */
+  async ledgeOptions(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('ledge-options');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const chosen: { option: string; id: number; frame: number }[] = [];
+    const onLedge = (ev: Event) => chosen.push((ev as CustomEvent<{ option: string; id: number; frame: number }>).detail);
+    window.addEventListener('dod:ledge', onLedge);
+    try {
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      if (punk < 0) {
+        t.problem('bug', 'Exit Punk is not on the roster');
+        t.finish('error');
+        return;
+      }
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      // Setup shortcut: straight into Training, no menus.
+      void this.game.startMatch({
+        mode: 'training', stage, stocks: 1, rules: {},
+        slots: [{ char: punk, cpu: null }, { char: (punk + 1) % CHARACTERS.length, cpu: 0 }],
+      });
+      await this.matchLive();
+      this.manual = NO_INPUT;
+      t.progress(0.08);
+
+      const match = () => this.game.match()!;
+      const me = () => match().state.fighters[match().player];
+      const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 8000 + n * 150, 'frames to pass');
+      };
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls (stick, Attack, Shield, Jump) were not built');
+        t.finish('error');
+        return;
+      }
+      if (touch) {
+        t.event('phone-shot', `training with the touch overlay at ${innerWidth}x${innerHeight}: the ledge options use the stick, Attack, Shield and Jump`);
+        const small: string[] = [];
+        for (const b of document.querySelectorAll<HTMLElement>('.touch .touch-btn')) {
+          const r = b.getBoundingClientRect();
+          if (r.width && (r.width < 44 || r.height < 44)) small.push(`${b.className} ${Math.round(r.width)}x${Math.round(r.height)}`);
+        }
+        if (small.length) t.problem('bug', `touch buttons under 44 px: ${small.join(', ')}`);
+        else t.event('ledge-touch', `Attack, Shield and Jump are the same buttons as everywhere else, no new buttons (${document.querySelectorAll('.touch .touch-btn').length} on the overlay)`);
+      }
+      const standing = () => {
+        const f = me();
+        return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      };
+      const settle = async () => {
+        pad.release();
+        await t.until(standing, 12000, 'the fighter to stand');
+        await frames(8);
+      };
+      const sideOf = () => (me().x >= 0 ? 1 : -1);
+      /** The ledge the fighter is hanging on: where it is, and which side of the stage. */
+      const held = () => ledges(STAGES[stage])[me().ledge - 1];
+
+      /** Walks off the nearer stage edge; the sim catches the ledge. Real input: the stick, then let go. */
+      const toLedge = async (): Promise<boolean> => {
+        for (let attempt = 1; attempt <= 4; attempt++) {
+          await settle();
+          const dir = sideOf();
+          pad.stick(dir * 100, 0);
+          try {
+            await t.until(() => !me().grounded || me().action === ACT.DEAD, 25000, 'the fighter to walk off the edge');
+          } finally {
+            pad.stick(0, 0);
+          }
+          try {
+            await t.until(() => me().action === ACT.LEDGE || me().grounded > 0 || me().action === ACT.DEAD, 4000, 'the ledge grab');
+          } catch (e) {
+            if (String(e).includes('stopped')) throw e;
+          }
+          if (me().action === ACT.LEDGE) return true;
+          t.event('ledge-retry', `${how}: attempt ${attempt} did not catch the ledge (${ACT_NAMES[me().action]}); walking off again`);
+        }
+        return false;
+      };
+      const results = new Map<string, boolean>();
+      const fail = (option: string, why: string) => {
+        results.set(option, false);
+        t.problem('bug', `${how}: ledge ${option}: ${why}`);
+      };
+      const optionSince = (option: string, since: number) => chosen.some((c) => c.option === option && c.id === me().id && c.frame >= since);
+      const w = () => bodySize(me())[0];
+      const insideBy = (l: { x: number; side: number }) => ((me().x - l.x * FX) * -l.side) / FX;
+
+      // ---- 1. getup: stick up. The fighter keeps hanging until it chooses.
+      if (!(await toLedge())) {
+        t.problem('bug', `${how}: could not reach the ledge by walking off the stage`);
+        t.finish('error');
+        return;
+      }
+      let l = held();
+      await frames(LEDGE_CHOOSE + 6);
+      if (me().action === ACT.LEDGE) t.event('ledge-hold', `${how}: hanging on the ledge with no input for ${LEDGE_CHOOSE + 6} frames; nothing climbs by itself`);
+      else fail('hold', `the fighter did not keep hanging with no input (${ACT_NAMES[me().action]})`);
+      let at = frame();
+      pad.stick(0, 100);
+      await t.until(() => me().action !== ACT.LEDGE, 3000, 'the getup to start');
+      // Held past the touch stick's flick window (a quick flick up is a jump), so this is a held stick up, the getup.
+      await t.wait(260);
+      pad.stick(0, 0);
+      const climb = me();
+      const getupInvuln = climb.intangible;
+      if (climb.action !== ACT.LEDGE_CLIMB || !optionSince('getup', at)) fail('getup', `stick up did not start a getup (${ACT_NAMES[climb.action]})`);
+      else {
+        await t.until(standing, 6000, 'the getup to end on the stage');
+        await frames(2);
+        const inside = insideBy(l);
+        if (inside <= 0 || inside > w() / FX) fail('getup', `stood ${Math.round(inside)} units inside the edge (body ${Math.round(w() / FX)})`);
+        else {
+          results.set('getup', true);
+          t.event('ledge-getup', `${how}: ${touch ? 'stick up' : 'W'} climbed back on the stage (${Math.round(frame() - at)} frames, invincible ${getupInvuln} frames), standing ${Math.round(inside)} units inside the edge`);
+        }
+      }
+      t.progress(0.25);
+
+      // ---- 2. roll: Shield. Lands a body-length further in than the getup, invincible for most of it.
+      if (!(await toLedge())) fail('roll', 'could not reach the ledge again');
+      else {
+        l = held();
+        await frames(LEDGE_CHOOSE + 3);
+        at = frame();
+        pad.button('shield', true);
+        await t.until(() => me().action !== ACT.LEDGE, 3000, 'the roll to start');
+        pad.button('shield', false);
+        const roll = me();
+        const rollInvuln = roll.intangible;
+        if (roll.action !== ACT.LEDGE_ROLL || !optionSince('roll', at)) fail('roll', `Shield did not roll onto the stage (${ACT_NAMES[roll.action]})`);
+        else {
+          await t.until(standing, 8000, 'the roll to end on the stage');
+          await frames(2);
+          const inside = insideBy(l);
+          // The getup lands about half a body plus 6 units in; a roll lands a body further.
+          if (inside < w() / FX) fail('roll', `landed ${Math.round(inside)} units inside the edge, less than a body-length (${Math.round(w() / FX)})`);
+          else {
+            results.set('roll', true);
+            t.event('ledge-roll', `${how}: ${touch ? 'Shield' : 'L'} rolled onto the stage (${Math.round(frame() - at)} frames, invincible ${rollInvuln} frames), landing ${Math.round(inside)} units inside the edge (body ${Math.round(w() / FX)})`);
+          }
+        }
+      }
+      t.progress(0.4);
+
+      // ---- 3. ledge attack: Attack. A low sweep that hits a fighter standing at the edge (setup shortcut: the dummy is put there).
+      let swept = false;
+      for (let attempt = 1; attempt <= 3 && !swept; attempt++) {
+        if (!(await toLedge())) {
+          fail('attack', 'could not reach the ledge again');
+          break;
+        }
+        l = held();
+        const d = dummy();
+        d.x = l.x * FX - l.side * w();
+        d.y = l.y * FX;
+        d.vx = d.vy = 0;
+        d.grounded = 1;
+        d.platform = me().platform >= 0 ? me().platform : d.platform;
+        const before = d.percent;
+        await frames(LEDGE_CHOOSE + 3);
+        at = frame();
+        pad.button('attack', true);
+        await t.until(() => me().action !== ACT.LEDGE, 3000, 'the ledge attack to start');
+        pad.button('attack', false);
+        const atk = me();
+        const atkInvuln = atk.intangible;
+        if (atk.action !== ACT.LEDGE_ATTACK || !optionSince('attack', at)) {
+          fail('attack', `Attack did not start a ledge attack (${ACT_NAMES[atk.action]})`);
+          break;
+        }
+        let sweepSeen = false;
+        await t.until(() => {
+          if (me().action === ACT.ATTACK && me().move === MOVE.DTILT) sweepSeen = true;
+          return sweepSeen && me().action !== ACT.ATTACK;
+        }, 6000, 'the sweep to finish');
+        const dmg = dummy().percent - before;
+        if (dmg > 0) {
+          swept = true;
+          results.set('attack', true);
+          t.event('ledge-attack', `${how}: ${touch ? 'Attack' : 'J'} climbed and swept low (invincible ${atkInvuln} frames) and hit the fighter at the edge for ${(dmg / 10).toFixed(1)}%`);
+        } else t.event('ledge-retry', `${how}: the ledge attack missed the dummy (attempt ${attempt}); trying again`);
+        await settle();
+      }
+      if (!swept && !results.has('attack')) fail('attack', 'the sweep never hit a fighter standing at the edge');
+      t.progress(0.55);
+
+      // ---- 4. ledge jump: Jump. A higher leap off the ledge.
+      if (!(await toLedge())) fail('jump', 'could not reach the ledge again');
+      else {
+        l = held();
+        const hangY = me().y;
+        await frames(LEDGE_CHOOSE + 3);
+        at = frame();
+        pad.button('jump', true);
+        await t.until(() => me().action !== ACT.LEDGE, 3000, 'the ledge jump to start');
+        pad.button('jump', false);
+        const jump = me();
+        const jumpInvuln = jump.intangible;
+        if (jump.action !== ACT.LEDGE_JUMP || !optionSince('jump', at)) fail('jump', `Jump did not leap off the ledge (${ACT_NAMES[jump.action]})`);
+        else {
+          let top = me().y;
+          await t.until(() => {
+            top = Math.max(top, me().y);
+            return me().vy <= 0;
+          }, 4000, 'the top of the jump');
+          const rise = Math.round((top - hangY) / FX);
+          if (rise < 60 || top <= l.y * FX) fail('jump', `rose only ${rise} units (the top ${Math.round(top / FX)} vs the ledge ${l.y})`);
+          else {
+            results.set('jump', true);
+            t.event('ledge-jump', `${how}: ${touch ? 'Jump' : 'Space'} leapt ${rise} units up and clear of the ledge (invincible ${jumpInvuln} frames)`);
+          }
+        }
+      }
+      t.progress(0.7);
+      await settle();
+
+      // ---- 5. the hang limit: no input at all, and the fighter lets go.
+      if (!(await toLedge())) fail('drop', 'could not reach the ledge again');
+      else {
+        at = frame();
+        let hung = 0;
+        await t.until(() => {
+          if (me().action === ACT.LEDGE) hung = frame() - at;
+          return me().action !== ACT.LEDGE;
+        }, 20000 + LEDGE_HANG_MAX * 150, 'the hang to run out');
+        await frames(2);
+        const fell = me().ledge === 0 && me().action !== ACT.LEDGE;
+        if (!optionSince('drop', at) || !fell) fail('drop', `holding the ledge never dropped the fighter (${hung} frames, ${ACT_NAMES[me().action]})`);
+        else if (hung < LEDGE_HANG_MAX - 5) fail('drop', `let go after only ${hung} frames (the limit is ${LEDGE_HANG_MAX})`);
+        else {
+          results.set('drop', true);
+          t.metric('ledgeHangFrames', hung);
+          t.event('ledge-drop', `${how}: holding the ledge with no input dropped the fighter after ${hung} frames (${(hung / 60).toFixed(1)} s)`);
+        }
+      }
+      pad.release();
+      await settle();
+      t.metric('ledgeOptions', [...results.values()].filter(Boolean).length);
+      t.progress(0.85);
+
+      // ---- the All controls page lists the ledge options for every device.
+      this.manual = null;
+      await this.game.quitMatch();
+      await this.screen('main');
+      await this.click(() => this.q('#main .menu-item[data-go="controls"]'), 'All controls');
+      await t.until(() => !!document.querySelector('#ctl-kb dt'), 6000, 'the controls lists');
+      for (const [id, name] of [['ctl-kb', 'keyboard'], ['ctl-pad', 'gamepad'], ['ctl-touch', 'touch']] as const) {
+        const row = [...document.querySelectorAll(`#${id} dt`)].find((e) => /ledge/i.test(e.textContent ?? ''));
+        const text = row?.nextElementSibling?.textContent ?? '';
+        const need = name === 'touch' ? ['Attack', 'Shield', 'Jump'] : name === 'keyboard' ? ['J', 'L', 'Space'] : ['jump'];
+        if (!row || need.some((n) => !text.toLowerCase().includes(n.toLowerCase()))) t.problem('bug', `the All controls ${name} list has no complete "On the ledge" row ("${text}")`);
+        else t.event('ledge-controls', `${name}: "${row.textContent}": ${text}`);
+      }
+      const close = document.getElementById('btn-controls-close');
+      if (close) close.click();
+    } finally {
+      window.removeEventListener('dod:ledge', onLedge);
       if (touch) {
         this.useTap = false;
         forceTouchUi(false);
