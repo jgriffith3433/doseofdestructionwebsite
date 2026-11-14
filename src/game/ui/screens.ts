@@ -205,10 +205,19 @@ let padHeld = '';
 let padNext = 0;
 let padButtons: boolean[] = [];
 
+/** The rebinding screen is listening for a button: the menu pad stands down so the press isn't also a menu press. */
+let padHeldBack = false;
+export function holdMenuPad(on: boolean): void {
+  padHeldBack = on;
+  if (!on) syncPad();
+}
+
 export function pollMenuPad(now: number): void {
-  if (busy) return;
+  if (busy || padHeldBack) return;
   scanPads();
-  const pad = pads()[0];
+  // Any connected controller can drive the menus: the one in use right now, else the first.
+  const all = pads();
+  const pad = all.find((p) => p.buttons.some((b) => b.pressed) || p.axes.some((a) => Math.abs(a) > 0.5)) ?? all[0];
   if (!pad) return;
   listenNav();
   const ax = pad.axes[0] ?? 0;
@@ -237,6 +246,7 @@ export function pollMenuPad(now: number): void {
 
 /** Resets edge tracking so a button held from a match doesn't fire in a menu. */
 export function syncPad(): void {
-  const pad = pads()[0];
+  const all = pads();
+  const pad = all.find((p) => p.buttons.some((b) => b.pressed)) ?? all[0];
   padButtons = pad ? pad.buttons.map((b) => b.pressed) : [];
 }

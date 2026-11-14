@@ -3,6 +3,7 @@
 import { BTN, packInput, stickX, stickY } from '../sim/input.ts';
 import { consumeTouchEventAt, readTouch } from './touch.ts';
 import { applyShieldMode } from './shieldMode.ts';
+import { bindings, keyNames, padNames, KEY_ACTIONS, RESERVED_KEYS } from './bindings.ts';
 
 const held = new Set<string>();
 let listening = false;
@@ -30,43 +31,52 @@ export function consumeInputEdge(): InputEdge | null {
   return e;
 }
 
-const GAME_KEYS = new Set([
-  'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyJ', 'KeyK', 'KeyL', 'KeyI', 'KeyU', 'KeyT',
-]);
+/** Keys the game takes from the page (no scrolling, no focus moves): every bound key, plus Space and the arrows. */
+function isGameKey(code: string): boolean {
+  if (RESERVED_KEYS.has(code)) return false;
+  if (code === 'Space' || code.startsWith('Arrow')) return true;
+  const b = bindings().keys;
+  return KEY_ACTIONS.some(({ id }) => b[id][0] === code || b[id][1] === code);
+}
 
 export function listenKeyboard(): void {
   if (listening) return;
   listening = true;
   window.addEventListener('keydown', (e) => {
-    if (GAME_KEYS.has(e.code) && !(e.target instanceof HTMLInputElement)) {
+    if (isGameKey(e.code) && !(e.target instanceof HTMLInputElement)) {
       e.preventDefault();
       if (!held.has(e.code)) lastKeyEventAt = performance.now();
     }
     held.add(e.code);
-    if (GAME_KEYS.has(e.code)) lastKeyUseAt = performance.now();
+    if (isGameKey(e.code)) lastKeyUseAt = performance.now();
   });
   window.addEventListener('keyup', (e) => held.delete(e.code));
   window.addEventListener('blur', () => held.clear());
 }
 
-export const KEYBOARD_HELP: [string, string][] = [
-  ['Move', 'A D (or arrows)'],
-  ['Up / down', 'W S'],
-  ['Jump', 'Space'],
-  ['Attack', 'J'],
-  ['Special', 'K  (neutral)'],
-  ['Side special', 'K + A / D'],
-  ['Up special', 'K + W  (recovery)'],
-  ['Down special', 'K + S'],
-  ['Shield / dodge', 'L'],
-  ['On the ledge', 'W or D: get up · J: attack · L: roll · Space: jump · S: drop'],
-  ['Grab', 'L + J  (beats shield)'],
-  ['Throw', 'Grab, then A D W S'],
-  ['Smash', 'I + direction'],
-  ['Taunt', 'T'],
-  ['Pause', 'Esc'],
-];
+/** The keyboard list with the player's actual bindings (Controls page, Pause's All controls). */
+export function keyboardHelp(): [string, string][] {
+  const k = bindings().keys;
+  const n = (a: keyof typeof k) => keyNames(k[a]);
+  const move = `${keyNames([k.left[0], k.right[0]])}`;
+  return [
+    ['Move left / right', `${n('left')}  ·  ${n('right')}`],
+    ['Up / down', `${n('up')}  ·  ${n('down')}`],
+    ['Jump', n('jump')],
+    ['Attack', n('attack')],
+    ['Special', `${n('special')}  (neutral)`],
+    ['Side special', `${n('special')} + ${move}`],
+    ['Up special', `${n('special')} + ${keyNames([k.up[0], ''])}  (recovery)`],
+    ['Down special', `${n('special')} + ${keyNames([k.down[0], ''])}`],
+    ['Shield / dodge', n('shield')],
+    ['On the ledge', `${keyNames([k.up[0], ''])} or ${keyNames([k.right[0], ''])}: get up · ${n('attack')}: attack · ${n('shield')}: roll · ${n('jump')}: jump · ${keyNames([k.down[0], ''])}: drop`],
+    ['Grab', `${n('shield')} + ${n('attack')}  (beats shield)`],
+    ['Throw', 'Grab, then a direction'],
+    ['Smash', `${n('smash')} + direction`],
+    ['Taunt', n('taunt')],
+    ['Pause', 'Esc'],
+  ];
+}
 
 /**
  * The pad family by its Gamepad.id: Sony (vendor 054c), Nintendo (057e), else Xbox. The browser's standard mapping puts
@@ -99,28 +109,31 @@ export const PAD_NAMES: Record<PadFamily, PadNames> = {
   switch: { attack: 'B', special: 'A', jump: 'Y / X', shield: 'L', triggers: 'L / R / ZL / ZR', pause: '+', symbol: { attack: 'B', special: 'A', jump: 'Y', shield: 'L' } },
 };
 
-/** The controls list for the pad family in hand. */
+/** The controls list for the pad family in hand, with the player's actual button bindings. */
 export function gamepadHelp(f: PadFamily = padFamily()): [string, string][] {
   const n = PAD_NAMES[f];
+  const p = bindings().pad;
+  const a = padNames(p.attack, f);
+  const sp = padNames(p.special, f);
+  const jp = padNames(p.jump, f);
+  const sh = padNames(p.shield, f);
   return [
     ['Move', 'Left stick / D-pad'],
-    ['Jump', n.jump],
-    ['Attack', n.attack],
-    ['Special', `${n.special}  (neutral)`],
-    ['Side special', `${n.special} + left / right`],
-    ['Up special', `${n.special} + up  (recovery)`],
-    ['Down special', `${n.special} + down`],
-    ['Shield / dodge', n.triggers],
-    ['On the ledge', `Stick up: get up · ${n.attack}: attack · ${n.shield}: roll · ${n.jump}: jump · stick down: drop`],
-    ['Grab', `${f === 'xbox' ? 'Trigger' : n.shield} + ${n.attack}  (beats shield)`],
+    ['Jump', jp],
+    ['Attack', a],
+    ['Special', `${sp}  (neutral)`],
+    ['Side special', `${sp} + left / right`],
+    ['Up special', `${sp} + up  (recovery)`],
+    ['Down special', `${sp} + down`],
+    ['Shield / dodge', sh],
+    ['On the ledge', `Stick up: get up · ${a}: attack · ${sh}: roll · ${jp}: jump · stick down: drop`],
+    ['Grab', `${sh} + ${a}  (beats shield)`],
     ['Throw', 'Grab, then left stick'],
     ['Smash', 'Right stick'],
-    ['Taunt', 'D-pad up'],
+    ['Taunt', padNames(p.taunt, f)],
     ['Pause', n.pause],
   ];
 }
-
-export const GAMEPAD_HELP: [string, string][] = gamepadHelp('xbox');
 
 let lastPadId = '';
 const padStamp = new Map<number, number>();
@@ -130,7 +143,7 @@ export function scanPads(): void {
     const active = p.buttons.some((b) => b.pressed) || p.axes.some((a) => Math.abs(a) > 0.5);
     const prev = padStamp.get(p.index);
     padStamp.set(p.index, p.timestamp);
-    if (active && (prev === undefined || p.timestamp !== prev || p === emulated)) lastPadId = p.id;
+    if (active && (prev === undefined || p.timestamp !== prev || emulatedPads.get(p.index) === p)) lastPadId = p.id;
   }
 }
 
@@ -151,19 +164,20 @@ export const TOUCH_HELP: [string, string][] = [
 ];
 
 function keyboardInput(): [number, number, number] {
-  const k = (c: string) => held.has(c);
+  const keys = bindings().keys;
+  const k = (a: keyof typeof keys) => keys[a].some((c) => !!c && held.has(c));
   let sx = 0;
   let sy = 0;
-  if (k('KeyA') || k('ArrowLeft')) sx -= 100;
-  if (k('KeyD') || k('ArrowRight')) sx += 100;
-  if (k('KeyW') || k('ArrowUp')) sy += 100;
-  if (k('KeyS') || k('ArrowDown')) sy -= 100;
+  if (k('left')) sx -= 100;
+  if (k('right')) sx += 100;
+  if (k('up')) sy += 100;
+  if (k('down')) sy -= 100;
   let b = 0;
-  if (k('Space') || k('KeyU')) b |= BTN.JUMP;
-  if (k('KeyJ')) b |= BTN.ATTACK;
-  if (k('KeyK')) b |= BTN.SPECIAL;
-  if (k('KeyL')) b |= BTN.SHIELD;
-  if (k('KeyI')) b |= BTN.C_NEUTRAL;
+  if (k('jump')) b |= BTN.JUMP;
+  if (k('attack')) b |= BTN.ATTACK;
+  if (k('special')) b |= BTN.SPECIAL;
+  if (k('shield')) b |= BTN.SHIELD;
+  if (k('smash')) b |= BTN.C_NEUTRAL;
   return [sx, sy, b];
 }
 
@@ -173,6 +187,8 @@ function deadzone(v: number): number {
 
 function gamepadInput(pad: Gamepad): [number, number, number] {
   const btn = (i: number) => !!pad.buttons[i]?.pressed;
+  const any = (list: number[]) => list.some(btn);
+  const pb = bindings().pad;
   let sx = deadzone(pad.axes[0] ?? 0) * 100;
   let sy = -deadzone(pad.axes[1] ?? 0) * 100;
   if (btn(14)) sx = -100;
@@ -180,10 +196,10 @@ function gamepadInput(pad: Gamepad): [number, number, number] {
   // D-pad up is the taunt (Smash-style); stick still aims up for jumps and recoveries.
   if (btn(13)) sy = -100;
   let b = 0;
-  if (btn(0)) b |= BTN.ATTACK;
-  if (btn(1)) b |= BTN.SPECIAL;
-  if (btn(2) || btn(3)) b |= BTN.JUMP;
-  if (btn(4) || btn(5) || btn(6) || btn(7)) b |= BTN.SHIELD;
+  if (any(pb.attack)) b |= BTN.ATTACK;
+  if (any(pb.special)) b |= BTN.SPECIAL;
+  if (any(pb.jump)) b |= BTN.JUMP;
+  if (any(pb.shield)) b |= BTN.SHIELD;
   const cx = pad.axes[2] ?? 0;
   const cy = pad.axes[3] ?? 0;
   if (Math.abs(cx) > 0.6 || Math.abs(cy) > 0.6) {
@@ -193,22 +209,49 @@ function gamepadInput(pad: Gamepad): [number, number, number] {
   return [sx, sy, b];
 }
 
-/** A controller the playtest presses (menu-walk): standard mapping, button i pressed or not, left stick axes. Null outside a playtest. */
-let emulated: Gamepad | null = null;
-export function emulatePad(state: { buttons: boolean[]; axes: [number, number]; id?: string } | null): void {
-  emulated = state
-    ? ({
-        id: state.id ?? 'playtest-pad', index: 0, connected: true, mapping: 'standard', timestamp: performance.now(),
-        axes: state.axes,
-        buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: !!state.buttons[i], touched: !!state.buttons[i], value: state.buttons[i] ? 1 : 0 })),
-        vibrationActuator: null, hapticActuators: [],
-      } as unknown as Gamepad)
-    : null;
+/** Controllers the playtest presses (menu-walk, rebinding): standard mapping, button i pressed or not, left stick axes. `index` picks which pad. Null outside a playtest. */
+const emulatedPads = new Map<number, Gamepad>();
+export function emulatePad(state: { buttons: boolean[]; axes: [number, number]; id?: string } | null, index = 0): void {
+  if (!state) {
+    if (index === 0) emulatedPads.clear();
+    else emulatedPads.delete(index);
+  } else {
+    emulatedPads.set(index, {
+      id: state.id ?? 'playtest-pad', index, connected: true, mapping: 'standard', timestamp: performance.now(),
+      axes: state.axes,
+      buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: !!state.buttons[i], touched: !!state.buttons[i], value: state.buttons[i] ? 1 : 0 })),
+      vibrationActuator: null, hapticActuators: [],
+    } as unknown as Gamepad);
+  }
 }
 
+/** Every connected controller: the playtest's emulated ones first, then the real ones, each with its own index. */
 export function pads(): Gamepad[] {
   const real = (navigator.getGamepads?.() ?? []).filter((p): p is Gamepad => !!p && p.connected);
-  return emulated ? [emulated, ...real] : real;
+  return emulatedPads.size ? [...emulatedPads.values(), ...real] : real;
+}
+
+/** Local versus: which controller (by position in pads()) drives which player slot. A pad given to a slot no longer drives player 1. */
+const padOwner = new Map<number, number>();
+export function assignPad(padIndex: number, slot: number | null): void {
+  if (slot === null || slot === 0) padOwner.delete(padIndex);
+  else padOwner.set(padIndex, slot);
+}
+/** The input of a controller assigned to `slot` (0 = player 1: every pad nobody else owns, plus keys). Null when none is assigned. */
+export function readPadSlot(slot: number): number | null {
+  let sx = 0;
+  let sy = 0;
+  let b = 0;
+  let found = false;
+  for (const p of pads()) {
+    if ((padOwner.get(p.index) ?? 0) !== slot) continue;
+    found = true;
+    const [px, py, pb] = gamepadInput(p);
+    if (Math.abs(px) > Math.abs(sx)) sx = px;
+    if (Math.abs(py) > Math.abs(sy)) sy = py;
+    b |= pb;
+  }
+  return found ? packInput(sx, sy, b) : null;
 }
 
 /**
@@ -230,7 +273,7 @@ export function inputDevice(): InputDevice {
   return 'keyboard';
 }
 
-/** The local player's input this frame: the keyboard, the first gamepad and any virtual pad, merged. */
+/** The local player's input this frame: the keyboard, every gamepad and any virtual pad, merged. */
 export function readLocal(): number {
   let [sx, sy, b] = keyboardInput();
   const merge = ([px, py, pb]: [number, number, number]) => {
@@ -239,8 +282,9 @@ export function readLocal(): number {
     b |= pb;
   };
   scanPads();
-  const pad = pads()[0];
-  if (pad) {
+  // Any connected controller can drive player 1 (the ones given to another local player excepted).
+  for (const pad of pads()) {
+    if ((padOwner.get(pad.index) ?? 0) !== 0) continue;
     const g = gamepadInput(pad);
     if (g[0] !== 0 || g[1] !== 0 || (g[2] & 0xffff0000) !== 0) lastPadUseAt = performance.now();
     merge(g);
@@ -279,7 +323,7 @@ export function pausePressed(): boolean {
 /** True on the frame T or gamepad D-pad up goes down (no touch button: space is tight on phones). */
 let tauntWasDown = false;
 export function tauntPressed(): boolean {
-  const down = held.has('KeyT') || pads().some((p) => !!p.buttons[12]?.pressed);
+  const down = bindings().keys.taunt.some((c) => !!c && held.has(c)) || pads().some((p) => bindings().pad.taunt.some((i) => !!p.buttons[i]?.pressed));
   const edge = down && !tauntWasDown;
   tauntWasDown = down;
   return edge;

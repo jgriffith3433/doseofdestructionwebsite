@@ -19,9 +19,11 @@ import { rumble, rumbleHit } from './rumble.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
 import { ACT, hashState } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
+import { openRebind, backRebind, wireRebind, onRebind } from './ui/rebind.ts';
+import { onBindings } from './input/bindings.ts';
 import { onShieldMode, setShieldActive, setShieldMode, shieldMode, releaseShieldLatch } from './input/shieldMode.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
-import { KEYBOARD_HELP, gamepadHelp, padFamily, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
+import { keyboardHelp, gamepadHelp, padFamily, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
 import { damageColor, damageShake, hitGain, hitTier } from './hitFeel.ts';
 import { clearMarkers, markerLog, markerRects, safeInsets, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
 import { clearTags, tagLog, tagRects, tagText, updateTags, type TagIn } from './ui/tags.ts';
@@ -177,10 +179,10 @@ function fillControlLists(): void {
   const fill = (id: string, rows: [string, string][]) =>
     $(id).replaceChildren(...rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]));
   shownPadFamily = padFamily();
-  fill('keys-kb', KEYBOARD_HELP);
+  fill('keys-kb', keyboardHelp());
   fill('keys-pad', gamepadHelp());
   fill('keys-touch', TOUCH_HELP);
-  fill('ctl-kb', KEYBOARD_HELP);
+  fill('ctl-kb', keyboardHelp());
   fill('ctl-pad', gamepadHelp());
   fill('ctl-touch', TOUCH_HELP);
 }
@@ -2005,6 +2007,23 @@ function renderSettings(): void {
   rum.textContent = t.vibrate ? 'On' : 'Off';
 }
 
+function openRebindScreen(): void {
+  analytics.feature('rebind_open', { from: match ? 'pause' : 'menu' });
+  $('settings').hidden = true;
+  openRebind();
+  onPanelBack(() => {
+    if (backRebind()) closeRebindScreen();
+  });
+  focusFirst();
+}
+
+function closeRebindScreen(): void {
+  $('settings').hidden = false;
+  onPanelBack(closeSettings);
+  $('rebind-open').focus();
+  syncPad();
+}
+
 function openSettings(): void {
   analytics.feature('settings_open', { from: match ? 'pause' : 'menu' });
   renderSettings();
@@ -2126,6 +2145,14 @@ function wireSettings(): void {
     analytics.setting('rumble', touchSettings().vibrate, from());
   });
   $('settings-done').addEventListener('click', () => closeSettings());
+  $('rebind-open').addEventListener('click', () => openRebindScreen());
+  wireRebind(closeRebindScreen);
+  onRebind((kind, value) => {
+    analytics.setting('rebind', kind, from());
+    window.dispatchEvent(new CustomEvent('dod:rebind', { detail: { kind, value } }));
+  });
+  // The Controls pages show the player's actual bindings.
+  onBindings(() => fillControlLists());
 }
 
 // Menus play the menu loop; matches pick their stage's loop when they start.

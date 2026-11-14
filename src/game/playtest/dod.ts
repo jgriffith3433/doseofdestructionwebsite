@@ -12,7 +12,8 @@
 import { installPlaytest, type Outcome, type RunOptions, type Tracker } from './hawkes-playtest.js';
 import { Bot } from '../ai/bot.ts';
 import { styleId } from '../ai/profiles.ts';
-import { padFamilyOf, setVirtualPad } from '../input/devices.ts';
+import { emulatePad, padFamilyOf, setVirtualPad } from '../input/devices.ts';
+import { bindings as currentBindings } from '../input/bindings.ts';
 import { readTouch, touchDevice, touchOverlay } from '../input/touch.ts';
 import { TOUCH_KEY, forceTouchUi, touchSettings } from '../touchSettings.ts';
 import { SHIELD_KEY_NAME, shieldLatched, shieldMode } from '../input/shieldMode.ts';
@@ -254,6 +255,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'touch-match') await r.touchMatch();
         else if (id === 'touch-settings') await r.touchSettingsRun();
         else if (id === 'shield-toggle') await r.shieldToggleRun();
+        else if (id === 'rebind') await r.rebindRun();
         else if (id === 'text-size') await r.textSizeRun();
         else if (id === 'colour-vision') await r.colourVisionRun();
         else if (id === 'motion-comfort') await r.motionComfort();
@@ -9890,6 +9892,241 @@ class Run {
    * press, a roll or a jump drops it; on a phone the touch Shield button shows it is latched. Played from real input:
    * taps on the switch and the overlay buttons and a stick drag on touch, key presses otherwise.
    */
+  /**
+   * Rebinding (Settings → Controls, input/bindings.ts, ui/rebind.ts). Desktop: the Rebind screen is opened from Settings;
+   * a clash is warned about and swaps the key; Reset restores every default; Attack is rebound to H by pressing the slot
+   * and then the key, saved, and the page reloads; after it the binding is still there, the Controls page shows H for
+   * Attack, and in a match H attacks while J no longer does; a second connected gamepad (emulated pad 2, no pad 1) also
+   * plays. Phone (390x844 touch): Settings shows no rebinding row, fits, and nothing overlaps.
+   * Events `rebind-open`, `rebind-clash`, `rebind-reset`, `rebind-set`, `rebind-saved`, `rebind-survived-reload`,
+   * `rebind-controls-page`, `rebind-key-works`, `rebind-old-key-dead`, `rebind-second-pad`, `rebind-phone-hidden`, `rebind-phone-fit`.
+   */
+  async rebindRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const carried = (() => {
+      try {
+        return JSON.parse(sessionStorage.getItem(REBIND_RUN_KEY) ?? 'null') as { original: string | null } | null;
+      } catch {
+        return null;
+      }
+    })();
+    const rebindShowing = () => document.getElementById('rebind')?.hidden === false;
+    const openSettings = async () => {
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, 'Settings to open');
+    };
+    const note = () => (this.q('#rebind-note')?.textContent ?? '').trim();
+    const slotBtn = (action: string, slot = 0) => this.q(`#rebind-rows [data-action="${action}"] [data-slot="${slot}"]`);
+    const stored = () => {
+      try {
+        return JSON.parse(localStorage.getItem(REBIND_KEY) ?? 'null') as { keys?: Record<string, string[]> } | null;
+      } catch {
+        return null;
+      }
+    };
+    const restore = (original: string | null) => {
+      try {
+        if (original === null) localStorage.removeItem(REBIND_KEY);
+        else localStorage.setItem(REBIND_KEY, original);
+      } catch {
+        // Storage blocked.
+      }
+    };
+
+    if (touch) {
+      forceTouchUi(true);
+      this.useTap = true;
+      this.logViewport(true);
+      try {
+        await this.toMainMenu();
+        await openSettings();
+        await t.wait(300);
+        const row = this.q('#controls-row');
+        const btn = this.q('#rebind-open');
+        if (row && row.getClientRects().length > 0) t.problem('bug', 'the rebinding row shows in Settings on a touch phone');
+        else if (btn && btn.getClientRects().length > 0) t.problem('bug', 'the Rebind button shows on a touch phone');
+        else t.event('rebind-phone-hidden', `touch ${innerWidth}x${innerHeight}: Settings has no rebinding row (touch has its own layout settings)`);
+        // Settings fits: nothing off a side edge, no sideways scroll, no two controls on top of each other.
+        const panel = this.q('#settings .settings-panel');
+        const items = [...document.querySelectorAll<HTMLElement>('#settings button, #settings input')].filter((e) => e.getClientRects().length > 0);
+        let bad = 0;
+        for (const el of items) {
+          const r = el.getBoundingClientRect();
+          if (r.left < -0.5 || r.right > innerWidth + 0.5) {
+            bad++;
+            t.problem('bug', `a Settings control runs off the screen sideways (${el.id || el.textContent?.trim()}, ${Math.round(r.left)}..${Math.round(r.right)} of ${innerWidth})`);
+          }
+        }
+        for (let i = 0; i < items.length; i++) {
+          for (let j = i + 1; j < items.length; j++) {
+            const a = items[i].getBoundingClientRect();
+            const b = items[j].getBoundingClientRect();
+            if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) {
+              bad++;
+              t.problem('bug', `two Settings controls overlap (${items[i].id || items[i].textContent?.trim()} and ${items[j].id || items[j].textContent?.trim()})`);
+            }
+          }
+        }
+        if (document.documentElement.scrollWidth > innerWidth + 1 || (panel && panel.scrollWidth > panel.clientWidth + 1)) {
+          bad++;
+          t.problem('bug', 'Settings scrolls sideways on the phone');
+        }
+        const done = this.q('#settings-done')?.getBoundingClientRect();
+        if (!done || done.height < 44) t.problem('bug', `Done is under 44 px tall (${Math.round(done?.height ?? 0)})`);
+        if (!bad) t.event('rebind-phone-fit', `Settings at ${innerWidth}x${innerHeight}: ${items.length} controls inside the screen, none overlapping, Done ${Math.round(done?.height ?? 0)} px`);
+        await this.tap(() => this.q('#settings-done'), 'Done');
+      } finally {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+      t.progress(1);
+      t.finish('done');
+      return;
+    }
+
+    const me = () => {
+      const m = this.game.match();
+      return m ? m.state.fighters[m.player] : null;
+    };
+    const attacking = () => me()?.action === ACT.ATTACK;
+    const calm = async () => {
+      try {
+        await t.until(() => me()?.action === ACT.IDLE || me()?.action === ACT.WALK, 4000, 'the fighter to stand free');
+      } catch {
+        // Hit meanwhile: carry on.
+      }
+      await t.wait(150);
+    };
+    /** Presses `go` (down, hold, up) and says whether an Attack came out within 700 ms. */
+    const triesAttack = async (down: () => void, up: () => void): Promise<boolean> => {
+      await calm();
+      down();
+      let hit = false;
+      for (let i = 0; i < 14 && !hit; i++) {
+        await t.wait(50);
+        hit = attacking();
+      }
+      up();
+      await t.wait(400);
+      return hit;
+    };
+
+    await this.screen('title', 30000);
+    if (!carried) {
+      const original = localStorage.getItem(REBIND_KEY);
+      try {
+        localStorage.removeItem(REBIND_KEY);
+        await this.toMainMenu();
+        await openSettings();
+        await this.tap(() => this.q('#rebind-open'), 'Rebind');
+        await t.until(rebindShowing, 3000, 'the rebinding screen');
+        const tiny = [...document.querySelectorAll<HTMLElement>('#rebind button')].filter((e) => e.getClientRects().length > 0 && e.getBoundingClientRect().height < 44);
+        if (tiny.length) t.problem('bug', `${tiny.length} rebinding buttons are under 44 px tall`);
+        const rows = document.querySelectorAll('#rebind-rows .rebind-row').length;
+        t.event('rebind-open', `Settings > Controls: ${rows} actions, Attack reads "${slotBtn('attack')?.textContent}", Jump "${slotBtn('jump')?.textContent} / ${slotBtn('jump', 1)?.textContent}"`);
+
+        // A clash: Special onto J (Attack's key). The warning says so, and Attack takes Special's old K (a swap).
+        await this.tap(() => slotBtn('special'), 'Special slot');
+        if (!/press/i.test(slotBtn('special')?.textContent ?? '')) t.problem('bug', 'picking a slot did not ask for a key');
+        await tapKey('KeyJ');
+        await t.wait(200);
+        const warn = this.q('#rebind-note')?.dataset.warn === 'true' && /Attack/.test(note());
+        const k = currentBindings().keys;
+        if (!warn) t.problem('bug', `no clash warning when Special took Attack's J (note: "${note()}")`);
+        else if (k.special[0] !== 'KeyJ' || k.attack.every((c) => !c)) t.problem('bug', `after the clash Special is ${k.special[0]} and Attack has ${k.attack.join('/')}`);
+        else t.event('rebind-clash', `"${note()}"`);
+
+        // Reset restores the defaults.
+        await this.tap(() => this.q('#rebind-reset'), 'Reset to defaults');
+        const d = currentBindings().keys;
+        if (d.special[0] !== 'KeyK' || d.attack[0] !== 'KeyJ' || stored()?.keys?.special?.[0] !== 'KeyK') t.problem('bug', `Reset did not restore the defaults (Special ${d.special[0]}, Attack ${d.attack[0]})`);
+        else t.event('rebind-reset', `Attack ${d.attack[0]}, Special ${d.special[0]} again, saved ${JSON.stringify(stored()?.keys?.attack)}`);
+
+        // Attack onto H.
+        await this.tap(() => slotBtn('attack'), 'Attack slot');
+        await tapKey('KeyH');
+        await t.wait(200);
+        if (currentBindings().keys.attack[0] !== 'KeyH' || slotBtn('attack')?.textContent !== 'H') t.problem('bug', `Attack did not take H (${currentBindings().keys.attack[0]}, shows "${slotBtn('attack')?.textContent}")`);
+        else t.event('rebind-set', `Attack = H: "${note()}"`);
+        if (stored()?.keys?.attack?.[0] !== 'KeyH') t.problem('bug', 'the new binding was not saved');
+        else t.event('rebind-saved', `dod.bindings attack = ${JSON.stringify(stored()?.keys?.attack)}`);
+
+        // Gamepad tab lists the actions with the family's names.
+        await this.tap(() => this.q('#rebind-tabs [data-tab="gamepad"]'), 'Gamepad tab');
+        const padRows = [...document.querySelectorAll('#rebind-rows .rebind-key')].map((e) => e.textContent).join(' | ');
+        t.event('rebind-pad-tab', `Gamepad: ${padRows}`);
+        await this.tap(() => this.q('#rebind-done'), 'Done');
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        t.progress(0.4);
+      } catch (e) {
+        restore(original);
+        throw e;
+      }
+      sessionStorage.setItem(REBIND_RUN_KEY, JSON.stringify({ original }));
+      t.event('reload', 'the page reloads; the run carries on after it');
+      const url = new URL(location.href);
+      url.searchParams.set('playtest', 'rebind');
+      url.searchParams.set('seed', String(this.options.seed ?? 1));
+      url.searchParams.set('speed', String(this.options.speed ?? 1));
+      await t.wait(300);
+      location.replace(url.toString());
+      await new Promise(() => {}); // the page is going away
+      return;
+    }
+
+    sessionStorage.removeItem(REBIND_RUN_KEY);
+    try {
+      if (currentBindings().keys.attack[0] !== 'KeyH') t.problem('bug', `the binding did not survive the reload (Attack is ${currentBindings().keys.attack[0]})`);
+      else t.event('rebind-survived-reload', 'Attack is still H after the reload');
+      await this.toMainMenu();
+      // The Controls page shows the player's actual bindings.
+      await this.click(() => this.q('[data-go="controls"]'), 'Controls');
+      await this.screen('howto');
+      const attackRow = [...document.querySelectorAll('#keys-kb dt')].find((e) => e.textContent === 'Attack')?.nextElementSibling?.textContent ?? '';
+      if (attackRow.trim() !== 'H') t.problem('bug', `the Controls page shows Attack as "${attackRow}" but it is bound to H`);
+      else t.event('rebind-controls-page', `Controls: Attack = "${attackRow}"`);
+      await this.click(() => this.q('#howto [data-back]'), 'Back');
+      await this.screen('main');
+
+      await this.startVersus(3);
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      await t.wait(1500);
+      const newKey = await triesAttack(
+        () => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyH', key: 'h', bubbles: true })),
+        () => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyH', key: 'h', bubbles: true })),
+      );
+      if (!newKey) t.problem('bug', 'H, bound to Attack, did not attack in the match');
+      else t.event('rebind-key-works', 'H attacked in the match');
+      const oldKey = await triesAttack(
+        () => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyJ', key: 'j', bubbles: true })),
+        () => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyJ', key: 'j', bubbles: true })),
+      );
+      if (oldKey) t.problem('bug', 'J still attacks after Attack was moved to H');
+      else t.event('rebind-old-key-dead', 'J no longer attacks');
+      t.progress(0.7);
+
+      // A second connected gamepad (pad 2 only; no pad 1 plugged in) drives the player.
+      const pressed = Array.from({ length: 17 }, (_, i) => i === 0);
+      const second = await triesAttack(
+        () => emulatePad({ buttons: pressed, axes: [0, 0], id: 'Xbox 360 Controller (second pad)' }, 1),
+        () => emulatePad(null, 1),
+      );
+      if (!second) t.problem('bug', 'a second connected gamepad did not control the player');
+      else t.event('rebind-second-pad', 'pad 2 button A attacked with no pad 1 connected');
+
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.click(() => this.q('#btn-quit'), 'Quit');
+      await this.screen('main');
+    } finally {
+      emulatePad(null, 1);
+      restore(carried.original);
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   async shieldToggleRun(): Promise<void> {
     const t = this.t;
     const KEY = SHIELD_KEY_NAME;
@@ -12845,6 +13082,8 @@ const HAWKES_BIOMEDICAL = 'https://hawkesbiomedical.com';
 /** Carries the touch-settings run across its reload. */
 const TOUCH_RUN_KEY = 'hawkes.playtest.touch-settings';
 const SOUND_RUN_KEY = 'hawkes.playtest.sound-settings';
+const REBIND_RUN_KEY = 'hawkes.playtest.rebind';
+const REBIND_KEY = 'dod.bindings';
 /** The feedback card after a versus match (analytics.ts askAfterMatch). */
 const MATCH_ASK = 'after-match';
 
