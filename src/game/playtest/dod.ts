@@ -217,6 +217,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'portraits') await r.portraitsRun();
         else if (id === 'colours') await r.coloursRun();
         else if (id === 'sound-settings') await r.soundSettings();
+        else if (id === 'fast-start') await r.fastStart();
         else if (id === 'hit-feel') await r.hitFeel();
         else if (id === 'input-feel') await r.inputFeel();
         else if (id === 'touch-match') await r.touchMatch();
@@ -5978,6 +5979,27 @@ class Run {
       }
     }
     t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- fast-start
+  /** The title answers at once: Press start (a touch tap on a phone) shows the main menu within 1 s; the first-load chunks it ran on are logged. */
+  async fastStart(): Promise<void> {
+    const t = this.t;
+    await this.screen('title', 30000);
+    await this.tapToPlay();
+    const loaded = performance.getEntriesByType('resource').filter((e) => /\.js(\?|$)/.test(e.name));
+    const bytes = loaded.reduce((n, e) => n + ((e as PerformanceResourceTiming).transferSize || 0), 0);
+    t.event('first-load', `${loaded.length} script files, ${Math.round(bytes / 1024)} KB transferred before Press start`);
+    t.metric('firstLoadScriptKB', Math.round(bytes / 1024));
+    await t.wait(300);
+    const at = performance.now();
+    await this.tap(() => this.q('#btn-start'), 'Press start');
+    await this.screen('main', 5000);
+    const ms = Math.round(performance.now() - at);
+    t.metric('pressStartMs', ms);
+    t.event('press-start', `Press start answered with the main menu in ${ms} ms`);
+    if (ms > 1000) t.problem('bug', `Press start took ${ms} ms to answer (1000 wanted)`);
     t.finish('done');
   }
 
