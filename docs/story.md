@@ -153,6 +153,13 @@ or "New best."). The best grade is kept in `localStorage` `dod-stars` (chapter i
 episode cleared before grades counts as 1) and the season map shows it on each cleared episode, with a season total.
 Resetting the campaign clears it. Scenario `grades` (events `grade`, `map-stars`).
 
+**Score and bests.** A won episode also scores (`scoreEpisode`): 1000 for clearing, +500 per KO, +5 per % dealt, -3 per %
+taken, +10 per second under twice the par time (never under 0). The best score and the fastest time are kept apart per
+episode in `localStorage` `dod-bests` (chapter id to `{score, frames}`; a worse replay never lowers either; reset with the
+campaign). The results card shows score, time and the parts, and flashes "New best!" (naming Score, Time or both) when a
+run beats an earlier record (a first clear just sets it). Each cleared episode's card shows Best time and Best score
+("—" until a run since scores existed). Scenario `grades` seeds a weak record and checks all of it (events `new-best`, `map-best`).
+
 ## Unlocks: who joins the card
 
 The show's roster grows as the champion clears it. A chapter's optional `unlock` in `content/campaign.json` names
@@ -172,6 +179,29 @@ Man). Walk-On, with no `unlock`, gives nothing.
   `campaign/story.ts`, used by select, Profile and the online setup). A save that cleared chapters before unlocks
   existed gets their fighters from `dod-campaign`. The leaderboard rates what was played; it can't see another
   player's unlocks, so it trusts each client to pick only fighters it may.
+
+## Rewards: what the last three seasons give (as built)
+
+Seasons 8 to 10 (ten episodes) used to unlock nothing. Each now has a `reward` in `content/campaign.json`, made from
+what the game already has (no new art), told on the episode card before play, announced on Results, and usable in Versus.
+Three kinds (`campaign/rewards.ts`):
+
+- **Title** (Prime-time, Best in Show, Cliffhanger Kid, Finale Survivor): a chip row under "You" in Versus select
+  picks one to wear; it shows on your VS card.
+- **Stage variant** (Yo House: Green Room, City Top: Rough Cut, Dust Devil Mesa: After Hours, Humans In The Loop: Final
+  Draft): the same stage under another existing stage's colour grade (`stages/<grade>/lut.png`), a second card beside the
+  stage in Versus and Training Stage Select. The show, the Tour and online always play the stage as it is.
+- **Colour** (Spotlight gold, Trailer Cut moody): one more swatch for every fighter, made from its second look's outfit
+  hue (`looks.ts` `looksOf`); it only appears once earned, so the swatch row stays four until then.
+
+Season 8: Red Carpet (Prime-time), Best Supporting (Green Room), Lifetime Achievement (Spotlight), Best in Show (Best in
+Show). Season 9: Teaser (Rough Cut), Trailer (Trailer Cut), Table Read (After Hours), Cliffhanger (Cliffhanger Kid).
+Season 10: First Cut (Final Draft), Final Cut (Finale Survivor).
+
+- The map's episode card reads "Reward · Title · Prime-time" (green "Earned" once yours); a win shows an "Unlocked"
+  banner on Results above the stars (`dod:reward` event). Kept in `localStorage` `dod-rewards` (the picked title in
+  `dod-reward-title`), next to `dod-unlocks`; starting the campaign over doesn't take them back, and a save that cleared
+  these episodes before rewards existed gets them from `dod-campaign`.
 
 ## Season 2: The card is yours (as built)
 

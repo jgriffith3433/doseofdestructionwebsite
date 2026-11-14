@@ -568,7 +568,7 @@
     {
       "id": "grades",
       "title": "Episode grades: a won episode shows 1-3 stars on Results with what each star needs, and the season map keeps the best",
-      "description": "Option chapter (default house-heavy). Setup shortcut: the chapters before it are marked cleared and dod-stars is emptied (both put back). The bot plays the chapter from the Campaign map; on a win the results show the stars card (1 clear, 2 no stock lost, 3 under par time, or under 100% damage taken on a survive episode; labels on screen, 12 px or more: grade, metric gradeStars) and the map shows the stars with \"N of 3\" on the episode (map-stars, checked against dod-stars); the map is then opened again from the save (map-stars after-reopen). On a 390x844 phone the run plays by taps and everything is checked inside the window.",
+      "description": "Option chapter (default house-heavy). Setup shortcut: the chapters before it are marked cleared and dod-stars is emptied (both put back). The bot plays the chapter from the Campaign map; on a win the results show the stars card (1 clear, 2 no stock lost, 3 under par time, or under 100% damage taken on a survive episode; labels on screen, 12 px or more: grade, metric gradeStars) and the map shows the stars with \"N of 3\" on the episode (map-stars, checked against dod-stars); the map is then opened again from the save (map-stars after-reopen). Scores: a weak record is seeded in dod-bests (put back), so the win must flash New best! on the results (new-best, metrics episodeScore, newBest) and the episode card must show Best time and Best score matching the save, fully inside the window (map-best, also after-reopen). On a 390x844 phone the run plays by taps and everything is checked inside the window.",
       "starts": [],
       "seconds": 300,
       "tags": [
@@ -583,6 +583,17 @@
       "seconds": 240,
       "tags": [
         "full"
+      ]
+    },
+    {
+      "id": "rewards",
+      "title": "Season 8-10 rewards: every episode card shows its reward before play, a win shows the unlock banner, and the reward can be picked in Versus (phone: 390x844 touch)",
+      "description": "Option chapter (default red-carpet, any Season 8-10 episode). Setup shortcut: the chapters before it are marked cleared and dod-rewards emptied (both put back). On the Campaign map every one of the ten reward episodes shows its reward line (Title / Stage / Colour and the name) inside the window, unclipped, 11 px or more (reward-card; metric rewardCards 10). The bot plays the chapter; the win shows the unlock banner on Results (reward-banner), and Versus then offers the reward: a title chip, a colour swatch or a stage variant card (reward-versus). On a 390x844 phone the map is checked in the portrait window by taps and the episode played in the turned 844x390 frame.",
+      "starts": [],
+      "seconds": 300,
+      "tags": [
+        "full",
+        "touch"
       ]
     },
     {
