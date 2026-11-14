@@ -83,16 +83,23 @@ export default defineConfig({
   appType: 'mpa',
   // devtools.html and its API exist only on the dev server. buildStamp: which build this is, for Hawkes Analytics.
   plugins: [devApi({ root, artRoot, mapsRoot }), buildStamp(root), copyGameFx(), stripStageAuthoring(), chunkReport(), ...[vendorUsePlugin(root)].filter(Boolean)],
+  // No sourcemap from esbuild's TypeScript transform: Rollup would hold one per module (the build ships none).
+  esbuild: { sourcemap: false },
+  // content/*.json become JSON.parse('…') strings instead of object literals: far less for Rollup to hold (default imports only).
+  json: { stringify: true },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     // Lower the build's peak memory (Studio's build cell is small): no gzip pass over every file, no sourcemaps.
     reportCompressedSize: false,
     sourcemap: false,
+    minify: 'esbuild',
+    cssCodeSplit: false,
     // Only the game is bundled. The rest of the site is static HTML copied as-is.
     rollupOptions: {
       input: { game: path.resolve(root, 'Game/index.html') },
-      maxParallelFileOps: 2, // fewer files read at once: lower peak memory in Studio's small build cell
+      cache: false, // Rollup keeps no module cache between builds: one build per process anyway
+      maxParallelFileOps: 1, // one file read at a time: lower peak memory in Studio's small build cell
       output: { manualChunks },
     },
   },
