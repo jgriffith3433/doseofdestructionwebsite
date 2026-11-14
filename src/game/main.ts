@@ -2274,6 +2274,7 @@ installDodPlaytest({
   postStats: () => renderer.postStats(),
   lightStats: () => renderer.lightStats(),
   depthStats: () => renderer.depthStats(),
+  readabilityProbe: (sets) => renderer.readabilityProbe(sets),
   styleStats: () => renderer.styleStats(),
   lookStats: () => renderer.lookStats(),
   aliveStats: () => renderer.aliveStats(),

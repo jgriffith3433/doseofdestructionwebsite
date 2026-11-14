@@ -283,6 +283,16 @@
       ]
     },
     {
+      "id": "readability",
+      "title": "Readability: on every stage each fighter's ring has 3:1 contrast with the background, each platform's lit lip 3:1 with the area above it, and no fighter is over 30% under foreground art without its silhouette showing (phone 844x390 on Low: the 3 busiest stages)",
+      "description": "Setup shortcut: straight into a match on each of the 9 stages (option stage: one; a phone or option quality low takes the 3 busiest by layers, effects and zones), two fighters standing still. The player walks left by the pad first (keys, or the touch stick), then the fighters are placed at the left edge, the centre, the top platform and the foreground element's edge, and the rendered frame is measured (Renderer.readabilityProbe, readability.ts; the same frame drawn with and without the fighters and the foreground, fixed grain): (a) the contrast of each fighter's ring (the player-colour rim and the dark outline, the better of the two) with the background just outside it, (b) the contrast of each platform's lit lip (a bright core between two dark lines along its top) with the band above it, (c) the share of each fighter the foreground art covers and how much of that still shows. Bar: 3:1, at most 30% covered unless 60% of it shows. Events readability-walk, readability-fighter, readability-platform, readability (one line of numbers per stage); metrics readabilityRing, readabilityEdge, readabilityCover, readabilityFails and readability.<stage>.ring|edge|cover. The player's dod.gfx is put back.",
+      "seconds": 330,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "lighting",
       "title": "Fighter lighting: every stage lights both fighters with its own key, rim and ambient colour, each fighter casts a contact shadow that shrinks and fades as they jump (gone above 300 units), colour looks 1 to 4 keep their palettes, Low keeps the ambient tint and shadow and holds 45 fps (phone: 390x844 turned to landscape, touch)",
       "description": "Setup shortcut: straight into a match on each of the 9 stages (option stage: one) with no menus, a different colour look on each fighter per stage. Per stage checks both fighters carry the stage's light (stage-light: key, rim, ambient from content/stages.json, glossy floors) and a shadow under each; the bot then fights 8 s and the shadow is sampled against height over the platform below (shadow-height: smaller and fainter when up, none at 300 units or more). On a phone (touch, Low) only the ambient tint and shadow run (light-low) and the fight holds 45 fps (metric fpsLight). Metric lightStages. The player's dod.gfx is put back.",

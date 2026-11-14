@@ -23,6 +23,7 @@ import { FX } from '../sim/fixed.ts';
 import { SHADOW_RANGE, hexRgb } from '../render/fighterLight.ts';
 import { analyzeCameraTrace, TRACE_LIMITS, type CamSample, type ScreenRect } from '../render/cameraRig.ts';
 import { ART, outlineWidthPx, outsideRanges } from '../artStyle.ts';
+import { MAX_COVER, MIN_CONTRAST, MIN_SHOWN, coverRead, edgeContrast, ringContrast, type Frame } from '../readability.ts';
 import { ACT, ACT_NAMES } from '../sim/state.ts';
 import { AnimTrace } from '../sim/trace.ts';
 import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
@@ -90,6 +91,7 @@ export interface GameHooks {
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
   depthStats?(): { quality: string; camX: number; camDist: number; layers: { id: string; z: number; kind: 'far' | 'foreground' | 'haze' | 'stage'; screenX: number; alpha: number; fade: number | null; behind: boolean }[] };
+  readabilityProbe?(sets: { id: string; fighters: number[]; fg: boolean }[]): { w: number; h: number; quality: string; shots: Record<string, Uint8ClampedArray>; fighters: { slot: number; box: { x1: number; y1: number; x2: number; y2: number } }[]; platforms: { index: number; x1: number; x2: number; y: number; lipPx: number }[] } | null;
   styleStats?(): { quality: 'high' | 'low'; renderHeight: number; fighters: { slot: number; char: number; look: number; outline: { color: number[]; px: number; perPx: number[]; on: number }; remap: boolean; outlinePass: boolean }[] };
   lightStats?(): { stage: string; quality: 'high' | 'low'; glossy: boolean; fighters: { slot: number; plugin: { full: boolean; key: number[]; keyColor: number[]; rim: number[]; ambient: number[] }; height: number; scale: number; alpha: number; shadow: boolean; reflection: boolean }[] };
   postStats?(): { quality: 'high' | 'low'; lut: string | null; lutReady: boolean; vignette: number; grain: number; punchFrames: number; punches: number; lastPunchDrawn: number; glitches: number; glitchDrawn: number };
@@ -216,6 +218,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'post-chain') await r.postChain();
         else if (id === 'lighting') await r.lighting();
         else if (id === 'stage-depth') await r.stageDepth();
+        else if (id === 'readability') await r.readability();
         else if (id === 'mix-room') await r.mixRoom();
         else if (id === 'art-style') await r.artStyle();
         else if (id === 'stage-life') await r.stageLife();
@@ -7180,6 +7183,171 @@ class Run {
       const mean = fps.length ? fps.reduce((a, b) => a + b, 0) / fps.length : 0;
       t.metric('fpsDepth', Math.round(mean));
       if (low && mean > 0 && mean < 45 && innerWidth <= 900) t.problem('warning', `Low at ${innerWidth}x${innerHeight} ran at ${Math.round(mean)} fps (want 45)`);
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      this.manual = null;
+      setGraphics(initial);
+      if (original === null) localStorage.removeItem(GFX_KEY);
+    }
+  }
+
+  /**
+   * Readability: on every stage (option `stage`: one; a phone on Low takes the 3 busiest), two fighters stand at the left edge,
+   * the centre, a top platform and the foreground element's edge, and the rendered frame is measured (`Renderer.readabilityProbe`,
+   * readability.ts): (a) the contrast of each fighter's ring (the player-colour rim and the dark outline) with the background
+   * around it, (b) the contrast of each platform's lit lip with the area just above it, (c) the share of each fighter foreground
+   * art covers and whether the silhouette still shows. The player walks by the pad first (keys, or the touch stick on a phone);
+   * the placements are a named setup shortcut. Events `readability-fighter`, `readability-platform`, `readability` (one line of
+   * numbers per stage); metrics readabilityRing (worst ring contrast), readabilityEdge (worst platform edge), readabilityCover
+   * (most covered), readabilityFails, and per stage `readability.<id>.ring|edge|cover`.
+   */
+  async readability(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('readability');
+    }
+    this.logViewport(touch && this.isPhone());
+    const original = localStorage.getItem(GFX_KEY);
+    const initial = graphics();
+    const low = touch || this.options.quality === 'low';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    setGraphics(low ? { quality: 'low', glow: false } : { quality: 'high', glow: true });
+    try {
+      // The busiest stages (layers, effects and zones) are the phone's worst case.
+      const busy = [...STAGES].sort((a, b) => (b.layers?.length ?? 0) + (b.effects?.length ?? 0) + (b.zones?.length ?? 0) - ((a.layers?.length ?? 0) + (a.effects?.length ?? 0) + (a.zones?.length ?? 0))).slice(0, 3);
+      const want = typeof this.options.stage === 'string' ? STAGES.filter((s) => s.id === this.options.stage) : low ? busy : STAGES;
+      if (!want.length) t.problem('bug', `stage "${String(this.options.stage)}" is not on the list`);
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the stick controls were not built');
+        t.finish('error');
+        return;
+      }
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = (punk + 1) % CHARACTERS.length;
+      let worstRing = 99;
+      let worstEdge = 99;
+      let mostCover = 0;
+      let fails = 0;
+      for (const [i, st] of want.entries()) {
+        t.progress(0.05 + (0.9 * i) / want.length);
+        void this.game.startMatch({ mode: 'versus', stage: STAGES.indexOf(st), stocks: 3, rules: { timeLimit: 150 }, slots: [{ char: punk, cpu: null, look: 0 }, { char: foe, cpu: null, look: 1 }] });
+        await this.matchLive();
+        this.manual = NO_INPUT;
+        pad.release();
+        await this.wait(500);
+        // Real input first: the player walks toward the left edge.
+        pad.stick(-100, 0);
+        await this.wait(600);
+        pad.release();
+        t.event('readability-walk', `${st.name}: the player walked left by ${touch ? 'the touch stick' : 'the keys'} before the placements`);
+        // Where to stand: the left edge and centre of the widest floor, the top of the highest platform, the foreground's side.
+        const plats = st.platforms.filter((p) => !p.offDuring && !p.onlyDuring);
+        const floor = [...plats].filter((p) => !p.motion).sort((a, b) => (b.x2 - b.x1) - (a.x2 - a.x1) || a.y - b.y)[0] ?? plats[0];
+        const top = [...plats].filter((p) => !p.motion && p.x2 - p.x1 >= 120).sort((a, b) => b.y - a.y)[0] ?? floor;
+        const fgSide = Math.sign(st.layers?.find((l) => l.foreground)?.x ?? 0);
+        const spots: { name: string; x: number; y: number }[] = [
+          { name: 'left edge', x: floor.x1 + 90, y: floor.y },
+          { name: 'centre', x: (floor.x1 + floor.x2) / 2, y: floor.y },
+          { name: 'top platform', x: (top.x1 + top.x2) / 2, y: top.y },
+        ];
+        if (fgSide > 0) spots.push({ name: 'foreground edge', x: floor.x2 - 90, y: floor.y });
+        const put = (x: number, y: number) => {
+          const m = this.game.match();
+          if (!m) return;
+          m.state.fighters.forEach((f, k) => {
+            f.x = (x + (k === 0 ? -70 : 70)) * FX;
+            f.y = y * FX;
+            f.vx = f.vy = f.kbx = f.kby = 0;
+            f.facing = k === 0 ? 1 : -1;
+          });
+        };
+        const rings: number[] = [];
+        const covers: number[] = [];
+        const edges = new Map<number, number>();
+        let measuredPlats = 0;
+        let who = '';
+        for (const sp of spots) {
+          put(sp.x, sp.y);
+          await this.wait(1300); // the camera eases onto them
+          put(sp.x, sp.y);
+          const probe = this.game.readabilityProbe?.([
+            { id: 'bg', fighters: [], fg: true },
+            { id: 'bare', fighters: [], fg: false },
+            { id: 'f0', fighters: [0], fg: true },
+            { id: 'f1', fighters: [1], fg: true },
+            { id: 'f0bare', fighters: [0], fg: false },
+            { id: 'f1bare', fighters: [1], fg: false },
+          ]);
+          if (!probe) {
+            t.problem('bug', `${st.name}: the renderer could not capture the frame for the readability probe`);
+            continue;
+          }
+          const fr = (id: string): Frame => ({ w: probe.w, h: probe.h, d: probe.shots[id] });
+          for (const ft of probe.fighters.slice(0, 2)) {
+            const nm = CHARACTERS[this.game.match()!.state.fighters[ft.slot].char].name;
+            const ring = ringContrast(fr(`f${ft.slot}`), fr('bg'), ft.box);
+            const cov = coverRead(fr(`f${ft.slot}bare`), fr('bare'), fr('bg'), fr(`f${ft.slot}`), ft.box);
+            if (ring.px < 60) {
+              t.problem('warning', `${st.name}, ${sp.name}: ${nm} could not be measured (${ring.px} px of silhouette in the frame)`);
+              continue;
+            }
+            rings.push(ring.best);
+            covers.push(cov.covered);
+            const coverFail = cov.covered > MAX_COVER && cov.shown < MIN_SHOWN;
+            const ringFail = ring.best < MIN_CONTRAST;
+            if (ringFail) {
+              fails++;
+              t.problem('bug', `${st.name}, ${sp.name}: ${nm}'s ring is ${ring.best.toFixed(2)}:1 against the background (rim ${ring.rim.toFixed(2)}, outline ${ring.outline.toFixed(2)}; want ${MIN_CONTRAST}:1)`);
+            }
+            if (coverFail) {
+              fails++;
+              t.problem('bug', `${st.name}, ${sp.name}: foreground art covers ${Math.round(cov.covered * 100)}% of ${nm} and only ${Math.round(cov.shown * 100)}% of that still shows (want under ${Math.round(MAX_COVER * 100)}% covered, or ${Math.round(MIN_SHOWN * 100)}% showing)`);
+            }
+            t.event('readability-fighter', `${st.name}, ${sp.name}: ${nm} ring ${ring.best.toFixed(2)}:1 (rim ${ring.rim.toFixed(2)}, outline ${ring.outline.toFixed(2)}, ${ring.ringPx} px), ${Math.round(cov.covered * 100)}% under foreground art, ${Math.round(cov.shown * 100)}% of that shows [${probe.w}x${probe.h} ${probe.quality}]`);
+            if (ring.best <= Math.min(...rings)) who = `${nm} ${sp.name}`;
+          }
+          for (const pl of probe.platforms) {
+            const r = edgeContrast(fr('bare'), Math.max(0, pl.x1), Math.min(probe.w, pl.x2), pl.y, pl.lipPx);
+            if (!r || Math.min(probe.w, pl.x2) - Math.max(0, pl.x1) < 40) continue;
+            edges.set(pl.index, Math.min(edges.get(pl.index) ?? 99, r.contrast));
+          }
+        }
+        measuredPlats = edges.size;
+        for (const [index, c] of edges) {
+          const bad = c < MIN_CONTRAST;
+          if (bad) {
+            fails++;
+            t.problem('bug', `${st.name}: platform ${index}'s top edge is ${c.toFixed(2)}:1 against the area above it (want ${MIN_CONTRAST}:1)`);
+          }
+          t.event('readability-platform', `${st.name}: platform ${index} top edge ${c.toFixed(2)}:1${bad ? ' FAIL' : ''}`);
+        }
+        const unmeasured = st.platforms.filter((p, k) => !p.offDuring && !p.onlyDuring && !edges.has(k)).length;
+        if (unmeasured) t.problem('warning', `${st.name}: ${unmeasured} platform(s) never fully on screen at a placement, edge not measured`);
+        const ringMin = rings.length ? Math.min(...rings) : 0;
+        const edgeMin = edges.size ? Math.min(...edges.values()) : 0;
+        const coverMax = covers.length ? Math.max(...covers) : 0;
+        if (rings.length) worstRing = Math.min(worstRing, ringMin);
+        if (edges.size) worstEdge = Math.min(worstEdge, edgeMin);
+        mostCover = Math.max(mostCover, coverMax);
+        t.metric(`readability.${st.id}.ring`, Math.round(ringMin * 100) / 100);
+        t.metric(`readability.${st.id}.edge`, Math.round(edgeMin * 100) / 100);
+        t.metric(`readability.${st.id}.cover`, Math.round(coverMax * 100));
+        t.event('readability', `${st.name}: worst fighter ring ${ringMin.toFixed(2)}:1 (${who}), worst platform edge ${edgeMin.toFixed(2)}:1 over ${measuredPlats} platforms, most covered ${Math.round(coverMax * 100)}% [${low ? 'Low' : 'High'}]`);
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+      t.metric('readabilityRing', worstRing === 99 ? 0 : Math.round(worstRing * 100) / 100);
+      t.metric('readabilityEdge', worstEdge === 99 ? 0 : Math.round(worstEdge * 100) / 100);
+      t.metric('readabilityCover', Math.round(mostCover * 100));
+      t.metric('readabilityFails', fails);
       t.progress(1);
       t.finish('done');
     } finally {

@@ -55,6 +55,17 @@ const breathe = (): Promise<void> =>
 
 const S = 1 / (100 * FX);
 const W = 1 / 100;
+/** The lit lip along a drawn platform's top, scene units: a bright core between two dark lines, hanging from the top edge, just in front of the art. */
+export const LIP_CORE = 0.05;
+export const LIP_KEYLINE = 0.025;
+const LIP_Z = -0.02;
+
+/** `a` mixed toward `b` by t, as a hex colour. */
+function mixHex(a: string, b: string, t: number): string {
+  const ca = Color3.FromHexString(a);
+  const cb = Color3.FromHexString(b);
+  return Color3.Lerp(ca, cb, t).toHexString();
+}
 /** How far a hanging fighter's hands come up over the ledge's top edge, in scene units. */
 const GRIP = 0.04;
 /** How long a fighter's drop-in takes in a story scene. */
@@ -492,12 +503,13 @@ export class Renderer {
     under.specularColor = Color3.Black();
     const edge = this.flatMaterial('edge', t.edge);
     const thinEdge = this.flatMaterial('edge-thin', t.thinEdge);
-    for (const m of [body, under, edge, thinEdge]) this.track(root, m);
+    // The lit lip of a platform the art draws: a bright core between two dark lines (so it parts from a light or a dark picture).
+    const core = this.flatMaterial('lip-core', mixHex(t.thinEdge, '#ffffff', 0.7));
+    const keyline = this.flatMaterial('lip-line', mixHex(t.under, '#000000', 0.6));
+    for (const m of [body, under, edge, thinEdge, core, keyline]) this.track(root, m);
 
     for (const [index, p] of this.stage.platforms.entries()) {
       const artDraws = p.hidden && drawn.has(index);
-      // Collision-only platforms: the stage art draws them. Moving ones still need a node.
-      if (artDraws && !p.motion) continue;
       const width = (p.x2 - p.x1) * W;
       const cx = ((p.x1 + p.x2) / 2) * W;
       const node = new TransformNode('platform', this.scene);
@@ -506,7 +518,22 @@ export class Renderer {
       // Blocks that events switch off come and go with them.
       if (p.offDuring || p.onlyDuring) this.live.addToggle(node, index);
       if (artDraws) {
-        this.movers.push({ platform: p, node });
+        // The stage art draws the platform; the game adds a lit lip along its top so the edge reads on any picture.
+        const k = LIP_KEYLINE;
+        const bars: { y: number; h: number; mat: StandardMaterial }[] = [
+          { y: -k / 2, h: k, mat: keyline },
+          { y: -k - LIP_CORE / 2, h: LIP_CORE, mat: core },
+          { y: -k - LIP_CORE - k / 2, h: k, mat: keyline },
+        ];
+        for (const b of bars) {
+          const bar = CreateBox('art-lip', { width, height: b.h, depth: 0.02 }, this.scene);
+          bar.position.set(0, b.y, LIP_Z);
+          bar.material = b.mat;
+          bar.isPickable = false;
+          bar.parent = node;
+          this.glow.addExcludedMesh(bar);
+        }
+        if (p.motion) this.movers.push({ platform: p, node });
       } else if (p.solid) {
         const depth = (p.depth ?? 90) * W;
         const top = CreateBox('block', { width, height: depth, depth: 3 }, this.scene);
@@ -1582,6 +1609,71 @@ export class Renderer {
       return { id: pl.layer.id, z: pl.layer.z, kind, screenX: p.x * k, alpha: pl.mat.alpha, fade: pl.fade ?? null, behind: pl.fade !== undefined && pl.fade < 0.99 };
     });
     return { quality: this.gfx.quality, camX: this.camera.position.x, camDist: this.camDist, layers };
+  }
+
+  private probeCanvas: HTMLCanvasElement | null = null;
+
+  /**
+   * The readability probe (playtest `readability`, readability.ts): the current frame drawn again for each request with only
+   * some fighters (by slot) and the foreground art on or off, each read back as pixels, plus where each fighter and each
+   * platform's top edge sit on the canvas. Fixed grain, so two renders of one scene match. Everything is put back.
+   */
+  readabilityProbe(sets: { id: string; fighters: number[]; fg: boolean }[]): {
+    w: number;
+    h: number;
+    quality: string;
+    shots: Record<string, Uint8ClampedArray>;
+    fighters: { slot: number; box: { x1: number; y1: number; x2: number; y2: number } }[];
+    platforms: { index: number; x1: number; x2: number; y: number; lipPx: number }[];
+  } | null {
+    const canvas = this.engine.getRenderingCanvas();
+    if (!canvas || !this.lastState) return null;
+    const state = this.lastState;
+    this.render(state); // meshes follow the state as it is now
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    if (!this.probeCanvas) this.probeCanvas = document.createElement('canvas');
+    const pc = this.probeCanvas;
+    pc.width = w;
+    pc.height = h;
+    const ctx = pc.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+    const fgs = this.live?.foregrounds() ?? [];
+    const wasOn = this.views.map((v) => v.pose.isEnabled());
+    const fgOn = fgs.map((p) => p.mesh.isEnabled());
+    this.post.setProbe(true);
+    const shots: Record<string, Uint8ClampedArray> = {};
+    try {
+      for (const set of sets) {
+        this.views.forEach((v, i) => v.pose.setEnabled(wasOn[i] && set.fighters.includes(i)));
+        fgs.forEach((p) => p.mesh.setEnabled(set.fg && fgOn[fgs.indexOf(p)]));
+        this.scene.render();
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(canvas, 0, 0, w, h);
+        shots[set.id] = ctx.getImageData(0, 0, w, h).data;
+      }
+    } finally {
+      this.post.setProbe(false);
+      this.views.forEach((v, i) => v.pose.setEnabled(wasOn[i]));
+      fgs.forEach((p, i) => p.mesh.setEnabled(fgOn[i]));
+    }
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const proj = (x: number, y: number, z: number) => Vector3.Project(new Vector3(x, y, z), Matrix.IdentityReadOnly, m, vp);
+    const fighters = this.views.map((v, slot) => {
+      v.body.computeWorldMatrix(true);
+      const pts = v.body.getBoundingInfo().boundingBox.vectorsWorld.map((q) => proj(q.x, q.y, q.z));
+      return { slot, box: { x1: Math.min(...pts.map((q) => q.x)), y1: Math.min(...pts.map((q) => q.y)), x2: Math.max(...pts.map((q) => q.x)), y2: Math.max(...pts.map((q) => q.y)) } };
+    });
+    const platforms = this.stage.platforms.flatMap((p, index) => {
+      if (p.offDuring || p.onlyDuring) return [];
+      const at = platformAt(p, state.frame);
+      const a = proj(at.x1 * S, at.y * S, 0);
+      const b = proj(at.x2 * S, at.y * S, 0);
+      const below = proj(at.x1 * S, at.y * S - (LIP_CORE + 2 * LIP_KEYLINE), 0);
+      return [{ index, x1: a.x, x2: b.x, y: a.y, lipPx: Math.abs(below.y - a.y) }];
+    });
+    return { w, h, quality: this.gfx.quality, shots, fighters, platforms };
   }
 
   private shadowTex: DynamicTexture | null = null;
