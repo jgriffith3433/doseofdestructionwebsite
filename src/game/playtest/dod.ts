@@ -915,6 +915,23 @@ class Run {
     let introMs = 0;
     const onIntro = (e: Event) => { const d = (e as CustomEvent).detail as { phase: string; ms: number }; if (d.phase === 'end') introMs = d.ms; };
     window.addEventListener('dod:match-intro', onIntro);
+    // Longest frame from the stage tap to GO (the ROUND START slam): every rAF gap, no timers. Shader compiles,
+    // texture uploads and pool fills show up here as one long frame.
+    let goSeen = false;
+    let longestFrameMs = 0;
+    let watchFrames = true;
+    let prevFrame = performance.now();
+    const onGo = (e: Event) => { if (!(e as CustomEvent<{ over: boolean }>).detail.over) goSeen = true; };
+    window.addEventListener('dod:slam', onGo);
+    const frameTick = (now: number) => {
+      if (!watchFrames) return;
+      longestFrameMs = Math.max(longestFrameMs, now - prevFrame);
+      prevFrame = now;
+      if (goSeen) return;
+      requestAnimationFrame(frameTick);
+    };
+    prevFrame = performance.now();
+    requestAnimationFrame(frameTick);
     await this.click(() => cards()[pick], `stage ${want && byId >= 0 ? want : pick + 1}`);
     const confirmAt = performance.now();
     this.vsWipePending = this.vsHoldWanted;
@@ -952,6 +969,18 @@ class Run {
       this.t.event('vsHoldMs', `${ms} ms from the stage confirm to the first match frame`);
       if (ms > 6000) this.t.problem('bug', `The VS card held ${ms} ms from the stage confirm to the first match frame (limit 6000 ms: the stage and both names are called)`);
     }
+    await this.t.until(() => goSeen, 15000, 'ROUND START after the intro').catch(() => undefined);
+    watchFrames = false;
+    window.removeEventListener('dod:slam', onGo);
+    if (goSeen) {
+      const worst = Math.round(longestFrameMs);
+      const phone = this.phoneScenario();
+      const limit = phone ? 150 : 100;
+      this.t.metric('longestFrameMs', worst);
+      this.t.event('longestFrameMs', `longest frame from Stage Select to GO: ${worst} ms (${phone ? 'phone' : 'desktop'} limit ${limit} ms)`);
+      // Hard check in the smoke run only (the other scenarios share this walk but report the number).
+      if (this.vsHoldWanted && worst > limit) this.t.problem('bug', `A frame took ${worst} ms between Stage Select and GO (limit ${limit} ms): warm-up work must be spread across frames`);
+    } else this.t.problem('bug', 'no ROUND START after the stage pick, so the longest frame to GO could not be measured');
   }
 
   private vsHoldWanted = false;
