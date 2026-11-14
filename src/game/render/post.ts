@@ -156,6 +156,11 @@ export class PostChain {
     this.quality = q;
   }
 
+  /** True while a hit or KO punch is still drawing (automatic quality measures no frame of it). */
+  punching(): boolean {
+    return this.frames > 0 || performance.now() < this.glitchUntil;
+  }
+
   /** Starts the punch: the next PUNCH_FRAMES rendered frames. */
   punch(): void {
     if (this.frames === 0) {

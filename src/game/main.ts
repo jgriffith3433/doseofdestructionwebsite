@@ -1708,11 +1708,11 @@ function wireSettings(): void {
     analytics.graphics(g);
   });
   $('quality-switch').addEventListener('click', () => {
-    setGraphics({ quality: graphics().quality === 'high' ? 'low' : 'high' });
+    setGraphics({ quality: graphics().quality === 'high' ? 'low' : 'high' }, true);
     analytics.setting('quality', graphics().quality, from());
   });
   $('glow-switch').addEventListener('click', () => {
-    setGraphics({ glow: !graphics().glow });
+    setGraphics({ glow: !graphics().glow }, true);
     analytics.setting('glow', graphics().glow, from());
   });
   $('fps-switch').addEventListener('click', () => {
@@ -2432,6 +2432,8 @@ const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPla
   reactFxStats: (reset) => renderer.reactFxStats(reset),
   markerStats: () => ({ ...markerLog, rects: markerRects() }),
   gfxStats: () => renderer.gfxStats(),
+  autoStats: () => renderer.autoStats(),
+  autoSetup: (o: { enabled?: boolean; slowMs?: number; reset?: boolean }) => renderer.autoSetup(o),
   introStats: () => renderer.introStats(),
   mixStats: () => audio.mixStats(),
   probeHit: (pan) => audio.sfx('hit-heavy', { vary: false, at: { pan } }),

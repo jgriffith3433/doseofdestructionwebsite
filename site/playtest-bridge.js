@@ -437,6 +437,16 @@
       ]
     },
     {
+      "id": "auto-quality",
+      "title": "Auto quality: on a slow device the renderer steps quality down inside 5 s and holds 45 fps, says so once with a quiet toast clear of every control, never overrides a quality set by hand (phone 390x844 turned to 844x390, touch)",
+      "description": "A simulated slow device (option slowMs, ms a frame costs at full quality, default 60; slow: false plays the real device) in a versus match against the CPU. Match 1: auto-lowered (steps, render scale and glow before and after), auto-settled (last step within 5 s of play), auto-fps (median before and after, 45 wanted), auto-toast and auto-toast-clear (one toast, inside the window, clear of the touch stick, buttons and Pause). Match 2, twice as slow: auto-no-repeat (no second toast). Then Quality is pressed by hand in Settings and match 3 must change nothing (auto-hand). Metrics autoLevel, autoSettleMs, autoFpsBefore, autoFpsAfter, fpsMatch. On a phone it plays in the turned 844x390 frame and drives the fighter with the touch stick and Attack button only. The player's dod.gfx and auto-quality keys are put back.",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "sudden-death",
       "title": "Sudden death: a dead-even time-out respawns both at 300%, the slam and announcer call it, the zone closes, first KO wins inside 30 s (phone: slam fits, touch live)",
       "description": "Setup shortcut: a versus match, two idle fighters (2 stocks, 0% each) on a 10 s clock, so stocks and percent are exactly level at time-out. Checks it goes to sudden death instead of naming a winner (sudden-start), the SUDDEN DEATH slam card inside the screen (sudden-slam, sudden-slam-fit), the announcer call (sudden-call), both at 300% with one stock (sudden-percent); then the bot plays and the bout ends on a KO within 30 s, not as a time-out (sudden-end, metric suddenSeconds). On a 390x844 phone it turns to 844x390 and presses the touch stick and Attack with pointer events during sudden death (sudden-touch).",
