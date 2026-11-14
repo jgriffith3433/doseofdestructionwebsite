@@ -78,6 +78,7 @@ import { ENDINGS as TOUR_ENDINGS, endingFor, type Ending } from './campaign/endi
 import { playEnding } from './ui/ending.ts';
 import { openingSeen, openingShowing, playOpening } from './ui/opening.ts';
 import { renderEndings } from './ui/extras.ts';
+import { renderRoster, rosterWanted } from './ui/roster.ts';
 import { renderTourChoice, renderTourSelect, tourBanner } from './ui/tour.ts';
 import { VOICE } from './audio.ts';
 import { clearWinQuote, pickWinQuote, type WinQuote } from './winQuote.ts';
@@ -179,7 +180,9 @@ function saveVersus(): void {
 
 function startPressed(): void {
   audio.line('announcer.title');
-  go('main', spotlight);
+  // Right after Play: the roster (who is open, who is locked and what opens them), then the main menu.
+  if (rosterWanted() && !isFirstVisit()) void go('roster', () => void renderRoster({ onContinue: () => void go('main', spotlight) }));
+  else go('main', spotlight);
 }
 
 let shownPadFamily = '';
@@ -244,6 +247,7 @@ function wireMenus(): void {
   document.querySelectorAll<HTMLButtonElement>('[data-back]').forEach((b) =>
     b.addEventListener('click', () => back()),
   );
+  onBack('roster', () => go('title'));
   onBack('main', () => go('title'));
   onBack('select', () => go('main', spotlight));
   onBack('stages', () => (lastSelect === 'training' ? openTraining() : openVersus()));
