@@ -576,6 +576,16 @@
       ]
     },
     {
+      "id": "replay-as",
+      "title": "Replay as…: a cleared episode can be played again as any unlocked fighter, with the same foes, stage and objective",
+      "description": "Option chapter (default open-mic). Setup shortcut: that chapter and those before it are marked cleared (put back). On the Campaign map every cleared episode shows Replay as… and the next, uncleared one does not (replay-cleared-only; metric replayButtons); a tap opens the picker of unlocked fighters only, tiles 44 px or more, inside the window, no sideways scroll (replay-picker; metric replayPickerTiles); a tap on a fighter other than the story's plays the episode with them as the player and the same foes, stage and objective (replay-same-episode; metric replaySameEpisode; events dod:replay-as). Stars earned this way keep the better grade (recordStars). On a 390x844 phone the map and picker are checked in portrait by taps and the episode plays in the turned 844x390 frame.",
+      "starts": [],
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "rewards",
       "title": "Season 8-10 rewards: every episode card shows its reward before play, a win shows the unlock banner, and the reward can be picked in Versus (phone: 390x844 touch)",
       "description": "Option chapter (default red-carpet, any Season 8-10 episode). Setup shortcut: the chapters before it are marked cleared and dod-rewards emptied (both put back). On the Campaign map every one of the ten reward episodes shows its reward line (Title / Stage / Colour and the name) inside the window, unclipped, 11 px or more (reward-card; metric rewardCards 10). The bot plays the chapter; the win shows the unlock banner on Results (reward-banner), and Versus then offers the reward: a title chip, a colour swatch or a stage variant card (reward-versus). On a 390x844 phone the map is checked in the portrait window by taps and the episode played in the turned 844x390 frame.",

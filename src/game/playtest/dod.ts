@@ -221,6 +221,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'difficulty') await r.difficultyRun();
         else if (id === 'grades') await r.gradesRun();
+        else if (id === 'replay-as') await r.replayAsRun();
         else if (id === 'rewards') await r.rewardsRun();
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'finale-hijack') await r.finaleHijack();
@@ -2725,6 +2726,100 @@ class Run {
     } finally {
       this.manual = null;
       restore();
+    }
+    t.progress(1);
+    t.finish('won');
+  }
+
+  /**
+   * Replay as… (main.ts `replayChapter`, ui/replayPicker.ts): a cleared episode's card has a "Replay as…" button and an
+   * uncleared one does not; it opens the picker of unlocked fighters (44 px+ tiles inside the window, no locked fighter), and a
+   * tap plays the same episode (opponents, stage, objective) with that fighter in the player's place. Option `chapter`
+   * (default open-mic): it and the chapters before it are marked cleared (setup shortcut, put back). 390x844 touch: the map and
+   * picker are checked in portrait by taps, the episode plays in the turned 844x390 frame.
+   */
+  async replayAsRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const asked = this.options.chapter ?? 'open-mic';
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    if (from < 0) {
+      t.problem('bug', `chapter "${String(asked)}" is not in content/campaign.json`);
+      t.finish('error');
+      return;
+    }
+    const c = CHAPTERS[from];
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from + 1).map((x) => x.id));
+    t.log(`setup shortcut: chapters 1-${from + 1} marked cleared; ${CHAPTERS[from + 1]?.id ?? 'none'} is the next, uncleared one`);
+    if (touch) this.useTap = true;
+    const fit = (el: HTMLElement) => { const r = el.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight; };
+    const events: { phase: string; fighter?: string; foes?: string[]; stage?: string; objective?: string; original?: string[] }[] = [];
+    const onEv = (ev: Event) => events.push((ev as CustomEvent).detail);
+    window.addEventListener('dod:replay-as', onEv);
+    try {
+      await this.toMainMenu();
+      await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+      await this.screen('campaign');
+      // 1. Only cleared episodes offer it.
+      const all = [...document.querySelectorAll<HTMLElement>('#chapter-path .replay-as')];
+      const ids = all.map((b) => b.dataset.chapter);
+      const wrong = ids.filter((id) => !CHAPTERS.slice(0, from + 1).some((x) => x.id === id));
+      const missing = CHAPTERS.slice(0, from + 1).filter((x) => !ids.includes(x.id));
+      if (wrong.length || missing.length) t.problem('bug', `Replay as… on an uncleared episode (${wrong.join(', ') || 'none'}) or missing on a cleared one (${missing.map((x) => x.id).join(', ') || 'none'})`);
+      const next = CHAPTERS[from + 1];
+      t.event('replay-cleared-only', `${ids.length} cleared episode(s) show Replay as…${next ? `; ${next.id} (uncleared) ${this.q(`#chapter-path [data-chapter="${next.id}"].replay-as`) ? 'SHOWS it' : 'does not'}` : ''}`);
+      t.metric('replayButtons', ids.length);
+      const btn = () => this.q(`#chapter-path .replay-as[data-chapter="${c.id}"]`);
+      btn()?.scrollIntoView({ block: 'center' });
+      const small = btn() ? btn()!.getBoundingClientRect() : null;
+      if (!small || small.height < 44 || small.width < 44) t.problem('bug', `Replay as… is under 44 px at ${innerWidth}x${innerHeight}`);
+      await this.click(btn, 'Replay as…');
+      // 2. The picker: unlocked fighters only, big targets, inside the window.
+      await t.until(() => !!this.q('#replay-picker .replay-tile'), 5000, 'the Replay as picker');
+      const tiles = [...document.querySelectorAll<HTMLElement>('#replay-picker .replay-tile')];
+      const lockedShown = tiles.filter((x) => !isUnlocked(x.dataset.fighter ?? ''));
+      const lockedAll = CHARACTERS.filter((x) => !isUnlocked(x.id));
+      const smallTiles = tiles.filter((x) => { const r = x.getBoundingClientRect(); return r.width < 44 || r.height < 44; });
+      const sheet = this.q('#replay-picker .replay-sheet')!;
+      const sideways = sheet.scrollWidth > sheet.clientWidth + 1;
+      const hidden = tiles.filter((x) => { const r = x.getBoundingClientRect(); return r.left < 0 || r.right > innerWidth; });
+      if (lockedShown.length) t.problem('bug', `the picker lists locked fighters: ${lockedShown.map((x) => x.dataset.fighter).join(', ')}`);
+      if (smallTiles.length || sideways || hidden.length) t.problem('bug', `the picker is not usable at ${innerWidth}x${innerHeight}: ${smallTiles.length} tiles under 44 px, ${hidden.length} off the sides, sideways scroll ${sideways}`);
+      const cancel = this.q('#replay-picker .replay-cancel')!;
+      t.event('replay-picker', `${tiles.length} unlocked fighters (${lockedAll.length} locked left out), smallest tile ${Math.round(Math.min(...tiles.map((x) => Math.min(x.getBoundingClientRect().width, x.getBoundingClientRect().height))))} px, Cancel ${Math.round(cancel.getBoundingClientRect().height)} px, at ${innerWidth}x${innerHeight}`);
+      t.metric('replayPickerTiles', tiles.length);
+      if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+        await this.click(() => this.q('#replay-picker .replay-cancel'), 'Cancel');
+        this.game.setCampaignProgress(before);
+        this.logViewport(true);
+        return this.touchMatchTurned('replay-as');
+      }
+      if (touch) forceTouchUi(true);
+      // 3. A tap on another fighter plays the same episode.
+      const origin = c.fight.slots[0] ? CHARACTERS[c.fight.slots[0].char].id : 'exit-punk';
+      const pick = tiles.find((x) => x.dataset.fighter !== origin && !!x.dataset.fighter) ?? tiles[0];
+      const chosen = pick.dataset.fighter ?? '';
+      if (!fit(pick)) pick.scrollIntoView({ block: 'center' });
+      await this.click(() => pick, `Replay as ${chosen}`);
+      await this.playDialogue();
+      await this.matchLive();
+      const m = this.game.match();
+      const e = events.find((x) => x.phase === 'fight');
+      const mine = m?.setup.slots.find((s) => s.cpu === null);
+      const foes = (m?.setup.slots ?? []).filter((s) => s.cpu !== null).map((s) => CHARACTERS[s.char].id);
+      const was = c.fight.slots.filter((s) => s.cpu !== null).map((s) => CHARACTERS[s.char].id);
+      const sameFoes = foes.join() === was.join();
+      const sameObj = (m?.setup.objective ?? 'win') === (c.fight.objective ?? 'win');
+      const sameStage = m?.setup.stage === c.fight.stage;
+      if (!mine || CHARACTERS[mine.char].id !== chosen) t.problem('bug', `Replay as ${chosen} started with ${mine ? CHARACTERS[mine.char].id : 'nobody'} as the player`);
+      if (!sameFoes || !sameObj || !sameStage) t.problem('bug', `the replay changed the episode: foes ${foes.join('/')} (was ${was.join('/')}), objective ${m?.setup.objective ?? 'win'}, stage ${m?.setup.stage} (was ${c.fight.stage})`);
+      t.event('replay-same-episode', `${c.id} replayed as ${chosen}: foes ${foes.join(', ')} (${sameFoes ? 'same' : 'DIFFERENT'}), objective ${m?.setup.objective ?? 'win'} (${sameObj ? 'same' : 'DIFFERENT'}), stage ${sameStage ? 'same' : 'DIFFERENT'}; event ${e ? 'seen' : 'missing'}`);
+      t.metric('replaySameEpisode', sameFoes && sameObj && sameStage ? 1 : 0);
+      await t.wait(2500);
+      await this.quitFromPause('campaign');
+    } finally {
+      window.removeEventListener('dod:replay-as', onEv);
+      this.game.setCampaignProgress(before);
     }
     t.progress(1);
     t.finish('won');
