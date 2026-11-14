@@ -529,6 +529,16 @@
       ]
     },
     {
+      "id": "tour-stages",
+      "title": "Tour stages: every stage a Tour fight uses starts as the real Tour fight, in Tour order, and plays (phone: 390x844 turned to landscape, touch)",
+      "description": "Each stage in content/tours.json is started as its Tour fight (the fighter's own route first, then the first fight in any other route that uses a stage not yet seen): VS card, the foe's scene, Ready, Go. Per stage: it starts within 60 s on the right stage with the right foes, the sim clock runs, nobody is NaN or far outside the blast zone for 4 s of play, no console error or uncaught exception, then the match is left. Any stage that fails is a bug problem. Options: fighter (the route played first, default exit-punk), stage (just that one), input (touch forces the touch UI), at (phone). Metrics tourStagesPlayed, tourStagesExpected. Events tour-stage, tour-stages.",
+      "seconds": 600,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "auto-quality",
       "title": "Auto quality: on a slow device the renderer steps quality down inside 5 s and holds 45 fps, says so once with a quiet toast clear of every control, never overrides a quality set by hand (phone 390x844 turned to 844x390, touch)",
       "description": "A simulated slow device (option slowMs, ms a frame costs at full quality, default 60; slow: false plays the real device) in a versus match against the CPU. Match 1: auto-lowered (steps, render scale and glow before and after), auto-settled (last step within 5 s of play), auto-fps (median before and after, 45 wanted), auto-toast and auto-toast-clear (one toast, inside the window, clear of the touch stick, buttons and Pause). Match 2, twice as slow: auto-no-repeat (no second toast). Then Quality is pressed by hand in Settings and match 3 must change nothing (auto-hand). Metrics autoLevel, autoSettleMs, autoFpsBefore, autoFpsAfter, fpsMatch. On a phone it plays in the turned 844x390 frame and drives the fighter with the touch stick and Attack button only. The player's dod.gfx and auto-quality keys are put back.",

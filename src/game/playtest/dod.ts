@@ -82,6 +82,8 @@ export interface GameHooks {
   replayTick(): number;
   /** Setup shortcut (tour only): after `after` fights are won the run jumps to the fight at index `to` (the last one). */
   tourSkipTo(after: number, to: number): void;
+  /** Setup shortcut (tour-stages only): starts that fighter's Tour at fight `index` (zero-based) as the real Tour fight (VS card, scene, Ready, Go). False when there is no such fight. */
+  tourFightAt(fighter: string, index: number): Promise<boolean>;
   /** Setup shortcut (tour only): shows the Continue or Quit panel on the results screen without losing a fight, to measure it. */
   tourChoicePreview(fighter: string): Promise<void>;
   /** Setup shortcut (campaign `chapter` only): the cleared chapter ids (localStorage dod-campaign); returns the ones before. */
@@ -215,6 +217,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'unlocks') await r.unlocksRun();
         else if (id === 'daily') await r.dailyRun();
         else if (id === 'tour') await r.tourScenario();
+        else if (id === 'tour-stages') await r.tourStagesRun();
         else if (id === 'endings') await r.endingsScenario();
         else if (id === 'opening') await r.openingScenario();
         else if (id === 'ko-objective') await r.koObjective();
@@ -6862,6 +6865,119 @@ class Run {
       if (min < (low ? 45 : 40)) t.problem('warning', `a special's effect ran at ${Math.round(min)} fps (want ${low ? 45 : 40})`);
     }
     t.metric('fxShown', shown);
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- every Tour stage starts and plays
+
+  /**
+   * Tour stages (content/tours.json): every stage a Tour fight uses is started as the real Tour fight, in Tour order
+   * (option `fighter`'s own route first, default exit-punk, then the first fight in any other route that uses a stage
+   * not yet seen; option `stage` plays just that one). Per fight: the VS card and the foe's scene come up, the match
+   * starts on the right stage with the right foes, the sim clock runs and nobody is NaN or out of bounds for 4 s of
+   * play, no console error or uncaught exception, no stage layer left unpainted, then the match is left. A stage
+   * that does not start in 60 s is a bug (`tour-stage-start`). Metrics `tourStagesPlayed`, `tourStagesExpected`.
+   */
+  async tourStagesRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('tour-stages');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.screen('title', 30000);
+    if (promptShowing()) await this.tapToPlay();
+    await this.t.wait(600);
+    await this.click(() => this.q('#btn-start'), 'Press start');
+    await this.screen('main');
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const first = typeof this.options.fighter === 'string' ? this.options.fighter : 'exit-punk';
+    const lead = tourFor(first);
+    if (!lead) {
+      t.problem('bug', `no Tour for "${first}" in content/tours.json`);
+      t.finish('error');
+      return;
+    }
+    const order: { fighter: string; index: number; stage: string }[] = [];
+    const wanted = typeof this.options.stage === 'string' ? this.options.stage : null;
+    for (const tour of [lead, ...TOURS]) {
+      tour.fights.forEach((f, index) => {
+        if (!order.some((o) => o.stage === f.stage) && (!wanted || wanted === f.stage)) order.push({ fighter: tour.fighter, index, stage: f.stage });
+      });
+    }
+    const all = new Set(TOURS.flatMap((x) => x.fights.map((f) => f.stage)));
+    t.metric('tourStagesExpected', wanted ? 1 : all.size);
+    if (wanted && !all.has(wanted)) t.problem('bug', `stage "${wanted}" is in no Tour fight`);
+    if (!wanted && order.length !== all.size) t.problem('bug', `Tour order covers ${order.length} of ${all.size} stages`);
+    const errors: string[] = [];
+    const onError = (e: ErrorEvent) => errors.push(e.message || String(e.error));
+    const onReject = (e: PromiseRejectionEvent) => errors.push(`unhandled rejection: ${String((e.reason as Error)?.message ?? e.reason)}`);
+    const realError = console.error;
+    console.error = (...a: unknown[]) => {
+      errors.push(a.map((x) => (x instanceof Error ? x.message : String(x))).join(' '));
+      realError.apply(console, a as []);
+    };
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onReject);
+    let played = 0;
+    try {
+      for (const [n, o] of order.entries()) {
+        t.progress(n / Math.max(1, order.length));
+        const fight = tourFor(o.fighter)!.fights[o.index];
+        const label = `${o.stage} (${o.fighter} fight ${o.index + 1}, ${fight.twist})`;
+        errors.length = 0;
+        const before = this.game.match();
+        const ok = await this.game.tourFightAt(o.fighter, o.index);
+        if (!ok) {
+          t.problem('bug', `Tour stage ${label}: the game has no such fight`);
+          continue;
+        }
+        try {
+          await t.until(() => this.game.match() !== before && (sceneShowing() || this.game.phase() === 'play'), 60000, `${label} to open`);
+          if (sceneShowing()) await this.passTourScene();
+          await t.until(() => this.game.phase() === 'play', 60000, `${label} to start`);
+        } catch {
+          t.problem('bug', `Tour stage ${label} did not start within 60 s (screen ${currentScreen()}, phase ${this.game.phase()})`);
+          await this.game.quitMatch().catch(() => undefined);
+          await this.screen('main', 20000).catch(() => undefined);
+          continue;
+        }
+        const m = this.game.match()!;
+        const want = STAGES.findIndex((x) => x.id === o.stage);
+        const foes = m.setup.slots.filter((x) => x.team === 1).length;
+        if (m.setup.stage !== want || foes !== fight.foes.length) t.problem('bug', `Tour stage ${label} started on stage ${STAGES[m.setup.stage]?.id} with ${foes} foes`);
+        const f0 = m.state.frame;
+        await this.wait(4000);
+        const frames = m.state.frame - f0;
+        const stage = STAGES[want];
+        const lost = m.state.fighters.filter((x) => !Number.isFinite(x.x) || !Number.isFinite(x.y));
+        const out = m.state.fighters.filter((x) => x.stocks > 0 && (x.x / 1000 < stage.blast.left - 400 || x.x / 1000 > stage.blast.right + 400 || x.y / 1000 > stage.blast.top + 400 || x.y / 1000 < stage.blast.bottom - 400));
+        if (frames < 60) t.problem('bug', `Tour stage ${label}: the clock ran ${frames} frames in 4 s (stuck)`);
+        if (lost.length) t.problem('bug', `Tour stage ${label}: a fighter position is NaN`);
+        if (out.length) t.problem('bug', `Tour stage ${label}: a fighter is far outside the blast zone without a KO`);
+        if (errors.length) t.problem('bug', `Tour stage ${label}: console error: ${errors.slice(0, 3).join(' | ')}`);
+        if (!errors.length && frames >= 60 && !lost.length && !out.length) {
+          played++;
+          t.event('tour-stage', `${label}: started, ${frames} frames in 4 s, ${foes} foe(s), no console errors`);
+        }
+        await this.game.quitMatch();
+        await this.screen('main', 20000);
+      }
+    } finally {
+      console.error = realError;
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onReject);
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.metric('tourStagesPlayed', played);
+    if (played !== order.length) t.problem('bug', `only ${played} of ${order.length} Tour stages played cleanly`);
+    else t.event('tour-stages', `all ${played} Tour stages started and played: ${order.map((o) => o.stage).join(', ')}`);
     t.progress(1);
     t.finish('done');
   }
