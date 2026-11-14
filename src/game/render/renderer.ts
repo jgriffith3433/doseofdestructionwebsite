@@ -33,7 +33,7 @@ import { ACT, SHIELD_MAX, bodySize, type Fighter, type GameState } from '../sim/
 import { GRAB_FIRST, activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
 import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, coreFor, sparkSizeFor, tellAt, tellFrames, moveStartFrame, windupPose, isNormalMove, isSmashMove, isSpecialMove, type HitTier, type TrailKind } from '../hitFeel.ts';
 import { autoToastShown, graphics, markAutoToastShown, onGraphics, particleShare, pickedByHand, saveAutoLevel, savedAutoLevel, scalingLevel, type Graphics } from '../graphics.ts';
-import { AutoQuality, effectsFor, type AutoChange } from './autoQuality.ts';
+import { AutoQuality, effectsFor, type AutoChange, type AutoEffects } from './autoQuality.ts';
 import type { Placed } from './stageLive.ts';
 import { cameraFighters, followCamera, frameGoal, KO_TAIL_S, punchGoal, type CamBounds, type CamSample, type CamState } from './cameraRig.ts';
 import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
@@ -346,9 +346,14 @@ export class Renderer {
   private slowFullMs = 0;
   private placedLayers: Placed[] = [];
 
-  /** The level's effects, or none while the governor is off or the player chose by hand. */
-  private autoFx() {
-    return effectsFor(this.auto.enabled ? this.auto.level : 0);
+  /** The effects drawn right now: a step down lands one part per frame, so this trails `auto.level`'s full effects. */
+  private autoApplied: AutoEffects = effectsFor(this.auto.level);
+  /** Parts of the last step still to land, one per rendered frame. */
+  private autoQueue: { part: 'glow' | 'post' | 'parallax'; level: number }[] = [];
+
+  /** The effects drawn, or none while the governor is off or the player chose by hand. */
+  private autoFx(): AutoEffects {
+    return this.auto.enabled ? this.autoApplied : effectsFor(0);
   }
 
   /** What the settings alone would render and draw: the base the governor steps down from. */
@@ -377,6 +382,15 @@ export class Renderer {
 
   /** The governor's changes only land through here: render scale, glow, post, parallax, the note, the saved level. */
   private onAutoChange(c: AutoChange): void {
+    // A step is never taken in one frame: the render scale (a new framebuffer) lands now, glow, post and parallax on the
+    // frames after it, one per frame (autoStepParts).
+    const to = effectsFor(c.to);
+    const was = this.autoApplied;
+    this.autoQueue = [];
+    this.autoApplied = { ...was, scaleMax: to.scaleMax };
+    if (was.glowOff !== to.glowOff) this.autoQueue.push({ part: 'glow', level: c.to });
+    if (was.postLow !== to.postLow) this.autoQueue.push({ part: 'post', level: c.to });
+    if (was.hideParallax !== to.hideParallax) this.autoQueue.push({ part: 'parallax', level: c.to });
     this.applyGraphics(this.gfx);
     saveAutoLevel(this.auto.level);
     window.dispatchEvent(new CustomEvent('dod:auto-quality', { detail: { ...c, level: this.auto.level, scale: Number((1 / this.engine.getHardwareScalingLevel()).toFixed(3)) } }));
@@ -407,6 +421,8 @@ export class Renderer {
     if (opts.slowMs !== undefined) this.slowFullMs = opts.slowMs;
     if (opts.reset) {
       this.auto = new AutoQuality(0);
+      this.autoApplied = effectsFor(0);
+      this.autoQueue = [];
       saveAutoLevel(0);
     }
     this.applyGraphics(this.gfx);
@@ -441,8 +457,23 @@ export class Renderer {
     while (performance.now() < until) { /* a slow device is busy, not idle */ }
   }
 
+  /** Lands the next part of a step down (one per rendered frame, so no frame carries glow, post and parallax together). */
+  private autoStepParts(state: GameState): void {
+    // Like the decision itself, never during a hit-stop or punch frame: the rest of the step waits for a calm frame.
+    if (!this.autoQueue.length || this.post.punching() || state.fighters.some((f) => f.hitlag > 0)) return;
+    const q = this.autoQueue.shift();
+    if (!q) return;
+    const to = effectsFor(q.level);
+    if (q.part === 'glow') this.autoApplied = { ...this.autoApplied, glowOff: to.glowOff };
+    else if (q.part === 'post') this.autoApplied = { ...this.autoApplied, postLow: to.postLow };
+    else this.autoApplied = { ...this.autoApplied, hideParallax: to.hideParallax };
+    this.applyGraphics(this.gfx);
+    window.dispatchEvent(new CustomEvent('dod:auto-quality-part', { detail: { part: q.part, level: q.level, left: this.autoQueue.length } }));
+  }
+
   /** One rendered frame of play for the governor: only advancing sim frames, never the intro, never a hit-stop or punch frame. */
   private autoTick(state: GameState): void {
+    this.autoStepParts(state);
     const advancing = state.frame !== this.autoLastFrame;
     this.autoLastFrame = state.frame;
     if (!this.auto.enabled || !this.presenting || this.intro || !advancing) return;

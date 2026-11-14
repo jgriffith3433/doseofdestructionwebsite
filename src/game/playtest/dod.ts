@@ -1242,15 +1242,53 @@ class Run {
     return () => { stop = true; };
   }
 
+  /**
+   * `feel.autoQualityStepMs`: the longest frame within 3 frames either side of every auto-quality step (the decision's
+   * `dod:auto-quality` and each part that lands after it, `dod:auto-quality-part`), so the playtest confirms or clears the
+   * governor as the cause of a hitch. A step frame over 100 ms is a bug.
+   */
+  private watchAutoStep(): () => void {
+    const t = this.t;
+    const dts: number[] = [];
+    const marks: { at: number; what: string }[] = [];
+    let last = 0;
+    let on = true;
+    const tick = (now: number) => {
+      if (!on) return;
+      if (last) dts.push(now - last);
+      last = now;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    const mark = (e: Event) => marks.push({ at: dts.length, what: e.type === 'dod:auto-quality' ? 'step' : `part ${(e as CustomEvent).detail?.part}` });
+    window.addEventListener('dod:auto-quality', mark);
+    window.addEventListener('dod:auto-quality-part', mark);
+    return () => {
+      on = false;
+      window.removeEventListener('dod:auto-quality', mark);
+      window.removeEventListener('dod:auto-quality-part', mark);
+      let worst = 0;
+      for (const m of marks) {
+        const w = Math.max(0, ...dts.slice(Math.max(0, m.at - 3), m.at + 4));
+        worst = Math.max(worst, w);
+        t.event('auto-quality-step', `${m.what}: longest frame within 3 frames ${Math.round(w)} ms`);
+      }
+      t.metric('feel.autoQualityStepMs', Math.round(worst));
+      if (worst > 100) t.problem('bug', `a frame next to an auto-quality step took ${Math.round(worst)} ms (want 100 or less)`);
+    };
+  }
+
   async smoke(): Promise<void> {
     const t = this.t;
     const stopWatch = this.watchWipe();
     const stopBlank = this.watchBlank();
     this.vsHoldWanted = true;
     const stopStinger = this.watchStingers();
+    const stopAutoStep = this.watchAutoStep();
     try {
       await this.smokeRun();
     } finally {
+      stopAutoStep();
       stopStinger();
       stopBlank();
       stopWatch();

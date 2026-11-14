@@ -159,9 +159,8 @@ export class AutoQuality {
     this.okFps = [];
     this.settled = false;
     if (this.playMs > DECIDE_MS) return null;
-    let to = nextLevel(this.level, 1, base);
-    // Far over budget (under ~22 fps): one more step at once, so a very slow device settles inside a few seconds.
-    if (med > 45 && to !== this.level) to = nextLevel(to, 1, base);
+    // One level per decision, however slow: the renderer spreads a step over frames, and the next window decides again.
+    const to = nextLevel(this.level, 1, base);
     if (to === this.level) return null;
     if (this.trialUp) {
       this.upBlocked = true;

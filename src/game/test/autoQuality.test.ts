@@ -49,12 +49,12 @@ ok(signature(1, { scale: 0.6, glow: false, quality: 'low' }) === signature(0, { 
   ok(a.changes.every((c) => c.dir === 'down'), 'only steps down while measuring');
 }
 
-// A very slow device (60 ms) takes a double step.
+// A very slow device (60 ms) still takes one level per decision, never two in one frame.
 {
   const a = new AutoQuality();
   a.beginMatch(desktop);
-  play(a, desktop, 1000, () => 60);
-  ok(a.changes[0] && a.changes[0].to - a.changes[0].from === 2, 'far over budget takes two steps at once');
+  play(a, desktop, 4000, () => 60);
+  ok(a.changes.length >= 2 && a.changes.every((c) => c.to - c.from === 1 || nextLevel(c.from, 1, desktop) === c.to), 'far over budget still steps one level at a time');
 }
 
 // A fast device stays at level 0 and nothing changes.
