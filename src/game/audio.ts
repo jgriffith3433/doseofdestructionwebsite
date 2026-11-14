@@ -776,6 +776,8 @@ class AudioSystem {
     }
     this.gains.set(src, g);
     src.start();
+    // The probe reads a music-bus source's start as the bus gain; say where the bus really is (ducked or not) right after.
+    if (busName === 'music') this.announceMusicGain();
     return src;
   }
 
@@ -1187,6 +1189,8 @@ class AudioSystem {
         this.duckForVoice(t.end - t.start);
         if (this.duckDepth === 0) this.unducked++;
         const src = this.startBuf(ref.buf, this.buses!.voice, 1, 1, false, ref.at);
+        // The duck is down before the voice starts; tell the probe again so it pairs the voice with the ducked music.
+        this.announceMusicGain();
         this.onAirSrc.set(t, src);
         if (t.kind === 'ko' || t.kind === 'taunt' || t.kind === 'hurt' || t.kind === 'effort') this.emitFighterVoice(t.speaker, t.kind, t.id, ref.text ?? '', ref.url, t.start);
         ref.resolve(t.end - t.start);
