@@ -21,7 +21,7 @@ export const CALL_KINDS: readonly CallKind[] = [
 ];
 
 export interface Call {
-  kind: CallKind | 'intro';
+  kind: CallKind | 'intro' | 'sudden-death';
   /** The voice-catalog id: play it with audio.line. */
   id: string;
   who: 'announcer' | 'blog-man';
@@ -55,6 +55,12 @@ const PRIORITY: Record<CallKind, number> = {
   'first-blood': 2, ko: 2, comeback: 2, 'self-destruct': 2, showdown: 2, 'last-stock': 1, 'big-hit': 0, combo: 1,
   danger: 0, 'shield-break': 0, hazard: 0, 'stage-event': 1, 'time-low': 1, lull: 0,
 };
+
+/** The announcer's call when a dead-even time-out goes to sudden death (content/voice.json `announcer.sudden-death`; a caption until its take is recorded). */
+export function suddenDeathCall(): Call {
+  const l = VOICE.lines.find((x) => x.id === 'announcer.sudden-death');
+  return { kind: 'sudden-death', id: 'announcer.sudden-death', who: 'announcer', text: l?.text ?? 'Sudden death! First hit wins!' };
+}
 
 /** Blog Man's line for an episode (every chapter has one in content/voice.json). */
 export function introCall(chapterId: string): Call | null {

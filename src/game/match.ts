@@ -137,7 +137,7 @@ export class Match {
         startPercent: s.startPercent,
         stocks: training ? 99 : s.stocks,
       })),
-      { stocks: setup.stocks, seed, stage: setup.stage, rules: setup.rules, broadcast: setup.events },
+      { stocks: setup.stocks, seed, stage: setup.stage, rules: setup.objective && setup.objective !== 'win' ? { ...setup.rules, suddenDeath: 0 } : setup.rules, broadcast: setup.events },
     );
     this.recorder = setup.mode === 'campaign' ? new HighlightRecorder() : null;
     this.bots = setup.slots.map((s, i) => (s.cpu ? new Bot(i, s.cpu, seed + i * 7919, s.pilot) : null));

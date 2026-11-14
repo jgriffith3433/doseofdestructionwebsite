@@ -233,14 +233,89 @@ export const isSmashMove = (move: number): boolean => move >= 4 && move <= 6;
 export const isSpecialMove = (move: number): boolean => move >= 12;
 export const isNormalMove = (move: number): boolean => move <= 3 || (move >= 7 && move <= 11);
 
-/** How many frames the startup tell lasts before the first active frame (2 to 4, never more than the startup itself). */
-export const tellFrames = (start: number): number => Math.max(0, Math.min(start, 4, Math.max(2, start >> 1)));
+/** The first active frame of a move: its first hitbox window, its projectile/trap release frame, or its counter window start. */
+export const moveStartFrame = (m: { hits: readonly { start: number }[]; shot?: { frame: number }; counter?: { from: number } }): number =>
+  m.hits[0]?.start ?? m.shot?.frame ?? m.counter?.from ?? 0;
 
-/** 0..1 strength of the tell on `frame` of a move whose first active frame is `start` (0 outside the tell window): it ramps up to the swing. */
+/** The last active frame of a move: its last hitbox window, its shot release frame, or its counter window end. */
+export const moveEndFrame = (m: { hits: readonly { end: number }[]; shot?: { frame: number }; counter?: { to: number } }): number =>
+  m.hits.length ? m.hits[m.hits.length - 1].end : m.shot?.frame ?? m.counter?.to ?? 0;
+
+/** How many frames the startup wind-up tell lasts before the first active frame (the full startup window `0 .. start - 1`). */
+export const tellFrames = (start: number): number => Math.max(0, start);
+
+/** 0..1 strength of the wind-up tell on `frame` of a move whose first active frame is `start` (0 outside `0 <= frame < start`): ramps up to the swing. */
 export const tellAt = (frame: number, start: number): number => {
   const n = tellFrames(start);
-  const i = frame - (start - n);
-  return n > 0 && i >= 0 && frame < start ? (i + 1) / n : 0;
+  if (n <= 0 || frame < 0 || frame >= start) return 0;
+  return Math.max(0.35, (frame + 1) / n);
+};
+
+/** Whether a fighter is currently in the visible wind-up tell of a smash or special (`ACT.ATTACK = 5`). */
+export const inWindupTell = (action: number, move: number, frame: number, start: number): boolean =>
+  action === 5 && (isSmashMove(move) || isSpecialMove(move)) && tellAt(frame, start) > 0;
+
+export interface WindupPose {
+  /** Horizontal and vertical scale multipliers for the wind-up coil (1 = neutral). */
+  sx: number;
+  sy: number;
+  /** Lean/coil angle in radians (signed by facing). */
+  rot: number;
+  /** World-space horizontal and vertical shift in scene units for the wind-up pullback and charge tremor. */
+  dx: number;
+  dy: number;
+  /** Emissive flash multiplier (> 1 during the wind-up tell). */
+  flash: number;
+}
+
+/**
+ * The visible wind-up tell (both a flash and a coiled pose change) for every smash and special during `0 <= frame < start`,
+ * followed by a forward release snap on the first two active frames (`start .. start + 1`).
+ */
+export const windupPose = (frame: number, start: number, move: number, facing = 1): WindupPose => {
+  if (!(isSmashMove(move) || isSpecialMove(move)) || start <= 0) {
+    return { sx: 1, sy: 1, rot: 0, dx: 0, dy: 0, flash: 1 };
+  }
+  const dir = facing >= 0 ? 1 : -1;
+  const t = tellAt(frame, start);
+  if (t > 0) {
+    const tremor = (frame & 1 ? 1 : -1) * 0.014 * t;
+    // Up smash (5) and Up special (12) crouch deep before springing up.
+    if (move === 5 || move === 12) {
+      return {
+        sx: 1 + 0.16 * t,
+        sy: 1 - 0.15 * t,
+        rot: -dir * 0.12 * t,
+        dx: -dir * 0.025 * t + tremor,
+        dy: -0.02 * t,
+        flash: 1 + 0.95 * t,
+      };
+    }
+    // Down smash (6) and Down special (15) rear back and gather before slamming down.
+    if (move === 6 || move === 15) {
+      return {
+        sx: 1 - 0.11 * t,
+        sy: 1 + 0.14 * t,
+        rot: -dir * 0.15 * t,
+        dx: -dir * 0.04 * t + tremor,
+        dy: 0.02 * t,
+        flash: 1 + 0.95 * t,
+      };
+    }
+    // Forward smash (4), Neutral special (13) and Side special (14) coil and lean back away from the target.
+    return {
+      sx: 1 + 0.14 * t,
+      sy: 1 - 0.12 * t,
+      rot: -dir * 0.18 * t,
+      dx: -dir * 0.055 * t + tremor,
+      dy: -0.015 * t,
+      flash: 1 + 0.95 * t,
+    };
+  }
+  if (frame >= start && frame < start + 2) {
+    return { sx: 0.92, sy: 1.09, rot: dir * 0.1, dx: dir * 0.035, dy: 0, flash: 1 };
+  }
+  return { sx: 1, sy: 1, rot: 0, dx: 0, dy: 0, flash: 1 };
 };
 
 export interface ContactCore {

@@ -345,11 +345,12 @@
     {
       "id": "online",
       "title": "Two players online (peers: 2): the lobby with no clicks, a profile change seen by the other, Find match, CPU while searching, Match found, the online fight to its end, results, both rating changes and the Leaderboard",
-      "description": "Needs Hawkes Gen playtest.run with peers: 2 (the two tabs share ?room=<id>, a private test lobby, and get ?peer=0/1). Both land in the lobby and see \"2 online\"; peer 1 renames itself in Profile and peer 0 sees the new name; peer 0 presses Find match and plays a CPU versus match while it searches; peer 1 presses Find match 30 s later; both see \"Match found vs <name> · Starting in N\", fight each other (the CPU bot on each pad; test lobbies play 1 stock, 90 s) with the names on the HUD, and see the result with Queue again; then each sees its rating change on the result (+16 / −16 for a first match) and opens Leaderboard, where both players are listed with the same ranks and ratings (the test lobby has its own table), and the other player's own result arrives over the relays.",
+      "description": "Needs Hawkes Gen playtest.run with peers: 2 (the two tabs share ?room=<id>, a private test lobby, and get ?peer=0/1). Both land in the lobby and see \"2 online\"; peer 1 renames itself in Profile and peer 0 sees the new name; peer 0 presses Find match and plays a CPU versus match while it searches; peer 1 presses Find match 30 s later; both see \"Match found vs <name> · Starting in N\", fight each other (the CPU bot on each pad; test lobbies play 1 stock, 90 s) with the names on the HUD, and see the result with Queue again; the result shows the opponent card (name, fighter, connection), the plain ending line and the rating counting to its final value with the place on the board (`results-opponent`, `rating-count`, `online-results-fit`: on a 390x844 touch phone the card and buttons fit with no scrolling and no text under 14 px); then each sees its rating change on the result (+16 / −16 for a first match) and opens Leaderboard, where both players are listed with the same ranks and ratings (the test lobby has its own table), and the other player's own result arrives over the relays.",
       "seconds": 420,
       "tags": [
         "full",
-        "online"
+        "online",
+        "touch"
       ]
     },
     {
@@ -409,6 +410,16 @@
       "description": "Option fighter (default exit-punk). Main menu → Tour (tour-select: every fighter's tile, none cleared on a fresh save, no sideways scroll, 44 px targets and no overlap on a phone; metric tourSelectFits). Setup shortcut: the Continue or Quit panel is shown without losing a fight so a portrait phone can measure it (tour-choice-fit; metric tourChoiceFits). Picks the fighter's tile and plays fights 1 and 2 with the bot on the pad: each opens in the arena with the fight's card and the foe's recorded line (tour-scene) and checks the twist, stage and CPU level from content/tours.json (tour-fight), the CPU never easier. Setup shortcut: after fight 2 the run jumps to the last fight, the rival; the player stands still until knocked out (tour-lost: Continue or Quit, both ≥44 px and on screen), Continue replays that fight (tour-continue), then the bot wins. The ending plays the fighter's own recorded win line over the final KO under the closing card \"<Fighter> clears the Tour\" (tour-ending), the results show the banner and the KO highlights (tour-cleared; metric tourCleared), the Tour select marks the Tour cleared (tour-marked), and after a page reload the mark is still there (tour-mark-after-reload; metric tourMarkedAfterReload). On a portrait phone it checks the select and the panel in the portrait window and plays in the turned 844x390 frame, all by taps. The player's own dod-tours is put back.",
       "starts": [],
       "seconds": 540,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
+      "id": "sudden-death",
+      "title": "Sudden death: a dead-even time-out respawns both at 300%, the slam and announcer call it, the zone closes, first KO wins inside 30 s (phone: slam fits, touch live)",
+      "description": "Setup shortcut: a versus match, two idle fighters (2 stocks, 0% each) on a 10 s clock, so stocks and percent are exactly level at time-out. Checks it goes to sudden death instead of naming a winner (sudden-start), the SUDDEN DEATH slam card inside the screen (sudden-slam, sudden-slam-fit), the announcer call (sudden-call), both at 300% with one stock (sudden-percent); then the bot plays and the bout ends on a KO within 30 s, not as a time-out (sudden-end, metric suddenSeconds). On a 390x844 phone it turns to 844x390 and presses the touch stick and Attack with pointer events during sudden death (sudden-touch).",
+      "seconds": 150,
       "tags": [
         "full",
         "touch"

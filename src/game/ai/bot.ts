@@ -8,6 +8,7 @@ import { CHARACTERS, MOVE, type SpecialKind } from '../sim/characters.ts';
 import { BTN, packInput } from '../sim/input.ts';
 import { STAGES, ledges, platformOn, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, allies, type Fighter, type GameState } from '../sim/state.ts';
+import { inWindupTell, isSmashMove, isSpecialMove, moveEndFrame, moveStartFrame } from '../hitFeel.ts';
 
 interface Step {
   sx: number;
@@ -48,6 +49,14 @@ export class Bot {
     if (next) {
       if (--next.frames <= 0) this.queue.shift();
       return packInput(next.sx, next.sy, next.btn);
+    }
+    if (!this.pilot && this.level >= 8 && this.wait > 0) {
+      const me = s.fighters[this.id];
+      const ready = me.action === ACT.IDLE || me.action === ACT.WALK || me.action === ACT.CROUCH || me.action === ACT.AIR;
+      if (ready) {
+        const t = this.pickTarget(s, me);
+        if (t && this.windupThreat(me, t)) this.wait = 0;
+      }
     }
     if (--this.wait > 0) return packInput(this.hold.sx, this.hold.sy, 0);
     this.wait = this.reaction();
@@ -318,6 +327,23 @@ export class Bot {
     }
   }
 
+  /** True when `t` is in the startup wind-up tell of a smash or special that threatens `me`. */
+  private windupThreat(me: Fighter, t: Fighter): boolean {
+    if (t.action !== ACT.ATTACK || (!isSmashMove(t.move) && !isSpecialMove(t.move))) return false;
+    const tm = CHARACTERS[t.char].moves[t.move];
+    const start = moveStartFrame(tm);
+    if (!inWindupTell(t.action, t.move, t.frame, start)) return false;
+    const dx = (t.x - me.x) / FX;
+    const dy = (t.y - me.y) / FX;
+    const adx = Math.abs(dx);
+    const ch = CHARACTERS[t.char];
+    const reach = (50 + ch.width * 0.5 + (ch.height - 110) * 0.4) * ch.tuning.reach * (t.scale / 100);
+    if (tm.shot?.kind === 0) {
+      return t.facing === Math.sign(me.x - t.x) && adx < 540 && Math.abs(dy) < 90;
+    }
+    return adx < reach + (tm.kind === 'dash' ? 220 : 120) && Math.abs(dy) < 110;
+  }
+
   private fight(me: Fighter, t: Fighter): void {
     if (this.pilot && this.state) return this.pilotFight(me, t, this.state);
     const ch = CHARACTERS[me.char];
@@ -336,6 +362,29 @@ export class Bot {
     const towardEdge = side > 0 ? h.x2 - mx : mx - h.x1;
     const nearEdge = towardEdge < 50;
 
+    // Read an opponent's special or smash wind-up tell and dodge (or counter) before the active frame comes out.
+    if (this.level >= 8 && this.windupThreat(me, t)) {
+      const tm = CHARACTERS[t.char].moves[t.move];
+      if (me.grounded) {
+        if (tm.kind !== 'grab' && me.facing === Math.sign(dx) && this.special(me, 'counter', side, 0.35)) return;
+        if (tm.kind === 'grab' || this.random() < 0.72) {
+          const backEdge = side > 0 ? mx - h.x1 < 60 : h.x2 - mx < 60;
+          if (!backEdge && this.random() < 0.6) {
+            this.queue.push({ sx: 0, sy: 0, btn: BTN.SHIELD, frames: 1 }, { sx: -side, sy: 0, btn: BTN.SHIELD, frames: 2 });
+          } else {
+            this.queue.push({ sx: 0, sy: 0, btn: BTN.SHIELD, frames: 1 }, { sx: 0, sy: -100, btn: BTN.SHIELD, frames: 2 });
+          }
+        } else {
+          this.press(0, 0, BTN.SHIELD, 8 + Math.floor(this.random() * 6));
+        }
+        return;
+      }
+      if (me.action === ACT.AIR) {
+        this.press(-side, 20, BTN.SHIELD, 2);
+        return;
+      }
+    }
+
     // Defend against an attack that is about to come out.
     const threat = t.action === ACT.ATTACK && adx < reach + 60 && Math.abs(dy) < 90;
     // The opponent commits to a swing: a counter special turns it back on them.
@@ -351,8 +400,10 @@ export class Bot {
     }
     if (me.action === ACT.SHIELD) return;
 
-    // Punish a target that just finished swinging or is stuck landing.
-    const open = t.action === ACT.LAND || t.action === ACT.DIZZY || t.action === ACT.HELPLESS;
+    // Punish a target that just finished swinging (especially a whiffed special or smash) or is stuck landing.
+    const tm = t.action === ACT.ATTACK ? CHARACTERS[t.char].moves[t.move] : null;
+    const whiffEndlag = tm !== null && (isSmashMove(t.move) || isSpecialMove(t.move)) && t.frame > moveEndFrame(tm);
+    const open = t.action === ACT.LAND || t.action === ACT.DIZZY || t.action === ACT.HELPLESS || whiffEndlag;
     const killPercent = 900 - this.level * 30;
     const targetHome = this.home(t.x / FX);
 

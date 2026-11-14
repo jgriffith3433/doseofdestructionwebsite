@@ -47,7 +47,7 @@ import { VoiceWatch } from './voiceWatch.ts';
 import { walkMenus, type Mode } from './menuWalk.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
 import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
-import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
+import { SHAKE_STORAGE_KEY, screenShake, hitTier, inWindupTell, isSmashMove, isSpecialMove, moveStartFrame, tellFrames, windupPose, type HitTier } from '../hitFeel.ts';
 import { clipFrame, feetLift, loadAnimSet, pickClip, type AnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import { BUFFER_FRAMES, COYOTE_FRAMES, type SimEvent } from '../sim/step.ts';
@@ -193,6 +193,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'endings') await r.endingsScenario();
         else if (id === 'opening') await r.openingScenario();
         else if (id === 'ko-objective') await r.koObjective();
+        else if (id === 'sudden-death') await r.suddenDeath();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'finale-hijack') await r.finaleHijack();
@@ -297,6 +298,17 @@ class Run {
     // Every analytics event of the run stays on hawkesAnalytics.debugLog (analytics.ts), so it can be shown going out.
     analyticsDebug();
     this.unwatch = game.watch((m, ev) => this.onTick(m, ev));
+    // The show's reaction to the first KO (main.ts airFlash): the ON AIR flash must be on screen, inside the window, and never a tap target.
+    window.addEventListener('dod:air-flash', () => {
+      const el = document.querySelector('.air-flash');
+      if (!el) return t.problem('bug', 'the first-KO ON AIR flash fired but no .air-flash element is on screen');
+      const r = el.getBoundingClientRect();
+      const inside = r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
+      t.event('air-flash', `First blood: ON AIR flash shown at ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)} in ${innerWidth}x${innerHeight}`);
+      if (!inside) t.problem('bug', 'the ON AIR first-blood flash runs off the screen');
+      if (getComputedStyle(el).pointerEvents !== 'none') t.problem('bug', 'the ON AIR flash would block touches');
+      if (document.documentElement.scrollWidth > innerWidth + 1) t.problem('bug', 'the ON AIR flash caused sideways scrolling');
+    });
     this.poll = window.setInterval(() => this.onPoll(), 250);
     void this.checkSounds();
   }
@@ -2724,6 +2736,43 @@ class Run {
 
   // ---------------------------------------------------------- online
 
+  private ratingCounts: { from: number; to: number; delta: number; steps: number }[] = [];
+
+  /** Criteria 1, 2 and 4 of the online results: the count-up, the opponent's name and fighter, and the fit with text of 14 px or more. */
+  private onlineResultsChecks(opp: string, won: boolean, ratingText: string): void {
+    const t = this.t;
+    const card = this.q('#results-opponent');
+    const cardText = card?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+    if (!card || !cardText.includes(opp)) t.problem('bug', `the opponent's name (${opp}) isn't on the online results: "${cardText}"`);
+    else t.event('results-opponent', cardText);
+    const fighterName = this.q('#results-opponent .online-fighter')?.textContent ?? '';
+    if (!fighterName) t.problem('bug', "the opponent's fighter isn't on the online results");
+    const link = this.q('#results-opponent .online-link')?.textContent ?? '';
+    if (!/ms|Direct|Relay|Signal/.test(link)) t.problem('bug', `the opponent card has no connection: "${link}"`);
+    const count = this.ratingCounts[this.ratingCounts.length - 1];
+    if (!count) t.problem('bug', 'the rating change did not count up (no dod:rating-count)');
+    else {
+      t.event('rating-count', `${count.from} -> ${count.to} (${count.delta >= 0 ? '+' : ''}${count.delta}) in ${count.steps} frames`);
+      if (count.steps < 3 && !matchMedia('(prefers-reduced-motion: reduce)').matches) t.problem('bug', `the rating jumped in ${count.steps} frame(s) instead of counting`);
+    }
+    if (!/#\d+ on the board/.test(ratingText)) t.problem('bug', `the results don't show the place on the board: "${ratingText}"`);
+    void won;
+    // Fit: the actions are on screen with no scrolling, the card is above them, and no text is under 14 px.
+    const actions = this.q('#results-actions')?.getBoundingClientRect();
+    const cardBox = card?.getBoundingClientRect();
+    const small: string[] = [];
+    for (const el of card?.querySelectorAll<HTMLElement>('*') ?? []) {
+      if (!el.childNodes.length || ![...el.childNodes].some((n) => n.nodeType === 3 && (n.textContent ?? '').trim())) continue;
+      const px = parseFloat(getComputedStyle(el).fontSize);
+      if (px < 14) small.push(`${el.className || el.tagName} ${px}px`);
+    }
+    if (small.length) t.problem('bug', `text under 14 px on the online results: ${small.join(', ')}`);
+    const fits = !!actions && !!cardBox && actions.bottom <= innerHeight + 1 && cardBox.bottom <= actions.top + 1 && cardBox.right <= innerWidth + 1 && cardBox.left >= -1;
+    const portrait = innerHeight > innerWidth;
+    if (portrait && !fits) t.problem('bug', `on a ${innerWidth}x${innerHeight} phone the opponent card and rating don't fit above the buttons (card bottom ${Math.round(cardBox?.bottom ?? -1)}, buttons ${Math.round(actions?.top ?? -1)}-${Math.round(actions?.bottom ?? -1)})`);
+    t.event('online-results-fit', `${innerWidth}x${innerHeight}: ${fits ? 'fits' : 'does not fit'}, smallest text ${small.length ? 'under 14 px' : '14 px or more'}`);
+  }
+
   /**
    * Reconnecting (docs/online.md): peer 1's connection is cut for 3 s mid-fight. Both pages pause with "Reconnecting…" and
    * a countdown (the banner clear of every touch control), the same player is heard again and play resumes with the same
@@ -2805,11 +2854,14 @@ class Run {
       t.event('disconnect-result', `${headline}: ${note}`);
       if (!/Connection lost/.test(headline)) t.problem('bug', `a drop past the window ended "${headline}", not as a disconnect`);
       if (/left the match|You left/i.test(`${headline} ${note}`)) t.problem('bug', 'a disconnect was shown as a forfeit');
+      if (!/(You|\S+) dropped/.test(note) || !/Not rated as a quit/.test(note)) t.problem('bug', `a disconnect result must say who dropped and that it was not rated as a quit: "${note}"`);
+      else t.event('disconnect-who', note);
+      const oppCard = this.q('#results-opponent')?.textContent ?? '';
+      if (!oppCard.includes(opp)) t.problem('bug', `the disconnect result doesn't name the opponent (${opp}): "${oppCard}"`);
       await t.wait(1500);
       const state = this.q('#results-rating')?.dataset.state ?? '';
       t.event('disconnect-unrated', `rating state "${state}"; ${/confirmed/.test(state) ? 'RATED' : 'not rated'}`);
       if (/confirmed/.test(state)) t.problem('bug', 'a disconnect changed the rating');
-      void opp;
     } finally {
       window.clearInterval(watch);
     }
@@ -3069,6 +3121,7 @@ class Run {
       lastStats = net.fightStats() ?? lastStats;
     }, 400);
     this.progressNow = () => 0.45 + 0.45 * Math.min(1, (this.game.match()?.state.frame ?? 0) / Math.max(1, m.state.rules.timeLimit || 5400));
+    window.addEventListener('dod:rating-count', (e) => this.ratingCounts.push((e as CustomEvent).detail));
     await t.until(() => currentScreen() === 'results', 5 * 60 * 1000, 'the online match to end');
     window.clearInterval(statsWatch);
     if (lastStats) {
@@ -3094,8 +3147,11 @@ class Run {
     // 7. The rating change on the result: both signatures in, "+16" / "−16" for two new players.
     const rating = () => this.q('#results-rating');
     await t.until(() => /confirmed|expected|void|same/.test(rating()?.dataset.state ?? ''), 20000, 'the rating change on the result');
+    // The number counts to its final value (dod:rating-count fires when it lands), and the card names the opponent.
+    await t.until(() => rating()?.dataset.counted === '1', 8000, 'the rating change to finish counting');
     const ratingText = rating()?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
     t.event('rating-change', ratingText);
+    this.onlineResultsChecks(opp, won, ratingText);
     if (rating()?.dataset.state !== 'confirmed') t.problem('bug', `the rating change isn't confirmed by both players: "${ratingText}"`);
     const delta = Number(/([+\u2212])(\d+)/.exec(ratingText)?.slice(1).join('').replace('\u2212', '-') ?? NaN);
     if (!Number.isFinite(delta) || (won ? delta <= 0 : delta >= 0)) t.problem('bug', `the rating change "${ratingText}" doesn't fit "${headline}"`);
@@ -3799,6 +3855,113 @@ class Run {
       await this.wait(150);
     }
     return { card, lines };
+  }
+
+  /**
+   * Sudden death (sim/step.ts startSuddenDeath, main.ts suddenDeathMoment): a setup shortcut puts two idle fighters into a
+   * versus match with a 10 s clock (nobody touches anything, so stocks and percent are exactly level at time-out). It must
+   * go to sudden death instead of naming a winner (`sudden-start`), with the slam card up and inside the screen
+   * (`sudden-slam`, `sudden-slam-fit`), the announcer's call (`sudden-call`), both fighters at 300% (`sudden-percent`);
+   * then the bot plays and the bout must end on a KO inside 30 s (`sudden-end`, metric `suddenSeconds`), not as a time-out.
+   * On a phone (390x844 turned to 844x390) the touch stick and Attack button are pressed with pointer events during it and
+   * the input layer must read them (`sudden-touch`).
+   */
+  async suddenDeath(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('sudden-death');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) forceTouchUi(true);
+    const slams: { text: string; at: number }[] = [];
+    const onSlam = (e: Event) => slams.push({ text: (e as CustomEvent).detail.text, at: performance.now() });
+    let called = false;
+    const onSudden = () => { called = true; };
+    window.addEventListener('dod:slam', onSlam);
+    window.addEventListener('dod:sudden-death', onSudden);
+    try {
+      const id = (list: { id: string }[], want: string) => Math.max(0, list.findIndex((x) => x.id === want));
+      void this.game.startMatch({
+        mode: 'versus', stage: id(STAGES, 'yo-house'), stocks: 2, rules: { timeLimit: 10 * 60, hazards: 0 },
+        slots: [{ char: id(CHARACTERS, 'exit-punk'), cpu: null, team: 0, stocks: 2 }, { char: id(CHARACTERS, 'break'), cpu: null, team: 1, stocks: 2 }],
+      });
+      await this.matchLive();
+      const m = this.game.match()!;
+      this.manual = NO_INPUT;
+      t.event('sudden-setup', 'two idle fighters, 2 stocks each, 0% each, 10 s clock: an exact tie at time-out');
+      await t.until(() => m.state.sudden > 0 || m.state.over === 1, 60000, 'the time-out');
+      if (m.state.over || m.state.timedOut) {
+        t.problem('bug', `an exact tie at time-out ended the match (winner P${m.state.winner + 1}, timedOut ${m.state.timedOut}) instead of going to sudden death`);
+        return t.finish('done');
+      }
+      const at = m.state.frame;
+      t.event('sudden-start', `time-out at ${Math.round(at / 60)} s with stocks ${m.state.fighters.map((f) => f.stocks).join('/')} level: sudden death, no winner named`);
+      await t.until(() => !!document.querySelector('.slam.sudden') || slams.some((s) => /sudden/i.test(s.text)), 4000, 'the sudden death slam');
+      const slam = document.querySelector<HTMLElement>('.slam.sudden');
+      if (!slam) t.problem('bug', 'no sudden death slam card was shown');
+      else {
+        await t.wait(300);
+        const r = slam.getBoundingClientRect();
+        const fits = r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight && r.width > 0;
+        t.event('sudden-slam', `"${slam.textContent}" ${Math.round(r.width)}x${Math.round(r.height)} at ${Math.round(r.left)},${Math.round(r.top)} in ${innerWidth}x${innerHeight}`);
+        if (!fits) t.problem('bug', `the sudden death slam doesn't fit the screen (${Math.round(r.left)},${Math.round(r.top)} to ${Math.round(r.right)},${Math.round(r.bottom)} in ${innerWidth}x${innerHeight})`);
+        else t.event('sudden-slam-fit', `inside the ${innerWidth}x${innerHeight} window`);
+      }
+      await t.until(() => called, 2000, 'the sudden death call').catch(() => undefined);
+      await t.until(() => !!document.querySelector('.booth[data-call="sudden-death"]'), 3000, 'the announcer caption').catch(() => undefined);
+      const caption = document.querySelector('.booth[data-call="sudden-death"] .booth-text')?.textContent ?? '';
+      if (!called || !document.querySelector('.booth[data-call="sudden-death"]')) t.problem('bug', 'the announcer did not call sudden death');
+      else t.event('sudden-call', `Announcer: "${caption}"`);
+      const pct = m.state.fighters.map((f) => Math.round(f.percent / 10));
+      if (pct.every((p) => p === 300) || m.state.fighters.every((f) => f.percent >= 3000)) t.event('sudden-percent', `both fighters at ${pct.join('% and ')}%, one stock each`);
+      else t.problem('bug', `sudden death should start both fighters at 300% (got ${pct.join('%, ')}%)`);
+      if (m.state.fighters.some((f) => f.stocks !== 1)) t.problem('bug', 'sudden death fighters should have one stock each');
+      if (touch) {
+        // The touch controls stay live: a finger on the stick and on Attack must reach the input layer.
+        const root = touchOverlay();
+        const fire = (el: Element, type: string, x: number, y: number) =>
+          el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: 88, isPrimary: true, bubbles: true, cancelable: true, clientX: x, clientY: y, buttons: type === 'pointerup' ? 0 : 1 }));
+        const btn = root?.querySelector('.touch-btn.attack');
+        const stick = root?.querySelector('.touch-stick');
+        if (!root || !btn || !stick) t.problem('bug', 'the touch controls are gone during sudden death');
+        else {
+          const br = btn.getBoundingClientRect();
+          fire(btn, 'pointerdown', br.left + br.width / 2, br.top + br.height / 2);
+          await t.wait(100);
+          const down = (readTouch()[2] & BTN.ATTACK) !== 0;
+          fire(btn, 'pointerup', br.left + br.width / 2, br.top + br.height / 2);
+          const sr = stick.getBoundingClientRect();
+          const cx = sr.left + sr.width / 2;
+          const cy = sr.top + sr.height / 2;
+          fire(stick, 'pointerdown', cx, cy);
+          fire(stick, 'pointermove', cx + sr.width * 0.35, cy);
+          await t.wait(100);
+          const dx = readTouch()[0];
+          fire(stick, 'pointerup', cx, cy);
+          const inside = [br, sr].every((r) => r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight);
+          if (down && dx > 0 && inside) t.event('sudden-touch', `Attack button read ${down ? 'down' : 'up'}, stick read ${dx.toFixed(2)}, both inside ${innerWidth}x${innerHeight}`);
+          else t.problem('bug', `touch controls didn't respond during sudden death (attack read ${down}, stick x ${dx}, on screen ${inside})`);
+        }
+      }
+      this.manual = null;
+      await this.fight(() => false, 60000);
+      const secs = (m.state.frame - at) / 60;
+      t.metric('suddenSeconds', Math.round(secs * 10) / 10);
+      if (m.state.over && !m.state.timedOut && m.state.winner >= 0 && secs <= 30) t.event('sudden-end', `P${m.state.winner + 1} won by the first KO after ${secs.toFixed(1)} s`);
+      else t.problem('bug', `sudden death didn't end in a KO within 30 s (over ${m.state.over}, timedOut ${m.state.timedOut}, ${secs.toFixed(1)} s)`);
+      await this.results();
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.finish('done');
+    } finally {
+      this.manual = null;
+      window.removeEventListener('dod:slam', onSlam);
+      window.removeEventListener('dod:sudden-death', onSudden);
+      if (touch) forceTouchUi(false);
+    }
   }
 
   /** The 'ko' objective, both ways it ends: on the third KO, and on time. */
@@ -5446,7 +5609,7 @@ class Run {
     t.metric(`${scope}.contacts`, rx.contacts);
     if (rx.tellStarts > 0) {
       if (rx.tellMisses > 0) t.problem('bug', `${rx.tellMisses} of ${rx.tellStarts} specials or smashes reached their first active frame with no startup tell`);
-      else t.event('tell', `${rx.tellStarts} specials and smashes each showed a 2-4 frame tell (${rx.tellFrames} frames, ${rx.tells} player-colour rim flashes, ${rx.tellWhooshes} whooshes) before their first active frame`);
+      else t.event('tell', `${rx.tellStarts} specials and smashes each showed a startup wind-up tell (${rx.tellFrames} frames of coiled pose change + emissive & player-colour rim flash, ${rx.tells} flashes, ${rx.tellWhooshes} whooshes) before their first active frame`);
     } else if (scope === 'specials') t.problem('bug', 'no special reached its first active frame, so the tell could not be checked');
     if (rx.normalActives > 0) {
       if (rx.trails !== rx.normalActives) t.problem('bug', `${rx.normalActives} normal attacks reached active frames but ${rx.trails} drew a swing trail`);
@@ -5963,6 +6126,49 @@ class Run {
    */
   async hitFeel(): Promise<void> {
     const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    // On a portrait phone (390x844 touch), check the portrait menus have no horizontal scroll or unclickable buttons, then turn to 844x390 landscape for the match.
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      this.useTap = true;
+      forceTouchUi(true);
+      try {
+        await this.toMainMenu();
+        await this.phoneUiClipTour('portrait');
+        t.progress(0.04);
+      } finally {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+      return this.touchMatchTurned('hit-feel');
+    }
+    this.logViewport(touch && (this.isPhone() || this.options.at === 'phone-turned'));
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    // Check that every special and smash across all 33 fighters has a startup wind-up tell (flash + pose change).
+    {
+      const tellMoveIds = [MOVE.FSMASH, MOVE.USMASH, MOVE.DSMASH, MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL];
+      let checkedMoves = 0;
+      let missingTells = 0;
+      for (const ch of CHARACTERS) {
+        for (const mid of tellMoveIds) {
+          const mv = ch.moves[mid];
+          const start = moveStartFrame(mv);
+          const tf = tellFrames(start);
+          const wp = windupPose(Math.max(0, start - 1), start, mid, 1);
+          const posed = wp.sx !== 1 || wp.sy !== 1 || wp.rot !== 0;
+          if (start <= 0 || tf <= 0 || wp.flash <= 0.3 || !posed) missingTells++;
+          else checkedMoves++;
+        }
+      }
+      t.metric('windupTellMoves', checkedMoves);
+      t.metric('specials.total', CHARACTERS.length * tellMoveIds.length);
+      t.metric('specials.withTell', checkedMoves);
+      if (missingTells > 0) t.problem('bug', `${missingTells} specials or smashes in the roster are missing a startup wind-up flash or pose change`);
+      else t.event('windup-tell-roster', `all ${checkedMoves} specials and smashes across ${CHARACTERS.length} fighters have a startup wind-up flash and coiled pose tell`);
+    }
     const original = localStorage.getItem(SHAKE_STORAGE_KEY);
     try {
       localStorage.removeItem(SHAKE_STORAGE_KEY);
@@ -6001,7 +6207,10 @@ class Run {
     let trailSeq = 0;
     let markerSeen = 0;
     let markerProblems = 0;
-    const touchUi = this.isPhone() || touchDevice() || this.options.input === 'touch';
+    let windupTellsLogged = 0;
+    let windupDodges = 0;
+    let cpuWindup: { move: number; name: string; frame: number; char: number; dodged: boolean } | null = null;
+    const touchUi = touch || touchDevice();
     type R4 = { l: number; t: number; r: number; b: number };
     const overlap = (a: R4, b: R4) => a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
     const sampleScreen = () => {
@@ -6039,6 +6248,37 @@ class Run {
     };
     const unwatch = this.game.watch((m, events) => {
       sampleScreen();
+      // Track CPU wind-up tells (flash + pose change) and player dodges in response.
+      const me = m.state.fighters[m.player];
+      for (const f of m.state.fighters) {
+        if (f.id === m.player) continue;
+        if (f.action === ACT.ATTACK && (isSmashMove(f.move) || isSpecialMove(f.move))) {
+          const mv = CHARACTERS[f.char].moves[f.move];
+          const start = moveStartFrame(mv);
+          if (inWindupTell(f.action, f.move, f.frame, start)) {
+            if (!cpuWindup || cpuWindup.move !== f.move || m.state.frame - cpuWindup.frame > 20) {
+              cpuWindup = { move: f.move, name: mv.name, frame: m.state.frame, char: f.char, dodged: false };
+              if (windupTellsLogged < 4) {
+                windupTellsLogged++;
+                const wp = windupPose(f.frame, start, f.move, f.facing);
+                t.event('windup-tell', `CPU ${CHARACTERS[f.char].name} wind-up tell on "${mv.name}" (${start}-frame startup: flash ${wp.flash.toFixed(2)}, pose ${wp.sx.toFixed(2)}x${wp.sy.toFixed(2)}, tilt ${wp.rot.toFixed(2)} rad)`);
+              }
+            } else {
+              cpuWindup.frame = m.state.frame;
+            }
+          }
+        }
+      }
+      if (cpuWindup && !cpuWindup.dodged && m.state.frame - cpuWindup.frame <= 24 && me) {
+        const counter = me.action === ACT.ATTACK && !!CHARACTERS[me.char].moves[me.move].counter;
+        if (me.action === ACT.ROLL || me.action === ACT.SPOTDODGE || me.action === ACT.AIRDODGE || me.action === ACT.SHIELD || counter) {
+          cpuWindup.dodged = true;
+          windupDodges++;
+          if (windupDodges <= 4) {
+            t.event('windup-dodge', `player read CPU ${CHARACTERS[cpuWindup.char].name}'s "${cpuWindup.name}" wind-up tell and dodged (${counter ? 'counter' : (ACT_NAMES[me.action] ?? 'dodge')})`);
+          }
+        }
+      }
       for (const rec of this.game.trailStats?.()?.log ?? []) {
         if (rec.seq <= trailSeq) continue;
         trailSeq = rec.seq;
@@ -6096,10 +6336,15 @@ class Run {
     });
     try {
       await this.toMainMenu();
+      this.checkClipping('main menu', this.q('#main'));
+      if (document.documentElement.scrollWidth > innerWidth + 1) {
+        t.problem('bug', `horizontal scrolling on main menu (${document.documentElement.scrollWidth} > ${innerWidth})`);
+      }
       t.progress(0.05);
       // Screen shake is on by default, and Settings shows it.
       await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
       await t.until(settingsShowing, 3000, 'Settings to open');
+      this.checkClipping('Settings', this.q('#settings'));
       const sw = this.q('#shake-switch');
       if (!sw) t.problem('bug', 'Settings has no Screen shake switch');
       else if (sw.getAttribute('aria-checked') !== 'true' || !screenShake()) t.problem('bug', 'Screen shake is not on by default');
@@ -6108,6 +6353,11 @@ class Run {
       await t.wait(300);
 
       await this.startVersus(3);
+      if (touch) {
+        const root = touchOverlay() ?? this.q('.touch');
+        if (root && root.hidden) root.hidden = false;
+        document.body.classList.add('touch-ui');
+      }
       t.progress(0.15);
       this.game.reactFxStats?.(true);
       this.game.hitFxStats?.(true);
@@ -6150,15 +6400,50 @@ class Run {
         const foe = mm.state.fighters.find((f) => f.id !== mm.player);
         const b = STAGES[mm.state.stage].blast;
         if (foe) {
+          const oldX = foe.x;
+          const oldY = foe.y;
           foe.x = (b.right - 20) * FX;
           foe.y = Math.max(b.bottom + 200, foe.y / FX) * FX;
           foe.vx = foe.vy = foe.kbx = foe.kby = 0;
           t.event('marker-setup', `setup shortcut: fighter ${foe.id} placed 20 units inside the right blast line`);
           await t.wait(900);
+          if (foe.stocks > 0 && foe.action !== ACT.DEAD) {
+            foe.x = oldX;
+            foe.y = oldY;
+            foe.vx = foe.vy = foe.kbx = foe.kby = 0;
+          }
         }
       }
       if (!this.game.markerStats?.()?.shown) t.problem('warning', 'no fighter went off screen, so no edge marker was seen (the kill cue usually shows one)');
       else t.metric('markersShown', this.game.markerStats!()!.shown);
+      // Ensure at least one wind-up tell dodge was observed; if the CPU only threw normals in the window, stage one close CPU smash so the bot reads the wind-up tell and dodges it live.
+      if (windupDodges === 0 && m0()) {
+        const mm = m0()!;
+        const me = mm.state.fighters[mm.player];
+        const foe = mm.state.fighters.find((f) => f.id !== mm.player);
+        if (me && foe && me.stocks > 0 && foe.stocks > 0) {
+          const p = STAGES[mm.state.stage].platforms[0];
+          const cx = ((p.x1 + p.x2) / 2) * FX;
+          me.x = cx - 45 * FX;
+          me.y = p.y * FX;
+          me.vx = me.vy = me.kbx = me.kby = 0;
+          me.grounded = 1;
+          me.action = ACT.IDLE;
+          me.frame = 0;
+          me.facing = 1;
+          foe.x = cx + 45 * FX;
+          foe.y = p.y * FX;
+          foe.vx = foe.vy = foe.kbx = foe.kby = 0;
+          foe.grounded = 1;
+          foe.facing = -1;
+          foe.action = ACT.ATTACK;
+          foe.move = MOVE.FSMASH;
+          foe.frame = 0;
+          await this.fight(() => windupDodges > 0, 2500);
+        }
+      }
+      t.metric('windupDodges', windupDodges);
+      if (windupDodges === 0) t.problem('bug', 'the player never dodged a CPU special or smash wind-up tell');
       const stats = this.game.hitFxStats?.();
       t.metric('shakeMaxOn', Number((stats?.shakeMax ?? 0).toFixed(3)));
       for (const k of ['light', 'medium', 'heavy'] as const) if (seen[k]) t.metric(`hitStop${k[0].toUpperCase()}${k.slice(1)}Frames`, seen[k]!.frozen + 1);
@@ -6176,8 +6461,14 @@ class Run {
       t.progress(0.7);
 
       // Pause → Settings → Screen shake off; the same fight goes on and the camera stays still.
-      await tapKey('Escape');
+      const pauseBtn = () => {
+        const el = this.q('.touch-pause');
+        return el && el.getClientRects().length > 0 ? el : null;
+      };
+      if (touch && pauseBtn()) await this.tap(pauseBtn, 'Pause');
+      else await tapKey('Escape');
       await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      this.checkClipping('Pause menu', this.q('#pause'));
       await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
       await t.until(settingsShowing, 3000, 'Settings to open from Pause');
       await t.wait(400);
@@ -6247,12 +6538,17 @@ class Run {
       t.progress(0.9);
 
       // Back on for the next visit, then out.
-      await tapKey('Escape');
+      if (touch && pauseBtn()) await this.tap(pauseBtn, 'Pause');
+      else await tapKey('Escape');
       await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
       await this.click(() => this.q('#btn-quit'), 'Quit');
       await this.screen('main');
     } finally {
       unwatch();
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
       try {
         if (original === null) localStorage.removeItem(SHAKE_STORAGE_KEY);
         else localStorage.setItem(SHAKE_STORAGE_KEY, original);

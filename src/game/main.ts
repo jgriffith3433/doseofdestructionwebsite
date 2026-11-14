@@ -8,7 +8,7 @@ import { addWin } from './looks.ts';
 import { audio, tapState, type Spatial } from './audio.ts';
 import type { VoiceKind } from './voiceDirector.ts';
 import { panFromScreen } from './roomAudio.ts';
-import { Commentator, introCall, type Call } from './commentary.ts';
+import { Commentator, introCall, suddenDeathCall, type Call } from './commentary.ts';
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
 import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
 import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings, hitVibrate } from './touchSettings.ts';
@@ -40,7 +40,7 @@ import { chunkLine, chunkTimes } from './campaign/sceneText.ts';
 import { exchangeFor, markExchangeSeen, seenExchanges, type Exchange } from './campaign/intros.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
-import { step } from './sim/step.ts';
+import { step, SUDDEN_HOLD } from './sim/step.ts';
 import { stageIndex } from './sim/stage.ts';
 import type { GameState } from './sim/state.ts';
 import { HighlightPlayer, loadHighlight, nextChapterId, recapApplies, recapId, saveHighlight, teaseId } from './campaign/highlight.ts';
@@ -1261,6 +1261,7 @@ function beginReady(m: Match): void {
   readyFightId = audio.pickLine('announcer.ready-fight');
   if (readyFightId) void audio.call(readyFightId);
   else audio.line('announcer.ready');
+  airFlashed = false;
   commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state, Math.random, (id) => audio.voiceFresh(id)) : null;
   introPending = (commentator && (chapter ? introCall(chapter.id) : dailyRun?.setup === setup ? introCall(dailyRun.ep.blogChapter) : null)) || null;
   audio.playStageBed(STAGES[setup.stage].id);
@@ -1342,6 +1343,7 @@ function afterTick(m: Match, events: SimEvent[]): void {
   analytics.matchEvents(m, events);
   for (const w of matchWatchers) w(m, events);
   for (const e of events) {
+    if (e.type === 'sudden') suddenDeathMoment(m);
     if (e.type === 'hit' && !e.shield) {
       bumpHud(e.victim, e.dmg, m.state.fighters[e.victim]?.percent ?? 0);
       // Phone feel: a light buzz when you land a hit (Settings → Vibrate, where supported).
@@ -1367,6 +1369,10 @@ function afterTick(m: Match, events: SimEvent[]): void {
       introPending = null;
     }
     if (!introPending) for (const c of commentator.onEvents(s, events)) broadcast(c);
+  }
+  if (!airFlashed && !s.over && phase === 'play' && events.some((e) => e.type === 'ko')) {
+    airFlashed = true;
+    airFlash();
   }
   if (s.over && !shownOver) {
     shownOver = true;
@@ -1895,11 +1901,15 @@ function showNetStatus(f: OnlineFight): void {
   if (el.textContent !== text) el.textContent = text;
 }
 
-const ENDINGS: Record<FightEnd['reason'], (opp: string, won: boolean) => { headline: string; note?: string }> = {
-  game: (opp, won) => ({ headline: won ? 'You win' : `${opp} wins` }),
-  time: (opp, won) => ({ headline: won ? 'You win on time' : `${opp} wins on time` }),
-  forfeit: (opp, won) => (won ? { headline: 'You win', note: `${opp} left the match.` } : { headline: 'You left the match', note: `${opp} takes the win.` }),
-  disconnect: (opp, won) => (won ? { headline: 'Connection lost', note: `${opp} didn't make it back in 10 seconds. The win is yours, and it isn't rated.` } : { headline: 'Connection lost', note: `You didn't make it back in 10 seconds. ${opp} takes the match, and it isn't rated.` }),
+/** The plain line for how an online match ended (KO, time, sudden death, a quit, a drop) and how it was scored. */
+const ENDINGS: Record<FightEnd['reason'], (opp: string, won: boolean, sudden: boolean) => { headline: string; note?: string }> = {
+  game: (opp, won, sudden) => ({
+    headline: won ? 'You win' : `${opp} wins`,
+    note: sudden ? (won ? `Sudden death: your KO decided it.` : `Sudden death: ${opp}'s KO decided it.`) : won ? `KO: you took ${opp}'s last stock.` : `KO: ${opp} took your last stock.`,
+  }),
+  time: (opp, won) => ({ headline: won ? 'You win on time' : `${opp} wins on time`, note: won ? 'Time ran out with you ahead.' : `Time ran out with ${opp} ahead.` }),
+  forfeit: (opp, won) => (won ? { headline: 'You win', note: `${opp} left the match. Rated as a quit.` } : { headline: 'You left the match', note: `${opp} takes the win. Rated as a quit.` }),
+  disconnect: (opp, won) => (won ? { headline: 'Connection lost', note: `${opp} dropped and didn't rejoin in 10 seconds. The win is yours. Not rated as a quit: no rating change.` } : { headline: 'Connection lost', note: `You dropped and didn't rejoin in 10 seconds. ${opp} takes the match. Not rated as a quit: no rating change.` }),
   desync: () => ({ headline: 'Match void', note: 'The two games fell out of step (a desync). It has been reported. Queue again for a fresh match.' }),
   'no-start': (opp) => ({ headline: 'Match void', note: `${opp}'s game never started. Back to the queue whenever you like.` }),
 };
@@ -1915,7 +1925,7 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
   $('pause').hidden = true;
   if (settingsOpen()) closeSettings();
   const won = end.winner === f.slot;
-  const ending = ENDINGS[end.reason](f.opponent, won);
+  const ending = ENDINGS[end.reason](f.opponent, won, end.sudden);
   const voided = end.reason === 'desync' || end.reason === 'no-start';
   analytics.matchEnd(m, voided || (end.reason === 'forfeit' && !won) ? 'quit' : won ? 'complete' : 'death', { reason: end.reason });
   // A game that ended in the sim has had its Game! banner; an early end gets its own.
@@ -1995,6 +2005,19 @@ function askOnResults(m: Match): void {
   }, 900);
 }
 
+let airFlashed = false;
+
+/** The show reacts to the first KO of a bout: the ON AIR bug flashes red over the arena with "First blood" and a sting. */
+function airFlash(): void {
+  document.querySelector('.air-flash')?.remove();
+  const el = h('div', { class: 'air-flash', 'data-air': 'first-blood', 'aria-hidden': 'true' },
+    h('i', { class: 'dot' }), h('b', {}, 'On air'), h('span', {}, 'First blood'));
+  document.body.appendChild(el);
+  audio.synth('sting', 0.6);
+  window.setTimeout(() => el.remove(), 2200);
+  window.dispatchEvent(new CustomEvent('dod:air-flash', { detail: { kind: 'first-blood' } }));
+}
+
 /** A commentary call: spoken if it has a take, and captioned one short line at a time (and announced to the playtest). */
 function broadcast(c: Call): void {
   // The caption goes up when the take starts, and never for a take the voice director dropped (one speaker, one caption).
@@ -2032,8 +2055,19 @@ let freezeUntil = 0;
 const slamReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 /** ROUND START / GAME!: big type punches in with a camera shake and a hit sound (the announcer's line follows). */
-function slam(text: string, over = false): void {
-  const el = h('div', { class: over ? 'slam game' : 'slam' }, text);
+/** A dead-even time-out went to sudden death: the slam card, the alarm and sting, the announcer's call. */
+function suddenDeathMoment(m: Match): void {
+  document.body.classList.add('sudden-death');
+  slam('Sudden death!', false, 'sudden');
+  audio.synth('alarm', 0.8);
+  audio.synth('sting', 1);
+  audio.setMusicIntensity(true);
+  broadcast(suddenDeathCall());
+  window.dispatchEvent(new CustomEvent('dod:sudden-death', { detail: { at: Math.round(performance.now()), frame: m.state.frame, ids: m.state.fighters.filter((f) => f.suddenIn).map((f) => f.id) } }));
+}
+
+function slam(text: string, over = false, extra = ''): void {
+  const el = h('div', { class: (over ? 'slam game' : 'slam') + (extra ? ` ${extra}` : '') }, text);
   document.body.appendChild(el);
   el.addEventListener('animationend', () => el.remove());
   audio.sfx('vs-slam');
@@ -2096,6 +2130,8 @@ function buildHud(m: Match): void {
   }
   hud.hidden = false;
   const limit = m.state.rules.timeLimit;
+  document.body.classList.remove('sudden-death');
+  $('timer').classList.remove('sudden');
   $('timer').hidden = limit <= 0;
   const objective = $('objective');
   const shown = m.setup.objective === 'survive' || m.setup.objective === 'ko' || m.setup.objective === 'quota' || m.setup.objective === 'streak';
@@ -2119,7 +2155,13 @@ let hudStreak = -1;
 function updateHud(m: Match): void {
   const s = m.state;
   const cards = $('hud').children;
-  if (s.rules.timeLimit > 0) $('timer').textContent = formatTime(s.rules.timeLimit - s.frame);
+  if (s.sudden > 0) {
+    const timer = $('timer');
+    timer.hidden = false;
+    timer.classList.add('sudden');
+    $('match-top').hidden = false;
+    timer.textContent = s.sudden > SUDDEN_HOLD ? 'Zone closing' : 'Sudden death';
+  } else if (s.rules.timeLimit > 0) $('timer').textContent = formatTime(s.rules.timeLimit - s.frame);
   if (m.setup.objective === 'ko' && hudKos !== m.koCount()) {
     hudKos = m.koCount();
     $('objective').textContent = `KOs ${Math.min(hudKos, m.koTarget)}/${m.koTarget}`;
