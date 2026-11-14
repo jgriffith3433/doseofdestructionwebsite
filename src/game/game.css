@@ -1456,7 +1456,30 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
 .rating-you.up .rating-delta { color: #4ade80; }
 .rating-you.down .rating-delta { color: var(--hot); }
 .rating-them { color: var(--muted); }
-.results-rating em { flex-basis: 100%; font-style: normal; font-size: 13px; color: var(--muted); }
+.results-rating em { flex-basis: 100%; font-style: normal; font-size: 14px; color: var(--muted); }
+.results-rating .rating-place { color: var(--gold); }
+
+/* Online results: who you played, how you were joined, and what it cost or won. */
+.online-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; padding: 10px 14px; background: var(--card); border-radius: 12px; border-left: 4px solid var(--gold); }
+.online-card .online-face { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: #000; }
+.online-who { display: grid; min-width: 0; }
+.online-who strong { font: 600 22px Oswald, sans-serif; overflow-wrap: anywhere; }
+.online-vs, .online-fighter, .online-link { font-size: 14px; color: var(--muted); }
+.online-link { white-space: nowrap; font-weight: 600; }
+.online-card .results-rating { grid-column: 1 / -1; margin-top: 2px; }
+.results-hero .online-card .results-rating, .online-card .results-rating { color: var(--text); }
+.rating-delta, .rating-now { font-variant-numeric: tabular-nums; }
+/* Upright phone: the card replaces the long panels, so the rating and the buttons sit on one screen. */
+@media (max-width: 560px) {
+  .results-online .victory { height: clamp(150px, 20vh, 190px); }
+  .results-online .highlights, .results-online .results-grid, .results-online .results-strip, .results-online .results-look { display: none; }
+  .results-online .results-hero { gap: 10px; }
+  .results-online .results-hero img.results-portrait { display: none; }
+  .results-online .results-hero h2 { font-size: clamp(26px, 8vw, 36px); }
+  .online-card { grid-template-columns: auto minmax(0, 1fr); padding: 8px 12px; }
+  .online-card .online-link { grid-column: 2; }
+  .online-card .online-face { width: 44px; height: 44px; grid-row: span 2; }
+}
 
 @media (max-width: 560px) {
   .board-tabs { margin-left: 0; width: 100%; }

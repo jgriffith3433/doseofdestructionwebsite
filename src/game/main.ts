@@ -1899,11 +1899,15 @@ function showNetStatus(f: OnlineFight): void {
   if (el.textContent !== text) el.textContent = text;
 }
 
-const ENDINGS: Record<FightEnd['reason'], (opp: string, won: boolean) => { headline: string; note?: string }> = {
-  game: (opp, won) => ({ headline: won ? 'You win' : `${opp} wins` }),
-  time: (opp, won) => ({ headline: won ? 'You win on time' : `${opp} wins on time` }),
-  forfeit: (opp, won) => (won ? { headline: 'You win', note: `${opp} left the match.` } : { headline: 'You left the match', note: `${opp} takes the win.` }),
-  disconnect: (opp, won) => (won ? { headline: 'Connection lost', note: `${opp} didn't make it back in 10 seconds. The win is yours, and it isn't rated.` } : { headline: 'Connection lost', note: `You didn't make it back in 10 seconds. ${opp} takes the match, and it isn't rated.` }),
+/** The plain line for how an online match ended (KO, time, sudden death, a quit, a drop) and how it was scored. */
+const ENDINGS: Record<FightEnd['reason'], (opp: string, won: boolean, sudden: boolean) => { headline: string; note?: string }> = {
+  game: (opp, won, sudden) => ({
+    headline: won ? 'You win' : `${opp} wins`,
+    note: sudden ? (won ? `Sudden death: your KO decided it.` : `Sudden death: ${opp}'s KO decided it.`) : won ? `KO: you took ${opp}'s last stock.` : `KO: ${opp} took your last stock.`,
+  }),
+  time: (opp, won) => ({ headline: won ? 'You win on time' : `${opp} wins on time`, note: won ? 'Time ran out with you ahead.' : `Time ran out with ${opp} ahead.` }),
+  forfeit: (opp, won) => (won ? { headline: 'You win', note: `${opp} left the match. Rated as a quit.` } : { headline: 'You left the match', note: `${opp} takes the win. Rated as a quit.` }),
+  disconnect: (opp, won) => (won ? { headline: 'Connection lost', note: `${opp} dropped and didn't rejoin in 10 seconds. The win is yours. Not rated as a quit: no rating change.` } : { headline: 'Connection lost', note: `You dropped and didn't rejoin in 10 seconds. ${opp} takes the match. Not rated as a quit: no rating change.` }),
   desync: () => ({ headline: 'Match void', note: 'The two games fell out of step (a desync). It has been reported. Queue again for a fresh match.' }),
   'no-start': (opp) => ({ headline: 'Match void', note: `${opp}'s game never started. Back to the queue whenever you like.` }),
 };
@@ -1919,7 +1923,7 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
   $('pause').hidden = true;
   if (settingsOpen()) closeSettings();
   const won = end.winner === f.slot;
-  const ending = ENDINGS[end.reason](f.opponent, won);
+  const ending = ENDINGS[end.reason](f.opponent, won, end.sudden);
   const voided = end.reason === 'desync' || end.reason === 'no-start';
   analytics.matchEnd(m, voided || (end.reason === 'forfeit' && !won) ? 'quit' : won ? 'complete' : 'death', { reason: end.reason });
   // A game that ended in the sim has had its Game! banner; an early end gets its own.
