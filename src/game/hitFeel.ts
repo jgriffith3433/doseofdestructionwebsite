@@ -225,3 +225,34 @@ export const TUMBLE_SPEED = 8;
 /** Squash on a hit, visual only: 8-15% for 2-4 frames by damage, and a 6 px-ish push back on light hits. */
 export const reactionFor = (tier: HitTier, _kb: number): { frames: number; squash: number; push: number } =>
   tier === 'light' ? { frames: 2, squash: 0.08, push: 0.06 } : tier === 'medium' ? { frames: 3, squash: 0.115, push: 0 } : { frames: 4, squash: 0.15, push: 0 };
+
+// ------------------------------------------------------------------ attack tells, swing trails and contact sparks
+
+/** Specials and smashes (everything from the smashes up except normals) warn before their first active frame; normals draw a swing trail. */
+export const isSmashMove = (move: number): boolean => move >= 4 && move <= 6;
+export const isSpecialMove = (move: number): boolean => move >= 12;
+export const isNormalMove = (move: number): boolean => move <= 3 || (move >= 7 && move <= 11);
+
+/** How many frames the startup tell lasts before the first active frame (2 to 4, never more than the startup itself). */
+export const tellFrames = (start: number): number => Math.max(0, Math.min(start, 4, Math.max(2, start >> 1)));
+
+/** 0..1 strength of the tell on `frame` of a move whose first active frame is `start` (0 outside the tell window): it ramps up to the swing. */
+export const tellAt = (frame: number, start: number): number => {
+  const n = tellFrames(start);
+  const i = frame - (start - n);
+  return n > 0 && i >= 0 && frame < start ? (i + 1) / n : 0;
+};
+
+export interface ContactCore {
+  /** Size of the bright core in scene units, how many frames it is drawn in front of the hurt fighter, and the least it may be across on screen (CSS px). */
+  size: number;
+  frames: number;
+  minPx: number;
+}
+
+/** The bright core at the point of contact, by tier. Heavy is at least 26 CSS px across so it reads on a phone at 844x390 (the bar is 24). */
+export const coreFor = (tier: HitTier): ContactCore =>
+  tier === 'light' ? { size: 0.2, frames: 2, minPx: 12 } : tier === 'medium' ? { size: 0.32, frames: 2, minPx: 18 } : { size: 0.5, frames: 3, minPx: 26 };
+
+/** The spark flash behind the fighter, sized by tier (scene units). */
+export const sparkSizeFor = (tier: HitTier): number => (tier === 'light' ? 0.4 : tier === 'medium' ? 0.62 : 0.95);

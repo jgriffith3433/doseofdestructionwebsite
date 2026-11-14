@@ -77,7 +77,7 @@ export interface GameHooks {
   camFxStats?(reset?: boolean): { cameraJumps: number; framingMisses: number; killCues: number; slowFpsMin: number; killActive: boolean; lastCue: { zoom: boolean; slow: boolean; whistle: boolean; shake: number; punch: number } | null };
   /** The special-effect flipbooks: plays per archetype, the tint used, pool, atlas size (render/flipbook.ts). */
   flipStats?(reset?: boolean): { played: Record<string, number>; tint: Record<string, [number, number, number] | null>; dropped: number; pool: number; free: number; quality: 'high' | 'low'; frames: number; cell: number; standIn: boolean };
-  reactFxStats?(reset?: boolean): { squashes: number; maxSquash: number; squashFrames: number; tumbleFrames: number; bounces: number; dustBursts: number; smears: number; smearFrames: number; smashSmears: number; charges: number; quality: string };
+  reactFxStats?(reset?: boolean): { squashes: number; maxSquash: number; squashFrames: number; tumbleFrames: number; bounces: number; dustBursts: number; smears: number; smearFrames: number; smashSmears: number; charges: number; quality: string; tells: number; tellFrames: number; tellWhooshes: number; tellMisses: number; tellStarts: number; trails: number; trailFrames: number; normalActives: number; contacts: number; maxContactDist: number; maxHurtGap: number; coreFrames: number; coreMinPx: number; coreHeavyMinPx: number; coreUnderControl: number; shieldRipples: number; parryFlashes: number; clashSparks: number };
   trailStats?(reset?: boolean): { log: { seq: number; victim: number; tier: HitTier; kb: number; kind: 'none' | 'grey' | 'white' | 'streak'; ko: boolean; puffs: number }[]; active: number; puffs: number };
   markerStats?(): { shown: number; frames: number; unclear: number; last: { id: number; size: number; danger: boolean; clear: boolean; rect: { l: number; t: number; r: number; b: number } } | null; events: { id: number; size: number; danger: boolean }[]; rects: { id: number; rect: { l: number; t: number; r: number; b: number }; danger: boolean }[] };
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
@@ -5101,6 +5101,43 @@ class Run {
    * phone (touch pointer events, nothing else; no extra button on the overlay). Setup shortcut: straight into
    * training (no menus). Options: input (touch forces the overlay on a desktop window), at (phone).
    */
+  /**
+   * Attack reads and contact sparks (renderer reactStats): every special or smash that reached its first active frame showed a
+   * tell before it; every normal attack that reached active frames drew a swing trail; every landed hit's spark sits on the
+   * contact point (within 0.3 units, and on the hurtbox) with its bright core, big enough on a phone and clear of the touch
+   * controls; shield, parry and clash looks are counted when they happen.
+   */
+  private reportAttackFx(scope: string): void {
+    const t = this.t;
+    const rx = this.game.reactFxStats?.();
+    if (!rx) return;
+    const phone = this.isPhone() || touchDevice() || this.options.input === 'touch';
+    t.metric(`${scope}.tells`, rx.tells);
+    t.metric(`${scope}.trails`, rx.trails);
+    t.metric(`${scope}.contacts`, rx.contacts);
+    if (rx.tellStarts > 0) {
+      if (rx.tellMisses > 0) t.problem('bug', `${rx.tellMisses} of ${rx.tellStarts} specials or smashes reached their first active frame with no startup tell`);
+      else t.event('tell', `${rx.tellStarts} specials and smashes each showed a 2-4 frame tell (${rx.tellFrames} frames, ${rx.tells} player-colour rim flashes, ${rx.tellWhooshes} whooshes) before their first active frame`);
+    } else if (scope === 'specials') t.problem('bug', 'no special reached its first active frame, so the tell could not be checked');
+    if (rx.normalActives > 0) {
+      if (rx.trails !== rx.normalActives) t.problem('bug', `${rx.normalActives} normal attacks reached active frames but ${rx.trails} drew a swing trail`);
+      else t.event('trail', `${rx.trails} normal attacks reached active frames and ${rx.trails} drew a swing trail along the hitbox (${rx.trailFrames} trail frames)`);
+    }
+    if (rx.contacts > 0) {
+      if (rx.maxContactDist > 0.3 || rx.maxHurtGap > 0.3) t.problem('bug', `a hit spark sat ${Math.max(rx.maxContactDist, rx.maxHurtGap).toFixed(2)} units from the contact point (want within 0.3)`);
+      else t.event('contact-spark', `${rx.contacts} landed hits drew their spark on the contact point (worst ${rx.maxContactDist.toFixed(2)} units, ${rx.maxHurtGap.toFixed(2)} off the hurtbox) with a bright core for ${rx.coreFrames} frames in front of the hurt fighter`);
+      if (rx.coreHeavyMinPx > 0) {
+        t.metric(`${scope}.heavyCorePx`, Math.round(rx.coreHeavyMinPx));
+        if (phone && rx.coreHeavyMinPx < 24) t.problem('bug', `a heavy hit's spark core was ${Math.round(rx.coreHeavyMinPx)} CSS px across at ${innerWidth}x${innerHeight} (want at least 24)`);
+        else t.event('core-size', `heavy hit cores at least ${Math.round(rx.coreHeavyMinPx)} CSS px across at ${innerWidth}x${innerHeight}`);
+      }
+      if (phone && rx.coreUnderControl > 0) t.problem('bug', `${rx.coreUnderControl} spark core(s) sat under the touch controls`);
+    }
+    if (rx.shieldRipples > 0) t.event('shield-ripple', `${rx.shieldRipples} shielded hits drew a shield ripple`);
+    if (rx.parryFlashes > 0) t.event('parry-flash', `${rx.parryFlashes} parries drew the white parry flash`);
+    if (rx.clashSparks > 0) t.event('clash-spark', `${rx.clashSparks} clashes drew their own spark`);
+  }
+
   async specialsRun(): Promise<void> {
     const t = this.t;
     const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
@@ -5131,6 +5168,7 @@ class Run {
       await this.matchLive();
       // The virtual pad adds nothing: only the keyboard or the on-screen controls move the fighter.
       this.manual = NO_INPUT;
+      this.game.reactFxStats?.(true);
       t.progress(0.1);
 
       const match = () => this.game.match()!;
@@ -5267,6 +5305,7 @@ class Run {
       if (moved.size === 4) t.event('specials-distinct', `${how}: four different specials from four inputs (${[...moved].map((x) => MOVE_NAMES[x]).join(', ')})`);
       else t.problem('bug', `${how}: only ${moved.size} different specials came out of the four inputs (${[...moved].map((x) => MOVE_NAMES[x]).join(', ')})`);
       t.add('specialsSeen', moved.size);
+      this.reportAttackFx('specials');
       this.manual = null;
       await this.game.quitMatch();
       await this.screen('main');
@@ -5723,6 +5762,7 @@ class Run {
 
       await this.startVersus(3);
       t.progress(0.15);
+      this.game.reactFxStats?.(true);
       this.game.hitFxStats?.(true);
       this.game.camFxStats?.(true);
       cuesPrev = this.game.camFxStats?.()?.killCues ?? 0;
@@ -5822,6 +5862,11 @@ class Run {
         if (rx.bounces > 0) t.event('bounce', `${rx.bounces} ground bounces with ${rx.dustBursts} dust bursts`);
         if (rx.smashSmears > 0) t.event('smear', `${rx.smears} smears, ${rx.smearFrames} streak frames (${rx.smashSmears} on smashes), ${rx.charges} smash charges (${rx.quality} quality)`);
         else if (rx.quality === 'low') t.event('smear-low', 'Low drops smears, keeps squash and tumble');
+      }
+      this.reportAttackFx('hit-feel');
+      {
+        const r2 = this.game.reactFxStats?.();
+        if (r2 && !(r2.shieldRipples + r2.parryFlashes + r2.clashSparks)) t.problem('warning', 'no shielded hit, parry or clash happened in this fight, so their looks were not seen');
       }
       const cam = this.game.camFxStats?.();
       if (cam) {
