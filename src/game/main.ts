@@ -735,14 +735,14 @@ async function runScene(m: Match, cue: SceneCue): Promise<void> {
     // (a failed picture is skipped, never waited for) before the first beat starts its clock, under the loading veil.
     if (renderer.stageArtPending()) {
       const veil = $('loading');
-      veil.textContent = 'Loading the stage…';
+      setVeil('Loading the stage…');
       veil.hidden = false;
       await renderer.stageArtReady(STAGE_ART_HOLD_MS * 3);
       renderer.render(m.state);
       await nextFrame();
       renderer.render(m.state);
       veil.hidden = true;
-      veil.textContent = 'Loading fighters…';
+      setVeil('Loading fighters…');
       if (match !== m) return;
     }
     const end = await playColdOpen(sceneStage(m), c.coldOpen);
@@ -1538,8 +1538,12 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     fightersReady = renderer.setFighters(m.state, false, 30000).catch(() => renderer.setFighters(m.state, false, 30000));
     warm = Promise.all([fightersReady, audioReady]).then(() => renderer.warmUp(m.state)).catch((err) => console.error(err));
     // The loading screen stays up until the match's first frame is drawn (under the wipe).
+    setVeil('Loading fighters…', 0.05);
+    renderer.onLoadProgress = (done, total) => setVeil('Loading fighters…', total ? (done / total) * 0.9 : 0.05);
     $('loading').hidden = false;
     await warm;
+    renderer.onLoadProgress = null;
+    setVeil('Loading fighters…', 1);
     // Painted stage layers (and their alpha masks) are decoded before the first frame, not mid-match.
     await renderer.stageArtReady(4000);
     if (stale()) return;
@@ -1647,11 +1651,22 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
 /** How long the match waits, after the wipe, for the stage's pictures before it shows the arena anyway (a failed picture is skipped, never waited for). */
 const STAGE_ART_HOLD_MS = 8000;
 
+/** The loading veil's text and bar (0..1, or null = a sliding bar while nothing is measured). */
+function setVeil(text: string, p: number | null = null): void {
+  const t = document.getElementById('loading-text'); if (t) t.textContent = text;
+  const v = document.getElementById('loading'); const f = document.getElementById('loading-fill');
+  if (!v || !f) return;
+  v.classList.toggle('indeterminate', p === null);
+  f.style.width = p === null ? '' : `${Math.round(Math.min(1, p) * 100)}%`;
+  if (p !== null) v.setAttribute('aria-valuenow', String(Math.round(p * 100)));
+  else v.removeAttribute('aria-valuenow');
+}
+
 /** Keeps the loading veil over the arena until every stage layer is loaded (or has failed), then lets two frames paint. */
 async function holdForStageArt(m: Match): Promise<void> {
   if (!renderer.stageArtPending()) return;
   const veil = $('loading');
-  veil.textContent = 'Loading the stage\u2026';
+  setVeil('Loading the stage\u2026');
   veil.hidden = false;
   await renderer.stageArtReady(STAGE_ART_HOLD_MS);
   if (match === m) {
@@ -1660,7 +1675,7 @@ async function holdForStageArt(m: Match): Promise<void> {
     renderer.render(m.state);
   }
   veil.hidden = true;
-  veil.textContent = 'Loading fighters\u2026';
+  setVeil('Loading fighters\u2026');
 }
 
 /** The "Ready... FIGHT!" take that opened this Ready phase (its FIGHT is the Go), or null. */
