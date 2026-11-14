@@ -108,7 +108,7 @@ Characters page are a good start.
 | `nspecial` | Lunging special (a throw, for fighters with their own specials) | |
 | `sspecial`, `dspecial` | Side and down special (optional: without them the move shows `fsmash`/`roll`/`dsmash`, or whatever the fighter's `specials` entry names in `clip`) | |
 | `roll`, `dodge`, `airdodge` | Evasions | |
-| `ledge`, `climb` | Hanging on a ledge, climbing up | |
+| `ledge`, `climb` | Hanging on a ledge, climbing up | `climb` also plays the rise of the ledge roll and ledge attack (the roll then plays `roll`, the attack the down tilt), see docs/ledge.md |
 | `jumpsquat`, `helpless`, `dizzy` | Small extras | |
 
 Up to 24 frames are kept per clip.
