@@ -7001,22 +7001,23 @@ class Run {
     this.logViewport(touch && this.isPhone());
     const phone = this.isPhone();
     const baseOf = (src: string) => /\/characters\/portrait\/([a-z0-9-]+)-(256|512)\.webp/.exec(src)?.[1] ?? '';
-    // 1. The title: the key art behind the logo.
+    // 1. The title: the heroes lineup behind the logo, with Play in view.
     await this.screen('title', 30000);
     if (promptShowing()) await this.tapToPlay();
     await this.t.wait(800);
     const art = this.q('#title .title-art img') as HTMLImageElement | null;
-    if (!art || !(art.complete && art.naturalWidth > 0)) t.problem('bug', 'the title screen has no roster key art loaded');
+    if (!art || !(art.complete && art.naturalWidth > 0)) t.problem('bug', 'the title screen has no lineup banner loaded');
     else {
       const r = art.getBoundingClientRect();
-      const ratio = art.naturalWidth / art.naturalHeight;
       const fills = r.width >= innerWidth - 1 && r.height >= innerHeight - 1;
       const cs = getComputedStyle(art);
-      if (!/key-art/.test(art.currentSrc)) t.problem('bug', `the title shows ${art.currentSrc}, not the roster key art`);
-      else if (Math.abs(ratio - 16 / 9) > 0.03) t.problem('bug', `the key art is ${art.naturalWidth}x${art.naturalHeight}, not 16:9`);
-      else if (!fills || cs.objectFit !== 'cover' || !/^50%/.test(cs.objectPosition)) t.problem('bug', `the key art does not fill the title screen cropped to the centre (${Math.round(r.width)}x${Math.round(r.height)}, ${cs.objectFit} ${cs.objectPosition})`);
-      else t.event('title-key-art', `${art.naturalWidth}x${art.naturalHeight} key art fills ${innerWidth}x${innerHeight}, cropped to the centre (${cs.objectPosition}), brand gradient behind (${getComputedStyle(this.q('#title')!).backgroundImage.includes('gradient') ? 'yes' : 'no'})`);
+      if (/key-art/.test(art.currentSrc) || !/lineup-/.test(art.currentSrc)) t.problem('bug', `the title shows ${art.currentSrc}, not the heroes lineup banner`);
+      else if (!fills || cs.objectFit !== 'cover') t.problem('bug', `the lineup banner does not fill the title screen (${Math.round(r.width)}x${Math.round(r.height)}, ${cs.objectFit})`);
+      else t.event('title-key-art', `${art.naturalWidth}x${art.naturalHeight} heroes lineup (${art.currentSrc.split('/').pop()}) fills ${innerWidth}x${innerHeight}, brand gradient behind (${getComputedStyle(this.q('#title')!).backgroundImage.includes('gradient') ? 'yes' : 'no'})`);
     }
+    const play = this.q('#btn-start')?.getBoundingClientRect();
+    if (!play || play.width < 44 || play.height < 44 || play.left < 0 || play.right > innerWidth || play.bottom > innerHeight || play.top < 0) t.problem('bug', `the title's Play button is not fully on screen at 44 px or more at ${innerWidth}x${innerHeight}`);
+    else t.event('title-play-visible', `Play button ${Math.round(play.width)}x${Math.round(play.height)} on screen at ${innerWidth}x${innerHeight}`);
     await this.click(() => this.q('#btn-start'), 'Press start');
     await this.screen('main');
     if (touch) {
@@ -14172,8 +14173,8 @@ class Run {
       if (!pitch || !art || art.width < 40) t.problem('bug', `the Tap to play card has no pitch line or fighter art ${where}`);
       if (!cta || cta.height < 44 || cta.width < 44 || cta.left < 0 || cta.right > innerWidth || cta.bottom > innerHeight) t.problem('bug', `the Play button is under 44 px or off screen ${where}`);
       const bd = prompt.querySelector('.tap-backdrop img')?.getBoundingClientRect();
-      if (!bd || bd.width < innerWidth - 1 || bd.height < innerHeight - 1) t.problem('bug', `the Tap to play key-art backdrop does not fill the screen ${where}`);
-      else t.event('key-art-backdrop', `roster key art fills ${Math.round(bd.width)}x${Math.round(bd.height)} behind the card ${where}`);
+      if (!bd || bd.width < innerWidth - 1 || bd.height < innerHeight - 1) t.problem('bug', `the Tap to play lineup backdrop does not fill the screen ${where}`);
+      else t.event('key-art-backdrop', `lineup banner fills ${Math.round(bd.width)}x${Math.round(bd.height)} behind the card ${where}`);
       const copy = prompt.querySelector('.tap-copy')?.getBoundingClientRect();
       if (cta && copy && innerWidth < 700 && innerWidth < innerHeight && cta.width < Math.min(copy.width, 420) - 2) t.problem('bug', `the Play button is not full width of the card ${where} (${Math.round(cta.width)} of ${Math.round(copy.width)})`);
       if (document.documentElement.scrollWidth > innerWidth + 1) t.problem('bug', `the Tap to play card scrolls sideways ${where}`);
