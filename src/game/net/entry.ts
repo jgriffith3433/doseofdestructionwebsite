@@ -7,6 +7,7 @@ export { OnlineFight, cutLink, fightStats } from './fight.ts';
 export { sharedBoard } from './board.ts';
 export { background } from '@hawkesgen/net';
 export { profileId } from './profile.ts';
-export { closeProfile, findMatch, initOnlineUi, openProfile } from '../ui/online.ts';
+export { closeProfile, findMatch, initOnlineUi, openProfile, inviteFriend, openInvite, inviteInfo, closeInvitePanel } from '../ui/online.ts';
+export { Invite, inviteCodeFrom, inviteUrl, standInId } from './invite.ts';
 export { initLeaderboardUi, renderBoard, showRatingChange } from '../ui/leaderboard.ts';
 export { Rematch, rematchStages } from './rematch.ts';

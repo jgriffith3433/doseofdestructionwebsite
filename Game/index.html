@@ -81,6 +81,7 @@
       <button id="btn-tour" class="menu-item" type="button" data-go="tour"><strong>Tour</strong><span>Pick a fighter. Six fights, one rival, one ending.</span></button>
       <button class="menu-item" type="button" data-go="versus"><strong>Versus</strong><span>Up to four fighters, any mix of you and bots.</span></button>
       <button id="btn-find" class="menu-item online-item" type="button" data-go="online"><strong>Find match</strong><span id="find-sub">Fight another player online. Play on while you wait.</span></button>
+      <button id="btn-invite" class="menu-item online-item" type="button" data-go="invite"><strong>Invite a friend</strong><span>Send a link. They open it and you are in the same fight.</span></button>
       <button id="btn-profile" class="menu-item profile-item" type="button" data-go="profile"><img id="profile-img" alt=""><strong>Profile</strong><span id="profile-sub">Your name and picture.</span></button>
       <button id="btn-board" class="menu-item board-item" type="button" data-go="leaderboard"><strong>Leaderboard</strong><span id="board-sub">Top 100 online, this week and all time.</span></button>
       <button id="btn-extras" class="menu-item" type="button" data-go="extras"><strong>Extras</strong><span>Endings: replay every Tour's last scene.</span></button>
@@ -386,6 +387,25 @@
       <div class="actions">
         <button id="profile-save" class="primary" type="button" data-autofocus>Save</button>
         <button id="profile-cancel" class="secondary" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="invite" class="overlay" role="dialog" aria-modal="true" aria-labelledby="invite-title" hidden>
+    <div class="panel invite-panel">
+      <h2 id="invite-title">Invite a friend</h2>
+      <p id="invite-status" class="invite-status" role="status" aria-live="polite"></p>
+      <div id="invite-share-row" class="invite-share" hidden>
+        <input id="invite-link" type="text" readonly aria-label="Invite link" spellcheck="false" autocomplete="off">
+        <div class="actions">
+          <button id="invite-share" class="primary" type="button" data-autofocus>Share</button>
+          <button id="invite-copy" class="secondary" type="button">Copy link</button>
+        </div>
+        <p id="invite-note" class="hint" role="status" aria-live="polite"></p>
+      </div>
+      <div class="actions">
+        <button id="invite-quick" class="primary" type="button" hidden>Quick match</button>
+        <button id="invite-cancel" class="secondary" type="button">Cancel</button>
       </div>
     </div>
   </div>
