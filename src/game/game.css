@@ -1005,6 +1005,12 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
 .edge-marker.danger i { border-left-color: #ff2a2a; }
 @keyframes marker-pulse { to { box-shadow: 0 0 0 5px rgba(255, 42, 42, 0.45), 0 2px 8px rgba(0, 0, 0, 0.6); } }
 body.scene-on #edge-markers { display: none; }
+/* Name tags (ui/tags.ts): P1-P4 / CPU / profile name in the player colour, dark outline; 13 px+ so it reads on a phone. */
+.fighter-tags { position: fixed; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
+body.scene-on #fighter-tags { display: none; }
+.fighter-tag { position: absolute; left: 0; top: 0; padding: 1px 7px; min-height: 18px; box-sizing: border-box; border-radius: 4px; background: rgba(10, 10, 10, 0.72); border: 2px solid #0a0a0a; color: var(--player); font: 800 14px/1.1 Oswald, system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; -webkit-text-stroke: 3px #0a0a0a; paint-order: stroke fill; will-change: transform; }
+.fighter-tag[hidden] { display: none; }
+.edge-marker .edge-tag { left: 50%; top: 100%; margin-top: -8px; transform: translateX(-50%); }
 /* Touch controls (coarse pointers, in a match). Floating stick (left 40%) + right-thumb icon arc above the
    damage HUD and the Babylon canvas (canvas z-index 0; this layer is 15). Settings → Touch size / opacity set
    --touch-scale and --touch-opacity. Groups stay clear of env(safe-area-inset-*), never under 44 px. */

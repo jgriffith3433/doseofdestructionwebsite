@@ -19,7 +19,8 @@ import { STAGES } from './sim/stage.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
 import { KEYBOARD_HELP, gamepadHelp, padFamily, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
 import { damageColor, damageShake, hitTier } from './hitFeel.ts';
-import { clearMarkers, markerLog, markerRects, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
+import { clearMarkers, markerLog, markerRects, safeInsets, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
+import { clearTags, tagLog, tagRects, tagText, updateTags, type TagIn } from './ui/tags.ts';
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
 import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
@@ -661,6 +662,7 @@ const blogLine = (id: string): { id: string; text: string; audio?: string | null
 async function episodeEnd(m: Match, c: Chapter): Promise<void> {
   phase = 'scene';
   clearMarkers();
+  clearTags();
   const hl = m.highlight;
   if (hl) {
     hl.chapter = c.id;
@@ -1311,6 +1313,7 @@ function endMatch(): void {
   showTouchControls(false);
   $('hud').hidden = true;
   clearMarkers();
+  clearTags();
   $('match-top').hidden = true;
   clearTakeover();
   $('pause').hidden = true;
@@ -2309,7 +2312,9 @@ function frame(draw = true): void {
     // The teaching prompt rides above the player's head, and is hidden while paused or in a scene.
     if (teacher) {
       const me = match.state.fighters[match.player];
-      teacher.place(me && phase === 'play' ? renderer.fighterScreen(me) : null);
+      // Lifted by the name tag's height so the two never sit on top of each other.
+      const head = me && phase === 'play' ? renderer.fighterScreen(me) : null;
+      teacher.place(head ? { ...head, y: head.y - 24 } : null);
     }
   }
 }
@@ -2317,15 +2322,35 @@ function frame(draw = true): void {
 /** Edge bubbles for fighters out of view: the portrait, an arrow at them, bigger the nearer the blast line. */
 function drawEdgeMarkers(m: Match): void {
   const list: MarkerIn[] = [];
-  if (phase === 'play' || phase === 'pause') {
+  const tags: TagIn[] = [];
+  const live = phase === 'play' || phase === 'pause' || phase === 'ready';
+  if (live) {
     for (const f of m.state.fighters) {
+      const text = tagText(m.setup.slots, f.id, m.setup.online?.names[f.id]);
       const e = renderer.fighterEdge(f);
-      if (!e?.off) continue;
-      const avatar = m.setup.online?.avatars[f.id];
-      list.push({ id: f.id, x: e.x, y: e.y, gap: e.gap, color: slotColor(m, f.id), portrait: headUrl(avatar || CHARACTERS[f.char].id) });
+      if (e?.off && (phase === 'play' || phase === 'pause')) {
+        const avatar = m.setup.online?.avatars[f.id];
+        list.push({ id: f.id, x: e.x, y: e.y, gap: e.gap, color: slotColor(m, f.id), portrait: headUrl(avatar || CHARACTERS[f.char].id), tag: text });
+      } else if (e) {
+        // On the stage: the tag rides above the head (the renderer's head point), moving with it.
+        const head = renderer.fighterScreen(f);
+        if (head) tags.push({ id: f.id, x: head.x, y: head.y, text, color: slotColor(m, f.id) });
+      }
     }
   }
   updateMarkers(list);
+  let safe: ReturnType<typeof safeInsets> | null = null;
+  let blocked: ReturnType<typeof safeInsets>[] = [];
+  if (tags.length) {
+    safe = safeInsets();
+    for (const sel of ['.touch-stick', '.touch-buttons', '.touch-pause', '.hud-card', '#match-top']) {
+      document.querySelectorAll(sel).forEach((e) => {
+        const r = e.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) blocked.push({ l: r.left, t: r.top, r: r.right, b: r.bottom });
+      });
+    }
+  }
+  updateTags(tags, safe ?? { l: 0, t: 0, r: innerWidth, b: innerHeight }, blocked);
 }
 
 wireMenus();
@@ -2441,6 +2466,7 @@ const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPla
   trailStats: (reset) => renderer.trailStats(reset),
   reactFxStats: (reset) => renderer.reactFxStats(reset),
   markerStats: () => ({ ...markerLog, rects: markerRects() }),
+  tagStats: () => ({ ...tagLog, rects: tagRects() }),
   gfxStats: () => renderer.gfxStats(),
   autoStats: () => renderer.autoStats(),
   autoSetup: (o: { enabled?: boolean; slowMs?: number; reset?: boolean }) => renderer.autoSetup(o),

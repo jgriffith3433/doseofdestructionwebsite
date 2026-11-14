@@ -85,7 +85,8 @@ export interface GameHooks {
   flipStats?(reset?: boolean): { played: Record<string, number>; tint: Record<string, [number, number, number] | null>; dropped: number; pool: number; free: number; quality: 'high' | 'low'; frames: number; cell: number; standIn: boolean };
   reactFxStats?(reset?: boolean): { squashes: number; maxSquash: number; squashFrames: number; tumbleFrames: number; bounces: number; dustBursts: number; smears: number; smearFrames: number; smashSmears: number; charges: number; quality: string; tells: number; tellFrames: number; tellWhooshes: number; tellMisses: number; tellStarts: number; trails: number; trailFrames: number; normalActives: number; contacts: number; maxContactDist: number; maxHurtGap: number; coreFrames: number; coreMinPx: number; coreHeavyMinPx: number; coreUnderControl: number; shieldRipples: number; parryFlashes: number; clashSparks: number };
   trailStats?(reset?: boolean): { log: { seq: number; victim: number; tier: HitTier; kb: number; kind: 'none' | 'grey' | 'white' | 'streak'; ko: boolean; puffs: number }[]; active: number; puffs: number };
-  markerStats?(): { shown: number; frames: number; unclear: number; last: { id: number; size: number; danger: boolean; clear: boolean; rect: { l: number; t: number; r: number; b: number } } | null; events: { id: number; size: number; danger: boolean }[]; rects: { id: number; rect: { l: number; t: number; r: number; b: number }; danger: boolean }[] };
+  tagStats?(): { frames: number; unclear: number; minHeight: number; texts: Record<number, string>; rects: { id: number; text: string; fontPx: number; rect: { l: number; t: number; r: number; b: number } }[] };
+  markerStats?(): { shown: number; frames: number; unclear: number; last: { id: number; size: number; danger: boolean; clear: boolean; rect: { l: number; t: number; r: number; b: number } } | null; events: { id: number; size: number; danger: boolean }[]; rects: { id: number; rect: { l: number; t: number; r: number; b: number }; danger: boolean; tag?: string }[] };
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
   /** The colour look each built fighter wears and whether its material runs the palette shader (renderer.lookStats). */
   lookStats?(): { slot: number; char: number; look: number; shader: boolean }[];
@@ -6556,6 +6557,12 @@ class Run {
     let trailSeq = 0;
     let markerSeen = 0;
     let markerProblems = 0;
+    let tagMissing = 0;
+    let tagProblems = 0;
+    let tagFrames = 0;
+    const tagLogged = new Set<number>();
+    const tagBubbleLogged = new Set<number>();
+    const phaseIsPlay = () => !!this.game.match();
     let windupTellsLogged = 0;
     let windupDodges = 0;
     let cpuWindup: { move: number; name: string; frame: number; char: number; dodged: boolean } | null = null;
@@ -6580,6 +6587,27 @@ class Run {
           markerProblems++;
           if (markerProblems <= 3) t.problem('bug', `an edge marker (${Math.round(r.l)},${Math.round(r.t)} to ${Math.round(r.r)},${Math.round(r.b)}) ${hit ? 'sits under a control or damage card' : 'leaves the window'}${touchUi ? ' on the phone layout' : ''}`);
         }
+      }
+      // Name tags: every fighter shows one (on the stage over the head, or on its edge bubble with the same text), at least 12 px
+      // tall, inside the window, clear of the touch controls.
+      const ts = this.game.tagStats?.();
+      const mt = this.game.match();
+      if (ts && mt && phaseIsPlay()) {
+        const bubbles = new Map(ms.rects.map((b) => [b.id, b.tag ?? '']));
+        for (const f of mt.state.fighters) {
+          if (f.stocks <= 0 || f.action === ACT.DEAD) continue;
+          const tg = ts.rects.find((q) => q.id === f.id);
+          if (!tg && !bubbles.has(f.id)) { tagMissing++; continue; }
+          if (!tg) { if (!bubbles.get(f.id)) tagMissing++; else if (!tagBubbleLogged.has(f.id)) { tagBubbleLogged.add(f.id); t.event('tag-bubble', `fighter ${f.id}'s edge bubble shows the tag "${bubbles.get(f.id)}"`); } continue; }
+          const r = tg.rect;
+          if (!tagLogged.has(f.id)) { tagLogged.add(f.id); t.event('tag', `fighter ${f.id} shows the tag "${tg.text}" (${Math.round(r.r - r.l)}x${Math.round(r.b - r.t)} px, font ${tg.fontPx}px${touchUi ? ', phone layout' : ''})`); }
+          const under = blockers.find((b) => overlap(r, { l: b.left, t: b.top, r: b.right, b: b.bottom }));
+          if (r.b - r.t < 12 || r.r - r.l < 12 || r.l < 0 || r.t < 0 || r.r > innerWidth || r.b > innerHeight || under) {
+            tagProblems++;
+            if (tagProblems <= 3) t.problem('bug', `the tag "${tg.text}" (${Math.round(r.l)},${Math.round(r.t)} to ${Math.round(r.r)},${Math.round(r.b)}) is ${under ? 'under a control' : 'too small or off the window'}${touchUi ? ' on the phone layout' : ''}`);
+          }
+        }
+        tagFrames++;
       }
       // Damage numbers: inside the window and clear of the touch buttons.
       for (const el of document.querySelectorAll('.hud-pct')) {
@@ -6763,6 +6791,9 @@ class Run {
           }
         }
       }
+      t.metric('tagFrames', tagFrames);
+      t.metric('tagMissing', tagMissing);
+      if (tagFrames > 0 && tagMissing > tagFrames * 0.05) t.problem('bug', `a fighter had no name tag (on the stage or on its edge bubble) in ${tagMissing} checks over ${tagFrames} frames`);
       if (!this.game.markerStats?.()?.shown) t.problem('warning', 'no fighter went off screen, so no edge marker was seen (the kill cue usually shows one)');
       else t.metric('markersShown', this.game.markerStats!()!.shown);
       // Ensure at least one wind-up tell dodge was observed; if the CPU only threw normals in the window, stage one close CPU smash so the bot reads the wind-up tell and dodges it live.
