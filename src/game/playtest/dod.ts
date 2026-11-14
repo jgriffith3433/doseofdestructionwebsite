@@ -124,6 +124,8 @@ export interface GameHooks {
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   /** What the player saw of the stage: presented frames, with stage art still loading, and sampled near-black (reset clears). */
   stageSeen?(reset?: boolean): { frames: number; pending: number; black: number; darkest: number };
+  /** Mid-frame builders (renderer.hitchStats): particle meshes made after warm-up, StageAlive textures made so far. */
+  hitchStats?(): { fxGrown: number; aliveTextures: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
   /** Decoded-audio cache (audio.ts): bytes held, its ceiling, peak, evictions. */
   audioCacheStats?(): { decodedBytes: number; decodedMB: number; peakMB: number; budgetMB: number; entries: number; pinned: number; evictions: number; rawMB: number };
@@ -1320,6 +1322,57 @@ class Run {
       }
       t.metric('feel.autoQualityStepMs', Math.round(worst));
       if (worst > 100) t.problem('bug', `a frame next to an auto-quality step took ${Math.round(worst)} ms (want 100 or less)`);
+    };
+  }
+
+  /**
+   * Where the longest frame of a run falls (`hitch-at`, playtest only; nothing runs in normal play). Every animation frame's
+   * length is kept; for the longest one it records when it came (seconds into the watch), the last 3 marks before it (the
+   * `dod:` events and whatever the scenario passes to `mark`: stage warn/event/eventEnd, hazard hurt, KO), whether StageFx
+   * built a particle mesh past its warmed pools that frame (`fxGrown`) and whether StageAlive built a texture
+   * (`aliveTextures`). `stop()` logs `hitch-at`, the metrics `hitchWorstMs` / `hitchWorstAtS`, and returns the text.
+   */
+  private watchHitch(): { mark: (what: string) => void; stop: () => string } {
+    const t = this.t;
+    const MARKS = ['dod:air-flash', 'dod:slam', 'dod:stinger', 'dod:commentary', 'dod:sudden-death', 'dod:auto-quality', 'dod:feet-gap'];
+    const t0 = performance.now();
+    const marks: { at: number; what: string }[] = [];
+    const mark = (what: string) => { marks.push({ at: performance.now(), what }); if (marks.length > 3) marks.shift(); };
+    const onEvent = (e: Event) => mark(e.type);
+    for (const n of MARKS) window.addEventListener(n, onEvent);
+    let worst = { dt: 0, at: 0, before: [] as string[], grew: 0, textures: 0, totals: '' };
+    let lastNow = 0;
+    let prev = this.game.hitchStats?.() ?? { fxGrown: 0, aliveTextures: 0 };
+    let on = true;
+    const tick = (now: number) => {
+      if (!on) return;
+      const cur = this.game.hitchStats?.() ?? prev;
+      if (lastNow && now - lastNow > worst.dt) {
+        worst = {
+          dt: now - lastNow,
+          at: (now - t0) / 1000,
+          before: marks.map((m) => `${m.what} ${Math.round(now - m.at)} ms before`),
+          grew: cur.fxGrown - prev.fxGrown,
+          textures: cur.aliveTextures - prev.aliveTextures,
+          totals: `particle meshes built since warm-up ${cur.fxGrown}, StageAlive textures ${cur.aliveTextures}`,
+        };
+      }
+      prev = cur;
+      lastNow = now;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    return {
+      mark,
+      stop: () => {
+        on = false;
+        for (const n of MARKS) window.removeEventListener(n, onEvent);
+        const text = `longest frame ${Math.round(worst.dt)} ms at ${worst.at.toFixed(1)} s into the fight; last marks: ${worst.before.join('; ') || 'none'}; built that frame: ${worst.grew} particle meshes, ${worst.textures} StageAlive textures (${worst.totals})`;
+        t.event('hitch-at', text);
+        t.metric('hitchWorstMs', Math.round(worst.dt));
+        t.metric('hitchWorstAtS', Number(worst.at.toFixed(1)));
+        return text;
+      },
     };
   }
 
@@ -5049,11 +5102,22 @@ class Run {
       let hits = 0;
       let passes = 0;
       const botOf = (i: number) => (i === m.player ? this.bot : m.bots[i]);
+      const hitch = this.watchHitch();
+      const stocksSeen = m.state.fighters.map((f) => f.stocks);
+      const hurtSeen = m.state.fighters.map(() => false);
       const sample = (): boolean => {
         const s = m.state;
         if (s.over) return true;
+        s.fighters.forEach((f, i) => {
+          if (f.stocks < stocksSeen[i]) hitch.mark(`KO P${i + 1}`);
+          stocksSeen[i] = f.stocks;
+          const hurt = s.hazHit.some((h) => (h & (1 << i)) !== 0);
+          if (hurt && !hurtSeen[i]) hitch.mark(`hazard hurt P${i + 1}`);
+          hurtSeen[i] = hurt;
+        });
         evOf.forEach(({ e, i }, k) => {
           const now = s.evPhase[i];
+          if (now !== prev[k]) hitch.mark(`${now === EV_WARN ? 'warn' : now === EV_RUN ? 'event' : 'eventEnd'}:${e.id}`);
           if (now === EV_WARN && prev[k] !== EV_WARN) {
             warnings++;
             t.event('hazard-warning', `${e.name ?? e.id} warns on ${def.name}, ${e.warn ?? 0} s before it arrives`);
@@ -5095,6 +5159,7 @@ class Run {
       };
       this.manual = null;
       await this.fight(sample, 240000).catch(() => undefined);
+      hitch.stop();
       t.metric('hazardWarnings', warnings);
       t.metric('hazardThreatened', threatened);
       t.metric('hazardDodged', dodged);
@@ -8586,19 +8651,23 @@ class Run {
       const overlap = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
       const visible = (el: Element | null): el is HTMLElement => !!el && (el as HTMLElement).getClientRects().length > 0;
 
-      // ---- 1. the readout is up, on screen, clear of the controls.
+      // ---- 1. no combo yet, so the panel is not drawn (no "0.0%" beside empty labels).
       const readout = this.q('#training-readout');
-      if (!visible(readout)) {
-        t.problem('bug', `${how}: no combo readout on the Training screen`);
+      if (!readout) {
+        t.problem('bug', `${how}: no combo readout element on the Training screen`);
         t.finish('error');
         return;
       }
-      const rr = rectOf(readout);
-      const blockers = [...document.querySelectorAll<HTMLElement>('.touch-btn, .touch-stick, .touch-pause, #match-top, #hud .hud-card')].filter(visible);
-      const hit = blockers.find((b) => overlap(rr, rectOf(b)));
-      if (rr.left < 0 || rr.top < 0 || rr.right > vw || rr.bottom > vh) t.problem('bug', `${how}: the combo readout runs off the screen (${Math.round(rr.left)},${Math.round(rr.top)} ${Math.round(rr.width)}x${Math.round(rr.height)} in ${vw}x${vh})`);
-      else if (hit) t.problem('bug', `${how}: the combo readout is under ${hit.className || hit.id}`);
-      else t.event('training-readout', `${how}: readout top left at ${Math.round(rr.left)},${Math.round(rr.top)} (${Math.round(rr.width)}x${Math.round(rr.height)} in ${vw}x${vh}), clear of the pause button and the controls`);
+      if (visible(readout)) t.problem('bug', `${how}: the combo panel shows before any combo exists`);
+      else t.event('readout-hidden', `${how}: the combo panel is hidden until a combo exists`);
+      const checkReadoutFit = () => {
+        const rr = rectOf(readout);
+        const blockers = [...document.querySelectorAll<HTMLElement>('.touch-btn, .touch-stick, .touch-pause, #match-top, #hud .hud-card')].filter(visible);
+        const hit = blockers.find((b) => overlap(rr, rectOf(b)));
+        if (rr.left < 0 || rr.top < 0 || rr.right > vw || rr.bottom > vh) t.problem('bug', `${how}: the combo readout runs off the screen (${Math.round(rr.left)},${Math.round(rr.top)} ${Math.round(rr.width)}x${Math.round(rr.height)} in ${vw}x${vh})`);
+        else if (hit) t.problem('bug', `${how}: the combo readout is under ${hit.className || hit.id}`);
+        else t.event('training-readout', `${how}: readout top left at ${Math.round(rr.left)},${Math.round(rr.top)} (${Math.round(rr.width)}x${Math.round(rr.height)} in ${vw}x${vh}), clear of the pause button and the controls`);
+      };
       t.progress(0.1);
 
       // ---- 2. Pause: the options are there, every control 44 px, on screen.
@@ -8710,6 +8779,7 @@ class Run {
       if (best < 3) t.problem('bug', `${how}: the down tilt string never made a 3-hit true combo (best ${best})`);
       else {
         await frames(4);
+        checkReadoutFit();
         const shownCount = Number(this.q('#training-readout .tr-count')?.textContent);
         const shownDmg = this.q('#training-readout .tr-dmg')?.textContent ?? '';
         const shownLast = this.q('#training-readout .tr-last')?.textContent ?? '';

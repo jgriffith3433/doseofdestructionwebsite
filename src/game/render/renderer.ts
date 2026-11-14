@@ -42,7 +42,7 @@ import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet
 import { StageFx, buildLayers, drawnPlatforms, layersFor } from './stageArt.ts';
 import { behindForeground, bodyPoints, fadeToward } from './foreground.ts';
 import { StageLive } from './stageLive.ts';
-import { StageAlive } from './stageAlive.ts';
+import { StageAlive, aliveTexturesBuilt } from './stageAlive.ts';
 import { PostChain } from './post.ts';
 import { PLAYER_COLORS, colourVision, shapeOf } from '../colourVision.ts';
 import { Constants } from '@babylonjs/core/Engines/constants.js';
@@ -527,6 +527,11 @@ export class Renderer {
   /** Stage life pieces and the screen mode, for the playtest. */
   aliveStats() {
     return this.alive?.stats() ?? null;
+  }
+
+  /** What could build something in the middle of a frame, for the playtest's hitch trace: particle meshes made after warm-up, StageAlive textures made so far. */
+  hitchStats(): { fxGrown: number; aliveTextures: number } {
+    return { fxGrown: this.fx?.meshesGrown() ?? 0, aliveTextures: aliveTexturesBuilt() };
   }
 
   /** The render scale and glow actually in use, for the playtest. */
