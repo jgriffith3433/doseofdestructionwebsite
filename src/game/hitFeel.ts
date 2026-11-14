@@ -24,11 +24,14 @@ export interface Impact {
   flash: number;
 }
 
+/** A notch more level on the biggest hits (damage in tenths of a percent): 1 up to a smash's 130, then up to 1.2 for a heavy's. */
+export const hitGain = (dmg: number): number => (dmg <= 130 ? 1 : 1 + Math.min(0.2, (dmg - 130) / 400));
+
 export const impactFor = (tier: HitTier, kb: number): Impact => {
   const push = Math.min(16, kb >> 3);
   if (tier === 'light') return { sparks: 5 + (push >> 3), stars: 0, ring: false, shake: Math.min(0.12, kb * 0.001), flash: 0 };
   if (tier === 'medium') return { sparks: 8 + (push >> 2), stars: 1, ring: false, shake: Math.min(0.3, 0.1 + kb * 0.002), flash: 0 };
-  return { sparks: 12 + (push >> 1), stars: 2, ring: true, shake: Math.min(0.7, 0.35 + kb * 0.003), flash: 0.18 };
+  return { sparks: 12 + (push >> 1), stars: 2, ring: true, shake: Math.min(0.85, 0.35 + kb * 0.003), flash: 0.18 };
 };
 
 const SHAKE_KEY = 'dod.shake';

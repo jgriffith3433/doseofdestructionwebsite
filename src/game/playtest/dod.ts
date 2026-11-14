@@ -49,7 +49,7 @@ import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { VoiceWatch } from './voiceWatch.ts';
 import { walkMenus, type Mode } from './menuWalk.ts';
-import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
+import { SOUND_KEY, readSoundSettings, soundSettings } from '../soundSettings.ts';
 import { GFX_KEY, HAND_KEY, AUTO_KEY, AUTO_TOAST_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
 import { colourVision } from '../colourVision.ts';
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, inWindupTell, isSmashMove, isSpecialMove, moveStartFrame, tellFrames, windupPose, type HitTier } from '../hitFeel.ts';
@@ -244,6 +244,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'portraits') await r.portraitsRun();
         else if (id === 'colours') await r.coloursRun();
         else if (id === 'sound-settings') await r.soundSettings();
+        else if (id === 'voice-captions') await r.voiceCaptions();
         else if (id === 'fast-start') await r.fastStart();
         else if (id === 'hit-feel') await r.hitFeel();
         else if (id === 'rumble') await r.rumbleRun();
@@ -12088,6 +12089,59 @@ class Run {
     }
     t.progress(1);
     t.finish('done');
+  }
+
+  async voiceCaptions(): Promise<void> {
+    const t = this.t;
+    const back = localStorage.getItem(SOUND_KEY);
+    const slide = (id: string, percent: number) => {
+      const input = this.q(id) as HTMLInputElement;
+      input.value = String(percent);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      t.add('interactions');
+    };
+    await this.screen('title', 30000);
+    await this.tapToPlay();
+    await this.tap(() => this.q('#btn-start'), 'Press start');
+    await this.screen('main');
+    await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+    await t.until(settingsShowing, 3000, 'Settings to open');
+    if (!soundSettings().on) await this.tap(() => this.q('#sound-switch'), 'Sound on');
+    // 1: three separate sliders, handles 44 px, panel inside the window.
+    const ids = ['#vol-music', '#vol-sfx', '#vol-voice'];
+    const rects = ids.map((id) => this.q(id)?.getBoundingClientRect());
+    if (rects.some((r) => !r)) t.problem('bug', 'Settings is missing one of the Music, Effects, Voice sliders');
+    for (const [i, r] of rects.entries()) {
+      if (!r) continue;
+      if (r.height < 44) t.problem('bug', `${ids[i]} handle is ${Math.round(r.height)} px tall, under 44`);
+      if (r.left < 0 || r.right > innerWidth) t.problem('bug', `${ids[i]} runs off the screen`);
+    }
+    t.event('sliders', ids.map((id, i) => `${id} ${Math.round(rects[i]?.width ?? 0)}x${Math.round(rects[i]?.height ?? 0)}`).join(', '));
+    if (document.documentElement.scrollWidth > innerWidth + 1) t.problem('bug', 'Settings scrolls sideways');
+    await t.wait(300);
+    slide('#vol-voice', 0);
+    slide('#vol-sfx', 80);
+    await t.wait(400);
+    const g = audio.busGains();
+    if (g.voice > 0.001 || g.sfx < 0.1) t.problem('bug', `Voice 0 should silence voices but not effects (voice ${g.voice}, sfx ${g.sfx})`);
+    else t.event('voice-zero', `voice bus ${g.voice.toFixed(2)}, effects bus ${g.sfx.toFixed(2)}`);
+    // 2: captions off is saved (and read back the way a reload reads it).
+    await this.tap(() => this.q('#captions-switch'), 'Captions off');
+    await t.wait(300);
+    const saved = JSON.parse(localStorage.getItem(SOUND_KEY) ?? 'null') as { captions?: boolean } | null;
+    if (saved?.captions !== false || readSoundSettings().captions !== false || !document.body.classList.contains('captions-off')) t.problem('bug', 'Captions off did not save or apply');
+    else t.event('captions-off-saved', JSON.stringify(saved));
+    // 3: sound muted, story lines still show.
+    await this.tap(() => this.q('#sound-switch'), 'Sound off');
+    await t.wait(300);
+    if (document.body.classList.contains('captions-off')) t.problem('bug', 'With sound off the story captions are still hidden');
+    else t.event('captions-with-sound-off', 'captions show with sound off');
+    await this.tap(() => this.q('#sound-switch'), 'Sound on');
+    await this.tap(() => this.q('#captions-switch'), 'Captions on');
+    await this.tap(() => this.q('#settings-done'), 'Done');
+    if (back === null) localStorage.removeItem(SOUND_KEY);
+    else localStorage.setItem(SOUND_KEY, back);
   }
 
   async soundSettings(): Promise<void> {
