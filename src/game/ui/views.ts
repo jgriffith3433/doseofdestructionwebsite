@@ -9,6 +9,7 @@ import { DIFFICULTIES, DIFFICULTY_LABEL, DIFFICULTY_NOTE, difficulty, easyCleare
 import type { Grade, Score } from '../campaign/grade.ts';
 import { hasReward, pickedTitle, rewardLine, setVariant, variantsFor, type Reward } from '../campaign/rewards.ts';
 import { PLAYER_COLORS, prefetchStage } from '../render/renderer.ts';
+import { SHAPE_GLYPH, shapeOf } from '../colourVision.ts';
 import { TEAM_COLORS } from './select.ts';
 import { $, formatTime, h, kids, pct, portraitSize, portraitUrl, thumbUrl } from './dom.ts';
 import type { ModeStage } from '../modes.ts';
@@ -408,6 +409,31 @@ export interface ResultAction {
   run: () => void;
 }
 
+/**
+ * A couch match (two or more people on this machine): each human's own numbers under their tag (colour + shape + P#), side
+ * by side. Solo, CPU-only and online matches get nothing, so their results are unchanged.
+ */
+function couchCards(m: Match, colors: string[]): HTMLElement | null {
+  if (m.setup.mode !== 'versus' || m.setup.online || m.humans < 2) return null;
+  const people = m.setup.slots.map((s, i) => ({ s, i })).filter(({ s }) => s.cpu === null && !s.remote);
+  const win = m.state.winnerTeam >= 0 ? (i: number) => m.state.fighters[i].team === m.state.winnerTeam : (i: number) => i === m.state.winner;
+  return h(
+    'section',
+    { class: 'couch-stats', 'aria-label': 'Player stats' },
+    ...people.map(({ i }, k) => {
+      const st = m.stats[i];
+      const f = m.state.fighters[i];
+      const cell = (key: string, label: string, value: string) => h('div', { 'data-stat': key }, h('dt', {}, label), h('dd', {}, value));
+      return h(
+        'article',
+        { class: 'couch-card', 'data-player': String(k + 1), 'data-slot': String(i), 'data-shape': shapeOf(i), 'data-winner': win(i) ? '1' : undefined, style: `--slot:${colors[i]}` },
+        h('header', {}, h('b', { class: 'couch-tag' }, `${SHAPE_GLYPH[shapeOf(i)]} P${k + 1}`), h('span', {}, CHARACTERS[f.char].name), win(i) && h('em', {}, 'Winner')),
+        h('dl', {}, cell('kos', 'KOs', String(st.kos)), cell('falls', 'Falls', String(st.falls)), cell('damage', 'Damage', pct(st.dealt)), cell('best', 'Best hit', pct(st.biggestHit))),
+      );
+    }),
+  );
+}
+
 /** `online`: an online match's ending, which can come before the sim's (a forfeit, a lost link, a desync). */
 export function showResults(m: Match, actions: ResultAction[], online?: { headline: string; note?: string; winner?: number }, unlocked: string[] = [], levelChange?: { from: number; to: number; text: string }, grade?: EpisodeGrade, reward?: Reward | null): void {
   const s = m.state;
@@ -468,6 +494,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
       stat('damage', 'Damage dealt', pct(dealt)),
       stat('kos', 'KOs', String(heroKos)),
     ),
+    couchCards(m, colors),
     h(
       'section',
       { class: 'highlights', 'aria-label': 'Highlights' },

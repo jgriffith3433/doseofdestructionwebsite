@@ -10876,6 +10876,41 @@ class Run {
       else t.event('pads-independent', `pad 1 moved player 1 ${Math.round(moved / 1000)} units, player 2 ${Math.round(stayed / 1000)}; pad 2 then moved player 2 ${Math.round(movedB / 1000)}, player 1 ${Math.round(stayedA / 1000)}`);
       emulatePad(null, 0);
       emulatePad(null, 1);
+
+      // Couch results (setup shortcut: player 2 is on its last stock and thrown past the blast line): each person's own numbers
+      // under their tag, then Rematch keeps both people, their pads and their fighters.
+      const chars = fighters().map((f) => f.char);
+      const foe = fighters()[1];
+      foe.stocks = 1;
+      foe.x = (STAGES[m.state.stage].blast.right + 400) * FX;
+      await t.until(() => currentScreen() === 'results', 30000, 'the couch results');
+      await t.until(() => !!this.q('#results-body .couch-card'), 8000, 'the player cards');
+      const cards = [...document.querySelectorAll<HTMLElement>('#results-body .couch-card')];
+      const tags = cards.map((c) => c.querySelector('.couch-tag')?.textContent?.replace(/^\S+\s/, '') ?? '');
+      const stats = cards.map((c) => [...c.querySelectorAll('dd')].map((d) => d.textContent ?? ''));
+      if (cards.length !== 2 || tags[0] !== 'P1' || tags[1] !== 'P2' || stats.some((s) => s.length !== 4 || s.some((v) => !v))) t.problem('bug', `couch results: ${cards.length} cards, tags ${tags.join('/')} (want P1 and P2 with KOs, Falls, Damage, Best hit)`);
+      else if (cards[0].dataset.shape === cards[1].dataset.shape || cards[0].style.getPropertyValue('--slot') === cards[1].style.getPropertyValue('--slot')) t.problem('bug', 'couch results: both cards share a colour or shape');
+      else t.event('couch-results', `P1 ${stats[0].join(' / ')} | P2 ${stats[1].join(' / ')} (KOs / Falls / Damage / Best hit)`);
+      const keptSetup = m.setup.slots.map((s) => `${s.char}:${s.cpu}`).join(',');
+      await this.click(() => this.button('#results-actions', 'Rematch'), 'Rematch');
+      await t.until(() => this.game.phase() === 'play' && this.game.match() !== m, 30000, 'the rematch to begin');
+      const again = this.game.match()!;
+      const sameChars = again.state.fighters.map((f) => f.char).join() === chars.join();
+      if (again.humans !== 2 || !sameChars || again.setup.slots.map((s) => `${s.char}:${s.cpu}`).join(',') !== keptSetup) t.problem('bug', `Rematch changed the lineup (${again.humans} humans, fighters ${again.state.fighters.map((f) => f.char).join('/')} vs ${chars.join('/')})`);
+      else {
+        const px = x(0);
+        emulatePad(pad(true), 0);
+        await t.wait(800);
+        emulatePad(pad(false), 0);
+        const pb = x(1);
+        emulatePad(pad(false, true), 1);
+        await t.wait(800);
+        emulatePad(pad(false), 1);
+        if (Math.abs(x(0) - px) < 200 || Math.abs(x(1) - pb) < 200) t.problem('bug', 'after Rematch a pad no longer moves its own fighter');
+        else t.event('rematch-same', `Rematch: ${again.humans} people, same fighters, each pad still moves its own`);
+      }
+      emulatePad(null, 0);
+      emulatePad(null, 1);
       await quit();
       t.progress(0.6);
 
