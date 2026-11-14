@@ -227,6 +227,8 @@ class AudioSystem {
   /** The voice director: one speaker on the air, by priority (voiceDirector.ts). */
   private director = new VoiceDirector(() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
   private directorTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Soft crowd murmur every few seconds while a stage bed is up, so play is never silent for long. */
+  private lifeTimer: ReturnType<typeof setInterval> | null = null;
   /** The source of every take the director has started, to cut it with a fade. */
   private onAirSrc = new Map<Take, AudioBufferSourceNode>();
   private gains = new WeakMap<AudioBufferSourceNode, GainNode>();
@@ -1382,6 +1384,7 @@ class AudioSystem {
     this.startMusicLoop(recipe.music, true);
     if (recipe.ambience) this.startAmbienceLoop(recipe.ambience, recipe.ambienceVolume);
     this.startProceduralBed(recipe.bed);
+    this.startStageLife();
     this.musicState = 'calm';
     this.applyIntensityMix(false, true);
   }
@@ -1432,7 +1435,21 @@ class AudioSystem {
     g.setTargetAtTime(now * 0.72, t + 0.12, 0.35);
   }
 
+  /** The room breathes: a quiet crowd murmur every ~6 s under the bed (a fresh sample start, at a never-repeated rate). */
+  private startStageLife(): void {
+    this.stopStageLife();
+    this.lifeTimer = setInterval(() => {
+      if (this.bedWant && this.ctx?.state === 'running') this.synth('crowd', 0.35);
+    }, 6000);
+  }
+
+  private stopStageLife(): void {
+    if (this.lifeTimer) clearInterval(this.lifeTimer);
+    this.lifeTimer = null;
+  }
+
   private clearBedLayers(keepMusicSlot: boolean): void {
+    this.stopStageLife();
     this.fadeOutLoop(this.ambience);
     this.ambience = null;
     this.fadeOutLoop(this.intense);
