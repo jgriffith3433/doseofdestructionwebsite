@@ -7390,8 +7390,8 @@ class Run {
       } else t.problem('bug', `the VS card called ${order.map((i) => i.replace('announcer.name.', '')).join(', ') || 'nothing'}, want ${meId} then ${foeId}`);
       if (stagePlay && vs[0] && stagePlay.at + stagePlay.ms > vs[0].at + 40) t.problem('bug', `the VS names began before the stage's name had finished`);
       // Match start: Ready... FIGHT!
-      await t.until(() => calls.some((c) => c.phase === 'play' && c.at >= mark && c.id.startsWith('announcer.ready-fight.')), 8000, '"Ready... FIGHT!"').catch(() => null);
-      const rf = calls.find((c) => c.phase === 'play' && c.at >= mark && c.id.startsWith('announcer.ready-fight.'));
+      await t.until(() => calls.some((c) => c.phase === 'play' && c.at >= mark && /^announcer\.(round|ready)-fight\./.test(c.id)), 8000, '"Ready... FIGHT!"').catch(() => null);
+      const rf = calls.find((c) => c.phase === 'play' && c.at >= mark && /^announcer\.(round|ready)-fight\./.test(c.id));
       if (rf) t.event('ready-fight-call', `"${rf.text}" (${rf.id}) played at the match start`);
       else t.problem('bug', 'the match start did not play "Ready... FIGHT!"');
       t.progress(0.4);
