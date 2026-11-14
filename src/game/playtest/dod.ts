@@ -2736,6 +2736,43 @@ class Run {
 
   // ---------------------------------------------------------- online
 
+  private ratingCounts: { from: number; to: number; delta: number; steps: number }[] = [];
+
+  /** Criteria 1, 2 and 4 of the online results: the count-up, the opponent's name and fighter, and the fit with text of 14 px or more. */
+  private onlineResultsChecks(opp: string, won: boolean, ratingText: string): void {
+    const t = this.t;
+    const card = this.q('#results-opponent');
+    const cardText = card?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+    if (!card || !cardText.includes(opp)) t.problem('bug', `the opponent's name (${opp}) isn't on the online results: "${cardText}"`);
+    else t.event('results-opponent', cardText);
+    const fighterName = this.q('#results-opponent .online-fighter')?.textContent ?? '';
+    if (!fighterName) t.problem('bug', "the opponent's fighter isn't on the online results");
+    const link = this.q('#results-opponent .online-link')?.textContent ?? '';
+    if (!/ms|Direct|Relay|Signal/.test(link)) t.problem('bug', `the opponent card has no connection: "${link}"`);
+    const count = this.ratingCounts[this.ratingCounts.length - 1];
+    if (!count) t.problem('bug', 'the rating change did not count up (no dod:rating-count)');
+    else {
+      t.event('rating-count', `${count.from} -> ${count.to} (${count.delta >= 0 ? '+' : ''}${count.delta}) in ${count.steps} frames`);
+      if (count.steps < 3 && !matchMedia('(prefers-reduced-motion: reduce)').matches) t.problem('bug', `the rating jumped in ${count.steps} frame(s) instead of counting`);
+    }
+    if (!/#\d+ on the board/.test(ratingText)) t.problem('bug', `the results don't show the place on the board: "${ratingText}"`);
+    void won;
+    // Fit: the actions are on screen with no scrolling, the card is above them, and no text is under 14 px.
+    const actions = this.q('#results-actions')?.getBoundingClientRect();
+    const cardBox = card?.getBoundingClientRect();
+    const small: string[] = [];
+    for (const el of card?.querySelectorAll<HTMLElement>('*') ?? []) {
+      if (!el.childNodes.length || ![...el.childNodes].some((n) => n.nodeType === 3 && (n.textContent ?? '').trim())) continue;
+      const px = parseFloat(getComputedStyle(el).fontSize);
+      if (px < 14) small.push(`${el.className || el.tagName} ${px}px`);
+    }
+    if (small.length) t.problem('bug', `text under 14 px on the online results: ${small.join(', ')}`);
+    const fits = !!actions && !!cardBox && actions.bottom <= innerHeight + 1 && cardBox.bottom <= actions.top + 1 && cardBox.right <= innerWidth + 1 && cardBox.left >= -1;
+    const portrait = innerHeight > innerWidth;
+    if (portrait && !fits) t.problem('bug', `on a ${innerWidth}x${innerHeight} phone the opponent card and rating don't fit above the buttons (card bottom ${Math.round(cardBox?.bottom ?? -1)}, buttons ${Math.round(actions?.top ?? -1)}-${Math.round(actions?.bottom ?? -1)})`);
+    t.event('online-results-fit', `${innerWidth}x${innerHeight}: ${fits ? 'fits' : 'does not fit'}, smallest text ${small.length ? 'under 14 px' : '14 px or more'}`);
+  }
+
   /**
    * Reconnecting (docs/online.md): peer 1's connection is cut for 3 s mid-fight. Both pages pause with "Reconnecting…" and
    * a countdown (the banner clear of every touch control), the same player is heard again and play resumes with the same
@@ -2817,11 +2854,14 @@ class Run {
       t.event('disconnect-result', `${headline}: ${note}`);
       if (!/Connection lost/.test(headline)) t.problem('bug', `a drop past the window ended "${headline}", not as a disconnect`);
       if (/left the match|You left/i.test(`${headline} ${note}`)) t.problem('bug', 'a disconnect was shown as a forfeit');
+      if (!/(You|\S+) dropped/.test(note) || !/Not rated as a quit/.test(note)) t.problem('bug', `a disconnect result must say who dropped and that it was not rated as a quit: "${note}"`);
+      else t.event('disconnect-who', note);
+      const oppCard = this.q('#results-opponent')?.textContent ?? '';
+      if (!oppCard.includes(opp)) t.problem('bug', `the disconnect result doesn't name the opponent (${opp}): "${oppCard}"`);
       await t.wait(1500);
       const state = this.q('#results-rating')?.dataset.state ?? '';
       t.event('disconnect-unrated', `rating state "${state}"; ${/confirmed/.test(state) ? 'RATED' : 'not rated'}`);
       if (/confirmed/.test(state)) t.problem('bug', 'a disconnect changed the rating');
-      void opp;
     } finally {
       window.clearInterval(watch);
     }
@@ -3081,6 +3121,7 @@ class Run {
       lastStats = net.fightStats() ?? lastStats;
     }, 400);
     this.progressNow = () => 0.45 + 0.45 * Math.min(1, (this.game.match()?.state.frame ?? 0) / Math.max(1, m.state.rules.timeLimit || 5400));
+    window.addEventListener('dod:rating-count', (e) => this.ratingCounts.push((e as CustomEvent).detail));
     await t.until(() => currentScreen() === 'results', 5 * 60 * 1000, 'the online match to end');
     window.clearInterval(statsWatch);
     if (lastStats) {
@@ -3106,8 +3147,11 @@ class Run {
     // 7. The rating change on the result: both signatures in, "+16" / "−16" for two new players.
     const rating = () => this.q('#results-rating');
     await t.until(() => /confirmed|expected|void|same/.test(rating()?.dataset.state ?? ''), 20000, 'the rating change on the result');
+    // The number counts to its final value (dod:rating-count fires when it lands), and the card names the opponent.
+    await t.until(() => rating()?.dataset.counted === '1', 8000, 'the rating change to finish counting');
     const ratingText = rating()?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
     t.event('rating-change', ratingText);
+    this.onlineResultsChecks(opp, won, ratingText);
     if (rating()?.dataset.state !== 'confirmed') t.problem('bug', `the rating change isn't confirmed by both players: "${ratingText}"`);
     const delta = Number(/([+\u2212])(\d+)/.exec(ratingText)?.slice(1).join('').replace('\u2212', '-') ?? NaN);
     if (!Number.isFinite(delta) || (won ? delta <= 0 : delta >= 0)) t.problem('bug', `the rating change "${ratingText}" doesn't fit "${headline}"`);
