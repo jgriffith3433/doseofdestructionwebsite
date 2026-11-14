@@ -6,7 +6,7 @@
 import { rngNext } from '../sim/fixed.ts';
 import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { BTN, NO_INPUT, packInput } from '../sim/input.ts';
-import { STAGES } from '../sim/stage.ts';
+import { STAGES, fadeState, platformAt } from '../sim/stage.ts';
 import { cloneState, hashState, newGame, type FighterSetup, type GameOptions, type GameState } from '../sim/state.ts';
 import { BUFFER_FRAMES, COYOTE_FRAMES, step } from '../sim/step.ts';
 import { Bot } from '../ai/bot.ts';
@@ -63,7 +63,8 @@ const four: FighterSetup[] = [{ char: 0 }, { char: 2 }, { char: 8 }, { char: 12 
     ...base,
     id: 'test-dynamic',
     name: 'Test Dynamic',
-    platforms: base.platforms.map((p, i) => (i === base.platforms.length - 1 ? { ...p, offDuring: 'storm' } : p)),
+    // City Top's own fading catwalks are covered by its own entry in the loops below; here the toggles come from events only.
+    platforms: base.platforms.map(({ fade: _fade, ...p }, i) => (i === base.platforms.length - 1 ? { ...p, offDuring: 'storm' } : p)),
     events: [
       { id: 'storm', every: [2, 4], first: 1, warn: 1, duration: 3 },
       { id: 'cheer', trigger: 'ko', duration: 0 },
@@ -632,6 +633,47 @@ runGrabTests(check);
 
 // Bot against bot across the 13 Season 1 fighters: own kits, win rates between 35% and 65%.
 runRosterTests(check);
+
+// Moving and fading platforms are layout: they run with Hazards Off, ride fighters and are never all gone.
+{
+  const idx = (id: string) => STAGES.findIndex((x) => x.id === id);
+  const city = STAGES[idx('city-top')];
+  const fades = city.platforms.filter((p) => p.fade);
+  let bothGone = 0;
+  const seen = new Set<number>();
+  for (let f = 0; f < 60 * 25; f++) {
+    const st = fades.map((p) => fadeState(p, f));
+    st.forEach((x) => seen.add(x));
+    if (st.every((x) => x === 2)) bothGone++;
+  }
+  check('City Top: two fading catwalks flash, go and come back, never both gone', fades.length === 2 && seen.has(1) && seen.has(2) && bothGone === 0);
+  for (const id of ['humans-in-the-loop', 'space-chess']) {
+    const si = idx(id);
+    const mi = STAGES[si].platforms.findIndex((p) => p.motion);
+    const p = STAGES[si].platforms[mi];
+    const g = newGame([{ char: 0 }, { char: 2 }], { stocks: 3, seed: 5, stage: si });
+    g.rules.hazards = 0;
+    const rider = g.fighters[0];
+    const a = platformAt(p, 0);
+    rider.x = (a.x1 + a.x2) >> 1;
+    rider.y = a.y;
+    rider.grounded = 1;
+    rider.platform = mi;
+    let lo = Infinity;
+    let hi = -Infinity;
+    let drift = 0;
+    step(g, [NO_INPUT, NO_INPUT]);
+    const base = rider.x - platformAt(p, g.frame - 1).x1;
+    for (let f = 0; f < p.motion!.period; f++) {
+      step(g, [NO_INPUT, NO_INPUT]);
+      if (rider.platform === mi && rider.grounded) drift = Math.max(drift, Math.abs(rider.x - platformAt(p, g.frame - 1).x1 - base));
+      else drift = 1e9;
+      lo = Math.min(lo, rider.x);
+      hi = Math.max(hi, rider.x);
+    }
+    check(`${STAGES[si].name}: a standing fighter is carried by the moving platform with Hazards Off`, hi - lo > 40 * 1000 && drift <= 1000, `${Math.round((hi - lo) / 1000)} units, drift ${drift / 1000}`);
+  }
+}
 
 if (failed) {
   console.log(`${failed} failed`);

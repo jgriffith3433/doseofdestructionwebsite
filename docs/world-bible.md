@@ -21,6 +21,7 @@ call out where the live build is still thin.
   front. Layered bed: arena murmur (`bed: arena`) under `music-foundry` ambience + theme `music-humans-in-the-loop`;
   lifts on last stock / 100%; final-KO sting. Crowd noise, cheer on every KO (`go-wild`).
 - **Size:** wide main deck with side platforms; the camera opens wide for scene cards then tightens on speakers.
+- **Moves:** the light truss over centre deck drifts across the stage, about 190 units either way over 15 s: a rider crosses high. Layout, not a hazard: Hazards Off keeps it.
 - **In / out:** Season 1 Encore, Season 2 Sponsored, Season 3 Walk-On, Season 5 Clip Show, Season 8 Best in Show,
   Season 10 First Cut. The city tunes here first every midnight.
 - **Now:** strongest "show" stage (crowd + KO reaction). **Short:** no day/night shift of the house lights outside
@@ -32,6 +33,7 @@ call out where the live build is still thin.
   Layered bed: night wind/city hum (`bed: city-night`) under `music-rooftop` ambience + theme `music-city-top`;
   lifts on last stock / 100%; final-KO sting. Fireworks on falls.
 - **Size:** long main roof, side ledges, a high solid perch; blast left/right into the city.
+- **Moves:** the two inner catwalks fade out and back on a steady 10 s timer (flash 1.5 s, gone 3 s, half a cycle apart, so one is always up). Layout, not a hazard: Hazards Off keeps them.
 - **In / out:** Open Mic, Title Defense, Cold Open, Pilot Remake, Series Finale, Teaser, Final Cut (and returns).
 - **Now:** painted and playable. **Short / vertical-slice fix:** add a soft timed beat every ~8–10 s (billboard
   flicker, distant firework volley, or antenna spark) plus denser night wind and city hum so stalling never leaves a
@@ -89,6 +91,7 @@ call out where the live build is still thin.
   (`bed: void`) under `music-pit` ambience + theme `music-space-chess`; lifts on last stock / 100%; final-KO sting.
   Kings topple on KO.
 - **Size:** flat board with side floats.
+- **Moves:** the two inner floating squares drift in and out together, 50 units either way over 9 s, never touching the outer pairs. Layout, not a hazard: Hazards Off keeps them.
 - **In / out:** Dead Weight, Cut to Size, Standards and Practices, Lifetime Achievement.
 - **Now:** `king-falls` on KO. **Short:** pawn drift should be constant; board needs more idle motion when nobody falls.
 

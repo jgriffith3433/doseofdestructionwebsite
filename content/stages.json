@@ -62,14 +62,26 @@
         "x2": 435,
         "y": 140,
         "solid": false,
-        "hidden": true
+        "hidden": true,
+        "fade": {
+          "cycle": 10,
+          "warn": 1.5,
+          "gone": 3,
+          "phase": 0
+        }
       },
       {
         "x1": -435,
         "x2": -145,
         "y": 140,
         "solid": false,
-        "hidden": true
+        "hidden": true,
+        "fade": {
+          "cycle": 10,
+          "warn": 1.5,
+          "gone": 3,
+          "phase": 5
+        }
       }
     ],
     "blast": {
@@ -620,7 +632,7 @@
       "style": "Moody nighttime cityscape painting with photographic realism softened into painterly strokes. Near-black sky, dark charcoal and brown building masses punctuated by thousands of warm amber window lights, with occasional cool blue accents. Lighting comes from below and from windows, rims of warm gold on edges, deep shadows elsewhere.",
       "reference": "stages/city-top/reference.webp"
     },
-    "notes": "Plays like a standard three-platform stage on a wide rooftop: billboard catwalk and skylight canopy at 140, water tower lid at 280 for vertical play. The right side has a two-landing fire escape below roof level that catches fighters knocked off that side, giving them a climb-back route (lower landing reaches the ledge with a full jump plus air jump); the left side is an open drop, so the stage is mildly asymmetric by design. Every KO launches a firework into the sky; the match end fires a big multicolor finale. Art priority: main-building, water-tower, fire-escape, billboard-catwalk, skylight-canopy, backdrop, escape-building, front-antenna, left-building.",
+    "notes": "Plays like a standard three-platform stage on a wide rooftop: billboard catwalk and skylight canopy at 140, water tower lid at 280 for vertical play. The right side has a two-landing fire escape below roof level that catches fighters knocked off that side, giving them a climb-back route (lower landing reaches the ledge with a full jump plus air jump); the left side is an open drop, so the stage is mildly asymmetric by design. Every KO launches a firework into the sky; the match end fires a big multicolor finale. Art priority: main-building, water-tower, fire-escape, billboard-catwalk, skylight-canopy, backdrop, escape-building, front-antenna, left-building. The two inner catwalks fade out and back on a steady 10 s timer (flash for 1.5 s, gone for 3 s), half a cycle apart so one is always up; layout, not a hazard, so Hazards Off keeps them.",
     "grade": {
       "lift": 0.02,
       "gamma": 1,
@@ -2304,7 +2316,12 @@
         "x2": 170,
         "y": 270,
         "solid": false,
-        "hidden": true
+        "hidden": true,
+        "motion": {
+          "ax": 190,
+          "ay": 0,
+          "period": 900
+        }
       },
       {
         "x1": 250,
@@ -2989,7 +3006,7 @@
       "style": "Cinematic photoreal-leaning painted concert arena, deep near-black shadows with crisp highlights on metal and road case trim. Palette of charcoal and gunmetal greys lit by warm gold-amber and cool steel-blue stage lights through drifting haze. Electric, anticipatory live-show mood.",
       "reference": "stages/humans-in-the-loop/reference.webp"
     },
-    "notes": "Plays like a classic three-platform layout: a wide 1200 solid stage with grabbable ledges, two road case stacks at 130 and a hanging truss at 270 in the middle (reachable from the cases). Blast zones are standard so KOs feel fair. The crowd art bobs constantly in sync; every KO triggers the 'go-wild' event: flash, sparks at the KO, camera shake, the crowd hops and shakes, strobe beams appear and confetti falls for 3 seconds. Art priority: 1) stage-deck, 2) crowd (key to the concept and animation), 3) road case stacks, 4) light-truss, 5) backdrop arena, 6) spot-beams and strobe-beams, 7) truss-towers, 8) floor-wedges and front-cables.",
+    "notes": "Plays like a classic three-platform layout: a wide 1200 solid stage with grabbable ledges, two road case stacks at 130 and a hanging truss at 270 in the middle (reachable from the cases). Blast zones are standard so KOs feel fair. The crowd art bobs constantly in sync; every KO triggers the 'go-wild' event: flash, sparks at the KO, camera shake, the crowd hops and shakes, strobe beams appear and confetti falls for 3 seconds. Art priority: 1) stage-deck, 2) crowd (key to the concept and animation), 3) road case stacks, 4) light-truss, 5) backdrop arena, 6) spot-beams and strobe-beams, 7) truss-towers, 8) floor-wedges and front-cables. The light truss drifts slowly across the stage (15 s a lap, about 190 units either way): ride it to cross high. It is layout, not a hazard, so it moves with Hazards Off too.",
     "grade": {
       "lift": 0.02,
       "gamma": 1,
@@ -4551,14 +4568,25 @@
         "x2": 410,
         "y": 140,
         "solid": false,
-        "hidden": true
+        "hidden": true,
+        "motion": {
+          "ax": 50,
+          "ay": 0,
+          "period": 540
+        }
       },
       {
         "x1": -410,
         "x2": -180,
         "y": 140,
         "solid": false,
-        "hidden": true
+        "hidden": true,
+        "motion": {
+          "ax": 50,
+          "ay": 0,
+          "period": 540,
+          "phase": 180
+        }
       }
     ],
     "blast": {
@@ -4989,7 +5017,7 @@
       "style": "Polished, cinematic 3D-rendered look: glossy lacquered wood and ivory chess pieces lit by cool blue starlight against deep black space. Palette of near-black navy, midnight blue and bright cobalt nebula accents, with cream-white squares as the brightest values. Quiet, grand and mysterious, like a cosmic game frozen mid-move.",
       "reference": "stages/space-chess/reference.webp"
     },
-    "notes": "Plays like a classic three-platform stage: a wide 1240-unit solid chessboard with grabbable corners, two floating square pairs at 140 and one at 270 for the center. Open space all around the board for recoveries. The concept's two kings stand behind the fighters at each end of the board; whenever a fighter is KO'd the 'king-falls' event (KO-triggered, 4 s) tips both kings over (white outward to the left, black outward to the right; flip the signs if the tip direction convention is reversed) with a camera shake, and they stand back up when it ends. Art priority: 1) chessboard slab (draws main stage), 2) the two kings (the signature reaction), 3) backdrop space nebula, 4) floating squares, 5) drifting pawn foreground silhouette.",
+    "notes": "Plays like a classic three-platform stage: a wide 1240-unit solid chessboard with grabbable corners, two floating square pairs at 140 and one at 270 for the center. Open space all around the board for recoveries. The concept's two kings stand behind the fighters at each end of the board; whenever a fighter is KO'd the 'king-falls' event (KO-triggered, 4 s) tips both kings over (white outward to the left, black outward to the right; flip the signs if the tip direction convention is reversed) with a camera shake, and they stand back up when it ends. Art priority: 1) chessboard slab (draws main stage), 2) the two kings (the signature reaction), 3) backdrop space nebula, 4) floating squares, 5) drifting pawn foreground silhouette. The two inner floating squares drift in and out together (9 s a cycle, 50 units either way), always clear of the outer pairs; layout, not a hazard.",
     "grade": {
       "lift": 0.03,
       "gamma": 1.05,

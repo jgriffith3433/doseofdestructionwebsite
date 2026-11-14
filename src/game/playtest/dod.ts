@@ -22,7 +22,7 @@ import { forceTouchPrompt, lockLandscape, rotateShowing, suppressRotate } from '
 import { currentScreen, switching, type ScreenId } from '../ui/screens.ts';
 import { CHARACTERS, FIGHTERS as FIGHTERS_DATA, MOVE, MOVE_KEYS } from '../sim/characters.ts';
 import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
-import { STAGES, EV_IDLE, EV_RUN, EV_WARN, ledges } from '../sim/stage.ts';
+import { STAGES, EV_IDLE, EV_RUN, EV_WARN, ledges, platformAt, fadeState, platformOn } from '../sim/stage.ts';
 import { bodyOf, clearance, readDangers } from '../ai/hazardRead.ts';
 import { FX } from '../sim/fixed.ts';
 import { SHADOW_RANGE, hexRgb } from '../render/fighterLight.ts';
@@ -106,6 +106,8 @@ export interface GameHooks {
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
   depthStats?(): { quality: string; camX: number; camDist: number; layers: { id: string; z: number; kind: 'far' | 'foreground' | 'haze' | 'stage'; screenX: number; alpha: number; fade: number | null; behind: boolean }[] };
+  /** A platform's screen box in render px at this moment (renderer.platformBox). */
+  platformBox?(index: number): { x1: number; x2: number; y: number; w: number; h: number } | null;
   readabilityProbe?(sets: { id: string; fighters: number[]; fg: boolean }[]): { w: number; h: number; quality: string; shots: Record<string, Uint8ClampedArray>; fighters: { slot: number; box: { x1: number; y1: number; x2: number; y2: number } }[]; platforms: { index: number; x1: number; x2: number; y: number; lipPx: number }[] } | null;
   styleStats?(): { quality: 'high' | 'low'; renderHeight: number; fighters: { slot: number; char: number; look: number; outline: { color: number[]; px: number; perPx: number[]; on: number }; remap: boolean; outlinePass: boolean }[] };
   lightStats?(): { stage: string; quality: 'high' | 'low'; glossy: boolean; fighters: { slot: number; plugin: { full: boolean; key: number[]; keyColor: number[]; rim: number[]; ambient: number[] }; height: number; scale: number; alpha: number; shadow: boolean; reflection: boolean }[] };
@@ -216,6 +218,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'sudden-death') await r.suddenDeath();
         else if (id === 'hazard-dodge') await r.hazardDodge();
+        else if (id === 'moving-platforms') await r.movingPlatforms();
         else if (id === 'hazard-rule') await r.hazardRule();
         else if (id === 'cpu-level') await r.cpuLevel();
         else if (id === 'auto-quality') await r.autoQuality();
@@ -12309,6 +12312,186 @@ class Run {
       this.manual = null;
       setGraphics(initial);
       if (original === null) localStorage.removeItem(GFX_KEY);
+    }
+  }
+
+  /**
+   * Moving and fading platforms (`Platform.motion` / `Platform.fade`, sim/stageMath.ts): with Hazards Off (they are layout) on each
+   * stage (option `stage`; default Humans In The Loop, Space Chess, City Top). A moving platform: a fighter placed on it (setup
+   * shortcut) stands with no input and is carried, keeping its place on the platform (`platform-moves`, `platform-ride`); across
+   * a whole cycle with both fighters on the floor the platform's screen box stays inside the window (`platform-frame`, phone
+   * 844x390 turned); then the bots play and ride it (`platform-bot-ride`). A fading one: it warns (flash), goes, comes back on a
+   * steady timer, a rider drops when it goes, and the pair is never both gone (`platform-flash`, `platform-gone`,
+   * `platform-back`, `platform-rider-drops`, `platform-pair`). Metrics `platformTravel`, `platformRideDrift`, `platformOffscreen`.
+   */
+  async movingPlatforms(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('moving-platforms');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) forceTouchUi(true);
+    try {
+      const ids = typeof this.options.stage === 'string' ? [this.options.stage] : ['humans-in-the-loop', 'space-chess', 'city-top'];
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const foe = (punk + 1) % CHARACTERS.length;
+      let worstDrift = 0;
+      let offscreen = 0;
+      let bestTravel = 0;
+      for (const [n, sid] of ids.entries()) {
+        const si = STAGES.findIndex((x) => x.id === sid);
+        const def = STAGES[si];
+        if (!def) {
+          t.problem('bug', `stage "${sid}" is not on the list`);
+          continue;
+        }
+        t.progress(0.05 + (0.9 * n) / ids.length);
+        void this.game.startMatch({ mode: 'versus', stage: si, stocks: 3, rules: { timeLimit: 600, hazards: 0 }, slots: [{ char: punk, cpu: null, look: 0 }, { char: foe, cpu: null, look: 1 }] });
+        await this.matchLive();
+        const m = this.game.match()!;
+        this.manual = NO_INPUT;
+        await this.wait(400);
+        const hazardsOff = m.state.rules.hazards === 0;
+        if (!hazardsOff) t.problem('bug', `${def.name}: the match did not start with Hazards Off`);
+        const put = (x: number, y: number, slot: number) => {
+          const f = m.state.fighters[slot];
+          f.x = x * FX;
+          f.y = y * FX;
+          f.vx = f.vy = f.kbx = f.kby = 0;
+          f.facing = slot === 0 ? 1 : -1;
+        };
+        const until = (frames: number, each: () => void, label: string) => {
+          const to = m.state.frame + frames;
+          return t.until(() => {
+            each();
+            return m.state.frame >= to || m.state.over;
+          }, 90000, label);
+        };
+        const movers = def.platforms.map((p, i) => ({ p, i })).filter(({ p }) => p.motion);
+        const fades = def.platforms.map((p, i) => ({ p, i })).filter(({ p }) => p.fade);
+        if (!movers.length && !fades.length) t.problem('bug', `${def.name} has no moving or fading platform`);
+
+        for (const { p, i } of movers) {
+          const cycle = p.motion!.period;
+          // A rider placed on the platform stands with no input and is carried.
+          const at0 = platformAt(p, m.state.frame);
+          put((at0.x1 + at0.x2) / 2 / FX, at0.y / FX, 0);
+          put(-700, 0, 1);
+          await this.wait(200);
+          let lo = Infinity;
+          let hi = -Infinity;
+          let drift = 0;
+          let onFrames = 0;
+          let base: number | null = null;
+          const rider = m.state.fighters[0];
+          await until(Math.round(cycle * 0.75), () => {
+            const a = platformAt(p, m.state.frame);
+            lo = Math.min(lo, a.x1);
+            hi = Math.max(hi, a.x1);
+            if (rider.grounded && rider.platform === i) {
+              onFrames++;
+              const off = rider.x - a.x1;
+              if (base === null) base = off;
+              if (rider.action === ACT.IDLE) drift = Math.max(drift, Math.abs(off - base));
+            }
+          }, `${def.name}: the rider on platform ${i + 1}`);
+          const travel = Math.round((hi - lo) / FX);
+          bestTravel = Math.max(bestTravel, travel);
+          worstDrift = Math.max(worstDrift, drift / FX);
+          t.event('platform-moves', `${def.name}: platform ${i + 1} drifts ${travel} units over ${(cycle / 60).toFixed(1)} s (a lap is ${(cycle / 60).toFixed(0)} s, Hazards ${hazardsOff ? 'Off' : 'On'})`);
+          t.event('platform-ride', `${def.name}: the fighter stood on platform ${i + 1} for ${onFrames} frames with no input and stayed ${(drift / FX).toFixed(2)} units from its place on it while it moved ${travel} units`);
+          if (travel < 40) t.problem('bug', `${def.name}: platform ${i + 1} moves only ${travel} units`);
+          if (onFrames < cycle * 0.5) t.problem('bug', `${def.name}: the rider was carried off platform ${i + 1} (${onFrames} frames of ${Math.round(cycle * 0.75)})`);
+          if (drift > 2 * FX) t.problem('bug', `${def.name}: a fighter slid ${(drift / FX).toFixed(1)} units on platform ${i + 1} while it moved`);
+        }
+
+        if (movers.length) {
+          // Both on the floor for a whole lap of the longest platform: the platform's box must stay on the screen.
+          put(-120, 0, 0);
+          put(120, 0, 1);
+          await this.wait(1200);
+          const lap = Math.max(...movers.map(({ p }) => p.motion!.period));
+          let samples = 0;
+          let out = 0;
+          let minMargin = Infinity;
+          await until(lap, () => {
+            if (m.state.frame % 10) return;
+            for (const { i } of movers) {
+              const b = this.game.platformBox?.(i);
+              if (!b) continue;
+              samples++;
+              const margin = Math.min(b.x1, b.w - b.x2, b.y, b.h - b.y) / b.w;
+              minMargin = Math.min(minMargin, margin);
+              if (b.x1 < 0 || b.x2 > b.w || b.y < 0 || b.y > b.h) out++;
+            }
+          }, `${def.name}: a lap of the moving platform`);
+          offscreen += out;
+          t.event('platform-frame', `${def.name}: the moving platform stayed on screen in ${samples - out} of ${samples} samples over a lap (least margin ${(minMargin * 100).toFixed(1)}% of the width${touch ? ', phone window' : ''})`);
+          if (out) t.problem('bug', `${def.name}: the moving platform left the screen in ${out} of ${samples} samples`);
+          // Then the bots play on it.
+          this.manual = null;
+          let ride = 0;
+          let frames = 0;
+          await until(1500, () => {
+            frames++;
+            for (const f of m.state.fighters) if (f.grounded && movers.some(({ i }) => i === f.platform)) ride++;
+          }, `${def.name}: the bots playing`);
+          t.event('platform-bot-ride', `${def.name}: the bots stood on the moving platform for ${ride} fighter-frames of ${frames * 2} while playing`);
+          this.manual = NO_INPUT;
+        }
+
+        if (fades.length) {
+          const f0 = fades[0];
+          const cycle = Math.round(f0.p.fade!.cycle * 60);
+          // Park a rider at the start of the platform's solid time, then follow one whole cycle.
+          while (fadeState(f0.p, m.state.frame) !== 0 && m.state.frame < 4000) await this.wait(100);
+          const a = platformAt(f0.p, m.state.frame);
+          put((a.x1 + a.x2) / 2 / FX, a.y / FX, 0);
+          put(-700, 0, 1);
+          const seen = { flash: 0, gone: 0, back: 0, drop: 0, both: 0, prev: fadeState(f0.p, m.state.frame) as number };
+          let onSince = 0;
+          await until(cycle + 30, () => {
+            const st = fadeState(f0.p, m.state.frame);
+            if (st === 1 && seen.prev === 0) {
+              seen.flash++;
+              t.event('platform-flash', `${def.name}: platform ${f0.i + 1} flashes at frame ${m.state.frame}, ${f0.p.fade!.warn} s before it goes`);
+            }
+            if (st === 2 && seen.prev !== 2) {
+              seen.gone++;
+              t.event('platform-gone', `${def.name}: platform ${f0.i + 1} is gone at frame ${m.state.frame} for ${f0.p.fade!.gone} s`);
+            }
+            if (st === 0 && seen.prev === 2) {
+              seen.back++;
+              t.event('platform-back', `${def.name}: platform ${f0.i + 1} is back at frame ${m.state.frame}`);
+            }
+            const rider = m.state.fighters[0];
+            if (st === 1 && rider.grounded && rider.platform === f0.i) onSince = 1;
+            if (st === 2 && onSince === 1 && !seen.drop && (!rider.grounded || rider.platform !== f0.i)) {
+              seen.drop = 1;
+              t.event('platform-rider-drops', `${def.name}: the fighter standing on platform ${f0.i + 1} dropped when it went`);
+            }
+            seen.prev = st;
+            if (fades.length > 1 && fades.every(({ i }) => !platformOn(def, m.state, i))) seen.both++;
+          }, `${def.name}: a fade cycle`);
+          t.event('platform-pair', `${def.name}: ${fades.length} fading platforms, ${seen.both} frames with every one of them gone (Hazards ${hazardsOff ? 'Off' : 'On'})`);
+          if (!seen.flash) t.problem('bug', `${def.name}: the fading platform never flashed a warning`);
+          if (!seen.gone || !seen.back) t.problem('bug', `${def.name}: the fading platform did not go and come back`);
+          if (seen.drop < 1) t.problem('bug', `${def.name}: a fighter standing on the platform did not drop when it went`);
+          if (seen.both) t.problem('bug', `${def.name}: both fading platforms were gone for ${seen.both} frames`);
+        }
+        this.manual = null;
+        await this.quitFromPause('main');
+      }
+      t.metric('platformTravel', bestTravel);
+      t.metric('platformRideDrift', Math.round(worstDrift * 100) / 100);
+      t.metric('platformOffscreen', offscreen);
+      t.finish('done');
+    } finally {
+      this.manual = null;
+      if (touch) forceTouchUi(false);
     }
   }
 

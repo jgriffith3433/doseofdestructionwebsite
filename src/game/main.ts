@@ -3110,6 +3110,7 @@ const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPla
   lightStats: () => renderer.lightStats(),
   depthStats: () => renderer.depthStats(),
   readabilityProbe: (sets) => renderer.readabilityProbe(sets),
+  platformBox: (i) => renderer.platformBox(i),
   styleStats: () => renderer.styleStats(),
   lookStats: () => renderer.lookStats(),
   ringShapes: () => renderer.ringShapes(),
