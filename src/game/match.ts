@@ -12,6 +12,7 @@ import { Bot } from './ai/bot.ts';
 import { DEFAULT_DUMMY, TrainingDummy, type DummyMode, type DummyOptions } from './ai/trainingDummy.ts';
 import { consumeInputEdge } from './input/devices.ts';
 import { HighlightRecorder, type Highlight } from './campaign/highlight.ts';
+import { ReplayRecorder, type Replay } from './replay.ts';
 
 export type Mode = 'versus' | 'training' | 'campaign' | 'online';
 
@@ -104,6 +105,7 @@ export interface MatchSnapshot {
   combo: { by: number; count: number }[];
   timeline: number;
   kos: number;
+  replayTicks?: number;
 }
 
 export interface FighterStats {
@@ -153,6 +155,9 @@ export class Match {
   private readonly recorder: HighlightRecorder | null;
   /** The replayable final KO, built the tick the match ends (campaign only). */
   highlight: Highlight | null = null;
+  /** Full-match replay recorder: seed, setup and per-tick inputs (replay.ts). */
+  private readonly replayRecorder = new ReplayRecorder();
+  private cachedReplay: Replay | null = null;
   private pendingInput: { frame: number; pollMs: number; kind: 'button' | 'stick' } | null = null;
   private combo: { by: number; count: number }[];
   /** Training only: the dummy's behaviour, the combo readout. Never in the sim state or a snapshot. */
@@ -277,6 +282,8 @@ export class Match {
     }
     const before = s.fighters.map((f) => f.percent);
     this.recorder?.record(s, inputs);
+    const recTick = this.replayRecorder.recordTick(inputs);
+    this.cachedReplay = null;
     const events = step(s, inputs);
     if (this.knockLoop === 'live') this.watchKnockoff(events);
     this.recorder?.events(events);
@@ -325,6 +332,7 @@ export class Match {
     }
     this.record(events, before);
     this.checkObjective();
+    this.replayRecorder.afterTick(recTick, s);
     this.freezeHighlight();
     if (s.frame % SAMPLE_EVERY === 0) this.sample();
     return events;
@@ -378,6 +386,19 @@ export class Match {
     if (this.recorder && this.state.over && !this.highlight) this.highlight = this.recorder.build(this.state);
   }
 
+  /** Full-match replay built from the recorded ticks so far (local, CPU, campaign and confirmed online). */
+  get replay(): Replay | null {
+    if (!this.cachedReplay) {
+      this.cachedReplay = this.replayRecorder.build(this.setup, this.seed, this.state);
+    }
+    return this.cachedReplay;
+  }
+
+  buildReplay(): Replay | null {
+    this.cachedReplay = this.replayRecorder.build(this.setup, this.seed, this.state);
+    return this.cachedReplay;
+  }
+
   /** Median and worst input-to-action latency (ms) measured in this match. */
   latencyStats(): { median: number; worst: number; samples: number } {
     if (!this.inputLatencies.length) return { median: 0, worst: 0, samples: 0 };
@@ -393,9 +414,12 @@ export class Match {
   tickInputs(inputs: number[]): SimEvent[] {
     const s = this.state;
     const before = s.fighters.map((f) => f.percent);
+    const recTick = this.replayRecorder.recordTick(inputs);
+    this.cachedReplay = null;
     const events = step(s, inputs);
     this.record(events, before);
     this.checkObjective();
+    this.replayRecorder.afterTick(recTick, s);
     if (s.frame % SAMPLE_EVERY === 0) this.sample();
     return events;
   }
@@ -407,6 +431,7 @@ export class Match {
       combo: this.combo.map((c) => ({ ...c })),
       timeline: this.timeline.length,
       kos: this.kos.length,
+      replayTicks: this.replayRecorder.length,
     };
   }
 
@@ -418,6 +443,10 @@ export class Match {
     snap.combo.forEach((c, i) => Object.assign(this.combo[i], c));
     this.timeline.length = snap.timeline;
     this.kos.length = snap.kos;
+    if (snap.replayTicks !== undefined) {
+      this.replayRecorder.truncate(snap.replayTicks);
+      this.cachedReplay = null;
+    }
   }
 
   private sample(): void {

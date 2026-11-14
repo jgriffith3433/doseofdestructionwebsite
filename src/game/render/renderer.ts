@@ -2375,7 +2375,14 @@ export class Renderer {
 
     let smooth = 0.18;
     let smoothZoom = 0.25;
-    if (this.shot) {
+    const freeOrScene = !!this.shot || !!this.freeCam;
+    if (this.freeCam) {
+      cx = this.freeCam.x;
+      cy = this.freeCam.y;
+      cd = this.freeCam.d;
+      smooth = 0.12;
+      smoothZoom = 0.14;
+    } else if (this.shot) {
       // Story scene: ease slower, like a camera operator, onto the speaker or out to the whole stage.
       smooth = 0.6;
       smoothZoom = 0.8;
@@ -2425,11 +2432,11 @@ export class Renderer {
       this.camSide = sideGoal;
       this.camTilt = tiltGoal;
       this.camCut = false;
-    } else if (followCamera(this.camRig, { x: cx, y: cy, d: cd }, { smooth, smoothZoom, dt, tan, side: this.camSide, tilt: this.camTilt, aspect, zoomAsym: !this.shot, deadZone: !this.shot && !this.kill, keep: this.shot ? null : { fighters: live, tan, aspect, bottomInset: inset } }) && !this.shot) {
+    } else if (followCamera(this.camRig, { x: cx, y: cy, d: cd }, { smooth, smoothZoom, dt, tan, side: this.camSide, tilt: this.camTilt, aspect, zoomAsym: !freeOrScene, deadZone: !freeOrScene && !this.kill, keep: freeOrScene ? null : { fighters: live, tan, aspect, bottomInset: inset } }) && !freeOrScene) {
       // A frame that moved or zoomed past the threshold (scaled for a slow frame) is a jump, scenes aside.
       this.camStats.cameraJumps++;
     }
-    this.camTraceNote.cut = !!this.shot || !!this.intro || wasCut;
+    this.camTraceNote.cut = freeOrScene || !!this.intro || wasCut;
     this.camTraceNote.ko = !!this.kill || now < this.camTraceNote.koUntil;
     this.camTarget.x = this.camRig.x;
     this.camTarget.y = this.camRig.y;
@@ -2503,10 +2510,52 @@ export class Renderer {
     return { x, y, off: x < edge || x > cw - edge || y < edge || y > ch - edge, gap: Math.max(0, gap) };
   }
 
+  /** Replay free camera target (`null` while in follow mode). */
+  private freeCam: { x: number; y: number; d: number } | null = null;
+
+  /** Switches between the automatic follow camera and a user-controlled free camera for replays. */
+  setFreeCamera(on: boolean): { x: number; y: number; d: number } | null {
+    if (on) {
+      if (!this.freeCam) {
+        this.freeCam = {
+          x: this.camRig.x,
+          y: this.camRig.y + 0.4,
+          d: Math.min(28, Math.max(8, this.camRig.d * 1.22)),
+        };
+      }
+      return { ...this.freeCam };
+    }
+    this.freeCam = null;
+    this.camTraceNote.cut = true;
+    return null;
+  }
+
+  /** Pans and zooms the replay free camera within the stage's blast zone. */
+  panFreeCamera(dx: number, dy: number, dd = 0): void {
+    if (!this.freeCam) return;
+    const b = this.stage.blast;
+    const minX = b.left * W * 0.75;
+    const maxX = b.right * W * 0.75;
+    const minY = b.bottom * W * 0.55;
+    const maxY = b.top * W * 0.75;
+    this.freeCam.x = Math.max(minX, Math.min(maxX, this.freeCam.x + dx));
+    this.freeCam.y = Math.max(minY, Math.min(maxY, this.freeCam.y + dy));
+    this.freeCam.d = Math.max(5, Math.min(32, this.freeCam.d + dd));
+  }
+
+  freeCameraState(): { active: boolean; x: number; y: number; d: number } {
+    return {
+      active: this.freeCam !== null,
+      x: this.freeCam?.x ?? this.camRig.x,
+      y: this.freeCam?.y ?? this.camRig.y,
+      d: this.freeCam?.d ?? this.camRig.d,
+    };
+  }
+
   /** After a render: counts a living fighter whose body is outside the view (the playtest wants none). */
   private checkFraming(state: GameState): void {
     const note = this.camTraceNote;
-    if (this.shot || this.camCut || this.intro || note.cut) {
+    if (this.shot || this.camCut || this.intro || this.freeCam || note.cut) {
       this.camTraceBuf.length = 0;
       return;
     }
