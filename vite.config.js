@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 import { devApi } from './tools/devApi.mjs';
 import { buildStamp } from './tools/buildStamp.mjs';
 import { sharedRoot } from './tools/roots.mjs';
+import { vendorUsePlugin } from './tools/babylonVendor.mjs';
 
 const root = process.cwd();
 // Where each fighter's source art and animation clips live. Override with DOD_ART_ROOT (else tools/roots.mjs: a
@@ -81,7 +82,7 @@ export default defineConfig({
   base: './',
   appType: 'mpa',
   // devtools.html and its API exist only on the dev server. buildStamp: which build this is, for Hawkes Analytics.
-  plugins: [devApi({ root, artRoot, mapsRoot }), buildStamp(root), copyGameFx(), stripStageAuthoring(), chunkReport()],
+  plugins: [devApi({ root, artRoot, mapsRoot }), buildStamp(root), copyGameFx(), stripStageAuthoring(), chunkReport(), ...[vendorUsePlugin(root)].filter(Boolean)],
   build: {
     outDir: 'dist',
     emptyOutDir: true,

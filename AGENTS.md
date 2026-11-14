@@ -234,6 +234,20 @@ spots in `index.html`, `characters.html` and `whatsnew.html` in place (commit th
 `npm test`, fails while a page is stale or types a count of its own). A new count is a new KEY there. `site-links` checks the
 landing page's facts against the game's data and its fit at 390x844.
 
+## The build (small memory)
+
+`npm run build` is `tools/site-facts.mjs` then `tools/build.mjs`: two Vite passes, each its own node process, because Studio's
+build cell is small and one pass holds every module's syntax tree at once (it peaked at ~600 MB). Pass 1,
+`tools/build-vendor.mjs`, bundles and minifies just the Babylon names the game imports (`tools/babylonVendor.mjs`
+`scanBabylonImports` reads every `import { … } from '@babylonjs/…'` in `src/game` and `Game`) into
+`node_modules/.dod-vendor/babylon.js`. Pass 2 is `vite.config.js`: `vendorUsePlugin` points those specifiers at that file,
+which Rollup does not parse again; it is copied to `dist/assets/babylon-<hash>.js` and preloaded from `Game/index.html`.
+A new Babylon import needs nothing, as long as it is one `import { A, B } from '@babylonjs/…'` or `import '@babylonjs/…'`
+line (a default or `import * as` import makes the scan give up, and the build bundles Babylon in one pass instead).
+A plain `vite build` (no pass 1) does the same, with the old memory. `build.mjs` runs a pass that runs out of heap again with
+330 then 460 MB. Measured with Python `resource.getrusage`: peak RSS 601 MB -> ~390 MB (largest process; heap caps 240 MB).
+Don't give a pass more than one big job: its heap need is ~200 MB, and it scales with the modules it parses.
+
 ## Versions and What's new
 
 Every go live is a release, made by Hawkes Studio (`hawkesstudio/src/releases.ts`): a semver version bumped at
