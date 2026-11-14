@@ -45,6 +45,7 @@ import { ENDINGS, ENDING_BEATS, endingFor, endingUnlocked } from '../campaign/en
 import { endingShowing } from '../ui/ending.ts';
 import { OPENING_CAST, OPENING_KEY, OPENING_SKIP_AFTER, openingShowing } from '../ui/opening.ts';
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
+import { suppressRoster, rosterFacts } from '../ui/roster.ts';
 import { PAIRS, pairFor } from '../campaign/intros.ts';
 import { SEASON_ONE_ENTRANCES, entranceKind } from '../campaign/intro.ts';
 import { DEFENCE_STEPS, PROMPTS, RECOVERY_STEPS, hintText, padGlyphs, type DefenceStep, type RecoveryStep, type TeachStep } from '../ui/teach.ts';
@@ -156,7 +157,7 @@ const CAMPAIGN_BUDGET_MS = 9.5 * 60 * 1000;
 const CORE_CLIPS = ['idle', 'walk', 'jump', 'fall', 'land', 'hurt', 'shield'];
 
 const SCREEN_NAMES: Record<ScreenId, string> = {
-  title: 'Title', main: 'Main Menu', select: 'Character Select', stages: 'Stage Select', versus: 'VS',
+  title: 'Title', roster: 'Roster', main: 'Main Menu', select: 'Character Select', stages: 'Stage Select', versus: 'VS',
   campaign: 'Campaign Map', tour: 'Tour Select', extras: 'Extras', howto: 'How To Play', results: 'Results', match: 'Match', leaderboard: 'Leaderboard',
 };
 
@@ -205,6 +206,8 @@ export function installDodPlaytest(game: GameHooks): void {
       run?.dispose();
       // Every other scenario clicks through the title and main menu: only first-visit meets the pilot.
       suppressFirstVisit(id !== 'first-visit');
+      // The roster screen after Press start is only for its own scenario; every other one goes straight to the main menu.
+      suppressRoster(id !== 'roster-intro');
       // Automatic quality would change the picture under every other scenario's own checks; only its own scenario runs it.
       game.autoSetup?.({ enabled: id === 'auto-quality', slowMs: 0 });
       const r = new Run(game, t, options, t.spot);
@@ -217,6 +220,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'campaign') await r.campaign();
         else if (id === 'unlocks') await r.unlocksRun();
         else if (id === 'daily') await r.dailyRun();
+        else if (id === 'roster-intro') await r.rosterIntro();
         else if (id === 'tour') await r.tourScenario();
         else if (id === 'tour-stages') await r.tourStagesRun();
         else if (id === 'endings') await r.endingsScenario();
@@ -4444,6 +4448,79 @@ class Run {
         else localStorage.setItem(DAILY_KEY, saved);
       }
     }
+  }
+
+  /**
+   * The roster after Play (`ui/roster.ts`, docs/story.md "The roster"): Tap to play, Press start, and the roster screen shows
+   * every fighter's tile (open ones named, locked ones a silhouette with the episode that opens them), the count of open
+   * fighters, the next unlock with its progress, and the size of the show; a tap on a locked tile says how to open it; Continue
+   * goes on to the main menu. At 390x844 touch the screen must not scroll sideways and every control is 44 px, all by taps.
+   */
+  async rosterIntro(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.isPhone();
+    this.logViewport(touch && this.isPhone());
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    await this.screen('title', 30000);
+    if (promptShowing()) await this.tapToPlay();
+    await this.click(() => this.q('#btn-start'), 'Press start');
+    await this.screen('roster', 5000);
+    t.progress(0.3);
+    await t.wait(400);
+    const facts = rosterFacts();
+    const tiles = [...document.querySelectorAll<HTMLElement>('#roster-grid .roster-tile')];
+    const locked = tiles.filter((x) => x.dataset.locked === '1');
+    if (tiles.length !== CHARACTERS.length) t.problem('bug', `the roster shows ${tiles.length} tiles, the game has ${CHARACTERS.length} fighters`);
+    const count = this.q('#roster-count')?.textContent ?? '';
+    if (!count.includes(`${facts.open} of ${facts.fighters}`)) t.problem('bug', `the roster count reads "${count}", expected ${facts.open} of ${facts.fighters}`);
+    const next = this.q('#roster-next')?.textContent ?? '';
+    if (facts.next && !next.includes(facts.next.name)) t.problem('bug', `the next unlock line reads "${next}", expected ${facts.next.name}`);
+    t.event('roster', `${tiles.length} fighters, ${facts.open} open, ${locked.length} locked; ${next}; ${this.q('#roster-stats')?.textContent ?? ''}`);
+    t.metric('rosterTiles', tiles.length);
+    t.metric('rosterLocked', locked.length);
+    const root = this.q('#roster') as HTMLElement;
+    const sideways = document.documentElement.scrollWidth > innerWidth + 1 || document.body.scrollWidth > innerWidth + 1;
+    const off = [...root.querySelectorAll<HTMLElement>('button')].filter((b) => {
+      const r = b.getBoundingClientRect();
+      return r.width > 0 && (r.left < -0.5 || r.right > innerWidth + 0.5);
+    });
+    const small = touch ? this.phoneTargets(root) : [];
+    if (sideways) t.problem('bug', `the roster scrolls sideways at ${innerWidth}x${innerHeight}`);
+    if (off.length) t.problem('bug', `the roster has ${off.length} button(s) off the side of the window`);
+    if (small.length) t.problem('bug', `the roster: ${small.join('; ')}`);
+    t.event('roster-fit', `${sideways || off.length || small.length ? 'does not fit' : 'fits'} at ${innerWidth}x${innerHeight}${touch ? ' touch' : ''}`);
+    t.metric('rosterFits', !sideways && !off.length && !small.length ? 1 : 0);
+    // A tap on a locked tile says how to open it; a tap on an open one names the fighter.
+    const lockedTile = locked[0];
+    if (lockedTile) {
+      const id = lockedTile.dataset.fighter!;
+      await this.click(() => this.q(`#roster-grid [data-fighter="${id}"]`), `locked tile ${id}`);
+      await t.wait(200);
+      const line = this.q('#roster-detail')?.textContent ?? '';
+      const route = /Clear Season \d+, Episode \d+/.test(line);
+      if (!route) t.problem('bug', `a tap on locked ${id} says "${line}", not the episode that opens them`);
+      t.event('roster-locked-route', `${id}: ${line}`);
+    }
+    const openTile = tiles.find((x) => x.dataset.locked === '0');
+    if (openTile) {
+      const id = openTile.dataset.fighter!;
+      await this.click(() => this.q(`#roster-grid [data-fighter="${id}"]`), `open tile ${id}`);
+      await t.wait(200);
+      const d = this.q('#roster-detail');
+      if (d?.dataset.fighter !== id || d.classList.contains('is-locked')) t.problem('bug', `a tap on open ${id} did not show that fighter`);
+      t.event('roster-open-pick', `${id}: ${d?.textContent ?? ''}`);
+    }
+    t.progress(0.7);
+    const cont = this.q('#btn-roster-go');
+    if (!cont) t.problem('bug', 'the roster has no Continue button');
+    await this.click(() => this.q('#btn-roster-go'), 'Continue');
+    await this.screen('main', 5000);
+    t.event('roster-continue', 'Continue went on to the main menu');
+    t.progress(1);
+    t.finish('done');
   }
 
   /**
