@@ -529,6 +529,16 @@
       ]
     },
     {
+      "id": "tour-stages",
+      "title": "Tour stages: every stage a Tour fight uses starts as the real Tour fight, in Tour order, and plays (phone: 390x844 turned to landscape, touch)",
+      "description": "Each stage in content/tours.json is started as its Tour fight (the fighter's own route first, then the first fight in any other route that uses a stage not yet seen): VS card, the foe's scene, Ready, Go. Per stage: it starts within 60 s on the right stage with the right foes, the sim clock runs, nobody is NaN or far outside the blast zone for 4 s of play, no console error or uncaught exception, then the match is left. Any stage that fails is a bug problem. Options: fighter (the route played first, default exit-punk), stage (just that one), input (touch forces the touch UI), at (phone). Metrics tourStagesPlayed, tourStagesExpected. Events tour-stage, tour-stages.",
+      "seconds": 600,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "auto-quality",
       "title": "Auto quality: on a slow device the renderer steps quality down inside 5 s and holds 45 fps, says so once with a quiet toast clear of every control, never overrides a quality set by hand (phone 390x844 turned to 844x390, touch)",
       "description": "A simulated slow device (option slowMs, ms a frame costs at full quality, default 60; slow: false plays the real device) in a versus match against the CPU. Match 1: auto-lowered (steps, render scale and glow before and after), auto-settled (last step within 5 s of play), auto-fps (median before and after, 45 wanted), auto-toast and auto-toast-clear (one toast, inside the window, clear of the touch stick, buttons and Pause). Match 2, twice as slow: auto-no-repeat (no second toast). Then Quality is pressed by hand in Settings and match 3 must change nothing (auto-hand). Metrics autoLevel, autoSettleMs, autoFpsBefore, autoFpsAfter, fpsMatch. On a phone it plays in the turned 844x390 frame and drives the fighter with the touch stick and Attack button only. The player's dod.gfx and auto-quality keys are put back.",
@@ -846,8 +856,8 @@
     },
     {
       "id": "portraits",
-      "title": "Painted portraits: the title shows the heroes lineup banner, character select shows 33 portraits framed alike (256 px ones on a phone, 64 px or more with readable names), the VS card and the results show the same pictures (phone: 390x844 turned to landscape, touch)",
-      "description": "Title: the heroes lineup (site/img/lineup-*) is loaded and fills the screen behind the logo, with Play on screen (title-key-art, title-play-visible). Versus select: 33 portrait tiles (characters/portrait/<id>-256.webp), every one loaded, square, drawn at the same size so the faces sit in the same band, each with its full name beside it and no text cut off (select-portraits, select-framing, select-names; on a phone each at least 64 px wide and the 256 px file: select-phone-size, metric portraitTilePx). A tap on a tile puts the same picture in the preview where it shows (select-preview-same). A 1-stock match: the VS card shows each fighter's portrait plate (vs-portraits, same file as select) and the results show the winner's (results-portrait, results-same). Played through taps on a phone (390x844 is turned to 844x390 like select-specials). Options: fighter, foe, input (touch forces the touch UI), at (phone). Metrics portraitsShown, portraitTilePx.",
+      "title": "Painted portraits: the title shows the heroes lineup banner, character select shows 33 portraits framed alike (256 px ones on a phone, 64 px or more with readable names), the VS card and the results show the same pictures, and every one of the 33 VS portraits loads at both sizes (phone: 390x844 turned to landscape, touch)",
+      "description": "Title: the heroes lineup (site/img/lineup-*) is loaded and fills the screen behind the logo, with Play on screen (title-key-art, title-play-visible). Versus select: 33 portrait tiles (characters/portrait/<id>-256.webp), every one loaded, square, drawn at the same size so the faces sit in the same band, each with its full name beside it and no text cut off (select-portraits, select-framing, select-names; on a phone each at least 64 px wide and the 256 px file: select-phone-size, metric portraitTilePx). A tap on a tile puts the same picture in the preview where it shows (select-preview-same). A 1-stock match: the VS card shows each fighter's portrait plate (vs-portraits, same file as select) and the results show the winner's (results-portrait, results-same). Then every fighter's VS portrait element (ui/views.ts vsPortrait) are built at 256 and 512 px and must each load with naturalWidth > 0, the right fighter and size, with no fallback picture (vs-portraits-all; a failing fighter is named). The VS card must show both sides. Played through taps on a phone (390x844 is turned to 844x390 like select-specials). Options: fighter, foe, input (touch forces the touch UI), at (phone). Metrics portraitsShown, portraitTilePx, vsPortraitsLoaded.",
       "seconds": 300,
       "tags": [
         "full",
