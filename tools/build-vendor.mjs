@@ -3,10 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { transform } from 'esbuild'; // Vite's own dependency
 import { build } from 'vite';
-import { scanBabylonImports, vendorEntryPlugin, VENDOR_DIR, VENDOR_ENTRY, VENDOR_FILE, VENDOR_META } from './babylonVendor.mjs';
+import { scanBabylonImports, vendorKey, vendorEntryPlugin, VENDOR_DIR, VENDOR_ENTRY, VENDOR_FILE, VENDOR_META } from './babylonVendor.mjs';
 
 const root = process.cwd();
-// A leftover file from an earlier build must never be read by pass 2 if this pass stops early.
+// A leftover file from an earlier run must never be read by pass 2 if this pass stops early.
 fs.rmSync(path.join(root, VENDOR_DIR), { recursive: true, force: true });
 const scan = scanBabylonImports(root);
 if (!scan) {
@@ -42,5 +42,5 @@ await build({
     rollupOptions: { maxParallelFileOps: 1, output: { inlineDynamicImports: true } },
   },
 });
-fs.writeFileSync(path.join(root, VENDOR_META), JSON.stringify(scan));
+fs.writeFileSync(path.join(root, VENDOR_META), vendorKey(root, scan));
 console.log(`[vendor] ${Object.keys(scan).length} Babylon specifiers -> ${VENDOR_FILE} (${(fs.statSync(path.join(root, VENDOR_FILE)).size / 1024).toFixed(0)} KB)`);

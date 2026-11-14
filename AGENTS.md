@@ -236,17 +236,18 @@ landing page's facts against the game's data and its fit at 390x844.
 
 ## The build (small memory)
 
-`npm run build` is `tools/site-facts.mjs` then `tools/build.mjs`: two Vite passes, each its own node process, because Studio's
-build cell is small and one pass holds every module's syntax tree at once (it peaked at ~600 MB). Pass 1,
-`tools/build-vendor.mjs`, bundles and minifies just the Babylon names the game imports (`tools/babylonVendor.mjs`
-`scanBabylonImports` reads every `import { … } from '@babylonjs/…'` in `src/game` and `Game`) into
-`node_modules/.dod-vendor/babylon.js`. Pass 2 is `vite.config.js`: `vendorUsePlugin` points those specifiers at that file,
-which Rollup does not parse again; it is copied to `dist/assets/babylon-<hash>.js` and preloaded from `Game/index.html`.
-A new Babylon import needs nothing, as long as it is one `import { A, B } from '@babylonjs/…'` or `import '@babylonjs/…'`
-line (a default or `import * as` import makes the scan give up, and the build bundles Babylon in one pass instead).
-A plain `vite build` (no pass 1) does the same, with the old memory. `build.mjs` runs a pass that runs out of heap again with
-330 then 460 MB. Measured with Python `resource.getrusage`: peak RSS 601 MB -> ~390 MB (largest process; heap caps 240 MB).
-Don't give a pass more than one big job: its heap need is ~200 MB, and it scales with the modules it parses.
+Studio's build cell is small: treat the limit as ~512 MB for the **whole process tree** (npm included, ~90 MB of it).
+`npm run build` is `tools/site-facts.mjs` then `tools/build.mjs`, which (1) checks `vendor/babylon` (the checked-in, minified
+Babylon bundle of just the names the game imports, `tools/babylonVendor.mjs` `scanBabylonImports`) is fresh and only if
+stale runs pass 1 (`tools/build-vendor.mjs`); (2) becomes the Vite game/site pass with `process.execve` (no orchestrator
+in memory; spawn fallback on older Node), one heap cap (230 MB, no bigger retry: a bigger cap only gets the tree killed),
+`GOGC=25`, `GOMEMLIMIT=30MiB`, glibc malloc trim. `vite.config.js` reads the vendor file as an asset (`vendorUsePlugin`),
+Rollup never parses it. Changing a Babylon import or version: run `npm run vendor` and commit `vendor/`
+(`tools/vendor.test.mjs`, in `npm test`, fails while stale; a stale build still works, it just runs pass 1 first).
+Rollup holds ~45 bytes of syntax tree per source char, so peak memory follows the source in the graph (`playtest/dod.ts`
+is 25% of it; content JSON is `json.stringify` so it is a string, not an object literal; no esbuild sourcemaps; Rollup
+`cache:false`). Measured (sum of RSS over the tree, 100 ms samples): 604 MB before, ~470 MB after (vite ~350, npm 90,
+esbuild ~30-45). To go lower still: take `dod.ts` out of the Rollup graph or move to a native bundler.
 
 ## Versions and What's new
 
