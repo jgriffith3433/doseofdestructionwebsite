@@ -207,6 +207,15 @@
       ]
     },
     {
+      "id": "rumble",
+      "title": "Rumble: a light hit, a heavy hit and a KO each send their own pad rumble and phone vibrate, and Settings > Rumble off sends none",
+      "description": "Versus match against the CPU. Settings shows Rumble (on by default, 44 px tall: rumble-default); the fight logs each tier's pulse with its length and strength (rumble, rumble-tiers: light < heavy < KO), from Pause Rumble off (rumble-off) and the next hits send no rumble and no navigator.vibrate call (rumble-silent). Calm limits (reduced motion) cap the pulses. A portrait phone (390x844) checks Settings, then turns to 844x390 and plays by touch. The player's own dod.touch is put back.",
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "hit-feel",
       "title": "Hit feedback: heavy hits freeze 3+ frames, light and heavy hits look different, Settings turns screen shake off, kill cue on stock-ending hits, smooth camera",
       "description": "A versus match against the CPU (the bot on a virtual pad). Counts the hit-stop frames of the first light and heavy hit (events hit-stop-light/-medium/-heavy, heavy-hit-stop), logs each tier's impact effect (impact-light/-medium/-heavy: sparks, stars, ring, shake, flash) and that they differ (impact-differs), then from Pause opens Settings, turns Screen shake off (shake-off), and checks hits keep landing with the camera still (no-shake). Also the match camera and the kill cue (a hit predicted to end a stock: extra hit-stop, red flash, punch-in, slow motion, rising whistle): every stock-ending hit logs kill-cue and no other hit does (kill-cue-exact), with Screen shake off the cue still zooms (kill-cue-no-shake), the camera never jumps (camera-smooth) and every fighter stays on screen (camera-framing). Metrics hitStopLightFrames, hitStopHeavyFrames, shakeMaxOn, shakeMaxOff, cameraJumps, killCues, framingMisses, killSlowMinFps. The player's dod.shake is put back. Camera trace (renderer camTrace, cameraRig.ts analyzeCameraTrace) of every match: camera-jitter (under 2 direction flips a second per axis outside shake), camera-zoom-out (under 40% a second outside the KO zoom), camera-margin (fighters inside a 5% screen margin in 99% of frames, launched ones are the offscreen bubble's), and on touch camera-touch-clear (nobody under the stick or buttons over 0.5 s); metrics camFlipsX, camFlipsY, camZoomOutPerSec, camMarginShare, camMarginLongestS, camAccelMax, camTouchLongestS.",

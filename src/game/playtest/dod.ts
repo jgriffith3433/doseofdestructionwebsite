@@ -15,6 +15,7 @@ import { padFamilyOf, setVirtualPad } from '../input/devices.ts';
 import { readTouch, touchDevice, touchOverlay } from '../input/touch.ts';
 import { TOUCH_KEY, forceTouchUi, touchSettings } from '../touchSettings.ts';
 import { SHIELD_KEY_NAME, shieldLatched, shieldMode } from '../input/shieldMode.ts';
+import { rumbleLog, rumbleStats, type RumbleSent } from '../rumble.ts';
 import { forceTouchPrompt, lockLandscape, rotateShowing } from '../ui/rotate.ts';
 import { currentScreen, switching, type ScreenId } from '../ui/screens.ts';
 import { CHARACTERS, FIGHTERS as FIGHTERS_DATA, MOVE, MOVE_KEYS } from '../sim/characters.ts';
@@ -232,6 +233,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'sound-settings') await r.soundSettings();
         else if (id === 'fast-start') await r.fastStart();
         else if (id === 'hit-feel') await r.hitFeel();
+        else if (id === 'rumble') await r.rumbleRun();
         else if (id === 'input-feel') await r.inputFeel();
         else if (id === 'touch-match') await r.touchMatch();
         else if (id === 'touch-settings') await r.touchSettingsRun();
@@ -7401,6 +7403,157 @@ class Run {
       try {
         if (original === null) localStorage.removeItem(SHAKE_STORAGE_KEY);
         else localStorage.setItem(SHAKE_STORAGE_KEY, original);
+      } catch {
+        // Storage blocked.
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- rumble
+
+  /**
+   * Rumble (rumble.ts): Settings has a Rumble switch (on by default, 44 px tall); in a versus match each light, heavy and KO
+   * the player lands or takes sends its own pulse (logged `rumble` with strength and length, different per tier), and from
+   * Pause turning Rumble off sends no more rumble and no phone vibrate. A phone (390x844, turned to 844x390) plays it by taps.
+   * The pad's actuator and the phone's vibrator are counted at the browser call (navigator.vibrate is wrapped here).
+   */
+  async rumbleRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      this.useTap = true;
+      forceTouchUi(true);
+      try {
+        await this.toMainMenu();
+        await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+        await t.until(settingsShowing, 3000, 'Settings to open');
+        this.checkClipping('Settings (portrait)', this.q('#settings'));
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.wait(300);
+      } finally {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+      return this.touchMatchTurned('rumble');
+    }
+    this.logViewport(touch && (this.isPhone() || this.options.at === 'phone-turned'));
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const original = localStorage.getItem(TOUCH_KEY);
+    try {
+      localStorage.removeItem(TOUCH_KEY);
+    } catch {
+      // Storage blocked.
+    }
+    // Count the browser's own vibrate calls.
+    let vibrateCalls = 0;
+    const nav = navigator as Navigator & { vibrate?: (p: number | number[]) => boolean };
+    const hadOwn = Object.prototype.hasOwnProperty.call(nav, 'vibrate');
+    const realVibrate = nav.vibrate?.bind(navigator);
+    Object.defineProperty(navigator, 'vibrate', { configurable: true, writable: true, value: (p: number | number[]) => { vibrateCalls++; return realVibrate ? realVibrate(p) : true; } });
+    let hits = 0;
+    const unwatch = this.game.watch((m, events) => {
+      for (const e of events) if (e.type === 'hit' && !e.shield && (e.attacker === m.player || e.victim === m.player)) hits++;
+    });
+    const m0 = () => this.game.match();
+    const logged = (r: RumbleSent) => t.event('rumble', `${r.kind}: ${r.ms} ms, strong ${r.strong}, weak ${r.weak}${r.calm ? ' (calm limits)' : ''}; pad ${r.pad ? 'rumbled' : 'none'}, phone ${r.phone ? 'vibrated' : 'no vibrator'}`);
+    try {
+      await this.toMainMenu();
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, 'Settings to open');
+      this.checkClipping('Settings', this.q('#settings'));
+      const sw = this.q('#rumble-switch');
+      const h = sw?.getBoundingClientRect().height ?? 0;
+      if (!sw) t.problem('bug', 'Settings has no Rumble switch');
+      else if (sw.getAttribute('aria-checked') !== 'true' || !touchSettings().vibrate) t.problem('bug', 'Rumble is not on by default');
+      else if (h < 44) t.problem('bug', `the Rumble switch is only ${Math.round(h)} px tall`);
+      else t.event('rumble-default', `Settings shows Rumble: On (${Math.round(h)} px tall)`);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(300);
+      t.progress(0.1);
+
+      await this.startVersus(3);
+      if (touch) {
+        const root = touchOverlay() ?? this.q('.touch');
+        if (root && root.hidden) root.hidden = false;
+        document.body.classList.add('touch-ui');
+      }
+      const start = rumbleLog.length;
+      vibrateCalls = 0;
+      this.progressNow = () => 0.1 + 0.5 * Math.min(1, ((m0()?.state.frame ?? 0) / (90 * 60)));
+      const kinds = () => new Set(rumbleLog.slice(start).map((r) => r.kind));
+      const ended = await this.fight(() => (kinds().has('light') && kinds().has('heavy') && kinds().has('ko')) || (m0()?.state.frame ?? 0) > 90 * 60, 5 * 60 * 1000);
+      if (ended === 'over') t.problem('warning', 'the match ended before a light hit, a heavy hit and a KO were all rumbled');
+      const seen = new Map<string, RumbleSent>();
+      for (const r of rumbleLog.slice(start)) if (!seen.has(r.kind)) { seen.set(r.kind, r); logged(r); }
+      for (const k of ['light', 'heavy', 'ko'] as const) if (!seen.has(k)) t.problem('bug', `no ${k} rumble was sent in this fight`);
+      const [a, b, c] = [seen.get('light'), seen.get('heavy'), seen.get('ko')];
+      if (a && b && c) {
+        const differ = a.ms < b.ms && b.ms < c.ms && a.strong < b.strong && b.strong <= c.strong;
+        if (!differ) t.problem('bug', 'light, heavy and KO rumbles are not each longer and stronger than the one before');
+        else t.event('rumble-tiers', `light ${a.ms} ms / ${a.strong}, heavy ${b.ms} ms / ${b.strong}, KO ${c.ms} ms / ${c.strong}`);
+      }
+      t.metric('rumblesOn', rumbleLog.length - start);
+      if (touch) {
+        if (vibrateCalls === 0) t.problem('warning', 'no navigator.vibrate call was made on a hit with Rumble on');
+        else t.event('vibrate-on', `${vibrateCalls} phone vibrate call(s) on hits with Rumble on`);
+      }
+      t.progress(0.65);
+
+      // Pause → Settings → Rumble off; the fight goes on and nothing rumbles or vibrates.
+      const pauseBtn = () => {
+        const el = this.q('.touch-pause');
+        return el && el.getClientRects().length > 0 ? el : null;
+      };
+      if (touch && pauseBtn()) await this.tap(pauseBtn, 'Pause');
+      else await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+      await t.until(settingsShowing, 3000, 'Settings to open from Pause');
+      await t.wait(400);
+      await this.tap(() => this.q('#rumble-switch'), 'Rumble off');
+      if (touchSettings().vibrate || this.q('#rumble-switch')?.getAttribute('aria-checked') !== 'false') t.problem('bug', 'Rumble off did not apply');
+      else t.event('rumble-off', 'Rumble switched Off in Settings (shared by pad rumble and phone vibrate)');
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+      await this.click(() => this.q('#btn-resume'), 'Resume');
+      await t.until(() => this.game.phase() === 'play', 3000, 'the match to resume');
+      const sentBefore = rumbleLog.length;
+      const hitsBefore = hits;
+      const supBefore = rumbleStats.suppressed;
+      vibrateCalls = 0;
+      const f0 = m0()?.state.frame ?? 0;
+      await this.fight(() => hits - hitsBefore >= 4 || (m0()?.state.frame ?? 0) - f0 > 90 * 60, 3 * 60 * 1000);
+      const landed = hits - hitsBefore;
+      if (landed === 0) t.problem('warning', 'no hit landed with Rumble off, so it could not be checked');
+      else if (rumbleLog.length !== sentBefore) t.problem('bug', `${rumbleLog.length - sentBefore} rumble(s) were sent with Rumble off`);
+      else if (touch && vibrateCalls > 0) t.problem('bug', `${vibrateCalls} phone vibrate call(s) with Rumble off`);
+      else t.event('rumble-silent', `${landed} hit(s) with Rumble off: 0 rumbles sent, 0 phone vibrate calls (${rumbleStats.suppressed - supBefore} held back)`);
+      t.metric('rumblesOff', rumbleLog.length - sentBefore);
+      t.metric('vibrateCallsOff', vibrateCalls);
+      t.progress(0.9);
+
+      if (touch && pauseBtn()) await this.tap(pauseBtn, 'Pause');
+      else await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.click(() => this.q('#btn-quit'), 'Quit');
+      await this.screen('main');
+    } finally {
+      unwatch();
+      if (hadOwn) Object.defineProperty(navigator, 'vibrate', { configurable: true, writable: true, value: realVibrate });
+      else delete (nav as { vibrate?: unknown }).vibrate;
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+      try {
+        if (original === null) localStorage.removeItem(TOUCH_KEY);
+        else localStorage.setItem(TOUCH_KEY, original);
       } catch {
         // Storage blocked.
       }

@@ -1,8 +1,7 @@
 /**
- * Touch size (75% to 150%), Touch opacity (30% to 100%) and hit vibrate for the on-screen controls, saved in
+ * Touch size (75% to 150%), Touch opacity (30% to 100%) and the Rumble flag (`vibrate`, shared by pad rumble and phone vibrate: rumble.ts), saved in
  * localStorage "dod.touch" and applied live: input/touch.ts sets size/opacity as CSS variables on its overlay
- * (game.css reads them); vibrate is read on a landed hit in main.ts.
- * Settings shows the sliders and vibrate switch on touch devices only.
+ * (game.css reads them); Settings shows the sliders on touch devices only; the Rumble switch shows everywhere.
  */
 
 export interface TouchSettings { size: number; opacity: number; vibrate: boolean }
@@ -54,16 +53,6 @@ export const setTouchSettings = (next: Partial<TouchSettings>): void => {
 export const onTouchSettings = (l: (s: TouchSettings) => void): (() => boolean) => {
   listeners.add(l);
   return () => listeners.delete(l);
-};
-
-/** Light haptic on a landed hit when Settings → Vibrate is on and the browser supports it. */
-export const hitVibrate = (ms = 12): void => {
-  if (!current.vibrate) return;
-  try {
-    navigator.vibrate?.(ms);
-  } catch {
-    // Unsupported or blocked: ignore.
-  }
 };
 
 /** The playtest bot runs on a desktop browser: it asks Settings to show the touch sliders as on a phone. */
