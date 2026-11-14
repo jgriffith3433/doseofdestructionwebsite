@@ -296,3 +296,49 @@ export function unlockFor(chapter: Chapter, unlocked: Set<string> = unlocks()): 
   saveUnlocks(unlocked);
   return chapter.unlock;
 }
+
+// ------------------------------------------------------------------ the route to a locked fighter
+// Read from the chapters' own `unlock` (no new rules): the episode that opens a fighter, in the map's words.
+
+export interface UnlockRoute {
+  chapter: Chapter;
+  season: number;
+  /** 1-based place in its season, as the map numbers it. */
+  episode: number;
+  /** "Clear Season 1, Episode 1" */
+  short: string;
+  /** "Clear Season 1, Episode 1: Open Mic" */
+  text: string;
+}
+
+/** The episode that unlocks a fighter, or undefined for a fighter who is open from the start. */
+export function unlockRoute(id: string): UnlockRoute | undefined {
+  const chapter = CHAPTERS.find((c) => c.unlock === id);
+  if (!chapter) return undefined;
+  const episode = CHAPTERS.filter((c) => c.season === chapter.season).indexOf(chapter) + 1;
+  const short = `Clear Season ${chapter.season}, Episode ${episode}`;
+  return { chapter, season: chapter.season, episode, short, text: `${short}: ${chapter.title}` };
+}
+
+export interface NextUnlock {
+  fighter: string;
+  route: UnlockRoute;
+  /** Uncleared episodes to play, this one included (chapters open in order). */
+  away: number;
+  /** Cleared share of the way there (0..1): episodes done before it over the episodes up to and including it. */
+  fill: number;
+}
+
+/** The next fighter the campaign will open: the first uncleared episode that unlocks someone who is still locked. */
+export function nextUnlock(done: Set<string> = loadProgress(), unlocked: ReadonlySet<string> = unlocks()): NextUnlock | null {
+  let away = 0;
+  for (const c of CHAPTERS) {
+    if (!done.has(c.id)) away++;
+    if (done.has(c.id) || !c.unlock || unlocked.has(c.unlock)) continue;
+    const route = unlockRoute(c.unlock)!;
+    const upTo = CHAPTERS.filter((x) => x.season === c.season).indexOf(c) + 1;
+    const before = CHAPTERS.filter((x) => x.season === c.season && done.has(x.id)).length;
+    return { fighter: c.unlock, route, away, fill: Math.min(1, before / upTo) };
+  }
+  return null;
+}

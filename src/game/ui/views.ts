@@ -7,7 +7,7 @@ import { STAGES, type StageDef } from '../sim/stage.ts';
 /** A stage the Hazards rule changes: it has events, hazards or damage zones (what the sim gates on rules.hazards). */
 export const hasHazard = (st: StageDef): boolean => !!st.events?.length || !!st.hazards?.length || !!st.zones?.some((z) => z.kind === 'damage');
 import type { Match, MatchSetup } from '../match.ts';
-import { CHAPTERS, SEASONS, isOpen, loadBests, loadStars, seasonCleared, seasonOpen, type Chapter } from '../campaign/story.ts';
+import { CHAPTERS, SEASONS, isOpen, nextUnlock, loadBests, loadStars, seasonCleared, seasonOpen, type Chapter } from '../campaign/story.ts';
 import { DIFFICULTIES, DIFFICULTY_LABEL, DIFFICULTY_NOTE, difficulty, easyCleared, setDifficulty } from '../campaign/difficulty.ts';
 import type { Grade, Score } from '../campaign/grade.ts';
 import { hasReward, pickedTitle, rewardLine, setVariant, variantsFor, type Reward } from '../campaign/rewards.ts';
@@ -373,6 +373,20 @@ export function rewardTag(r: Reward, cleared = false): HTMLElement {
   return h('span', { class: `chapter-reward${cleared || hasReward(r.id) ? ' earned' : ''}`, 'data-reward': r.id, 'data-kind': r.kind }, h('b', {}, cleared || hasReward(r.id) ? 'Earned' : 'Reward'), ` ${rewardLine(r)}`);
 }
 
+/** Results: how close the next fighter is, shown when one episode is all that is left (the route is the chapter's own `unlock`). */
+function unlockBar(): HTMLElement | null {
+  const n = nextUnlock();
+  if (!n || n.away !== 1) return null;
+  const who = CHARACTERS.find((c) => c.id === n.fighter)?.name ?? n.fighter;
+  return h(
+    'section',
+    { class: 'results-unlock', role: 'status', 'data-fighter': n.fighter, 'data-away': String(n.away), 'data-fill': n.fill.toFixed(2) },
+    h('h3', {}, `${who} is one episode away`),
+    h('p', {}, `${n.route.text} puts them on the card.`),
+    h('div', { class: 'bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(n.fill * 100)), 'aria-label': `Progress toward ${who}` }, h('i', { style: `width:${Math.round(n.fill * 100)}%` })),
+  );
+}
+
 /** The unlock banner on results: the reward a won episode just gave, and where to use it. */
 function rewardBanner(r: Reward): HTMLElement {
   return h('section', { class: 'results-reward', role: 'status', 'data-reward': r.id, 'data-kind': r.kind }, h('h3', {}, 'Unlocked'), h('p', { class: 'reward-name' }, rewardLine(r)), h('p', { class: 'reward-line' }, r.line));
@@ -490,6 +504,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
       ),
     ),
     reward && rewardBanner(reward),
+    !online && unlockBar(),
     grade && gradeCard(grade),
     h(
       'div',

@@ -7,7 +7,7 @@
 import { CHARACTERS, type CharacterDef } from '../sim/characters.ts';
 import type { SlotSetup } from '../match.ts';
 import { PLAYER_COLORS, prefetchFighters } from '../render/renderer.ts';
-import { CHAPTERS, isUnlocked } from '../campaign/story.ts';
+import { CHAPTERS, isUnlocked, unlockRoute } from '../campaign/story.ts';
 import { $, h, kids, largeUrl, portraitSize, portraitUrl, thumbUrl } from './dom.ts';
 import { specialsPanel } from './specialsPreview.ts';
 import { createFighterRender, prefetchIdles } from './fighterRender.ts';
@@ -77,6 +77,24 @@ interface Options {
 /** The chapter that unlocks a fighter, for the "Locked" note. */
 export function unlockedBy(id: string) {
   return CHAPTERS.find((c) => c.unlock === id);
+}
+
+/** "S1 · E2": the locked tile's short route. */
+const routeShort = (id: string): string => {
+  const r = unlockRoute(id);
+  return r ? `S${r.season} · E${r.episode}` : '';
+};
+
+/** A tap on a locked tile says how to open it (a small status line above the bottom edge, gone after a few seconds). */
+let routeTimer: ReturnType<typeof setTimeout> | null = null;
+function routeNote(c: CharacterDef): void {
+  const r = unlockRoute(c.id);
+  document.querySelectorAll('.locked-route-note').forEach((e) => e.remove());
+  if (routeTimer) clearTimeout(routeTimer);
+  const note = h('div', { class: 'locked-route-note', role: 'status', 'data-fighter': c.id, 'data-route': r ? r.short : '' }, h('b', {}, `${c.name} is locked`), r ? ` · ${r.text}` : ' · clear the campaign to open them');
+  document.body.append(note);
+  window.dispatchEvent(new CustomEvent('dod:locked-route', { detail: { id: c.id, route: r?.text ?? '' } }));
+  routeTimer = setTimeout(() => note.remove(), 5000);
 }
 
 /** Versus and online picks: a locked fighter can't be picked (training is open to everyone). */
@@ -327,9 +345,9 @@ export function openSelect({ mode, config, onDone }: Options): void {
     preview.replaceChildren(
       renderCanvas,
       h('div', { class: 'lower-third' }, portrait(c), h('div', { class: 'lt-text' },
-        h('p', { class: 'kicker' }, by ? `Locked · clear ${by.title} in the campaign` : locked ? 'Locked' : c.role),
+        h('p', { class: 'kicker' }, by ? `Locked · ${unlockRoute(c.id)!.short}` : locked ? 'Locked' : c.role),
         h('h3', {}, c.name),
-        h('p', { class: 'blurb' }, locked ? 'Clear the campaign episode to put them on the card.' : c.blurb),
+        h('p', { class: 'blurb' }, by ? `${by.title} puts them on the card.` : locked ? 'Clear the campaign episode to put them on the card.' : c.blurb),
       )),
       specialsPanel(c),
       details,
@@ -498,14 +516,16 @@ export function openSelect({ mode, config, onDone }: Options): void {
           title: open(i, training) ? c.name : `${c.name} (locked)`,
           'aria-disabled': open(i, training) ? undefined : 'true',
           'data-fighter': c.id,
-          onclick: () => assign(i),
+          onclick: () => { if (!open(i, training)) routeNote(c); assign(i); },
           onfocus: (e: Event) => { p1Over(e.currentTarget as HTMLElement); showPreview(c); land(c, i, true); if (open(i, training)) void prefetchFighters([i]); },
           onmouseenter: (e: Event) => { p1Over(e.currentTarget as HTMLElement); showPreview(c); land(c, i); },
           // A tap on a phone: the preview (and its clip) follows the finger, not only the fighter picked.
           onpointerdown: () => { showPreview(c); land(c, i); },
         },
         thumb(c),
-        h('span', {}, open(i, training) ? c.name : 'Locked'),
+        open(i, training)
+          ? h('span', {}, c.name)
+          : h('span', { class: 'lock-route' }, 'Locked', h('small', {}, routeShort(c.id))),
       ),
     ),
     h(
