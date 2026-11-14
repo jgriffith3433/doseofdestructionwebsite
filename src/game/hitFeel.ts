@@ -34,34 +34,131 @@ export const impactFor = (tier: HitTier, kb: number): Impact => {
   return { sparks: 12 + (push >> 1), stars: 2, ring: true, shake: Math.min(0.85, 0.35 + kb * 0.003), flash: 0.18 };
 };
 
+// ------------------------------------------------------------------ motion comfort
+//
+// Three player choices, read live by the renderer and the post chain (so every path honours them, not just the UI):
+//  - Reduce motion (`dod.motion` on/off, default from the OS's prefers-reduced-motion): no KO slow-mo, no KO punch-in zoom,
+//    and it sets the defaults of the other two.
+//  - Screen shake 0-100% (`dod.shake`, a number; the old "on"/"off" still reads): scales every camera shake, 0 removes it.
+//  - Flashes Full / Soft / Off (`dod.flash`): scales the full-screen flashes and the post chain's exposure punch.
+// Whatever the choice, `FlashGate` allows at most 3 big flashes in any second (the photosensitivity guideline).
+
+export type FlashMode = 'full' | 'soft' | 'off';
+
 const SHAKE_KEY = 'dod.shake';
-let shakeOn = (() => {
+const FLASH_KEY = 'dod.flash';
+const MOTION_KEY = 'dod.motion';
+
+const store = (k: string): string | null => {
   try {
-    return localStorage.getItem(SHAKE_KEY) !== 'off';
+    return localStorage.getItem(k);
   } catch {
-    return true;
+    return null;
   }
-})();
-const listeners = new Set<(on: boolean) => void>();
-
-export const screenShake = (): boolean => shakeOn;
-
-export const setScreenShake = (on: boolean): void => {
-  shakeOn = on;
+};
+const put = (k: string, v: string): void => {
   try {
-    localStorage.setItem(SHAKE_KEY, on ? 'on' : 'off');
+    localStorage.setItem(k, v);
   } catch {
     // Private mode can block storage; the choice still holds for this visit.
   }
-  for (const l of listeners) l(on);
 };
 
-export const onScreenShake = (l: (on: boolean) => void): (() => boolean) => {
+const osReduced = (): boolean => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let motionChoice: boolean | null = ((): boolean | null => {
+  const v = store(MOTION_KEY);
+  return v === 'on' ? true : v === 'off' ? false : null;
+})();
+let shakeChoice: number | null = ((): number | null => {
+  const v = store(SHAKE_KEY);
+  if (v === 'off') return 0;
+  if (v === 'on') return 100;
+  const n = v === null ? NaN : Number(v);
+  return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : null;
+})();
+let flashChoice: FlashMode | null = ((): FlashMode | null => {
+  const v = store(FLASH_KEY);
+  return v === 'full' || v === 'soft' || v === 'off' ? v : null;
+})();
+const listeners = new Set<() => void>();
+const changed = (): void => {
+  for (const l of listeners) l();
+};
+
+/** Reduce motion: the player's choice, else the OS setting. */
+export const reduceMotion = (): boolean => motionChoice ?? osReduced();
+/** Screen shake 0-100: the player's choice, else 0 under Reduce motion and 100 without. */
+export const shakeLevel = (): number => shakeChoice ?? (reduceMotion() ? 0 : 100);
+/** Flashes: the player's choice, else Off under Reduce motion and Full without. */
+export const flashMode = (): FlashMode => flashChoice ?? (reduceMotion() ? 'off' : 'full');
+
+/** Camera shake is on at all (any level above 0). */
+export const screenShake = (): boolean => shakeLevel() > 0;
+/** The factor every shake is multiplied by (0-1). */
+export const shakeScale = (): number => shakeLevel() / 100;
+/** The factor every full-screen flash's strength is multiplied by: Full 1, Soft 0.35, Off 0. */
+export const flashScale = (): number => (flashMode() === 'full' ? 1 : flashMode() === 'soft' ? 0.35 : 0);
+
+export const setReduceMotion = (on: boolean): void => {
+  motionChoice = on;
+  put(MOTION_KEY, on ? 'on' : 'off');
+  changed();
+};
+export const setShakeLevel = (n: number): void => {
+  shakeChoice = Math.max(0, Math.min(100, Math.round(n)));
+  put(SHAKE_KEY, String(shakeChoice));
+  changed();
+};
+export const setFlashMode = (m: FlashMode): void => {
+  flashChoice = m;
+  put(FLASH_KEY, m);
+  changed();
+};
+/** Kept for callers that only flip shake on and off. */
+export const setScreenShake = (on: boolean): void => setShakeLevel(on ? 100 : 0);
+
+export const onScreenShake = (l: () => void): (() => boolean) => {
   listeners.add(l);
   return () => listeners.delete(l);
 };
+export const onMotionSettings = onScreenShake;
 
 export const SHAKE_STORAGE_KEY = SHAKE_KEY;
+export const FLASH_STORAGE_KEY = FLASH_KEY;
+export const MOTION_STORAGE_KEY = MOTION_KEY;
+
+/**
+ * Photosensitivity gate: a big full-screen flash (or the post chain's exposure punch) starts only when fewer than
+ * `MAX_FLASHES` have started in the last second. Calls within `MERGE_MS` of the last accepted start are the same flash
+ * (a heavy hit's flash and its exposure punch), so they pass without using another slot.
+ */
+export const MAX_FLASHES_PER_SECOND = 3;
+const MERGE_MS = 160;
+const flashStarts: number[] = [];
+let lastStart = -1e9;
+let flashLog = { accepted: 0, refused: 0, maxPerSecond: 0 };
+
+/** Asks to start a flash at `now` (ms). False when the mode is Off or the second is full. */
+export const flashAllowed = (now: number): boolean => {
+  if (flashScale() === 0) return false;
+  if (now - lastStart >= 0 && now - lastStart < MERGE_MS) return true;
+  while (flashStarts.length && now - flashStarts[0] >= 1000) flashStarts.shift();
+  if (flashStarts.length >= MAX_FLASHES_PER_SECOND) {
+    flashLog.refused++;
+    return false;
+  }
+  flashStarts.push(now);
+  lastStart = now;
+  flashLog.accepted++;
+  flashLog.maxPerSecond = Math.max(flashLog.maxPerSecond, flashStarts.length);
+  return true;
+};
+export const flashStats = (reset = false) => {
+  const out = { ...flashLog };
+  if (reset) flashLog = { accepted: 0, refused: 0, maxPerSecond: 0 };
+  return out;
+};
 
 // ------------------------------------------------------------------ damage numbers
 

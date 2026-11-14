@@ -260,6 +260,15 @@
       ]
     },
     {
+      "id": "motion-comfort",
+      "title": "Motion comfort: Reduce motion, Screen shake 0-100% and Flashes Full/Soft/Off apply in hits and KOs, and never more than 3 flashes a second",
+      "description": "Settings (menu) shows Reduce motion, the Screen shake slider and Flashes (44 px, on screen); Reduce motion is switched on and the other two default to 0% and Off; a versus match is played to a stock-ending KO: no slow motion, no zoom punch, no full-screen flash, no camera shake (ko-calm, ko-no-flash, ko-no-shake; metrics calmFlashes, calmShakeMax). From Pause everything goes back to Full / 100% live and ten hits are played: flashes return and never more than 3 start in any second (flash-rate, metric flashMaxPerSecond). On a 390x844 phone the portrait Settings is checked, then the run plays in the turned 844x390 frame by taps. Puts dod.motion, dod.shake and dod.flash back.",
+      "seconds": 300,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "shield-toggle",
       "title": "Shield Hold / Toggle: Settings > Shield; with Toggle one press keeps the shield up with no button held, a second press, a roll or a jump drops it, and on a phone the Shield button shows it is latched",
       "description": "Settings from the main menu shows the Shield switch (Hold by default, 44 px, on screen); one tap turns it to Toggle and it is saved (shield-saved, dod.shield). In a versus match one press of Shield (the L key, or the touch Shield button) raises the shield and 1.4 s later it is still up with nothing held (shield-latched); on touch the Shield button carries the latched look and aria-pressed (shield-button-latched); a second press drops it (shield-dropped-press); a press then a roll (stick sideways) rolls and drops it (shield-dropped-roll); a press then a jump drops it (shield-dropped-jump). On a 390x844 phone the portrait Settings is checked, then the run plays in the turned 844x390 frame by taps and a stick drag. Puts dod.shield back.",

@@ -13,7 +13,7 @@ import { Commentator, introCall, suddenDeathCall, type Call } from './commentary
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
 import { TEXT_SIZES, onTextSize, setTextSize, textSize } from './textSize.ts';
 import { colourVision, onColourVision, setColourVision, shapeOf } from './colourVision.ts';
-import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
+import { flashMode, onScreenShake, reduceMotion, setFlashMode, setReduceMotion, setShakeLevel, shakeLevel, shakeScale, type FlashMode } from './hitFeel.ts';
 import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings } from './touchSettings.ts';
 import { rumble, rumbleHit } from './rumble.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
@@ -1965,9 +1965,13 @@ function renderSettings(): void {
   sw.setAttribute('aria-checked', String(s.on));
   sw.textContent = s.on ? 'On' : 'Off';
   $('settings-levels').dataset.off = String(!s.on);
-  const shake = $('shake-switch');
-  shake.setAttribute('aria-checked', String(screenShake()));
-  shake.textContent = screenShake() ? 'On' : 'Off';
+  const mo = $('motion-switch');
+  mo.setAttribute('aria-checked', String(reduceMotion()));
+  mo.textContent = reduceMotion() ? 'On' : 'Off';
+  const shake = $('shake-level') as HTMLInputElement;
+  shake.value = String(shakeLevel());
+  $('shake-level-value').textContent = `${shakeLevel()}%`;
+  document.querySelectorAll<HTMLElement>('#flash-seg [data-fl]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.fl === flashMode())));
   const sh = $('shield-switch');
   sh.setAttribute('aria-checked', String(shieldMode() === 'toggle'));
   sh.textContent = shieldMode() === 'toggle' ? 'Toggle' : 'Hold';
@@ -2062,10 +2066,22 @@ function wireSettings(): void {
     setColourVision(colourVision() === 'safe' ? 'standard' : 'safe');
     analytics.setting('colour_vision', colourVision(), from());
   });
-  $('shake-switch').addEventListener('click', () => {
-    setScreenShake(!screenShake());
-    analytics.setting('shake', screenShake(), from());
+  $('motion-switch').addEventListener('click', () => {
+    setReduceMotion(!reduceMotion());
+    analytics.setting('reduce_motion', reduceMotion(), from());
   });
+  $('shake-level').addEventListener('input', (e) => {
+    setShakeLevel(Number((e.target as HTMLInputElement).value));
+  });
+  $('shake-level').addEventListener('change', () => analytics.setting('shake', shakeLevel(), from()));
+  document.querySelectorAll<HTMLElement>('#flash-seg [data-fl]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const v = b.dataset.fl as FlashMode;
+      if (v !== 'full' && v !== 'soft' && v !== 'off') return;
+      setFlashMode(v);
+      analytics.setting('flashes', v, from());
+    }),
+  );
   analytics.graphics(graphics());
   onGraphics((g) => {
     renderSettings();
@@ -2463,7 +2479,6 @@ let boothTimer = 0;
 /** The GAME! freeze on the final KO. */
 const GAME_FREEZE_MS = 500;
 let freezeUntil = 0;
-const slamReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 /** ROUND START / GAME!: big type punches in with a camera shake and a hit sound (the announcer's line follows). */
 /** A dead-even time-out went to sudden death: the slam card, the alarm and sting, the announcer's call. */
@@ -2482,7 +2497,7 @@ function slam(text: string, over = false, extra = ''): void {
   document.body.appendChild(el);
   el.addEventListener('animationend', () => el.remove());
   audio.sfx('vs-slam');
-  if (!slamReduced.matches) renderer.kick(over ? 0.7 : 0.4);
+  if (!reduceMotion()) renderer.kick(over ? 0.7 : 0.4);
   window.dispatchEvent(new CustomEvent('dod:slam', { detail: { text, over, at: Math.round(performance.now()), freezeMs: over && !fight ? GAME_FREEZE_MS : 0 } }));
 }
 
@@ -2655,7 +2670,10 @@ function updateHud(m: Match): void {
 function bumpHud(id: number, dmg = 0, tenths = 0): void {
   const pct = $('hud').children[id]?.querySelector<HTMLElement>('.hud-pct');
   if (!pct) return;
-  const { amp, pop } = damageShake(dmg, tenths);
+  const shaken = damageShake(dmg, tenths);
+  // The number's own shake follows Screen shake, and its pop follows Reduce motion.
+  const amp = shaken.amp * shakeScale();
+  const pop = shaken.pop && !reduceMotion();
   pct.style.setProperty('--amp', `${amp.toFixed(1)}px`);
   pct.classList.remove('bump', 'pop');
   void pct.offsetWidth;
@@ -2883,6 +2901,7 @@ const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPla
   hitFxStats: (reset) => renderer.hitFxStats(reset),
   flipStats: (reset) => renderer.flipStats(reset),
   camFxStats: (reset) => renderer.camFxStats(reset),
+  flashFxStats: (reset) => renderer.flashFxStats(reset),
   camTrace: (reset) => renderer.camTrace(reset),
   trailStats: (reset) => renderer.trailStats(reset),
   reactFxStats: (reset) => renderer.reactFxStats(reset),
