@@ -29,7 +29,8 @@ import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, installPressFeedback, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
-import { openCampaign, openStages, playVersus, showResults, type ResultAction } from './ui/views.ts';
+import { openCampaign, openStages, playVersus, setResultActions, showResults, type ResultAction } from './ui/views.ts';
+import { clearRematchPanel, renderRematch } from './ui/rematch.ts';
 import { startResultsMusic } from './ui/victory.ts';
 import { planIntro } from './campaign/intro.ts';
 import { playMatchIntro } from './ui/matchIntro.ts';
@@ -46,7 +47,7 @@ import { HighlightPlayer, loadHighlight, nextChapterId, recapApplies, recapId, s
 import { playSegment, type SegmentEnv, type Showcase } from './ui/segment.ts';
 // Online code is never imported here: it loads after boot through the loader (a failure there can't stop the game).
 import type { OnlineFight, FightEnd } from './net/fight.ts';
-import type { Found } from './net/matchmaker.ts';
+import type { Found, OnlineSetup } from './net/matchmaker.ts';
 import { bootOnline, onlineApi } from './net/loader.ts';
 import { switching } from './ui/screens.ts';
 import { initRotatePrompt, rotateShowing } from './ui/rotate.ts';
@@ -1878,6 +1879,10 @@ const ENDINGS: Record<FightEnd['reason'], (opp: string, won: boolean) => { headl
 
 /** The online fight ended (any reason): results, then back to the lobby with Queue again. */
 async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<void> {
+  // The room stays up for a rematch only after a finished game (the sim's end, or time); anything else closes it.
+  const rematchable = (end.reason === 'game' || end.reason === 'time') && !f.found.room.closed;
+  f.holdRoom = rematchable;
+  clearRematchPanel();
   onlineCall('match over', (o) => o.onlineParts()?.mm.matchOver());
   if (match === m) phase = 'idle';
   $('pause').hidden = true;
@@ -1889,22 +1894,63 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
   // A game that ended in the sim has had its Game! banner; an early end gets its own.
   if (end.reason !== 'game' && end.reason !== 'time') banner(end.reason === 'desync' || end.reason === 'no-start' ? 'Void' : won ? 'You win' : 'Left');
   for (let i = 0; i < 40 && switching(); i++) await new Promise((r) => setTimeout(r, 50));
-  const actions: ResultAction[] = [
-    {
+  // Rematch: after a finished game (not a quit, a lost link or a void) the room stays open for both to run it back.
+  const o = onlineApi();
+  const session = rematchable && o ? new o.Rematch({ room: f.found.room, slot: f.slot, prev: f.found.setup, winner: end.winner, char: f.found.setup.chars[f.slot], look: f.found.setup.looks?.[f.slot] ?? 0, opponent: f.opponent }) : null;
+  const leave = () => {
+    session?.decline();
+    clearRematchPanel();
+  };
+  const actionsFor = (): (ResultAction & { disabled?: boolean })[] => {
+    const live = session?.active ?? false;
+    const out: (ResultAction & { disabled?: boolean })[] = [];
+    if (live && session!.phase === 'open') out.push({ label: 'Rematch', primary: true, run: () => { analytics.feature('rematch', { value: 'press' }); session!.press(); } });
+    else if (live && session!.phase === 'waiting') out.push({ label: 'Rematch', primary: true, disabled: true, run: () => {} });
+    out.push({
       label: 'Queue again',
-      primary: true,
+      primary: !out.length,
       run: () => {
-        void go('main', spotlight).then(() => onlineCall('find match', (o) => o.findMatch()));
+        leave();
+        void go('main', spotlight).then(() => onlineCall('find match', (x) => x.findMatch()));
       },
-    },
-    { label: 'Main menu', run: () => go('main', spotlight) },
-  ];
+    });
+    out.push({ label: 'Main menu', run: () => { leave(); return go('main', spotlight); } });
+    return out;
+  };
+  const actions = actionsFor();
+  if (session) {
+    let shown = '';
+    const redraw = () => {
+      if (currentScreen() !== 'results') return;
+      renderRematch(session);
+      const key = session.phase;
+      if (key !== shown) {
+        shown = key;
+        setResultActions(actionsFor());
+      }
+    };
+    session.on('phase', redraw);
+    session.on('tick', redraw);
+    session.on('draft', redraw);
+    session.on('end', (e: { reason: string }) => {
+      analytics.feature('rematch', { value: e.reason });
+      clearWinQuote();
+      redraw();
+    });
+    session.on('start', (setup: OnlineSetup) => {
+      analytics.feature('rematch', { value: 'start' });
+      clearRematchPanel();
+      onlineCall('rematch', (x) => x.onlineParts()?.lobby.update({ status: 'in-match' }));
+      void startOnlineMatch({ room: f.found.room, slot: f.slot, opponent: f.found.opponent, setup });
+    });
+  }
   const newLooks = won && !voided ? creditWins(m, [f.slot]) : [];
   clearWinQuote();
   const quote = voided ? null : announceWinQuote(m, end.winner, false);
   await go('results', () => {
     endMatch();
     showResults(m, actions, { ...ending, winner: end.winner >= 0 ? end.winner : undefined }, newLooks);
+    if (session) renderRematch(session);
     onlineCall('rating change', (o) => o.showRatingChange(end, f.slot));
     startResultsMusic();
   });

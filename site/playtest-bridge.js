@@ -364,6 +364,17 @@
       ]
     },
     {
+      "id": "rematch",
+      "title": "Online rematch (peers: 2): both see Rematch after a game, pick a fighter (one switches), start a new match against the same opponent; a decline shows who left and Queue again is one tap",
+      "description": "Needs Hawkes Gen playtest.run with peers: 2 (private test lobby, ?room=<id>&peer=0/1). Plays online's lobby and first game, then on the results both see Rematch, Queue again and Main menu (rematch-offered, 44 px: rematch-fit); both tap Rematch (peer 1 a moment later: rematch-pressed), the quick fighter pick opens (rematch-pick: a scrollable row of the unlocked fighters starting on the last pick, the stage row for the loser, Lock in), peer 1 switches fighter (rematch-change), both lock in and a new match starts against the same opponent with the picked fighters (rematch-start). After that game peer 0 taps Rematch and peer 1 taps Queue again: peer 0 sees who left, Rematch gone (rematch-declined) and one tap on Queue again searches (rematch-queue-again). Every control is measured against the window (rematch-fit); taps only, so a 390x844 touch phone run plays the same path.",
+      "seconds": 600,
+      "tags": [
+        "full",
+        "online",
+        "touch"
+      ]
+    },
+    {
       "id": "daily",
       "title": "Tonight's Episode: the main menu card shows tonight's fighters, stage and twist (the same for everyone on a date), the episode plays to a score, a day streak and today's board with the player on it (phone: 390x844 touch, played in landscape)",
       "description": "Setup shortcut: the player's own dod.daily is cleared and put back. Checks the card against the pure picker for the date (daily-episode, the signature two tabs must share; option or ?daily=YYYY-MM-DD names a date off the live site), its fit in the window and 44 px targets (daily-card-fit), Blog Man's intro (daily-listen) and the countdown, plays the episode with the bot on the pad (up to 3 tries; daily-objective), then reads the results' score, day streak and the board (daily-result, daily-board: the player's own line, rank and total; the board is read once when the results open) and the card's Best and streak back on the menu (daily-card-after). On a portrait phone it checks the card in the portrait window and plays in the turned 844x390 frame, everything by taps. Metrics dailyScore, dailyStreak, dailyBoardRank, dailyCardFits, dailyBoardFits.",

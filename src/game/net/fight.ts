@@ -91,6 +91,8 @@ export class OnlineFight {
   private playStartedAt = 0;
   private lingerTimer: ReturnType<typeof setInterval> | undefined;
   private unsubs: (() => void)[] = [];
+  /** Set by the page while it ends the fight: after a finished game (not a quit or a lost link) the room is left open for a rematch, whose session closes it. */
+  holdRoom = false;
   /** Called once when the fight ends, for any reason. */
   onEnd: ((end: FightEnd) => void) | null = null;
   /** Both pages are ready: run the Ready… Go! count. */
@@ -437,6 +439,7 @@ export class OnlineFight {
       if (--left <= 0 || reason === 'forfeit' || reason === 'disconnect') {
         clearInterval(this.lingerTimer);
         for (const u of this.unsubs) u();
+        if (this.holdRoom && (reason === 'game' || reason === 'time')) return;
         room.close(reason === 'game' || reason === 'time' ? 'over' : reason);
         return;
       }

@@ -480,9 +480,14 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
   const row = h('div', { class: `results-row${stage ? '' : ' no-stage'}`, 'data-phase': stage ? 'pose' : 'panel' }, stage?.el, panel);
   $('results-body').replaceChildren(row);
   stage?.start(row);
+  setResultActions(actions);
+}
+
+/** The results' buttons (an online result swaps them as the rematch moves on). `disabled` actions are shown but dead. */
+export function setResultActions(actions: (ResultAction & { disabled?: boolean })[]): void {
   $('results-actions').replaceChildren(
     ...actions.map((a, i) =>
-      h('button', { type: 'button', class: a.primary ? 'primary' : 'secondary', 'data-autofocus': i === 0 || undefined, onclick: a.run }, a.label),
+      h('button', { type: 'button', class: a.primary ? 'primary' : 'secondary', 'data-autofocus': i === 0 || undefined, disabled: a.disabled, onclick: a.run }, a.label),
     ),
   );
 }
