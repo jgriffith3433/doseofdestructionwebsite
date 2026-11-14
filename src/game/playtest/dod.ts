@@ -10637,6 +10637,9 @@ class Run {
       if (touch) {
         const toggles = document.querySelectorAll('#select-slots .human-toggle').length;
         const labels = [...document.querySelectorAll('#select-slots .slot-label')].map((e) => e.textContent ?? '');
+        const prompts = document.querySelectorAll('#select-slots .join-prompt').length;
+        if (prompts > 0) t.problem('bug', `a touch-only phone shows ${prompts} "Press Start to join" prompt(s)`);
+        else t.event('no-join-prompt', '390x844 touch, no pads: no "Press Start to join" on any slot');
         if (toggles > 0) t.problem('bug', 'a phone offers a second person on one screen');
         else if (!labels[0]?.startsWith('You') || !labels[1]?.startsWith('CPU')) t.problem('bug', `phone Versus is not You vs CPU: ${labels.join(' | ')}`);
         else t.event('phone-you-vs-cpu', `390x844 touch: ${labels.join(' vs ')}, no Person switch`);
@@ -10661,6 +10664,34 @@ class Run {
         t.finish('done');
         return;
       }
+
+      // Joining by Start: no second device, no prompt; two pads, Start on pad 2 makes slot 2 Player 2; holding Back on it returns the CPU.
+      const slotLabel = (i: number) => document.querySelectorAll('#select-slots .slot')[i]?.querySelector('.slot-label')?.textContent ?? '';
+      const promptCount = () => document.querySelectorAll('#select-slots .join-prompt:not(.joined)').length;
+      const tap = (i: number, on: boolean) => ({ buttons: Array.from({ length: 17 }, (_, k) => on && k === i), axes: [0, 0] as [number, number] });
+      if (promptCount() > 0) t.problem('bug', 'Press Start to join shows with only the keyboard connected');
+      else t.event('no-join-prompt', 'desktop, keyboard only: no "Press Start to join"');
+      emulatePad(pad(false), 0);
+      emulatePad(pad(false), 1);
+      await t.until(() => promptCount() > 0, 3000, 'the join prompt with two pads');
+      t.event('join-prompt', `${promptCount()} open slot(s) read "Press Start to join" with two pads`);
+      emulatePad(tap(9, true), 1);
+      await t.wait(150);
+      emulatePad(tap(9, false), 1);
+      await t.wait(150);
+      if (slotLabel(1) !== 'Player 2') t.problem('bug', `Start on pad 2 left slot 2 as "${slotLabel(1)}" (want Player 2)`);
+      else t.event('join-start', 'Start on pad 2 turned slot 2 into Player 2');
+      emulatePad(tap(1, true), 1);
+      await t.wait(500);
+      if (slotLabel(1) !== 'Player 2') t.problem('bug', 'Back held for half a second already left the slot');
+      await t.wait(800);
+      emulatePad(tap(1, false), 1);
+      await t.wait(150);
+      if (!slotLabel(1).startsWith('CPU')) t.problem('bug', `holding Back on pad 2 left slot 2 as "${slotLabel(1)}" (want CPU)`);
+      else t.event('join-leave', 'holding Back on pad 2 for a second returned slot 2 to CPU');
+      emulatePad(null, 0);
+      emulatePad(null, 1);
+      await openVersus();
 
       // Two people: the second slot is a Person, each pad its own fighter.
       await this.click(() => this.q('#select-slots .slot:nth-child(2) .human-toggle'), 'second slot: Person');

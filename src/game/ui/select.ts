@@ -15,7 +15,8 @@ import { swatchRow } from './lookUi.ts';
 import { audio } from '../audio.ts';
 import { hintText } from './teach.ts';
 import { landOn, resetLanding } from './nameCall.ts';
-import { currentScreen } from './screens.ts';
+import { currentScreen, setMenuPadRules } from './screens.ts';
+import { pads, setPadClaims } from '../input/devices.ts';
 import { TEAM_COLORS } from '../colourVision.ts';
 import { loadAutoLevel } from '../ai/autoLevel.ts';
 import { ownedOf, pickTitle, pickedTitle } from '../campaign/rewards.ts';
@@ -79,6 +80,10 @@ export function unlockedBy(id: string) {
 /** Versus and online picks: a locked fighter can't be picked (training is open to everyone). */
 const open = (i: number, training: boolean): boolean => training || isUnlocked(CHARACTERS[i].id);
 
+/** Hold Back on a joined pad this long to leave its slot. */
+export const LEAVE_HOLD_MS = 1000;
+let joinRun = 0;
+
 export function openSelect({ mode, config, onDone }: Options): void {
   const cfg: VersusConfig = { ...config, slots: config.slots.map((s) => ({ ...s })) };
   let active = 0;
@@ -97,6 +102,102 @@ export function openSelect({ mode, config, onDone }: Options): void {
   let slotFocus = -1;
   const autoLevel = loadAutoLevel();
   fixLooks();
+
+  // Joining: a pad pressing Start claims the next slot (replacing a CPU); holding Back on it for a second hands the slot back.
+  // With two or more pads the first is player 1's (it drives the menu); one pad joins only once the keyboard has been used.
+  const claims = new Map<number, number>(); // pad index -> slot
+  let keyUsed = false;
+  let promptShown = false;
+  window.addEventListener('keydown', () => { keyUsed = true; }, { once: true });
+  setPadClaims([]);
+  const claimedPad = (p: Gamepad): boolean => claims.has(p.index);
+  /** A pad that Start would put into a slot: not claimed, not player 1's own pad. */
+  const joiner = (p: Gamepad): boolean => {
+    const all = pads();
+    if (all.length >= 2) return all[0].index !== p.index && !claims.has(p.index);
+    return all.length === 1 && keyUsed && !claims.has(p.index);
+  };
+  const freeSlot = (): number => {
+    const i = cfg.slots.findIndex((s, k) => k > 0 && s.cpu !== null);
+    return i >= 0 ? i : cfg.slots.length < 4 ? cfg.slots.length : -1;
+  };
+  /** "Press Start to join" shows only when a second device is connected (a pad besides the keyboard, or a second pad). */
+  const joinable = (): boolean => !training && !touchUi() && freeSlot() >= 0 && pads().some(joiner);
+  const syncClaims = (): void => {
+    const owners: number[] = [];
+    cfg.slots.forEach((s, i) => {
+      if (i > 0 && s.cpu === null) for (const [pad, slot] of claims) if (slot === i) owners.push(pad);
+    });
+    setPadClaims(owners);
+  };
+  const joinSlot = (padIndex: number): void => {
+    let i = freeSlot();
+    if (i < 0) return;
+    if (i >= cfg.slots.length) {
+      const used = new Set(cfg.slots.map((o) => o.char));
+      const free = CHARACTERS.findIndex((_, k) => !used.has(k) && open(k, training));
+      cfg.slots.push({ char: free < 0 ? 0 : free, cpu: null, team: cfg.slots.length % 2 });
+      i = cfg.slots.length - 1;
+    }
+    const s = cfg.slots[i];
+    s.cpu = null;
+    s.auto = undefined;
+    s.look = preferredLook(s.char);
+    claims.set(padIndex, i);
+    fixLooks();
+    syncClaims();
+    audio.sfx('ui-select');
+    window.dispatchEvent(new CustomEvent('dod:select-join', { detail: { slot: i, pad: padIndex, joined: true, people: cfg.slots.filter((o) => o.cpu === null).length, at: performance.now() } }));
+    renderSlots();
+  };
+  const leaveSlot = (padIndex: number): void => {
+    const i = claims.get(padIndex);
+    claims.delete(padIndex);
+    if (i === undefined || !cfg.slots[i]) return;
+    cfg.slots[i].cpu = autoLevel;
+    cfg.slots[i].auto = true;
+    syncClaims();
+    window.dispatchEvent(new CustomEvent('dod:select-join', { detail: { slot: i, pad: padIndex, joined: false, people: cfg.slots.filter((o) => o.cpu === null).length, at: performance.now() } }));
+    renderSlots();
+  };
+  if (mode === 'versus') {
+    const run = ++joinRun;
+    const startHeld = new Map<number, boolean>();
+    const backSince = new Map<number, number>();
+    let seen = false;
+    setMenuPadRules({ skip: claimedPad, noStart: joiner });
+    const loop = (): void => {
+      if (run !== joinRun) return;
+      const here = currentScreen() === 'select';
+      if (here) seen = true;
+      else if (seen) {
+        setMenuPadRules(null);
+        return;
+      }
+      if (here) {
+        const now = performance.now();
+        for (const p of pads()) {
+          const start = !!p.buttons[9]?.pressed;
+          if (start && !startHeld.get(p.index) && joiner(p)) joinSlot(p.index);
+          startHeld.set(p.index, start);
+          if (claims.has(p.index)) {
+            if (p.buttons[1]?.pressed || p.buttons[8]?.pressed) {
+              const from = backSince.get(p.index) ?? now;
+              backSince.set(p.index, from);
+              if (now - from >= LEAVE_HOLD_MS) {
+                backSince.delete(p.index);
+                leaveSlot(p.index);
+              }
+            } else backSince.delete(p.index);
+          }
+        }
+        for (const k of [...claims.keys()]) if (!pads().some((p) => p.index === k)) leaveSlot(k);
+        if (joinable() !== promptShown) renderSlots();
+      }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
 
   const preview = $('select-preview');
   const grid = $('select-grid');
@@ -294,6 +395,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
 
   function renderSlots(): void {
     const back = slotFocus;
+    promptShown = joinable();
     slotFocus = -1;
     slotsEl.replaceChildren(
       ...kids(...cfg.slots.map((s, i) => {
@@ -347,6 +449,8 @@ export function openSelect({ mode, config, onDone }: Options): void {
               cfg.teams && h('button', { type: 'button', onclick: () => toggleTeam(i) }, TEAM_NAMES[s.team ?? 0]),
               !training && cfg.slots.length > 2 && h('button', { type: 'button', 'aria-label': 'Remove', onclick: () => remove(i) }, '×'),
             ),
+          isCpu && !training && i > 0 && joinable() && h('p', { class: 'join-prompt', role: 'status' }, 'Press Start to join'),
+          !isCpu && i > 0 && [...claims.values()].includes(i) && h('p', { class: 'join-prompt joined' }, 'Hold Back to leave'),
           !isCpu && (cfg.teams || i > 0) &&
             h(
               'div',
