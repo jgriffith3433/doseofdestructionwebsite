@@ -87,6 +87,7 @@ export interface MarkerIn {
   portrait: string;
   /** The fighter's tag text (ui/tags.ts `tagText`). */
   tag: string;
+  shape?: string;
 }
 
 export interface MarkerShown { id: number; x: number; y: number; size: number; angle: number; danger: boolean; clear: boolean; rect: Rect }
@@ -170,6 +171,7 @@ export function updateMarkers(list: MarkerIn[]): void {
     const tag = el.querySelector<HTMLElement>('.edge-tag');
     if (tag) {
       if (tag.textContent !== m.tag) tag.textContent = m.tag;
+      if (m.shape) tag.dataset.shape = m.shape;
       const tw = tag.offsetWidth || 32;
       const left = p.x - tw / 2;
       const shift = Math.max(4, Math.min(w - 4 - tw, left)) - left;

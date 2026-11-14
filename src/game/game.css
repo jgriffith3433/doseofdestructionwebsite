@@ -2209,3 +2209,14 @@ body[data-nav] :is(button, a[href], select, input, summary, [role="button"], [ta
 body.sudden-death .hud-card { box-shadow: 0 0 0 2px rgba(255, 59, 47, 0.7); }
 @keyframes sudden-pulse { 50% { filter: brightness(1.35); } }
 @media (prefers-reduced-motion: reduce) { .timer.sudden { animation: none; } }
+
+/* Colour vision: each player's shape (circle, triangle, square, diamond) beside their name, on the tag, HUD card and edge bubble. */
+.fighter-tag::before, .hud-name::before { display: inline-block; margin-right: 0.35em; font-size: 0.95em; line-height: 1; -webkit-text-stroke: 0; }
+.fighter-tag[data-shape='circle']::before, .hud-card[data-shape='circle'] .hud-name::before { content: '●'; }
+.fighter-tag[data-shape='triangle']::before, .hud-card[data-shape='triangle'] .hud-name::before { content: '▲'; }
+.fighter-tag[data-shape='square']::before, .hud-card[data-shape='square'] .hud-name::before { content: '■'; }
+.fighter-tag[data-shape='diamond']::before, .hud-card[data-shape='diamond'] .hud-name::before { content: '◆'; }
+/* The stock dots take the shape too. */
+.hud-card[data-shape='triangle'] .hud-stocks i { border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.hud-card[data-shape='square'] .hud-stocks i { border-radius: 1px; }
+.hud-card[data-shape='diamond'] .hud-stocks i { border-radius: 0; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
