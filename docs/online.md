@@ -173,6 +173,18 @@ beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
   (back to the menu and straight into the queue) or Main menu.
 - Online matches: 3 stocks, 5 minutes, a random Versus stage (its Versus rules), no pause.
 
+## Rematch
+
+After a finished game (the sim's end or time, not a quit, a lost link or a void) the match room stays open
+(`OnlineFight.holdRoom`) and the results offer **Rematch**, Queue again and Main menu (`net/rematch.ts` protocol,
+`ui/rematch.ts` panel, wired in `main.ts` `onlineEnded`). Both press Rematch within 15 s of the result; then a 12 s
+quick pick: a scrollable row of the fighters you have unlocked, defaulting to your last pick, and, if you lost the last
+game, a stage row (the loser picks; a draw or no pick: random from the Versus list). Messages on the room: `rm`
+(`want` / `no`), `rp` (a locked pick), `rn` (the host's new `OnlineSetup`, checked by the guest). Each game is a new
+match id with its own start and result signatures, so ratings and the leaderboard stay per game. Queue again, Main menu,
+the room closing or the clock all end it: the other side sees "<name> left. Queue again?" and Queue again is one tap.
+Check: `src/game/test/rematch.test.ts`; scenario `rematch` (peers: 2, taps only).
+
 ## Reconnecting
 
 A dropped connection is not the end of a match (`net/room.ts`, `net/fight.ts`). The **room decides**, with no outside

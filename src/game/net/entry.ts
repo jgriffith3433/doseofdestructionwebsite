@@ -9,3 +9,4 @@ export { background } from '@hawkesgen/net';
 export { profileId } from './profile.ts';
 export { closeProfile, findMatch, initOnlineUi, openProfile } from '../ui/online.ts';
 export { initLeaderboardUi, renderBoard, showRatingChange } from '../ui/leaderboard.ts';
+export { Rematch, rematchStages } from './rematch.ts';
