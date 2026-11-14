@@ -233,6 +233,10 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'intro-exchange') await r.introExchange();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
+        else if (id === 'reconnect') {
+          r.cutMode = true;
+          await r.online();
+        }
       } finally {
         r.dispose();
       }
@@ -2700,7 +2704,104 @@ class Run {
 
   // ---------------------------------------------------------- online
 
+  /**
+   * Reconnecting (docs/online.md): peer 1's connection is cut for 3 s mid-fight. Both pages pause with "Reconnecting…" and
+   * a countdown (the banner clear of every touch control), the same player is heard again and play resumes with the same
+   * stocks and percents (the frame stands still while paused, then moves on). Then it is cut for longer than the 10 s
+   * window: the match ends as a disconnect, with no rating. Peer 0 watches (and plays: the bot is on the pad).
+   */
+  private async reconnectPart(net: NonNullable<Awaited<ReturnType<typeof onlineReady>>>, peer: number, opp: string): Promise<void> {
+    const t = this.t;
+    const log: { phase: string; who: string; cause: string; n: number; frame: number; stocks: number[]; percents: number[] }[] = [];
+    window.addEventListener('dod:reconnect', (e) => log.push((e as CustomEvent).detail));
+    const frame = () => this.game.match()?.state.frame ?? 0;
+    const banner = () => this.q('#net-status');
+    const shown = () => !!banner() && !banner()!.hidden && /^Reconnecting…/.test(banner()!.textContent ?? '');
+    const countdowns: number[] = [];
+    const watch = window.setInterval(() => {
+      const n = Number(/(\d+) s/.exec(banner()?.textContent ?? '')?.[1] ?? NaN);
+      if (shown() && Number.isFinite(n) && countdowns[countdowns.length - 1] !== n) countdowns.push(n);
+    }, 100);
+    const clear = () => {
+      const b = banner()!.getBoundingClientRect();
+      const touch = touchOverlay();
+      const hits: string[] = [];
+      touch?.querySelectorAll<HTMLElement>('.touch-btn, .touch-stick, button').forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2 || getComputedStyle(el).visibility === 'hidden') return;
+        if (b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top) hits.push(el.className || el.tagName);
+      });
+      return { b, hits };
+    };
+    try {
+      await t.until(() => frame() > 300, 60000, 'some of the fight to be played');
+      // 1. The cut: peer 1 drops for 3 s; both pages show the banner and hold the match still.
+      if (peer === 1) {
+        await t.wait(1000);
+        const before = { frame: frame(), stocks: this.game.match()!.state.fighters.map((f) => f.stocks), percents: this.game.match()!.state.fighters.map((f) => f.percent) };
+        t.event('reconnect-cut', `peer 1 cuts its connection for 3 s at frame ${before.frame}`);
+        const cut = net.cutLink(3000);
+        await t.until(shown, 5000, 'our own Reconnecting… banner');
+        const at = frame();
+        await cut;
+        await t.wait(500);
+        if (!shown()) t.event('reconnect-banner-gone', 'the banner is gone after the cut');
+        await t.until(() => frame() > at + 30, 20000, 'play to resume after our cut');
+        t.event('reconnect-resumed', `resumed at frame ${frame()} (was ${at}), stocks ${this.game.match()!.state.fighters.map((f) => f.stocks).join('/')} (were ${before.stocks.join('/')})`);
+        if (this.game.match()!.state.fighters.some((f, i) => f.stocks > before.stocks[i])) t.problem('bug', 'a fighter has more stocks after the reconnect than before');
+      } else {
+        await t.until(shown, 30000, 'Reconnecting… on this page (the other player dropped)');
+        const at = frame();
+        const first = banner()!.textContent ?? '';
+        t.event('reconnecting-banner', `"${first}" at frame ${at}`);
+        const { b, hits } = clear();
+        if (hits.length) t.problem('bug', `the Reconnecting banner covers a touch control (${hits.join(', ')})`);
+        else t.event('reconnect-banner-clear', `banner ${Math.round(b.left)},${Math.round(b.top)} ${Math.round(b.width)}x${Math.round(b.height)} clear of every touch control at ${innerWidth}x${innerHeight}`);
+        if (b.left < 0 || b.right > innerWidth || b.top < 0) t.problem('bug', 'the Reconnecting banner is off the screen');
+        await t.wait(1200);
+        if (frame() !== at) t.problem('bug', `the match kept running under Reconnecting… (frame ${at} -> ${frame()})`);
+        else t.event('reconnect-paused', `the match stands still on frame ${at}`);
+        await t.until(() => !shown(), 15000, 'Reconnecting… to go away (the other player is back)');
+        await t.until(() => frame() > at + 30, 20000, 'play to resume');
+        t.event('reconnect-resumed', `resumed at frame ${frame()} (was ${at})`);
+        if (countdowns.length < 2) t.problem('bug', `the Reconnecting… countdown didn't count (saw ${countdowns.join(', ')})`);
+        else t.event('reconnect-countdown', `the countdown read ${countdowns.join(', ')}`);
+      }
+      const back = log.filter((l) => l.phase === 'back').length;
+      const away = log.filter((l) => l.phase === 'away').length;
+      if (!away || !back) t.problem('bug', `the drop did not open and close a rejoin window (away ${away}, back ${back})`);
+      if (this.game.match()?.state.over) t.problem('bug', 'the match ended on a 3 s drop');
+      t.progress(0.7);
+
+      // 2. A drop longer than the window: a disconnect, not a rated forfeit.
+      await t.wait(2000);
+      if (peer === 1) {
+        t.event('reconnect-long-cut', 'peer 1 cuts its connection for 14 s (the window is 10 s)');
+        void net.cutLink(14000);
+      }
+      await t.until(() => currentScreen() === 'results', 60000, 'the match to end after the long drop');
+      const headline = this.q('#results-body h2')?.textContent ?? '';
+      const note = this.q('.results-note')?.textContent ?? '';
+      t.event('disconnect-result', `${headline}: ${note}`);
+      if (!/Connection lost/.test(headline)) t.problem('bug', `a drop past the window ended "${headline}", not as a disconnect`);
+      if (/left the match|You left/i.test(`${headline} ${note}`)) t.problem('bug', 'a disconnect was shown as a forfeit');
+      await t.wait(1500);
+      const state = this.q('#results-rating')?.dataset.state ?? '';
+      t.event('disconnect-unrated', `rating state "${state}"; ${/confirmed/.test(state) ? 'RATED' : 'not rated'}`);
+      if (/confirmed/.test(state)) t.problem('bug', 'a disconnect changed the rating');
+      void opp;
+    } finally {
+      window.clearInterval(watch);
+    }
+    await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+    await this.screen('main');
+    t.progress(0.97);
+  }
+
   /** Two tabs (peers: 2) in one private test lobby: see each other, rename, queue, get matched, fight, results. */
+  /** The `reconnect` scenario: `online`'s lobby and match, with the connection cut during the fight (see reconnectPart). */
+  cutMode = false;
+
   async online(): Promise<void> {
     const t = this.t;
     // Online loads after boot (net/loader.ts): wait for it rather than race it.
@@ -2805,6 +2906,7 @@ class Run {
     t.event('online-start', `${names[0]} vs ${names[1]} on ${STAGES[m.state.stage].name}, this tab is slot ${m.player}`);
     if (introOnline) t.problem('bug', 'the match intro played in an online match');
     else t.event('online-no-intro', 'the online match started with no match intro');
+    if (this.cutMode) return this.reconnectPart(net, peer, opp);
     this.progressNow = () => 0.45 + 0.45 * Math.min(1, (this.game.match()?.state.frame ?? 0) / Math.max(1, m.state.rules.timeLimit || 5400));
     await t.until(() => currentScreen() === 'results', 5 * 60 * 1000, 'the online match to end');
     this.progressNow = () => 0.95;

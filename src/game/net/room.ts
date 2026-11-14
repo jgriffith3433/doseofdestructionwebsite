@@ -14,6 +14,10 @@ const PING_MS = 1000;
 const SILENT_MS = 6000;
 /** A tick this much later than due means our own page was frozen (loading a stage): we heard nothing because we couldn't. */
 const FROZEN_MS = 2500;
+/** How long a dropped player has to come back (a new connection, the same player id) before the match is over. */
+export const REJOIN_MS = 10000;
+/** The same player dropping this many times in one match forfeits it (a rated quit). */
+export const MAX_DROPS = 3;
 // Express payloads: the first byte says what it is.
 const X_PING = 1;
 const X_PONG = 2;
@@ -54,6 +58,12 @@ export class PairRoom extends Emitter {
   private peer = '';
   private ticker: ReturnType<typeof setInterval> | undefined;
   private pingN = 0;
+  /** The open rejoin window, or null: who is away ("them" or "self"), why, when it ends (now() ms) and since when. */
+  away: { who: 'them' | 'self'; cause: string; since: number; until: number } | null = null;
+  /** How many times each player has dropped in this match. */
+  readonly drops = { them: 0, self: 0 };
+  private awayTimer: ReturnType<typeof setTimeout> | undefined;
+  private watchingPage = false;
 
   constructor(room: string, id: string, remote: string, _options: RoomOptions = {}) {
     super();
@@ -63,6 +73,13 @@ export class PairRoom extends Emitter {
   }
 
   async start(): Promise<void> {
+    if (!(await this.connect())) return;
+    this.ticker = setInterval(() => this.tick(), PING_MS);
+    this.watchPage();
+  }
+
+  /** Joins the match room and wires it. Again after a cut (cutFor): the same id, a new connection. */
+  private async connect(): Promise<boolean> {
     let net: Room;
     try {
       const name = roomName(`m/${(await sha256Hex(`dod|match|${this.room}`)).slice(0, 24)}`);
@@ -77,27 +94,30 @@ export class PairRoom extends Emitter {
         log: false,
       });
     } catch (e) {
+      if (this.away) return false; // (a rejoin that failed: the window runs out by itself)
       this.fail(`no room (${(e as Error)?.message ?? e})`);
-      return;
+      return false;
     }
     if (this.closed) {
       void net.leave('left');
-      return;
+      return false;
     }
     this.net = net;
     net.on<{ id?: string }>('~hi', (d, from) => {
       if (!from || d?.id !== this.remote) return;
       const first = !this.peer || this.peer !== from.id;
       this.peer = from.id;
-      this.lastHeard = now();
+      this.heard();
       if (first) net.send('~hi', { id: this.id }, { to: from.id }); // (they may have joined after our first hello)
       this.opened();
     });
     net.on<{ k?: string; d?: string }>('g', (m, from) => {
       if (!from || from.id !== this.peer) return;
-      this.lastHeard = now();
+      this.heard();
       if (typeof m?.k !== 'string') return;
       if (m.k === '~bye') return this.close('left', false);
+      if (m.k === '~away') return this.dropped('them', 'away'); // (their app went to the background)
+      if (m.k === '~back') return;
       this.recv.r++;
       this.emit('message', { kind: m.k, data: typeof m.d === 'string' ? m.d : '', reliable: true });
     });
@@ -105,20 +125,118 @@ export class PairRoom extends Emitter {
       if (from !== this.peer || !bytes.length) return;
       this.lastHeard = now();
       this.onExpress(bytes);
+      if (this.away?.who === 'them' && this.away.cause !== 'away') this.back();
     });
     // Whoever joins (the other player, or them again on a new connection) hears who we are.
     net.when('peer:join', (p) => net.send('~hi', { id: this.id }, { to: p.id }));
+    // A peer leaving is a drop, not a goodbye (that is "~bye"): the same player id may come back on a new connection.
     net.when('peer:leave', ({ peer }) => {
-      if (peer.id === this.peer) this.close('left', false);
+      if (peer.id !== this.peer || net !== this.net) return;
+      this.peer = '';
+      this.dropped('them', 'leave');
     });
     net.when('status', ({ status }) => {
-      if (status !== 'closed' || this.closed) return;
+      if (net !== this.net || this.closed) return;
+      if (status === 'reconnecting' && this.everOpened) return this.dropped('self', 'reconnecting');
+      if (status === 'online' && this.away?.who === 'self' && this.away.cause === 'reconnecting') {
+        net.send('~hi', { id: this.id }); // (they hear us again; their "~hi" back is what ends our window)
+        if (this.peer) this.back();
+        return;
+      }
+      if (status !== 'closed') return;
+      if (this.away) return; // (a cut we made ourselves, or a drop whose window decides)
       if (this.everOpened) this.close('lost', false);
       else this.fail('no link');
     });
     net.when('transport', (e) => console.info(`[dod-online] match room moved: ${e.from} to the ${e.to} (${e.why})`));
     net.send('~hi', { id: this.id });
-    this.ticker = setInterval(() => this.tick(), PING_MS);
+    return true;
+  }
+
+  /** Something from the other player arrived: if they were away, they are back. */
+  private heard(): void {
+    this.lastHeard = now();
+    const a = this.away;
+    // (Our own app in the background is ended by coming back to it, not by a word from them.)
+    if (a && !(a.who === 'self' && a.cause === 'hidden')) this.back();
+  }
+
+  /** A connection went: opens the rejoin window (once), or ends the match on the third drop. */
+  private dropped(who: 'them' | 'self', cause: string): void {
+    if (this.closed || !this.everOpened) return;
+    if (this.away) return; // already waiting: a second sign of the same drop changes nothing
+    // Switching apps is not a drop to count (it comes back by itself); a lost connection is.
+    if (cause !== 'away' && cause !== 'hidden') {
+      this.drops[who]++;
+      if (this.drops[who] >= MAX_DROPS) return this.close(who === 'them' ? 'repeat' : 'self-repeat', false);
+    }
+    const t = now();
+    this.away = { who, cause, since: t, until: t + REJOIN_MS };
+    clearTimeout(this.awayTimer);
+    this.awayTimer = setTimeout(() => this.expire(), REJOIN_MS);
+    this.emit('away', { who, cause, until: this.away.until, drops: this.drops[who] });
+  }
+
+  private expire(): void {
+    const a = this.away;
+    if (!a || this.closed) return;
+    // A page that was frozen (a phone in the background) may run this late: it gets its moment to say it is back.
+    if (typeof document !== 'undefined' && document.hidden && a.who === 'self') {
+      this.awayTimer = setTimeout(() => this.expire(), 250);
+      return;
+    }
+    this.close(a.who === 'them' ? 'dropped' : 'self-dropped', false);
+  }
+
+  /** The player is heard again (or we are): the window closes and play goes on. */
+  private back(): void {
+    const a = this.away;
+    if (!a || this.closed) return;
+    this.away = null;
+    clearTimeout(this.awayTimer);
+    this.lastHeard = now();
+    this.emit('back', { who: a.who, ms: now() - a.since, cause: a.cause });
+  }
+
+  /** Seconds left in the rejoin window (0 when there is none). */
+  secondsLeft(): number {
+    return this.away ? Math.max(0, Math.ceil((this.away.until - now()) / 1000)) : 0;
+  }
+
+  /** Our app went to the background and came back: the other side is told, so nobody guesses. */
+  private watchPage(): void {
+    if (this.watchingPage || typeof document === 'undefined') return;
+    this.watchingPage = true;
+    const onVis = () => {
+      if (this.closed) return document.removeEventListener('visibilitychange', onVis);
+      if (document.hidden) {
+        if (this.net && this.peer) this.net.send('g', { k: '~away' }, { to: this.peer });
+        this.dropped('self', 'hidden');
+      } else {
+        this.lastHeard = now();
+        this.lastTickAt = 0;
+        if (this.net && this.peer) this.net.send('g', { k: '~back' }, { to: this.peer });
+        this.net?.send('~hi', { id: this.id });
+        if (this.away?.who === 'self' && this.away.cause === 'hidden') this.back();
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+  }
+
+  /**
+   * Playtest shortcut (the real thing, not a pretend one): our connection is cut for `ms`, then joins again as the same
+   * player. The other side sees us leave the room and has its rejoin window; we hold ours.
+   */
+  async cutFor(ms: number): Promise<void> {
+    const net = this.net;
+    if (!net || this.closed) return;
+    this.net = null;
+    this.peer = '';
+    this.dropped('self', 'cut');
+    await net.leave('left').catch(() => {});
+    await new Promise((r) => setTimeout(r, ms));
+    if (this.closed) return;
+    await this.connect();
   }
 
   private opened(): void {
@@ -204,13 +322,13 @@ export class PairRoom extends Emitter {
   }
 
   get open(): boolean {
-    return Boolean(this.net && this.peer && !this.closed && this.net.status !== 'closed');
+    return Boolean(this.net && this.peer && !this.closed && !this.away && this.net.status !== 'closed');
   }
 
   private tick(): void {
     if (this.closed || !this.net) return;
     if (!this.peer) {
-      // Not heard yet: say hello again (they may have joined after us and missed it).
+      // Not heard yet (or gone, in a rejoin window): say hello again (they may have joined after us and missed it).
       if (this.pingN++ % 3 === 0) this.net.send('~hi', { id: this.id });
       return;
     }
@@ -218,7 +336,10 @@ export class PairRoom extends Emitter {
     const t = now();
     if (this.lastTickAt && t - this.lastTickAt > FROZEN_MS) this.lastHeard = t;
     this.lastTickAt = t;
-    if (t - this.lastHeard > this.silentMs) return this.close('silent', false);
+    if (this.away) {
+      // (Waiting for them to come back: keep saying hello; the window ends it.)
+      if (this.away.who === 'them' && this.away.cause !== 'away') this.net.send('~hi', { id: this.id });
+    } else if (t - this.lastHeard > this.silentMs) return this.dropped('them', 'silent');
     const b = new Uint8Array(9);
     b[0] = X_PING;
     new DataView(b.buffer).setFloat64(1, now(), true);
@@ -237,6 +358,7 @@ export class PairRoom extends Emitter {
     if (this.closed) return;
     this.closed = true;
     clearInterval(this.ticker);
+    clearTimeout(this.awayTimer);
     const net = this.net;
     if (tell && net && this.peer) net.send('g', { k: '~bye' }, { to: this.peer });
     // (A moment for the bye to go before the room is left.)

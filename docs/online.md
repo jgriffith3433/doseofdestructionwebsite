@@ -173,6 +173,24 @@ beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
   (back to the menu and straight into the queue) or Main menu.
 - Online matches: 3 stocks, 5 minutes, a random Versus stage (its Versus rules), no pause.
 
+## Reconnecting
+
+A dropped connection is not the end of a match (`net/room.ts`, `net/fight.ts`). The **room decides**, with no outside
+watchdog: when the other player's connection goes (they leave the Hawkes Net room, go quiet for 6 s, or tell us their app
+went to the background) or ours does (`reconnecting`, or a cut), the room opens a **10 s rejoin window** (`REJOIN_MS`) and
+emits `away`. The fight stops the sim on both sides (it stands on its last frame; `waiting()` reads
+"Reconnecting… N s", the banner `#net-status.reconnecting`, top centre, clear of the touch controls at the bottom corners)
+and keeps sending inputs. The same player id heard again on a new connection (`~hi`) emits `back`: both sides carry on from
+the last confirmed frame, and the rollback re-runs whatever was guessed past it when the resent inputs arrive, so stocks and
+percents are where they were.
+- A window that runs out ends the match as a **disconnect** (`dropped`, or `self-dropped` if it was ours): the one still
+  there wins, and it is **not rated** (`rate()` returns null).
+- The same player dropping **3 times** in a match (`MAX_DROPS`) forfeits it: a quit, rated. Switching apps (`~away`/`~back`,
+  page visibility) does not count as a drop but has the same 10 s.
+- An explicit goodbye (`~bye`: Leave match) is still a forfeit at once.
+- Playtest: scenario `reconnect` (peers: 2) cuts peer 1's connection for 3 s through `cutLink()`, then for 14 s; the page
+  fires `dod:reconnect` (away / back with frame, stocks, percents).
+
 ## The match-result event (the leaderboard's hook)
 
 Every online match that ends fires once on each player's page, with the same `matchId` on both:
