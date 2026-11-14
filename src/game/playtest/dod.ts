@@ -40,7 +40,7 @@ import { OPENING_CAST, OPENING_KEY, OPENING_SKIP_AFTER, openingShowing } from '.
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
 import { PAIRS, pairFor } from '../campaign/intros.ts';
 import { SEASON_ONE_ENTRANCES, entranceKind } from '../campaign/intro.ts';
-import { DEFENCE_STEPS, PROMPTS, hintText, padGlyphs, type DefenceStep, type TeachStep } from '../ui/teach.ts';
+import { DEFENCE_STEPS, PROMPTS, RECOVERY_STEPS, hintText, padGlyphs, type DefenceStep, type RecoveryStep, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { VoiceWatch } from './voiceWatch.ts';
@@ -217,6 +217,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'special-sounds') await r.specialSounds();
         else if (id === 'grab') await r.grabRun();
         else if (id === 'lesson-2') await r.lessonTwo();
+        else if (id === 'lesson-3') await r.lessonThree();
         else if (id === 'special-fx') await r.specialFx();
         else if (id === 'menu-walk') await r.menuWalk();
         else if (id === 'select-specials') await r.selectSpecials();
@@ -5103,6 +5104,219 @@ class Run {
         try {
           await t.until(() => !!document.getElementById('teach-reward'), 2000, 'the lesson-clear card');
           t.event('lesson-clear', `"${document.getElementById('teach-reward')?.textContent ?? ''}" after all ${done} steps (${how})`);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.problem('bug', 'the lesson showed no clear card after the last step');
+        }
+      }
+      if (stacked) t.problem('bug', `${stacked} samples had more than one teaching prompt on screen`);
+      if (touch) {
+        let small = 0;
+        for (const b of document.querySelectorAll<HTMLElement>('.touch .touch-btn, .touch .touch-pause')) {
+          const q = b.getBoundingClientRect();
+          if (q.width < 44 || q.height < 44) small++;
+        }
+        t.event('lesson-touch', small === 0 ? 'every touch control is 44 px or larger and the lesson was finished with touch only' : `${small} touch controls under 44 px`);
+        if (small) t.problem('bug', `${small} touch controls are under 44 px`);
+      }
+    } finally {
+      clearInterval(poll);
+      window.removeEventListener('dod:teach', onTeach);
+      this.manual = null;
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- How to play 3: specials, fast fall, the way back
+
+  /**
+   * How to play 3 (`ui/teach.ts` lesson 'recovery', `match.ts` `knockLoop`): the main menu's third lesson in Training. Neutral,
+   * side and down special, then a jump with fast fall, each ticked off by the sim; then the dummy knocks the player off the
+   * edge and the prompts go double jump, up special, ledge, the ledge grab clearing the lesson. Real input only (keys, or the
+   * touch stick, Jump and Special buttons on a phone turned to 844x390).
+   */
+  async lessonThree(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('lesson-3');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const seen: { step: RecoveryStep; state: string; at: number }[] = [];
+    const onTeach = (ev: Event) => {
+      const d = (ev as CustomEvent<{ step: RecoveryStep; state: string }>).detail;
+      seen.push({ step: d.step, state: d.state, at: performance.now() });
+    };
+    window.addEventListener('dod:teach', onTeach);
+    let stacked = 0;
+    const poll = window.setInterval(() => {
+      if (document.querySelectorAll('.teach-prompt:not(.used):not(.gone)').length > 1) stacked++;
+    }, 50);
+    try {
+      await this.click(() => this.q('#main .menu-item[data-go="howto3"]'), 'How to play 3');
+      await this.matchLive();
+      this.manual = NO_INPUT;
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls (stick, Jump and Special) were not built');
+        t.finish('error');
+        return;
+      }
+      const match = () => this.game.match()!;
+      const me = () => match().state.fighters[match().player];
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+      };
+      const standing = () => {
+        const f = me();
+        return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      };
+      const settle = async () => {
+        pad.release();
+        await t.until(standing, 10000, 'the fighter to stand');
+        await frames(6);
+      };
+      const shownNow = (step: RecoveryStep) => document.querySelector(`.teach-prompt[data-step="${step}"]:not(.used):not(.gone)`) as HTMLElement | null;
+      const ticked = (step: RecoveryStep, since = 0) => seen.some((e) => e.step === step && e.state === 'used' && e.at >= since);
+      if (touch) t.event('phone-shot', `How to play 3 with the touch overlay: stick, Jump and Special buttons (${innerWidth}x${innerHeight})`);
+
+      /** One prompt: shown alone with this device's glyphs, clear of the touch controls. */
+      const checkPrompt = (step: RecoveryStep, done: number) => {
+        const el = shownNow(step)!;
+        const dev = el.dataset.device ?? '';
+        t.event('lesson-prompt', `${step}: "${PROMPTS[step].word}" (${dev}: ${el.dataset.glyphs ?? ''}) after ${done} ticked`);
+        if (dev !== (touch ? 'touch' : 'keyboard')) t.problem('bug', `the ${step} prompt shows ${dev} glyphs on ${how}`);
+        if (el.textContent?.trim() === '') t.problem('bug', `the ${step} prompt is empty`);
+        if (touch) {
+          const r = el.getBoundingClientRect();
+          for (const b of document.querySelectorAll<HTMLElement>('.touch .touch-btn, .touch .touch-stick, .touch .touch-pause')) {
+            const q = b.getBoundingClientRect();
+            if (q.width && r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top) t.problem('bug', `the ${step} prompt sits under the ${b.className} control`);
+          }
+        }
+      };
+      let tickMax = 0;
+      let done = 0;
+      const tickOf = async (step: RecoveryStep, since: number): Promise<boolean> => {
+        try {
+          await t.until(() => ticked(step, since), 3000, `the ${step} tick`);
+        } catch (e) {
+          if (String(e).includes('stopped')) throw e;
+          t.problem('bug', `${how}: the ${step} step was not ticked off within 3 s of the move (${ACT_NAMES[me().action]})`);
+          return false;
+        }
+        const tick = seen.find((e) => e.step === step && e.state === 'used' && e.at >= since)!;
+        const ms = Math.max(0, Math.round(tick.at - since));
+        tickMax = Math.max(tickMax, ms);
+        done++;
+        t.event('lesson-tick', `${step} ticked off ${ms} ms after the move was done (${how})`);
+        if (ms > 1000) t.problem('bug', `${how}: the ${step} step ticked off ${ms} ms after the move (over 1 s)`);
+        t.progress(0.1 + 0.1 * done);
+        return true;
+      };
+
+      // 1-4: the specials and the fast fall, each from real input.
+      const special = async (sx: number, sy: number) => {
+        await settle();
+        pad.stick(sx, sy);
+        await frames(2);
+        pad.special(true);
+        await frames(3);
+        pad.special(false);
+        pad.stick(0, 0);
+      };
+      const basics: Partial<Record<RecoveryStep, () => Promise<void>>> = {
+        spN: () => special(0, 0),
+        spS: () => special(100, 0),
+        spD: () => special(0, -100),
+        fastfall: async () => {
+          await settle();
+          pad.button('jump', true);
+          await frames(3);
+          pad.button('jump', false);
+          // Up, then at the top of the jump the stick goes down: the fall is fast.
+          await t.until(() => !me().grounded && me().vy <= 0, 4000, 'the top of the jump');
+          pad.stick(0, -100);
+          await t.until(() => me().fastFall === 1 || me().grounded > 0, 3000, 'the fast fall');
+          await frames(3);
+          pad.stick(0, 0);
+        },
+      };
+      for (const step of ['spN', 'spS', 'spD', 'fastfall'] as RecoveryStep[]) {
+        await t.until(() => !!shownNow(step), 20000, `the ${step} prompt`);
+        checkPrompt(step, done);
+        const moved = performance.now();
+        await basics[step]!();
+        if (!(await tickOf(step, moved))) continue;
+        await t.wait(500);
+      }
+
+      // 5-7: the knock-off and the way back; a missed recovery restages the knock-off, so up to three tries.
+      let cleared = false;
+      for (let attempt = 1; attempt <= 3 && !cleared; attempt++) {
+        await t.until(() => match().knockLoop === 'live', 20000, 'the dummy to be staged at the edge');
+        t.event('lesson-knockoff', `attempt ${attempt}: the player is at the edge (${Math.round(me().x / FX)}), the dummy swings next`);
+        await t.until(() => me().action === ACT.HITSTUN, 8000, 'the dummy to knock the player off');
+        const hitAt = performance.now();
+        await t.until(() => !!shownNow('dJump') || ticked('ledge', hitAt) || me().action === ACT.DEAD, 8000, 'the double jump prompt');
+        if (!shownNow('dJump')) continue;
+        checkPrompt('dJump', done);
+        t.event('lesson-offstage', `knocked to x ${Math.round(me().x / FX)}, y ${Math.round(me().y / FX)}; prompts now go double jump, up special, ledge`);
+        await t.until(() => me().action !== ACT.HITSTUN, 3000, 'the hit-stun to end');
+        // Double jump back toward the stage (the left).
+        let moved = performance.now();
+        pad.stick(-100, 0);
+        pad.button('jump', true);
+        await frames(3);
+        pad.button('jump', false);
+        const jumped = await tickOf('dJump', moved);
+        if (!jumped) continue;
+        await t.until(() => !!shownNow('upB') || ticked('ledge', hitAt), 4000, 'the up special prompt');
+        if (shownNow('upB')) checkPrompt('upB', done);
+        await t.until(() => me().action === ACT.AIR && me().vy <= 4000, 4000, 'the jump to slow');
+        moved = performance.now();
+        pad.stick(-100, 100);
+        pad.special(true);
+        await frames(3);
+        pad.special(false);
+        pad.stick(-100, 40);
+        if (!(await tickOf('upB', moved))) continue;
+        await t.until(() => !!shownNow('ledge') || ticked('ledge', hitAt), 4000, 'the ledge prompt');
+        if (shownNow('ledge')) checkPrompt('ledge', done);
+        moved = performance.now();
+        pad.stick(-100, 0);
+        // Holding toward the stage, the player reaches the ledge (the sim's ledge event) or lands back and the knock-off restages.
+        try {
+          await t.until(() => ticked('ledge', hitAt) || me().action === ACT.DEAD || standing(), 6000, 'the ledge grab');
+        } finally {
+          pad.stick(0, 0);
+        }
+        if (ticked('ledge', hitAt)) {
+          cleared = await tickOf('ledge', hitAt);
+          t.event('lesson-ledge', `the player grabbed the ledge on attempt ${attempt}`);
+        } else {
+          t.event('lesson-retry', `attempt ${attempt}: the player did not reach the ledge (${ACT_NAMES[me().action]}); the knock-off is staged again`);
+        }
+      }
+      if (!cleared) t.problem('bug', 'the recovery step was not completed: no ledge grab in three tries');
+      t.metric('lessonSteps', done);
+      t.metric('lessonTickMaxMs', tickMax);
+      if (cleared) {
+        try {
+          await t.until(() => !!document.getElementById('teach-reward'), 2000, 'the lesson-clear card');
+          t.event('lesson-clear', `"${document.getElementById('teach-reward')?.textContent ?? ''}" after the ledge grab (${how})`);
         } catch (e) {
           if (String(e).includes('stopped')) throw e;
           t.problem('bug', 'the lesson showed no clear card after the last step');
@@ -10208,7 +10422,7 @@ class Run {
 // ---------------------------------------------------------------- helpers
 
 /** A way to drive a fighter's stick and Special button the way a player does: the keyboard, or the on-screen controls. */
-export interface Pad { stick(sx: number, sy: number): void; special(on: boolean): void; button(name: 'attack' | 'shield', on: boolean): void; release(): void }
+export interface Pad { stick(sx: number, sy: number): void; special(on: boolean): void; button(name: 'attack' | 'shield' | 'jump', on: boolean): void; release(): void }
 export function makeKeyboardPad(): Pad {
   const on = new Set<string>();
   const set = (a: string, v: boolean) => {
