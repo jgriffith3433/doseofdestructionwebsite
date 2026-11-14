@@ -448,7 +448,7 @@ export function createUiKit(opts = {}) {
   let sound = opts.sound ?? null;
   if (sound) { try { sound.autoUi = false; } catch {} }
   else if (opts.sound !== false) {
-    import('./hawkes-sound.js').then((m) => { if (!sound) { sound = m.createSoundKit({ win, autoUi: false }); sound.autoUi = false; } }).catch(() => {});
+    import(/* @vite-ignore */ './hawkes-' + 'sound.js').then((m) => { if (!sound) { sound = m.createSoundKit({ win, autoUi: false }); sound.autoUi = false; } }).catch(() => {});
   }
   const click = () => { try { sound?.unlock?.(); sound?.play?.('ui-press'); } catch {} };
 
