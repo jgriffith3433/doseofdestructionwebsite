@@ -32,7 +32,12 @@ interface Mover {
   rot: number;
 }
 
+/** Textures StageAlive has built (all in its constructor, during the stage's setup); the playtest's hitch trace reads it. */
+let texturesBuilt = 0;
+export const aliveTexturesBuilt = (): number => texturesBuilt;
+
 const tex = (scene: Scene, w: number, h: number, draw: (c: CanvasRenderingContext2D) => void): DynamicTexture => {
+  texturesBuilt++;
   const t = new DynamicTexture('alive', { width: w, height: h }, scene, false);
   const c = t.getContext() as CanvasRenderingContext2D;
   draw(c);

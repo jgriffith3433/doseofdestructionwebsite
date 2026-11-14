@@ -280,6 +280,9 @@ export class StageFx {
   /** Effects that keep spawning while their event runs. */
   private streams: { fx: StageEffect; id: string; next: number }[] = [];
   private clock: StageClock | null = null;
+  /** Particle meshes built after warmUp (a mid-fight allocation; the playtest's hitch trace reads it, 0 when the pools were big enough). */
+  private warmed = false;
+  private grown = 0;
 
   constructor(scene: Scene, stage: StageDef, hooks: FxHooks = {}, glow?: GlowLayer) {
     this.scene = scene;
@@ -303,6 +306,11 @@ export class StageFx {
     return { active: this.parts.length, dustBehind, dustInFront, maxCap: MAX_PARTS };
   }
 
+  /** Meshes built after warmUp finished: spawn() found its pool empty and made one in the middle of a frame. */
+  meshesGrown(): number {
+    return this.grown;
+  }
+
   /** Pre-builds every effect material and particle mesh pool for this stage during the VS screen. */
   warmUp(): void {
     const colors = new Set<string>(['#fff2c0', ...DEFAULT_COLORS]);
@@ -311,8 +319,9 @@ export class StageFx {
     }
     const colorList = [...colors];
     for (const c of colorList) this.mat(c);
-    const wantPlanes = Math.max(48, colorList.length * 2);
-    const wantDiscs = Math.max(24, colorList.length);
+    // Sized to the most spawn() can have alive (MAX_PARTS planes, MAX_DUST dust discs), so a long dust stream never builds a mesh mid-fight.
+    const wantPlanes = Math.max(MAX_PARTS, colorList.length * 2);
+    const wantDiscs = Math.max(MAX_DUST, colorList.length);
     for (let i = 0; i < wantPlanes; i++) {
       const m = this.acquire(false);
       m.material = this.mat(colorList[i % colorList.length]);
@@ -331,6 +340,7 @@ export class StageFx {
       m.setEnabled(true);
       this.discPool.push(m);
     }
+    this.warmed = true;
   }
 
   /** Parks warmed-up pool meshes after the warm-up frames have compiled their shaders. */
@@ -469,6 +479,7 @@ export class StageFx {
     const mesh = round ? CreateDisc('fx', { radius: 0.5, tessellation: 18 }, this.scene) : CreatePlane('fx', { size: 1 }, this.scene);
     mesh.isPickable = false;
     if (round && this.glow) this.glow.addExcludedMesh(mesh);
+    if (this.warmed) this.grown++;
     return mesh;
   }
 
