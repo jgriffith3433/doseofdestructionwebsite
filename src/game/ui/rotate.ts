@@ -9,11 +9,18 @@ import { touchDevice } from '../input/touch.ts';
 let el: HTMLElement | null = null;
 let showing = false;
 let forced = false;
+let suppressed = false;
 const listeners: Array<(showing: boolean) => void> = [];
 
 /** The playtest bot runs on a desktop browser: it asks to be treated as a touch device for this check. */
 export function forceTouchPrompt(on: boolean): void {
   forced = on;
+  sync();
+}
+
+/** Suppresses the rotate prompt (e.g. while watching a replay in portrait or running a portrait replay playtest). */
+export function suppressRotate(on: boolean): void {
+  suppressed = on;
   sync();
 }
 
@@ -73,7 +80,7 @@ function build(): HTMLElement {
 }
 
 function sync(): void {
-  const want = (touchDevice() || forced) && portrait();
+  const want = !suppressed && (touchDevice() || forced) && portrait();
   if (want === showing) return;
   showing = want;
   el ??= build();
