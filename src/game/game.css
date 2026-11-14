@@ -679,7 +679,12 @@ button, .menu-item, .tile, .setting-row > span { overflow-wrap: anywhere; }
 .settings-levels { display: grid; gap: 14px; }
 .settings-levels[data-off="true"] { opacity: 0.45; }
 .slider { display: grid; grid-template-columns: 70px 1fr 50px; align-items: center; gap: 12px; font-weight: 700; min-height: 44px; }
-.slider input { accent-color: var(--hot); width: 100%; min-height: 32px; }
+.slider input { accent-color: var(--hot); width: 100%; min-height: 44px; }
+/* 44 px handles for touch (the track stays thin). */
+.slider input::-webkit-slider-thumb { width: 44px; height: 44px; }
+.slider input::-moz-range-thumb { width: 44px; height: 44px; }
+/* Captions off: spoken-line text is hidden (not when sound is off: see applyCaptions). */
+body.captions-off .scene-sub, body.captions-off .booth, body.captions-off .vic-caption .win-quote { display: none !important; }
 .slider output { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
 /* A phone on its side: the whole panel, Done included, fits without scrolling. */
@@ -689,7 +694,7 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   .settings-panel h2 { font-size: calc(20px * var(--ts, 1)); }
   .settings-levels { gap: 0; }
   .settings-panel .switch { min-height: 36px; }
-  .settings-panel .slider { min-height: 36px; }
+  .settings-panel .slider { min-height: 44px; }
   .settings-panel .hint { font-size: calc(12px * var(--ts, 1)); }
   .settings-panel > .primary { padding-top: 8px; padding-bottom: 8px; }
 }

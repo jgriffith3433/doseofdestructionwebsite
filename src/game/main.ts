@@ -1870,11 +1870,12 @@ function renderSettings(): void {
   flip('quality-switch', g.quality === 'high', g.quality === 'high' ? 'High' : 'Low');
   flip('glow-switch', g.glow, g.glow ? 'On' : 'Off');
   flip('fps-switch', g.fps, g.fps ? 'On' : 'Off');
-  for (const k of ['music', 'sfx'] as const) {
+  for (const k of ['music', 'sfx', 'voice'] as const) {
     const input = $<HTMLInputElement>(`vol-${k}`);
     input.value = String(Math.round(s[k] * 100));
     $(`vol-${k}-value`).textContent = `${input.value}%`;
   }
+  flip('captions-switch', s.captions, s.captions ? 'On' : 'Off');
   // Touch size and opacity: only where there are touch controls (Rumble shows everywhere).
   $('settings-touch').hidden = !(touchDevice() || touchUiForced());
   const t = touchSettings();
@@ -1910,9 +1911,19 @@ function closeSettings(): void {
   }
 }
 
+/** Captions off hides read-along text, except with sound off: then the story lines are the only way to follow. */
+function applyCaptions(): void {
+  const st = soundSettings();
+  document.body.classList.toggle('captions-off', !st.captions && st.on);
+}
+
 function wireSettings(): void {
   renderSettings();
-  onSoundSettings(renderSettings);
+  applyCaptions();
+  onSoundSettings(() => {
+    renderSettings();
+    applyCaptions();
+  });
   const from = () => (match ? 'pause' : 'menu');
   onScreenShake(() => renderSettings());
   onColourVision(() => {
@@ -1963,7 +1974,7 @@ function wireSettings(): void {
     setSoundSettings({ on: !soundSettings().on });
     analytics.setting('sound', soundSettings().on, from());
   });
-  for (const k of ['music', 'sfx'] as const) {
+  for (const k of ['music', 'sfx', 'voice'] as const) {
     const input = $<HTMLInputElement>(`vol-${k}`);
     input.addEventListener('input', () => setSoundSettings({ [k]: Number(input.value) / 100 }));
     // Where the slider was let go, not every step of the drag.
@@ -1971,6 +1982,10 @@ function wireSettings(): void {
   }
   // A hit at the new level, so the slider is heard as it lets go.
   $('vol-sfx').addEventListener('change', () => audio.sfx('hit-medium'));
+  $('captions-switch').addEventListener('click', () => {
+    setSoundSettings({ captions: !soundSettings().captions });
+    analytics.setting('captions', soundSettings().captions, from());
+  });
   onTouchSettings(renderSettings);
   for (const k of ['size', 'opacity'] as const) {
     const input = $<HTMLInputElement>(`touch-${k}`);

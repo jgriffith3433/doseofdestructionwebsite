@@ -293,7 +293,7 @@ class AudioSystem {
   private applyVolumes(opts: { duckRampS?: number } = {}): void {
     if (!this.buses || !this.ctx) return;
     const t = this.ctx.currentTime;
-    // Effects covers the announcer and the fighters' voices too (the studio standard has two levels).
+    // Voice (announcer, commentary, story, fighters) has its own bus and level; Effects is hits and menus.
     this.buses.master.gain.setTargetAtTime(soundSettings().on ? 1 : 0, t, 0.02);
     const duck = this.duckDepth > 0 ? VOICE_DUCK : 1;
     const ramp = opts.duckRampS;
@@ -309,7 +309,7 @@ class AudioSystem {
       }
     }
     this.buses.ui.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
-    this.buses.voice.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
+    this.buses.voice.gain.setTargetAtTime(busLevel('voice'), t, 0.02);
     try {
       window.dispatchEvent(new CustomEvent('hawkes-sound', { detail: { type: 'bus-gain', bus: 'music', gain: musicGain } }));
     } catch {
@@ -1030,6 +1030,12 @@ class AudioSystem {
       this.duckVoiceUntil = 0;
       this.duck(false);
     }, Math.max(8, this.duckVoiceUntil - now));
+  }
+
+  /** Playtest hook: the gain each bus is heading for (voice, effects and music are separate nodes). */
+  busGains(): { music: number; sfx: number; voice: number } {
+    const g = (n: GainNode | undefined) => (n ? n.gain.value : 0);
+    return { music: g(this.buses?.music), sfx: g(this.buses?.sfx), voice: g(this.buses?.voice) };
   }
 
   /** How far music and effects sit below their level now, in dB (0 = not ducked, about -8 under a voice). For the playtest. */
