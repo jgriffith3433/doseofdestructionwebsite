@@ -1860,6 +1860,7 @@ function showNetStatus(f: OnlineFight): void {
   const el = $('net-status');
   const waiting = f.phase === 'done' ? '' : f.waiting();
   const text = waiting || (phase === 'play' || phase === 'pause' ? f.netLine() : '');
+  updateConnBars(f);
   el.hidden = !text || currentScreen() !== 'match';
   el.classList.toggle('waiting', !!waiting);
   el.classList.toggle('reconnecting', f.phase !== 'done' && !!f.reconnect);
@@ -1983,6 +1984,24 @@ function slotColor(m: Match, i: number): string {
   return teams && m.setup.mode !== 'campaign' ? TEAM_COLORS[s.team ?? 0] : PLAYER_COLORS[i];
 }
 
+/** Four little bars beside a player's name: how many are lit is the link's quality (net/quality.ts `barsFor`). */
+function connBars(): HTMLElement {
+  const el = h('span', { class: 'conn-bars', 'data-bars': '0', role: 'img', 'aria-label': 'Connection: measuring' }, h('i'), h('i'), h('i'), h('i'));
+  return el;
+}
+
+function updateConnBars(f: OnlineFight): void {
+  const cards = $('hud').children;
+  for (let i = 0; i < cards.length; i++) {
+    const el = cards[i].querySelector<HTMLElement>('.conn-bars');
+    if (!el) continue;
+    const n = f.phase === 'done' ? 0 : f.barsOf(i);
+    if (el.dataset.bars === String(n)) continue;
+    el.dataset.bars = String(n);
+    el.setAttribute('aria-label', n ? `Connection: ${n} of 4 bars` : 'Connection: measuring');
+  }
+}
+
 function buildHud(m: Match): void {
   const hud = $('hud');
   hud.replaceChildren();
@@ -1997,7 +2016,7 @@ function buildHud(m: Match): void {
       h('img', { src: thumbUrl(ch.id), alt: '' }),
       avatar && avatar !== ch.id ? h('img', { class: 'hud-avatar', src: headUrl(avatar), alt: '' }) : null,
       h('div', { class: 'hud-pct' }),
-      h('div', { class: 'hud-meta' }, h('span', { class: 'hud-name' }, m.label(f.id)), h('span', { class: 'hud-stocks' })),
+      h('div', { class: 'hud-meta' }, h('span', { class: 'hud-name' }, m.label(f.id)), h('span', { class: 'hud-stocks' }), online ? connBars() : null),
     );
     hud.appendChild(card);
     hudCache.push({ pct: -1, stocks: -1 });
