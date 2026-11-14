@@ -895,6 +895,17 @@ body.touch-ui #controls-row { display: none; }
 .standing dl { display: grid; grid-template-columns: repeat(6, auto); gap: 4px 12px; font-size: calc(13px * var(--ts, 1)); }
 .standing dt { color: var(--muted); font-size: calc(12px * var(--ts, 1)); text-transform: uppercase; letter-spacing: 0.06em; }
 .standing dd { font-weight: 700; }
+/* Couch results: one card per person under their tag (colour + shape + P#), side by side, two per row on a narrow screen. */
+.couch-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.couch-card { border: 2px solid var(--slot); border-radius: 10px; background: var(--card); padding: 10px 12px; display: grid; gap: 8px; min-width: 0; animation: fade-up 400ms ease-out both; }
+.couch-card[data-winner] { box-shadow: 0 0 18px color-mix(in srgb, var(--slot) 40%, transparent); }
+.couch-card header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.couch-tag { font-family: Oswald, sans-serif; font-size: calc(22px * var(--ts, 1)); color: var(--slot); }
+.couch-card header span { font-size: calc(13px * var(--ts, 1)); color: var(--muted); }
+.couch-card header em { font-style: normal; font-size: calc(12px * var(--ts, 1)); text-transform: uppercase; letter-spacing: 0.06em; margin-left: auto; }
+.couch-card dl { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 12px; font-size: calc(14px * var(--ts, 1)); }
+.couch-card dt { color: var(--muted); font-size: calc(12px * var(--ts, 1)); text-transform: uppercase; letter-spacing: 0.06em; }
+.couch-card dd { font-weight: 700; }
 .chart { width: 100%; height: auto; }
 .chart .grid { stroke: rgba(255, 255, 255, 0.08); }
 .chart .axis { fill: var(--muted); font-size: calc(12px * var(--ts, 1)); font-family: Barlow, sans-serif; }
