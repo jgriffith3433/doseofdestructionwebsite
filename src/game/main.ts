@@ -34,6 +34,7 @@ import { applyResult as applyAutoResult, levelNote, loadAutoLevel } from './ai/a
 import type { SimEvent } from './sim/step.ts';
 import { ruleLabel, takeoverLines } from './campaign/takeover.ts';
 import { LESSON_TITLE, campaignBlurb, doneLessons, markLessonDone, nextLesson, type LessonId } from './campaign/lessons.ts';
+import { clearLosses, difficulty, foeLevels, markCleared, offerEasy, recordLoss, setDifficulty, withDifficulty, DIFFICULTY_LABEL, type Difficulty } from './campaign/difficulty.ts';
 import { CHAPTERS, isUnlocked, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, installPressFeedback, largeUrl, thumbUrl } from './ui/dom.ts';
@@ -552,6 +553,8 @@ async function playChapter(c: Chapter): Promise<void> {
   await playRecap(c);
   if (chapter !== c) return;
   const n = CHAPTERS.indexOf(c) + 1;
+  // The map's difficulty (campaign/difficulty.ts) shapes this episode's fight; Retry replays the setup it made.
+  const fight = chapterFight(c, difficulty());
   // The story card and scene take a while to read: the fight's fighters and arena load meanwhile.
   void prefetchFighters(c.fight.slots.map((s) => s.char));
   prefetchStage(c.fight.stage);
@@ -559,7 +562,26 @@ async function playChapter(c: Chapter): Promise<void> {
   renderer.setLooks(c.fight.slots.map((s) => s.look ?? 0));
   void renderer.setFighters(new Match({ ...c.fight, title: undefined, subtitle: undefined }, 1).state, true, 0);
   // The episode opens in the arena: the VS card, then the intro plays live with the fighters (ui/scene.ts).
-  startMatch({ ...c.fight, title: `Chapter ${n} · ${c.title}`, subtitle: c.hint }, true, undefined, { chapter: c, which: 'intro' });
+  startMatch({ ...fight, title: `Chapter ${n} · ${c.title}`, subtitle: c.hint }, true, undefined, { chapter: c, which: 'intro' });
+}
+
+/** The difficulty this episode is being played on (what its clear is badged with). */
+let chapterDiff: Difficulty = 'normal';
+
+/** An episode's fight on a difficulty; logs it (`dod:difficulty`) so the playtest can read the CPU level that was used. */
+function chapterFight(c: Chapter, d: Difficulty, why: 'start' | 'offer' = 'start'): MatchSetup {
+  chapterDiff = d;
+  const fight = withDifficulty(c.fight, d);
+  window.dispatchEvent(new CustomEvent('dod:difficulty', { detail: { phase: why, chapter: c.id, difficulty: d, cpuFrom: foeLevels(c.fight), cpuTo: foeLevels(fight) } }));
+  return fight;
+}
+
+/** "Try it on Easy?" accepted: Easy becomes the map's choice and the same episode starts again with the softer foes. */
+function tryOnEasy(c: Chapter, m: Match): void {
+  setDifficulty('easy');
+  clearLosses();
+  const fight = chapterFight(c, 'easy', 'offer');
+  void startMatch({ ...fight, title: m.setup.title, subtitle: m.setup.subtitle }, false);
 }
 
 /** What a story scene plays: the chapter's intro (before Ready) or outro (after the episode is won). */
@@ -957,6 +979,8 @@ async function playRecap(c: Chapter): Promise<void> {
 async function chapterCleared(c: Chapter): Promise<void> {
   // The outro already played in the arena after Game! (finish).
   const firstTime = !progress.has(c.id);
+  markCleared(c.id, chapterDiff);
+  clearLosses();
   progress.add(c.id);
   saveProgress(progress);
   analytics.chapterCleared(c, firstTime, progress);
@@ -2230,6 +2254,17 @@ function winningSlots(m: Match): number[] {
   return s.winner >= 0 ? [s.winner] : [];
 }
 
+/** A campaign result's difficulty lines: the small Easy badge on a clear, or the producer's "Try it on Easy?" after the third loss. */
+function difficultyNotes(won: boolean, offer: boolean): void {
+  const at = document.querySelector('#results-body .results-hero > div');
+  if (!at) return;
+  if (won && chapterDiff === 'easy') at.append(h('p', { class: 'easy-badge', 'data-difficulty': 'easy' }, 'Easy'));
+  if (!won && offer) {
+    at.append(h('p', { class: 'easy-offer', role: 'status' }, h('b', {}, 'Try it on Easy?'), ' Softer foes, they start at 30%. Stars still count.'));
+    window.dispatchEvent(new CustomEvent('dod:difficulty', { detail: { phase: 'offer-shown', chapter: chapter?.id ?? '', difficulty: chapterDiff, label: DIFFICULTY_LABEL.easy } }));
+  }
+}
+
 function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   phase = 'idle';
   // Training has no winner; a campaign loss or a CPU's win credits nobody.
@@ -2237,6 +2272,8 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   const levelChange = autoLevelAfter(m);
   analytics.matchEnd(m, won ? 'complete' : 'death');
   const actions: ResultAction[] = [];
+  let easyOffer = false;
+  let campaignResult = false;
   if (m.setup.teach === 'pilot' && c) {
     // The pilot's result: a win opens the main menu on "Next episode"; a loss is a retry (Kaelen is built to lose).
     if (won) actions.push({ label: 'Continue', primary: true, run: () => pilotCleared(c) });
@@ -2253,8 +2290,15 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
     actions.push({ label: won ? 'Beat your score' : 'Try again', primary: true, run: () => startMatch(m.setup, false) });
     actions.push({ label: 'Main menu', run: () => go('main', spotlight) });
   } else if (m.setup.mode === 'campaign' && c) {
+    campaignResult = true;
     if (won) actions.push({ label: 'Continue', primary: true, run: () => chapterCleared(c) });
-    else actions.push({ label: 'Retry', primary: true, run: () => startMatch(m.setup, false) });
+    else {
+      // The third loss in a row on one episode: the producer offers the easier setup (campaign/difficulty.ts).
+      recordLoss(c.id);
+      easyOffer = offerEasy(c.id);
+      if (easyOffer) actions.push({ label: 'Try it on Easy', primary: true, run: () => tryOnEasy(c, m) });
+      actions.push({ label: 'Retry', primary: !easyOffer, run: () => startMatch(m.setup, false) });
+    }
     actions.push({ label: 'Campaign map', run: () => openCampaignScreen() });
   } else {
     actions.push({ label: 'Rematch', primary: true, run: () => startMatch(rematchSetup(m.setup), false) });
@@ -2269,6 +2313,7 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
     addWatchReplay(actions, m, () => void go('results', () => {
       endMatch();
       showResults(m, actions, undefined, [], levelChange ?? undefined);
+      if (campaignResult) difficultyNotes(won, easyOffer);
       if (tourRun?.setup === m.setup && won) $('results-body').prepend(tourBanner(tourRun.tour, tourRun.continues));
       startResultsMusic();
     }));
@@ -2278,7 +2323,10 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
     if (tourRun?.setup === m.setup && !won) {
       showResults(m, actions, undefined, newLooks);
       renderTourChoice({ tour: tourRun.tour, index: tourRun.index, fight: tourRun.tour.fights[tourRun.index], continues: tourRun.continues, onContinue: () => tourContinue(), onQuit: () => { analytics.tour('quit', { fighter: tourRun!.tour.fighter, fight: tourRun!.index + 1 }); void openTourScreen(); } });
-    } else showResults(m, actions, undefined, newLooks, levelChange ?? undefined);
+    } else {
+      showResults(m, actions, undefined, newLooks, levelChange ?? undefined);
+      if (campaignResult) difficultyNotes(won, easyOffer);
+    }
     if (tourRun?.setup === m.setup && won) $('results-body').prepend(tourBanner(tourRun.tour, tourRun.continues));
     if (dailyRun?.setup === m.setup && m.setup.mode === 'campaign') dailyFinished(m, dailyRun.ep, won);
     startResultsMusic();

@@ -580,6 +580,26 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 /* -------------------------------------------------------------- campaign */
 
 .campaign-screen > .lede { max-width: 1280px; margin: 0 auto 18px; }
+.campaign-bar { max-width: 1280px; margin: 0 auto 18px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; }
+.campaign-bar > .lede { margin: 0; flex: 1 1 360px; }
+.difficulty { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.difficulty-label { font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold); }
+.difficulty-pick { display: flex; gap: 8px; }
+.difficulty-btn {
+  min-width: 88px; min-height: 48px; padding: 0 16px; border-radius: 8px; cursor: pointer;
+  font-family: Oswald, sans-serif; font-size: calc(17px * var(--ts, 1)); text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text, #fff); background: var(--card); border: 2px solid var(--line);
+}
+.difficulty-btn.on { border-color: var(--hot); background: rgba(255, 90, 31, 0.22); }
+.difficulty-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.difficulty-note { flex-basis: 100%; color: var(--muted); font-size: calc(13px * var(--ts, 1)); }
+.easy-badge {
+  display: inline-block; align-self: start; margin: 0; padding: 1px 8px; border-radius: 999px; font-family: Oswald, sans-serif; font-size: calc(12px * var(--ts, 1));
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #101010; background: #5ce08a;
+}
+.chapter .easy-badge { position: absolute; top: 10px; right: 10px; }
+.easy-offer { margin: 6px 0 0; color: var(--gold); }
+.easy-offer b { font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.06em; }
 .chapter-path {
   display: flex;
   flex-direction: column;
@@ -625,6 +645,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 @media (max-height: 800px) {
   .campaign-screen .screen-head { margin-bottom: 8px; }
   .campaign-screen > .lede { margin-bottom: 10px; }
+  .campaign-bar { margin-bottom: 8px; }
   .season-head { margin-bottom: 8px; }
   .season-head h3 { font-size: calc(22px * var(--ts, 1)); }
   .season-chapters { gap: 10px; }
@@ -632,6 +653,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
   .chapter strong { font-size: calc(19px * var(--ts, 1)); line-height: 1.15; }
   .chapter-tag { font-size: calc(13px * var(--ts, 1)); line-height: 1.25; }
 }
+
+@media (max-height: 800px) and (min-width: 900px) { .difficulty-note { display: none; } }
 
 /* ----------------------------------------------------------------- howto */
 
