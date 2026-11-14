@@ -545,6 +545,16 @@
       ]
     },
     {
+      "id": "lesson-2",
+      "title": "How to play 2: a prompt for grab, throw, roll left, roll right and spot-dodge in turn, each ticked off within a second of the move (phone: 390x844 touch, finished with touch controls only)",
+      "description": "Taps How to play 2 on the main menu (a touch tap on a phone), then plays the lesson through real input only: keyboard L + J / A D / L + A / L + D / L + S on a desktop; on a 390x844 phone (turned to 844x390) the on-screen Shield and Attack buttons and the stick as touch pointer events. Each prompt must show in order with the glyphs of the device (lesson-prompt: keys, or touch icons), tick off within 1 s of the sim seeing the move (lesson-tick, lessonTickMaxMs), the dummy swings slowly before the spot-dodge (lesson-dummy-swing, a swing every 2 s or more), and the card reads Lesson clear! (lesson-clear). Prompts never stack (one on screen at a time), never sit under a touch control, and every touch control is 44 px or larger (lesson-touch). Events lesson-*; metrics lessonSteps, lessonTickMaxMs.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "grab",
       "title": "Grab and throws: Shield + Attack together grabs, the stick picks forward, back, up or down, and the hold lasts longer at 100% than at 0% (touch: both buttons pressed together)",
       "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus); a second dummy starts at 100%. Played through real input only: keyboard L + J then A/D/W/S on a desktop; at phone size (390x844, turned to 844x390 landscape like touch-match, or 844x390) the on-screen Shield and Attack buttons touched together and the on-screen stick, as touch pointer events. Walks up to the dummy, grabs it (grab: through its shield when it shields; the hold in frames), throws it forward, back, up and down (throw; grab-throws when all four came out; touch-grab on a phone), and the hold on the 100% dummy must be longer than on the 0% one (grab-hold-frames, holds-longer). The versus match scenario also logs every grab and throw the bot makes. Metrics grabs, throws, throwsLanded, holdFrames0, holdFrames1000.",

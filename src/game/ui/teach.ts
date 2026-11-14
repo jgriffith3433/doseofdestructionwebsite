@@ -11,14 +11,18 @@ import { STAGES } from '../sim/stage.ts';
 import type { Match } from '../match.ts';
 import type { SimEvent } from '../sim/step.ts';
 
-export type TeachStep = 'move' | 'attack' | 'jump' | 'smash' | 'shield' | 'recover';
+export type TeachStep = 'move' | 'attack' | 'jump' | 'smash' | 'shield' | 'recover' | DefenceStep;
+
+/** Lesson 2 (How to play: grabs and dodges), in the order it is taught. */
+export type DefenceStep = 'grab' | 'throw' | 'rollL' | 'rollR' | 'dodge';
+export const DEFENCE_STEPS: readonly DefenceStep[] = ['grab', 'throw', 'rollL', 'rollR', 'dodge'];
 
 /** What each prompt says and which glyphs show for each device. A glyph is a keycap, a pad button or a touch button. */
 interface PromptDef {
   word: string;
   glyphs: Record<InputDevice, string[]>;
-  /** The real touch button (class on `.touch-btn`) to pulse while the prompt is up. */
-  touch?: string;
+  /** The real touch button(s) (class on `.touch-btn`) to pulse while the prompt is up. */
+  touch?: string | string[];
 }
 
 export const PROMPTS: Record<TeachStep, PromptDef> = {
@@ -28,6 +32,13 @@ export const PROMPTS: Record<TeachStep, PromptDef> = {
   smash: { word: 'Smash', glyphs: { keyboard: ['I', '+', '← →'], gamepad: ['R-stick'], touch: ['Smash'] }, touch: 'smash' },
   shield: { word: 'Shield', glyphs: { keyboard: ['L'], gamepad: ['LB'], touch: ['Shield'] }, touch: 'shield' },
   recover: { word: 'Up special', glyphs: { keyboard: ['W', '+', 'K'], gamepad: ['↑', '+', 'B'], touch: ['stick ↑', '+', 'Special'] }, touch: 'special' },
+  // Lesson 2. Grab = Shield + Attack together; throw = the stick (or Attack) while holding; roll = Shield + stick sideways;
+  // spot dodge = Shield + stick down.
+  grab: { word: 'Grab', glyphs: { keyboard: ['L', '+', 'J'], gamepad: ['LB', '+', 'A'], touch: ['Shield', '+', 'Attack'] }, touch: ['shield', 'attack'] },
+  throw: { word: 'Throw', glyphs: { keyboard: ['A', 'D'], gamepad: ['L-stick'], touch: ['stick'] } },
+  rollL: { word: 'Roll left', glyphs: { keyboard: ['L', '+', 'A'], gamepad: ['LB', '+', '← L-stick'], touch: ['Shield', '+', 'stick ←'] }, touch: 'shield' },
+  rollR: { word: 'Roll right', glyphs: { keyboard: ['L', '+', 'D'], gamepad: ['LB', '+', 'L-stick →'], touch: ['Shield', '+', 'stick →'] }, touch: 'shield' },
+  dodge: { word: 'Spot dodge', glyphs: { keyboard: ['L', '+', 'S'], gamepad: ['LB', '+', 'L-stick ↓'], touch: ['Shield', '+', 'stick ↓'] }, touch: 'shield' },
 };
 
 /**
@@ -68,6 +79,8 @@ const FADE_MS = 420;
 export interface TeachOptions {
   /** How to play: the opponent is a dummy that never attacks, so Shield (and Jump) come on a timer instead of on a cue. */
   scripted: boolean;
+  /** 'defence' is lesson 2: grab, throw, roll left, roll right, spot-dodge, each ticked when the sim sees it. */
+  lesson?: 'defence';
 }
 
 export class Teacher {
@@ -103,6 +116,10 @@ export class Teacher {
   tick(m: Match, events: SimEvent[]): void {
     const me = m.state.fighters[m.player];
     if (!me || m.state.over) return;
+    if (this.opts.lesson === 'defence') {
+      this.tickDefence(m, me, events);
+      return;
+    }
     this.frames++;
     for (const e of events) if (e.type === 'hit' && e.attacker === m.player && !e.shield) this.hits++;
     if (this.hits > 0 && !this.rewarded) this.reward();
@@ -132,18 +149,49 @@ export class Teacher {
     this.sync();
   }
 
+  /** Lesson 2: the first step not yet ticked is the prompt; each step is ticked by the move itself (events and actions the sim reports). */
+  private tickDefence(m: Match, me: Fighter, events: SimEvent[]): void {
+    this.frames++;
+    const mark = (step: DefenceStep) => {
+      this.used.add(step);
+      this.usedAt[step] = this.frames;
+      this.onChange?.(step, 'used');
+    };
+    const first = () => DEFENCE_STEPS.find((s) => !this.used.has(s)) ?? null;
+    const cur = first();
+    if (cur) {
+      const mine = (e: SimEvent) => 'attacker' in e && e.attacker === m.player;
+      if (cur === 'grab' && events.some((e) => e.type === 'grab' && mine(e))) mark('grab');
+      else if (cur === 'throw') {
+        if (events.some((e) => e.type === 'throw' && mine(e))) mark('throw');
+        // The hold ran out before the throw: back to the grab.
+        else if (events.some((e) => e.type === 'grab-break' && mine(e))) this.used.delete('grab');
+      } else if (cur === 'rollL' && me.action === ACT.ROLL && me.dir < 0) mark('rollL');
+      else if (cur === 'rollR' && me.action === ACT.ROLL && me.dir > 0) mark('rollR');
+      else if (cur === 'dodge' && me.action === ACT.SPOTDODGE) mark('dodge');
+    }
+    const next = first();
+    if (this.current && !this.fading) {
+      if (this.used.has(this.current)) this.fade();
+      else if (next && next !== this.current) this.show(next);
+    }
+    if (!this.current && !this.fading && next && this.frames >= 25) this.show(next);
+    if (!next && !this.rewarded) this.reward('Lesson clear!');
+    this.sync();
+  }
+
   private shownAt = 0;
   private rewarded = false;
   private rewardEl: HTMLElement | null = null;
 
   /** The first hit the player lands pays off on its own, big and centred (the first success a stranger sees; two words). */
-  private reward(): void {
+  private reward(text = 'First hit!'): void {
     this.rewarded = true;
     const el = document.createElement('div');
     el.id = 'teach-reward';
     el.className = 'teach-reward';
     el.setAttribute('role', 'status');
-    el.textContent = 'First hit!';
+    el.textContent = text;
     document.body.appendChild(el);
     window.setTimeout(() => el.remove(), 1400);
     this.rewardEl = el;
@@ -176,6 +224,8 @@ export class Teacher {
       }
       case 'recover':
         return this.offstageFrames >= 12 && me.action !== ACT.DEAD;
+      default:
+        return false;
     }
   }
 
@@ -246,15 +296,27 @@ export class Teacher {
     word.className = 'teach-word';
     word.textContent = def.word;
     this.el.replaceChildren(row, word);
+    if (this.opts.lesson === 'defence') {
+      // One pip per step: ticked ones filled, this one lit.
+      const pips = document.createElement('span');
+      pips.className = 'teach-pips';
+      for (const s of DEFENCE_STEPS) {
+        const pip = document.createElement('i');
+        pip.className = this.used.has(s) ? 'done' : s === step ? 'now' : '';
+        pips.append(pip);
+      }
+      this.el.append(pips);
+    }
     this.el.dataset.glyphs = def.glyphs[dev].join(' ');
-    this.pulse(dev === 'touch' ? def.touch ?? null : null);
+    this.pulse(dev === 'touch' ? [def.touch ?? []].flat() : []);
   }
 
-  private pulse(cls: string | null): void {
-    if (this.flagged === cls) return;
+  private pulse(classes: string[]): void {
+    const key = classes.join(' ') || null;
+    if (this.flagged === key) return;
     touchOverlay()?.querySelectorAll('.touch-btn.teach-pulse').forEach((b) => b.classList.remove('teach-pulse'));
-    if (cls) touchOverlay()?.querySelector(`.touch-btn.${cls}`)?.classList.add('teach-pulse');
-    this.flagged = cls;
+    for (const cls of classes) touchOverlay()?.querySelector(`.touch-btn.${cls}`)?.classList.add('teach-pulse');
+    this.flagged = key;
   }
 
   private sync(): void {
@@ -273,7 +335,7 @@ export class Teacher {
     this.fading = true;
     const el = this.el;
     el.classList.add(usedIt ? 'used' : 'gone');
-    this.pulse(null);
+    this.pulse([]);
     window.setTimeout(() => {
       el.remove();
       if (this.el === el) {
@@ -309,6 +371,6 @@ export class Teacher {
     this.el = null;
     this.current = null;
     this.fading = false;
-    this.pulse(null);
+    this.pulse([]);
   }
 }

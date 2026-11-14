@@ -5,6 +5,7 @@ import { CHARACTERS } from './sim/characters.ts';
 import { NO_INPUT, stickX, stickY } from './sim/input.ts';
 import { ACT, cloneState, newGame, type BroadcastDef, type GameState, type Rules } from './sim/state.ts';
 import { BUFFER_FRAMES, step, type SimEvent } from './sim/step.ts';
+import { SwingDummy } from './ai/dummy.ts';
 import { Bot } from './ai/bot.ts';
 import { consumeInputEdge } from './input/devices.ts';
 import { HighlightRecorder, type Highlight } from './campaign/highlight.ts';
@@ -56,7 +57,7 @@ export interface MatchSetup {
   /** Online matches: who is in each slot (net/online.ts). */
   online?: OnlineSlots;
   /** On-stage teaching prompts (ui/teach.ts): the pilot fight reads cues from Kaelen, How to play runs them on a timer. */
-  teach?: 'pilot' | 'training';
+  teach?: 'pilot' | 'training' | 'defence';
 }
 
 export interface OnlineSlots {
@@ -149,12 +150,17 @@ export class Match {
     this.sample();
   }
 
+  /** How to play lesson 2: the training dummy walks up and swings slowly (ai/dummy.ts). Set by the lesson, never in the sim. */
+  dummySwings = false;
+  private readonly swinger = new SwingDummy();
+
   /** Runs one frame with the local player's input. */
   tick(local: number): SimEvent[] {
     const s = this.state;
     const inputs = s.fighters.map((_, i) => {
       const slot = this.setup.slots[i];
       if (slot.cpu === null) return local;
+      if (slot.cpu === 0 && this.dummySwings) return this.swinger.think(s, i);
       return this.bots[i]?.think(s) ?? NO_INPUT;
     });
     const prev = s.fighters.map((f) => ({
