@@ -260,6 +260,15 @@
       ]
     },
     {
+      "id": "motion-comfort",
+      "title": "Motion comfort: Reduce motion, Screen shake 0-100% and Flashes Full/Soft/Off apply in hits and KOs, and never more than 3 flashes a second",
+      "description": "Settings (menu) shows Reduce motion, the Screen shake slider and Flashes (44 px, on screen); Reduce motion is switched on and the other two default to 0% and Off; a versus match is played to a stock-ending KO: no slow motion, no zoom punch, no full-screen flash, no camera shake (ko-calm, ko-no-flash, ko-no-shake; metrics calmFlashes, calmShakeMax). From Pause everything goes back to Full / 100% live and ten hits are played: flashes return and never more than 3 start in any second (flash-rate, metric flashMaxPerSecond). On a 390x844 phone the portrait Settings is checked, then the run plays in the turned 844x390 frame by taps. Puts dod.motion, dod.shake and dod.flash back.",
+      "seconds": 300,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "rebind",
       "title": "Rebind controls: Settings > Controls, pick an action, press the new key, clash warning, Reset, saved across a reload, the new key works in a match, a second gamepad plays (phone 390x844 touch: no rebinding row, Settings fits, nothing overlaps)",
       "description": "Desktop: main menu > Settings > Rebind (44 px buttons). Special is put on J (Attack's key): the clash note names Attack and Attack takes K (a swap); Reset to defaults restores Attack J / Special K and saves; Attack is put on H by tapping its slot and pressing H (saved in dod.bindings); the page reloads and the run carries on: Attack is still H, the All controls page lists Attack as H, and in a Versus match H attacks while J no longer does; then a second emulated gamepad (pad 2 only, no pad 1) presses A and attacks. Phone (390x844 touch, hit-tested taps): Settings has no rebinding row, every control is inside the screen and none overlaps, Done is 44 px. Puts dod.bindings back. Events rebind-open, rebind-clash, rebind-reset, rebind-set, rebind-saved, rebind-survived-reload, rebind-controls-page, rebind-key-works, rebind-old-key-dead, rebind-second-pad, rebind-phone-hidden, rebind-phone-fit.",
