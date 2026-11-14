@@ -1260,6 +1260,7 @@ function beginReady(m: Match): void {
   readyFightId = audio.pickLine('announcer.ready-fight');
   if (readyFightId) void audio.call(readyFightId);
   else audio.line('announcer.ready');
+  airFlashed = false;
   commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state, Math.random, (id) => audio.voiceFresh(id)) : null;
   introPending = (commentator && (chapter ? introCall(chapter.id) : dailyRun?.setup === setup ? introCall(dailyRun.ep.blogChapter) : null)) || null;
   audio.playStageBed(STAGES[setup.stage].id);
@@ -1366,6 +1367,10 @@ function afterTick(m: Match, events: SimEvent[]): void {
       introPending = null;
     }
     if (!introPending) for (const c of commentator.onEvents(s, events)) broadcast(c);
+  }
+  if (!airFlashed && !s.over && phase === 'play' && events.some((e) => e.type === 'ko')) {
+    airFlashed = true;
+    airFlash();
   }
   if (s.over && !shownOver) {
     shownOver = true;
@@ -1991,6 +1996,19 @@ function askOnResults(m: Match): void {
   setTimeout(() => {
     if (currentScreen() === 'results' && !match) analytics.askAfterMatch(m);
   }, 900);
+}
+
+let airFlashed = false;
+
+/** The show reacts to the first KO of a bout: the ON AIR bug flashes red over the arena with "First blood" and a sting. */
+function airFlash(): void {
+  document.querySelector('.air-flash')?.remove();
+  const el = h('div', { class: 'air-flash', 'data-air': 'first-blood', 'aria-hidden': 'true' },
+    h('i', { class: 'dot' }), h('b', {}, 'On air'), h('span', {}, 'First blood'));
+  document.body.appendChild(el);
+  audio.synth('sting', 0.6);
+  window.setTimeout(() => el.remove(), 2200);
+  window.dispatchEvent(new CustomEvent('dod:air-flash', { detail: { kind: 'first-blood' } }));
 }
 
 /** A commentary call: spoken if it has a take, and captioned one short line at a time (and announced to the playtest). */
