@@ -47,7 +47,7 @@ import { VoiceWatch } from './voiceWatch.ts';
 import { walkMenus, type Mode } from './menuWalk.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
 import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
-import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
+import { SHAKE_STORAGE_KEY, screenShake, hitTier, inWindupTell, isSmashMove, isSpecialMove, moveStartFrame, tellFrames, windupPose, type HitTier } from '../hitFeel.ts';
 import { clipFrame, feetLift, loadAnimSet, pickClip, type AnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import { BUFFER_FRAMES, COYOTE_FRAMES, type SimEvent } from '../sim/step.ts';
@@ -5446,7 +5446,7 @@ class Run {
     t.metric(`${scope}.contacts`, rx.contacts);
     if (rx.tellStarts > 0) {
       if (rx.tellMisses > 0) t.problem('bug', `${rx.tellMisses} of ${rx.tellStarts} specials or smashes reached their first active frame with no startup tell`);
-      else t.event('tell', `${rx.tellStarts} specials and smashes each showed a 2-4 frame tell (${rx.tellFrames} frames, ${rx.tells} player-colour rim flashes, ${rx.tellWhooshes} whooshes) before their first active frame`);
+      else t.event('tell', `${rx.tellStarts} specials and smashes each showed a startup wind-up tell (${rx.tellFrames} frames of coiled pose change + emissive & player-colour rim flash, ${rx.tells} flashes, ${rx.tellWhooshes} whooshes) before their first active frame`);
     } else if (scope === 'specials') t.problem('bug', 'no special reached its first active frame, so the tell could not be checked');
     if (rx.normalActives > 0) {
       if (rx.trails !== rx.normalActives) t.problem('bug', `${rx.normalActives} normal attacks reached active frames but ${rx.trails} drew a swing trail`);
@@ -5963,6 +5963,49 @@ class Run {
    */
   async hitFeel(): Promise<void> {
     const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    // On a portrait phone (390x844 touch), check the portrait menus have no horizontal scroll or unclickable buttons, then turn to 844x390 landscape for the match.
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      this.useTap = true;
+      forceTouchUi(true);
+      try {
+        await this.toMainMenu();
+        await this.phoneUiClipTour('portrait');
+        t.progress(0.04);
+      } finally {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+      return this.touchMatchTurned('hit-feel');
+    }
+    this.logViewport(touch && (this.isPhone() || this.options.at === 'phone-turned'));
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    // Check that every special and smash across all 33 fighters has a startup wind-up tell (flash + pose change).
+    {
+      const tellMoveIds = [MOVE.FSMASH, MOVE.USMASH, MOVE.DSMASH, MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL];
+      let checkedMoves = 0;
+      let missingTells = 0;
+      for (const ch of CHARACTERS) {
+        for (const mid of tellMoveIds) {
+          const mv = ch.moves[mid];
+          const start = moveStartFrame(mv);
+          const tf = tellFrames(start);
+          const wp = windupPose(Math.max(0, start - 1), start, mid, 1);
+          const posed = wp.sx !== 1 || wp.sy !== 1 || wp.rot !== 0;
+          if (start <= 0 || tf <= 0 || wp.flash <= 0.3 || !posed) missingTells++;
+          else checkedMoves++;
+        }
+      }
+      t.metric('windupTellMoves', checkedMoves);
+      t.metric('specials.total', CHARACTERS.length * tellMoveIds.length);
+      t.metric('specials.withTell', checkedMoves);
+      if (missingTells > 0) t.problem('bug', `${missingTells} specials or smashes in the roster are missing a startup wind-up flash or pose change`);
+      else t.event('windup-tell-roster', `all ${checkedMoves} specials and smashes across ${CHARACTERS.length} fighters have a startup wind-up flash and coiled pose tell`);
+    }
     const original = localStorage.getItem(SHAKE_STORAGE_KEY);
     try {
       localStorage.removeItem(SHAKE_STORAGE_KEY);
@@ -5983,7 +6026,10 @@ class Run {
     let trailSeq = 0;
     let markerSeen = 0;
     let markerProblems = 0;
-    const touchUi = this.isPhone() || touchDevice() || this.options.input === 'touch';
+    let windupTellsLogged = 0;
+    let windupDodges = 0;
+    let cpuWindup: { move: number; name: string; frame: number; char: number; dodged: boolean } | null = null;
+    const touchUi = touch || touchDevice();
     type R4 = { l: number; t: number; r: number; b: number };
     const overlap = (a: R4, b: R4) => a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
     const sampleScreen = () => {
@@ -6021,6 +6067,37 @@ class Run {
     };
     const unwatch = this.game.watch((m, events) => {
       sampleScreen();
+      // Track CPU wind-up tells (flash + pose change) and player dodges in response.
+      const me = m.state.fighters[m.player];
+      for (const f of m.state.fighters) {
+        if (f.id === m.player) continue;
+        if (f.action === ACT.ATTACK && (isSmashMove(f.move) || isSpecialMove(f.move))) {
+          const mv = CHARACTERS[f.char].moves[f.move];
+          const start = moveStartFrame(mv);
+          if (inWindupTell(f.action, f.move, f.frame, start)) {
+            if (!cpuWindup || cpuWindup.move !== f.move || m.state.frame - cpuWindup.frame > 20) {
+              cpuWindup = { move: f.move, name: mv.name, frame: m.state.frame, char: f.char, dodged: false };
+              if (windupTellsLogged < 4) {
+                windupTellsLogged++;
+                const wp = windupPose(f.frame, start, f.move, f.facing);
+                t.event('windup-tell', `CPU ${CHARACTERS[f.char].name} wind-up tell on "${mv.name}" (${start}-frame startup: flash ${wp.flash.toFixed(2)}, pose ${wp.sx.toFixed(2)}x${wp.sy.toFixed(2)}, tilt ${wp.rot.toFixed(2)} rad)`);
+              }
+            } else {
+              cpuWindup.frame = m.state.frame;
+            }
+          }
+        }
+      }
+      if (cpuWindup && !cpuWindup.dodged && m.state.frame - cpuWindup.frame <= 24 && me) {
+        const counter = me.action === ACT.ATTACK && !!CHARACTERS[me.char].moves[me.move].counter;
+        if (me.action === ACT.ROLL || me.action === ACT.SPOTDODGE || me.action === ACT.AIRDODGE || me.action === ACT.SHIELD || counter) {
+          cpuWindup.dodged = true;
+          windupDodges++;
+          if (windupDodges <= 4) {
+            t.event('windup-dodge', `player read CPU ${CHARACTERS[cpuWindup.char].name}'s "${cpuWindup.name}" wind-up tell and dodged (${counter ? 'counter' : (ACT_NAMES[me.action] ?? 'dodge')})`);
+          }
+        }
+      }
       for (const rec of this.game.trailStats?.()?.log ?? []) {
         if (rec.seq <= trailSeq) continue;
         trailSeq = rec.seq;
@@ -6078,10 +6155,15 @@ class Run {
     });
     try {
       await this.toMainMenu();
+      this.checkClipping('main menu', this.q('#main'));
+      if (document.documentElement.scrollWidth > innerWidth + 1) {
+        t.problem('bug', `horizontal scrolling on main menu (${document.documentElement.scrollWidth} > ${innerWidth})`);
+      }
       t.progress(0.05);
       // Screen shake is on by default, and Settings shows it.
       await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
       await t.until(settingsShowing, 3000, 'Settings to open');
+      this.checkClipping('Settings', this.q('#settings'));
       const sw = this.q('#shake-switch');
       if (!sw) t.problem('bug', 'Settings has no Screen shake switch');
       else if (sw.getAttribute('aria-checked') !== 'true' || !screenShake()) t.problem('bug', 'Screen shake is not on by default');
@@ -6090,6 +6172,11 @@ class Run {
       await t.wait(300);
 
       await this.startVersus(3);
+      if (touch) {
+        const root = touchOverlay() ?? this.q('.touch');
+        if (root && root.hidden) root.hidden = false;
+        document.body.classList.add('touch-ui');
+      }
       t.progress(0.15);
       this.game.reactFxStats?.(true);
       this.game.hitFxStats?.(true);
@@ -6132,15 +6219,50 @@ class Run {
         const foe = mm.state.fighters.find((f) => f.id !== mm.player);
         const b = STAGES[mm.state.stage].blast;
         if (foe) {
+          const oldX = foe.x;
+          const oldY = foe.y;
           foe.x = (b.right - 20) * FX;
           foe.y = Math.max(b.bottom + 200, foe.y / FX) * FX;
           foe.vx = foe.vy = foe.kbx = foe.kby = 0;
           t.event('marker-setup', `setup shortcut: fighter ${foe.id} placed 20 units inside the right blast line`);
           await t.wait(900);
+          if (foe.stocks > 0 && foe.action !== ACT.DEAD) {
+            foe.x = oldX;
+            foe.y = oldY;
+            foe.vx = foe.vy = foe.kbx = foe.kby = 0;
+          }
         }
       }
       if (!this.game.markerStats?.()?.shown) t.problem('warning', 'no fighter went off screen, so no edge marker was seen (the kill cue usually shows one)');
       else t.metric('markersShown', this.game.markerStats!()!.shown);
+      // Ensure at least one wind-up tell dodge was observed; if the CPU only threw normals in the window, stage one close CPU smash so the bot reads the wind-up tell and dodges it live.
+      if (windupDodges === 0 && m0()) {
+        const mm = m0()!;
+        const me = mm.state.fighters[mm.player];
+        const foe = mm.state.fighters.find((f) => f.id !== mm.player);
+        if (me && foe && me.stocks > 0 && foe.stocks > 0) {
+          const p = STAGES[mm.state.stage].platforms[0];
+          const cx = ((p.x1 + p.x2) / 2) * FX;
+          me.x = cx - 45 * FX;
+          me.y = p.y * FX;
+          me.vx = me.vy = me.kbx = me.kby = 0;
+          me.grounded = 1;
+          me.action = ACT.IDLE;
+          me.frame = 0;
+          me.facing = 1;
+          foe.x = cx + 45 * FX;
+          foe.y = p.y * FX;
+          foe.vx = foe.vy = foe.kbx = foe.kby = 0;
+          foe.grounded = 1;
+          foe.facing = -1;
+          foe.action = ACT.ATTACK;
+          foe.move = MOVE.FSMASH;
+          foe.frame = 0;
+          await this.fight(() => windupDodges > 0, 2500);
+        }
+      }
+      t.metric('windupDodges', windupDodges);
+      if (windupDodges === 0) t.problem('bug', 'the player never dodged a CPU special or smash wind-up tell');
       const stats = this.game.hitFxStats?.();
       t.metric('shakeMaxOn', Number((stats?.shakeMax ?? 0).toFixed(3)));
       for (const k of ['light', 'medium', 'heavy'] as const) if (seen[k]) t.metric(`hitStop${k[0].toUpperCase()}${k.slice(1)}Frames`, seen[k]!.frozen + 1);
@@ -6158,8 +6280,14 @@ class Run {
       t.progress(0.7);
 
       // Pause → Settings → Screen shake off; the same fight goes on and the camera stays still.
-      await tapKey('Escape');
+      const pauseBtn = () => {
+        const el = this.q('.touch-pause');
+        return el && el.getClientRects().length > 0 ? el : null;
+      };
+      if (touch && pauseBtn()) await this.tap(pauseBtn, 'Pause');
+      else await tapKey('Escape');
       await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      this.checkClipping('Pause menu', this.q('#pause'));
       await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
       await t.until(settingsShowing, 3000, 'Settings to open from Pause');
       await t.wait(400);
@@ -6224,12 +6352,17 @@ class Run {
       t.progress(0.9);
 
       // Back on for the next visit, then out.
-      await tapKey('Escape');
+      if (touch && pauseBtn()) await this.tap(pauseBtn, 'Pause');
+      else await tapKey('Escape');
       await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
       await this.click(() => this.q('#btn-quit'), 'Quit');
       await this.screen('main');
     } finally {
       unwatch();
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
       try {
         if (original === null) localStorage.removeItem(SHAKE_STORAGE_KEY);
         else localStorage.setItem(SHAKE_STORAGE_KEY, original);
