@@ -2755,7 +2755,8 @@ function buildHud(m: Match): void {
   hudQuota = -1;
   hudStreak = -1;
   trainingShown = { seq: -1, count: -1, active: null, ko: null, dmg: -1 };
-  $('training-readout').hidden = !trainingFree(m);
+  // The combo panel stays away until a combo exists (updateReadout shows it on the first hit).
+  $('training-readout').hidden = true;
   $('match-top').hidden = limit <= 0 && !shown;
   updateHud(m);
 }
@@ -2771,6 +2772,7 @@ function updateReadout(m: Match): void {
   const shown = trainingShown;
   if (shown.seq === r.seq && shown.count === r.count && shown.active === r.active && shown.ko === r.ko && shown.dmg === r.dmg) return;
   const el = $('training-readout');
+  el.hidden = !trainingFree(m) || r.count < 1;
   const count = el.querySelector<HTMLElement>('.tr-count')!;
   count.textContent = String(r.count);
   if (r.count !== shown.count && r.count > 0) {

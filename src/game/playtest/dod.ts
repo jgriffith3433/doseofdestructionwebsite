@@ -8651,19 +8651,23 @@ class Run {
       const overlap = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
       const visible = (el: Element | null): el is HTMLElement => !!el && (el as HTMLElement).getClientRects().length > 0;
 
-      // ---- 1. the readout is up, on screen, clear of the controls.
+      // ---- 1. no combo yet, so the panel is not drawn (no "0.0%" beside empty labels).
       const readout = this.q('#training-readout');
-      if (!visible(readout)) {
-        t.problem('bug', `${how}: no combo readout on the Training screen`);
+      if (!readout) {
+        t.problem('bug', `${how}: no combo readout element on the Training screen`);
         t.finish('error');
         return;
       }
-      const rr = rectOf(readout);
-      const blockers = [...document.querySelectorAll<HTMLElement>('.touch-btn, .touch-stick, .touch-pause, #match-top, #hud .hud-card')].filter(visible);
-      const hit = blockers.find((b) => overlap(rr, rectOf(b)));
-      if (rr.left < 0 || rr.top < 0 || rr.right > vw || rr.bottom > vh) t.problem('bug', `${how}: the combo readout runs off the screen (${Math.round(rr.left)},${Math.round(rr.top)} ${Math.round(rr.width)}x${Math.round(rr.height)} in ${vw}x${vh})`);
-      else if (hit) t.problem('bug', `${how}: the combo readout is under ${hit.className || hit.id}`);
-      else t.event('training-readout', `${how}: readout top left at ${Math.round(rr.left)},${Math.round(rr.top)} (${Math.round(rr.width)}x${Math.round(rr.height)} in ${vw}x${vh}), clear of the pause button and the controls`);
+      if (visible(readout)) t.problem('bug', `${how}: the combo panel shows before any combo exists`);
+      else t.event('readout-hidden', `${how}: the combo panel is hidden until a combo exists`);
+      const checkReadoutFit = () => {
+        const rr = rectOf(readout);
+        const blockers = [...document.querySelectorAll<HTMLElement>('.touch-btn, .touch-stick, .touch-pause, #match-top, #hud .hud-card')].filter(visible);
+        const hit = blockers.find((b) => overlap(rr, rectOf(b)));
+        if (rr.left < 0 || rr.top < 0 || rr.right > vw || rr.bottom > vh) t.problem('bug', `${how}: the combo readout runs off the screen (${Math.round(rr.left)},${Math.round(rr.top)} ${Math.round(rr.width)}x${Math.round(rr.height)} in ${vw}x${vh})`);
+        else if (hit) t.problem('bug', `${how}: the combo readout is under ${hit.className || hit.id}`);
+        else t.event('training-readout', `${how}: readout top left at ${Math.round(rr.left)},${Math.round(rr.top)} (${Math.round(rr.width)}x${Math.round(rr.height)} in ${vw}x${vh}), clear of the pause button and the controls`);
+      };
       t.progress(0.1);
 
       // ---- 2. Pause: the options are there, every control 44 px, on screen.
@@ -8775,6 +8779,7 @@ class Run {
       if (best < 3) t.problem('bug', `${how}: the down tilt string never made a 3-hit true combo (best ${best})`);
       else {
         await frames(4);
+        checkReadoutFit();
         const shownCount = Number(this.q('#training-readout .tr-count')?.textContent);
         const shownDmg = this.q('#training-readout .tr-dmg')?.textContent ?? '';
         const shownLast = this.q('#training-readout .tr-last')?.textContent ?? '';
