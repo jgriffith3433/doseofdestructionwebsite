@@ -651,6 +651,16 @@
       ]
     },
     {
+      "id": "archetype-normals",
+      "title": "Archetype normals: a fast fighter's jab is a three-hit flurry from one Attack press, a heavy's is one slower, harder hit; floaty aerials hang out longer than fast ones (phone: 390x844 touch, the same Attack button)",
+      "description": "Setup shortcut: straight into Training with Kaelen (fast) and a dummy, then Break (heavy), no menus. Each walks up to the dummy with the stick and presses Attack once from real input (keyboard, or on a phone turned to 844x390 the Attack button as a touch pointer event, archetype-touch: every control 44 px, no new button). The sim's hits are counted: Kaelen's jab lands 3 hits, Break's 1, later and with more launch growth (archetype-jab; metrics fastJabHits, heavyJabHits, fastJabStartup, heavyJabStartup). archetype-data checks every fighter has an archetype in content/archetypes.json and floaty neutral air stays out longer than fast.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "ledge-options",
       "title": "Ledge options: from the ledge Attack sweeps low and hits a fighter at the edge, Shield rolls onto the stage, Jump leaps up, stick up climbs, and holding on too long drops the fighter (phone: 390x844 touch, the same buttons)",
       "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus). The player walks off the stage edge with the stick (the sim catches the ledge), hangs with no input for a few frames (ledge-hold: nothing climbs by itself), then each option from real input: stick up is the getup (ledge-getup, stands just inside the edge), Shield rolls a body-length further in (ledge-roll), Attack climbs and sweeps low with the down tilt and hits the dummy stood at the edge (ledge-attack; setup shortcut puts the dummy there), Jump leaps well above the ledge (ledge-jump), and with no input the hang runs out and the fighter drops (ledge-drop, ledgeHangFrames, 4 s). Each logs its invincibility frames. Keyboard on a desktop; at phone size (390x844, turned to 844x390 like touch-match) the on-screen stick, Attack, Shield and Jump buttons as touch pointer events with no new button (ledge-touch). Then the All controls page is opened and its keyboard, gamepad and touch lists must each have an On the ledge row (ledge-controls). Options: input (touch forces the overlay on a desktop window), at (phone). Metric ledgeOptions (5 when every option worked).",
