@@ -244,6 +244,15 @@
       ]
     },
     {
+      "id": "shield-toggle",
+      "title": "Shield Hold / Toggle: Settings > Shield; with Toggle one press keeps the shield up with no button held, a second press, a roll or a jump drops it, and on a phone the Shield button shows it is latched",
+      "description": "Settings from the main menu shows the Shield switch (Hold by default, 44 px, on screen); one tap turns it to Toggle and it is saved (shield-saved, dod.shield). In a versus match one press of Shield (the L key, or the touch Shield button) raises the shield and 1.4 s later it is still up with nothing held (shield-latched); on touch the Shield button carries the latched look and aria-pressed (shield-button-latched); a second press drops it (shield-dropped-press); a press then a roll (stick sideways) rolls and drops it (shield-dropped-roll); a press then a jump drops it (shield-dropped-jump). On a 390x844 phone the portrait Settings is checked, then the run plays in the turned 844x390 frame by taps and a stick drag. Puts dod.shield back.",
+      "seconds": 150,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "text-size",
       "title": "Text size: Settings has 100% / 125% / 150%, every visible text is at least 12 px at 100%, 150% is bigger on menus and HUD without clipping, and it is kept",
       "description": "Main menu → Settings → Text size 100% (text-saved: localStorage dod.textsize, --ts); scans the main menu, Settings and the select screen for text under 12 px, clipped text and text off the window (text-scan; metrics textUnder12.<screen>.<level>); sets 125% then 150% (text-bigger: the menu item grows), scans the same screens again, plays a match and scans the HUD at 150% (hud-bigger: the HUD percent against its 100% size from Pause). A 390x844 phone runs the menus by touch in portrait and the match in the turned frame. The player's own dod.textsize is put back.",

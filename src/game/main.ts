@@ -19,6 +19,7 @@ import { rumble, rumbleHit } from './rumble.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
 import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
+import { onShieldMode, setShieldActive, setShieldMode, shieldMode, releaseShieldLatch } from './input/shieldMode.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
 import { KEYBOARD_HELP, gamepadHelp, padFamily, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
 import { damageColor, damageShake, hitTier } from './hitFeel.ts';
@@ -1361,6 +1362,7 @@ async function holdForStageArt(m: Match): Promise<void> {
 let readyFightId: string | null = null;
 
 function beginReady(m: Match): void {
+  releaseShieldLatch();
   const setup = m.setup;
   analytics.matchStart(m, chapter);
   clearTakeover();
@@ -1385,6 +1387,7 @@ function beginReady(m: Match): void {
 }
 
 function endMatch(): void {
+  releaseShieldLatch();
   skipScene();
   // A match left any other way than its end, a restart or Quit (another match starting over it) ends its level here.
   if (match) analytics.matchEnd(match, 'quit', { reason: 'left' });
@@ -1455,6 +1458,9 @@ function onlineTick(m: Match, f: OnlineFight): void {
 }
 
 function afterTick(m: Match, events: SimEvent[]): void {
+  // Toggle shield lets go of its latch when the local fighter is no longer shielding (hit, broke, KO'd).
+  const me = m.state.fighters[m.player];
+  setShieldActive(!!me && (me.action === ACT.SHIELD || me.action === ACT.SHIELD_STUN));
   renderer.onEvents(events);
   analytics.matchEvents(m, events);
   for (const w of matchWatchers) w(m, events);
@@ -1747,6 +1753,9 @@ function renderSettings(): void {
   const shake = $('shake-switch');
   shake.setAttribute('aria-checked', String(screenShake()));
   shake.textContent = screenShake() ? 'On' : 'Off';
+  const sh = $('shield-switch');
+  sh.setAttribute('aria-checked', String(shieldMode() === 'toggle'));
+  sh.textContent = shieldMode() === 'toggle' ? 'Toggle' : 'Hold';
   const cv = $('colour-switch');
   cv.setAttribute('aria-checked', String(colourVision() === 'safe'));
   cv.textContent = colourVision() === 'safe' ? 'Colourblind-safe' : 'Standard';
@@ -1808,6 +1817,11 @@ function wireSettings(): void {
     renderSettings();
     // Cards already on screen (Pause in a match) take the new colours now; the rings follow at the next match.
     if (match) document.querySelectorAll<HTMLElement>('.hud-card').forEach((el, i) => el.style.setProperty('--player', slotColor(match!, i)));
+  });
+  onShieldMode(() => renderSettings());
+  $('shield-switch').addEventListener('click', () => {
+    setShieldMode(shieldMode() === 'toggle' ? 'hold' : 'toggle');
+    analytics.setting('shield', shieldMode(), from());
   });
   onTextSize(() => renderSettings());
   document.querySelectorAll<HTMLElement>('#textsize-seg [data-ts]').forEach((b) =>
