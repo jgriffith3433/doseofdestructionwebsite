@@ -235,6 +235,15 @@
       ]
     },
     {
+      "id": "shield-toggle",
+      "title": "Shield Hold / Toggle: Settings > Shield; with Toggle one press keeps the shield up with no button held, a second press, a roll or a jump drops it, and on a phone the Shield button shows it is latched",
+      "description": "Settings from the main menu shows the Shield switch (Hold by default, 44 px, on screen); one tap turns it to Toggle and it is saved (shield-saved, dod.shield). In a versus match one press of Shield (the L key, or the touch Shield button) raises the shield and 1.4 s later it is still up with nothing held (shield-latched); on touch the Shield button carries the latched look and aria-pressed (shield-button-latched); a second press drops it (shield-dropped-press); a press then a roll (stick sideways) rolls and drops it (shield-dropped-roll); a press then a jump drops it (shield-dropped-jump). On a 390x844 phone the portrait Settings is checked, then the run plays in the turned 844x390 frame by taps and a stick drag. Puts dod.shield back.",
+      "seconds": 150,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "touch-settings",
       "title": "Touch size and opacity: Settings shows the two sliders on touch devices, they resize and fade the stick and buttons live in a match, and are kept after a reload",
       "description": "The run is treated as a touch device. Main menu → Settings shows Touch size (75-150%) and Touch opacity (30-100%) (touch-sliders); sets 150% / 50% (touch-saved: localStorage dod.touch); in a match measures the stick, Attack and Pause button and their opacity, all inside the window (touch-look); from Pause sets 75% / 100% (touch-resized: the controls shrink) and 120% / 60%; reloads (the run carries on through ?playtest=touch-settings) and checks Settings and a new match still have 120% / 60% (touch-kept). The player's own dod.touch is put back.",

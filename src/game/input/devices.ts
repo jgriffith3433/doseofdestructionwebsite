@@ -2,6 +2,7 @@
 
 import { BTN, packInput, stickX, stickY } from '../sim/input.ts';
 import { consumeTouchEventAt, readTouch } from './touch.ts';
+import { applyShieldMode } from './shieldMode.ts';
 
 const held = new Set<string>();
 let listening = false;
@@ -259,7 +260,8 @@ export function readLocal(): number {
   if (newButtons !== 0 || newStick) {
     lastInputEdge = { at: domAt || now, polledAt: now, buttons: newButtons, stick: newStick };
   }
-  return packInput(sx, sy, b);
+  // Shield: Hold passes straight through; Toggle latches it (input/shieldMode.ts), so the sim and online see a plain held bit.
+  return packInput(sx, sy, applyShieldMode(b, sx, sy));
 }
 
 /** True on the frame Start or Esc goes down. */

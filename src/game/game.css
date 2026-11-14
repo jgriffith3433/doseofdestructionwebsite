@@ -1095,6 +1095,8 @@ body.scene-on #fighter-tags { display: none; }
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9));
 }
 .touch-btn.down { background: rgba(255, 90, 31, 0.85); }
+/* Shield in Toggle mode: latched up with no finger on it, so it reads as a held-in switch (ring + fill, not colour alone). */
+.touch-btn.latched { background: rgba(63, 167, 255, 0.85); box-shadow: 0 0 0 3px #fff, 0 0 14px 4px rgba(63, 167, 255, 0.8); }
 .touch-btn.attack {
   width: var(--btn-attack);
   height: var(--btn-attack);

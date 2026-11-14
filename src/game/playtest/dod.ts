@@ -48,6 +48,7 @@ import { walkMenus, type Mode } from './menuWalk.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
 import { GFX_KEY, HAND_KEY, AUTO_KEY, AUTO_TOAST_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
 import { colourVision } from '../colourVision.ts';
+import { SHIELD_KEY_NAME, shieldLatched, shieldMode } from '../input/shieldMode.ts';
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, inWindupTell, isSmashMove, isSpecialMove, moveStartFrame, tellFrames, windupPose, type HitTier } from '../hitFeel.ts';
 import { clipFrame, feetLift, loadAnimSet, pickClip, type AnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
@@ -235,6 +236,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'touch-match') await r.touchMatch();
         else if (id === 'touch-settings') await r.touchSettingsRun();
         else if (id === 'colour-vision') await r.colourVisionRun();
+        else if (id === 'shield-toggle') await r.shieldToggleRun();
         else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'post-chain') await r.postChain();
         else if (id === 'lighting') await r.lighting();
@@ -8183,6 +8185,203 @@ class Run {
       t.progress(1);
       t.finish('done');
     } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+  }
+
+  /**
+   * Settings > Shield: Hold (default) / Toggle. With Toggle one press keeps the shield up with nothing held, a second
+   * press, a roll or a jump drops it; on a phone the touch Shield button shows it is latched. Played from real input:
+   * taps on the switch and the overlay buttons and a stick drag on touch, key presses otherwise.
+   */
+  async shieldToggleRun(): Promise<void> {
+    const t = this.t;
+    const KEY = SHIELD_KEY_NAME;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const switchLook = (where: string) => {
+      const sw = this.q('#shield-switch');
+      if (!sw) {
+        t.problem('bug', `${where}: Settings has no Shield switch`);
+        return null;
+      }
+      const r = sw.getBoundingClientRect();
+      if (r.height < 44 || r.width < 44 || r.left < 0 || r.right > innerWidth) t.problem('bug', `${where}: the Shield switch is ${Math.round(r.width)}x${Math.round(r.height)} at ${Math.round(r.left)},${Math.round(r.top)}`);
+      return sw;
+    };
+    const openSettings = async () => {
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, 'Settings to open');
+    };
+    const me = () => {
+      const m = this.game.match();
+      return m ? m.state.fighters[m.player] : null;
+    };
+    const act = () => me()?.action ?? -1;
+    const shielding = () => act() === ACT.SHIELD || act() === ACT.SHIELD_STUN;
+    const btnEl = () => touchOverlay()?.querySelector<HTMLElement>('.touch-btn.shield') ?? null;
+    const fire = (el: Element, type: string, x: number, y: number) =>
+      el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: 61, isPrimary: true, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, buttons: type === 'pointerup' ? 0 : 1 }));
+    const centre = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + r.height / 2] as const;
+    };
+    // One press of the Shield control, then let go (a tap): the touch button or the L key.
+    const tapShield = async () => {
+      if (touch) {
+        const b = btnEl();
+        if (!b) return t.problem('bug', 'no touch Shield button to press');
+        const [x, y] = centre(b);
+        fire(b, 'pointerdown', x, y);
+        await t.wait(90);
+        fire(b, 'pointerup', x, y);
+      } else {
+        pressAction('shield', true);
+        await t.wait(90);
+        pressAction('shield', false);
+      }
+    };
+    const press = async (action: 'jump' | 'attack', cls: string) => {
+      if (touch) {
+        const b = touchOverlay()?.querySelector<HTMLElement>(`.touch-btn.${cls}`);
+        if (!b) return;
+        const [x, y] = centre(b);
+        fire(b, 'pointerdown', x, y);
+        await t.wait(90);
+        fire(b, 'pointerup', x, y);
+      } else {
+        pressAction(action, true);
+        await t.wait(90);
+        pressAction(action, false);
+      }
+    };
+    // Roll: stick sideways while shielding (a drag on the touch stick, the D key otherwise).
+    const roll = async () => {
+      if (touch) {
+        const stick = touchOverlay()?.querySelector<HTMLElement>('.touch-stick');
+        if (!stick) return;
+        const r = stick.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        fire(stick, 'pointerdown', cx, cy);
+        fire(stick, 'pointermove', cx + r.width * 0.3, cy);
+        await t.wait(200);
+        fire(stick, 'pointerup', cx, cy);
+      } else {
+        pressAction('right', true);
+        await t.wait(200);
+        pressAction('right', false);
+      }
+    };
+    const calm = async () => {
+      try {
+        await t.until(() => act() === ACT.IDLE || act() === ACT.WALK, 4000, 'the fighter to stand free');
+      } catch {
+        // Hit by the CPU meanwhile: carry on from wherever it is.
+      }
+      await t.wait(150);
+    };
+    const handsFree = () => !(touch && touchOverlay()?.querySelector('.touch-btn.down'));
+    const latchedLook = () => (touch ? !!btnEl()?.classList.contains('latched') && btnEl()?.getAttribute('aria-pressed') === 'true' : true);
+
+    forceTouchUi(touch);
+    this.useTap = touch;
+    const original = localStorage.getItem(KEY);
+    try {
+      // A portrait phone: Settings in the portrait window, then the rest in the turned frame.
+      if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+        this.logViewport(true);
+        await this.toMainMenu();
+        await openSettings();
+        const sw = switchLook('portrait phone');
+        if (sw) t.event('shield-switch', `portrait ${innerWidth}x${innerHeight}: Shield reads "${sw.textContent}", ${Math.round(sw.getBoundingClientRect().height)} px tall`);
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        this.useTap = false;
+        forceTouchUi(false);
+        return this.touchMatchTurned('shield-toggle');
+      }
+      this.logViewport(touch);
+      try {
+        localStorage.removeItem(KEY);
+      } catch {
+        // Storage blocked.
+      }
+      await this.toMainMenu();
+      await openSettings();
+      const sw = switchLook('Settings');
+      if (!sw) return;
+      if (sw.textContent !== 'Hold' || shieldMode() !== 'hold') t.problem('bug', `Shield starts on "${sw.textContent}" (want Hold)`);
+      t.event('shield-switch', `Settings shows Shield: ${sw.textContent}`);
+      await this.tap(() => this.q('#shield-switch'), 'Shield');
+      if (shieldMode() !== 'toggle' || localStorage.getItem(KEY) !== 'toggle' || this.q('#shield-switch')?.textContent !== 'Toggle') t.problem('bug', `the Shield switch did not turn to Toggle (${shieldMode()}, ${localStorage.getItem(KEY)})`);
+      else t.event('shield-saved', `dod.shield = ${localStorage.getItem(KEY)}`);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(200);
+
+      await this.startVersus(3);
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      await t.wait(1800);
+      await calm();
+
+      // 1. One press, nothing held: the shield stays up.
+      await tapShield();
+      await t.until(shielding, 1000, 'the shield to rise from one press').catch(() => t.problem('bug', 'Toggle: one press did not raise the shield'));
+      await t.wait(1400);
+      const stayed = shielding() && shieldLatched() && handsFree();
+      if (!stayed) t.problem('bug', `Toggle: the shield did not stay up with nothing held (action ${ACT_NAMES[act()] ?? act()}, latched ${shieldLatched()})`);
+      else t.event('shield-latched', `one press, 1.4 s later still shielding with no button held (${touch ? 'touch' : 'keyboard'})`);
+      if (touch) {
+        if (!latchedLook()) t.problem('bug', `the touch Shield button does not show it is latched (class "${btnEl()?.className}", aria-pressed ${btnEl()?.getAttribute('aria-pressed')})`);
+        else {
+          const r = btnEl()!.getBoundingClientRect();
+          t.event('shield-button-latched', `the Shield button shows latched while shielding (${Math.round(r.width)}x${Math.round(r.height)} px at ${innerWidth}x${innerHeight})`);
+        }
+      }
+
+      // 2. A second press drops it.
+      await tapShield();
+      await t.until(() => !shielding(), 1000, 'the shield to drop on the second press').catch(() => t.problem('bug', 'Toggle: the second press did not drop the shield'));
+      await t.wait(250);
+      if (shieldLatched() || (touch && btnEl()?.classList.contains('latched'))) t.problem('bug', 'Toggle: the latched look stayed after the second press');
+      else t.event('shield-dropped-press', 'a second press dropped the shield and the latched look went');
+      await calm();
+
+      // 3. A roll drops it.
+      await tapShield();
+      await t.until(shielding, 1000, 'the shield to rise again');
+      await t.wait(500);
+      await roll();
+      let rolled = false;
+      try {
+        await t.until(() => (rolled = rolled || act() === ACT.ROLL), 800, 'a roll out of the shield');
+      } catch {
+        t.problem('bug', 'Toggle: stick sideways in the shield did not roll');
+      }
+      await t.wait(900);
+      if (shielding() || shieldLatched()) t.problem('bug', 'Toggle: the shield stayed up after the roll');
+      else if (rolled) t.event('shield-dropped-roll', 'a roll dropped the shield');
+      await calm();
+
+      // 4. A jump drops it.
+      await tapShield();
+      await t.until(shielding, 1000, 'the shield to rise a third time');
+      await t.wait(400);
+      await press('jump', 'jump');
+      await t.wait(900);
+      if (shielding() || shieldLatched()) t.problem('bug', 'Toggle: the shield stayed up after the jump');
+      else t.event('shield-dropped-jump', 'a jump dropped the shield');
+
+      // Back to Hold from Pause: a press held is a shield held, let go is down.
+      await this.quitFromPause('main');
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      try {
+        if (original === null) localStorage.removeItem(KEY);
+        else localStorage.setItem(KEY, original);
+      } catch {
+        // Storage blocked.
+      }
       this.useTap = false;
       forceTouchUi(false);
     }
