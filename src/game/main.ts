@@ -2053,6 +2053,9 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         if (SMASHES.has(f.move) || VOICE_SPECIALS.has(f.move)) {
           audio.fighterVoice(CHARACTERS[f.char].id, 'effort', at(f.x));
         }
+      } else if (f.action === ACT.WALK && f.grounded > 0) {
+        // Pressing the stick to walk answers with a soft scuff on the first frame, not silence.
+        audio.sfx('land-soft', { vary: true, at: at(f.x), gain: 0.5 });
       } else if (f.action === ACT.SHIELD) {
         // Raising the shield answers the press with a soft bubble-up, not silence.
         audio.synth('whoosh', 0.25);
