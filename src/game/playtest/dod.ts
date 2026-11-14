@@ -260,6 +260,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'touch-match') await r.touchMatch();
         else if (id === 'touch-settings') await r.touchSettingsRun();
         else if (id === 'shield-toggle') await r.shieldToggleRun();
+        else if (id === 'local-versus') await r.localVersusRun();
         else if (id === 'rebind') await r.rebindRun();
         else if (id === 'text-size') await r.textSizeRun();
         else if (id === 'colour-vision') await r.colourVisionRun();
@@ -10498,6 +10499,136 @@ class Run {
     }
     t.progress(1);
     t.finish('done');
+  }
+
+  /**
+   * Local versus (docs/story.md "Two on one couch"): two people, each device its own fighter. Desktop: Versus select, the
+   * second slot turned to a Person, two emulated pads; pad 1 moves only player 1 and pad 2 only player 2 (`pads-independent`),
+   * then solo again (second slot back to a CPU): keyboard and pad together drive the one fighter (`solo-merged`). Phone
+   * (390x844 touch, turned to 844x390): no Person switch, Versus is You vs CPU, the touch stick still moves you
+   * (`phone-you-vs-cpu`, `phone-touch-moves`).
+   */
+  async localVersusRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const fighters = () => this.game.match()?.state.fighters ?? [];
+    const pad = (right: boolean, left = false, attack = false) => ({ buttons: Array.from({ length: 17 }, (_, i) => (i === 15 && right) || (i === 14 && left) || (i === 0 && attack)), axes: [0, 0] as [number, number] });
+    const fire = (el: Element, type: string, x: number, y: number) =>
+      el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: 71, isPrimary: true, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, buttons: type === 'pointerup' ? 0 : 1 }));
+    const x = (i: number) => fighters()[i]?.x ?? 0;
+    const quit = async () => {
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.click(() => this.q('#btn-quit'), 'Quit');
+      await this.screen('main');
+    };
+    const openVersus = async () => {
+      await this.toMainMenu();
+      await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+      await this.screen('select');
+    };
+
+    forceTouchUi(touch);
+    this.useTap = touch;
+    try {
+      if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+        this.logViewport(true);
+        this.useTap = false;
+        forceTouchUi(false);
+        return this.touchMatchTurned('local-versus');
+      }
+      this.logViewport(touch);
+      await openVersus();
+      if (touch) {
+        const toggles = document.querySelectorAll('#select-slots .human-toggle').length;
+        const labels = [...document.querySelectorAll('#select-slots .slot-label')].map((e) => e.textContent ?? '');
+        if (toggles > 0) t.problem('bug', 'a phone offers a second person on one screen');
+        else if (!labels[0]?.startsWith('You') || !labels[1]?.startsWith('CPU')) t.problem('bug', `phone Versus is not You vs CPU: ${labels.join(' | ')}`);
+        else t.event('phone-you-vs-cpu', `390x844 touch: ${labels.join(' vs ')}, no Person switch`);
+        await this.startVersus(3, true);
+        await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+        await t.wait(1500);
+        const stick = touchOverlay()?.querySelector<HTMLElement>('.touch-stick');
+        const m = this.game.match();
+        if (!stick || !m) return t.problem('bug', 'no touch stick or match');
+        if (m.humans !== 1) t.problem('bug', `a phone match has ${m.humans} people`);
+        const r = stick.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const x0 = x(m.player);
+        fire(stick, 'pointerdown', cx, cy);
+        fire(stick, 'pointermove', cx + r.width * 0.4, cy);
+        await t.wait(900);
+        fire(stick, 'pointerup', cx, cy);
+        if (Math.abs(x(m.player) - x0) < 200) t.problem('bug', 'the touch stick did not move the player');
+        else t.event('phone-touch-moves', `the touch stick moved the player ${Math.round(Math.abs(x(m.player) - x0) / 1000)} units, one human against the CPU`);
+        await quit();
+        t.finish('done');
+        return;
+      }
+
+      // Two people: the second slot is a Person, each pad its own fighter.
+      await this.click(() => this.q('#select-slots .slot:nth-child(2) .human-toggle'), 'second slot: Person');
+      const labels = [...document.querySelectorAll('#select-slots .slot-label')].map((e) => e.textContent ?? '');
+      if (labels[0] !== 'Player 1' || labels[1] !== 'Player 2') t.problem('bug', `two people read "${labels.join(' | ')}" (want Player 1 | Player 2)`);
+      else t.event('two-people', labels.join(' and '));
+      emulatePad(pad(false), 0);
+      emulatePad(pad(false), 1);
+      await this.startVersus(3, true);
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      const m = this.game.match()!;
+      if (m.humans !== 2) t.problem('bug', `${m.humans} people in the match (want 2)`);
+      await t.wait(1500);
+      const a0 = x(0);
+      const b0 = x(1);
+      emulatePad(pad(true), 0);
+      await t.wait(1000);
+      emulatePad(pad(false), 0);
+      const a1 = x(0);
+      const b1 = x(1);
+      const moved = Math.abs(a1 - a0);
+      const stayed = Math.abs(b1 - b0);
+      emulatePad(pad(false, true), 1);
+      await t.wait(1000);
+      emulatePad(pad(false), 1);
+      const a2 = x(0);
+      const b2 = x(1);
+      const movedB = Math.abs(b2 - b1);
+      const stayedA = Math.abs(a2 - a1);
+      if (moved < 300 || movedB < 300) t.problem('bug', `pads did not both move their fighter (pad 1 ${moved}, pad 2 ${movedB})`);
+      else if (stayed > moved / 2 || stayedA > movedB / 2) t.problem('bug', `a pad moved the other fighter too (player 2 drifted ${stayed} while pad 1 moved ${moved}; player 1 ${stayedA} while pad 2 moved ${movedB})`);
+      else t.event('pads-independent', `pad 1 moved player 1 ${Math.round(moved / 1000)} units, player 2 ${Math.round(stayed / 1000)}; pad 2 then moved player 2 ${Math.round(movedB / 1000)}, player 1 ${Math.round(stayedA / 1000)}`);
+      emulatePad(null, 0);
+      emulatePad(null, 1);
+      await quit();
+      t.progress(0.6);
+
+      // Solo again: the second slot back to a CPU; the keyboard and a pad together drive the one fighter.
+      await openVersus();
+      await this.click(() => this.q('#select-slots .slot:nth-child(2) .human-toggle'), 'second slot: back to a CPU');
+      await this.startVersus(3, true);
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      const solo = this.game.match()!;
+      if (solo.humans !== 1) t.problem('bug', `solo play has ${solo.humans} people`);
+      await t.wait(1500);
+      const s0 = x(solo.player);
+      emulatePad(pad(true), 0);
+      pressAction('attack', true);
+      await t.wait(120);
+      const attacked = fighters()[solo.player]?.action === ACT.ATTACK;
+      await t.wait(900);
+      pressAction('attack', false);
+      emulatePad(null, 0);
+      if (Math.abs(x(solo.player) - s0) < 300) t.problem('bug', 'solo: the pad did not move the player');
+      else if (!attacked) t.problem('bug', 'solo: the keyboard did not attack while the pad moved');
+      else t.event('solo-merged', 'solo Versus: pad stick moved the fighter while the keyboard attacked, both at once');
+      await quit();
+      t.finish('done');
+    } finally {
+      emulatePad(null, 0);
+      emulatePad(null, 1);
+      forceTouchUi(false);
+    }
   }
 
   async shieldToggleRun(): Promise<void> {

@@ -273,6 +273,31 @@ export function inputDevice(): InputDevice {
   return 'keyboard';
 }
 
+/**
+ * Local versus with two or more people: each device is its own player. Controllers fill the player slots in order
+ * (pad 1 = player 1 and so on, the keyboard staying with player 1); with fewer pads than people the keyboard is player 1
+ * and the pads take the next slots. Extra pads beyond the people go to player 1, as in single play. Clears when `humans` < 2.
+ */
+export function assignDevices(humans: number): void {
+  padOwner.clear();
+  if (humans < 2) return;
+  const list = pads();
+  const padsLead = list.length >= humans;
+  list.forEach((p, j) => {
+    const slot = padsLead ? j : j + 1;
+    if (slot > 0 && slot < humans) padOwner.set(p.index, slot);
+  });
+}
+
+/** Every person's input this frame in slot order: [0] is `readLocal()` (keyboard, its pad, touch), the rest are their own pads. */
+export function readHumans(humans: number): number[] {
+  assignDevices(humans);
+  const first = readLocal();
+  const out = [first];
+  for (let k = 1; k < humans; k++) out.push(readPadSlot(k) ?? packInput(0, 0, 0));
+  return out;
+}
+
 /** The local player's input this frame: the keyboard, every gamepad and any virtual pad, merged. */
 export function readLocal(): number {
   let [sx, sy, b] = keyboardInput();

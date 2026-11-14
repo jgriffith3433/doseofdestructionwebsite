@@ -279,6 +279,16 @@
       ]
     },
     {
+      "id": "local-versus",
+      "title": "Two people on one couch: in Versus each controller (pad 1, pad 2) moves its own fighter; solo still takes keyboard and pad together; a phone is still You vs CPU",
+      "description": "Desktop: Versus select, the second slot switched to Person (Player 1 and Player 2), two emulated pads: pad 1 moves only player 1, pad 2 only player 2 (pads-independent); then solo again, a pad stick moves the fighter while the keyboard attacks (solo-merged). Phone 390x844 touch (turned to 844x390): no Person switch, Versus reads You vs CPU, the touch stick moves the player (phone-you-vs-cpu, phone-touch-moves). Events two-people. test/localVersus.test.ts covers the sim side.",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "shield-toggle",
       "title": "Shield Hold / Toggle: Settings > Shield; with Toggle one press keeps the shield up with no button held, a second press, a roll or a jump drops it, and on a phone the Shield button shows it is latched",
       "description": "Settings from the main menu shows the Shield switch (Hold by default, 44 px, on screen); one tap turns it to Toggle and it is saved (shield-saved, dod.shield). In a versus match one press of Shield (the L key, or the touch Shield button) raises the shield and 1.4 s later it is still up with nothing held (shield-latched); on touch the Shield button carries the latched look and aria-pressed (shield-button-latched); a second press drops it (shield-dropped-press); a press then a roll (stick sideways) rolls and drops it (shield-dropped-roll); a press then a jump drops it (shield-dropped-jump). On a 390x844 phone the portrait Settings is checked, then the run plays in the turned 844x390 frame by taps and a stick drag. Puts dod.shield back.",

@@ -23,7 +23,7 @@ import { openRebind, backRebind, wireRebind, onRebind } from './ui/rebind.ts';
 import { onBindings } from './input/bindings.ts';
 import { onShieldMode, setShieldActive, setShieldMode, shieldMode, releaseShieldLatch } from './input/shieldMode.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
-import { keyboardHelp, gamepadHelp, padFamily, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
+import { keyboardHelp, gamepadHelp, padFamily, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, readHumans, assignDevices, tauntPressed } from './input/devices.ts';
 import { damageColor, damageShake, hitGain, hitTier } from './hitFeel.ts';
 import { clearMarkers, markerLog, markerRects, safeInsets, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
 import { clearTags, tagLog, tagRects, tagText, updateTags, type TagIn } from './ui/tags.ts';
@@ -1691,6 +1691,14 @@ let crowdStocksBefore: number[] = [];
 let startToken = 0;
 
 function tick(m: Match): void {
+  // Two or more people on this machine: each device (keyboard, pad 1-4) drives its own fighter. Solo play is unchanged.
+  const humans = m.setup.mode === 'versus' && !m.setup.online ? m.humans : 1;
+  if (humans >= 2) {
+    const [first, ...rest] = readHumans(humans);
+    afterTick(m, m.tick(first, rest));
+    return;
+  }
+  assignDevices(1);
   afterTick(m, m.tick(readLocal()));
 }
 

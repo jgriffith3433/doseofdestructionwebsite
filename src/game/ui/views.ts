@@ -166,7 +166,7 @@ export function playVersus(setup: MatchSetup): Promise<void> {
               h(
                 'figcaption',
                 { class: 'vs-card' },
-                h('span', s.cpu ? { class: 'vs-level', 'data-level': String(s.cpu), 'data-auto': s.auto ? '1' : '0' } : {}, setup.online ? setup.online.names[slot] : s.cpu === null ? 'You' : s.cpu === 0 ? 'Dummy' : `CPU · Level ${s.cpu}${s.auto ? ' · Auto' : ''}`),
+                h('span', s.cpu ? { class: 'vs-level', 'data-level': String(s.cpu), 'data-auto': s.auto ? '1' : '0' } : {}, setup.online ? setup.online.names[slot] : s.cpu === null ? (setup.slots.filter((o) => o.cpu === null).length > 1 ? `Player ${slot + 1}` : 'You') : s.cpu === 0 ? 'Dummy' : `CPU · Level ${s.cpu}${s.auto ? ' · Auto' : ''}`),
                 h('strong', {}, c.name),
                 lookChip(s.char, s.look ?? 0),
                 s.cpu === null && setup.mode === 'versus' && !setup.online && pickedTitle() ? h('small', { class: 'vs-reward-title', 'data-title': pickedTitle()!.id }, pickedTitle()!.name) : null,

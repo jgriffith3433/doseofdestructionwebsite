@@ -62,6 +62,9 @@ export function statBars(c: CharacterDef): HTMLElement {
   );
 }
 
+/** Phones play with the on-screen controls only: no second person on one screen. */
+const touchUi = (): boolean => document.body.classList.contains('touch-ui');
+
 interface Options {
   mode: 'versus' | 'training';
   config: VersusConfig;
@@ -298,7 +301,7 @@ export function openSelect({ mode, config, onDone }: Options): void {
         const color = cfg.teams ? TEAM_COLORS[s.team ?? 0] : PLAYER_COLORS[i];
         const isCpu = s.cpu !== null;
         const auto = isCpu && !training && s.auto !== false;
-        const label = !isCpu ? 'You' : s.cpu === 0 ? 'Dummy' : auto ? `CPU · Auto · Level ${autoLevel}` : `CPU · Level ${s.cpu}`;
+        const label = !isCpu ? (i === 0 && cfg.slots.every((o, k) => k === 0 || o.cpu !== null) ? 'You' : `Player ${i + 1}`) : s.cpu === 0 ? 'Dummy' : auto ? `CPU · Auto · Level ${autoLevel}` : `CPU · Level ${s.cpu}`;
         return h(
           'div',
           { class: `slot${i === active ? ' active' : ''}`, style: `--slot:${color}` },
@@ -337,13 +340,21 @@ export function openSelect({ mode, config, onDone }: Options): void {
             h(
               'div',
               { class: 'slot-tools' },
+              !training && !touchUi() && i > 0 && h('button', { type: 'button', class: 'human-toggle', title: 'A second person plays this fighter on their own controller', onclick: () => { s.cpu = null; s.auto = undefined; s.look = preferredLook(s.char); fixLooks(); renderSlots(); } }, 'Person'),
               !training && h('button', { type: 'button', class: 'auto-level', 'aria-pressed': String(auto), title: 'Auto: the level follows how you do', onclick: () => { s.auto = !auto; if (s.auto === false) s.cpu = autoLevel; renderSlots(); } }, 'Auto'),
               h('button', { type: 'button', 'aria-label': 'Lower level', onclick: () => level(i, -1) }, '−'),
               h('button', { type: 'button', 'aria-label': 'Raise level', onclick: () => level(i, 1) }, '+'),
               cfg.teams && h('button', { type: 'button', onclick: () => toggleTeam(i) }, TEAM_NAMES[s.team ?? 0]),
               !training && cfg.slots.length > 2 && h('button', { type: 'button', 'aria-label': 'Remove', onclick: () => remove(i) }, '×'),
             ),
-          !isCpu && cfg.teams && h('div', { class: 'slot-tools' }, h('button', { type: 'button', onclick: () => toggleTeam(i) }, TEAM_NAMES[s.team ?? 0])),
+          !isCpu && (cfg.teams || i > 0) &&
+            h(
+              'div',
+              { class: 'slot-tools' },
+              i > 0 && h('button', { type: 'button', class: 'human-toggle', 'aria-pressed': 'true', title: 'Back to a CPU', onclick: () => { s.cpu = autoLevel; s.auto = true; renderSlots(); } }, 'Person'),
+              cfg.teams && h('button', { type: 'button', onclick: () => toggleTeam(i) }, TEAM_NAMES[s.team ?? 0]),
+              !training && i > 0 && cfg.slots.length > 2 && h('button', { type: 'button', 'aria-label': 'Remove', onclick: () => remove(i) }, '×'),
+            ),
         );
       }),
       !training && cfg.slots.length < 4 && h('button', { type: 'button', class: 'slot add', onclick: addCpu }, '+ Add CPU'),

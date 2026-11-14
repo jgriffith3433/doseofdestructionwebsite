@@ -237,16 +237,29 @@ export class Match {
     this.knockLoop = 'live';
   }
 
-  /** Runs one frame with the local player's input. */
-  tick(local: number): SimEvent[] {
+  /** How many people play on this machine: every slot that is a person and not the other end of an online match. */
+  get humans(): number {
+    return this.setup.slots.filter((s) => s.cpu === null && !s.remote).length;
+  }
+
+  /**
+   * Runs one frame with the local player's input. In a local versus match with two or more people, `others` holds the
+   * input of each further person in slot order (the second person is others[0]); without it every person slot reads `local`.
+   */
+  tick(local: number, others?: readonly number[]): SimEvent[] {
     const s = this.state;
     if (this.knockLoop === 'armed') {
       const f = s.fighters[this.player];
       if (f && f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK)) this.stageKnockoff();
     }
+    let person = 0;
     const inputs = s.fighters.map((_, i) => {
       const slot = this.setup.slots[i];
-      if (slot.cpu === null) return local;
+      if (slot.cpu === null) {
+        if (slot.remote || !others) return local;
+        const k = person++;
+        return k === 0 ? local : others[k - 1] ?? NO_INPUT;
+      }
       if (slot.cpu === 0 && this.dummySwings) return this.swinger.think(s, i);
       if (slot.cpu === 0 && this.setup.mode === 'training') return this.dummyInput(i);
       return this.bots[i]?.think(s) ?? NO_INPUT;
