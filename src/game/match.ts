@@ -26,6 +26,8 @@ export interface SlotSetup {
   stocks?: number;
   /** Colour look (looks.ts), 0 is the original art. Cosmetic: the renderer reads it, the sim never does. */
   look?: number;
+  /** Quick play: this CPU's level is the profile's Auto level (ai/autoLevel.ts), set when the match was made. */
+  auto?: boolean;
   /** The pilot's gentle Kaelen (ai/bot.ts pilotFight). */
   pilot?: boolean;
 }

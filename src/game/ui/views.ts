@@ -150,7 +150,7 @@ export function playVersus(setup: MatchSetup): Promise<void> {
               h(
                 'figcaption',
                 { class: 'vs-card' },
-                h('span', {}, setup.online ? setup.online.names[slot] : s.cpu === null ? 'You' : s.cpu === 0 ? 'Dummy' : `CPU ${s.cpu}`),
+                h('span', s.cpu ? { class: 'vs-level', 'data-level': String(s.cpu), 'data-auto': s.auto ? '1' : '0' } : {}, setup.online ? setup.online.names[slot] : s.cpu === null ? 'You' : s.cpu === 0 ? 'Dummy' : `CPU · Level ${s.cpu}${s.auto ? ' · Auto' : ''}`),
                 h('strong', {}, c.name),
                 lookChip(s.char, s.look ?? 0),
               ),
@@ -338,7 +338,7 @@ export interface ResultAction {
 }
 
 /** `online`: an online match's ending, which can come before the sim's (a forfeit, a lost link, a desync). */
-export function showResults(m: Match, actions: ResultAction[], online?: { headline: string; note?: string; winner?: number }, unlocked: string[] = []): void {
+export function showResults(m: Match, actions: ResultAction[], online?: { headline: string; note?: string; winner?: number }, unlocked: string[] = [], levelChange?: { from: number; to: number; text: string }): void {
   const s = m.state;
   const teams = m.setup.slots.some((x) => x.team !== undefined) && new Set(m.setup.slots.map((x) => x.team)).size > 1;
   const colors = s.fighters.map((f, i) => (teams && m.setup.mode !== 'campaign' ? TEAM_COLORS[f.team < 0 ? 0 : f.team] : PLAYER_COLORS[i]));
@@ -384,6 +384,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
         m.setup.objective === 'quota' && h('p', { class: 'results-objective' }, quotaLine(m, won)),
         m.setup.objective === 'streak' && h('p', { class: 'results-objective' }, streakLine(m, won)),
         online?.note && h('p', { class: 'results-note' }, online.note),
+        levelChange && h('p', { class: 'results-note level-note', 'data-from': String(levelChange.from), 'data-to': String(levelChange.to) }, levelChange.text),
       ),
     ),
     h(

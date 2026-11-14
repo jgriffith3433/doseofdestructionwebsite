@@ -26,7 +26,8 @@ import { damageColor, damageShake, hitTier } from './hitFeel.ts';
 import { clearMarkers, markerLog, markerRects, safeInsets, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
 import { clearTags, tagLog, tagRects, tagText, updateTags, type TagIn } from './ui/tags.ts';
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
-import { Match, type MatchSetup } from './match.ts';
+import { Match, type MatchSetup, type SlotSetup } from './match.ts';
+import { applyResult as applyAutoResult, levelNote, loadAutoLevel } from './ai/autoLevel.ts';
 import type { SimEvent } from './sim/step.ts';
 import { ruleLabel, takeoverLines } from './campaign/takeover.ts';
 import { LESSON_TITLE, campaignBlurb, doneLessons, markLessonDone, nextLesson, type LessonId } from './campaign/lessons.ts';
@@ -347,6 +348,45 @@ setInterval(() => {
 
 let lastSelect: 'versus' | 'training' = 'versus';
 
+/**
+ * The slots for a quick-play match. In versus, each CPU on Auto (the default; a manual level turns it off) plays at the
+ * profile's Auto level (ai/autoLevel.ts), which a finished match moves. Training never uses it.
+ */
+function quickSlots(cfg: VersusConfig, mode: 'versus' | 'training'): SlotSetup[] {
+  const level = loadAutoLevel();
+  return cfg.slots.map((s) => {
+    const base = { ...s, team: cfg.teams ? (s.team ?? 0) : undefined };
+    if (mode !== 'versus' || s.cpu === null || s.cpu === 0 || s.auto === false) return { ...base, auto: undefined };
+    return { ...base, cpu: level, auto: true };
+  });
+}
+
+/** After a finished versus match with an Auto CPU: moves the saved level and returns the note for the Results, if it changed. */
+function autoLevelAfter(m: Match): { from: number; to: number; text: string } | null {
+  const setup = m.setup;
+  if (setup.mode !== 'versus' || m.state.winner < 0 || !setup.slots.some((s) => s.auto)) return null;
+  const me = m.state.fighters[m.player];
+  const foes = m.state.fighters.filter((f) => setup.slots[f.id]?.cpu && setup.slots[f.id].cpu! > 0);
+  if (!me || !foes.length) return null;
+  const stocks = setup.stocks;
+  const change = applyAutoResult({
+    won: m.playerWon(),
+    stocks,
+    stocksLeft: me.stocks,
+    foeStocksLost: foes.reduce((n, f) => n + Math.max(0, stocks - f.stocks), 0),
+    dealt: m.stats[me.id].dealt,
+  });
+  window.dispatchEvent(new CustomEvent('dod:auto-level', { detail: { won: m.playerWon(), stocksLeft: me.stocks, from: change?.from ?? loadAutoLevel(), to: change?.to ?? loadAutoLevel(), changed: !!change } }));
+  return change ? { ...change, text: levelNote(change.from, change.to) } : null;
+}
+
+/** A rematch plays at the level the last match left (Auto CPUs only). */
+function rematchSetup(setup: MatchSetup): MatchSetup {
+  if (!setup.slots.some((s) => s.auto)) return setup;
+  const level = loadAutoLevel();
+  return { ...setup, slots: setup.slots.map((s) => (s.auto ? { ...s, cpu: level } : s)) };
+}
+
 function openVersus(): void {
   lastSelect = 'versus';
   chapter = null;
@@ -401,7 +441,7 @@ function prepStageSelect(stage: number, immediate = false): void {
       stage,
       stocks: cfg.stocks,
       rules: { timeLimit: cfg.time * 60 * 60 },
-      slots: cfg.slots.map((s) => ({ ...s, team: cfg.teams ? (s.team ?? 0) : undefined })),
+      slots: quickSlots(cfg, lastSelect),
     };
     // keepStage: don't rebuild the arena we just set; clipWait 0: sheets finish later via warmTick.
     renderer.setLooks(setup.slots.map((s) => s.look ?? 0));
@@ -430,7 +470,7 @@ function pickStage(stage: number, entry: ModeStage, random = false): void {
     stocks: cfg.stocks,
     // The mode's version of the stage can change its rules (a calm version with hazards off).
     rules: { ...entry.rules, timeLimit: cfg.time * 60 * 60 },
-    slots: cfg.slots.map((s) => ({ ...s, team: cfg.teams ? (s.team ?? 0) : undefined })),
+    slots: quickSlots(cfg, lastSelect),
   };
   // Build (or no-op reuse) on the stages screen; startMatch drains the lock before the VS wipe.
   renderer.setLooks(setup.slots.map((s) => s.look ?? 0));
@@ -1971,6 +2011,7 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   phase = 'idle';
   // Training has no winner; a campaign loss or a CPU's win credits nobody.
   const newLooks = m.setup.mode === 'training' ? [] : creditWins(m, winningSlots(m));
+  const levelChange = autoLevelAfter(m);
   analytics.matchEnd(m, won ? 'complete' : 'death');
   const actions: ResultAction[] = [];
   if (m.setup.teach === 'pilot' && c) {
@@ -1993,7 +2034,7 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
     else actions.push({ label: 'Retry', primary: true, run: () => startMatch(m.setup, false) });
     actions.push({ label: 'Campaign map', run: () => openCampaignScreen() });
   } else {
-    actions.push({ label: 'Rematch', primary: true, run: () => startMatch(m.setup, false) });
+    actions.push({ label: 'Rematch', primary: true, run: () => startMatch(rematchSetup(m.setup), false) });
     actions.push({ label: 'Change fighters', run: () => openVersus() });
     actions.push({ label: 'Main menu', run: () => go('main', spotlight) });
   }
@@ -2004,7 +2045,7 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
     if (tourRun?.setup === m.setup && !won) {
       showResults(m, actions, undefined, newLooks);
       renderTourChoice({ tour: tourRun.tour, index: tourRun.index, fight: tourRun.tour.fights[tourRun.index], continues: tourRun.continues, onContinue: () => tourContinue(), onQuit: () => { analytics.tour('quit', { fighter: tourRun!.tour.fighter, fight: tourRun!.index + 1 }); void openTourScreen(); } });
-    } else showResults(m, actions, undefined, newLooks);
+    } else showResults(m, actions, undefined, newLooks, levelChange ?? undefined);
     if (tourRun?.setup === m.setup && won) $('results-body').prepend(tourBanner(tourRun.tour, tourRun.continues));
     if (dailyRun?.setup === m.setup && m.setup.mode === 'campaign') dailyFinished(m, dailyRun.ep, won);
     startResultsMusic();
