@@ -41,6 +41,9 @@ export interface Spatial {
 export const TARGET_LUFS = -16;
 /** The sample ceiling after the limiter: 0.85 = -1.4 dBFS, so the true peak stays under -1 dBTP. */
 const CEILING = 0.85;
+/** Decoded PCM ceiling (bytes). A phone's tab dies sooner than a desktop's, so its budget is lower. */
+const CACHE_BUDGET_BYTES = (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches ? 48 : 96) * 1048576;
+const decodedSize = (b: AudioBuffer): number => b.length * b.numberOfChannels * 4;
 /** Sounds that are menu feedback: never panned, never sent to the room. */
 const UI_SOUNDS: ReadonlySet<string> = new Set(['ui-move', 'ui-select', 'ui-back', 'wipe', 'vs-slam']);
 
@@ -182,7 +185,13 @@ class AudioSystem {
   private lufs = TARGET_LUFS;
   private levelTimer: ReturnType<typeof setInterval> | null = null;
   private buffers = new Map<string, Promise<AudioBuffer | null>>();
+  /** Decoded audio, in least-recently-used order (a Map keeps insertion order; `touchDecoded` moves a hit to the end). */
   private decoded = new Map<string, AudioBuffer>();
+  private decodedBytes = 0;
+  /** Files that must stay decoded: the match's own sounds and lines, and the music playing or wanted. */
+  private pinned = new Set<string>();
+  private evictions = 0;
+  private peakDecodedBytes = 0;
   /** Downloaded but not yet decoded (decoding needs the AudioContext, which waits for a click). */
   private raw = new Map<string, Promise<ArrayBuffer | null>>();
   private soundById = new Map(SOUNDS.map((s) => [s.id, s]));
@@ -575,22 +584,67 @@ class AudioSystem {
     return p;
   }
 
+  private touchDecoded(url: string, b: AudioBuffer): void {
+    this.decoded.delete(url);
+    this.decoded.set(url, b);
+  }
+
   private buffer(url: string): Promise<AudioBuffer | null> {
     const ready = this.decoded.get(url);
-    if (ready) return Promise.resolve(ready);
+    if (ready) {
+      this.touchDecoded(url, ready);
+      return Promise.resolve(ready);
+    }
     let p = this.buffers.get(url);
     if (!p) {
       if (!this.ctx) return this.download(url).then(() => null);
-      // decodeAudioData takes the bytes over, so decode a copy and keep the download.
-      const q = this.download(url).then((data) => (data && this.ctx ? this.ctx.decodeAudioData(data.slice(0)) : null)).catch(() => null);
+      // decodeAudioData takes the bytes over (detaches them), so the raw download is dropped once decoded.
+      const q = this.download(url).then((data) => (data && this.ctx ? this.ctx.decodeAudioData(data) : null)).catch(() => null);
       p = q.then((b) => {
-        if (b) this.decoded.set(url, b);
-        else if (this.buffers.get(url) === q) this.buffers.delete(url);
+        this.raw.delete(url);
+        if (b) {
+          this.decoded.set(url, b);
+          this.decodedBytes += decodedSize(b);
+          this.peakDecodedBytes = Math.max(this.peakDecodedBytes, this.decodedBytes);
+          this.evictToBudget(url);
+        } else if (this.buffers.get(url) === q) this.buffers.delete(url);
         return b;
       });
       this.buffers.set(url, p);
     }
     return p;
+  }
+
+  /** Drops the least recently used decoded files that aren't pinned (or `keep`) until the cache fits its ceiling. */
+  private evictToBudget(keep?: string): void {
+    if (this.decodedBytes <= CACHE_BUDGET_BYTES) return;
+    for (const [url, b] of this.decoded) {
+      if (this.decodedBytes <= CACHE_BUDGET_BYTES) break;
+      if (url === keep || this.pinned.has(url)) continue;
+      this.decoded.delete(url);
+      this.buffers.delete(url);
+      this.decodedBytes -= decodedSize(b);
+      this.evictions++;
+    }
+  }
+
+  /** Playtest hook: what the decoded-audio cache holds, its ceiling, and what has been let go. */
+  cacheStats(): { decodedBytes: number; decodedMB: number; peakMB: number; budgetMB: number; entries: number; pinned: number; evictions: number; rawMB: number } {
+    return {
+      decodedBytes: this.decodedBytes,
+      decodedMB: +(this.decodedBytes / 1048576).toFixed(1),
+      peakMB: +(this.peakDecodedBytes / 1048576).toFixed(1),
+      budgetMB: +(CACHE_BUDGET_BYTES / 1048576).toFixed(1),
+      entries: this.decoded.size,
+      pinned: this.pinned.size,
+      evictions: this.evictions,
+      rawMB: 0,
+    };
+  }
+
+  /** Whether this url is decoded right now (a return to a stage reads true while it is still held). */
+  isDecoded(url: string): boolean {
+    return this.decoded.has(url);
   }
 
   /**
@@ -614,6 +668,13 @@ class AudioSystem {
     for (const l of this.lineById.values()) {
       if (l.audio && who.has(l.who)) urls.push(l.audio);
     }
+    // This match's files are the ones to keep; everything older (other stages' music above all) may go.
+    this.pinned = new Set(urls);
+    for (const id of ['music-menu', 'music-results']) {
+      const f = this.soundById.get(id)?.file;
+      if (f) this.pinned.add(f);
+    }
+    this.evictToBudget();
     const all = Promise.all([...new Set(urls)].map((u) => (this.ctx ? this.buffer(u) : this.download(u))));
     await Promise.race([all, new Promise((r) => setTimeout(r, timeoutMs))]);
   }
