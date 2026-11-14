@@ -26,6 +26,18 @@ lobby (and its own leaderboard). Network errors go to
 runs two players over a Hawkes Net started in the process from the Gen checkout (direct link; `NO_LINK=1` for the
 relay), signed results included. After a change to Gen's `clients/js/hawkes-net*.mjs`, recopy them here.
 
+## Auto quality
+
+The renderer governs its own frame time (`render/autoQuality.ts` pure state, wired in `render/renderer.ts` `autoTick`, no
+separate watchdog). Over the first 12 s of a match's play it takes the median frame time of 0.8 s windows of calm frames
+(never hit-stop or punch frames); over 23.5 ms it steps down: 1 render scale 0.75, 2 glow off, 3 post on its Low path +
+parallax/haze layers hidden (`Placed.culled`), 4 scale 0.5 (levels that change nothing on this device are skipped; very slow
+takes two steps). Steps up happen only at the next match start, one level, only with 56+ fps headroom, and never again after
+one failed. The first step down shows one toast ever (`dod.gfx.auto-toast`); the level is kept in `dod.gfx.auto`. Quality or Glow
+pressed by hand in Settings (`setGraphics(..., true)` -> `dod.gfx.hand`, or an old saved choice that differs from the device
+default) switches it off for good. Scenario `auto-quality` (simulated slow device via `autoSetup({slowMs})`; every other
+scenario turns auto quality off); metrics `autoLevel`, `autoSettleMs`, `autoFpsBefore/After`; `dod:auto-quality` event; unit test `test/autoQuality.test.ts`.
+
 ## Library (Hawkes Gen)
 
 Dev Tools → **Library** shows every fighter in Hawkes Gen's library (`hawkesgen/docs/library.md`), the same one

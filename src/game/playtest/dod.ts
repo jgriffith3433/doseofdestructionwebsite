@@ -46,7 +46,7 @@ import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { VoiceWatch } from './voiceWatch.ts';
 import { walkMenus, type Mode } from './menuWalk.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
-import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
+import { GFX_KEY, HAND_KEY, AUTO_KEY, AUTO_TOAST_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, inWindupTell, isSmashMove, isSpecialMove, moveStartFrame, tellFrames, windupPose, type HitTier } from '../hitFeel.ts';
 import { clipFrame, feetLift, loadAnimSet, pickClip, type AnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
@@ -102,6 +102,9 @@ export interface GameHooks {
   probeHit?(pan: number): void;
   /** The match intro (campaign/intro.ts): its clock, the camera's distance, the fastest camera move (units per second) and the beats fired. */
   introStats?(): { active: boolean; ms: number; camDist: number; camX: number; maxSpeed: number; beats: number; kinds: string[] };
+  /** Automatic quality (render/autoQuality.ts): its level, changes, the one toast and where it sits; autoSetup switches it and a simulated slow device. */
+  autoStats?(): { enabled: boolean; hand: boolean; level: number; changes: { from: number; to: number; medianMs: number; atMs: number; dir: string }[]; settled: boolean; settledAtMs: number; fps: number; toasts: number; toastRect: { x: number; y: number; w: number; h: number } | null; slowMs: number };
+  autoSetup?(o: { enabled?: boolean; slowMs?: number; reset?: boolean }): void;
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
   /** What the player saw of the stage: presented frames, with stage art still loading, and sampled near-black (reset clears). */
   stageSeen?(reset?: boolean): { frames: number; pending: number; black: number; darkest: number };
@@ -181,6 +184,8 @@ export function installDodPlaytest(game: GameHooks): void {
       run?.dispose();
       // Every other scenario clicks through the title and main menu: only first-visit meets the pilot.
       suppressFirstVisit(id !== 'first-visit');
+      // Automatic quality would change the picture under every other scenario's own checks; only its own scenario runs it.
+      game.autoSetup?.({ enabled: id === 'auto-quality', slowMs: 0 });
       const r = new Run(game, t, options, t.spot);
       r.judgeCamera = id === 'match' || id === 'hit-feel' || id === 'touch-match';
       run = r;
@@ -196,6 +201,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'opening') await r.openingScenario();
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'sudden-death') await r.suddenDeath();
+        else if (id === 'auto-quality') await r.autoQuality();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'finale-hijack') await r.finaleHijack();
@@ -3993,6 +3999,181 @@ class Run {
       this.manual = null;
       window.removeEventListener('dod:slam', onSlam);
       window.removeEventListener('dod:sudden-death', onSudden);
+      if (touch) forceTouchUi(false);
+    }
+  }
+
+  /**
+   * Auto quality (render/autoQuality.ts, in the renderer's own frame loop). A slow device is simulated (option `slowMs`, the ms a
+   * frame costs at full quality, default 60; `slow: false` plays the real device): match 1 must settle to a lower level within
+   * 5 s of play with the median fps at 45 or more afterwards (`auto-lowered`, `auto-settled`, `auto-fps`), show one quiet toast
+   * clear of every touch control (`auto-toast`, `auto-toast-clear`); match 2, slower still, lowers again with no second toast
+   * (`auto-no-repeat`); then Quality is pressed by hand in Settings and match 3 changes nothing (`auto-hand`). On a phone it is
+   * played in the turned 844x390 frame and the fighter is driven by the touch stick and Attack button only.
+   */
+  async autoQuality(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('auto-quality');
+    }
+    this.logViewport(touch && this.isPhone());
+    const slowMs = this.options.slow === false ? 0 : Number(this.options.slowMs) || 60;
+    const keys = [GFX_KEY, HAND_KEY, AUTO_KEY, AUTO_TOAST_KEY];
+    const saved = keys.map((k) => [k, localStorage.getItem(k)] as const);
+    const initial = graphics();
+    for (const k of keys) localStorage.removeItem(k);
+    setGraphics(touch || this.options.quality === 'low' ? { quality: 'low', glow: false } : { quality: 'high', glow: true });
+    // setGraphics saved dod.gfx as the device default; that is not a hand pick.
+    const stats = () => this.game.autoStats?.();
+    if (!stats()) {
+      t.problem('bug', 'the game has no autoStats hook');
+      return t.finish('done');
+    }
+    await this.toMainMenu();
+    if (touch) forceTouchUi(true);
+    const pointer = (el: Element, type: string, x: number, y: number) =>
+      el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: 91, isPrimary: true, bubbles: true, cancelable: true, clientX: x, clientY: y, buttons: type === 'pointerup' ? 0 : 1 }));
+    const changes: { at: number; detail: { dir: string; from: number; to: number; level: number; atMs: number; scale: number } }[] = [];
+    const onChange = (e: Event) => changes.push({ at: performance.now(), detail: (e as CustomEvent).detail });
+    window.addEventListener('dod:auto-quality', onChange);
+    const id = (list: { id: string }[], want: string) => Math.max(0, list.findIndex((x) => x.id === want));
+    const median = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[xs.length >> 1] : 0);
+    /** Plays one match for `ms` of play; by the touch stick and Attack on a phone, else by the bot. Returns the fps samples with their time. */
+    const play = async (ms: number) => {
+      this.manual = touch ? NO_INPUT : null;
+      void this.game.startMatch({
+        mode: 'versus', stage: id(STAGES, 'yo-house'), stocks: 3, rules: { timeLimit: 10 * 60, hazards: 0 },
+        slots: [{ char: id(CHARACTERS, 'exit-punk'), cpu: null, team: 0, stocks: 3 }, { char: id(CHARACTERS, 'break'), cpu: 3, team: 1, stocks: 3 }],
+      });
+      await this.matchLive();
+      const m = this.game.match()!;
+      const t0 = performance.now();
+      const f0 = m.state.frame;
+      const samples: { at: number; fps: number }[] = [];
+      let beat = 0;
+      const root = touchOverlay();
+      const stick = root?.querySelector('.touch-stick') ?? null;
+      const atk = root?.querySelector('.touch-btn.attack') ?? null;
+      const sr = stick?.getBoundingClientRect();
+      const scx = sr ? sr.left + sr.width / 2 : 0;
+      const scy = sr ? sr.top + sr.height / 2 : 0;
+      if (touch && stick && sr) pointer(stick, 'pointerdown', scx, scy);
+      try {
+        await t.until(() => {
+          const g = this.game.gfxStats?.();
+          if (g && g.fpsNow > 0) samples.push({ at: performance.now() - t0, fps: g.fpsNow });
+          if (touch && stick && sr && atk) {
+            beat++;
+            // The stick swings left and right every 1.2 s and Attack is tapped every 0.5 s: real pointer events, no pad.
+            const dir = Math.floor(beat / 24) % 2 ? -1 : 1;
+            pointer(stick, 'pointermove', scx + dir * sr.width * 0.38, scy);
+            if (beat % 10 === 0) {
+              const br = atk.getBoundingClientRect();
+              pointer(atk, 'pointerdown', br.left + br.width / 2, br.top + br.height / 2);
+              window.setTimeout(() => pointer(atk, 'pointerup', br.left + br.width / 2, br.top + br.height / 2), 120);
+            }
+          }
+          return m.state.over === 1 || performance.now() - t0 >= ms;
+        }, ms + 20000, 'the measured play');
+      } finally {
+        if (touch && stick && sr) pointer(stick, 'pointerup', scx, scy);
+      }
+      return { samples, play: ((m.state.frame - f0) / 60) * 1000 };
+    };
+    const leave = async () => {
+      this.manual = null;
+      if (currentScreen() === 'match') await this.quitFromPause('main').catch(() => undefined);
+    };
+    try {
+      // 1. The slow device settles lower, quickly, and says so once.
+      this.game.autoSetup?.({ enabled: true, reset: true, slowMs });
+      t.event('auto-setup', slowMs ? `a simulated slow device: ${slowMs} ms a frame at full quality` : 'the real device, no simulation');
+      const g0 = this.game.gfxStats?.();
+      t.event('auto-start', `level 0, render scale ${g0?.scale}, glow ${g0?.glowOn}, quality ${g0?.quality}`);
+      const a = await play(16000);
+      const s1 = stats()!;
+      const downs = changes.filter((c) => c.detail.dir === 'down');
+      const g1 = this.game.gfxStats?.();
+      t.metric('autoLevel', s1.level);
+      if (!downs.length) {
+        if (slowMs) t.problem('bug', `the slow device (${slowMs} ms a frame) never stepped quality down (median ${s1.fps} fps)`);
+        else t.event('auto-lowered', `no step needed: the device holds ${s1.fps} fps at level 0`);
+      } else {
+        const last = downs[downs.length - 1].detail;
+        t.metric('autoSettleMs', Math.round(s1.settledAtMs > 0 ? s1.settledAtMs : last.atMs));
+        t.event('auto-lowered', `${downs.length} step(s) down to level ${s1.level} (${downs.map((d) => `${d.detail.from}→${d.detail.to} at ${(d.detail.atMs / 1000).toFixed(1)} s`).join(', ')}); render scale ${g0?.scale} → ${g1?.scale}, glow ${g0?.glowOn} → ${g1?.glowOn}`);
+        if (last.atMs > 5000) t.problem('bug', `quality was still stepping down ${(last.atMs / 1000).toFixed(1)} s into the match (want settled within 5 s)`);
+        else t.event('auto-settled', `last step at ${(last.atMs / 1000).toFixed(1)} s of play${s1.settled ? `, settled at ${(s1.settledAtMs / 1000).toFixed(1)} s` : ''}`);
+        const lastAt = a.samples.length ? a.samples[a.samples.length - 1].at : 0;
+        const before = median(a.samples.filter((x) => x.at < 1500).map((x) => x.fps));
+        const after = median(a.samples.filter((x) => x.at > Math.min(last.atMs + 1500, lastAt - 1500)).map((x) => x.fps));
+        t.metric('autoFpsBefore', Math.round(before));
+        t.metric('autoFpsAfter', Math.round(after));
+        t.metric('fpsMatch', Math.round(after));
+        t.event('auto-fps', `median ${Math.round(before)} fps at the start, ${Math.round(after)} fps after it settled`);
+        if (slowMs && after < 45) t.problem('bug', `median ${Math.round(after)} fps after auto quality settled (want 45 or more)`);
+      }
+      // The toast: one, short, quiet, and clear of every control.
+      if (downs.length) {
+        const toast = document.getElementById('auto-quality-toast');
+        const rect = s1.toastRect;
+        if (s1.toasts !== 1 || !rect) t.problem('bug', `expected one auto quality toast, saw ${s1.toasts}${rect ? '' : ' (none on screen)'}`);
+        else {
+          const text = toast?.textContent ?? '';
+          t.event('auto-toast', `"${text}" (${text.split(/\s+/).length} words) at ${Math.round(rect.x)},${Math.round(rect.y)} ${Math.round(rect.w)}x${Math.round(rect.h)} in ${innerWidth}x${innerHeight}`);
+          const inside = rect.x >= 0 && rect.y >= 0 && rect.x + rect.w <= innerWidth && rect.y + rect.h <= innerHeight;
+          const hits = [...document.querySelectorAll('.touch-btn, .touch-stick, .touch-pause, #pause-btn')]
+            .map((el) => el.getBoundingClientRect())
+            .filter((r) => r.width > 0 && r.height > 0 && r.left < rect.x + rect.w && r.right > rect.x && r.top < rect.y + rect.h && r.bottom > rect.y);
+          if (!inside || hits.length) t.problem('bug', `the auto quality toast ${inside ? `covers ${hits.length} control(s)` : 'is off screen'}`);
+          else t.event('auto-toast-clear', `inside the window and clear of every control${touch ? ' (touch stick, buttons, Pause)' : ''}`);
+        }
+      }
+      await leave();
+      await this.toMainMenu();
+
+      // 2. A slower second match lowers again and never shows the note twice.
+      this.game.autoSetup?.({ slowMs: slowMs * 2 });
+      const before2 = changes.length;
+      await play(9000);
+      const s2 = stats()!;
+      const moved = changes.length - before2;
+      t.event('auto-second-match', `${moved} change(s) in the second match, level ${s1.level} → ${s2.level}`);
+      if (s2.toasts !== 1 || document.querySelectorAll('#auto-quality-toast').length > 1) t.problem('bug', `the auto quality toast came again (${s2.toasts} shown)`);
+      else t.event('auto-no-repeat', `still ${s2.toasts} toast after ${changes.filter((c) => c.detail.dir === 'down').length} step(s) down`);
+      await leave();
+      await this.toMainMenu();
+
+      // 3. A quality picked by hand is never overridden.
+      this.game.autoSetup?.({ reset: true, slowMs });
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, 'Settings');
+      const was = this.game.gfxStats?.();
+      await this.tap(() => this.q('#quality-switch'), 'Quality');
+      await this.tap(() => this.q('#quality-switch'), 'Quality (back)');
+      await this.tap(() => this.q('#settings-done'), 'Done').catch(() => undefined);
+      if (settingsShowing()) await tapKey('Escape');
+      const h = stats()!;
+      if (!h.hand || h.enabled) t.problem('bug', `a hand-picked quality did not switch auto quality off (hand ${h.hand}, enabled ${h.enabled})`);
+      const before3 = changes.length;
+      await play(9000);
+      const s3 = stats()!;
+      const g3 = this.game.gfxStats?.();
+      if (changes.length !== before3 || s3.level !== 0 || (was && g3 && (g3.scale !== was.scale || g3.glowOn !== was.glowOn))) t.problem('bug', `auto quality changed a hand-picked quality (level ${s3.level}, scale ${was?.scale} → ${g3?.scale})`);
+      else t.event('auto-hand', `Quality set by hand in Settings: ${changes.length - before3} changes in a ${slowMs} ms-a-frame match, level ${s3.level}, render scale held at ${g3?.scale}`);
+      await leave();
+      t.finish('done');
+    } finally {
+      window.removeEventListener('dod:auto-quality', onChange);
+      this.manual = null;
+      this.game.autoSetup?.({ enabled: false, slowMs: 0, reset: true });
+      for (const [k, v] of saved) {
+        if (v === null) localStorage.removeItem(k);
+        else localStorage.setItem(k, v);
+      }
+      setGraphics(initial);
       if (touch) forceTouchUi(false);
     }
   }

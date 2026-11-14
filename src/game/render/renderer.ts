@@ -32,7 +32,9 @@ import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim
 import { ACT, SHIELD_MAX, bodySize, type Fighter, type GameState } from '../sim/state.ts';
 import { GRAB_FIRST, activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
 import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, coreFor, sparkSizeFor, tellAt, tellFrames, moveStartFrame, windupPose, isNormalMove, isSmashMove, isSpecialMove, type HitTier, type TrailKind } from '../hitFeel.ts';
-import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
+import { autoToastShown, graphics, markAutoToastShown, onGraphics, particleShare, pickedByHand, saveAutoLevel, savedAutoLevel, scalingLevel, type Graphics } from '../graphics.ts';
+import { AutoQuality, effectsFor, type AutoChange } from './autoQuality.ts';
+import type { Placed } from './stageLive.ts';
 import { cameraFighters, followCamera, frameGoal, KO_TAIL_S, punchGoal, type CamBounds, type CamSample, type CamState } from './cameraRig.ts';
 import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms, layersFor } from './stageArt.ts';
@@ -332,13 +334,131 @@ export class Renderer {
   }
 
   private gfx: Graphics = graphics();
+
+  // ---- Auto quality: the frame-time governor (render/autoQuality.ts) lives here, in the render loop ----
+  private auto = new AutoQuality(savedAutoLevel());
+  /** Scenarios that need a fixed picture switch the governor off; it is on for every player. */
+  private autoAllowed = true;
+  private autoLastFrame = -1;
+  private autoToastEl: HTMLElement | null = null;
+  private autoToasts = 0;
+  /** Playtest only: a simulated slow device (ms a frame costs at full quality; 0 = off). */
+  private slowFullMs = 0;
+  private placedLayers: Placed[] = [];
+
+  /** The level's effects, or none while the governor is off or the player chose by hand. */
+  private autoFx() {
+    return effectsFor(this.auto.enabled ? this.auto.level : 0);
+  }
+
+  /** What the settings alone would render and draw: the base the governor steps down from. */
+  private autoBase(g: Graphics = this.gfx) {
+    return { scale: 1 / scalingLevel(g.quality, window.devicePixelRatio), glow: g.glow, quality: g.quality as string };
+  }
+
+  private effectiveScalingLevel(g: Graphics): number {
+    const base = scalingLevel(g.quality, window.devicePixelRatio);
+    return 1 / Math.min(1 / base, this.autoFx().scaleMax);
+  }
+
+  /** Parallax layers between the backdrop and the stage, and the haze sheets, are hidden from level 3 (the backdrop stays). */
+  private applyParallax(): void {
+    const hide = this.autoFx().hideParallax;
+    const zFar = Math.max(0, ...this.placedLayers.filter((p) => !p.haze).map((p) => p.layer.z));
+    for (const p of this.placedLayers) {
+      if (p.haze) {
+        p.mesh.setEnabled(!hide);
+        continue;
+      }
+      const l = p.layer;
+      p.culled = hide && l.z > 0 && l.z < zFar && !l.foreground && !(l.platforms?.length) && !l.follows && !l.showDuring && !l.hideDuring;
+    }
+  }
+
+  /** The governor's changes only land through here: render scale, glow, post, parallax, the note, the saved level. */
+  private onAutoChange(c: AutoChange): void {
+    this.applyGraphics(this.gfx);
+    saveAutoLevel(this.auto.level);
+    window.dispatchEvent(new CustomEvent('dod:auto-quality', { detail: { ...c, level: this.auto.level, scale: Number((1 / this.engine.getHardwareScalingLevel()).toFixed(3)) } }));
+    if (c.dir === 'down') this.autoToast();
+  }
+
+  /** The one quiet note, the first time quality is lowered (ever on this device): mid-screen, clear of every control. */
+  private autoToast(): void {
+    if (autoToastShown() || this.autoToastEl) return;
+    markAutoToastShown();
+    this.autoToasts++;
+    const el = document.createElement('div');
+    el.id = 'auto-quality-toast';
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    el.textContent = 'Graphics eased to keep the fight smooth.';
+    el.style.cssText = 'position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:55;max-width:min(60vw,420px);padding:8px 14px;border-radius:16px;font:600 13px/1.3 system-ui,sans-serif;text-align:center;color:#f4ead8;background:rgba(16,14,12,.72);pointer-events:none;opacity:0;transition:opacity 300ms';
+    document.body.appendChild(el);
+    this.autoToastEl = el;
+    requestAnimationFrame(() => (el.style.opacity = '1'));
+    window.setTimeout(() => (el.style.opacity = '0'), 3800);
+    window.setTimeout(() => el.remove(), 4300);
+  }
+
+  /** Playtest: whether the governor runs, and a simulated slow device. */
+  autoSetup(opts: { enabled?: boolean; slowMs?: number; reset?: boolean }): void {
+    if (opts.enabled !== undefined) this.autoAllowed = opts.enabled;
+    if (opts.slowMs !== undefined) this.slowFullMs = opts.slowMs;
+    if (opts.reset) {
+      this.auto = new AutoQuality(0);
+      saveAutoLevel(0);
+    }
+    this.applyGraphics(this.gfx);
+  }
+
+  autoStats() {
+    return {
+      enabled: this.auto.enabled,
+      hand: pickedByHand(),
+      level: this.auto.level,
+      changes: this.auto.changes.map((c) => ({ ...c })),
+      settled: this.auto.settled,
+      settledAtMs: Math.round(this.auto.settledAtMs),
+      fps: Math.round(this.auto.lastFps),
+      toasts: this.autoToasts,
+      toastRect: (() => {
+        const r = this.autoToastEl?.getBoundingClientRect();
+        return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null;
+      })(),
+      slowMs: this.slowFullMs,
+    };
+  }
+
+  /** A simulated device's frame cost: the full-quality ms scaled by what the current level still draws. */
+  private burnSlow(): void {
+    const g = this.gfx;
+    const base = 1 / scalingLevel(g.quality, window.devicePixelRatio);
+    const s = 1 / this.engine.getHardwareScalingLevel();
+    const parallax = this.autoFx().hideParallax ? 0 : 0.15;
+    const cost = 0.55 * (s / base) ** 2 + (this.glow.isEnabled ? 0.2 : 0) + (g.quality === 'high' && !this.autoFx().postLow ? 0.1 : 0) + parallax;
+    const until = performance.now() + this.slowFullMs * cost;
+    while (performance.now() < until) { /* a slow device is busy, not idle */ }
+  }
+
+  /** One rendered frame of play for the governor: only advancing sim frames, never the intro, never a hit-stop or punch frame. */
+  private autoTick(state: GameState): void {
+    const advancing = state.frame !== this.autoLastFrame;
+    this.autoLastFrame = state.frame;
+    if (!this.auto.enabled || !this.presenting || this.intro || !advancing) return;
+    const calm = !this.post.punching() && !state.fighters.some((f) => f.hitlag > 0);
+    const c = this.auto.frame(this.engine.getDeltaTime(), calm, this.autoBase());
+    if (c) this.onAutoChange(c);
+  }
+
   private fpsEl: HTMLElement | null = null;
 
   /** Quality, Glow and Show FPS, applied live: render scale, the glow layer, particle counts, the readout. */
   private applyGraphics(g: Graphics): void {
     const qualityChanged = g.quality !== this.gfx.quality;
     this.gfx = g;
-    this.engine.setHardwareScalingLevel(scalingLevel(g.quality, window.devicePixelRatio));
+    this.auto.enabled = this.autoAllowed && !pickedByHand();
+    this.engine.setHardwareScalingLevel(this.effectiveScalingLevel(g));
     if (qualityChanged && this.alive) this.showStage(this.stage);
     if (qualityChanged) this.engine.resize();
     // Low loads half-resolution clip sheets when present; drop cached textures so the next preload picks the right file.
@@ -349,8 +469,10 @@ export class Renderer {
       void this.preloadClips(0);
     }
     if (qualityChanged) this.flip.setQuality(g.quality);
-    this.glow.isEnabled = g.glow;
-    this.post.setQuality(g.quality);
+    const fx = this.autoFx();
+    this.glow.isEnabled = g.glow && !fx.glowOff;
+    this.post.setQuality(fx.postLow ? 'low' : g.quality);
+    this.applyParallax();
     this.applyLight();
     if (this.fpsEl) this.fpsEl.hidden = !g.fps;
   }
@@ -482,6 +604,8 @@ export class Renderer {
     this.fgMs = 0;
     this.occluders = built.occluders;
     this.live = new StageLive(this.scene, root, this.stage, built.placed, this.glow);
+    this.placedLayers = built.placed;
+    this.applyParallax();
     this.alive = new StageAlive(this.scene, root, this.stage, this.glow, this.gfx.quality, () => this.views.map((v) => v.body), this.camera);
     // Collision-only platforms whose art isn't painted yet still get a block, so the stage is playable.
     const drawn = drawnPlatforms(this.stage);
@@ -849,6 +973,12 @@ export class Renderer {
   private seenCanvas: HTMLCanvasElement | null = null;
 
   setPresenting(on: boolean): void {
+    // A match begins: measuring starts over, and a level that had headroom last match is tried one step higher (never mid-match).
+    if (on && !this.presenting) {
+      this.auto.enabled = this.autoAllowed && !pickedByHand();
+      const c = this.auto.beginMatch(this.autoBase());
+      if (c) this.onAutoChange(c);
+    }
     this.presenting = on;
   }
 
@@ -1611,7 +1741,9 @@ export class Renderer {
     this.drawDebug(state);
     this.updateCamera(state);
     this.updateForeground(state);
+    if (this.slowFullMs > 0 && this.presenting) this.burnSlow();
     this.scene.render();
+    this.autoTick(state);
     if (this.presenting) this.countSeen();
     this.post.endFrame();
     this.checkFraming(state);

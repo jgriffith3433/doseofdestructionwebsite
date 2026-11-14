@@ -53,6 +53,8 @@ export interface Placed {
   haze?: boolean;
   /** The picture failed to load: the layer stays hidden (the stage's lit sky shows instead of a 1x1 white square) and is not waited for. */
   failed?: boolean;
+  /** Automatic quality hid this parallax layer: it stays hidden. */
+  culled?: boolean;
 }
 
 interface Playing {
@@ -252,7 +254,7 @@ export class StageLive {
         y += (dy / FX) * W * pl.k;
       }
     }
-    if (pl.failed) visible = false;
+    if (pl.failed || pl.culled) visible = false;
     pl.mesh.setEnabled(visible);
     if (!visible) return;
 
