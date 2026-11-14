@@ -206,6 +206,8 @@ function wireMenus(): void {
     downSound = { el, at: performance.now() };
     audio.sfx('ui-select');
   });
+  // The Tap to play prompt is no menu button (no pressed state), but its press answers with the same click, on pointer down.
+  document.getElementById('tap-to-play')?.addEventListener('pointerdown', () => audio.sfx('ui-select'));
   document.addEventListener('click', (e) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('button, a');
     if (!el) return;
