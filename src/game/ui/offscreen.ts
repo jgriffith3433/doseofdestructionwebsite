@@ -85,6 +85,8 @@ export interface MarkerIn {
   /** The player colour and the portrait URL. */
   color: string;
   portrait: string;
+  /** The fighter's tag text (ui/tags.ts `tagText`). */
+  tag: string;
 }
 
 export interface MarkerShown { id: number; x: number; y: number; size: number; angle: number; danger: boolean; clear: boolean; rect: Rect }
@@ -108,7 +110,7 @@ const rectOf = (el: Element): Rect | null => {
 };
 
 /** The safe area in px: env(safe-area-inset-*) read through a probe element, plus a small margin. */
-function safeInsets(): Rect {
+export function safeInsets(): Rect {
   const probe = document.createElement('div');
   probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
   document.body.appendChild(probe);
@@ -154,7 +156,9 @@ export function updateMarkers(list: MarkerIn[]): void {
       img.alt = '';
       img.src = m.portrait;
       const arrow = document.createElement('i');
-      el.append(img, arrow);
+      const tag = document.createElement('span');
+      tag.className = 'fighter-tag edge-tag';
+      el.append(img, tag, arrow);
       layer.appendChild(el);
       els.set(m.id, el);
     }
@@ -162,6 +166,15 @@ export function updateMarkers(list: MarkerIn[]): void {
     el.style.width = el.style.height = `${size}px`;
     el.style.transform = `translate(${Math.round(p.x - size / 2)}px, ${Math.round(p.y - size / 2)}px)`;
     (el.lastElementChild as HTMLElement).style.transform = `rotate(${p.angle}rad) translateX(${size / 2 + 4}px)`;
+    // The same tag as on the stage, under the bubble and slid sideways so it stays inside the window.
+    const tag = el.querySelector<HTMLElement>('.edge-tag');
+    if (tag) {
+      if (tag.textContent !== m.tag) tag.textContent = m.tag;
+      const tw = tag.offsetWidth || 32;
+      const left = p.x - tw / 2;
+      const shift = Math.max(4, Math.min(w - 4 - tw, left)) - left;
+      tag.style.transform = `translateX(calc(-50% + ${Math.round(shift)}px))`;
+    }
     el.classList.toggle('danger', danger);
     el.hidden = false;
     seen.add(m.id);
@@ -193,12 +206,12 @@ export function clearMarkers(): void {
 }
 
 /** The bubbles on screen now, as rects, for the playtest. */
-export function markerRects(): { id: number; rect: Rect; danger: boolean }[] {
-  const out: { id: number; rect: Rect; danger: boolean }[] = [];
+export function markerRects(): { id: number; rect: Rect; danger: boolean; tag: string }[] {
+  const out: { id: number; rect: Rect; danger: boolean; tag: string }[] = [];
   for (const [id, el] of els) {
     if (el.hidden) continue;
     const r = rectOf(el);
-    if (r) out.push({ id, rect: r, danger: el.classList.contains('danger') });
+    if (r) out.push({ id, rect: r, danger: el.classList.contains('danger'), tag: el.querySelector('.edge-tag')?.textContent ?? '' });
   }
   return out;
 }

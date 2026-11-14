@@ -575,3 +575,6 @@ Every screen change is the show cutting between segments: three slanted panels (
 
 ### Story beat: first blood
 The booth reacts to play. First KO of a bout: the ON AIR bug flashes red under the timer (`.air-flash`, `main.ts` `airFlash`), a sting, and the announcer's first-blood call. Fits phones (top centre, no pointer events).
+
+## Name tags (on-stage identity)
+Every fighter wears the show's name tag: P1-P4 for people, CPU for bots, DUMMY in Training, the profile name online. It sits above the head in the player colour with a dark outline (ui/tags.ts), and rides the edge bubble when the fighter is knocked out of view, so a player knows which fighter is theirs without relying on colour.
