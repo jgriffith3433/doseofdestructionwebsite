@@ -1807,12 +1807,13 @@ function futureManTaunt(m: Match, events: ReturnType<Match['tick']>): void {
   for (const e of events) {
     const t = futureTaunts.react(e, me, m.state.frame);
     if (!t) continue;
-    void audio.line(t.id, 'taunt');
+    const take = audio.hasTake(t.id) ? t.id : null;
+    if (take) void audio.line(take, 'taunt');
     document.querySelector('.booth-taunt')?.remove();
     document.body.appendChild(h('div', { class: 'booth booth-taunt', 'data-line': t.id, 'data-kind': t.kind }, h('span', { class: 'booth-who' }, 'Future Man'), h('span', { class: 'booth-text' }, t.text)));
     window.clearTimeout(futureTauntTimer);
     futureTauntTimer = window.setTimeout(() => document.querySelector('.booth-taunt')?.remove(), 2600);
-    window.dispatchEvent(new CustomEvent('dod:future-taunt', { detail: { id: t.id, kind: t.kind, text: t.text, frame: m.state.frame } }));
+    window.dispatchEvent(new CustomEvent('dod:future-taunt', { detail: { id: t.id, take, kind: t.kind, text: t.text, frame: m.state.frame } }));
     return;
   }
 }

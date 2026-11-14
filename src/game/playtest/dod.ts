@@ -8568,8 +8568,8 @@ class Run {
       {
         const fm = CHARACTERS.findIndex((c) => c.id === 'future-man');
         const foe = fm >= 0 ? fm : (punk + 1) % CHARACTERS.length;
-        const taunts: { id: string; kind: string; text: string }[] = [];
-        const onTaunt = (ev: Event) => taunts.push((ev as CustomEvent<{ id: string; kind: string; text: string }>).detail);
+        const taunts: { id: string; take: string | null; kind: string; text: string }[] = [];
+        const onTaunt = (ev: Event) => taunts.push((ev as CustomEvent<{ id: string; take: string | null; kind: string; text: string }>).detail);
         window.addEventListener('dod:future-taunt', onTaunt);
         let dealt = 0;
         let taken = 0;
@@ -8600,7 +8600,8 @@ class Run {
         stopOpen();
         await this.fight(() => taunts.length > 0 || frame0(this.game) - start > 2400, 30000);
         window.removeEventListener('dod:future-taunt', onTaunt);
-        if (taunts.length > 0) t.event('future-taunt', `${how}: Future Man answered the fight (${taunts.map((x) => `${x.kind}: "${x.text}"`).join('; ')}), a line of 10 words or fewer, shown as one caption`);
+        if (taunts.length > 0) t.event('future-taunt', `${how}: Future Man answered the fight (${taunts.map((x) => `${x.kind}: "${x.text}" take ${x.take}`).join('; ')}), a line of 10 words or fewer, shown as one caption with its recorded take`);
+        if (taunts.some((x) => !x.take)) t.problem('bug', `${how}: a Future Man taunt played with no recorded take (${taunts.filter((x) => !x.take).map((x) => x.id).join(', ')})`);
         else t.problem('bug', `${how}: Future Man said nothing during the opening fight (no taunt on a hit)`);
         t.metric('futureTaunts', taunts.length);
         t.metric('openingHitsDealt', dealt);
