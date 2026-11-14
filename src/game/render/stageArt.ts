@@ -89,7 +89,10 @@ export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, 
     let entry: Placed | null = null;
     // A picture that fails to load must not leave a 1x1 white plane (and a stage that is waited for forever):
     // the layer is hidden and counted as done, and the stage's lit sky shows through.
-    const tex = new Texture(`/${l.image}`, scene, false, true, Texture.TRILINEAR_SAMPLINGMODE, () => {
+    // A layer a platform sits on has hard painted edges: mipmaps and trilinear blend the colour hidden under the
+    // transparent pixels into them (green and red fringes), so those layers sample bilinear from the full-size picture.
+    const crisp = (l.platforms?.length ?? 0) > 0;
+    const tex = new Texture(`/${l.image}`, scene, crisp, true, crisp ? Texture.BILINEAR_SAMPLINGMODE : Texture.TRILINEAR_SAMPLINGMODE, () => {
       const s = tex.getSize();
       size.w = at.width;
       size.h = (at.width * s.height) / Math.max(1, s.width);
