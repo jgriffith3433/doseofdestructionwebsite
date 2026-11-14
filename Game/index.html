@@ -455,7 +455,7 @@
   <div id="wipe" class="wipe" aria-hidden="true"><i></i><i class="stinger-slots"><u></u><u></u><u></u><u></u></i><i class="stinger-logo"><b>Dose of <span>Destruction</span></b></i><em class="stinger-streak"></em></div>
 
   <!-- Studio standard: one tap before the game starts turns sound on (iOS needs a gesture). -->
-  <div id="tap-to-play" class="tap-to-play" role="button" tabindex="0" aria-label="Play as guest: tap to play">
+  <div id="tap-to-play" class="tap-to-play" role="dialog" tabindex="-1" aria-label="Play as guest: tap to play">
     <!-- Key art: the whole roster, full screen, behind the card (same file as the card's picture, so one download). -->
     <picture class="tap-backdrop" aria-hidden="true">
       <source type="image/webp" srcset="/site/img/lineup-900.webp">
@@ -470,7 +470,7 @@
         <p class="kicker">Live from the Foundry</p>
         <h1 class="logo">Dose of <span>Destruction</span></h1>
         <p class="tap-pitch">A platform fighter: knock every rival off the stage.</p>
-        <button class="tap-cta" type="button" tabindex="-1">Play</button>
+        <button class="tap-cta" type="button" tabindex="-1" aria-label="Play as guest">Play</button>
         <p class="tap-note">Play as guest. No sign-in. Starting&hellip;</p>
       </div>
     </div>
