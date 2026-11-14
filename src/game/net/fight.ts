@@ -39,6 +39,17 @@ export interface FightEnd {
   rated: Promise<{ record: ResultRecord; kind: 'full' | 'claim' | 'partial' } | null>;
 }
 
+/** The fight in progress on this page (the playtest's way to cut its connection). */
+let current: OnlineFight | null = null;
+
+/** Playtest setup shortcut: cut this page's match connection for `ms`, then join again as the same player. */
+export async function cutLink(ms: number): Promise<boolean> {
+  const f = current;
+  if (!f || f.phase !== 'started') return false;
+  await f.found.room.cutFor(ms);
+  return true;
+}
+
 export class OnlineFight {
   readonly found: Found;
   readonly match: Match;
@@ -51,6 +62,10 @@ export class OnlineFight {
   private fresh: SimEvent[] = [];
   private lastPacketAt = now();
   private stalledSince = 0;
+  /** The rejoin window while a player is away (the sim does not run), else null. */
+  reconnect: { who: string; cause: string; until: number; drops: number; since: number } | null = null;
+  /** How many times play went on after a drop. */
+  resumes = 0;
   private playStartedAt = 0;
   private lingerTimer: ReturnType<typeof setInterval> | undefined;
   private unsubs: (() => void)[] = [];
@@ -70,6 +85,7 @@ export class OnlineFight {
     this.match = match;
     this.slot = found.slot;
     this.key = key;
+    current = this;
     const setup = found.setup;
     this.start = {
       m: setup.matchId,
@@ -115,7 +131,28 @@ export class OnlineFight {
         netError(`fight ${found.setup.matchId}: the link to ${found.opponent.name} closed (${e.reason})`);
         // Before Go nobody has played: the match is void, never a win (no rating from quitting on the VS screen).
         if (!this.playStartedAt) return this.end('no-start', -1);
-        this.end(e.reason === 'left' ? 'forfeit' : 'disconnect', this.slot);
+        // Said goodbye, or dropped for the third time: a quit, rated. Didn't come back in time: a disconnect, not rated.
+        // (Ours the same way round: if it was our connection that didn't come back, the win is theirs.)
+        const ours = e.reason === 'self-dropped' || e.reason === 'self-repeat';
+        const quit = e.reason === 'left' || e.reason === 'repeat' || e.reason === 'self-repeat';
+        this.end(quit ? 'forfeit' : 'disconnect', ours ? 1 - this.slot : this.slot);
+      }),
+      // A drop opens the room's rejoin window: the sim waits on both sides until the player is back or it runs out.
+      room.on('away', (e: { who: string; cause: string; until: number; drops: number }) => {
+        if (this.phase === 'done' || !this.playStartedAt) return;
+        this.reconnect = { ...e, since: now() };
+        netError(`fight ${found.setup.matchId}: ${e.who === 'self' ? 'our' : `${found.opponent.name}'s`} connection dropped (${e.cause}); waiting up to ${Math.round((e.until - now()) / 1000)} s`);
+        this.note('away', e.who, e.cause, e.drops);
+      }),
+      room.on('back', (e: { who: string; ms: number }) => {
+        if (!this.reconnect) return;
+        this.reconnect = null;
+        // Both sides pick up from the last confirmed frame: whatever was guessed past it is re-run when their inputs
+        // (resent from the last one acknowledged) arrive, so stocks and percents are exactly where they were.
+        this.lastPacketAt = now();
+        this.stalledSince = 0;
+        this.resumes++;
+        this.note('back', e.who, '', Math.round(e.ms));
       }),
     );
     setTimeout(() => {
@@ -198,6 +235,11 @@ export class OnlineFight {
   /** One tick of the 60 Hz clock with our input. Returns the sim events of frames run for the first time. */
   tick(input: number): SimEvent[] {
     if (this.phase !== 'started') return [];
+    if (this.reconnect) {
+      // Paused on both sides: the sim stands still on its last frame, and we keep sending what they haven't got.
+      this.flush();
+      return [];
+    }
     this.fresh = [];
     let result: 'ran' | 'stalled';
     try {
@@ -231,8 +273,19 @@ export class OnlineFight {
   /** "Waiting for <name>…" when the other side's inputs have stopped for a moment (a lag spike). */
   waiting(): string {
     if (this.phase === 'loading') return `Waiting for ${this.opponent}…`;
+    if (this.reconnect) return `Reconnecting… ${this.found.room.secondsLeft()} s`;
     if (this.phase !== 'started' || !this.stalledSince || now() - this.stalledSince < STALL_NOTICE_MS) return '';
     return `Waiting for ${this.opponent}… ${Math.round((now() - this.lastPacketAt) / 1000)} s`;
+  }
+
+  /** The text and feel of a drop for the playtest and the page: `dod:reconnect`. */
+  private note(phase: 'away' | 'back', who: string, cause: string, n: number): void {
+    try {
+      const s = this.match.state;
+      window.dispatchEvent(new CustomEvent('dod:reconnect', { detail: { phase, who, cause, n, frame: s.frame, stocks: s.fighters.map((f) => f.stocks), percents: s.fighters.map((f) => f.percent) } }));
+    } catch {
+      /* (no window: a test) */
+    }
   }
 
   /** The round trip, the route and how often frames are rolled back, for the HUD's small network line. */
@@ -272,6 +325,8 @@ export class OnlineFight {
   private end(reason: EndReason, winner: number): void {
     if (this.phase === 'done') return;
     this.phase = 'done';
+    this.reconnect = null;
+    if (current === this) current = null;
     const setup = this.found.setup;
     const s = this.match.state;
     const result: MatchResult = {
@@ -334,8 +389,9 @@ export class OnlineFight {
    * (they sign before quitting) or on the start. Void ends aren't rated.
    */
   private rate(reason: EndReason, winner: number): FightEnd['rated'] {
-    if (reason === 'desync' || reason === 'no-start' || !this.start.p[0] || !this.start.p[1]) return Promise.resolve(null);
-    const left = reason === 'forfeit' || reason === 'disconnect';
+    // A disconnect (a drop that outlasted the rejoin window) is recorded as one but never rated: only a quit is.
+    if (reason === 'desync' || reason === 'no-start' || reason === 'disconnect' || !this.start.p[0] || !this.start.p[1]) return Promise.resolve(null);
+    const left = reason === 'forfeit';
     const r: ResultRecord['r'] = left ? 'left' : reason;
     const other = 1 - this.slot;
     const make = (): { record: ResultRecord; kind: 'full' | 'claim' | 'partial' } | null => {
@@ -355,7 +411,7 @@ export class OnlineFight {
     if (!(reason === 'forfeit' && winner !== this.slot)) {
       this.found.room.send('rs', JSON.stringify({ n: first.record.n, sig: first.record.sig[this.slot], w: winner, r, st: this.startSigs[this.slot] }), true);
     }
-    if (first.kind === 'full' || reason === 'disconnect' || (left && winner !== this.slot)) return Promise.resolve(first);
+    if (first.kind === 'full' || (left && winner !== this.slot)) return Promise.resolve(first);
     return new Promise((resolve) => {
       const done = () => {
         clearTimeout(timer);

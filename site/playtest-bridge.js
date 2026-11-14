@@ -353,6 +353,17 @@
       ]
     },
     {
+      "id": "reconnect",
+      "title": "Reconnecting (peers: 2): a 3 s cut pauses both sides under \"Reconnecting…\" with a countdown and play resumes with the same stocks and percents; a drop past 10 s ends the match as an unrated disconnect",
+      "description": "Needs Hawkes Gen playtest.run with peers: 2 (private test lobby, ?room=<id>&peer=0/1). Plays online's lobby and match, then peer 1 cuts its Hawkes Net connection for 3 s (the real thing: it leaves the room and joins again as the same player). Both pages show \"Reconnecting… N s\" top centre, clear of every touch control (reconnecting-banner, reconnect-banner-clear), the match stands still on its frame (reconnect-paused), the countdown counts (reconnect-countdown), and play resumes (reconnect-resumed) with no stock gained. Then peer 1 cuts for 14 s: both end on Connection lost, not \"left the match\" (disconnect-result), with no rating change (disconnect-unrated). On a 390x844 touch phone the banner is measured against the touch overlay.",
+      "seconds": 300,
+      "tags": [
+        "full",
+        "online",
+        "touch"
+      ]
+    },
+    {
       "id": "daily",
       "title": "Tonight's Episode: the main menu card shows tonight's fighters, stage and twist (the same for everyone on a date), the episode plays to a score, a day streak and today's board with the player on it (phone: 390x844 touch, played in landscape)",
       "description": "Setup shortcut: the player's own dod.daily is cleared and put back. Checks the card against the pure picker for the date (daily-episode, the signature two tabs must share; option or ?daily=YYYY-MM-DD names a date off the live site), its fit in the window and 44 px targets (daily-card-fit), Blog Man's intro (daily-listen) and the countdown, plays the episode with the bot on the pad (up to 3 tries; daily-objective), then reads the results' score, day streak and the board (daily-result, daily-board: the player's own line, rank and total; the board is read once when the results open) and the card's Best and streak back on the menu (daily-card-after). On a portrait phone it checks the card in the portrait window and plays in the turned 844x390 frame, everything by taps. Metrics dailyScore, dailyStreak, dailyBoardRank, dailyCardFits, dailyBoardFits.",

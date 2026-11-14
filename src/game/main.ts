@@ -1862,6 +1862,7 @@ function showNetStatus(f: OnlineFight): void {
   const text = waiting || (phase === 'play' || phase === 'pause' ? f.netLine() : '');
   el.hidden = !text || currentScreen() !== 'match';
   el.classList.toggle('waiting', !!waiting);
+  el.classList.toggle('reconnecting', f.phase !== 'done' && !!f.reconnect);
   if (el.textContent !== text) el.textContent = text;
 }
 
@@ -1869,7 +1870,7 @@ const ENDINGS: Record<FightEnd['reason'], (opp: string, won: boolean) => { headl
   game: (opp, won) => ({ headline: won ? 'You win' : `${opp} wins` }),
   time: (opp, won) => ({ headline: won ? 'You win on time' : `${opp} wins on time` }),
   forfeit: (opp, won) => (won ? { headline: 'You win', note: `${opp} left the match.` } : { headline: 'You left the match', note: `${opp} takes the win.` }),
-  disconnect: (opp) => ({ headline: 'Connection lost', note: `The link to ${opp} dropped. The win is yours.` }),
+  disconnect: (opp, won) => (won ? { headline: 'Connection lost', note: `${opp} didn't make it back in 10 seconds. The win is yours, and it isn't rated.` } : { headline: 'Connection lost', note: `You didn't make it back in 10 seconds. ${opp} takes the match, and it isn't rated.` }),
   desync: () => ({ headline: 'Match void', note: 'The two games fell out of step (a desync). It has been reported. Queue again for a fresh match.' }),
   'no-start': (opp) => ({ headline: 'Match void', note: `${opp}'s game never started. Back to the queue whenever you like.` }),
 };

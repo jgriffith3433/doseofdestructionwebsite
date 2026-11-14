@@ -1337,6 +1337,19 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
   white-space: nowrap;
 }
 .net-status.waiting { font-size: 18px; color: var(--gold); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.8); }
+/* The Reconnecting… banner: top centre, below the HUD cards and well above the thumb controls at the bottom corners. */
+.net-status.reconnecting {
+  font: 700 22px Oswald, Barlow, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 18px;
+  min-height: 44px;
+  box-sizing: border-box;
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.72);
+  border: 2px solid var(--gold);
+  max-width: calc(100vw - 32px);
+}
 
 .hud-card.online { position: relative; }
 .hud-avatar { position: absolute; left: -6px; top: -8px; width: 26px !important; height: 26px !important; border-radius: 50%; border: 2px solid var(--player); object-fit: cover; background: var(--card); }
