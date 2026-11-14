@@ -1460,7 +1460,8 @@ class AudioSystem {
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.loop = true;
-      src.playbackRate.value = 1;
+      // A restarted bed never replays the same buffer at the same rate inside a minute.
+      tagBufferSource(src, `bed-music:${s.id}`, 'music', s.volume, buf.duration, 1, 0.03);
       const g = ctx.createGain();
       g.gain.value = 0;
       g.gain.setTargetAtTime(s.volume, ctx.currentTime, 0.4);
@@ -1491,6 +1492,7 @@ class AudioSystem {
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.loop = true;
+      tagBufferSource(src, `bed-ambience:${s.id}`, 'ambience', volume, buf.duration, 1, 0.03);
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
       filter.frequency.value = 900;
@@ -1515,7 +1517,7 @@ class AudioSystem {
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.loop = true;
-      src.playbackRate.value = 1.03;
+      tagBufferSource(src, `bed-intense:${s.id}`, 'music', volume, buf.duration, 1.03, 0.03);
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
       filter.frequency.value = 5200;
