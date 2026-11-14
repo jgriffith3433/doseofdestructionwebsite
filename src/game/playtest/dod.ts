@@ -32,6 +32,7 @@ import { MAX_COVER, MIN_CONTRAST, MIN_SHOWN, coverRead, edgeContrast, ringContra
 import { ACT, ACT_NAMES, bodySize } from '../sim/state.ts';
 import { AnimTrace } from '../sim/trace.ts';
 import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
+import { vsPortrait } from '../ui/views.ts';
 import { MAX_WORDS } from '../campaign/sceneText.ts';
 import { REWARDS, reloadRewards } from '../campaign/rewards.ts';
 import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, nextUnlock, saveUnlocks, unlockRoute, unlocks } from '../campaign/story.ts';
@@ -7080,8 +7081,9 @@ class Run {
         await t.until(() => document.querySelectorAll('#versus-body .vs-fighter img.vs-portrait').length > 0, 3000, 'the VS portraits');
         await this.wait(1200);
         const vs = [...document.querySelectorAll<HTMLImageElement>('#versus-body .vs-fighter img.vs-portrait')];
-        const wrong = vs.filter((i) => !(i.complete && i.naturalWidth > 0) || !baseOf(i.currentSrc || i.src));
-        if (!vs.length || wrong.length) t.problem('bug', `the VS card portraits did not load (${wrong.length}/${vs.length})`);
+        const wrong = vs.filter((i) => !(i.complete && i.naturalWidth > 0) || !baseOf(i.currentSrc || i.src) || !!i.dataset.fallback);
+        if (!vs.length || wrong.length) t.problem('bug', `the VS card portraits did not load (${wrong.length}/${vs.length}${wrong.length ? `: ${wrong.map((i) => `${i.dataset.fighter} naturalWidth ${i.naturalWidth}${i.dataset.fallback ? `, fell back to ${i.dataset.fallback}` : ''}`).join('; ')}` : ''})`);
+        else if (vs.length < 2) t.problem('bug', `the VS card shows ${vs.length} portrait(s), want one for each side (you and the CPU)`);
         else {
           seenIds.push(...vs.map((i) => baseOf(i.currentSrc || i.src)));
           t.event('vs-portraits', `${vs.length} painted portraits on the VS card: ${seenIds.join(', ')} (same files as select)`);
@@ -7105,12 +7107,45 @@ class Run {
       this.checkClipping('results', this.q('#results'));
       await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
       await this.screen('main');
+      // 4. Every fighter's VS portrait, on either side of the card: the real element the VS card builds (ui/views.ts
+      // vsPortrait), at both file sizes, all 33. A missing file, a wrong name or a bad path shows as naturalWidth 0
+      // (or a fallback picture) and fails the run with the fighter's name.
+      await this.everyVsPortrait(baseOf);
     } finally {
       this.useTap = false;
       forceTouchUi(false);
     }
     t.progress(1);
     t.finish('done');
+  }
+
+  private async everyVsPortrait(baseOf: (src: string) => string): Promise<void> {
+    const t = this.t;
+    const shelf = document.createElement('div');
+    shelf.style.cssText = 'position:fixed;left:-9999px;top:0;width:256px;height:256px;overflow:hidden;pointer-events:none';
+    document.body.appendChild(shelf);
+    const failed: string[] = [];
+    let loaded = 0;
+    try {
+      for (const size of [256, 512] as const) {
+        const imgs = CHARACTERS.map((c, i) => ({ c, img: vsPortrait(i, 0, size) }));
+        shelf.replaceChildren(...imgs.map((x) => x.img));
+        await t.until(() => imgs.every((x) => x.img.complete), 20000, `every ${size} px VS portrait to load`).catch(() => undefined);
+        for (const { c, img } of imgs) {
+          const src = img.currentSrc || img.src;
+          if (!(img.complete && img.naturalWidth > 0)) failed.push(`${c.name} (${c.id}) ${size}: naturalWidth 0 from ${src}`);
+          else if (img.dataset.fallback) failed.push(`${c.name} (${c.id}) ${size}: the portrait failed and ${img.dataset.fallback} showed instead`);
+          else if (baseOf(src) !== c.id) failed.push(`${c.name} (${c.id}) ${size}: shows ${src}`);
+          else if (img.naturalWidth !== size || img.naturalHeight !== size) failed.push(`${c.name} (${c.id}) ${size}: file is ${img.naturalWidth}x${img.naturalHeight}`);
+          else loaded++;
+        }
+      }
+    } finally {
+      shelf.remove();
+    }
+    t.metric('vsPortraitsLoaded', loaded);
+    if (failed.length) t.problem('bug', `VS portraits that do not load: ${failed.join('; ')}`);
+    else t.event('vs-portraits-all', `all ${CHARACTERS.length} fighters' VS portraits load at 256 and 512 px (${loaded} files, naturalWidth > 0, right fighter, right size)`);
   }
 
   // ---------------------------------------------------------- character select: the specials preview
