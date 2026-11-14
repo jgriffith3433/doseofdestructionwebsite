@@ -6175,6 +6175,24 @@ class Run {
     } catch {
       // Storage blocked.
     }
+    // Impact sound per weight and the kill sting, read from the audio's own take log (dod:sound-take).
+    const hitSounds = new Map<string, Set<string>>();
+    let stingTakes = 0;
+    const onHitSound = (ev: Event) => {
+      const d = (ev as CustomEvent<{ id: string; takeId: string; rate: number }>).detail;
+      if (!d) return;
+      if (d.id === 'hit-light' || d.id === 'hit-medium' || d.id === 'hit-heavy') {
+        if (!hitSounds.has(d.id)) {
+          t.event('hit-sound', `${d.id} plays take ${d.takeId} (rate ${d.rate.toFixed(3)})`);
+          hitSounds.set(d.id, new Set());
+        }
+        hitSounds.get(d.id)!.add(d.takeId);
+      } else if (d.id === 'kill-sting') {
+        stingTakes++;
+        t.event('kill-sting', `kill sting ${d.takeId} (rate ${d.rate.toFixed(3)})`);
+      }
+    };
+    window.addEventListener('dod:sound-take', onHitSound);
     const seen: Record<HitTier, { lag: number; frozen: number; dmg: number; fx: string } | null> = { light: null, medium: null, heavy: null };
     const fxLine = (l: NonNullable<ReturnType<NonNullable<GameHooks['hitFxStats']>>['last']>) =>
       `${l.sparks} sparks, ${l.stars} impact stars, ${l.ring ? 'shockwave ring' : 'no ring'}, shake ${l.shake.toFixed(2)}, flash ${l.flash}`;
@@ -6483,6 +6501,11 @@ class Run {
         if (rx.smashSmears > 0) t.event('smear', `${rx.smears} smears, ${rx.smearFrames} streak frames (${rx.smashSmears} on smashes), ${rx.charges} smash charges (${rx.quality} quality)`);
         else if (rx.quality === 'low') t.event('smear-low', 'Low drops smears, keeps squash and tumble');
       }
+      window.removeEventListener('dod:sound-take', onHitSound);
+      t.metric('hitSoundWeights', hitSounds.size);
+      t.metric('killStings', stingTakes);
+      if (hitSounds.size < 2) t.problem('bug', `only ${hitSounds.size} hit weight(s) made an impact sound in this fight`);
+      if (stingTakes === 0) t.problem('warning', 'no kill sting played in this fight (no KO?)');
       this.reportAttackFx('hit-feel');
       {
         const r2 = this.game.reactFxStats?.();
