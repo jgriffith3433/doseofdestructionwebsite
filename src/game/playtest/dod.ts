@@ -10343,6 +10343,46 @@ class Run {
       return r;
     };
     try {
+      // The inner game loads behind the wrapper's gradient. Say so on screen, and don't start the scenario's
+      // steps (or let a frame be judged) until the iframe's own contract answers ready.
+      const veil = document.createElement('div');
+      veil.textContent = 'Loading game…';
+      veil.setAttribute('role', 'status');
+      veil.style.cssText = 'position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font:600 20px/1.3 system-ui,sans-serif;color:#ffd9b8;letter-spacing:.04em;pointer-events:none;z-index:1';
+      back.appendChild(veil);
+      const readyT0 = performance.now();
+      const frameReady = (): boolean => {
+        try {
+          const st = api()?.state() as { ready?: boolean } | null | undefined;
+          return !!frame.contentDocument && !!st && st.ready === true;
+        } catch {
+          return false;
+        }
+      };
+      let waited = 0;
+      try {
+        await t.until(() => {
+          waited += 1;
+          if (waited % 100 === 0) {
+            t.event('phone-frame-wait', `waiting for the phone window's game to load (${Math.round((performance.now() - readyT0) / 1000)} s)`);
+            t.progress(0.01 + Math.min(0.02, waited / 100 / 1000));
+          }
+          return frameReady();
+        }, 120000, 'the phone window\'s game to report ready');
+        t.event('phone-frame-ready', `${Math.round(performance.now() - readyT0)} ms`);
+        veil.remove();
+      } catch (e) {
+        if (!frameReady() && !String((e as Error)?.message).includes('playtest stopped')) {
+          let rs = 'no document';
+          try { rs = frame.contentDocument?.readyState ?? 'no document'; } catch { rs = 'cross-origin'; }
+          const hasApi = !!api();
+          t.problem('bug', `phone-iframe-blank: the phone window's game was not ready after ${Math.round((performance.now() - readyT0) / 1000)} s (document.readyState ${rs}, hawkesPlaytest ${hasApi ? 'present but not ready' : 'missing'}); ${scenario} was not played over a blank frame`);
+          t.progress(1);
+          t.finish('error');
+          return;
+        }
+        throw e;
+      }
       if (proveRotate) {
         t.event('phone-upright', 'a phone-sized window, 390x844 (portrait), opened over the game for touch-match');
         t.progress(0.04);
