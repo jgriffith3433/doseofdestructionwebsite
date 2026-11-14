@@ -459,6 +459,10 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 .slot-label { font-size: calc(12px * var(--ts, 1)); color: var(--slot); font-weight: 700; }
 .slot-pick strong { font-family: Oswald, sans-serif; font-size: calc(16px * var(--ts, 1)); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .slot-tools { display: flex; gap: 4px; flex-wrap: wrap; }
+.join-prompt { margin: 0; font-size: calc(12px * var(--ts, 1)); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--gold); animation: join-pulse 1.2s ease-in-out infinite; }
+.join-prompt.joined { color: var(--muted); animation: none; font-weight: 600; }
+@keyframes join-pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .join-prompt { animation: none; } }
 .slot.add {
   display: grid;
   place-items: center;
