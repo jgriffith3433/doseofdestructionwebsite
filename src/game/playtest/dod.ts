@@ -224,6 +224,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'feet') await r.feetRun();
         else if (id === 'smooth-clips') await r.smoothClips();
         else if (id === 'specials') await r.specialsRun();
+        else if (id === 'hurtbox-fit') await r.hurtboxFitRun();
         else if (id === 'extra-jumps') await r.extraJumpsRun();
         else if (id === 'cpu-styles') await r.cpuStylesRun();
         else if (id === 'special-sounds') await r.specialSounds();
@@ -6684,6 +6685,119 @@ class Run {
     else t.problem('bug', `${id}: only ${got} of ${wanted} extra jumps came from swipes`);
     await frames(30);
     t.finish();
+  }
+
+  /**
+   * Hurtboxes hug the art (tools/hurtbox-art.mjs, tools/hurtbox.test.mjs): in Training Exit Punk jabs a Spider-Bot dummy from just
+   * outside its body (a near miss that must visibly miss, `hurtbox-near-miss`), then from just inside (`hurtbox-hit`). The gaps come
+   * from the jab's own hitbox and Spider-Bot's hurtbox, so they move with the data. Touch (a phone is turned to 844x390): the stick
+   * and the Attack button as pointer events.
+   */
+  async hurtboxFitRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('hurtbox-fit');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const punk = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const spider = CHARACTERS.findIndex((c) => c.id === 'spider-bot');
+      if (punk < 0 || spider < 0) {
+        t.problem('bug', 'Exit Punk or Spider-Bot is not on the roster');
+        t.finish('error');
+        return;
+      }
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      void this.game.startMatch({
+        mode: 'training', stage, stocks: 1, rules: {},
+        slots: [{ char: punk, cpu: null }, { char: spider, cpu: 0 }],
+      });
+      await this.matchLive();
+      this.manual = NO_INPUT;
+      const match = () => this.game.match()!;
+      const me = () => match().state.fighters[match().player];
+      const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+      const frame = () => this.game.match()?.state.frame ?? 0;
+      const frames = async (n: number) => {
+        const end = frame() + n;
+        await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+      };
+      const pad = touch ? makeTouchPad() : makeKeyboardPad();
+      if (!pad) {
+        t.problem('bug', 'the touch controls were not built');
+        t.finish('error');
+        return;
+      }
+      if (touch) t.event('phone-shot', `training against Spider-Bot with the touch overlay at ${innerWidth}x${innerHeight}`);
+
+      // The jab's tip (world units from the fighter's centre) and Spider-Bot's half width.
+      const box = CHARACTERS[punk].moves[MOVE.JAB].hits[0].boxes[0];
+      const tip = box.x + box.r;
+      const half = CHARACTERS[spider].width / 2;
+      t.event('hurtbox-fit', `Spider-Bot hurtbox ${CHARACTERS[spider].width}x${CHARACTERS[spider].height} (was 100 wide); Exit Punk's jab reaches ${tip}`);
+      t.metric('spiderBotHurtW', CHARACTERS[spider].width);
+
+      const standing = () => {
+        const f = me();
+        return f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK || f.action === ACT.CROUCH);
+      };
+      const gap = () => Math.abs(dummy().x - me().x) / FX;
+      const dir = () => (dummy().x >= me().x ? 1 : -1);
+      /** Walks to a centre gap (stepping back if too close), lets go and stands still. */
+      const approach = async (want: number) => {
+        for (let i = 0; i < 6 && Math.abs(gap() - want) > 3; i++) {
+          const d = gap() > want ? dir() : -dir();
+          pad.stick(d * 100, 0);
+          try {
+            await t.until(() => (d === dir() ? gap() <= want + 2 : gap() >= want - 2), 12000, 'the fighter to reach the gap');
+          } finally {
+            pad.stick(0, 0);
+          }
+          await t.until(standing, 10000, 'the fighter to stand');
+          await frames(6);
+        }
+      };
+      const jab = async (): Promise<number> => {
+        const before = dummy().percent;
+        pad.button('attack', true);
+        await frames(3);
+        pad.button('attack', false);
+        await frames(30);
+        return dummy().percent - before;
+      };
+
+      // Face it first: a jab only reaches forward.
+      pad.stick(dir() * 100, 0);
+      await frames(4);
+      pad.stick(0, 0);
+      await approach(tip + half + 16);
+      const missGap = gap();
+      const missDmg = await jab();
+      if (missDmg > 0) t.problem('bug', `a jab from ${missGap.toFixed(0)} units away (16 outside Spider-Bot's body) hit it: its hurtbox is wider than it looks`);
+      t.event('hurtbox-near-miss', `jab from ${missGap.toFixed(0)} units (body edge ${half}, jab tip ${tip}): ${missDmg > 0 ? 'HIT' : 'visibly missed'}`);
+      t.metric('nearMissHit', missDmg > 0 ? 1 : 0);
+      t.progress(0.55);
+
+      await approach(tip + half - 8);
+      const hitGap = gap();
+      const hitDmg = await jab();
+      if (hitDmg <= 0) t.problem('bug', `a jab from ${hitGap.toFixed(0)} units away (8 inside Spider-Bot's body) missed`);
+      t.event('hurtbox-hit', `jab from ${hitGap.toFixed(0)} units: ${hitDmg > 0 ? 'connected' : 'MISSED'}`);
+      t.metric('closeJabHit', hitDmg > 0 ? 1 : 0);
+      pad.release();
+      await frames(30);
+      t.finish();
+    } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
   }
 
   async specialsRun(): Promise<void> {
