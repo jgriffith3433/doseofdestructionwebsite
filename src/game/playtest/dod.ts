@@ -41,6 +41,7 @@ import { SEASON_ONE_ENTRANCES, entranceKind } from '../campaign/intro.ts';
 import { PROMPTS, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
+import { VoiceWatch } from './voiceWatch.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
 import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
@@ -4753,6 +4754,8 @@ class Run {
     window.addEventListener('dod:announcer', onCall);
     window.addEventListener('dod:name-call', onLand);
     window.addEventListener('dod:music-duck', onDuck);
+    const vw = new VoiceWatch(t);
+    vw.start();
     if (touch) {
       this.useTap = true;
       forceTouchUi(true);
@@ -4891,8 +4894,10 @@ class Run {
       if (!ducks) t.problem('bug', 'the music never ducked under the announcer');
       t.metric('announcerCalls', calls.filter((c) => c.phase === 'play').length);
       t.metric('announcerOverlaps', overlaps);
+      vw.finish({ phone: touch });
       await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu').catch(() => null);
     } finally {
+      vw.stop();
       window.removeEventListener('dod:announcer', onCall);
       window.removeEventListener('dod:name-call', onLand);
       window.removeEventListener('dod:music-duck', onDuck);
@@ -7214,6 +7219,8 @@ class Run {
       // The long match on one stage: pans from real fighters, then the measured level.
       const stage = typeof this.options.stage === 'string' ? Math.max(0, STAGES.findIndex((s) => s.id === this.options.stage)) : Math.max(0, STAGES.findIndex((s) => s.id === 'humans-in-the-loop'));
       pans.length = 0;
+      const vw = new VoiceWatch(t);
+      vw.start();
       void this.game.startMatch({ mode: 'versus', stage, stocks: 9, rules: {}, slots });
       await this.matchLive();
       await this.wait(800);
@@ -7232,6 +7239,7 @@ class Run {
         if (tick % 600 === 0) t.progress(0.5 + 0.45 * Math.min(1, ((this.game.match()?.state.frame ?? 0) - frame0) / (60 * total)));
         return (this.game.match()?.state.frame ?? 0) - frame0 > 60 * total;
       }, (total + 90) * 1000);
+      vw.finish({ phone: touch });
       const fightPans = pans.filter((p) => Math.abs(p) !== 0.8 || pans.length > 2);
       if (fightPans.length < 5) t.problem('bug', `only ${fightPans.length} panned fighter sounds in the ${total} s match`);
       else {
@@ -7526,6 +7534,11 @@ class Run {
       }
     };
     window.addEventListener('dod:fighter-voice', onVoice);
+    // The voice director's trace over the whole run: no overlap beyond the crossfade, the duck, no repeats, one caption.
+    const vw = new VoiceWatch(t);
+    const phone = this.phoneScenario();
+    // Desktop plays three 3-stock matches back to back (the 5 minute no-repeat rule); a phone plays one in the turned frame.
+    const matches = Math.max(1, Number(this.options.matches) || (phone ? 1 : 3));
 
     const koTexts = CHARACTERS.map(({ id }) => {
       const l = VOICE.lines.find((x) => x.id === `fighter.${id}.ko`);
@@ -7552,7 +7565,8 @@ class Run {
       if (!this.options.foe) this.options.foe = 'break';
       await this.toMainMenu();
       t.progress(0.08);
-      await this.startVersus(2);
+      vw.start();
+      await this.startVersus(3);
       t.progress(0.15);
       await this.matchLive();
       // Press T for the player's taunt (no touch button on phones).
@@ -7576,6 +7590,18 @@ class Run {
       if (this.game.match()?.state.over) await this.results().catch(() => null);
       else await this.quitFromPause('main');
       if (currentScreen() === 'results') await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu').catch(() => null);
+      for (let n = 2; n <= matches; n++) {
+        t.event('voice-match', `match ${n} of ${matches}, 3 stocks, back to back`);
+        await this.screen('main');
+        await this.startVersus(3);
+        await this.matchLive();
+        await this.fight(() => false, 4 * 60 * 1000);
+        if (this.game.match()?.state.over) await this.results().catch(() => null);
+        else await this.quitFromPause('main');
+        if (currentScreen() === 'results') await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu').catch(() => null);
+      }
+      t.metric('voiceMatches', matches);
+      vw.finish({ phone });
 
       const byWho = new Map<string, Set<string>>();
       for (const v of voices) {
@@ -7611,6 +7637,7 @@ class Run {
       t.metric('voiceTaunts', voices.filter((v) => v.kind === 'taunt').length);
       t.event('fighter-voice-summary', `${voices.length} barks: ${[...byWho.entries()].map(([w, k]) => `${w}[${[...k].join(',')}]`).join('; ')}`);
     } finally {
+      vw.stop();
       window.removeEventListener('dod:fighter-voice', onVoice);
       unlocks().clear();
       for (const id of savedUnlocks) unlocks().add(id);
@@ -8220,9 +8247,11 @@ class Run {
       if (!caption || caption.getAttribute('data-line') !== c.id) t.problem('bug', `no caption showed for ${c.id}`);
     };
     window.addEventListener('dod:commentary', onCall);
+    const vw = new VoiceWatch(t);
     try {
       await this.toMainMenu();
       t.progress(0.03);
+      vw.start();
       await this.startVersus(3);
       const m0 = () => this.game.match();
       this.progressNow = () => 0.05 + 0.4 * Math.min(1, (m0()?.state.frame ?? 0) / (150 * 60));
@@ -8236,6 +8265,7 @@ class Run {
       else await this.quitFromPause('main');
       if (currentScreen() === 'results') await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
       await this.screen('main');
+      vw.finish();
       t.progress(0.5);
 
       // Part 2: Blog Man's intros.
@@ -8271,6 +8301,7 @@ class Run {
         this.game.setCampaignProgress(before);
       }
     } finally {
+      vw.stop();
       window.removeEventListener('dod:commentary', onCall);
     }
     t.progress(1);

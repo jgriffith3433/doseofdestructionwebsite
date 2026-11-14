@@ -39,8 +39,8 @@
     {
       "id": "fighter-voice",
       "title": "Season 1 fighter voice: efforts, hurts, KO cries and taunts from each fighter's own takes, no overlap, T taunt, phone landscape",
-      "description": "Setup shortcut unlocks the Season 1 card. Versus 1v1 with two Season 1 fighters (options fighter / foe, default exit-punk vs break). Listens for dod:fighter-voice: logs effort / hurt / ko / taunt per who with the catalog id and audio path; problems for a missing take, a shared KO text, an overlapping bark from one fighter, or an effort within 1.5 s of the last. Presses T for the player taunt. On a 390x844 touch phone, turns to 844x390 landscape like smoke and checks zero missing-voice / 404 problems. Metrics voiceEfforts, voiceHurts, voiceKos, voiceTaunts.",
-      "seconds": 200,
+      "description": "Setup shortcut unlocks the Season 1 card. Versus 1v1 with two Season 1 fighters (options fighter / foe, default exit-punk vs break). Listens for dod:fighter-voice: logs effort / hurt / ko / taunt per who with the catalog id and audio path; problems for a missing take, a shared KO text, an overlapping bark from one fighter, or an effort within 1.5 s of the last. Presses T for the player taunt. On a 390x844 touch phone, turns to 844x390 landscape like smoke and checks zero missing-voice / 404 problems. Metrics voiceEfforts, voiceHurts, voiceKos, voiceTaunts. Voice director (voiceDirector.ts, audio.ts): plays three 3-stock matches back to back (one on a phone, turned to 844x390 touch) and holds the dod:voice trace to the criteria: 0 ms of two different speakers beyond the 60 ms crossfade, music and effects at least 6 dB down under any voice (fighter barks too) and back within 0.5 s, no commentary or pooled announcer line twice inside 5 minutes, no fighter bark take twice in a row, never two captions on screen at once. Option matches. Metrics voiceTakes, voiceDropped, voiceCut, voiceOverlapMs, voiceRepeats, voiceBarkRepeats, voiceDuckMusicDb, voiceDuckSfxDb, voiceRestoreMs, captionClashes.",
+      "seconds": 720,
       "tags": [
         "full",
         "sound"

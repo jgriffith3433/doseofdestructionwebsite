@@ -6,6 +6,7 @@ import { playSynth, startBed, type BedKind, type SynthKind } from './synth.ts';
 import type { SpecialKind } from './sim/fighterDefs.ts';
 import soundsJson from '../../content/sounds.json' with { type: 'json' };
 import voiceJson from '../../content/voice.json' with { type: 'json' };
+import { FADE_MS, VoiceDirector, type Outcome, type Take, type VoiceKind, type VoiceStats } from './voiceDirector.ts';
 import { winQuoteLines, type FighterQuotes } from './winQuote.ts';
 import {
   fightersNeedIntense,
@@ -90,6 +91,19 @@ const LAND_BY_SURFACE: Readonly<Record<StageSurface, string>> = {
 /** ~8 dB under voice: 10^(-8/20). */
 const VOICE_DUCK = 10 ** (-8 / 20);
 const DUCK_RESTORE_S = 0.4;
+/** Commentary pools (`announcer.<kind>.<n>`): these never repeat inside 5 minutes. Cue calls (ready, go, game, names) do. */
+const COMMENTARY_POOL = /^announcer\.(first-blood|ko|comeback|last-stock|showdown|self-destruct|big-hit|combo|danger|shield-break|hazard|stage-event|time-low|lull)\.\d+$/;
+
+/** One take in `voiceStats().takes`. */
+export interface VoiceTrace { speaker: string; id: string; kind: VoiceKind; start: number; end: number; cut: boolean }
+
+/** The voice kind a catalog line plays as: its id says (announcer.*, a win quote, Blog Man's booth), else a story take. */
+export function voiceKindOf(l: { id: string; group?: string }): VoiceKind {
+  if (l.id.startsWith('announcer.')) return 'announcer';
+  if (l.group === 'win-quote' || /^fighter\.[^.]+\.win$/.test(l.id)) return 'win-quote';
+  if (l.id.startsWith('blog-man.intro.')) return 'commentary';
+  return 'scene';
+}
 
 export type CrowdKind = 'ooh' | 'roar' | 'rising';
 const CROWD_SOUND: Readonly<Record<CrowdKind, string>> = {
@@ -164,11 +178,8 @@ class AudioSystem {
   private lineById = new Map([...VOICE.lines, ...winQuoteLines(VOICE)].map((l) => [l.id, l]));
   private music: LoopVoice | null = null;
   private wantMusic: string | null = null;
-  private speech: AudioBufferSourceNode | null = null;
-  /** The announcer's call on the air (one at a time): a new call or `stopCall` cuts it, and `callSeq` retires pending ones. */
-  private callSrc: AudioBufferSourceNode | null = null;
+  /** Retires announcer calls still loading or waiting when a newer call or `stopCall` comes in. */
   private callSeq = 0;
-  private callUntil = 0;
   private linePick = new Map<string, number>();
   private silent: HTMLAudioElement | null = null;
   /** True once a gesture has started sound; after that it is taken back whenever the page is in front. */
@@ -193,9 +204,15 @@ class AudioSystem {
   private lastCrowd: CrowdKind | null = null;
   /** Active stage id for surface landings (set by playStageBed). */
   private landStageId: string | null = null;
-  /** Per-fighter bark: busy until the take ends so two lines from one fighter never overlap. */
-  private fighterBusyUntil = new Map<string, number>();
-  private fighterSrc = new Map<string, AudioBufferSourceNode>();
+  /** The voice director: one speaker on the air, by priority (voiceDirector.ts). */
+  private director = new VoiceDirector(() => (typeof performance !== 'undefined' ? performance.now() : Date.now()));
+  private directorTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The source of every take the director has started, to cut it with a fade. */
+  private onAirSrc = new Map<Take, AudioBufferSourceNode>();
+  private gains = new WeakMap<AudioBufferSourceNode, GainNode>();
+  private lineByUrl = new Map<string, VoiceLine>();
+  /** Takes that started while the duck was not down (should stay 0). */
+  private unducked = 0;
   /** Last effort start time per fighter (1.5 s cooldown). */
   private effortAt = new Map<string, number>();
   /** Round-robin index per fighter per kind (effort / hurt). */
@@ -258,17 +275,18 @@ class AudioSystem {
     const t = this.ctx.currentTime;
     // Effects covers the announcer and the fighters' voices too (the studio standard has two levels).
     this.buses.master.gain.setTargetAtTime(soundSettings().on ? 1 : 0, t, 0.02);
-    const music = busLevel('music') * (this.duckDepth > 0 ? VOICE_DUCK : 1);
+    const duck = this.duckDepth > 0 ? VOICE_DUCK : 1;
     const ramp = opts.duckRampS;
-    if (ramp != null && ramp > 0) {
-      const g = this.buses.music.gain;
-      g.cancelScheduledValues(t);
-      g.setValueAtTime(Math.max(0.0001, g.value), t);
-      g.linearRampToValueAtTime(Math.max(0.0001, music), t + ramp);
-    } else {
-      this.buses.music.gain.setTargetAtTime(music, t, 0.02);
+    // Music and effects both sit under any voice; the voice bus and the UI clicks do not.
+    for (const [g, level] of [[this.buses.music.gain, busLevel('music') * duck], [this.buses.sfx.gain, busLevel('sfx') * duck]] as const) {
+      if (ramp != null && ramp > 0) {
+        g.cancelScheduledValues(t);
+        g.setValueAtTime(Math.max(0.0001, g.value), t);
+        g.linearRampToValueAtTime(Math.max(0.0001, level), t + ramp);
+      } else {
+        g.setTargetAtTime(level, t, 0.02);
+      }
     }
-    this.buses.sfx.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
     this.buses.ui.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
     this.buses.voice.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
   }
@@ -545,22 +563,27 @@ class AudioSystem {
     if (!this.ctx) return null;
     const buf = await this.buffer(url);
     if (!buf || !this.ctx) return null;
-    const src = this.ctx.createBufferSource();
+    return this.startBuf(buf, bus, volume, rate, loop, at);
+  }
+
+  private startBuf(buf: AudioBuffer, bus: GainNode, volume: number, rate = 1, loop = false, at?: Spatial): AudioBufferSourceNode {
+    const ctx = this.ctx!;
+    const src = ctx.createBufferSource();
     src.buffer = buf;
     src.loop = loop;
     src.playbackRate.value = rate;
-    const g = this.ctx.createGain();
+    const g = ctx.createGain();
     g.gain.value = volume;
     if (at) {
       // Placed in the stereo field by the fighter's screen x; a fighter leaving through the blast zone loses highs and level.
       let node: AudioNode = g;
       if (at.away != null) {
         const d = departing(at.away);
-        const lp = this.ctx.createBiquadFilter();
+        const lp = ctx.createBiquadFilter();
         lp.type = 'lowpass';
         lp.frequency.value = 12000;
-        const fade = this.ctx.createGain();
-        const t = this.ctx.currentTime;
+        const fade = ctx.createGain();
+        const t = ctx.currentTime;
         lp.frequency.setValueAtTime(12000, t);
         lp.frequency.exponentialRampToValueAtTime(Math.max(100, d.cutoffHz), t + d.seconds);
         fade.gain.setValueAtTime(1, t);
@@ -568,13 +591,14 @@ class AudioSystem {
         g.connect(lp).connect(fade);
         node = fade;
       }
-      const pan = this.ctx.createStereoPanner();
+      const pan = ctx.createStereoPanner();
       pan.pan.value = Math.max(-0.8, Math.min(0.8, at.pan));
       node.connect(pan).connect(bus);
       src.connect(g);
     } else {
       src.connect(g).connect(bus);
     }
+    this.gains.set(src, g);
     src.start();
     return src;
   }
@@ -777,105 +801,103 @@ class AudioSystem {
     }
   }
 
-  /** Duck for the length of a voice take (extends if another line overlaps). */
+  /** Duck for the length of a voice take (extends if another take follows it). */
   private duckForVoice(ms: number): void {
-    const hold = Math.max(200, ms);
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    this.duckVoiceUntil = Math.max(this.duckVoiceUntil, now + hold);
+    this.duckVoiceUntil = Math.max(this.duckVoiceUntil, now + Math.max(40, ms));
     if (!this.voiceDuckHeld) {
       this.voiceDuckHeld = true;
       this.duck(true);
     }
     if (this.duckTimer) clearTimeout(this.duckTimer);
-    const wait = Math.max(16, this.duckVoiceUntil - now);
     this.duckTimer = setTimeout(() => {
       this.duckTimer = null;
       const t = typeof performance !== 'undefined' ? performance.now() : Date.now();
-      if (t + 16 < this.duckVoiceUntil) {
+      if (t + 8 < this.duckVoiceUntil) {
         this.duckForVoice(this.duckVoiceUntil - t);
         return;
       }
       this.voiceDuckHeld = false;
       this.duckVoiceUntil = 0;
       this.duck(false);
-    }, wait);
+    }, Math.max(8, this.duckVoiceUntil - now));
   }
 
-  /** Plays a catalog voice line by id, like 'announcer.go' or 'fighter.slice.win'. */
-  line(id: string): void {
+  /** How far music and effects sit below their level now, in dB (0 = not ducked, about -8 under a voice). For the playtest. */
+  duckDb(): { music: number; sfx: number } {
+    if (!this.buses) return { music: 0, sfx: 0 };
+    const db = (g: number, level: number): number => 20 * Math.log10(Math.max(0.0001, g) / Math.max(0.0001, level));
+    return { music: db(this.buses.music.gain.value, busLevel('music')), sfx: db(this.buses.sfx.gain.value, busLevel('sfx')) };
+  }
+
+  /** Playtest hook: who spoke, who overlapped, whether every take ducked, and the repeat counts. */
+  voiceStats(): VoiceStats & { unducked: number; duckDb: number; restoreMs: number; takes: VoiceTrace[] } {
+    return {
+      ...this.director.stats(),
+      unducked: this.unducked,
+      duckDb: -8,
+      restoreMs: DUCK_RESTORE_S * 1000,
+      takes: this.director.played.map((t) => ({ speaker: t.speaker, id: t.id, kind: t.kind, start: t.start, end: t.end, cut: t.cut })),
+    };
+  }
+
+  /** The take on the air right now (null when none): who, which line, when it started and ends (ms on performance.now). */
+  voiceOnAir(): { speaker: string; id: string; kind: VoiceKind; start: number; end: number } | null {
+    const c = this.director.current();
+    return c ? { speaker: c.speaker, id: c.id, kind: c.kind, start: c.start, end: c.end } : null;
+  }
+
+  /** True when a commentary / pooled announcer line may be said now (not heard in the last 5 minutes of play). */
+  voiceFresh(id: string): boolean {
+    return this.director.fresh(id);
+  }
+
+  /** Forgets the director's history (the playtest starts a clean run). */
+  resetVoice(): void {
+    this.director.reset();
+    this.unducked = 0;
+  }
+
+  private lineOfUrl(url: string): VoiceLine | undefined {
+    if (!this.lineByUrl.size) for (const l of this.lineById.values()) if (l.audio) this.lineByUrl.set(l.audio, l);
+    return this.lineByUrl.get(url);
+  }
+
+  /** Plays a catalog voice line by id, like 'announcer.go' or 'fighter.slice.win', as the kind its id says (or `kind`). */
+  line(id: string, kind?: VoiceKind): Promise<number> {
     const l = this.lineById.get(id);
-    if (l?.audio) this.voice(l.audio, false);
+    if (!l?.audio) return Promise.resolve(0);
+    return this.speak({ url: l.audio, id, speaker: l.who || 'announcer', kind: kind ?? voiceKindOf(l), text: l.text });
   }
 
   /**
-   * A fighter bark in a match: effort (smash/special), hurt (medium/heavy), KO cry, or taunt.
-   * At most one line per fighter at a time; efforts also wait 1.5 s between starts.
-   * Fires `dod:fighter-voice` when a take starts. Returns false when skipped (busy / cooldown / no take).
+   * A fighter bark in a match: effort (smash/special), hurt (medium/heavy), KO cry, or taunt. It goes through the voice
+   * director (one speaker at a time; efforts and hurts that find the air taken are dropped; a KO cry or taunt cuts a lower bark).
+   * Efforts also wait 1.5 s between starts. Fires `dod:fighter-voice` when a take starts. Returns false when there is no take.
    */
   fighterVoice(who: string, kind: 'effort' | 'hurt' | 'ko' | 'taunt', at?: Spatial): boolean {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    if ((this.fighterBusyUntil.get(who) ?? 0) > now) return false;
     if (kind === 'effort' && now - (this.effortAt.get(who) ?? 0) < 1500) return false;
 
     let id: string;
+    let pool = 1;
     if (kind === 'effort' || kind === 'hurt') {
       // Season 1 has 3 efforts, everyone else 2: count the takes this fighter really has.
       let n = 0;
       while (this.lineById.get(`fighter.${who}.${kind}.${n}`)?.audio) n++;
-      n = Math.max(1, n);
+      pool = Math.max(1, n);
       const key = `${who}.${kind}`;
-      const i = (this.fighterPick.get(key) ?? 0) % n;
+      const i = (this.fighterPick.get(key) ?? 0) % pool;
       this.fighterPick.set(key, i + 1);
       id = `fighter.${who}.${kind}.${i}`;
     } else {
       id = `fighter.${who}.${kind}`;
     }
     const l = this.lineById.get(id);
-    // Season 1 has the full kit; everyone else still has a KO (and win) take.
-    if (!l?.audio) {
-      if (kind === 'ko') {
-        const ko = this.lineById.get(`fighter.${who}.ko`);
-        if (ko?.audio) {
-          this.voice(ko.audio, false, at);
-          this.emitFighterVoice(who, kind, ko.id, ko.text, ko.audio, now);
-          return true;
-        }
-      }
-      return false;
-    }
-
-    if (!this.buses) return false;
-    // Hold the slot immediately so a second bark in the same frame can't stack.
-    this.fighterBusyUntil.set(who, now + 800);
+    if (!l?.audio || !this.buses) return false;
     if (kind === 'effort') this.effortAt.set(who, now);
-    const prev = this.fighterSrc.get(who);
-    if (prev) {
-      try {
-        prev.stop();
-      } catch {
-        // Already finished.
-      }
-      this.fighterSrc.delete(who);
-    }
-    const audioUrl = l.audio;
-    const text = l.text;
-    // Fire the playtest event only once the buffer actually starts (a 404 must not look like a played line).
-    void this.start(audioUrl, this.buses.voice, 1, 1, false, at).then(async (src) => {
-      if (!src) {
-        this.fighterBusyUntil.set(who, now);
-        if (kind === 'effort') this.effortAt.set(who, 0);
-        return;
-      }
-      this.fighterSrc.set(who, src);
-      const started = typeof performance !== 'undefined' ? performance.now() : Date.now();
-      this.emitFighterVoice(who, kind, id, text, audioUrl, started);
-      const buf = await this.buffer(audioUrl);
-      this.duckForVoice(buf ? buf.duration * 1000 : 800);
-      const ms = buf ? buf.duration * 1000 : 800;
-      this.fighterBusyUntil.set(who, started + ms);
-      src.onended = () => {
-        if (this.fighterSrc.get(who) === src) this.fighterSrc.delete(who);
-      };
+    void this.speak({ url: l.audio, id, speaker: who, kind, text: l.text, pool, at }).then((ms) => {
+      if (!ms && kind === 'effort') this.effortAt.set(who, 0);
     });
     return true;
   }
@@ -888,23 +910,125 @@ class AudioSystem {
     }
   }
 
-  /** Plays a voice file. Dialogue cuts off the line before it; callouts overlap. Ducks music ~8 dB. */
-  voice(url: string | null | undefined, interrupt = true, at?: Spatial): void {
-    if (url) window.dispatchEvent(new CustomEvent('dod:voice', { detail: { url, played: !!this.buses } }));
-    if (!url || !this.buses) return;
-    if (interrupt) this.stopVoice();
-    void this.start(url, this.buses.voice, 1, 1, false, at).then(async (src) => {
-      if (!src) return;
-      if (interrupt) this.speech = src;
-      const buf = await this.buffer(url);
-      this.duckForVoice(buf ? buf.duration * 1000 : 900);
+  /**
+   * Plays a voice file as a story take (a scene line, a segment, an ending) or as `kind` (a pre-fight exchange is 'banter').
+   * A new scene take replaces the one before it; everything goes through the voice director.
+   */
+  voice(url: string | null | undefined, kind: VoiceKind = 'scene', at?: Spatial): void {
+    if (!url) return;
+    const l = this.lineOfUrl(url);
+    void this.speak({ url, id: l?.id ?? url.split('/').pop() ?? url, speaker: l?.who || 'story', kind, text: l?.text, at });
+  }
+
+  /**
+   * The one way a take reaches the air: loads it, asks the director, and runs what it says (start, cut with a 60 ms fade,
+   * drop). Resolves with the length playing in ms once it starts, or 0 when it was dropped (or there is no sound yet).
+   * Fires one `dod:voice` per take when it is over: speaker, id, kind, start, end, cut or dropped.
+   */
+  private async speak(r: { url: string; id: string; speaker: string; kind: VoiceKind; text?: string; pool?: number; at?: Spatial; call?: boolean }): Promise<number> {
+    const once = r.kind === 'commentary' || COMMENTARY_POOL.test(r.id);
+    if (!this.buses) {
+      this.emitVoice({ speaker: r.speaker, id: r.id, kind: r.kind, url: r.url, start: 0, end: 0, cut: false, dropped: true, reason: 'no-sound', played: false });
+      return 0;
+    }
+    const buf = await this.buffer(r.url);
+    if (!buf) {
+      this.emitVoice({ speaker: r.speaker, id: r.id, kind: r.kind, url: r.url, start: 0, end: 0, cut: false, dropped: true, reason: 'no-take', played: false });
+      return 0;
+    }
+    return new Promise<number>((resolve) => {
+      this.run(this.director.request({ kind: r.kind, speaker: r.speaker, id: r.id, ms: buf.duration * 1000, once, pool: r.pool, ref: { ...r, buf, resolve } }));
     });
+  }
+
+  /** Executes the director's outcomes on the audio graph, then sets the timer for the next wake. */
+  private run(outs: Outcome[]): void {
+    const queue = [...outs];
+    while (queue.length) {
+      const o = queue.shift()!;
+      const ref = o.take.ref as { url: string; text?: string; at?: Spatial; buf: AudioBuffer; resolve: (ms: number) => void; kind: VoiceKind } | undefined;
+      const t = o.take;
+      if (o.type === 'start' && ref) {
+        // Duck first, so the music is already going down as the voice starts.
+        this.duckForVoice(t.end - t.start);
+        if (this.duckDepth === 0) this.unducked++;
+        const src = this.startBuf(ref.buf, this.buses!.voice, 1, 1, false, ref.at);
+        this.onAirSrc.set(t, src);
+        if (t.kind === 'ko' || t.kind === 'taunt' || t.kind === 'hurt' || t.kind === 'effort') this.emitFighterVoice(t.speaker, t.kind, t.id, ref.text ?? '', ref.url, t.start);
+        ref.resolve(t.end - t.start);
+      } else if (o.type === 'cut') {
+        this.fadeOut(t);
+        this.emitTake(t);
+        const ref2 = t.ref as { resolve?: (ms: number) => void } | undefined;
+        ref2?.resolve?.(0);
+      } else if (o.type === 'end') {
+        this.onAirSrc.delete(t);
+        this.emitTake(t);
+      } else if (o.type === 'drop') {
+        this.emitTake(t);
+        ref?.resolve(0);
+      }
+    }
+    this.scheduleDirector();
+  }
+
+  private fadeOut(t: Take): void {
+    const src = this.onAirSrc.get(t);
+    this.onAirSrc.delete(t);
+    if (!src || !this.ctx) return;
+    const g = this.gains.get(src);
+    const now = this.ctx.currentTime;
+    try {
+      if (g) {
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(g.gain.value, now);
+        g.gain.linearRampToValueAtTime(0, now + FADE_MS / 1000);
+      }
+      src.stop(now + FADE_MS / 1000 + 0.005);
+    } catch {
+      // Already finished.
+    }
+  }
+
+  private scheduleDirector(): void {
+    if (this.directorTimer) clearTimeout(this.directorTimer);
+    this.directorTimer = null;
+    const wake = this.director.nextWake();
+    if (wake === null) return;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    this.directorTimer = setTimeout(() => {
+      this.directorTimer = null;
+      this.run(this.director.pump());
+    }, Math.max(0, wake - now));
+  }
+
+  private emitTake(t: Take): void {
+    this.emitVoice({
+      speaker: t.speaker,
+      id: t.id,
+      kind: t.kind,
+      url: (t.ref as { url?: string } | undefined)?.url ?? '',
+      start: Math.round(t.start),
+      end: Math.round(t.end),
+      cut: t.cut,
+      dropped: t.state === 'dropped',
+      reason: t.reason,
+      played: t.state !== 'dropped',
+    });
+  }
+
+  private emitVoice(d: { speaker: string; id: string; kind: string; url: string; start: number; end: number; cut: boolean; dropped: boolean; reason?: string; played: boolean }): void {
+    try {
+      window.dispatchEvent(new CustomEvent('dod:voice', { detail: d }));
+    } catch {
+      // Node tests have no window.
+    }
   }
 
   /**
    * The announcer's call (a fighter's or stage's name, "The winner is...", "Choose your fighter!"): one at a time, a new
    * call cuts the one still playing. Ducks the music under it. Fires `dod:announcer` (play / stop) for the playtest.
-   * Resolves with the length played in ms (0 when there is no take or no sound yet), once it has started.
+   * Resolves with the length played in ms (0 when there is no take, no sound yet or it was dropped), once it has started.
    */
   async call(id: string): Promise<number> {
     this.stopCall();
@@ -943,42 +1067,28 @@ class AudioSystem {
   private async playCall(id: string, seq: number): Promise<number> {
     const l = this.lineById.get(id);
     if (!l?.audio) return 0;
-    const url = l.audio;
-    window.dispatchEvent(new CustomEvent('dod:voice', { detail: { url, played: !!this.buses } }));
-    if (!this.buses) return 0;
-    const buf = await this.buffer(url);
-    // A newer call (or a stop) came in while this one was loading: it never starts.
     if (seq !== this.callSeq) return 0;
-    const src = await this.start(url, this.buses.voice, 1, 1, false);
-    if (!src) return 0;
+    const ms = await this.speak({ url: l.audio, id, speaker: l.who || 'announcer', kind: 'announcer', text: l.text });
+    // A newer call (or a stop) came in while this one was loading or waiting: it is gone.
     if (seq !== this.callSeq) {
-      try { src.stop(); } catch { /* not started */ }
+      this.run(this.director.stopKind('announcer'));
       return 0;
     }
-    const ms = buf ? buf.duration * 1000 : 900;
-    this.callSrc = src;
-    this.callUntil = performance.now() + ms;
-    src.onended = () => { if (this.callSrc === src) this.callSrc = null; };
-    this.duckForVoice(ms);
-    this.emitCall('play', id, l.text, ms);
+    if (ms) this.emitCall('play', id, l.text, ms);
     return ms;
   }
 
   /** Cuts the announcer's call that is playing and drops any that are waiting. */
   stopCall(): void {
     this.callSeq++;
-    const src = this.callSrc;
-    this.callSrc = null;
-    if (src) {
-      try { src.stop(); } catch { /* already finished */ }
-      this.emitCall('stop', '', '', 0);
-    }
-    this.callUntil = 0;
+    const had = this.director.busyMs('announcer') > 0;
+    this.run(this.director.stopKind('announcer'));
+    if (had) this.emitCall('stop', '', '', 0);
   }
 
-  /** Milliseconds left on the call that is playing (0 when none). */
+  /** Milliseconds left on the announcer's call that is playing (0 when none). */
   callBusyMs(): number {
-    return Math.max(0, this.callUntil - performance.now());
+    return this.director.busyMs('announcer');
   }
 
   private emitCall(phase: 'play' | 'stop', id: string, text: string, ms: number): void {
@@ -989,13 +1099,9 @@ class AudioSystem {
     }
   }
 
+  /** Cuts the story take and the rival banter that are playing (a scene ends or is skipped). */
   stopVoice(): void {
-    try {
-      this.speech?.stop();
-    } catch {
-      // Already finished.
-    }
-    this.speech = null;
+    this.run([...this.director.stopKind('scene'), ...this.director.stopKind('banter')]);
   }
 
   /** Crossfades to a music loop by sound id, or to silence with null. Clears any stage bed. */

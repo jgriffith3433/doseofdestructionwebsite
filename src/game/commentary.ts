@@ -76,8 +76,12 @@ export class Commentator {
 
   private readonly rand: () => number;
 
-  constructor(s: GameState, rand: () => number = Math.random) {
+  /** True when a line may be said now (the voice director's 5 minute no-repeat rule). */
+  private readonly fresh: (id: string) => boolean;
+
+  constructor(s: GameState, rand: () => number = Math.random, fresh: (id: string) => boolean = () => true) {
     this.rand = rand;
+    this.fresh = fresh;
     this.stocksBefore = s.fighters.map((f) => f.stocks);
   }
 
@@ -85,9 +89,9 @@ export class Commentator {
   private pick(kind: string): { id: string; text: string } | null {
     const pool = POOLS.get(kind);
     if (!pool?.length) return null;
-    const rest = pool.filter((l) => l.id !== this.lastId);
-    const from = rest.length ? rest : pool;
-    return from[Math.floor(this.rand() * from.length)];
+    // Never the line said last, never one heard in the last 5 minutes: with none left the call is skipped (silence beats a repeat).
+    const from = pool.filter((l) => l.id !== this.lastId && this.fresh(l.id));
+    return from.length ? from[Math.floor(this.rand() * from.length)] : null;
   }
 
   private say(kind: CallKind, frame: number, out: Call[], force = false): void {

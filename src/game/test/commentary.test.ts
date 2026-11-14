@@ -88,6 +88,28 @@ for (const k of CALL_KINDS) assert(poolOf(k).length >= 3, `${k} has fewer than 3
   }
 }
 
+// The voice director's 5 minute rule: with `fresh` refusing every line the commentator stays silent; with it allowing only
+// unheard lines, no id comes twice (a pool of 3 or 4 is used up, then the calls are skipped).
+{
+  const heard = new Set<string>();
+  const m2 = new Match({ mode: 'versus', stage: 0, stocks: 99, rules: {}, slots: [{ char: characterIndex('exit-punk'), cpu: null }, { char: characterIndex('kaelen'), cpu: null }] }, 3);
+  const quiet = new Commentator(m2.state, Math.random, () => false);
+  const loud = new Commentator(m2.state, Math.random, (id) => !heard.has(id));
+  let said = 0;
+  for (let i = 0; i < 40; i++) {
+    m2.state.frame = 1000 + i * 600;
+    const e: SimEvent[] = [{ type: 'ko', victim: 0, by: 1, x: 0, y: 0 }];
+    m2.state.fighters[0].stocks = 90 - i;
+    assert(quiet.onEvents(m2.state, e).length === 0, 'a commentator with no fresh lines still spoke');
+    for (const c of loud.onEvents(m2.state, e)) {
+      assert(!heard.has(c.id), `repeated inside the window: ${c.id}`);
+      heard.add(c.id);
+      said++;
+    }
+  }
+  assert(said > 0 && said <= 20, `fresh-only commentator said ${said} lines`);
+}
+
 // Blog Man: every episode has an intro, and it counts as the line said last.
 for (const c of CHAPTER_ENTRIES) {
   const call = introCall(c.id);
