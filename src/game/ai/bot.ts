@@ -287,8 +287,15 @@ export class Bot {
     this.wait = 2;
     const hangFor = 10 + Math.floor((1 - e) * 30 * this.random() + e * e * 150 * this.random());
     const gone = this.random() < e * e * 0.05;
-    if (me.frame < hangFor || (gone && me.frame < 400)) return;
     const held = ledges(this.stage)[me.ledge - 1];
+    // A hazard is crossing the top of the ledge (a skater over a pillar): climbing up only puts the bot back in its way,
+    // so it lets go and drops to the floor instead.
+    if (s && held && this.hazardous && this.ledgeTopInDanger(s, me, held.x, held.y)) {
+      this.press(0, -100, 0, 3);
+      this.lastLedge = 'drop';
+      return;
+    }
+    if (me.frame < hangFor || (gone && me.frame < 400)) return;
     const toward = held ? -held.side * 100 : 0;
     const t = s ? this.pickTarget(s, me) : null;
     const getup = (): string => (this.press(toward, 0, 0, 2), 'getup');
@@ -346,11 +353,20 @@ export class Bot {
     return !this.oblivious && s.frame - this.dangerSince >= (9 - this.level) * 18;
   }
 
+  /** Whether the spot a getup lands on (the ledge's top) is in the way of a hazard the bot has seen coming. */
+  private ledgeTopInDanger(s: GameState, me: Fighter, x: number, y: number): boolean {
+    const d = this.read(s, me);
+    if (!d.circles.length && !d.rects.length) return false;
+    if (!this.aware(s, d)) return false;
+    const [hw, h] = bodyOf(me);
+    return clearance(d, x, y, hw, h, Infinity, true) < HAZARD_SAFE;
+  }
+
   /** Room for the bot standing at x (its height now); in the air, the least of that and the room where it would land. */
   private room(s: GameState, me: Fighter, d: Dangers, atX = me.x / FX): number {
     const [hw, h] = bodyOf(me);
     const y = me.y / FX;
-    const here = clearance(d, atX, y, hw, h);
+    const here = clearance(d, atX, y, hw, h, Infinity, true);
     if (me.grounded && atX === me.x / FX) return here;
     // Highest platform top under the body.
     let top = -Infinity;
@@ -360,7 +376,7 @@ export class Bot {
       if (atX < a.x1 / FX || atX > a.x2 / FX || a.y / FX > y + 4) return;
       top = Math.max(top, a.y / FX);
     });
-    return top === -Infinity ? here : Math.min(here, clearance(d, atX, top, hw, h));
+    return top === -Infinity ? here : Math.min(here, clearance(d, atX, top, hw, h, Infinity, true));
   }
 
   /** True when the bot has seen a danger and its spot is in the way. */
@@ -388,7 +404,7 @@ export class Bot {
     if (this.room(s, me, d) >= HAZARD_SAFE) return false;
     // Stick to the spot picked a moment ago while it stays clear (no dithering between two equal ways out).
     let spot = this.spot;
-    if (!spot || s.frame - this.spotAt > 120 || clearance(d, spot.x, spot.y, hw, h) < HAZARD_SAFE) {
+    if (!spot || s.frame - this.spotAt > 120 || clearance(d, spot.x, spot.y, hw, h, Infinity, true) < HAZARD_SAFE) {
       spot = this.safeSpot(s, me, d, hw, h);
       this.spot = spot;
       this.spotAt = s.frame;
@@ -417,7 +433,7 @@ export class Bot {
       const n = Math.max(1, Math.ceil((x2 - x1) / 40));
       for (let k = 0; k <= n; k++) {
         const x = n === 0 || x2 <= x1 ? (a.x1 + a.x2) / FX / 2 : x1 + ((x2 - x1) * k) / n;
-        const c = clearance(d, x, y, hw, h);
+        const c = clearance(d, x, y, hw, h, Infinity, true);
         if (c > roomyClear) {
           roomyClear = c;
           roomy = { x, y, p };

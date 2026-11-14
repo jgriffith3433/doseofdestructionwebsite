@@ -15,6 +15,8 @@ export interface HazardCircle {
   t: number;
   /** The hazard's own heading, -1 left, 1 right. */
   dir: number;
+  /** Extra room worth keeping from it: a fast hazard (a hawk, a skater) is dodged late, a launch carries a body further than it looks. */
+  pad: number;
 }
 
 /** A damage zone that hurts now (t = 0) or when its event starts. */
@@ -36,6 +38,10 @@ export interface Dangers {
   /** An event (not an always-on zone) is warning or running. */
   event: boolean;
 }
+
+/** Hazards faster than this (units a frame) get FAST_PAD of extra room in `clearance(..., margin)`. */
+const FAST = 18;
+const FAST_PAD = 60;
 
 /** Frames between the points sampled along a hazard's path (it moves about 10 units a frame at its fastest). */
 const STEP = 4;
@@ -79,11 +85,15 @@ export function readDangers(stage: StageDef, s: GameState, me: Fighter | null, s
     const from = Math.max(0, e0);
     const to = loop ? e0 + len : len;
     const n = Math.max(1, Math.min(120, Math.ceil((to - from) / STEP)));
+    // Its pace along the path, units a frame (the path's length over the crossing's).
+    let pathLen = 0;
+    for (let k = 1; k < h.path.length; k++) pathLen += Math.hypot(h.path[k].x - h.path[k - 1].x, h.path[k].y - h.path[k - 1].y);
+    const speed = pathLen / len;
     for (let k = 0; k <= n; k++) {
       const e = from + ((to - from) * k) / n;
       const p = pathAt(h, loop ? e % len : e, len, loop);
       const t = e - e0;
-      out.circles.push({ x: p.x, y: p.y, r: h.r, t, dir: p.dir });
+      out.circles.push({ x: p.x, y: p.y, r: h.r, t, dir: p.dir, pad: speed > FAST ? FAST_PAD : 0 });
       if (t < out.soonest) out.soonest = t;
     }
     out.event = true;
@@ -110,13 +120,13 @@ export function readDangers(stage: StageDef, s: GameState, me: Fighter | null, s
  * Room around a standing body (feet at x, y; world units) from everything in `d` that is within `within` frames:
  * the smallest gap between the body's box and a hazard's circle or a zone's rectangle. Negative inside one.
  */
-export function clearance(d: Dangers, x: number, y: number, halfW: number, h: number, within = Infinity): number {
+export function clearance(d: Dangers, x: number, y: number, halfW: number, h: number, within = Infinity, margin = false): number {
   let best = Infinity;
   for (const c of d.circles) {
     if (c.t > within) continue;
     const px = Math.max(x - halfW, Math.min(c.x, x + halfW));
     const py = Math.max(y, Math.min(c.y, y + h));
-    best = Math.min(best, Math.hypot(c.x - px, c.y - py) - c.r);
+    best = Math.min(best, Math.hypot(c.x - px, c.y - py) - c.r - (margin ? c.pad : 0));
   }
   for (const z of d.rects) {
     if (z.t > within) continue;
