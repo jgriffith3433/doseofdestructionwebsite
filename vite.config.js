@@ -85,6 +85,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    // Lower the build's peak memory (Studio's build cell is small): no gzip pass over every file, no sourcemaps.
+    reportCompressedSize: false,
+    sourcemap: false,
     // Only the game is bundled. The rest of the site is static HTML copied as-is.
     rollupOptions: {
       input: { game: path.resolve(root, 'Game/index.html') },
