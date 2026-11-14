@@ -35,7 +35,8 @@ import type { SimEvent } from './sim/step.ts';
 import { ruleLabel, takeoverLines } from './campaign/takeover.ts';
 import { LESSON_TITLE, campaignBlurb, doneLessons, markLessonDone, nextLesson, type LessonId } from './campaign/lessons.ts';
 import { clearLosses, difficulty, foeLevels, markCleared, offerEasy, recordLoss, setDifficulty, withDifficulty, DIFFICULTY_LABEL, type Difficulty } from './campaign/difficulty.ts';
-import { CHAPTERS, isUnlocked, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
+import { gradeEpisode } from './campaign/grade.ts';
+import { CHAPTERS, isUnlocked, loadProgress, recordStars, loadStars, saveStars, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, installPressFeedback, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
@@ -541,6 +542,7 @@ function openCampaignScreen(unlocked?: string): Promise<void> {
     openCampaign(progress, playChapter, () => {
       progress.clear();
       saveProgress(progress);
+      saveStars({});
       openCampaignScreen();
     }, unlocked),
   );
@@ -2265,6 +2267,18 @@ function difficultyNotes(won: boolean, offer: boolean): void {
   }
 }
 
+/** A won episode's grade (campaign/grade.ts): graded from the match, the best kept in the save, and told to the playtest. */
+function episodeGrade(m: Match, c: Chapter) {
+  const me = m.state.fighters[m.player];
+  const start = m.setup.slots[m.player]?.stocks ?? m.setup.stocks;
+  const g = gradeEpisode({ won: true, objective: m.setup.objective, stocksStart: start, stocksLeft: me?.stocks ?? 0, frames: m.state.frame, damageTaken: (m.stats[m.player]?.taken ?? 0) / 10, par: c.par });
+  const before = loadStars()[c.id] ?? 0;
+  const best = recordStars(c.id, g.stars);
+  const out = { ...g, best, improved: g.stars > before && before > 0 };
+  window.dispatchEvent(new CustomEvent('dod:episode-grade', { detail: { chapter: c.id, stars: g.stars, best, par: c.par, seconds: Math.round(m.state.frame / 60), stocksLost: start - (me?.stocks ?? 0), steps: g.steps } }));
+  return out;
+}
+
 function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   phase = 'idle';
   // Training has no winner; a campaign loss or a CPU's win credits nobody.
@@ -2307,12 +2321,13 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   }
   // The winner's quote, picked before the screen opens so the caption and the voice are the same line.
   const quote = announceWinQuote(m, m.state.winner, tourRun?.setup === m.setup && won);
+  const grade = m.setup.mode === 'campaign' && c && won && !dailyRun && !tourRun ? episodeGrade(m, c) : undefined;
   // Watch replay: the whole match from its recorded inputs (not on the Tour's lost-fight choice, which has its own panel).
   const tourLost = tourRun?.setup === m.setup && !won;
   if (!tourLost) {
     addWatchReplay(actions, m, () => void go('results', () => {
       endMatch();
-      showResults(m, actions, undefined, [], levelChange ?? undefined);
+      showResults(m, actions, undefined, [], levelChange ?? undefined, grade);
       if (campaignResult) difficultyNotes(won, easyOffer);
       if (tourRun?.setup === m.setup && won) $('results-body').prepend(tourBanner(tourRun.tour, tourRun.continues));
       startResultsMusic();
@@ -2324,7 +2339,7 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
       showResults(m, actions, undefined, newLooks);
       renderTourChoice({ tour: tourRun.tour, index: tourRun.index, fight: tourRun.tour.fights[tourRun.index], continues: tourRun.continues, onContinue: () => tourContinue(), onQuit: () => { analytics.tour('quit', { fighter: tourRun!.tour.fighter, fight: tourRun!.index + 1 }); void openTourScreen(); } });
     } else {
-      showResults(m, actions, undefined, newLooks, levelChange ?? undefined);
+      showResults(m, actions, undefined, newLooks, levelChange ?? undefined, grade);
       if (campaignResult) difficultyNotes(won, easyOffer);
     }
     if (tourRun?.setup === m.setup && won) $('results-body').prepend(tourBanner(tourRun.tour, tourRun.continues));

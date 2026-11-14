@@ -566,6 +566,16 @@
       ]
     },
     {
+      "id": "grades",
+      "title": "Episode grades: a won episode shows 1-3 stars on Results with what each star needs, and the season map keeps the best",
+      "description": "Option chapter (default house-heavy). Setup shortcut: the chapters before it are marked cleared and dod-stars is emptied (both put back). The bot plays the chapter from the Campaign map; on a win the results show the stars card (1 clear, 2 no stock lost, 3 under par time, or under 100% damage taken on a survive episode; labels on screen, 12 px or more: grade, metric gradeStars) and the map shows the stars with \"N of 3\" on the episode (map-stars, checked against dod-stars); the map is then opened again from the save (map-stars after-reopen). On a 390x844 phone the run plays by taps and everything is checked inside the window.",
+      "starts": [],
+      "seconds": 300,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "quota",
       "title": "The quota objective in a campaign chapter: \"Quota 0/300%\" on the HUD with the clock, counting up as damage lands, and a results line saying how it ended",
       "description": "Plays one chapter that uses the quota objective (Season 5's Product Placement by default, or option `chapter`) from the Campaign map with the bot on a virtual pad: setup shortcut marks the chapters before it cleared. Checks the chip as the match starts and as damage lands (an event every 100%), the clock, and the results line (quota met, time ran out or out of stocks), two tries. Events chapter, quota-chip, quota-count, quota-result, chapter-cleared / chapter-failed.",

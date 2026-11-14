@@ -127,6 +127,22 @@ Accepting makes Easy the map's choice and replays the episode with the softer fo
 other and carries a small green **Easy** badge on the map and the results; clearing it again on Normal or Hard takes the
 badge off. Retry on its own always replays the same setup.
 
+## Grades: stars on every episode (as built)
+
+A won episode is graded 1 to 3 stars (`campaign/grade.ts`, pure; `test/grade.test.ts`):
+
+| Stars | What it needs |
+|---|---|
+| 1 | Clear the episode. |
+| 2 | Clear it without losing a stock. |
+| 3 | Also beat the episode's par time (`par`, seconds, in `content/campaign.json`). A `survive` episode always runs its whole clock, so its third star is a clean night instead: no stock lost and under 100% damage taken. |
+
+Par is a first guess (24 s per foe stock plus 10; 60% of the clock for KO, quota and streak episodes) and wants tuning
+from play. The results of a won episode show the card ("N of 3", each star with its test, lit when earned, "Best ..."
+or "New best."). The best grade is kept in `localStorage` `dod-stars` (chapter id to 1-3; a replay never lowers it; an
+episode cleared before grades counts as 1) and the season map shows it on each cleared episode, with a season total.
+Resetting the campaign clears it. Scenario `grades` (events `grade`, `map-stars`).
+
 ## Unlocks: who joins the card
 
 The show's roster grows as the champion clears it. A chapter's optional `unlock` in `content/campaign.json` names

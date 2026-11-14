@@ -620,7 +620,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 .chapter {
   position: relative;
   display: grid;
-  grid-template-rows: auto 150px auto auto auto;
+  grid-template-rows: auto 150px auto auto auto auto;
   gap: 4px;
   text-align: left;
   background: radial-gradient(ellipse at 50% 45%, rgba(255, 90, 31, 0.2), transparent 70%), var(--card);
@@ -2366,3 +2366,18 @@ body.scene-on .training-readout { opacity: 0; }
 body.replaying .hud { bottom: calc(max(12px, env(safe-area-inset-bottom)) + 124px); transition: bottom 180ms ease-out; }
 body.replaying.replay-bar-off .hud { bottom: max(12px, env(safe-area-inset-bottom)); }
 @media (min-width: 700px) and (min-height: 600px) { body.replaying .hud { bottom: calc(max(12px, env(safe-area-inset-bottom)) + 76px); } }
+
+/* Episode grades (campaign/grade.ts): the stars card on a won episode's results and the stars on the map. */
+.results-grade { margin: 14px 0; padding: 12px 16px; border: 2px solid rgba(255, 200, 60, 0.45); border-radius: 10px; background: rgba(255, 200, 60, 0.07); }
+.results-grade h3 { font-family: Oswald, sans-serif; text-transform: uppercase; font-size: calc(22px * var(--ts, 1)); letter-spacing: 0.06em; }
+.results-grade .grade-stars { color: var(--gold); letter-spacing: 0.12em; }
+.grade-steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.grade-steps li { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: calc(16px * var(--ts, 1)); min-height: 28px; }
+.grade-steps li b { font-size: calc(22px * var(--ts, 1)); line-height: 1; }
+.grade-steps li.met { color: var(--text); }
+.grade-steps li.met b { color: var(--gold); }
+.grade-best { margin: 8px 0 0; color: var(--muted); font-size: calc(14px * var(--ts, 1)); }
+.chapter-stars { display: flex; align-items: baseline; gap: 8px; color: var(--gold); }
+.chapter-stars b { font-size: calc(22px * var(--ts, 1)); letter-spacing: 0.1em; font-weight: 400; }
+.chapter-stars small { font-size: calc(12px * var(--ts, 1)); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.season-stars { font-style: normal; font-weight: 700; color: var(--gold); margin-left: 12px; }

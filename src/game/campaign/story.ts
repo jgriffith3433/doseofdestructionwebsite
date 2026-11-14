@@ -26,6 +26,8 @@ export interface Chapter {
   tagline: string;
   /** What the fight asks of the player, shown before it starts. */
   hint: string;
+  /** The par time in seconds that earns the third star (campaign/grade.ts). */
+  par: number;
   /** The fighter id this chapter unlocks for Versus and online when it is cleared (docs/story.md, "Unlocks"). */
   unlock?: string;
   /** The story cards: one line before the episode's fight and one after it is won (content/campaign.json `card`). */
@@ -132,6 +134,36 @@ export function loadProgress(): Set<string> {
   } catch {
     return new Set();
   }
+}
+
+const STARS_KEY = 'dod-stars';
+
+/** The best grade (1 to 3 stars) kept per chapter id. A chapter cleared before grades existed counts as 1 star. */
+export function loadStars(): Record<string, number> {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STARS_KEY) ?? '{}');
+    const out: Record<string, number> = {};
+    if (saved && typeof saved === 'object') for (const [k, v] of Object.entries(saved)) if (v === 1 || v === 2 || v === 3) out[k] = v;
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function saveStars(stars: Record<string, number>): void {
+  try {
+    localStorage.setItem(STARS_KEY, JSON.stringify(stars));
+  } catch {
+    // Storage can be blocked; grades then last only for this visit.
+  }
+}
+
+/** Keeps the better of the saved grade and this run's; returns the best. */
+export function recordStars(id: string, stars: number): number {
+  const all = loadStars();
+  const best = Math.max(all[id] ?? 0, stars);
+  if (best > 0) saveStars({ ...all, [id]: best });
+  return best;
 }
 
 export function saveProgress(done: Set<string>): void {
