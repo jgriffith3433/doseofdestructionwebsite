@@ -25,7 +25,7 @@ import { openRebind, backRebind, wireRebind, onRebind } from './ui/rebind.ts';
 import { onBindings } from './input/bindings.ts';
 import { onShieldMode, setShieldActive, setShieldMode, shieldMode, releaseShieldLatch } from './input/shieldMode.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
-import { keyboardHelp, gamepadHelp, padFamily, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, readHumans, assignDevices, tauntPressed } from './input/devices.ts';
+import { keyboardHelp, gamepadHelp, padFamily, TOUCH_HELP, listenKeyboard, onKey, pausePressedBy, padSlot, readLocal, readHumans, assignDevices, tauntPressed } from './input/devices.ts';
 import { damageColor, damageShake, hitGain, hitTier } from './hitFeel.ts';
 import { clearMarkers, markerLog, markerRects, safeInsets, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
 import { clearTags, tagLog, tagRects, tagText, updateTags, type TagIn } from './ui/tags.ts';
@@ -42,7 +42,7 @@ import { earnReward, onVariantChange, setVariant } from './campaign/rewards.ts';
 import { CHAPTERS, isUnlocked, loadProgress, recordStars, recordBest, loadStars, saveStars, saveBests, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, installPressFeedback, largeUrl, thumbUrl } from './ui/dom.ts';
-import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
+import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, setMenuOwner, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playVersus, setResultActions, showResults, type ResultAction } from './ui/views.ts';
 import { clearRematchPanel, renderRematch } from './ui/rematch.ts';
@@ -1689,21 +1689,28 @@ function endMatch(): void {
   $('match-top').hidden = true;
   clearTakeover();
   $('pause').hidden = true;
+  pauseOwner = null;
+  setMenuOwner(null);
   renderer.debug = false;
 }
 
 /** Esc, Start or the on-screen pause button in a match: closes Settings if it is open, else pauses or resumes. */
-function pauseKey(): void {
+function pauseKey(by?: number): void {
   if (!match || phase === 'idle') return;
+  // Couch pause: while P2's menu is up, P1's Esc or Start does nothing (the on-screen button and mouse still work).
+  if (phase === 'pause' && pauseOwner !== null && by !== undefined && by !== pauseOwner) return;
   // Esc or Start in a story scene skips it.
   if (phase === 'scene') return skipScene();
   if (document.getElementById('lesson-card')) return;
   if (!$('controls-panel').hidden) openControlsPanel(false);
   else if (settingsOpen()) closeSettings();
-  else setPaused(phase !== 'pause');
+  else setPaused(phase !== 'pause', by);
 }
 
-function setPaused(paused: boolean): void {
+/** The player slot whose pause is up on a couch match with 2+ people (null: solo, online, or not paused). */
+let pauseOwner: number | null = null;
+
+function setPaused(paused: boolean, by?: number): void {
   if (!match) return;
   if (!paused && settingsOpen()) closeSettings();
   if (!paused) $('controls-panel').hidden = true;
@@ -1712,6 +1719,10 @@ function setPaused(paused: boolean): void {
   if (paused && phase !== 'pause') analytics.paused(match);
   phase = paused ? 'pause' : 'play';
   $('pause').hidden = !paused;
+  const couch = paused && !fight && match.setup.mode === 'versus' && match.humans >= 2;
+  pauseOwner = couch ? by ?? 0 : null;
+  setMenuOwner(pauseOwner, padSlot);
+  showPauseOwner(pauseOwner);
   $('btn-restart').hidden = !!fight;
   $('pause').querySelector('h2')!.textContent = fight ? 'Menu (the match goes on)' : 'Paused';
   syncTrainingOptions();
@@ -1722,6 +1733,19 @@ function setPaused(paused: boolean): void {
   } else {
     canvas.focus();
   }
+}
+
+/** "P2 paused" in P2's colour and shape, over the pause menu; gone for solo pause. */
+function showPauseOwner(slot: number | null): void {
+  const el = $('pause-owner');
+  el.hidden = slot === null;
+  if (slot === null || !match) return;
+  const colour = slotColor(match, slot);
+  el.style.setProperty('--player', colour);
+  el.dataset.shape = shapeOf(slot);
+  el.dataset.slot = String(slot);
+  el.textContent = `P${slot + 1} paused`;
+  (window as unknown as { __dodPause?: unknown }).__dodPause = { slot, text: el.textContent };
 }
 
 let lastActions: number[] = [];
@@ -2851,7 +2875,10 @@ function frame(draw = true): void {
   // Upright phone: the match waits under the Rotate prompt (online it can't stop, so the fighter just stands still).
   if (rotateShowing() && !fight) acc = 0;
 
-  if (match && phase !== 'idle' && pausePressed()) pauseKey();
+  {
+    const by = pausePressedBy();
+    if (by !== null && match && phase !== 'idle') pauseKey(by);
+  }
   // Taunt is presentation-only (T / D-pad up): not packed into sim input, so rollback never sees it.
   if (match && phase === 'play' && tauntPressed()) {
     const me = match.player >= 0 ? match.state.fighters[match.player] : null;

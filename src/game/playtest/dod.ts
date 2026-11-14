@@ -10858,6 +10858,18 @@ class Run {
         fire(stick, 'pointerup', cx, cy);
         if (Math.abs(x(m.player) - x0) < 200) t.problem('bug', 'the touch stick did not move the player');
         else t.event('phone-touch-moves', `the touch stick moved the player ${Math.round(Math.abs(x(m.player) - x0) / 1000)} units, one human against the CPU`);
+        // Touch pause is unchanged: the on-screen button pauses (no "paused by" line solo), Resume carries on.
+        const pauseBtn = touchOverlay()?.querySelector<HTMLElement>('.touch-pause');
+        if (!pauseBtn) return t.problem('bug', 'no touch pause button');
+        const pr = pauseBtn.getBoundingClientRect();
+        fire(pauseBtn, 'pointerdown', pr.left + pr.width / 2, pr.top + pr.height / 2);
+        fire(pauseBtn, 'pointerup', pr.left + pr.width / 2, pr.top + pr.height / 2);
+        await t.until(() => this.game.phase() === 'pause', 3000, 'the touch pause button to pause');
+        const ow = document.getElementById('pause-owner');
+        if (ow && !ow.hidden) t.problem('bug', 'solo touch pause shows a "paused by" line');
+        await this.click(() => this.q('#btn-resume'), 'Resume');
+        await t.until(() => this.game.phase() === 'play', 3000, 'Resume to carry on');
+        t.event('touch-pause-resume', 'touch pause and Resume work as before, no player line solo');
         await quit();
         t.finish('done');
         return;
@@ -10967,6 +10979,32 @@ class Run {
       if (moved < 300 || movedB < 300) t.problem('bug', `pads did not both move their fighter (pad 1 ${moved}, pad 2 ${movedB})`);
       else if (stayed > moved / 2 || stayedA > movedB / 2) t.problem('bug', `a pad moved the other fighter too (player 2 drifted ${stayed} while pad 1 moved ${moved}; player 1 ${stayedA} while pad 2 moved ${movedB})`);
       else t.event('pads-independent', `pad 1 moved player 1 ${Math.round(moved / 1000)} units, player 2 ${Math.round(stayed / 1000)}; pad 2 then moved player 2 ${Math.round(movedB / 1000)}, player 1 ${Math.round(stayedA / 1000)}`);
+      // Couch pause: P2's Start pauses and names P2; P1's pad can't move the menu or resume; P2's Start resumes.
+      const startPad = (idx: number, on: boolean) => emulatePad({ buttons: Array.from({ length: 17 }, (_, i) => i === 9 && on), axes: [0, 0] }, idx);
+      const tapStart = async (idx: number) => { startPad(idx, true); await t.wait(150); startPad(idx, false); await t.wait(150); };
+      await tapStart(1);
+      await t.until(() => this.game.phase() === 'pause', 3000, "P2's Start to pause");
+      const owner = document.getElementById('pause-owner');
+      const ownerOk = !!owner && !owner.hidden && /P2 paused/.test(owner.textContent ?? '') && owner.dataset.shape === 'triangle' && !!owner.style.getPropertyValue('--player');
+      if (!ownerOk) t.problem('bug', `the pause screen does not say "P2 paused" in P2's colour and shape (${owner?.textContent ?? 'missing'})`);
+      else t.event('pause-owner', `${owner!.textContent} (${owner!.dataset.shape}, ${owner!.style.getPropertyValue('--player')})`);
+      const focusBefore = document.activeElement?.id ?? '';
+      emulatePad({ buttons: Array.from({ length: 17 }, (_, i) => i === 13), axes: [0, 0] }, 0);
+      await t.wait(400);
+      emulatePad(null, 0);
+      emulatePad(pad(false), 0);
+      await tapStart(0);
+      emulatePad({ buttons: Array.from({ length: 17 }, (_, i) => i === 1), axes: [0, 0] }, 0);
+      await t.wait(300);
+      emulatePad(pad(false), 0);
+      await tapKey('Escape');
+      await t.wait(300);
+      if (this.game.phase() !== 'pause') t.problem('bug', "P1's pad or keyboard resumed while P2's pause was up");
+      else if ((document.activeElement?.id ?? '') !== focusBefore) t.problem('bug', "P1's pad moved the pause menu while P2's pause was up");
+      else t.event('pause-locked', "P1's Start, B, d-pad and Esc did nothing while P2's pause was up");
+      await tapStart(1);
+      await t.until(() => this.game.phase() === 'play', 3000, "P2's Start to resume");
+      t.event('pause-resumed', "P2's Start resumed the match");
       emulatePad(null, 0);
       emulatePad(null, 1);
 

@@ -356,6 +356,27 @@ export function pausePressed(): boolean {
   return edge;
 }
 
+/**
+ * Which person pressed Start or Esc this frame: their slot (0 = keyboard and every pad nobody else owns, 1+ = a pad given
+ * to that player), or null when nobody did. Solo play always reads slot 0.
+ */
+const pauseDown = new Map<string, boolean>();
+export function pausePressedBy(): number | null {
+  let by: number | null = null;
+  const sources: [string, boolean, number][] = [['key', held.has('Escape'), 0]];
+  for (const p of pads()) sources.push([`pad${p.index}`, !!p.buttons[9]?.pressed, padOwner.get(p.index) ?? 0]);
+  for (const [id, down, slot] of sources) {
+    if (down && !pauseDown.get(id) && by === null) by = slot;
+    pauseDown.set(id, down);
+  }
+  return by;
+}
+
+/** The player slot a controller drives (0 when it is not given to anyone else). */
+export function padSlot(p: Gamepad): number {
+  return padOwner.get(p.index) ?? 0;
+}
+
 /** True on the frame T or gamepad D-pad up goes down (no touch button: space is tight on phones). */
 let tauntWasDown = false;
 export function tauntPressed(): boolean {
