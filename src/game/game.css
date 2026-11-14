@@ -414,7 +414,13 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-
 .tile.locked { opacity: 0.55; cursor: not-allowed; }
 .tile.locked img { filter: brightness(0) contrast(0.6); }
 .tile.locked span { color: var(--gold); letter-spacing: 0.08em; text-transform: uppercase; }
-.tile.random b { aspect-ratio: 1 / 1; display: grid; place-items: center; font-family: Oswald, sans-serif; font-size: calc(40px * var(--ts, 1)); color: var(--gold); }
+/* Locked fighters sit after the open ones (DOM order is kept for the pick logic) and read as locked, not as empty boxes. */
+.tile.locked { order: 2; }
+.tile.locked::after { content: "🔒"; position: absolute; left: 50%; top: calc(4px + 50% * 0.9 - 14px); transform: translateX(-50%); font-size: 22px; line-height: 1; pointer-events: none; }
+/* Random is first, the same height as a portrait tile, with a name that always fits. */
+.tile.random { order: -1; }
+.tile.random b { aspect-ratio: 1 / 1; display: grid; place-items: center; font-family: Oswald, sans-serif; font-size: calc(40px * var(--ts, 1)); line-height: 1; color: var(--gold); border-radius: 6px; background: rgba(255, 209, 90, 0.08); }
+.tile span { min-height: 2.4em; display: flex; align-items: center; justify-content: center; }
 
 .slots {
   display: flex;
