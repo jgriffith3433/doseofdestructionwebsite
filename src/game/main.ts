@@ -1707,6 +1707,16 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
       case 'ledge':
         audio.sfx('ledge', { vary: true, at: at(e.x) });
         break;
+      case 'ledge-option':
+        window.dispatchEvent(new CustomEvent('dod:ledge', { detail: { option: e.option, id: e.id, frame: m.state.frame } }));
+        // Each choice has its own cue; the jump already plays the jump sound from its own event, the attack's swing from its action.
+        if (e.option === 'getup') {
+          audio.synth('whoosh', 0.22);
+          audio.sfx('land-soft', { vary: true, at: at(e.x) });
+        } else if (e.option === 'roll') audio.synth('whoosh', 0.4);
+        else if (e.option === 'attack') audio.synth('grab', 0.5);
+        else if (e.option === 'drop') audio.synth('thud', 0.3);
+        break;
       case 'shieldbreak':
         audio.sfx('shield-break', { at: at(e.x) });
         break;
@@ -1731,7 +1741,7 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
       } else if (f.action === ACT.SHIELD) {
         // Raising the shield answers the press with a soft bubble-up, not silence.
         audio.synth('whoosh', 0.25);
-      } else if (f.action === ACT.ROLL || f.action === ACT.SPOTDODGE || f.action === ACT.AIRDODGE) audio.sfx('dodge', { vary: true, at: at(f.x) });
+      } else if (f.action === ACT.ROLL || f.action === ACT.SPOTDODGE || f.action === ACT.AIRDODGE || f.action === ACT.LEDGE_ROLL) audio.sfx('dodge', { vary: true, at: at(f.x) });
     }
     lastActions[i] = f.action;
   });

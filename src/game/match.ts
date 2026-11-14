@@ -254,7 +254,10 @@ export class Match {
             f.action === ACT.SHIELD ||
             f.action === ACT.AIRDODGE ||
             f.action === ACT.LEDGE_CLIMB ||
-            (p.action === ACT.LEDGE && f.action === ACT.AIR) ||
+            f.action === ACT.LEDGE_ROLL ||
+            f.action === ACT.LEDGE_ATTACK ||
+            f.action === ACT.LEDGE_JUMP ||
+            ((p.action === ACT.LEDGE || p.action === ACT.LEDGE_JUMP) && f.action === ACT.AIR) ||
             (p.action === ACT.RESPAWN && f.action === ACT.AIR))) ||
         (f.action === ACT.ATTACK && f.frame === 0) ||
         jumped;

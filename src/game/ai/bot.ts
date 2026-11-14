@@ -189,10 +189,12 @@ export class Bot {
     if (me.frame < 10 + this.random() * 30) return;
     const held = ledges(this.stage)[me.ledge - 1];
     const toward = held ? -held.side * 100 : 0;
+    // The four ledge options: getup, ledge jump, ledge attack (when the target is near the edge), ledge roll.
     const r = this.random();
-    if (r < 0.45) this.press(toward, 0, 0, 2);
-    else if (r < 0.75) this.press(0, 0, BTN.JUMP, 4);
-    else this.press(0, 0, BTN.ATTACK);
+    if (r < 0.3) this.press(toward, 0, 0, 2);
+    else if (r < 0.5) this.press(0, 0, BTN.JUMP, 4);
+    else if (r < 0.75) this.press(0, 0, BTN.ATTACK);
+    else this.press(0, 0, BTN.SHIELD, 2);
   }
 
   private pickTarget(s: GameState, me: Fighter): Fighter | null {

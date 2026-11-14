@@ -60,6 +60,7 @@ export const KEYBOARD_HELP: [string, string][] = [
   ['Up special', 'K + W  (recovery)'],
   ['Down special', 'K + S'],
   ['Shield / dodge', 'L'],
+  ['On the ledge', 'W or D: get up · J: attack · L: roll · Space: jump · S: drop'],
   ['Grab', 'L + J  (beats shield)'],
   ['Throw', 'Grab, then A D W S'],
   ['Smash', 'I + direction'],
@@ -110,6 +111,7 @@ export function gamepadHelp(f: PadFamily = padFamily()): [string, string][] {
     ['Up special', `${n.special} + up  (recovery)`],
     ['Down special', `${n.special} + down`],
     ['Shield / dodge', n.triggers],
+    ['On the ledge', `Stick up: get up · ${n.attack}: attack · ${n.shield}: roll · ${n.jump}: jump · stick down: drop`],
     ['Grab', `${f === 'xbox' ? 'Trigger' : n.shield} + ${n.attack}  (beats shield)`],
     ['Throw', 'Grab, then left stick'],
     ['Smash', 'Right stick'],
@@ -143,6 +145,7 @@ export const TOUCH_HELP: [string, string][] = [
   ['Special', 'Special button'],
   ['Side / down special', 'Hold the stick left, right or down, then Special'],
   ['Up special', 'Hold the stick up, then Special'],
+  ['On the ledge', 'Stick up: get up · Attack · Shield: roll · Jump · stick down: drop'],
   ['Grab', 'Shield + Attack together'],
   ['Throw', 'Grab, then the stick: forward, back, up or down'],
 ];
