@@ -1018,29 +1018,29 @@ body.touch-ui #controls-row { display: none; }
 .slam {
   position: fixed;
   left: 50%;
-  top: 38%;
+  top: 18%;
   transform: translate(-50%, -50%);
   font-family: Oswald, sans-serif;
   font-weight: 700;
-  font-size: calc(clamp(56px, 15vw, 170px) * var(--ts, 1));
+  /* Small and high: the banner must not cover the fighters. */
+  font-size: calc(clamp(32px, 7vw, 80px) * var(--ts, 1));
   line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--gold);
-  -webkit-text-stroke: 3px #5a2410;
-  text-shadow: 0 8px 0 #5a2410, 0 0 60px rgba(255, 90, 31, 0.8);
+  -webkit-text-stroke: 2px #5a2410;
+  text-shadow: 0 4px 0 #5a2410, 0 0 30px rgba(255, 90, 31, 0.7);
   pointer-events: none;
   z-index: 12;
-  animation: slam 900ms cubic-bezier(0.2, 0.9, 0.2, 1) forwards;
+  /* Fades in within 0.3 s (a third of the 0.9 s life), then out. */
+  animation: slam 900ms ease-out forwards;
 }
-.slam.game { color: #fff; font-size: calc(clamp(64px, 18vw, 210px) * var(--ts, 1)); }
+.slam.game { color: #fff; font-size: calc(clamp(48px, 12vw, 130px) * var(--ts, 1)); top: 30%; }
 @keyframes slam {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(3) skewX(-8deg); }
-  16% { opacity: 1; transform: translate(-50%, -50%) scale(0.92) skewX(-8deg); }
-  26% { transform: translate(-50%, -50%) scale(1.04) skewX(-8deg); }
-  36% { transform: translate(-50%, -50%) scale(1) skewX(-8deg); }
-  80% { opacity: 1; }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.08) skewX(-8deg); }
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(1.25) skewX(-8deg); }
+  30% { opacity: 1; transform: translate(-50%, -50%) scale(1) skewX(-8deg); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.04) skewX(-8deg); }
 }
 @media (prefers-reduced-motion: reduce) {
   .wipe i { transform: none; left: 0; width: 100%; opacity: 0; }
