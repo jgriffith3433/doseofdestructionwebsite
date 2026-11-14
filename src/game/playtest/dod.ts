@@ -21,6 +21,7 @@ import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
 import { STAGES } from '../sim/stage.ts';
 import { FX } from '../sim/fixed.ts';
 import { SHADOW_RANGE, hexRgb } from '../render/fighterLight.ts';
+import { analyzeCameraTrace, TRACE_LIMITS, type CamSample, type ScreenRect } from '../render/cameraRig.ts';
 import { ART, outlineWidthPx, outsideRanges } from '../artStyle.ts';
 import { MAX_COVER, MIN_CONTRAST, MIN_SHOWN, coverRead, edgeContrast, ringContrast, type Frame } from '../readability.ts';
 import { ACT, ACT_NAMES } from '../sim/state.ts';
@@ -76,6 +77,8 @@ export interface GameHooks {
   setCampaignProgress(ids: string[]): string[];
   /** Renderer particle and warm-up diagnostics. */
   /** What the renderer did for the last hits (hit effect tier, shake applied); reset clears the counters. */
+  /** The per-frame camera trace (renderer.camTrace): samples, the lens' tangent and the touch controls' rectangles as screen shares. */
+  camTrace?(reset?: boolean): { samples: CamSample[]; tan: number; touch: ScreenRect[] };
   camFxStats?(reset?: boolean): { cameraJumps: number; framingMisses: number; killCues: number; slowFpsMin: number; killActive: boolean; lastCue: { zoom: boolean; slow: boolean; whistle: boolean; shake: number; punch: number } | null };
   /** The special-effect flipbooks: plays per archetype, the tint used, pool, atlas size (render/flipbook.ts). */
   flipStats?(reset?: boolean): { played: Record<string, number>; tint: Record<string, [number, number, number] | null>; dropped: number; pool: number; free: number; quality: 'high' | 'low'; frames: number; cell: number; standIn: boolean };
@@ -174,6 +177,7 @@ export function installDodPlaytest(game: GameHooks): void {
       // Every other scenario clicks through the title and main menu: only first-visit meets the pilot.
       suppressFirstVisit(id !== 'first-visit');
       const r = new Run(game, t, options, t.spot);
+      r.judgeCamera = id === 'match' || id === 'hit-feel' || id === 'touch-match';
       run = r;
       try {
         if (id === 'smoke') await r.smoke();
@@ -473,9 +477,44 @@ class Run {
       this.t.event('specials-used', `${CHARACTERS[m.state.fighters[me].char].name} used ${used.length} different specials this match: ${used.join(', ') || 'none'}`);
       this.t.metric('specialsUsed', used.length);
       this.reportFeet();
+      this.judgeCameraTrace(m);
       this.t.event('anim-trace', `${this.traceFrames} frames traced, ${this.trace.problems.length} state/motion mismatches`);
     }
     this.t.progress(this.progressNow());
+  }
+
+  /**
+   * The camera trace of the match that just ended (renderer camTrace) against the limits: under 2 direction flips a second
+   * on either axis outside shake, zoom-out under 40% a second outside the KO zoom, fighters inside a 5% screen margin
+   * (launched ones are the offscreen bubble's), and on a phone nobody under the stick or buttons for more than 0.5 s.
+   */
+  private judgeCameraTrace(m: Match): void {
+    const tr = this.game.camTrace?.();
+    if (!this.judgeCamera || !tr || tr.samples.length < 60) return;
+    const touch = tr.touch;
+    const r = analyzeCameraTrace(tr.samples, touch, tr.tan);
+    this.camReports.push(r);
+    const t = this.t;
+    t.metric('camFlipsX', r.flipsX);
+    t.metric('camFlipsY', r.flipsY);
+    t.metric('camZoomOutPerSec', Number(r.zoomOutMax.toFixed(2)));
+    t.metric('camMarginShare', Number((r.marginShare * 100).toFixed(2)));
+    t.metric('camMarginLongestS', Number(r.marginLongest.toFixed(2)));
+    t.metric('camAccelMax', Number(r.accelMax.toFixed(1)));
+    if (touch.length) t.metric('camTouchLongestS', Number(r.touchLongest.toFixed(2)));
+    const where = `${STAGES[m.state.stage].name}, ${r.frames} frames over ${r.seconds.toFixed(0)} s${touch.length ? ', touch controls up' : ''}`;
+    const flips = Math.max(r.flipsX, r.flipsY);
+    if (flips >= TRACE_LIMITS.flipsPerSecond) t.problem('bug', `camera jitter on ${where}: ${r.flipsX} horizontal / ${r.flipsY} vertical direction flips in one second (under ${TRACE_LIMITS.flipsPerSecond} wanted)`);
+    else t.event('camera-jitter', `${where}: at most ${r.flipsX} horizontal / ${r.flipsY} vertical direction flips in any second (limit under ${TRACE_LIMITS.flipsPerSecond})`);
+    if (r.zoomOutMax > TRACE_LIMITS.zoomOutPerSecond) t.problem('bug', `camera zoom-out reached ${(r.zoomOutMax * 100).toFixed(0)}% a second at ${r.zoomOutAt.toFixed(1)} s on ${where} (limit ${TRACE_LIMITS.zoomOutPerSecond * 100}% outside the KO zoom)`);
+    else t.event('camera-zoom-out', `${where}: the fastest zoom-out was ${(r.zoomOutMax * 100).toFixed(0)}% a second outside the KO zoom (limit ${TRACE_LIMITS.zoomOutPerSecond * 100}%)`);
+    if (r.marginShare > TRACE_LIMITS.marginFrames || r.marginLongest > TRACE_LIMITS.marginSeconds) t.problem('bug', `a fighter sat outside the ${TRACE_LIMITS.margin * 100}% screen margin in ${(r.marginShare * 100).toFixed(1)}% of frames, longest ${r.marginLongest.toFixed(2)} s on ${where}`);
+    else t.event('camera-margin', `${where}: fighters inside the ${TRACE_LIMITS.margin * 100}% margin in ${(100 - r.marginShare * 100).toFixed(2)}% of frames (longest miss ${r.marginLongest.toFixed(2)} s)`);
+    if (touch.length) {
+      if (r.touchLongest > TRACE_LIMITS.touchSeconds) t.problem('bug', `a fighter sat under the touch stick or buttons for ${r.touchLongest.toFixed(2)} s on ${where} (limit ${TRACE_LIMITS.touchSeconds} s)`);
+      else t.event('camera-touch-clear', `${where}: no fighter under the stick or buttons for more than ${TRACE_LIMITS.touchSeconds} s (longest ${r.touchLongest.toFixed(2)} s)`);
+    }
+    this.game.camTrace?.(true);
   }
 
   /** Damage totals in percent; the sim counts tenths. */
@@ -485,8 +524,13 @@ class Run {
     this.t.metric(metric, this.totals[metric] / 10);
   }
 
+  /** Match, hit-feel and touch-match judge the camera trace of every match they play (cameraRig.ts analyzeCameraTrace). */
+  judgeCamera = false;
+  private camReports: ReturnType<typeof analyzeCameraTrace>[] = [];
+
   private onMatchStart(m: Match): void {
     this.seen = m;
+    this.game.camTrace?.(true);
     this.trace = new AnimTrace();
     this.traceFrames = 0;
     this.feetGap = new Map();
