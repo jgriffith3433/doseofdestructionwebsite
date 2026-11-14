@@ -8232,6 +8232,43 @@ class Run {
         return;
       }
       const stage = stagesFor('training')[0]?.index ?? 0;
+
+      // ---- 0. The first match is a fight: a CPU that attacks (level 4, not a dummy), the bot trading hits with it until
+      // both have landed one and someone has been launched (30 s of game time at most). Setup shortcut: straight in.
+      {
+        const foe = (punk + 1) % CHARACTERS.length;
+        let dealt = 0;
+        let taken = 0;
+        let launched = 0;
+        const stopOpen = this.game.watch((m, events) => {
+          for (const e of events) {
+            if (e.type === 'hit' && !e.shield) {
+              if (e.attacker === m.player) dealt++;
+              else if (e.victim === m.player) taken++;
+            } else if (e.type === 'launch') launched++;
+          }
+        });
+        void this.game.startMatch({
+          mode: 'versus', stage, stocks: 2, rules: {},
+          slots: [{ char: punk, cpu: null }, { char: foe, cpu: 4 }],
+        });
+        await this.matchLive();
+        t.event('opening-bout', `${how}: the first match is a versus fight against a level 4 CPU that swings back (no stationary dummy)`);
+        const start = frame0(this.game);
+        await this.fight(() => (dealt > 0 && taken > 0 && launched > 0) || frame0(this.game) - start > 1800, 90000);
+        stopOpen();
+        t.metric('openingHitsDealt', dealt);
+        t.metric('openingHitsTaken', taken);
+        t.metric('openingLaunches', launched);
+        if (dealt > 0 && taken > 0 && launched > 0) {
+          t.event('opening-trade', `${how}: in the first ${((frame0(this.game) - start) / 60).toFixed(0)} s the player landed ${dealt} hit(s), took ${taken} and ${launched} launch(es) happened`);
+        } else {
+          t.problem('bug', `${how}: the opening bout had no trade of hits and a launch within 30 s (dealt ${dealt}, taken ${taken}, launches ${launched})`);
+        }
+        await this.game.quitMatch();
+        await this.screen('main');
+      }
+
       // Setup shortcut: straight into Training, no menus.
       void this.game.startMatch({
         mode: 'training', stage, stocks: 1, rules: {},
@@ -14420,6 +14457,10 @@ const REBIND_KEY = 'dod.bindings';
 const MATCH_ASK = 'after-match';
 
 /** Lets the feedback card `id` show again in this browser (the SDK's once-per-session and 7-day snooze marks). */
+function frame0(g: { match(): { state: { frame: number } } | null }): number {
+  return g.match()?.state.frame ?? 0;
+}
+
 function resetAsk(id: string): void {
   try {
     const shown = JSON.parse(sessionStorage.getItem('hawkes.asked') ?? '[]');
