@@ -805,6 +805,16 @@
       ]
     },
     {
+      "id": "first-round",
+      "title": "First round: a live CPU fights back within 10 s, then a launch and a blast-zone KO end the stock (phone: 390x844 touch, played turned)",
+      "description": "Versus 1v1, one stock, Exit Punk (the playtest bot) against a level 5 Break CPU on City Top (options: stage, level, fighter via seed). Logs cpu-attack and cpu-hit-back (seconds after GO; a bug if the CPU has not attacked by 10 s), first-launch and blast-ko (a launch that carries a fighter out of the blast zone; a bug if the round ends without one), first-round summary. Metrics cpuFirstAttackS, cpuFirstHitS, firstLaunches, blastKos. On a phone (390x844 turned to 844x390) the same match plays with touch controls.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "ledge-options",
       "title": "Ledge options: from the ledge Attack sweeps low and hits a fighter at the edge, Shield rolls onto the stage, Jump leaps up, stick up climbs, and holding on too long drops the fighter (phone: 390x844 touch, the same buttons)",
       "description": "Setup shortcut: straight into Training with Exit Punk and a dummy (no menus). The player walks off the stage edge with the stick (the sim catches the ledge), hangs with no input for a few frames (ledge-hold: nothing climbs by itself), then each option from real input: stick up is the getup (ledge-getup, stands just inside the edge), Shield rolls a body-length further in (ledge-roll), Attack climbs and sweeps low with the down tilt and hits the dummy stood at the edge (ledge-attack; setup shortcut puts the dummy there), Jump leaps well above the ledge (ledge-jump), and with no input the hang runs out and the fighter drops (ledge-drop, ledgeHangFrames, 4 s). Each logs its invincibility frames. Keyboard on a desktop; at phone size (390x844, turned to 844x390 like touch-match) the on-screen stick, Attack, Shield and Jump buttons as touch pointer events with no new button (ledge-touch). Then the All controls page is opened and its keyboard, gamepad and touch lists must each have an On the ledge row (ledge-controls). Options: input (touch forces the overlay on a desktop window), at (phone). Metric ledgeOptions (5 when every option worked).",

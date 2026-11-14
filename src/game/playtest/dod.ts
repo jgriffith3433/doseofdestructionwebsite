@@ -227,6 +227,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'moving-platforms') await r.movingPlatforms();
         else if (id === 'hazard-rule') await r.hazardRule();
         else if (id === 'cpu-level') await r.cpuLevel();
+        else if (id === 'first-round') await r.firstRound();
         else if (id === 'auto-quality') await r.autoQuality();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'difficulty') await r.difficultyRun();
@@ -5357,6 +5358,87 @@ class Run {
       t.metric('cpuWon', won ? 0 : 1);
       t.event('cpu-result', `${won ? 'the playtest bot beat' : 'the CPU beat the playtest bot at'} level ${level}: ${trips} trips off the stage, ${misses} missed, ledge options ${[...options].join(', ') || 'none'}`);
       if (level === 1 && m.state.over && !won) t.problem('bug', 'a level-1 CPU beat the playtest bot');
+      if (m.state.over || currentScreen() === 'results') {
+        await this.results();
+        await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      } else {
+        await this.quitFromPause('main');
+      }
+      await this.screen('main');
+      t.finish('done');
+    } finally {
+      this.manual = null;
+      if (touch) forceTouchUi(false);
+    }
+  }
+
+  /**
+   * The first round against a live CPU (the fun core loop): Exit Punk, the playtest bot on the pad (touch controls on a phone),
+   * against a level 5 Break CPU on one stock, to the end. Shows the CPU fights back within 10 s of GO (its first attack, and its
+   * first hit on the player), a launch the player can see (`launch`: the sim's launch event with its knockback) and the blast-zone
+   * KO that ends the stock (`blast-ko`, a launch flagged ko, or a fall). Events `cpu-attack`, `cpu-hit-back`, `first-launch`,
+   * `blast-ko`, `first-round`; metrics `cpuFirstAttackS`, `cpuFirstHitS`, `firstLaunches`, `blastKos`. A bug when the CPU has not
+   * attacked within 10 s, or the round ended with no launch KO seen. On a phone (390x844 turned to 844x390) it plays by touch.
+   */
+  async firstRound(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('first-round');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) forceTouchUi(true);
+    try {
+      const id = (list: { id: string }[], want: string) => Math.max(0, list.findIndex((x) => x.id === want));
+      const level = Math.max(1, Math.min(9, Number(this.options.level) || 5));
+      void this.game.startMatch({
+        mode: 'versus', stage: id(STAGES, String(this.options.stage ?? 'city-top')), stocks: 1, rules: { timeLimit: 0 },
+        slots: [{ char: id(CHARACTERS, 'exit-punk'), cpu: null, team: 0, stocks: 1 }, { char: id(CHARACTERS, 'break'), cpu: level, team: 1, stocks: 1 }],
+      });
+      await this.matchLive();
+      const m = this.game.match()!;
+      const f0 = m.state.frame;
+      const sec = (frame: number) => Math.round(((frame - f0) / 60) * 10) / 10;
+      let firstAttack = -1;
+      let firstHit = -1;
+      let launches = 0;
+      let blastKos = 0;
+      const stop = this.game.watch((mm, events) => {
+        const fr = mm.state.frame;
+        const foe = mm.state.fighters[1];
+        if (firstAttack < 0 && foe.action === ACT.ATTACK) {
+          firstAttack = sec(fr);
+          t.event('cpu-attack', `the CPU's first attack comes ${firstAttack}s after GO (${foe.move})`);
+        }
+        for (const e of events) {
+          if (e.type === 'hit' && !e.shield && e.attacker === 1 && e.victim === mm.player && firstHit < 0) {
+            firstHit = sec(fr);
+            t.event('cpu-hit-back', `the CPU hits the player ${firstHit}s after GO (${e.dmg}%)`);
+          } else if (e.type === 'launch') {
+            launches++;
+            if (launches === 1) t.event('first-launch', `first launch at ${sec(fr)}s: fighter ${e.victim} sent flying by ${e.by}`);
+            if (e.ko) {
+              blastKos++;
+              t.event('blast-ko', `launch at ${sec(fr)}s carries fighter ${e.victim} out of the blast zone`);
+            }
+          }
+        }
+      });
+      this.manual = null;
+      try {
+        await this.fight(() => !!m.state.over, 240000).catch(() => undefined);
+      } finally {
+        stop();
+      }
+      if (firstAttack >= 0) t.metric('cpuFirstAttackS', firstAttack);
+      if (firstHit >= 0) t.metric('cpuFirstHitS', firstHit);
+      t.metric('firstLaunches', launches);
+      t.metric('blastKos', blastKos);
+      t.event('first-round', `level ${level} CPU: first attack ${firstAttack}s, first hit on the player ${firstHit}s, ${launches} launches, ${blastKos} blast-zone KOs`);
+      if (firstAttack < 0 || firstAttack > 10) t.problem('bug', `the CPU did not attack within 10 s of GO (${firstAttack}s)`);
+      if (m.state.over && blastKos === 0) t.problem('bug', 'the round ended without a launch into the blast zone');
       if (m.state.over || currentScreen() === 'results') {
         await this.results();
         await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
