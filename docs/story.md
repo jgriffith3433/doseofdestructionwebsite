@@ -163,6 +163,29 @@ Man). Walk-On, with no `unlock`, gives nothing.
   existed gets their fighters from `dod-campaign`. The leaderboard rates what was played; it can't see another
   player's unlocks, so it trusts each client to pick only fighters it may.
 
+## Rewards: what the last three seasons give (as built)
+
+Seasons 8 to 10 (ten episodes) used to unlock nothing. Each now has a `reward` in `content/campaign.json`, made from
+what the game already has (no new art), told on the episode card before play, announced on Results, and usable in Versus.
+Three kinds (`campaign/rewards.ts`):
+
+- **Title** (Prime-time, Best in Show, Cliffhanger Kid, Finale Survivor): a chip row under "You" in Versus select
+  picks one to wear; it shows on your VS card.
+- **Stage variant** (Yo House: Green Room, City Top: Rough Cut, Dust Devil Mesa: After Hours, Humans In The Loop: Final
+  Draft): the same stage under another existing stage's colour grade (`stages/<grade>/lut.png`), a second card beside the
+  stage in Versus and Training Stage Select. The show, the Tour and online always play the stage as it is.
+- **Colour** (Spotlight gold, Trailer Cut moody): one more swatch for every fighter, made from its second look's outfit
+  hue (`looks.ts` `looksOf`); it only appears once earned, so the swatch row stays four until then.
+
+Season 8: Red Carpet (Prime-time), Best Supporting (Green Room), Lifetime Achievement (Spotlight), Best in Show (Best in
+Show). Season 9: Teaser (Rough Cut), Trailer (Trailer Cut), Table Read (After Hours), Cliffhanger (Cliffhanger Kid).
+Season 10: First Cut (Final Draft), Final Cut (Finale Survivor).
+
+- The map's episode card reads "Reward · Title · Prime-time" (green "Earned" once yours); a win shows an "Unlocked"
+  banner on Results above the stars (`dod:reward` event). Kept in `localStorage` `dod-rewards` (the picked title in
+  `dod-reward-title`), next to `dod-unlocks`; starting the campaign over doesn't take them back, and a save that cleared
+  these episodes before rewards existed gets them from `dod-campaign`.
+
 ## Season 2: The card is yours (as built)
 
 The show came back, the way the Orchestrator said it would. Exit Punk is the champion now, and the champion

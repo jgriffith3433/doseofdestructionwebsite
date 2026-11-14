@@ -36,6 +36,7 @@ import { ruleLabel, takeoverLines } from './campaign/takeover.ts';
 import { LESSON_TITLE, campaignBlurb, doneLessons, markLessonDone, nextLesson, type LessonId } from './campaign/lessons.ts';
 import { clearLosses, difficulty, foeLevels, markCleared, offerEasy, recordLoss, setDifficulty, withDifficulty, DIFFICULTY_LABEL, type Difficulty } from './campaign/difficulty.ts';
 import { gradeEpisode } from './campaign/grade.ts';
+import { earnReward, onVariantChange, setVariant } from './campaign/rewards.ts';
 import { CHAPTERS, isUnlocked, loadProgress, recordStars, loadStars, saveStars, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, installPressFeedback, largeUrl, thumbUrl } from './ui/dom.ts';
@@ -90,6 +91,7 @@ bootStep('module', 'Starting the engine');
 let renderer: Renderer;
 try {
   renderer = new Renderer(canvas);
+  onVariantChange(() => renderer.regrade());
 } catch (err) {
   console.error('[dod-boot] the renderer could not start', err);
   bootFail('Your browser could not start the game graphics (WebGL).');
@@ -515,6 +517,7 @@ function pickStage(stage: number, entry: ModeStage, random = false): void {
   prepGen++;
   prefetchStage(stage);
   renderer.setStage(stage);
+  renderer.regrade();
   selectedAt = performance.now();
   const cfg = lastSelect === 'training' ? training : versus;
   analytics.stagePick(lastSelect, stage, random);
@@ -1383,6 +1386,11 @@ let warmUpMs: number | null = null;
 
 async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { seed: number; found: Found }, scene?: SceneCue): Promise<void> {
   endMatch();
+  // A stage variant (campaign/rewards.ts) is a Versus and Training choice: the show, the Tour and online play the stage as it is.
+  if (setup.mode !== 'versus' && setup.mode !== 'training') {
+    setVariant(null);
+    renderer.regrade();
+  }
   // A newer start (an online match found meanwhile) wins over this one.
   const token = ++startToken;
   const stale = () => token !== startToken || (f !== null && f.phase === 'done');
@@ -2279,6 +2287,13 @@ function episodeGrade(m: Match, c: Chapter) {
   return out;
 }
 
+/** A won Season 8-10 episode's reward (campaign/rewards.ts): earned and kept, told to the playtest, shown as the unlock banner. */
+function episodeReward(c: Chapter) {
+  const r = earnReward(c);
+  if (r) window.dispatchEvent(new CustomEvent('dod:reward', { detail: { chapter: c.id, reward: r.id, kind: r.kind, name: r.name } }));
+  return r;
+}
+
 function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   phase = 'idle';
   // Training has no winner; a campaign loss or a CPU's win credits nobody.
@@ -2322,12 +2337,13 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   // The winner's quote, picked before the screen opens so the caption and the voice are the same line.
   const quote = announceWinQuote(m, m.state.winner, tourRun?.setup === m.setup && won);
   const grade = m.setup.mode === 'campaign' && c && won && !dailyRun && !tourRun ? episodeGrade(m, c) : undefined;
+  const reward = m.setup.mode === 'campaign' && c && won && !dailyRun && !tourRun ? episodeReward(c) : null;
   // Watch replay: the whole match from its recorded inputs (not on the Tour's lost-fight choice, which has its own panel).
   const tourLost = tourRun?.setup === m.setup && !won;
   if (!tourLost) {
     addWatchReplay(actions, m, () => void go('results', () => {
       endMatch();
-      showResults(m, actions, undefined, [], levelChange ?? undefined, grade);
+      showResults(m, actions, undefined, [], levelChange ?? undefined, grade, reward);
       if (campaignResult) difficultyNotes(won, easyOffer);
       if (tourRun?.setup === m.setup && won) $('results-body').prepend(tourBanner(tourRun.tour, tourRun.continues));
       startResultsMusic();
@@ -2339,7 +2355,7 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
       showResults(m, actions, undefined, newLooks);
       renderTourChoice({ tour: tourRun.tour, index: tourRun.index, fight: tourRun.tour.fights[tourRun.index], continues: tourRun.continues, onContinue: () => tourContinue(), onQuit: () => { analytics.tour('quit', { fighter: tourRun!.tour.fighter, fight: tourRun!.index + 1 }); void openTourScreen(); } });
     } else {
-      showResults(m, actions, undefined, newLooks, levelChange ?? undefined, grade);
+      showResults(m, actions, undefined, newLooks, levelChange ?? undefined, grade, reward);
       if (campaignResult) difficultyNotes(won, easyOffer);
     }
     if (tourRun?.setup === m.setup && won) $('results-body').prepend(tourBanner(tourRun.tour, tourRun.continues));
