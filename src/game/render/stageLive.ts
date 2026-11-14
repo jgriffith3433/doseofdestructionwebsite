@@ -51,6 +51,8 @@ export interface Placed {
   fade?: number;
   /** A haze sheet, not a stage layer: it never moves or reacts. */
   haze?: boolean;
+  /** The picture failed to load: the layer stays hidden (the stage's lit sky shows instead of a 1x1 white square) and is not waited for. */
+  failed?: boolean;
 }
 
 interface Playing {
@@ -131,6 +133,7 @@ export class StageLive {
   /** Enables every stage layer, zone, hazard and toggle during warm-up so their textures and shaders compile before the fight. */
   warmUp(): void {
     for (const pl of this.placed) {
+      if (pl.failed) continue;
       pl.mesh.setEnabled(true);
       if (pl.layer.reacts?.some((r) => r.kind === 'flash')) {
         pl.mesh.renderOverlay = true;
@@ -161,7 +164,7 @@ export class StageLive {
     const waits: Promise<void>[] = [];
     for (const pl of this.placed) {
       const tex = pl.mat.diffuseTexture as Texture | null;
-      if (tex && !tex.isReady()) waits.push(new Promise((r) => { tex.onLoadObservable.addOnce(() => r()); }));
+      if (tex && !pl.failed && !tex.isReady()) waits.push(new Promise((r) => { tex.onLoadObservable.addOnce(() => r()); }));
     }
     return Promise.all(waits).then(() => undefined);
   }
@@ -171,7 +174,7 @@ export class StageLive {
     let ready = 0;
     for (const pl of this.placed) {
       const tex = pl.mat.diffuseTexture as Texture | null;
-      if (!tex || tex.isReady()) ready++;
+      if (!tex || pl.failed || tex.isReady()) ready++;
     }
     return { ready, total: this.placed.length };
   }
@@ -249,6 +252,7 @@ export class StageLive {
         y += (dy / FX) * W * pl.k;
       }
     }
+    if (pl.failed) visible = false;
     pl.mesh.setEnabled(visible);
     if (!visible) return;
 

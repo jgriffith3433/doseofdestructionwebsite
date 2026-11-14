@@ -842,6 +842,44 @@ export class Renderer {
     await Promise.race([this.live.artLoaded(), new Promise((r) => setTimeout(r, timeoutMs))]);
   }
 
+  /** Frames the player has seen on the match screen, how many had stage art still loading, and how many sampled near-black. */
+  private seen = { frames: 0, pending: 0, black: 0, darkest: 255 };
+  /** Set by main.ts while the arena is on screen for the player (not under the loading veil or a wipe); only then are frames counted. */
+  private presenting = false;
+  private seenCanvas: HTMLCanvasElement | null = null;
+
+  setPresenting(on: boolean): void {
+    this.presenting = on;
+  }
+
+  /** What the player saw of the stage (playtest `stage.blackFrames`): presented frames with art pending, or whose pixels are near-black. */
+  stageSeen(reset = false): { frames: number; pending: number; black: number; darkest: number } {
+    const out = { ...this.seen };
+    if (reset) this.seen = { frames: 0, pending: 0, black: 0, darkest: 255 };
+    return out;
+  }
+
+  /** Samples the frame just drawn (same task as scene.render, so the buffer is valid) and counts it. */
+  private countSeen(): void {
+    const s = this.seen;
+    s.frames++;
+    if (this.stageArtPending()) s.pending++;
+    const cv = this.engine.getRenderingCanvas();
+    if (!cv || !cv.width) return;
+    try {
+      const pc = (this.seenCanvas ??= Object.assign(document.createElement('canvas'), { width: 16, height: 16 }));
+      const ctx = pc.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+      ctx.drawImage(cv, 0, 0, 16, 16);
+      const d = ctx.getImageData(0, 0, 16, 16).data;
+      let sum = 0;
+      for (let i = 0; i < d.length; i += 4) sum += Math.max(d[i], d[i + 1], d[i + 2]);
+      const mean = sum / (d.length / 4);
+      s.darkest = Math.min(s.darkest, mean);
+      if (mean < 14) s.black++;
+    } catch { /* tainted or lost context: nothing to count */ }
+  }
+
   /** True while some stage picture is still loading (the arena would show only the clear colour). */
   stageArtPending(): boolean {
     const l = this.live?.readyLayers();
@@ -1555,6 +1593,7 @@ export class Renderer {
     this.updateCamera(state);
     this.updateForeground(state);
     this.scene.render();
+    if (this.presenting) this.countSeen();
     this.post.endFrame();
     this.checkFraming(state);
     if (this.kill && (performance.now() - this.kill.at) / 1000 > 0.15 && (performance.now() - this.kill.at) / 1000 < KILL_CUE.slowSeconds) {
