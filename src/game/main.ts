@@ -730,6 +730,21 @@ async function runScene(m: Match, cue: SceneCue): Promise<void> {
     phase = 'scene';
     audio.playStageBed(STAGES[m.setup.stage].id);
     $('scene-next').focus();
+    // The cold open's first beat is the empty stage (the cast waits in the wings), so it is only the painted stage that carries
+    // it: on a slow phone holdForStageArt gives up after 8 s and the beat played over a bare gradient. Wait for the layers
+    // (a failed picture is skipped, never waited for) before the first beat starts its clock, under the loading veil.
+    if (renderer.stageArtPending()) {
+      const veil = $('loading');
+      veil.textContent = 'Loading the stage…';
+      veil.hidden = false;
+      await renderer.stageArtReady(STAGE_ART_HOLD_MS * 3);
+      renderer.render(m.state);
+      await nextFrame();
+      renderer.render(m.state);
+      veil.hidden = true;
+      veil.textContent = 'Loading fighters…';
+      if (match !== m) return;
+    }
     const end = await playColdOpen(sceneStage(m), c.coldOpen);
     analytics.scene(`${c.id}.cold-open`, { skipped: end.skipped, line: 0 }, c.coldOpen.length);
     return;
