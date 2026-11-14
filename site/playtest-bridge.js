@@ -894,6 +894,16 @@
         "full",
         "touch"
       ]
+    },
+    {
+      "id": "moving-platforms",
+      "title": "Moving and fading platforms: a platform drifts across Humans In The Loop and Space Chess and carries a standing fighter without sliding; City Top's inner catwalks flash, go and come back on a steady timer (Hazards Off; phone 844x390: the moving platform stays on screen)",
+      "description": "Setup shortcut: straight into each match with Hazards Off, a fighter placed on the platform (no input), then both on the floor for a full lap. Checks that the platform moves (platform-moves), the rider keeps its place on it (platform-ride), the platform's screen box stays inside the window all lap (platform-frame, phone turned to 844x390), the bots ride it (platform-bot-ride); the fading catwalks flash (platform-flash), go (platform-gone), come back (platform-back), drop a rider (platform-rider-drops) and are never both gone (platform-pair). Option stage runs one. Metrics platformTravel, platformRideDrift, platformOffscreen.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "touch"
+      ]
     }
   ];
   // END SCENARIOS

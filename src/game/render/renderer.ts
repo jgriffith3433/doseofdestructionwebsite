@@ -675,7 +675,7 @@ export class Renderer {
       node.parent = root;
       node.position.set(cx, p.y * W, 0);
       // Blocks that events switch off come and go with them.
-      if (p.offDuring || p.onlyDuring) this.live.addToggle(node, index);
+      if (p.offDuring || p.onlyDuring || p.fade) this.live.addToggle(node, index);
       if (artDraws) {
         // The stage art draws the platform; the game adds a lit lip along its top so the edge reads on any picture.
         const k = LIP_KEYLINE;
@@ -1787,7 +1787,8 @@ export class Renderer {
   render(state: GameState): void {
     this.lastState = state;
     for (const m of this.movers) {
-      const p = platformAt(m.platform, state.frame);
+      // The sim moves a platform with the frame it is stepping, one behind the count it shows afterwards.
+      const p = platformAt(m.platform, Math.max(0, state.frame - 1));
       m.node.position.set(((p.x1 + p.x2) / 2) * S, p.y * S, 0);
     }
     this.live?.update(state);
@@ -1934,7 +1935,7 @@ export class Renderer {
       return { slot, box: { x1: Math.min(...pts.map((q) => q.x)), y1: Math.min(...pts.map((q) => q.y)), x2: Math.max(...pts.map((q) => q.x)), y2: Math.max(...pts.map((q) => q.y)) } };
     });
     const platforms = this.stage.platforms.flatMap((p, index) => {
-      if (p.offDuring || p.onlyDuring) return [];
+      if (p.offDuring || p.onlyDuring || p.fade) return [];
       const at = platformAt(p, state.frame);
       const a = proj(at.x1 * S, at.y * S, 0);
       const b = proj(at.x2 * S, at.y * S, 0);
@@ -1994,6 +1995,21 @@ export class Renderer {
     const b = Vector3.Project(new Vector3(p.x + 1, p.y, p.z), Matrix.IdentityReadOnly, m, vp);
     const pxPerWorld = Math.max(1, Math.abs(b.x - a.x));
     v.outline.setWidth(outlineWidthPx(h), 1 / (Math.max(0.01, v.body.scaling.x) * pxPerWorld), 1 / (Math.max(0.01, v.body.scaling.y) * pxPerWorld));
+  }
+
+  /** Where a platform is on the canvas right now, in render px with the render size (playtest: the moving platform stays in frame). */
+  platformBox(index: number): { x1: number; x2: number; y: number; w: number; h: number } | null {
+    const st = this.lastState;
+    const p = this.stage.platforms[index];
+    if (!st || !p) return null;
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const at = platformAt(p, Math.max(0, st.frame - 1));
+    const a = Vector3.Project(new Vector3(at.x1 * S, at.y * S, 0), Matrix.IdentityReadOnly, m, vp);
+    const b = Vector3.Project(new Vector3(at.x2 * S, at.y * S, 0), Matrix.IdentityReadOnly, m, vp);
+    return { x1: a.x, x2: b.x, y: a.y, w, h };
   }
 
   /** Every fighter's outline as drawn (playtest): colour, width in device px, and the render height it was sized for. */

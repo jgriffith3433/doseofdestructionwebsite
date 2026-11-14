@@ -23,6 +23,7 @@ import {
   hazardAt,
   platformOffset,
   platformOn,
+  fadeAlpha,
   zoneOn,
   type LayerReact,
   type StageClock,
@@ -223,7 +224,7 @@ export class StageLive {
         h.ring.position.set(Math.max(b.left + 150, Math.min(b.right - 150, p.x)) * W, Math.max(b.bottom + 150, Math.min(b.top - 150, p.y)) * W, -0.2);
       }
     }
-    for (const tg of this.toggles) tg.node.setEnabled(platformOn(this.stage, c, tg.index));
+    for (const tg of this.toggles) tg.node.setEnabled(platformOn(this.stage, c, tg.index) && fadeAlpha(this.stage.platforms[tg.index], c.frame) > 0.5);
   }
 
   private place(pl: Placed, c: StageClock, t: number, now: number): void {
@@ -249,12 +250,19 @@ export class StageLive {
     } else {
       const moving = (l.platforms ?? []).map((i) => this.stage.platforms[i]).find((p) => p?.motion);
       if (moving) {
-        const [dx, dy] = platformOffset(moving, c.frame);
+        const [dx, dy] = platformOffset(moving, Math.max(0, c.frame - 1));
         x += (dx / FX) * W * pl.k;
         y += (dy / FX) * W * pl.k;
       }
     }
     if (pl.failed || pl.culled) visible = false;
+    // Art that draws a fading platform flashes before it goes, is gone, and ramps back in.
+    const fading = (l.platforms ?? []).filter((i) => this.stage.platforms[i]?.fade);
+    if (fading.length) {
+      const fade = Math.min(...fading.map((i) => fadeAlpha(this.stage.platforms[i], c.frame)));
+      pl.mesh.visibility = fade;
+      if (fade <= 0) visible = false;
+    }
     pl.mesh.setEnabled(visible);
     if (!visible) return;
 

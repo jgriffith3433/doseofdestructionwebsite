@@ -14,6 +14,22 @@ export interface PlatformMotion {
   phase?: number;
 }
 
+/**
+ * A platform that fades out and back on a steady timer (frame-driven, so it is rollback-safe and
+ * keeps going with Hazards Off: it is layout, not a hazard). Each cycle it is solid for
+ * cycle - warn - gone seconds, flashes for `warn` seconds (still solid), then is gone for `gone`.
+ */
+export interface PlatformFade {
+  /** Seconds per full cycle. */
+  cycle: number;
+  /** Seconds of flashing before it goes. */
+  warn: number;
+  /** Seconds it is gone. */
+  gone: number;
+  /** Seconds into the cycle at frame 0 (offsets two platforms so one is always up). */
+  phase?: number;
+}
+
 export interface Platform {
   x1: number;
   x2: number;
@@ -24,6 +40,8 @@ export interface Platform {
   depth?: number;
   /** Only thin platforms move. */
   motion?: PlatformMotion;
+  /** Fades out and back on a timer. */
+  fade?: PlatformFade;
   /**
    * Collision only: the stage art draws this platform, so the game paints no
    * block for it (once a layer that draws it has an image).
@@ -326,9 +344,12 @@ export function ledges(stage: StageDef): Ledge[] {
 export function platformOffset(p: Platform, frame: number): [number, number] {
   const m = p.motion;
   if (!m) return [0, 0];
-  // Degrees through the cycle, kept integral so the result is engine independent.
-  const deg = idiv(frame % m.period * 360, m.period) + (m.phase ?? 0);
-  const s = isin(deg);
+  // Sixteenths of a degree through the cycle, kept integral so the result is engine independent: whole degrees
+  // would step a slow platform in jumps of several units, so the table is interpolated between them.
+  const q = idiv(frame % m.period * 360 * 16, m.period) + (m.phase ?? 0) * 16;
+  const w = ((q % 5760) + 5760) % 5760;
+  const d = w >> 4;
+  const s = isin(d) + idiv((isin(d + 1) - isin(d)) * (w & 15), 16);
   return [idiv(m.ax * FX * s, TRIG_ONE), idiv(m.ay * FX * s, TRIG_ONE)];
 }
 
@@ -384,9 +405,35 @@ export function eventElapsed(stage: StageDef, c: StageClock, i: number): number 
   return secs(stage.events![i].duration) - c.evTimer[i];
 }
 
-/** Whether a platform is there now (event toggles). */
+/** Where a fading platform is in its cycle: 0 solid, 1 flashing (still solid), 2 gone. Plain platforms are always 0. */
+export function fadeState(p: Platform, frame: number): 0 | 1 | 2 {
+  const f = p.fade;
+  if (!f) return 0;
+  const cycle = Math.max(1, secs(f.cycle));
+  const t = (frame + secs(f.phase)) % cycle;
+  const gone = secs(f.gone);
+  const warn = secs(f.warn);
+  if (t >= cycle - gone) return 2;
+  if (t >= cycle - gone - warn) return 1;
+  return 0;
+}
+
+/** How visible a fading platform is (0 to 1): flashes while it warns, ramps in over 0.4 s once it is back. */
+export function fadeAlpha(p: Platform, frame: number): number {
+  const f = p.fade;
+  if (!f) return 1;
+  const st = fadeState(p, frame);
+  if (st === 2) return 0;
+  const cycle = Math.max(1, secs(f.cycle));
+  const t = (frame + secs(f.phase)) % cycle;
+  if (st === 1) return Math.floor((t - (cycle - secs(f.gone) - secs(f.warn))) / 6) % 2 === 0 ? 0.35 : 1;
+  return Math.min(1, 0.3 + t / 24);
+}
+
+/** Whether a platform is there now (event toggles, the fade timer). */
 export function platformOn(stage: StageDef, c: StageClock, i: number): boolean {
   const p = stage.platforms[i];
+  if (p.fade && fadeState(p, c.frame) === 2) return false;
   if (p.offDuring && eventOn(stage, c, p.offDuring)) return false;
   if (p.onlyDuring && !eventOn(stage, c, p.onlyDuring)) return false;
   return true;
