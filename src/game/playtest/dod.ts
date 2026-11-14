@@ -103,6 +103,8 @@ export interface GameHooks {
   /** The match intro (campaign/intro.ts): its clock, the camera's distance, the fastest camera move (units per second) and the beats fired. */
   introStats?(): { active: boolean; ms: number; camDist: number; camX: number; maxSpeed: number; beats: number; kinds: string[] };
   gfxStats?(): { quality: 'high' | 'low'; glow: boolean; showFps: boolean; dpr: number; scale: number; glowOn: boolean; fpsShown: boolean; fpsNow: number };
+  /** What the player saw of the stage: presented frames, with stage art still loading, and sampled near-black (reset clears). */
+  stageSeen?(reset?: boolean): { frames: number; pending: number; black: number; darkest: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
   /** Layered stage bed: calm/intense, ambience under the theme, intensity stem. */
   musicBedStats?(): {
@@ -235,6 +237,9 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'online') await r.online();
         else if (id === 'reconnect') {
           r.cutMode = true;
+          await r.online();
+        } else if (id === 'rematch') {
+          r.rematchMode = true;
           await r.online();
         }
       } finally {
@@ -1382,8 +1387,10 @@ class Run {
     }
     const start = () => this.game.match()?.state.frame ?? 0;
     this.progressNow = () => 0.4 + 0.5 * Math.min(1, start() / 1200);
+    this.game.stageSeen?.(true);
     // Plays to the Results screen (1 stock, so it ends); blankFrames, vsHoldMs and wipe fps are reported there.
     await this.fight(() => false, 4 * 60 * 1000);
+    this.reportStageSeen();
     this.progressNow = () => 0.9;
     await this.results();
     t.event('smoke-results', 'the smoke match reached the Results screen');
@@ -1391,6 +1398,19 @@ class Run {
     await this.screen('main');
     t.progress(1);
     t.finish('done');
+  }
+
+  /**
+   * `stage.blackFrames`: frames the player saw of the arena (after the loading veil, from the first presented frame) whose
+   * stage pictures were still loading or whose pixels were near-black. The match holds a veil until the art is in, so it is 0.
+   */
+  private reportStageSeen(): void {
+    const seen = this.game.stageSeen?.(true);
+    if (!seen) return;
+    const bad = Math.max(seen.pending, seen.black);
+    this.t.metric('stage.blackFrames', bad);
+    this.t.event('stage-seen', `${seen.frames} arena frames presented: ${seen.pending} with stage art still loading, ${seen.black} near-black (darkest mean ${Math.round(seen.darkest)}/255)`);
+    if (seen.frames > 0 && bad > 0) this.t.problem('bug', `The stage showed as a near-black void or unloaded art for ${bad} of ${seen.frames} presented match frames (limit 0)`);
   }
 
   async match(): Promise<void> {
@@ -2798,6 +2818,142 @@ class Run {
     t.progress(0.97);
   }
 
+  /** The `rematch` scenario: `online`'s lobby and first game, then Rematch on both (see rematchPart). */
+  rematchMode = false;
+
+  /** Every button and row of the rematch UI measured at the window's size: 44 px tall and wide, inside the screen. */
+  private rematchFit(what: string, els: HTMLElement[]): void {
+    const t = this.t;
+    const small: string[] = [];
+    const off: string[] = [];
+    for (const el of els) {
+      const r = el.getBoundingClientRect();
+      const name = (el.textContent?.trim() || el.getAttribute('aria-label') || el.className).slice(0, 24);
+      if (r.height < 43.5 || r.width < 43.5) small.push(`${name} ${Math.round(r.width)}x${Math.round(r.height)}`);
+      if (r.left < -0.5 || r.right > innerWidth + 0.5 || r.top < -0.5 || r.bottom > innerHeight + 0.5) {
+        // (a tile inside a scrolling row may sit past the row's edge: only the row itself must fit)
+        if (!el.closest('.rematch-row') || el.classList.contains('rematch-row')) off.push(`${name} ${Math.round(r.left)},${Math.round(r.top)}-${Math.round(r.right)},${Math.round(r.bottom)}`);
+      }
+    }
+    if (small.length) t.problem('bug', `${what}: under 44 px: ${small.join('; ')}`);
+    if (off.length) t.problem('bug', `${what}: off the ${innerWidth}x${innerHeight} screen: ${off.join('; ')}`);
+    if (!small.length && !off.length) t.event('rematch-fit', `${what}: ${els.length} controls, all 44 px or more and on screen at ${innerWidth}x${innerHeight}`);
+  }
+
+  /**
+   * After `online`'s first game: both see Rematch (with Queue again and Main menu), press it, pick (peer 1 changes
+   * fighter), and a new match starts against the same opponent; after that game peer 0 presses Rematch and peer 1
+   * leaves with Queue again: peer 0 sees who left and queues again with one tap. Taps only (hit-tested pointer events).
+   */
+  private async rematchPart(peer: number, opp: string, mm: { state: string }): Promise<void> {
+    const t = this.t;
+    const panel = () => this.q('#rematch');
+    const phase = () => panel()?.dataset.phase ?? '';
+    const first = this.game.match()!;
+    const firstId = first.setup.online!.matchId;
+    const firstChars = first.setup.slots.map((s) => s.char);
+
+    // 1. The buttons on the result.
+    await t.until(() => !!this.button('#results-actions', 'Rematch'), 10000, 'Rematch on the online results');
+    for (const label of ['Rematch', 'Queue again', 'Main menu']) if (!this.button('#results-actions', label)) t.problem('bug', `no ${label} on the online results`);
+    t.event('rematch-offered', `${this.q('#results-body h2')?.textContent ?? ''}: ${[...document.querySelectorAll('#results-actions button')].map((b) => b.textContent?.trim()).join(' / ')}; ${this.q('#rematch .rematch-line')?.textContent ?? ''}`);
+    this.rematchFit('results buttons', [...document.querySelectorAll<HTMLElement>('#results-actions button')]);
+    t.progress(0.5);
+
+    // 2. Both press Rematch (peer 1 a moment later: the first waits and is told).
+    if (peer === 1) await t.wait(2500);
+    await this.tap(() => this.button('#results-actions', 'Rematch'), 'Rematch');
+    t.event('rematch-pressed', `peer ${peer} pressed Rematch (${this.q('#rematch .rematch-line')?.textContent ?? ''})`);
+    await t.until(() => phase() === 'picking', 20000, 'the fighter pick (both pressed Rematch)');
+    const tiles = [...document.querySelectorAll<HTMLElement>('#rematch .rematch-tile')];
+    const row = this.q('#rematch .rematch-fighters');
+    this.rematchFit('fighter pick', [...(row ? [row] : []), ...tiles.slice(0, 3), ...document.querySelectorAll<HTMLElement>('#rematch .rematch-lock, #rematch .rematch-chip'), ...(this.q('#results-actions button') ? [...document.querySelectorAll<HTMLElement>('#results-actions button')] : [])]);
+    const openIds = CHARACTERS.filter((c) => isUnlocked(c.id));
+    if (tiles.length !== openIds.length) t.problem('bug', `the pick lists ${tiles.length} fighters; ${openIds.length} are unlocked`);
+    const selected = this.q('#rematch .rematch-tile.on')?.dataset.fighter ?? '';
+    const mine = CHARACTERS[firstChars[first.player]].id;
+    if (selected !== mine) t.problem('bug', `the pick starts on ${selected}, not the last pick (${mine})`);
+    if (row && row.scrollWidth > row.clientWidth) t.event('rematch-row-scrolls', `the fighter row scrolls sideways inside the panel (${row.scrollWidth} px in ${row.clientWidth})`);
+    t.event('rematch-pick', `${tiles.length} unlocked fighters, starts on ${selected}${this.q('#rematch .rematch-stages') ? ', stage row shown (this player lost)' : ''}`);
+    let chosen = mine;
+    if (peer === 1) {
+      const other = tiles.find((x) => x.dataset.fighter !== mine);
+      if (other) {
+        chosen = other.dataset.fighter!;
+        // A drag on the row first, like a thumb (it scrolls; it must not pick).
+        await this.tap(() => this.q(`#rematch .rematch-tile[data-fighter="${chosen}"]`), `fighter ${chosen}`);
+        if (this.q('#rematch .rematch-tile.on')?.dataset.fighter !== chosen) t.problem('bug', `tapping ${chosen} did not select it`);
+        else t.event('rematch-change', `peer 1 switched ${mine} to ${chosen}`);
+      }
+    }
+    const stage = this.q('#rematch .rematch-chip:not(.on)');
+    if (stage) await this.tap(() => this.q('#rematch .rematch-chip:not(.on)'), 'a stage');
+    await this.tap(() => this.q('#rematch .rematch-lock'), 'Lock in');
+
+    // 3. The new match: the same opponent, a new match id, the picked fighters.
+    await t.until(() => this.game.match()?.setup.mode === 'online' && this.game.match()!.setup.online!.matchId !== firstId && currentScreen() === 'match' && this.game.phase() === 'play', 90000, 'the rematch to start');
+    const m = this.game.match()!;
+    const names = m.setup.online!.names;
+    if (names[1 - m.player] !== opp) t.problem('bug', `the rematch is against ${names[1 - m.player]}, not ${opp}`);
+    const now = m.setup.slots.map((x) => CHARACTERS[x.char].id);
+    t.event('rematch-start', `${names[0]} (${now[0]}) vs ${names[1]} (${now[1]}) on ${STAGES[m.state.stage].name}; before: ${firstChars.map((c) => CHARACTERS[c].id).join(' / ')}`);
+    if (peer === 1 && now[m.player] !== chosen) t.problem('bug', `peer 1 picked ${chosen} but plays ${now[m.player]}`);
+    t.metric('rematchGames', 2);
+    t.progress(0.7);
+
+    // 4. The second game to its end, then one declines: Rematch on peer 0, Queue again on peer 1.
+    await t.until(() => currentScreen() === 'results', 5 * 60 * 1000, 'the rematch game to end');
+    await t.until(() => !!this.button('#results-actions', 'Rematch'), 10000, 'Rematch on the second results');
+    const ratedNote = this.q('#results-rating')?.dataset.state ?? '';
+    t.event('rematch-rated-per-game', `second result's rating state "${ratedNote}"`);
+    if (peer === 0) {
+      await this.tap(() => this.button('#results-actions', 'Rematch'), 'Rematch');
+      await t.until(() => phase() === 'declined' || phase() === 'closed', 25000, 'the other player leaving the rematch');
+      const line = this.q('#rematch .rematch-line')?.textContent ?? '';
+      t.event('rematch-declined', line);
+      if (!line.includes(opp) || !/left/i.test(line)) t.problem('bug', `the declined rematch says "${line}", not who left`);
+      if (this.button('#results-actions', 'Rematch')) t.problem('bug', 'Rematch is still offered after the other player left');
+      const q = this.button('#results-actions', 'Queue again');
+      if (!q) t.problem('bug', 'no Queue again after the other player left');
+      else this.rematchFit('after the other player left', [q, ...document.querySelectorAll<HTMLElement>('#results-actions button')]);
+      await this.tap(() => this.button('#results-actions', 'Queue again'), 'Queue again');
+      await t.until(() => mm.state !== 'idle', 8000, 'Queue again to search (one tap)');
+      t.event('rematch-queue-again', 'one tap on Queue again went to searching');
+    } else {
+      await t.wait(4000);
+      await this.tap(() => this.button('#results-actions', 'Queue again'), 'Queue again');
+      t.event('rematch-left', 'peer 1 left the rematch with Queue again');
+    }
+    t.progress(0.97);
+  }
+
+  /**
+   * The connection bars and the agreed delay (docs/online.md, "Delay and the bars"): a bar block by each name on the HUD
+   * with a reading, clear of the percent and (on a phone) inside the screen and at least 3 px wide per bar; the delay
+   * both tabs run with, from the ping measured before the match. Events `net-delay`, `net-bars`.
+   */
+  private async connectionBars(net: NonNullable<Awaited<ReturnType<typeof onlineReady>>>, peer: number): Promise<void> {
+    const t = this.t;
+    const stats = () => net.fightStats();
+    await t.until(() => (stats()?.delay ?? 0) > 0, 20000, 'the agreed input delay');
+    const s = stats()!;
+    t.event('net-delay', `peer ${peer}: delay ${s.delay} frames from ping ${s.ping} ms`);
+    t.metric('netDelayStart', s.delay);
+    const bars = () => Array.from(document.querySelectorAll<HTMLElement>('#hud .conn-bars'));
+    await t.until(() => bars().length === 2 && bars().every((b) => Number(b.dataset.bars) > 0), 15000, 'connection bars with a reading by both names');
+    const rects = bars().map((b) => b.getBoundingClientRect());
+    const levels = bars().map((b) => b.dataset.bars);
+    t.event('net-bars', `bars ${levels.join(' / ')} at ${window.innerWidth}x${window.innerHeight}${isTouchDevice() ? ' touch' : ''}`);
+    bars().forEach((b, i) => {
+      const r = rects[i];
+      const card = b.closest('.hud-card') as HTMLElement;
+      const pct = card.querySelector('.hud-pct')!.getBoundingClientRect();
+      if (r.width < 8 || r.height < 6 || r.right > window.innerWidth || r.bottom > window.innerHeight || r.left < 0) t.problem('bug', `the connection bars of card ${i} are not on screen (${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)})`);
+      const hit = r.left < pct.right && r.right > pct.left && r.top < pct.bottom && r.bottom > pct.top;
+      if (hit) t.problem('bug', `the connection bars of card ${i} overlap the percent`);
+    });
+  }
+
   /** Two tabs (peers: 2) in one private test lobby: see each other, rename, queue, get matched, fight, results. */
   /** The `reconnect` scenario: `online`'s lobby and match, with the connection cut during the fight (see reconnectPart). */
   cutMode = false;
@@ -2906,9 +3062,25 @@ class Run {
     t.event('online-start', `${names[0]} vs ${names[1]} on ${STAGES[m.state.stage].name}, this tab is slot ${m.player}`);
     if (introOnline) t.problem('bug', 'the match intro played in an online match');
     else t.event('online-no-intro', 'the online match started with no match intro');
+    await this.connectionBars(net, peer);
     if (this.cutMode) return this.reconnectPart(net, peer, opp);
+    let lastStats = net.fightStats();
+    const statsWatch = window.setInterval(() => {
+      lastStats = net.fightStats() ?? lastStats;
+    }, 400);
     this.progressNow = () => 0.45 + 0.45 * Math.min(1, (this.game.match()?.state.frame ?? 0) / Math.max(1, m.state.rules.timeLimit || 5400));
     await t.until(() => currentScreen() === 'results', 5 * 60 * 1000, 'the online match to end');
+    window.clearInterval(statsWatch);
+    if (lastStats) {
+      t.metric('netDelay', lastStats.delay);
+      t.metric('netPing', lastStats.ping);
+      t.metric('netRollbacks', lastStats.rollbacks);
+      t.metric('netRolledFrames', lastStats.rolledFrames);
+      t.metric('netMaxRolled', lastStats.maxRolled);
+      t.metric('netStalls', lastStats.stallTicks);
+      t.metric('netStallShare', Number((lastStats.stallTicks / Math.max(1, lastStats.stallTicks + lastStats.ranTicks)).toFixed(4)));
+      t.event('net-stats', `delay ${lastStats.delay}f, ping ${lastStats.ping} ms, ${lastStats.rollbacks} rollbacks (${lastStats.rolledFrames} frames, max ${lastStats.maxRolled}), ${lastStats.stallTicks} stalled ticks`);
+    }
     this.progressNow = () => 0.95;
 
     // 6. Results, with Queue again.
@@ -2917,6 +3089,7 @@ class Run {
     if (!this.button('#results-actions', 'Queue again')) t.problem('bug', 'no Queue again on the online results');
     if (/void|lost/i.test(headline)) t.problem('bug', `the online match ended "${headline}": ${this.q('.results-note')?.textContent ?? ''}`);
     const won = /^You win/.test(headline);
+    if (this.rematchMode) return this.rematchPart(peer, opp, mm);
 
     // 7. The rating change on the result: both signatures in, "+16" / "−16" for two new players.
     const rating = () => this.q('#results-rating');

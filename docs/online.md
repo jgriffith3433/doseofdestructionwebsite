@@ -48,6 +48,7 @@ the lobby, the match rooms and the leaderboard's store. The public Nostr relays 
 | `pairing.ts` | the pairing rule (pure) |
 | `matchmaker.ts` | the queue: pairing, the handshake, the host's setup |
 | `rollback.ts` | rollback netcode (pure) |
+| `quality.ts` | input delay from the ping and the connection bars (pure) |
 | `fight.ts` | one online fight: the `Match` through the rollback over the link; how it ends |
 | `results.ts` | the match-result event |
 | `profile.ts` | name and picture in localStorage; the profile key (the leaderboard's player id) |
@@ -172,6 +173,18 @@ beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
 - **Results**: the usual results screen with "You win" / "<name> wins" (or why it ended early), then **Queue again**
   (back to the menu and straight into the queue) or Main menu.
 - Online matches: 3 stocks, 5 minutes, a random Versus stage (its Versus rules), no pause.
+
+## Rematch
+
+After a finished game (the sim's end or time, not a quit, a lost link or a void) the match room stays open
+(`OnlineFight.holdRoom`) and the results offer **Rematch**, Queue again and Main menu (`net/rematch.ts` protocol,
+`ui/rematch.ts` panel, wired in `main.ts` `onlineEnded`). Both press Rematch within 15 s of the result; then a 12 s
+quick pick: a scrollable row of the fighters you have unlocked, defaulting to your last pick, and, if you lost the last
+game, a stage row (the loser picks; a draw or no pick: random from the Versus list). Messages on the room: `rm`
+(`want` / `no`), `rp` (a locked pick), `rn` (the host's new `OnlineSetup`, checked by the guest). Each game is a new
+match id with its own start and result signatures, so ratings and the leaderboard stay per game. Queue again, Main menu,
+the room closing or the clock all end it: the other side sees "<name> left. Queue again?" and Queue again is one tap.
+Check: `src/game/test/rematch.test.ts`; scenario `rematch` (peers: 2, taps only).
 
 ## Reconnecting
 
@@ -313,3 +326,19 @@ the board: signed, not provable. Off the live site `?daily=YYYY-MM-DD` plays ano
   only reads builds the same table from Hawkes Net's records.
 - The playtest scenario `online` (Hawkes Gen `playtest.run` with `peers: 2`): see AGENTS.md. After the match each
   peer checks its rating change and the Leaderboard (both tabs: winner #1 at 1000 + d, loser #2 at 1000 − d).
+
+
+## Delay and the bars
+
+- **Input delay is measured, not fixed** (`quality.ts` `delayForRtt`: about ping / 2 in frames, clamped 1 to 4). The pair room pings every
+  second, so by the time both pages have loaded the match each side has a round trip (`PairRoom.rttAvg`). The guest's `go`
+  message carries its ping; when both are loaded the host takes the worse of the two (`agreedDelay`), applies it
+  (`Rollback.setDelay`, only before frame 0) and sends it as a reliable `dl` message. The guest does not tick until `dl`
+  arrives, so both sims run the same delay. No reading keeps the old 2. The rollback window stays 8 frames.
+- **Connection bars** (`.conn-bars`, in each HUD card's meta row beside the stocks, so the phone layout, which hides the name,
+  still shows them and they never touch the percent): 1-4 bars lit from the ping (`barsFor`: under 50 ms 4, under 100 3,
+  under 170 2, else 1; a stall in the last 3 s costs one). Our bars use our ping; the other player's use the ping they
+  report (`pg`, every 2 s), falling back to ours.
+- **Playtest**: events `net-delay`, `net-bars`, `net-stats`; metrics `netDelay`, `netPing`, `netRollbacks`, `netRolledFrames`,
+  `netMaxRolled`, `netStalls` (stalled ticks), `netStallShare`. Off the live site `?netlag=150` adds that much to every frame a page
+  sends, and `?netdelay=2` forces the old fixed delay, to compare stalls.

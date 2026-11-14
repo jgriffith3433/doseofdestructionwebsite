@@ -3,9 +3,10 @@
 // stop single player or window.hawkesPlaytest.
 
 export { startOnline, onlineParts, PLAYTEST_PEER, TEST_LOBBY } from './online.ts';
-export { OnlineFight, cutLink } from './fight.ts';
+export { OnlineFight, cutLink, fightStats } from './fight.ts';
 export { sharedBoard } from './board.ts';
 export { background } from '@hawkesgen/net';
 export { profileId } from './profile.ts';
 export { closeProfile, findMatch, initOnlineUi, openProfile } from '../ui/online.ts';
 export { initLeaderboardUi, renderBoard, showRatingChange } from '../ui/leaderboard.ts';
+export { Rematch, rematchStages } from './rematch.ts';
