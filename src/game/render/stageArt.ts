@@ -91,7 +91,8 @@ export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, 
     // the layer is hidden and counted as done, and the stage's lit sky shows through.
     // A layer a platform sits on has hard painted edges: mipmaps and trilinear blend the colour hidden under the
     // transparent pixels into them (green and red fringes), so those layers sample bilinear from the full-size picture.
-    const crisp = (l.platforms?.length ?? 0) > 0;
+    // Layers behind the fighters (parallax buildings) get the same: their mipmapped alpha edges showed a dotted red fringe.
+    const crisp = (l.platforms?.length ?? 0) > 0 || (l.z > 0 && !l.glow);
     const tex = new Texture(`/${l.image}`, scene, crisp, true, crisp ? Texture.BILINEAR_SAMPLINGMODE : Texture.TRILINEAR_SAMPLINGMODE, () => {
       const s = tex.getSize();
       size.w = at.width;
