@@ -29,9 +29,9 @@ import { FX } from '../sim/fixed.ts';
 import { entranceBeats, entrancePose, flyCamera, flyProgress, type BeatFx, type IntroPlan, type Pose } from '../campaign/intro.ts';
 import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
-import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
+import { ACT, SHIELD_MAX, bodySize, type Fighter, type GameState } from '../sim/state.ts';
 import { GRAB_FIRST, activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
-import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, type HitTier, type TrailKind } from '../hitFeel.ts';
+import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, coreFor, sparkSizeFor, tellAt, tellFrames, isNormalMove, isSmashMove, isSpecialMove, type HitTier, type TrailKind } from '../hitFeel.ts';
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { cameraFighters, followCamera, frameGoal, punchGoal, type CamBounds, type CamState } from './cameraRig.ts';
 import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
@@ -87,6 +87,8 @@ interface FighterView {
   charIdx: number;
   lookIdx: number;
   tumble?: number;
+  /** Startup tell 0..1 (a rim flash in the player colour before a special or smash's first active frame). */
+  tell: number;
   /** The stage's key, rim and ambient on the sprite (lightPlugin.ts). */
   light: LightPlugin;
   /** The art bible's remap and outline on the sprite (stylePlugin.ts). */
@@ -125,6 +127,17 @@ const SHOT_LOOKS = ['board', 'trap', 'orb'] as const;
 /** Depth of every hit, dust and streak effect: behind the fighters (they sit at z 0 to -0.05), in front of the stage, so no effect covers a body or its outline. */
 const FX_Z = 0.06;
 
+/** Depth of the small bright core of a landed hit: in front of the fighters (z 0 to -0.15), so the contact point reads on top of the hurt fighter. */
+const CORE_Z = -0.4;
+
+/** Counters of the tell, trail and contact-spark layer (reactFxStats): zeroed on reset. */
+const NEW_REACT = {
+  tells: 0, tellFrames: 0, tellWhooshes: 0, tellMisses: 0, tellStarts: 0,
+  trails: 0, trailFrames: 0, normalActives: 0,
+  contacts: 0, maxContactDist: 0, maxHurtGap: 0, coreFrames: 0, coreMinPx: 0, coreHeavyMinPx: 0, coreUnderControl: 0,
+  shieldRipples: 0, parryFlashes: 0, clashSparks: 0,
+};
+
 export class Renderer {
   readonly engine: Engine;
   readonly scene: Scene;
@@ -139,8 +152,11 @@ export class Renderer {
   /** Visual-only reactions per fighter (squash, push, bounce); render reads sim state and never writes it. */
   private react = new Map<number, { age: number; frames: number; squash: number; push: number; dir: number; hop: number }>();
   private prevGround = new Map<number, number>();
-  private reactStats = { squashes: 0, maxSquash: 0, squashFrames: 0, tumbleFrames: 0, bounces: 0, dustBursts: 0, smears: 0, smearFrames: 0, smashSmears: 0, charges: 0 };
+  private reactStats: typeof NEW_REACT & Record<'squashes' | 'maxSquash' | 'squashFrames' | 'tumbleFrames' | 'bounces' | 'dustBursts' | 'smears' | 'smearFrames' | 'smashSmears' | 'charges', number> = { squashes: 0, maxSquash: 0, squashFrames: 0, tumbleFrames: 0, bounces: 0, dustBursts: 0, smears: 0, smearFrames: 0, smashSmears: 0, charges: 0, ...NEW_REACT };
   /** Launch-trail looks: grey smoke (medium), white smoke (heavy), a coloured streak (a hit that will KO). */
+  private fxMats!: { core: StandardMaterial; shield: StandardMaterial; parry: StandardMaterial; clash: StandardMaterial };
+  private tellSeen = new Map<number, { move: number; n: number }>();
+  private lastFxFrame = new Map<number, number>();
   private smokeMats!: { grey: StandardMaterial; white: StandardMaterial; streak: StandardMaterial };
   /** The last hit on each victim (knockback and tier), read when its launch begins. */
   private lastHits = new Map<number, { kb: number; tier: HitTier }>();
@@ -259,6 +275,12 @@ export class Renderer {
       return m;
     };
     this.smokeMats = { grey: smoke('smoke-grey', '#9a9a9e', false), white: smoke('smoke-white', '#ffffff', false), streak: smoke('smoke-streak', '#ff4a1f', true) };
+    // Contact looks: the bright core (white), the shield ripple (cyan), the parry flash (white-blue) and the clash spark (orange).
+    const glow = (name: string, hex: string): StandardMaterial => {
+      const m = smoke(name, hex, true);
+      return m;
+    };
+    this.fxMats = { core: glow('fx-core', '#ffffff'), shield: glow('fx-shield', '#58d8ff'), parry: glow('fx-parry', '#e8f4ff'), clash: glow('fx-clash', '#ff9a2a') };
     for (let i = 0; i < 96; i++) {
       const m = this.makeSpark();
       m.setEnabled(false);
@@ -729,7 +751,7 @@ export class Renderer {
 
       this.views.push({
         light: lightPlugin, outline: outlinePlugin, shadow, shadowMat, reflRoot, reflPose, refl, reflMat, lit: { height: -1, scale: 0, alpha: 0, shadow: false, reflection: false },
-        root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, ghost, ghostMat, rim, rimMat, charIdx: f.char, lookIdx: this.looks[f.id] ?? 0,
+        root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, tell: 0, ghost, ghostMat, rim, rimMat, charIdx: f.char, lookIdx: this.looks[f.id] ?? 0,
       });
     }
     this.fighterKey = key;
@@ -953,6 +975,10 @@ export class Renderer {
         const shield = e.type === 'hit' && e.shield;
         if (shield) {
           this.burst(e.x * S, e.y * S, 6, 0.06);
+          // The shield ripple: two cyan rings spreading from the point of contact over the bubble.
+          this.sprite(e.x * S, e.y * S, 0, 0.5, 12, 2.6, this.fxMats.shield);
+          this.sprite(e.x * S, e.y * S, 0, 0.3, 8, 1.6, this.fxMats.shield);
+          this.reactStats.shieldRipples++;
         } else if (e.type === 'hit') {
           this.lastHits.set(e.victim, { kb: e.kb, tier: hitTier(e.dmg) });
           this.impact(e);
@@ -994,6 +1020,16 @@ export class Renderer {
       } else if (e.type === 'shieldbreak') {
         this.burst(e.x * S, e.y * S + 0.6, 16, 0.16);
         this.shake = 0.5;
+      } else if (e.type === 'clash') {
+        // Two hitboxes meet: an orange cross-spark where they touch and sparks thrown both ways.
+        const x = e.x * S;
+        const y = e.y * S;
+        this.sprite(x, y, 0.8, 0.8, 9, 1.8, this.fxMats.clash);
+        this.sprite(x, y, -0.8, 0.8, 9, 1.8, this.fxMats.clash);
+        this.sprite(x, y, 0, 0.35, 4, 1, this.fxMats.core, CORE_Z);
+        this.burst(x, y, 10, 0.11, this.fxMats.clash);
+        this.shake = Math.max(this.shake, 0.15);
+        this.reactStats.clashSparks++;
       } else if (e.type === 'land' || e.type === 'jump') {
         this.burst(e.x * S, e.y * S + 0.02, 3, 0.03);
       } else if (e.type === 'counter') {
@@ -1002,6 +1038,10 @@ export class Renderer {
         const y = e.y * S;
         this.sprite(x, y, 0, 0.5, 18, 6);
         this.sprite(x, y, 0.4, 0.7, 12, 2.4);
+        // The parry's own look: a hard white flash and a thin ring, unlike any hit spark.
+        this.sprite(x, y, 0, 1.2, 4, 0.6, this.fxMats.parry, CORE_Z);
+        this.sprite(x, y, 0, 0.5, 10, 4.5, this.fxMats.parry);
+        this.reactStats.parryFlashes++;
         this.burst(x, y, 14, 0.1);
         if (this.views[e.id]) this.views[e.id].flash = 14;
         this.shake = Math.max(this.shake, 0.3);
@@ -1266,6 +1306,10 @@ export class Renderer {
     const x = e.x * S;
     const y = e.y * S;
     this.burst(x, y, fx.sparks, (tier === 'light' ? 0.06 : 0.09) + e.kb * 0.0006);
+    // The spark sits on the overlap of hitbox and hurtbox (the sim's contact point), sized by tier; a small bright core
+    // is drawn in front of the hurt fighter for 2-3 frames while the rest of the effect stays behind (FX_Z).
+    const flash = this.sprite(x, y, Math.random() * 3, sparkSizeFor(tier), 8, 1.2);
+    this.contactCore(e, tier, flash);
     for (let i = 0; i < fx.stars; i++) this.sprite(x, y, i * (Math.PI / 4) + Math.random(), tier === 'heavy' ? 0.4 : 0.26, 8 + i * 2, 1);
     if (fx.ring) this.sprite(x, y, 0, 0.3, 12, 3.2);
     this.shake = Math.max(this.shake, fx.shake);
@@ -1278,6 +1322,58 @@ export class Renderer {
     st.hits++;
     st.tiers[tier]++;
     st.last = { tier, lag: e.lag, sparks: fx.sparks, stars: fx.stars, ring: fx.ring, shake: fx.shake, flash: fx.flash };
+  }
+
+  /** The bright core of a landed hit, in front of the hurt fighter, sized up so it reads on a phone; counts it and its distance to the contact point. */
+  private contactCore(e: Extract<SimEvent, { type: 'hit' }>, tier: HitTier, flash: Mesh): void {
+    const st = this.reactStats;
+    const c = coreFor(tier);
+    const x = e.x * S;
+    const y = e.y * S;
+    const px = this.pxPerUnit(x, y);
+    const size = px > 0 ? Math.max(c.size, c.minPx / px) : c.size;
+    const core = this.sprite(x, y, 0, size, c.frames, 0, this.fxMats.core, CORE_Z);
+    const across = size * px;
+    st.contacts++;
+    st.coreFrames += c.frames;
+    st.maxContactDist = Math.max(st.maxContactDist, Math.hypot(core.position.x - x, core.position.y - y, flash.position.x - x, flash.position.y - y));
+    st.coreMinPx = st.coreMinPx ? Math.min(st.coreMinPx, across) : across;
+    if (tier === 'heavy') st.coreHeavyMinPx = st.coreHeavyMinPx ? Math.min(st.coreHeavyMinPx, across) : across;
+    // Independent check: the contact point lies on the victim's hurtbox (gap in scene units).
+    const v = this.lastState?.fighters[e.victim];
+    if (v) {
+      const [bw, bh] = bodySize(v);
+      const hw = bw / FX / 2;
+      const gx = Math.max(0, Math.abs(e.x - v.x / FX) - hw);
+      const gy = Math.max(0, e.y - (v.y + bh) / FX, v.y / FX - e.y);
+      st.maxHurtGap = Math.max(st.maxHurtGap, Math.hypot(gx, gy) * W);
+    }
+    // Under the touch controls? Only the core's own rectangle counts.
+    const half = across / 2;
+    for (const el of document.querySelectorAll('.touch-stick, .touch-buttons, .touch-pause')) {
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0) continue;
+      const sp = this.screenOf(x, y);
+      if (sp && sp.x + half > r.left && sp.x - half < r.right && sp.y + half > r.top && sp.y - half < r.bottom) st.coreUnderControl++;
+    }
+  }
+
+  /** CSS px per scene unit at a point, and where the point is on screen (CSS px). */
+  private screenOf(x: number, y: number): { x: number; y: number } | null {
+    const canvas = this.engine.getRenderingCanvas();
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    if (!canvas || !w || !h) return null;
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const p = Vector3.Project(new Vector3(x, y, CORE_Z), Matrix.IdentityReadOnly, this.scene.getTransformMatrix(), vp);
+    const k = canvas.clientWidth / w;
+    return { x: p.x * k, y: p.y * k };
+  }
+
+  private pxPerUnit(x: number, y: number): number {
+    const a = this.screenOf(x, y);
+    const b = this.screenOf(x + 1, y);
+    return a && b ? Math.abs(b.x - a.x) : 0;
   }
 
   /**
@@ -1318,11 +1414,12 @@ export class Renderer {
   }
 
   /** One impact flash: a soft disc that blows up as it fades (two make a heavy burst, a big fast one reads as a shockwave). */
-  private sprite(x: number, y: number, rot: number, size: number, life: number, grow: number): void {
-    const mesh = this.takeSpark();
-    mesh.position.set(x, y, FX_Z);
+  private sprite(x: number, y: number, rot: number, size: number, life: number, grow: number, mat?: StandardMaterial, z = FX_Z): Mesh {
+    const mesh = this.takeSpark(mat);
+    mesh.position.set(x, y, z);
     mesh.rotation.z = rot;
     this.sparks.push({ mesh, vx: 0, vy: 0, life, max: life, size, grow });
+    return mesh;
   }
 
   /** The special-effect flipbooks' counters, for the playtest. */
@@ -1604,14 +1701,15 @@ export class Renderer {
     }
 
     // The rim follows the body, a touch larger. On Low it is thinner and only drawn in one-on-ones (two fighters), which is cheaper.
-    const rimOn = this.gfx.quality === 'high' || state.fighters.length <= 2;
+    const rimOn = this.gfx.quality === 'high' || state.fighters.length <= 2 || v.tell > 0;
     v.rim.setEnabled(rimOn);
     if (rimOn) {
-      const grow = this.gfx.quality === 'high' ? 1.07 : 1.045;
+      const grow = (this.gfx.quality === 'high' ? 1.07 : 1.045) + v.tell * 0.1;
       v.rim.position.x = v.body.position.x;
       v.rim.position.y = v.body.position.y;
       v.rim.scaling.set(v.body.scaling.x * grow, v.body.scaling.y * grow, 1);
       if (v.rimMat.diffuseTexture !== v.mat.diffuseTexture) v.rimMat.diffuseTexture = v.mat.diffuseTexture;
+      v.rimMat.alpha = v.tell > 0 ? 1 : 0.9;
     }
 
     this.sizeOutline(v);
@@ -1703,10 +1801,14 @@ export class Renderer {
       this.burst(f.x * S, f.y * S + 0.02, 7, 0.07);
       this.onSynth?.('thud');
     }
+    v.tell = 0;
+    const fresh = this.lastFxFrame.get(f.id) !== state.frame;
+    this.lastFxFrame.set(f.id, state.frame);
     if (f.action === ACT.ATTACK) {
       const ch = CHARACTERS[f.char];
       const m = ch.moves[f.move];
       const w = m.hits[0];
+      this.tellAndTrail(f, v, m, fresh);
       const big = f.move === MOVE.FSMASH || f.move === MOVE.USMASH || f.move === MOVE.DSMASH;
       if (w && (big || f.move >= MOVE.UPB)) {
         if (big && f.frame < w.start) {
@@ -1725,6 +1827,68 @@ export class Renderer {
       }
     }
     return out;
+  }
+
+  /**
+   * The two attack reads: specials and smashes get a 2-4 frame startup tell (a rim flash in the player's colour and a short whoosh)
+   * before their first active frame; every normal attack draws a swing trail along its hitbox on each active frame.
+   */
+  private tellAndTrail(f: Fighter, v: FighterView, m: (typeof CHARACTERS)[number]['moves'][number], fresh: boolean): void {
+    const st = this.reactStats;
+    const w = m.hits[0];
+    if (!w) return;
+    const warns = isSmashMove(f.move) || isSpecialMove(f.move);
+    if (warns) {
+      const t = tellAt(f.frame, w.start);
+      v.tell = t;
+      if (!fresh) return;
+      let seen = this.tellSeen.get(f.id);
+      if (!seen || seen.move !== f.move) seen = { move: f.move, n: 0 };
+      if (t > 0) {
+        if (seen.n === 0) {
+          st.tells++;
+          this.onSynth?.('whoosh');
+          st.tellWhooshes += this.onSynth ? 1 : 0;
+        }
+        seen.n++;
+        st.tellFrames++;
+      }
+      if (f.frame === w.start) {
+        st.tellStarts++;
+        if (seen.n === 0 && tellFrames(w.start) > 0) st.tellMisses++;
+        this.tellSeen.delete(f.id);
+      } else this.tellSeen.set(f.id, seen);
+      return;
+    }
+    if (!isNormalMove(f.move)) return;
+    for (const hw of m.hits) {
+      if (f.frame < hw.start || f.frame > hw.end) continue;
+      if (fresh && f.frame === hw.start && hw === w) st.normalActives++;
+      if (!fresh) return;
+      const drawn = this.trail(f, hw.boxes[0]);
+      if (drawn) {
+        if (f.frame === hw.start && hw === w) st.trails++;
+        st.trailFrames++;
+      }
+    }
+  }
+
+  /** A swing trail frame: a streak from the shoulder through the hitbox, as long as the reach and as thick as the box. */
+  private trail(f: Fighter, b: { x: number; y: number; r: number } | undefined): boolean {
+    if (!b) return false;
+    const ch = CHARACTERS[f.char];
+    const k = f.scale / 100;
+    const bx = f.facing * b.x * W * k;
+    const by = b.y * W * k;
+    const sx = 0;
+    const sy = ch.height * W * k * 0.6;
+    const len = Math.hypot(bx - sx, by - sy) + b.r * W * k;
+    const thick = Math.max(0.16, b.r * W * k * 1.3);
+    const mesh = this.takeSpark(this.fxMats.core);
+    mesh.position.set(f.x * S + (bx + sx) / 2, f.y * S + (by + sy) / 2, FX_Z);
+    mesh.rotation.z = Math.atan2(by - sy, bx - sx);
+    this.sparks.push({ mesh, vx: 0, vy: 0, life: 4, max: 4, size: thick, stretch: Math.max(1, len / thick), grow: 0 });
+    return true;
   }
 
   /** One of three streak frames along the swing, from the body to the active hitbox. */

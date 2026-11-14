@@ -39,6 +39,8 @@ export type SimEvent =
   | { type: 'jump' | 'land' | 'ledge' | 'shieldbreak' | 'respawn'; id: number; x: number; y: number }
   /** A counter special turned a hit back on its attacker. */
   | { type: 'counter'; id: number; x: number; y: number }
+  /** Two fighters' active hitboxes met each other on the same frame (a trade): where the circles touch. Presentation only. */
+  | { type: 'clash'; a: number; b: number; x: number; y: number }
   /** A special put a projectile (kind 0) or a trap (kind 1) in play. */
   | { type: 'shot'; id: number; kind: number; x: number; y: number }
   /** The stage hurt someone: a damage zone or a hazard (index into stage.zones or stage.hazards). */
@@ -603,10 +605,41 @@ function hittable(f: Fighter): boolean {
   return f.intangible === 0 && f.action !== ACT.DEAD && f.action !== ACT.RESPAWN && f.action !== ACT.LEDGE_CLIMB;
 }
 
+/**
+ * The centre of the overlap between a hitbox circle (centre hx,hy, radius r) and a hurtbox rectangle (x1..x2, y1..y2), in
+ * fixed point: the average of the grid points that lie in both (the closest point on the rectangle when the overlap is a sliver).
+ * Presentation only (the hit event's x,y): the sim state never reads it.
+ */
+export function contactPoint(hx: number, hy: number, r: number, x1: number, y1: number, x2: number, y2: number): { x: number; y: number } {
+  const lx = Math.max(x1, hx - r);
+  const hxr = Math.min(x2, hx + r);
+  const ly = Math.max(y1, hy - r);
+  const hyr = Math.min(y2, hy + r);
+  let sx = 0;
+  let sy = 0;
+  let n = 0;
+  const N = 6;
+  for (let i = 0; i < N; i++) {
+    const px = lx + idiv((hxr - lx) * (2 * i + 1), 2 * N);
+    for (let j = 0; j < N; j++) {
+      const py = ly + idiv((hyr - ly) * (2 * j + 1), 2 * N);
+      const dx = px - hx;
+      const dy = py - hy;
+      if (dx * dx + dy * dy <= r * r) {
+        sx += px;
+        sy += py;
+        n++;
+      }
+    }
+  }
+  if (n > 0) return { x: idiv(sx, n), y: idiv(sy, n) };
+  return { x: clamp(hx, x1, x2), y: clamp(hy, y1, y2) };
+}
+
 function resolveHits(s: GameState, ev: SimEvent[]): void {
   // Collect every hit first and apply them after, so trades land on both
   // fighters and the result does not depend on who is checked first.
-  const hits: { a: Fighter; v: Fighter; box: Hitbox; x: number; y: number }[] = [];
+  const hits: { a: Fighter; v: Fighter; box: Hitbox; x: number; y: number; hx: number; hy: number; r: number }[] = [];
   for (const a of s.fighters) {
     if (a.hitlag > 0) continue;
     const boxes = activeHitboxes(a);
@@ -624,11 +657,24 @@ function resolveHits(s: GameState, ev: SimEvent[]): void {
         const dx = hb.x - px;
         const dy = hb.y - py;
         if (dx * dx + dy * dy <= hb.r * hb.r) {
-          hits.push({ a, v, box: hb.box, x: (hb.x + px) >> 1, y: (hb.y + py) >> 1 });
+          const c = contactPoint(hb.x, hb.y, hb.r, v.x - half, v.y, v.x + half, top);
+          hits.push({ a, v, box: hb.box, x: c.x, y: c.y, hx: hb.x, hy: hb.y, r: hb.r });
           break;
         }
       }
     }
+  }
+  // A trade where the two hitboxes also touch each other is a clash: its own spark, where the circles meet.
+  for (const h of hits) {
+    if (h.a.id > h.v.id) continue;
+    const o = hits.find((g) => g.a === h.v && g.v === h.a);
+    if (!o) continue;
+    const dx = o.hx - h.hx;
+    const dy = o.hy - h.hy;
+    const reach = h.r + o.r;
+    if (dx * dx + dy * dy > reach * reach) continue;
+    const t = reach > 0 ? idiv(h.r * 1000, reach) : 500;
+    ev.push({ type: 'clash', a: h.a.id, b: h.v.id, x: h.hx + idiv(dx * t, 1000), y: h.hy + idiv(dy * t, 1000) });
   }
   for (const h of hits) applyHit(s, h.a, h.v, h.box, h.x, h.y, ev);
 }
@@ -929,7 +975,8 @@ function shotHit(s: GameState, o: Shot, ev: SimEvent[]): boolean {
     const dy = o.y - py;
     if (dx * dx + dy * dy > o.r * o.r) continue;
     const box: Hitbox = { x: 0, y: 0, r: 0, dmg: o.dmg, angle: o.angle, bkb: o.bkb, kbg: o.kbg };
-    applyHit(s, owner, v, box, (o.x + px) >> 1, (o.y + py) >> 1, ev, { facing: o.facing, shot: true, shotKind: o.kind === 1 ? 'trap' : 'projectile' });
+    const c = contactPoint(o.x, o.y, o.r, v.x - half, v.y, v.x + half, v.y + h);
+    applyHit(s, owner, v, box, c.x, c.y, ev, { facing: o.facing, shot: true, shotKind: o.kind === 1 ? 'trap' : 'projectile' });
     return true;
   }
   return false;
