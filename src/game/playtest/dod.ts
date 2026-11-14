@@ -5105,6 +5105,7 @@ class Run {
         try {
           await t.until(() => !!document.getElementById('teach-reward'), 2000, 'the lesson-clear card');
           t.event('lesson-clear', `"${document.getElementById('teach-reward')?.textContent ?? ''}" after all ${done} steps (${how})`);
+          await this.lessonCardCheck('back', how);
         } catch (e) {
           if (String(e).includes('stopped')) throw e;
           t.problem('bug', 'the lesson showed no clear card after the last step');
@@ -5129,6 +5130,39 @@ class Run {
     }
     t.progress(1);
     t.finish('done');
+  }
+
+  /**
+   * The Lesson complete card (main.ts `lessonCard`): shown after the clear pop with a primary button (Next lesson, or Fight a
+   * CPU after the last) and Back to menu, both 44 px tall or more on touch. `next` taps the primary button, `back` taps Back to
+   * menu and then checks the How to play menu ticks the lessons done (localStorage `dod-lessons`) and the Campaign line counts
+   * the real seasons and episodes.
+   */
+  private async lessonCardCheck(action: 'next' | 'back', how: string): Promise<void> {
+    const t = this.t;
+    await t.until(() => !!document.getElementById('lesson-card'), 4000, 'the Lesson complete card');
+    const primary = () => document.querySelector<HTMLElement>('#lesson-card .lesson-primary');
+    const backBtn = () => document.querySelector<HTMLElement>('#lesson-card .lesson-back');
+    const pr = primary()!.getBoundingClientRect();
+    const br = backBtn()!.getBoundingClientRect();
+    t.event('lesson-card', `"${document.querySelector('#lesson-card h2')?.textContent}" with "${primary()!.querySelector('strong')?.textContent}" (${Math.round(pr.height)} px) and "${backBtn()!.querySelector('strong')?.textContent}" (${Math.round(br.height)} px) (${how})`);
+    if (pr.height < 44 || br.height < 44 || pr.width < 44 || br.width < 44) t.problem('bug', `the Lesson complete buttons are under 44 px (${Math.round(pr.height)} and ${Math.round(br.height)})`);
+    if (pr.left < 0 || pr.right > innerWidth || br.bottom > innerHeight) t.problem('bug', 'the Lesson complete card runs off the screen');
+    if (action === 'next') {
+      await this.tap(primary, 'Next lesson');
+      await t.until(() => !document.getElementById('lesson-card'), 4000, 'the card to close');
+      t.event('lesson-next', 'Next lesson started the following lesson');
+      return;
+    }
+    await this.tap(backBtn, 'Back to menu');
+    await this.screen('main');
+    await t.until(() => document.querySelectorAll('.menu-item.lesson-done').length > 0, 4000, 'the ticks on the How to play menu');
+    const ticks = [...document.querySelectorAll<HTMLElement>('.menu-item.lesson-done')].map((b) => b.dataset.go);
+    const stored = localStorage.getItem('dod-lessons');
+    t.event('lesson-ticks', `ticked on the menu: ${ticks.join(', ')}; saved as ${stored}`);
+    const blurb = document.getElementById('campaign-blurb')?.textContent ?? '';
+    t.event('campaign-blurb', blurb);
+    if (/eight/i.test(blurb) || !/\d+ seasons?, \d+ episodes?/.test(blurb)) t.problem('bug', `the Campaign menu line is stale: "${blurb}"`);
   }
 
   // ---------------------------------------------------------- How to play 3: specials, fast fall, the way back
@@ -5318,6 +5352,7 @@ class Run {
         try {
           await t.until(() => !!document.getElementById('teach-reward'), 2000, 'the lesson-clear card');
           t.event('lesson-clear', `"${document.getElementById('teach-reward')?.textContent ?? ''}" after the ledge grab (${how})`);
+          await this.lessonCardCheck('next', how);
         } catch (e) {
           if (String(e).includes('stopped')) throw e;
           t.problem('bug', 'the lesson showed no clear card after the last step');

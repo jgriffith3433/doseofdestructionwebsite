@@ -140,6 +140,14 @@ export class Teacher {
   private flagged: string | null = null;
   /** Events a playtest can watch: a prompt shown, a prompt used. */
   onChange: ((step: TeachStep, state: 'shown' | 'used' | 'gone') => void) | null = null;
+  /** A lesson's last step is done (once): How to play 1 when every prompt has been used, 2 and 3 with their clear card. */
+  onComplete: (() => void) | null = null;
+  private completed = false;
+  private complete(): void {
+    if (this.completed) return;
+    this.completed = true;
+    this.onComplete?.();
+  }
 
   private readonly opts: TeachOptions;
 
@@ -173,6 +181,7 @@ export class Teacher {
     for (const e of events) if (e.type === 'hit' && e.attacker === m.player && !e.shield) this.hits++;
     if (this.hits > 0 && !this.rewarded) this.reward();
     this.markUsed(m, me, events);
+    if (this.opts.scripted && (['move', 'attack', 'jump', 'smash', 'shield'] as TeachStep[]).every((x) => this.used.has(x))) this.complete();
     // Off the edge or below the stage for a moment (not a hop over the middle).
     const away = !me.grounded && (me.action === ACT.AIR || me.action === ACT.HELPLESS || me.action === ACT.HITSTUN);
     const x = me.x / FX;
@@ -226,6 +235,7 @@ export class Teacher {
     }
     if (!this.current && !this.fading && next && this.frames >= 25) this.show(next);
     if (!next && !this.rewarded) this.reward('Lesson clear!');
+    if (!next) this.complete();
     this.sync();
   }
 
@@ -286,6 +296,7 @@ export class Teacher {
     }
     if (!this.current && !this.fading && want && this.frames >= 25) this.show(want);
     if (!next && !this.rewarded) this.reward('Lesson clear!');
+    if (!next) this.complete();
     this.sync();
   }
 

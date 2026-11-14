@@ -25,6 +25,7 @@ import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './rend
 import { Match, type MatchSetup } from './match.ts';
 import type { SimEvent } from './sim/step.ts';
 import { ruleLabel, takeoverLines } from './campaign/takeover.ts';
+import { LESSON_TITLE, campaignBlurb, doneLessons, markLessonDone, nextLesson, type LessonId } from './campaign/lessons.ts';
 import { CHAPTERS, isUnlocked, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
 import { $, formatTime, h, headUrl, installPressFeedback, largeUrl, thumbUrl } from './ui/dom.ts';
@@ -304,6 +305,9 @@ let spotBusy = false;
 /** Shows the current spotlight fighter: picture and name change together, once the picture is ready. */
 async function spotlight(animate = false): Promise<void> {
   updateNextEpisode();
+  updateLessonTicks();
+  const blurb = document.getElementById('campaign-blurb');
+  if (blurb) blurb.textContent = campaignBlurb();
   renderDaily();
   const i = spotIndex % CHARACTERS.length;
   const c = CHARACTERS[i];
@@ -960,6 +964,63 @@ function startHowToPlay(lesson: 'training' | 'defence' | 'recovery' = 'training'
   );
 }
 
+/** The ticks on the How to play menu items: a lesson done stays ticked after a reload (campaign/lessons.ts). */
+function updateLessonTicks(): void {
+  const done = doneLessons();
+  const ids: Record<string, LessonId> = { howto: 'training', howto2: 'defence', howto3: 'recovery' };
+  for (const [go, id] of Object.entries(ids)) {
+    const btn = document.querySelector<HTMLElement>(`.menu-item[data-go="${go}"]`);
+    if (!btn) continue;
+    const on = done.has(id);
+    btn.classList.toggle('lesson-done', on);
+    btn.dataset.done = on ? '1' : '0';
+    let tick = btn.querySelector<HTMLElement>('.lesson-tick');
+    if (on && !tick) {
+      tick = h('em', { class: 'lesson-tick', 'aria-label': 'Done' }, '✓ Done') as HTMLElement;
+      btn.prepend(tick);
+    } else if (!on && tick) tick.remove();
+  }
+}
+
+function lessonCardOff(): void {
+  document.getElementById('lesson-card')?.remove();
+}
+
+/** A finished lesson: the match stands still under a card with Next lesson (Fight a CPU after the last) and Back to menu. */
+function lessonCard(id: LessonId): void {
+  lessonCardOff();
+  phase = 'pause';
+  syncPad();
+  const next = nextLesson(id);
+  const leave = (then: () => void) => () => {
+    lessonCardOff();
+    if (match) analytics.matchEnd(match, 'quit', { reason: 'lesson_done' });
+    endMatch();
+    then();
+  };
+  const primary = h('button', { class: 'menu-item lesson-primary', type: 'button', 'data-lesson-next': next ?? 'fight' }, h('strong', {}, next ? 'Next lesson' : 'Fight a CPU'), h('span', {}, next ? LESSON_TITLE[next] : 'Straight into a real match.'));
+  primary.addEventListener('click', leave(() => {
+    if (next) startHowToPlay(next);
+    else startCpuFight();
+  }));
+  const back = h('button', { class: 'menu-item quiet lesson-back', type: 'button' }, h('strong', {}, 'Back to menu'));
+  back.addEventListener('click', leave(() => void go('main', spotlight)));
+  const card = h('div', { id: 'lesson-card', class: 'lesson-card', role: 'dialog', 'aria-label': 'Lesson complete' }, h('h2', {}, 'Lesson complete'), h('p', {}, LESSON_TITLE[id]), primary, back);
+  document.body.appendChild(card);
+  audio.sfx('ui-select');
+  primary.focus();
+}
+
+/** After the last lesson: a real 2-stock match against a CPU, no setup screens. */
+function startCpuFight(): void {
+  chapter = null;
+  analytics.setMode('versus');
+  const ep = CHARACTERS.findIndex((x) => x.id === 'exit-punk');
+  const foe = CHARACTERS.findIndex((x) => x.id === 'kaelen');
+  const stage = Math.max(0, STAGES.findIndex((x) => x.id === 'city-top'));
+  void startMatch({ mode: 'versus', stage, stocks: 2, rules: {}, slots: [{ char: ep, cpu: null }, { char: foe, cpu: 3 }] }, true);
+}
+
 /** The Campaign button on the main menu says "Next episode" once the pilot is won and the player hasn't gone on yet. */
 function updateNextEpisode(): void {
   const btn = document.querySelector<HTMLElement>('.menu-item[data-go="campaign"]');
@@ -1197,8 +1258,16 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     // The canvas may have changed size while menus were up.
     renderer.engine.resize();
     match = m;
+    lessonCardOff();
     teacher = setup.teach ? new Teacher({ scripted: setup.teach === 'training', lesson: setup.teach === 'defence' || setup.teach === 'recovery' ? setup.teach : undefined }) : null;
     if (teacher) {
+      const lessonId: LessonId = setup.teach === 'defence' || setup.teach === 'recovery' ? setup.teach : 'training';
+      teacher.onComplete = () => {
+        markLessonDone(lessonId);
+        updateLessonTicks();
+        // Let the "Lesson clear!" pop land, then the card.
+        window.setTimeout(() => { if (match === m && phase === 'play') lessonCard(lessonId); }, 1300);
+      };
       teacher.onChange = (step, state) => {
         // Lesson 2: the dummy starts walking up and swinging as the last step comes (the rolls need no foe).
         if (setup.teach === 'defence' && ((state === 'used' && step === 'rollR') || (state === 'shown' && step === 'dodge'))) m.dummySwings = true;
@@ -1321,6 +1390,7 @@ function endMatch(): void {
   fight = null;
   teacher?.end();
   teacher = null;
+  lessonCardOff();
   $('pilot-menu').hidden = true;
   $('net-status').hidden = true;
   match = null;
@@ -1341,6 +1411,7 @@ function pauseKey(): void {
   if (!match || phase === 'idle') return;
   // Esc or Start in a story scene skips it.
   if (phase === 'scene') return skipScene();
+  if (document.getElementById('lesson-card')) return;
   if (!$('controls-panel').hidden) openControlsPanel(false);
   else if (settingsOpen()) closeSettings();
   else setPaused(phase !== 'pause');
