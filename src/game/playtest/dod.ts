@@ -232,6 +232,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'lesson-2') await r.lessonTwo();
         else if (id === 'lesson-3') await r.lessonThree();
         else if (id === 'ledge-options') await r.ledgeOptions();
+        else if (id === 'archetype-normals') await r.archetypeNormals();
         else if (id === 'special-fx') await r.specialFx();
         else if (id === 'menu-walk') await r.menuWalk();
         else if (id === 'select-specials') await r.selectSpecials();
@@ -7050,6 +7051,127 @@ class Run {
       }
       if (avg.zoner > avg.rushdown) t.event('cpu-spacing', `zoner CPU kept ${Math.round(avg.zoner)} units on average, rushdown ${Math.round(avg.rushdown)}`);
       else t.problem('bug', `the zoner CPU (${Math.round(avg.zoner)} units) did not keep more distance than the rushdown (${Math.round(avg.rushdown)})`);
+    } finally {
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- archetype normals
+
+  /**
+   * Archetype normals (`sim/fighterDefs.ts` `applyArchetype`, content/archetypes.json): in Training a fast fighter (Kaelen) and a
+   * heavy (Break) each walk up to a dummy and press Attack once, from real input (keyboard, or on a phone, 390x844 turned to
+   * 844x390, the Attack button as a touch pointer event). The sim's own hit events are counted: the fast jab lands its three-hit
+   * flurry from one press, the heavy's one hit comes later and launches harder; a fast and a floaty fighter's neutral air are
+   * compared in the data. Events `archetype-jab`, `archetype-data`, `archetype-touch`; metrics `fastJabHits`, `heavyJabHits`,
+   * `fastJabStartup`, `heavyJabStartup`.
+   */
+  async archetypeNormals(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('archetype-normals');
+    }
+    this.logViewport(touch && this.isPhone());
+    const how = touch ? 'touch' : 'keyboard';
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    try {
+      const stage = stagesFor('training')[0]?.index ?? 0;
+      const dummyChar = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
+      const results: Record<string, { hits: number; startup: number; kb: number; arch: string }> = {};
+      for (const [round, id] of [['fast', 'kaelen'], ['heavy', 'break']] as const) {
+        const ix = CHARACTERS.findIndex((c) => c.id === id);
+        if (ix < 0) {
+          t.problem('bug', `${id} is not on the roster`);
+          t.finish('error');
+          return;
+        }
+        void this.game.startMatch({ mode: 'training', stage, stocks: 1, rules: {}, slots: [{ char: ix, cpu: null }, { char: dummyChar, cpu: 0 }] });
+        await this.matchLive();
+        this.manual = NO_INPUT;
+        const match = () => this.game.match()!;
+        const me = () => match().state.fighters[match().player];
+        const dummy = () => match().state.fighters.find((f) => f.id !== match().player)!;
+        const frame = () => match().state.frame;
+        const pad = touch ? makeTouchPad() : makeKeyboardPad();
+        if (!pad) {
+          t.problem('bug', 'the touch controls were not built');
+          t.finish('error');
+          return;
+        }
+        if (touch && round === 'fast') {
+          const small: string[] = [];
+          for (const b of document.querySelectorAll<HTMLElement>('.touch .touch-btn')) {
+            const r = b.getBoundingClientRect();
+            if (r.width && (r.width < 44 || r.height < 44)) small.push(`${b.className} ${Math.round(r.width)}x${Math.round(r.height)}`);
+          }
+          if (small.length) t.problem('bug', `touch buttons under 44 px: ${small.join(', ')}`);
+          else t.event('archetype-touch', `Attack is the same button for every archetype (${document.querySelectorAll('.touch .touch-btn').length} on the overlay, ${innerWidth}x${innerHeight}); nothing new`);
+        }
+        const c = CHARACTERS[ix];
+        const reach = Math.max(...c.moves[MOVE.JAB].hits.flatMap((w) => w.boxes.map((b) => b.x))) * 0.5;
+        // Walk up to the dummy with the stick until it is close, then stand still.
+        await t.until(() => me().grounded > 0 && me().action === ACT.IDLE, 12000, 'the fighter to stand');
+        const toward = () => (dummy().x >= me().x ? 1 : -1);
+        for (let i = 0; i < 400 && Math.abs(dummy().x - me().x) / FX > reach + 10; i++) {
+          pad.stick(toward() * 100, 0);
+          await t.wait(40);
+        }
+        pad.stick(0, 0);
+        await t.until(() => me().action === ACT.IDLE || me().action === ACT.WALK, 3000, 'the fighter to stop');
+        await t.wait(250);
+        // One press of Attack, from a still stick, facing the dummy.
+        const before = dummy().percent;
+        let hits = 0;
+        let last = before;
+        let startup = -1;
+        const f0 = frame();
+        pad.button('attack', true);
+        await t.wait(70);
+        pad.button('attack', false);
+        const end = f0 + c.moves[MOVE.JAB].total + 30;
+        while (frame() < end) {
+          if (me().action === ACT.ATTACK && startup < 0 && dummy().percent > last) startup = me().frame;
+          if (dummy().percent > last) {
+            hits++;
+            last = dummy().percent;
+          }
+          await t.wait(16);
+        }
+        const hitboxes = c.moves[MOVE.JAB].hits;
+        const kb = Math.max(...hitboxes.flatMap((w) => w.boxes.map((b) => b.kbg)));
+        const first = Math.min(...hitboxes.map((w) => w.start));
+        results[round] = { hits, startup: first, kb, arch: c.archetype };
+        t.event('archetype-jab', `${how}: ${c.name} (${c.archetype}) one Attack press: ${hits} hit${hits === 1 ? '' : 's'} on the dummy, first hitbox on frame ${first}, ${hitboxes.length} hit window${hitboxes.length === 1 ? '' : 's'}, launch growth ${kb}`);
+        t.metric(round === 'fast' ? 'fastJabHits' : 'heavyJabHits', hits);
+        t.metric(round === 'fast' ? 'fastJabStartup' : 'heavyJabStartup', first);
+        pad.release();
+        this.manual = null;
+        await this.game.quitMatch();
+        await this.screen('main');
+        t.progress(round === 'fast' ? 0.45 : 0.85);
+      }
+      const f = results.fast, h = results.heavy;
+      if (f.hits < 3) t.problem('bug', `${how}: the fast jab landed ${f.hits} hits from one Attack press (want 3)`);
+      if (h.hits < 1) t.problem('bug', `${how}: the heavy jab hit nothing from one Attack press`);
+      if (h.startup <= f.startup) t.problem('bug', `a heavy's jab starts on frame ${h.startup}, not later than the fast one's (${f.startup})`);
+      if (h.kb <= f.kb) t.problem('bug', 'a heavy\'s jab does not launch harder than the fast one\'s');
+      // The data side: every fighter has an archetype, and floaty aerials hang out longer than fast ones.
+      const active = (ch: (typeof CHARACTERS)[number]) => Math.max(...ch.moves[MOVE.NAIR].hits.map((w) => w.end)) - Math.min(...ch.moves[MOVE.NAIR].hits.map((w) => w.start)) + 1;
+      const floaty = CHARACTERS.filter((ch) => ch.archetype === 'floaty'), fast = CHARACTERS.filter((ch) => ch.archetype === 'fast');
+      const minF = Math.min(...floaty.map(active)), maxQ = Math.max(...fast.map(active));
+      if (minF > maxQ && CHARACTERS.every((ch) => ch.archetype)) t.event('archetype-data', `every fighter has an archetype (${['heavy', 'floaty', 'fast', 'standard'].map((a) => `${a} ${CHARACTERS.filter((ch) => ch.archetype === a).length}`).join(', ')}); floaty neutral air stays out ${minF}+ frames, fast ${maxQ} at most`);
+      else t.problem('bug', `archetype data: floaty neutral air ${minF}, fast ${maxQ}`);
     } finally {
       if (touch) {
         this.useTap = false;

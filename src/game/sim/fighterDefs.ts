@@ -222,6 +222,8 @@ export interface CharacterDef {
   grabReach: number;
   /** True when the fighter has its own specials: Special with a direction then picks side, up or down. */
   specials: boolean;
+  /** How the shared normals are shaped for this fighter. */
+  archetype: Archetype;
 }
 
 /** Playtest feedback: attacks felt slow. Every move's frame counts are scaled by this (1 = as authored). */
@@ -279,6 +281,116 @@ function buildMoves(height: number, t: Tuning): Move[] {
       airLimited: true,
     },
   ];
+}
+
+// ------------------------------------------------------------------ archetypes
+//
+// The shared normals (jab, tilts, aerials) are reshaped per fighter archetype, from content/archetypes.json (every fighter
+// is listed; a fighter left out gets the derived one). Same clips, same tell / trail / spark systems: only the frame data,
+// reach and launch numbers change. Smashes and specials stay as authored.
+//   heavy: later, bigger, harder. A jab is a shove: slow to start, long reach, a lot of knockback.
+//   fast:  earlier, shorter, lighter. The jab is a three-hit flurry from one press; aerials are quick pokes.
+//   floaty: aerials hang out in the air (long active window), land quickly and hit softer.
+
+export type Archetype = 'heavy' | 'floaty' | 'fast' | 'standard';
+export const ARCHETYPES: readonly Archetype[] = ['heavy', 'floaty', 'fast', 'standard'];
+
+/** The fighter's archetype when content/archetypes.json doesn't name one: from its numbers. */
+export function deriveArchetype(p: { weight: number; jumps: number; walk: number; frames?: number }): Archetype {
+  if (p.weight >= 110) return 'heavy';
+  if (p.jumps >= 2) return 'floaty';
+  if (p.walk >= 7.4 || (p.frames ?? 1) <= 0.9) return 'fast';
+  return 'standard';
+}
+
+const GROUND_NORMALS = [MOVE.JAB, MOVE.FTILT, MOVE.UTILT, MOVE.DTILT];
+const AIR_NORMALS = [MOVE.NAIR, MOVE.FAIR, MOVE.BAIR, MOVE.UAIR, MOVE.DAIR];
+
+interface Shape {
+  /** Multiplies when the first hit comes out (heavy: at least one frame later; fast: at most as late). */
+  start: number;
+  /** Multiplies how many frames the hitbox stays out. */
+  active: number;
+  /** Multiplies the move's length; the extra or saved frames come off the end lag. */
+  total: number;
+  reach: number;
+  dmg: number;
+  bkb: number;
+  kbg: number;
+  land: number;
+}
+
+const SHAPES: Record<Archetype, { ground: Shape; air: Shape }> = {
+  standard: { ground: { start: 1, active: 1, total: 1, reach: 1, dmg: 1, bkb: 1, kbg: 1, land: 1 }, air: { start: 1, active: 1, total: 1, reach: 1, dmg: 1, bkb: 1, kbg: 1, land: 1 } },
+  heavy: {
+    ground: { start: 1.4, active: 1.2, total: 1.25, reach: 1.1, dmg: 1.2, bkb: 1.15, kbg: 1.2, land: 1 },
+    air: { start: 1.25, active: 1, total: 1.15, reach: 1.05, dmg: 1.12, bkb: 1.08, kbg: 1.1, land: 1.25 },
+  },
+  fast: {
+    ground: { start: 0.8, active: 0.8, total: 0.85, reach: 0.95, dmg: 0.85, bkb: 0.95, kbg: 0.9, land: 1 },
+    air: { start: 0.8, active: 0.7, total: 0.88, reach: 0.95, dmg: 0.88, bkb: 0.95, kbg: 0.9, land: 0.8 },
+  },
+  floaty: {
+    ground: { start: 1, active: 1, total: 1, reach: 1.04, dmg: 1, bkb: 1, kbg: 1, land: 1 },
+    air: { start: 1, active: 1.8, total: 1.1, reach: 1.05, dmg: 1, bkb: 1, kbg: 1, land: 0.85 },
+  },
+};
+
+function shapeMove(m: Move, sh: Shape, later: boolean): Move {
+  const firstStart = Math.min(...m.hits.map((w) => w.start));
+  let start = Math.max(1, Math.round(firstStart * sh.start));
+  if (sh.start > 1 && start <= firstStart) start = firstStart + 1;
+  if (sh.start < 1 && start > firstStart) start = firstStart;
+  const shift = start - firstStart;
+  const hits = m.hits.map((w) => {
+    const len = w.end - w.start + 1;
+    const nlen = Math.max(1, Math.round(len * sh.active));
+    const ws = w.start + shift;
+    return {
+      ...w,
+      start: ws,
+      end: ws + nlen - 1,
+      boxes: w.boxes.map((b) => ({
+        ...b,
+        x: Math.round(b.x * sh.reach),
+        r: Math.round(b.r * (1 + (sh.reach - 1) * 0.5)),
+        dmg: Math.max(1, Math.round(b.dmg * sh.dmg)),
+        bkb: Math.round(b.bkb * sh.bkb),
+        kbg: Math.round(b.kbg * sh.kbg),
+      })),
+    };
+  });
+  const lastEnd = Math.max(...hits.map((w) => w.end));
+  const total = Math.max(lastEnd + 2, Math.round(m.total * sh.total));
+  void later;
+  return { ...m, total, hits, landingLag: m.landingLag === undefined ? undefined : Math.max(2, Math.round(m.landingLag * sh.land)) };
+}
+
+/**
+ * The fast jab: one press, three quick hits (rehit windows). The first two are light and set up the third, which keeps the
+ * jab's launch numbers; the whole string is still shorter than a heavy's one swing.
+ */
+function flurryJab(m: Move): Move {
+  const w = m.hits[0];
+  const b = w.boxes[0];
+  const gap = 3;
+  const light = (d: number) => ({ ...b, dmg: Math.max(1, Math.round(b.dmg * d)), bkb: 8, kbg: 0, angle: 80 });
+  const hits: HitWindow[] = [
+    { start: w.start, end: w.start, boxes: [light(0.4)] },
+    { start: w.start + gap, end: w.start + gap, boxes: [light(0.4)], rehit: 1 },
+    { start: w.start + gap * 2, end: w.start + gap * 2 + 1, boxes: [b], rehit: 1 },
+  ];
+  return { ...m, name: 'Jab flurry', hits, total: Math.max(m.total, w.start + gap * 2 + 5) };
+}
+
+/** Reshapes a fresh shared moveset for an archetype. */
+export function applyArchetype(moves: Move[], arch: Archetype): Move[] {
+  if (arch === 'standard') return moves;
+  const out = moves.slice();
+  for (const i of GROUND_NORMALS) out[i] = shapeMove(moves[i], SHAPES[arch].ground, false);
+  for (const i of AIR_NORMALS) out[i] = shapeMove(moves[i], SHAPES[arch].air, true);
+  if (arch === 'fast') out[MOVE.JAB] = flurryJab(out[MOVE.JAB]);
+  return out;
 }
 
 /**
@@ -620,6 +732,8 @@ export interface Spec {
   dmg?: number;
   kb?: number;
   reach?: number;
+  /** Normals shape (content/archetypes.json); without it the one derived from the numbers. */
+  archetype?: Archetype;
   /** Own neutral / side / up / down specials. Without it the fighter keeps the shared Neutral and Up special. */
   specials?: SpecialsSpec;
   /** Fitted hitbox offsets (tools/fit-hitboxes.mjs). */
@@ -648,7 +762,8 @@ export function fighter(id: string, name: string, role: string, blurb: string, p
   const fx = (v: number) => Math.round(v * FX);
   const jump = (height: number) => fx(Math.sqrt(2 * p.gravity * height));
   const tuning: Tuning = { frames: p.frames ?? 1, damage: p.dmg ?? 1, knockback: p.kb ?? 1, reach: p.reach ?? 1 };
-  const moves = applyHitboxFit(withSpecials(buildMoves(p.h, tuning), p.specials, p.h, tuning), p.hitboxes);
+  const archetype = p.archetype ?? deriveArchetype(p);
+  const moves = applyHitboxFit(withSpecials(applyArchetype(buildMoves(p.h, tuning), archetype), p.specials, p.h, tuning), p.hitboxes);
   return {
     id,
     name,
@@ -678,5 +793,6 @@ export function fighter(id: string, name: string, role: string, blurb: string, p
     throws: buildThrows(tuning),
     grabReach: grabReachOf(moves[MOVE.JAB]),
     specials: !!p.specials,
+    archetype,
   };
 }
