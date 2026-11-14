@@ -651,8 +651,8 @@
         "strength": 0.6
       },
       "rim": {
-        "color": "#5aa8ff",
-        "strength": 0.6
+        "color": "#bda69d",
+        "strength": 0.5
       },
       "ambient": "#f4d2b4"
     },
@@ -1319,7 +1319,7 @@
         "strength": 0.55
       },
       "rim": {
-        "color": "#9cc8ff",
+        "color": "#d7e0de",
         "strength": 0.45
       },
       "ambient": "#f8e8cc"
@@ -3026,8 +3026,8 @@
         "strength": 0.6
       },
       "rim": {
-        "color": "#64b4d0",
-        "strength": 0.6
+        "color": "#c1bc9c",
+        "strength": 0.5
       },
       "ambient": "#dcd2c6",
       "glossy": true
@@ -3825,7 +3825,7 @@
         "strength": 0.5
       },
       "rim": {
-        "color": "#7fd0ff",
+        "color": "#cce3d9",
         "strength": 0.5
       },
       "ambient": "#f4f0e2"
@@ -4507,8 +4507,8 @@
         "strength": 0.6
       },
       "rim": {
-        "color": "#7fb9d8",
-        "strength": 0.55
+        "color": "#ccccad",
+        "strength": 0.5
       },
       "ambient": "#f8e6cc"
     },
@@ -5948,7 +5948,7 @@
         "strength": 0.5
       },
       "rim": {
-        "color": "#7fcad8",
+        "color": "#ccceb6",
         "strength": 0.5
       },
       "ambient": "#ecdcc8"
