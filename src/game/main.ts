@@ -208,6 +208,7 @@ function wireMenus(): void {
       else if (to === 'versus') openVersus();
       else if (to === 'training') openTraining();
       else if (to === 'howto') startHowToPlay();
+      else if (to === 'howto2') startHowToPlay('defence');
       else if (to === 'controls') go('howto');
       else if (to === 'settings') openSettings();
       else if (to === 'online') onlineCall('find match', (o) => o.findMatch());
@@ -935,8 +936,8 @@ async function pilotCleared(c: Chapter): Promise<void> {
   await go('main', spotlight);
 }
 
-/** How to play: the same prompted fight in Training against a dummy, with no setup screens. */
-function startHowToPlay(): void {
+/** How to play: the same prompted fight in Training against a dummy, with no setup screens. Lesson 2 ('defence'): grab, throw, roll, spot-dodge. */
+function startHowToPlay(lesson: 'training' | 'defence' = 'training'): void {
   chapter = null;
   analytics.setMode('training');
   const ep = CHARACTERS.findIndex((x) => x.id === 'exit-punk');
@@ -948,8 +949,8 @@ function startHowToPlay(): void {
       stage,
       stocks: 1,
       rules: {},
-      teach: 'training',
-      title: 'How to play',
+      teach: lesson,
+      title: lesson === 'defence' ? 'How to play 2' : 'How to play',
       slots: [{ char: ep, cpu: null }, { char: dummy, cpu: 0 }],
     },
     false,
@@ -1193,8 +1194,14 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     // The canvas may have changed size while menus were up.
     renderer.engine.resize();
     match = m;
-    teacher = setup.teach ? new Teacher({ scripted: setup.teach === 'training' }) : null;
-    if (teacher) teacher.onChange = (step, state) => window.dispatchEvent(new CustomEvent('dod:teach', { detail: { step, state, mode: setup.teach } }));
+    teacher = setup.teach ? new Teacher({ scripted: setup.teach === 'training', lesson: setup.teach === 'defence' ? 'defence' : undefined }) : null;
+    if (teacher) {
+      teacher.onChange = (step, state) => {
+        // Lesson 2: the dummy starts walking up and swinging as the last step comes (the rolls need no foe).
+        if (setup.teach === 'defence' && ((state === 'used' && step === 'rollR') || (state === 'shown' && step === 'dodge'))) m.dummySwings = true;
+        window.dispatchEvent(new CustomEvent('dod:teach', { detail: { step, state, mode: setup.teach } }));
+      };
+    }
     showTouchControls(true);
     buildHud(m);
     shownOver = false;
