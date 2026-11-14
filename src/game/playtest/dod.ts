@@ -11,7 +11,7 @@
 
 import { installPlaytest, type Outcome, type RunOptions, type Tracker } from './hawkes-playtest.js';
 import { Bot } from '../ai/bot.ts';
-import { setVirtualPad } from '../input/devices.ts';
+import { padFamilyOf, setVirtualPad } from '../input/devices.ts';
 import { readTouch, touchDevice, touchOverlay } from '../input/touch.ts';
 import { TOUCH_KEY, forceTouchUi, touchSettings } from '../touchSettings.ts';
 import { forceTouchPrompt, lockLandscape, rotateShowing } from '../ui/rotate.ts';
@@ -40,7 +40,7 @@ import { OPENING_CAST, OPENING_KEY, OPENING_SKIP_AFTER, openingShowing } from '.
 import { suppressFirstVisit } from '../campaign/firstVisit.ts';
 import { PAIRS, pairFor } from '../campaign/intros.ts';
 import { SEASON_ONE_ENTRANCES, entranceKind } from '../campaign/intro.ts';
-import { PROMPTS, hintText, type TeachStep } from '../ui/teach.ts';
+import { PROMPTS, hintText, padGlyphs, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { VoiceWatch } from './voiceWatch.ts';
@@ -1743,6 +1743,23 @@ class Run {
         if (/\{|\bI \+/.test(smash) && dev !== 'keyboard') t.problem('bug', `the pilot hint shows a keyboard letter for ${dev}: ${smash}`);
         if (dev !== 'keyboard' && /\bH\b/.test(box)) t.problem('bug', `the hitbox hint names the H key for ${dev}: ${box}`);
       }
+      // Pad families (ui/teach.ts padGlyphs, input/devices.ts padFamilyOf): the glyphs each pad id shows in teach prompts.
+      const famIds: [string, string][] = [
+        ['Sony DualSense (054c)', 'Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)'],
+        ['Nintendo Pro Controller (057e)', 'Pro Controller (STANDARD GAMEPAD Vendor: 057e Product: 2009)'],
+        ['Xbox (045e)', 'Xbox 360 Controller (STANDARD GAMEPAD Vendor: 045e Product: 028e)'],
+      ];
+      for (const [label, id] of famIds) {
+        const f = padFamilyOf(id);
+        const names = (['attack', 'jump', 'shield', 'recover'] as TeachStep[]).map((st) => padGlyphs(st, f).map((g) => g.name).join(' ')).join(' | ');
+        t.event('pad-family', `${label}: ${f}: ${names}`);
+        const want = { playstation: ['Cross', 'Square', 'L1', 'Circle'], switch: ['B', 'Y', 'L', 'A'], xbox: ['A', 'X', 'LB', 'B'] }[f];
+        const got = [padGlyphs('attack', f)[0]!.name, padGlyphs('jump', f)[0]!.name, padGlyphs('shield', f)[0]!.name, padGlyphs('recover', f)[2]!.name];
+        if (got.join() !== want.join()) t.problem('bug', `${label} shows ${got.join('/')} instead of ${want.join('/')}`);
+      }
+      if (padFamilyOf('Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)') !== 'playstation') t.problem('bug', 'a Sony pad id is not read as PlayStation');
+      if (padFamilyOf('Pro Controller (STANDARD GAMEPAD Vendor: 057e Product: 2009)') !== 'switch') t.problem('bug', 'a Nintendo pad id is not read as Switch');
+      if (touch) t.event('pad-family-touch', `touch only, no pad: prompts use touch glyphs (${PROMPTS.attack.glyphs.touch.join(' ')}), no pad glyphs`);
       let hintSeen = '';
       let tries = 0;
       let control = -1;
@@ -1785,6 +1802,7 @@ class Run {
         if (currentScreen() === 'main' && t0 > 0 && control < 0) sawMain = true;
         const n = document.querySelectorAll('.teach-prompt:not(.used):not(.gone)').length;
         if (n > 1) t.problem('bug', `${n} teaching prompts are on screen at once`);
+        if (touch && document.querySelector('.teach-glyph.gamepad')) t.problem('bug', 'a pad glyph shows in a teach prompt on a touch-only phone');
         // Every hint on screen during the pilot: no keyboard letter on touch.
         const live = [...document.querySelectorAll('.vs-stage span, .scene-card, .hint')].filter((e) => (e as HTMLElement).offsetParent).map((e) => e.textContent ?? '').join(' | ');
         if (live && live !== hintSeen) {

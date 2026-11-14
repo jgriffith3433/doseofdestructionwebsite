@@ -66,21 +66,75 @@ export const KEYBOARD_HELP: [string, string][] = [
   ['Pause', 'Esc'],
 ];
 
-export const GAMEPAD_HELP: [string, string][] = [
-  ['Move', 'Left stick / D-pad'],
-  ['Jump', 'X / Y'],
-  ['Attack', 'A'],
-  ['Special', 'B  (neutral)'],
-  ['Side special', 'B + left / right'],
-  ['Up special', 'B + up  (recovery)'],
-  ['Down special', 'B + down'],
-  ['Shield / dodge', 'Triggers / bumpers'],
-  ['Grab', 'Trigger + A  (beats shield)'],
-  ['Throw', 'Grab, then left stick'],
-  ['Smash', 'Right stick'],
-  ['Taunt', 'D-pad up'],
-  ['Pause', 'Start'],
-];
+/**
+ * The pad family by its Gamepad.id: Sony (vendor 054c), Nintendo (057e), else Xbox. The browser's standard mapping puts
+ * the bottom face button at index 0 on every pad, so the game's buttons are the same; only the names change.
+ */
+export type PadFamily = 'xbox' | 'playstation' | 'switch';
+
+export function padFamilyOf(id: string | undefined | null): PadFamily {
+  const s = (id ?? '').toLowerCase();
+  if (/054c|sony|playstation|dualshock|dualsense|ps[345]/.test(s)) return 'playstation';
+  if (/057e|nintendo|switch|joy-?con|pro controller/.test(s)) return 'switch';
+  return 'xbox';
+}
+
+/** What each of the game's pad buttons is called on a family's pad. Attack = bottom, Special = right, Jump = left / top. */
+export interface PadNames {
+  attack: string;
+  special: string;
+  jump: string;
+  shield: string;
+  triggers: string;
+  pause: string;
+  /** Short caption for each (a symbol on PlayStation); `name` is the spoken / logged word. */
+  symbol: Record<'attack' | 'special' | 'jump' | 'shield', string>;
+}
+
+export const PAD_NAMES: Record<PadFamily, PadNames> = {
+  xbox: { attack: 'A', special: 'B', jump: 'X / Y', shield: 'LB', triggers: 'Triggers / bumpers', pause: 'Start', symbol: { attack: 'A', special: 'B', jump: 'X', shield: 'LB' } },
+  playstation: { attack: 'Cross', special: 'Circle', jump: 'Square / Triangle', shield: 'L1', triggers: 'L1 / R1 / L2 / R2', pause: 'Options', symbol: { attack: '✕', special: '○', jump: '□', shield: 'L1' } },
+  switch: { attack: 'B', special: 'A', jump: 'Y / X', shield: 'L', triggers: 'L / R / ZL / ZR', pause: '+', symbol: { attack: 'B', special: 'A', jump: 'Y', shield: 'L' } },
+};
+
+/** The controls list for the pad family in hand. */
+export function gamepadHelp(f: PadFamily = padFamily()): [string, string][] {
+  const n = PAD_NAMES[f];
+  return [
+    ['Move', 'Left stick / D-pad'],
+    ['Jump', n.jump],
+    ['Attack', n.attack],
+    ['Special', `${n.special}  (neutral)`],
+    ['Side special', `${n.special} + left / right`],
+    ['Up special', `${n.special} + up  (recovery)`],
+    ['Down special', `${n.special} + down`],
+    ['Shield / dodge', n.triggers],
+    ['Grab', `${f === 'xbox' ? 'Trigger' : n.shield} + ${n.attack}  (beats shield)`],
+    ['Throw', 'Grab, then left stick'],
+    ['Smash', 'Right stick'],
+    ['Taunt', 'D-pad up'],
+    ['Pause', n.pause],
+  ];
+}
+
+export const GAMEPAD_HELP: [string, string][] = gamepadHelp('xbox');
+
+let lastPadId = '';
+const padStamp = new Map<number, number>();
+/** Notes which connected pad gave input last (a button, or a stick past its dead zone). Called by the game and menu loops. */
+export function scanPads(): void {
+  for (const p of pads()) {
+    const active = p.buttons.some((b) => b.pressed) || p.axes.some((a) => Math.abs(a) > 0.5);
+    const prev = padStamp.get(p.index);
+    padStamp.set(p.index, p.timestamp);
+    if (active && (prev === undefined || p.timestamp !== prev || p === emulated)) lastPadId = p.id;
+  }
+}
+
+/** The family of whichever pad last gave input (else the first connected pad, else Xbox). */
+export function padFamily(): PadFamily {
+  return padFamilyOf(lastPadId || pads()[0]?.id);
+}
 
 /** The on-screen controls: no extra buttons, the stick picks which special the Special button does. */
 export const TOUCH_HELP: [string, string][] = [
@@ -137,10 +191,10 @@ function gamepadInput(pad: Gamepad): [number, number, number] {
 
 /** A controller the playtest presses (menu-walk): standard mapping, button i pressed or not, left stick axes. Null outside a playtest. */
 let emulated: Gamepad | null = null;
-export function emulatePad(state: { buttons: boolean[]; axes: [number, number] } | null): void {
+export function emulatePad(state: { buttons: boolean[]; axes: [number, number]; id?: string } | null): void {
   emulated = state
     ? ({
-        id: 'playtest-pad', index: 0, connected: true, mapping: 'standard', timestamp: performance.now(),
+        id: state.id ?? 'playtest-pad', index: 0, connected: true, mapping: 'standard', timestamp: performance.now(),
         axes: state.axes,
         buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: !!state.buttons[i], touched: !!state.buttons[i], value: state.buttons[i] ? 1 : 0 })),
         vibrationActuator: null, hapticActuators: [],
@@ -180,6 +234,7 @@ export function readLocal(): number {
     if (Math.abs(py) > Math.abs(sy)) sy = py;
     b |= pb;
   };
+  scanPads();
   const pad = pads()[0];
   if (pad) {
     const g = gamepadInput(pad);
