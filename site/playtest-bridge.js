@@ -673,6 +673,15 @@
       ]
     },
     {
+      "id": "share",
+      "title": "Share a result: the results offer Share, a tap sends the PNG card through navigator.share with the file, without it the card downloads and the text line is copied",
+      "description": "A versus match (1 stock) is played to the results, which must offer a Share button of 44 px or more. A tap draws the card (winner, fighters, stage, KOs) and calls navigator.share with a PNG file (a stand-in records it: share-sheet, share-card). Then navigator.share is removed and a second tap must download the card and copy the text line (share-fallback). Phone 390x844 touch: every press is a pointer tap, in the turned frame. Metric shareCardBytes.",
+      "seconds": 200,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "rotate",
       "title": "Rotate your phone: upright on a touch device a full-screen prompt covers the game and the match pauses; turned to landscape it hides and play resumes; fullscreen asks for a landscape lock",
       "description": "Versus match against the CPU, the run treated as a touch device. On a desktop-sized window the run opens its own phone-sized frame (phone-upright, 390x844) and turns it to 844x390 (phone-turned): the events below are the frame's. Start point at: phone plays the window as it is. At 390x844 (upright): the \"Rotate your phone\" prompt fills the screen over the match (rotate-prompt) and the match frame stops (rotate-paused); it then waits for the window to turn to 844x390. At 844x390: the prompt is gone (rotate-hidden) and the match goes on (rotate-resumed). Also checks the landscape lock is requested through screen.orientation.lock (landscape-lock) and that a rejected or missing lock breaks nothing (landscape-lock-safe).",
