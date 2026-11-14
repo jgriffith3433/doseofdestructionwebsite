@@ -2,10 +2,12 @@
 // for the end screen. Stats are gathered from sim events, outside the sim.
 
 import { CHARACTERS } from './sim/characters.ts';
+import { FX } from './sim/fixed.ts';
+import { STAGES } from './sim/stage.ts';
 import { NO_INPUT, stickX, stickY } from './sim/input.ts';
 import { ACT, cloneState, newGame, type BroadcastDef, type GameState, type Rules } from './sim/state.ts';
 import { BUFFER_FRAMES, step, type SimEvent } from './sim/step.ts';
-import { SwingDummy } from './ai/dummy.ts';
+import { SwingDummy, SWING_EVERY } from './ai/dummy.ts';
 import { Bot } from './ai/bot.ts';
 import { consumeInputEdge } from './input/devices.ts';
 import { HighlightRecorder, type Highlight } from './campaign/highlight.ts';
@@ -57,7 +59,7 @@ export interface MatchSetup {
   /** Online matches: who is in each slot (net/online.ts). */
   online?: OnlineSlots;
   /** On-stage teaching prompts (ui/teach.ts): the pilot fight reads cues from Kaelen, How to play runs them on a timer. */
-  teach?: 'pilot' | 'training' | 'defence';
+  teach?: 'pilot' | 'training' | 'defence' | 'recovery';
 }
 
 export interface OnlineSlots {
@@ -154,9 +156,54 @@ export class Match {
   dummySwings = false;
   private readonly swinger = new SwingDummy();
 
+  /**
+   * How to play lesson 3 (the recovery step): 'armed' waits for the player to stand, then stages the knock-off (both fighters
+   * at the stage's right edge, the dummy about to swing, the player at 20%); 'live' watches for the hit and re-arms once the
+   * player is back on the ground without having grabbed the ledge. Training lessons only: online and the rollback never see it.
+   */
+  knockLoop: 'off' | 'armed' | 'live' = 'off';
+  private knockHit = false;
+  private knockRest = 0;
+
+  /** Lesson 3: once the player has been hit and stands on the ground again for a second, the knock-off is staged again. */
+  private watchKnockoff(events: SimEvent[]): void {
+    const f = this.state.fighters[this.player];
+    if (!f) return;
+    if (events.some((e) => (e.type === 'hit' && !e.shield && e.victim === this.player) || (e.type === 'ko' && e.victim === this.player))) this.knockHit = true;
+    const standing = f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK);
+    this.knockRest = standing ? this.knockRest + 1 : 0;
+    if (this.knockHit && this.knockRest >= 60) this.knockLoop = 'armed';
+  }
+
+  /** Puts the player and the dummy at the right edge of the main platform, the dummy facing the edge and swinging within a second. */
+  private stageKnockoff(): void {
+    const me = this.state.fighters[this.player];
+    const dummy = this.state.fighters.find((f) => f.id !== this.player);
+    if (!me || !dummy) return;
+    const edge = Math.max(...STAGES[this.state.stage].platforms.filter((p) => p.solid).map((p) => p.x2));
+    const base = STAGES[this.state.stage].platforms.findIndex((p) => p.solid && p.x2 === edge);
+    for (const [f, x, facing] of [[me, edge - 60, -1], [dummy, edge - 120, 1]] as const) {
+      f.x = x * FX;
+      f.y = STAGES[this.state.stage].platforms[base].y * FX;
+      f.platform = base;
+      f.vx = f.vy = 0;
+      f.facing = facing;
+    }
+    me.percent = 200;
+    this.swinger.prime(SWING_EVERY - 60);
+    this.dummySwings = true;
+    this.knockHit = false;
+    this.knockRest = 0;
+    this.knockLoop = 'live';
+  }
+
   /** Runs one frame with the local player's input. */
   tick(local: number): SimEvent[] {
     const s = this.state;
+    if (this.knockLoop === 'armed') {
+      const f = s.fighters[this.player];
+      if (f && f.grounded > 0 && (f.action === ACT.IDLE || f.action === ACT.WALK)) this.stageKnockoff();
+    }
     const inputs = s.fighters.map((_, i) => {
       const slot = this.setup.slots[i];
       if (slot.cpu === null) return local;
@@ -195,6 +242,7 @@ export class Match {
     const before = s.fighters.map((f) => f.percent);
     this.recorder?.record(s, inputs);
     const events = step(s, inputs);
+    if (this.knockLoop === 'live') this.watchKnockoff(events);
     this.recorder?.events(events);
     for (const f of s.fighters) {
       const p = prev[f.id];

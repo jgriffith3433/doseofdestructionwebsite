@@ -9,7 +9,7 @@ import { BTN, NO_INPUT, packInput } from '../sim/input.ts';
 import { step, type SimEvent } from '../sim/step.ts';
 import { FX } from '../sim/fixed.ts';
 import { SwingDummy, SWING_EVERY } from '../ai/dummy.ts';
-import { DEFENCE_STEPS, PROMPTS } from '../ui/teach.ts';
+import { DEFENCE_STEPS, PROMPTS, RECOVERY_STEPS } from '../ui/teach.ts';
 
 declare const process: { exit(code: number): never };
 
@@ -36,6 +36,7 @@ function run(s: ReturnType<typeof fresh>, inputs: number[], dummyInput: (i: numb
   inputs.forEach((inp, i) => out.push(...step(s, [inp, dummyInput(i)])));
   return out;
 }
+let offEdge = false;
 const rep = (n: number, v: number) => Array(n).fill(v) as number[];
 const SH = BTN.SHIELD;
 
@@ -96,6 +97,59 @@ for (const dir of [-1, 1]) {
   check('the dummy swings', swings.length >= 2, `${swings.length} swings`);
   check('the dummy swings slowly', gaps.length > 0 && Math.min(...gaps) >= SWING_EVERY, `gaps ${gaps.join(',')}`);
   check('the dummy walked up to the player', closest < 150, `${Math.round(closest)} units at closest`);
+}
+
+// Lesson 3: every step has a prompt for each device.
+for (const st of RECOVERY_STEPS) {
+  const p = PROMPTS[st];
+  check(`prompt ${st}`, !!p.word && p.glyphs.keyboard.length > 0 && p.glyphs.gamepad.length > 0 && p.glyphs.touch.length > 0);
+}
+
+// Lesson 3: the staged knock-off (Match.stageKnockoff: both at the right edge, the player at 20%, the dummy swinging within a
+// second) throws the player off the stage but not out of reach, and a double jump + up special back grabs the ledge.
+{
+  const s = fresh();
+  run(s, rep(90, NO_INPUT));
+  const [a, b] = s.fighters;
+  const edge = Math.max(...STAGES[stage].platforms.filter((p) => p.solid).map((p) => p.x2));
+  a.x = (edge - 60) * FX;
+  b.x = (edge - 120) * FX;
+  a.facing = -1;
+  b.facing = 1;
+  a.percent = 200;
+  const d = new SwingDummy();
+  d.prime(SWING_EVERY - 60);
+  let hitAt = -1;
+  let ledgeAt = -1;
+  let dead = false;
+  let jumped = false;
+  let upB = false;
+  let wait = 0;
+  for (let i = 0; i < 600 && ledgeAt < 0 && !dead; i++) {
+    let inp = NO_INPUT;
+    if (hitAt >= 0) {
+      if (!jumped && !a.grounded && a.action !== ACT.HITSTUN) {
+        inp = packInput(-100, 0, BTN.JUMP);
+        jumped = true;
+      } else if (jumped && !upB) {
+        wait++;
+        inp = packInput(-100, 0, 0);
+        if (wait > 15 && a.action === ACT.AIR) {
+          inp = packInput(-100, 100, BTN.SPECIAL);
+          upB = true;
+        }
+      } else if (upB) inp = packInput(-100, 0, 0);
+    }
+    for (const e of step(s, [inp, d.think(s, 1)])) {
+      if (e.type === 'hit' && e.victim === 0 && hitAt < 0) hitAt = i;
+      if (e.type === 'ledge' && e.id === 0) ledgeAt = i;
+      if (e.type === 'ko' && e.victim === 0) dead = true;
+    }
+    if (hitAt >= 0 && a.x / FX > edge + 5) offEdge = true;
+  }
+  check('the dummy hits the player within 3 s of the staging', hitAt >= 0 && hitAt < 180, `frame ${hitAt}`);
+  check('the knock-off carries the player off the stage', offEdge);
+  check('double jump + up special reaches the ledge (a ledge event)', ledgeAt > hitAt && !dead, `ledge at ${ledgeAt}, dead ${dead}`);
 }
 
 if (failed) {
