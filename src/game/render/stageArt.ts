@@ -8,6 +8,7 @@
 // Layers in front of the fighters with `occluder` write depth, so the
 // renderer can draw a silhouette of anyone standing behind them.
 
+import { backdropDim } from '../readability.ts';
 import type { Scene } from '@babylonjs/core/scene.js';
 import { Color3 } from '@babylonjs/core/Maths/math.color.js';
 import { Constants } from '@babylonjs/core/Engines/constants.js';
@@ -103,7 +104,7 @@ export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, 
     mat.emissiveTexture = tex;
     mat.useAlphaFromDiffuseTexture = true;
     mat.diffuseColor = Color3.Black();
-    mat.emissiveColor = Color3.White();
+    mat.emissiveColor = Color3.White().scale(backdropDim(l.z, (l.platforms?.length ?? 0) > 0, l.foreground));
     if (l === farthest) softenFar(l.image, mat, scene);
     if (l.glow) mat.alphaMode = Constants.ALPHA_ADD;
     if (l.occluder && l.z < 0 && !l.foreground) {

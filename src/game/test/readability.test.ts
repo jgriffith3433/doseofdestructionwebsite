@@ -9,7 +9,7 @@ const ok = (c: unknown, m: string) => {
     console.error(`FAIL: ${m}`);
   }
 };
-import { MAX_COVER, MIN_CONTRAST, contrast, coverRead, edgeContrast, fighterMask, lumAt, maskSize, ringContrast, ringWidth, type Frame } from '../readability.ts';
+import { backdropDim, MAX_COVER, MIN_CONTRAST, contrast, coverRead, edgeContrast, fighterMask, lumAt, maskSize, ringContrast, ringWidth, type Frame } from '../readability.ts';
 
 const W = 120;
 const H = 100;
@@ -69,6 +69,10 @@ ok(e2 !== null && e2.contrast >= MIN_CONTRAST, `a dark line parts a lip from a b
 const e3 = edgeContrast(lipRows(120, 125, 118), 10, 110, 60, 4);
 ok(e3 !== null && e3.contrast < MIN_CONTRAST, `a lip the colour of the picture does not read: ${e3?.contrast.toFixed(2)}`);
 ok(edgeContrast(lipRows(30, 250, 10), 10, 20, 60, 4) === null, 'a platform too narrow on screen is not measured');
+
+ok(backdropDim(300, true) === 1 && backdropDim(-50, false) === 1 && backdropDim(300, false, true) === 1, 'play space and foreground are never dimmed');
+ok(backdropDim(100, false) < 0.9 && backdropDim(1200, false) >= 0.69 && backdropDim(5000, false) >= 0.69, 'the backdrop is dimmed, the far end most, never below 70%');
+ok(backdropDim(1000, false) < backdropDim(200, false), 'farther is dimmer');
 
 if (failed) process.exit(1);
 console.log('readability.test.ts ok');
