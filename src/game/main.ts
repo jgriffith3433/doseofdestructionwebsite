@@ -3115,6 +3115,13 @@ const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPla
   tourSkipTo: (after, to) => {
     tourSkip = { after, to };
   },
+  tourFightAt: (fighter, index) => {
+    const tour = tourFor(fighter);
+    if (!tour || index < 0 || index >= tour.fights.length) return Promise.resolve(false);
+    tourRun = { tour, index, setup: tourSetup(tour, index), continues: 0 };
+    startTourFight(true);
+    return Promise.resolve(true);
+  },
   tourChoicePreview: (fighter) => {
     const tour = tourFor(fighter) ?? TOURS[0];
     return go('results', () => {
