@@ -2,6 +2,7 @@
 // campaign's scene-fight-scene rhythm.
 
 // First: analytics (Hawkes Analytics, analytics.ts) marks the load start and stamps the build.
+import { bootFail, bootReady, bootStep, pressHandled } from './boot.ts';
 import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
 import { addWin } from './looks.ts';
@@ -71,7 +72,16 @@ const TICK_MS = 1000 / 60;
 type Phase = 'idle' | 'wait' | 'ready' | 'play' | 'pause' | 'scene';
 
 const canvas = $<HTMLCanvasElement>('stage');
-const renderer = new Renderer(canvas);
+bootStep('module', 'Starting the engine');
+let renderer: Renderer;
+try {
+  renderer = new Renderer(canvas);
+} catch (err) {
+  console.error('[dod-boot] the renderer could not start', err);
+  bootFail('Your browser could not start the game graphics (WebGL).');
+  throw err;
+}
+bootStep('engine', 'Engine ready');
 renderer.onSound = (id) => audio.sfx(id);
 renderer.onSynth = (kind) => audio.synth(kind);
 listenKeyboard();
@@ -146,10 +156,15 @@ function saveVersus(): void {
 
 // ------------------------------------------------------------- menu flow
 
+function startPressed(): void {
+  audio.line('announcer.title');
+  go('main', spotlight);
+}
+
 function wireMenus(): void {
   $('btn-start').addEventListener('click', () => {
-    audio.line('announcer.title');
-    go('main', spotlight);
+    if (pressHandled()) return; // Game/index.html took this press while the engine loaded and carries it out in bootReady
+    startPressed();
   });
   // Every button press in a menu clicks: on pointer down (with the pressed state, ui/dom.ts), so it sounds with the press, not
   // after the release; a key or pad press has no pointer down, so its click plays it. The click that follows a pointer-down
@@ -2313,6 +2328,7 @@ renderer.engine.runRenderLoop(() => {
   frame();
   if (!firstFrame) {
     firstFrame = true;
+    bootStep('frame', 'First frame drawn');
     requestAnimationFrame(() => document.getElementById('stage')?.classList.add('ready'));
   }
 });
@@ -2332,6 +2348,8 @@ const tapped = (): Promise<void> =>
 document.addEventListener('dod:tapped', () => focusFirst());
 // The title screen is up: the game is playable (game_ready).
 const titleUp = go('title').then(() => analytics.ready());
+// Menus are wired and the title is up: a Press start pressed while loading goes on into the menu now.
+titleUp.then(() => bootReady(startPressed));
 const playtestChapter = CHAPTERS.find((c) => c.id === params.get('chapter'));
 // First visit (campaign/firstVisit.ts): nothing saved, so Tap to play is the way into Season 1 Episode 1. It is decided at
 // the tap (a playtest clears storage first), and the backdrop under the prompt is only for a visit that starts clean.

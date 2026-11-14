@@ -17,6 +17,18 @@
     /* The Play button is styled here too, in the fallback font, so its label is there on the first paint (Oswald swaps in after). */
     #tap-to-play .tap-cta { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 100%; max-width: 420px; min-width: 160px; min-height: 52px; margin: 18px auto 0; padding: 12px 16px; border: 2px solid #ff6a1f; border-radius: 999px; background: rgba(255, 106, 31, 0.18); color: #ffd15a; font: 600 20px Oswald, Impact, 'Arial Narrow', sans-serif; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer; }
     #tap-to-play .tap-cta:active { transform: scale(0.97); background: rgba(255, 106, 31, 0.4); }
+    /* Boot line under Press start: real load steps (the inline script below), above the safe area. The bar's shimmer runs on the compositor, so it moves even while the main thread is busy. */
+    #btn-start.starting { transform: scale(0.97); background: #ff6a1f; color: #1c0d06; animation: none; }
+    .boot-progress { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); z-index: 60; transform: translateX(-50%); box-sizing: border-box; width: min(86vw, 420px); margin: 0; text-align: center; color: #f4efe8; font: 500 14px Barlow, 'Arial Narrow', sans-serif; letter-spacing: 0.04em; transition: opacity 0.4s ease; }
+    .boot-progress[hidden] { display: none; }
+    .boot-progress.done { opacity: 0; }
+    .boot-progress .bar { display: block; position: relative; overflow: hidden; height: 6px; margin: 0 0 8px; border-radius: 3px; background: rgba(255, 255, 255, 0.14); }
+    .boot-progress .bar b { display: block; height: 100%; width: 0; border-radius: 3px; background: #ff6a1f; transition: width 0.3s ease; }
+    .boot-progress .bar::after { content: ''; position: absolute; top: 0; bottom: 0; width: 30%; background: linear-gradient(90deg, transparent, rgba(255, 209, 90, 0.55), transparent); animation: dod-boot-sweep 1.2s linear infinite; }
+    .boot-fail { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+    .boot-fail[hidden] { display: none; }
+    .boot-fail button { min-width: 88px; min-height: 44px; padding: 8px 18px; border: 2px solid #ff6a1f; border-radius: 999px; background: rgba(255, 106, 31, 0.25); color: #ffd15a; font: 600 16px Oswald, Impact, 'Arial Narrow', sans-serif; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
+    @keyframes dod-boot-sweep { from { left: -30%; } to { left: 100%; } }
     @keyframes dod-boot-in { from { opacity: 0; } to { opacity: 1; } }
   </style>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -314,6 +326,12 @@
   </div>
   <p id="net-status" class="net-status" hidden></p>
 
+  <!-- Boot line: the inline script below fills it with real load steps; a one-line message with Retry replaces it when WebGL is missing or too slow. -->
+  <div id="boot-progress" class="boot-progress" role="status" aria-live="polite">
+    <i class="bar"><b></b></i>
+    <span class="boot-label">Loading&hellip;</span>
+    <span class="boot-fail" hidden><span class="boot-msg"></span><button type="button" class="boot-retry">Retry</button></span>
+  </div>
   <div id="loading" class="loading" hidden>Loading fighters&hellip;</div>
   <div id="wipe" class="wipe" aria-hidden="true"><i></i><i class="stinger-slots"><u></u><u></u><u></u><u></u></i><i class="stinger-logo"><b>Dose of <span>Destruction</span></b></i><em class="stinger-streak"></em></div>
 
@@ -376,6 +394,128 @@
           if (!tap.tapped && !event.repeat && (event.key === 'Enter' || event.key === ' ' || event.code === 'KeyJ')) go();
         }
       }, true);
+    })();
+  </script>
+  <script>
+    // Boot (src/game/boot.ts is the module's side). Everything here runs before the engine exists, so Press start answers on the
+    // press itself (pressed look, a blip, "Starting…") and goes into the menu the moment main.ts calls ready(). Progress moves on
+    // real events only: page parsed, fonts, key art decoded, module running, engine created, first frame, menus wired.
+    (function () {
+      var line = document.getElementById('boot-progress');
+      var btn = document.getElementById('btn-start');
+      var label = line.querySelector('.boot-label');
+      var fill = line.querySelector('.bar b');
+      var failBox = line.querySelector('.boot-fail');
+      var t0 = performance.now();
+      var STEPS = { page: 8, fonts: 25, art: 40, module: 55, engine: 75, frame: 90, ready: 100 };
+      var LABELS = { page: 'Page loaded', fonts: 'Fonts loaded', art: 'Title art ready', module: 'Starting the engine', engine: 'Engine ready', frame: 'First frame drawn', ready: 'Ready' };
+      var state = { software: false, handledAt: 0, isReady: false, failed: false, pending: false, start: null, pct: 0, text: 'Loading', last: t0 };
+      var boot = window.__dodBoot = state;
+      function paint() {
+        if (state.failed || state.isReady) return;
+        var s = Math.round((performance.now() - t0) / 1000);
+        label.textContent = state.text + '… ' + s + ' s';
+        fill.style.width = state.pct + '%';
+      }
+      state.step = function (name, text) {
+        if (state.failed) return;
+        var pct = STEPS[name] || state.pct;
+        if (pct > state.pct) state.pct = pct;
+        state.text = text || LABELS[name] || state.text;
+        state.last = performance.now();
+        paint();
+        try { document.dispatchEvent(new CustomEvent('dod:boot', { detail: { step: name, at: Math.round(performance.now() - t0) } })); } catch (e) {}
+      };
+      state.fail = function (message) {
+        if (state.failed) return;
+        state.failed = true;
+        line.querySelector('.bar').hidden = true;
+        label.hidden = true;
+        line.querySelector('.boot-msg').textContent = message;
+        failBox.hidden = false;
+        btn.classList.remove('starting');
+        if (btn.firstChild) btn.textContent = 'Press start';
+        try { document.dispatchEvent(new CustomEvent('dod:boot', { detail: { step: 'fail', message: message } })); } catch (e) {}
+      };
+      state.ready = function (start) {
+        state.isReady = true;
+        state.failed = false;
+        failBox.hidden = true;
+        state.start = start;
+        state.pct = 100;
+        fill.style.width = '100%';
+        label.textContent = 'Ready';
+        line.classList.add('done');
+        setTimeout(function () { line.hidden = true; }, 450);
+        document.dispatchEvent(new CustomEvent('dod:boot', { detail: { step: 'ready', at: Math.round(performance.now() - t0) } }));
+        if (state.pending) {
+          state.pending = false;
+          start();
+          setTimeout(function () { btn.classList.remove('starting'); btn.textContent = 'Press start'; }, 700);
+        }
+      };
+      line.querySelector('.boot-retry').addEventListener('click', function () { location.reload(); });
+
+      // WebGL: none at all is a one-line message; a software renderer (no GPU) is noted so the game starts on Low with Glow off.
+      try {
+        var probe = document.createElement('canvas');
+        var gl = probe.getContext('webgl2') || probe.getContext('webgl');
+        if (!gl) {
+          state.fail('Graphics (WebGL) are not available in this browser.');
+        } else {
+          var info = gl.getExtension('WEBGL_debug_renderer_info');
+          var name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : '';
+          state.software = /swiftshader|llvmpipe|software|softpipe/i.test(name);
+          var lose = gl.getExtension('WEBGL_lose_context');
+          if (lose) lose.loseContext();
+        }
+      } catch (e) { state.fail('Graphics (WebGL) are not available in this browser.'); }
+
+      // The press: answered here, at once, whatever the engine is doing.
+      var blip = function () {
+        try {
+          var tap = window.__dodTap || {};
+          var ctx = tap.ctx;
+          if (!ctx) {
+            var Ctor = window.AudioContext || window.webkitAudioContext;
+            if (Ctor) { ctx = tap.ctx = new Ctor(); }
+          }
+          if (!ctx) return;
+          if (ctx.resume) ctx.resume().catch(function () {});
+          var o = ctx.createOscillator(), g = ctx.createGain();
+          o.type = 'square'; o.frequency.setValueAtTime(520, ctx.currentTime); o.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.08);
+          g.gain.setValueAtTime(0.08, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.14);
+          o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.16);
+        } catch (e) {}
+      };
+      var press = function () {
+        if (state.isReady || state.failed || state.pending) return;
+        state.pending = true;
+        state.handledAt = performance.now();
+        btn.classList.add('starting');
+        btn.textContent = 'Starting…';
+        blip();
+        try { document.dispatchEvent(new CustomEvent('dod:boot', { detail: { step: 'press', at: Math.round(performance.now() - t0) } })); } catch (e) {}
+      };
+      btn.addEventListener('pointerdown', press, true);
+      btn.addEventListener('click', press, true); // keyboard: Enter or Space on the focused button
+      document.addEventListener('dod:tapped', function () { if (!state.isReady) btn.focus({ preventScroll: true }); });
+
+      // Real steps.
+      state.step('page');
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { state.step('fonts'); });
+      var art = document.querySelector('.title-art img');
+      if (art) { if (art.complete) state.step('art'); else art.addEventListener('load', function () { state.step('art'); }, { once: true }); art.addEventListener('error', function () { state.step('art'); }, { once: true }); }
+      // A heartbeat for the seconds shown on the line (a clock, not a request).
+      var beat = setInterval(function () { if (state.isReady || state.failed) clearInterval(beat); else paint(); }, 1000);
+      // Too slow: the engine never came up. The message is one line; Retry reloads.
+      var slow = setTimeout(function () {
+        if (!state.isReady && !state.failed && state.pct < STEPS.engine) state.fail('This device is too slow to start the game graphics.');
+      }, 60000);
+      var slowFrame = setTimeout(function () {
+        if (!state.isReady && !state.failed) state.fail('The game graphics are too slow on this device to start.');
+      }, 120000);
+      document.addEventListener('dod:boot', function (e) { if (e.detail && e.detail.step === 'ready') { clearTimeout(slow); clearTimeout(slowFrame); } });
     })();
   </script>
   <!-- Hawkes Analytics (anonymous gameplay statistics; AGENTS.md "Analytics"): before the game module, which uses it. -->
