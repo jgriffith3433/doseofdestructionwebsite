@@ -19,16 +19,17 @@ function check(name: string, ok: boolean, detail = ''): void {
 }
 
 export const HAZARD_STAGES = ['desert', 'cursed-town', 'rainbow-full-pipe', 'watercolor-nebula', 'yo-house'];
-const SEEDS = [3, 8, 13, 21, 34, 55, 89, 144];
+// 40 matches: every stage's baseline has 30+ hits, so a per-stage 75% cut is not a coin flip.
+const SEEDS = Array.from({ length: 40 }, (_, i) => 3 + i * 5);
 const SECONDS = 150;
 
 /** Hits taken by both bots over SEEDS matches, level-9 bots (measured before the hazard read existed). */
 const BASELINE: Record<string, number> = {
-  'desert': 23,
-  'cursed-town': 1531,
-  'rainbow-full-pipe': 37,
-  'watercolor-nebula': 12,
-  'yo-house': 11,
+  'desert': 127,
+  'cursed-town': 7805,
+  'rainbow-full-pipe': 180,
+  'watercolor-nebula': 48,
+  'yo-house': 51,
 };
 
 const A = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
@@ -99,28 +100,16 @@ if (process.env.BOT_HAZARD_MEASURE) {
   process.exit(0);
 }
 
-// Four stages count only a handful of hits over the seeds (the counts move with any bot change, since a match
-// is chaotic), so they are judged as one total; cursed-town's fog has enough hits to be judged alone.
-const SMALL = HAZARD_STAGES.filter((id) => id !== 'cursed-town');
-let smallHi = 0;
-let smallLo = 0;
-let smallBase = 0;
+// Every hazard stage is judged on its own against its own baseline: no pooling, no per-stage exceptions.
 for (const id of HAZARD_STAGES) {
   const hi = hazardHits(id, 9);
   const lo = hazardHits(id, 1);
-  if (SMALL.includes(id)) {
-    smallHi += hi.hits;
-    smallLo += lo.hits;
-    smallBase += BASELINE[id];
-  } else {
-    check(`${id}: level 9 takes 75% fewer hazard hits`, hi.hits <= BASELINE[id] * 0.25, `${hi.hits} vs ${BASELINE[id]} before`);
-    check(`${id}: level 9 does better than level 1`, hi.hits < lo.hits, `${hi.hits} < ${lo.hits}`);
-  }
-  check(`${id}: level 1 still gets caught or reads little`, lo.hits >= 0);
+  check(`${id}: baseline has 30+ hits`, BASELINE[id] >= 30, `${BASELINE[id]}`);
+  check(`${id}: level 9 takes 75% fewer hazard hits`, hi.hits <= BASELINE[id] * 0.25, `${hi.hits} vs ${BASELINE[id]} before`);
+  check(`${id}: level 9 does better than level 1`, hi.hits < lo.hits, `${hi.hits} < ${lo.hits}`);
+  check(`${id}: level 1 still gets caught`, lo.hits >= 1, `${lo.hits}`);
   check(`${id}: a level 9 bot in a warned hazard's way moves out`, hi.threatened === 0 || hi.reacted / hi.threatened >= 0.8, `${hi.reacted}/${hi.threatened}`);
 }
-check('small hazard stages: level 9 takes 50% fewer hits in total', smallHi <= smallBase * 0.5, `${smallHi} vs ${smallBase} before`);
-check('small hazard stages: level 1 still gets caught, level 9 less', smallLo > 0 && smallHi < smallLo, `${smallHi} < ${smallLo}`);
 
 if (failed) {
   console.log(`${failed} failed`);
