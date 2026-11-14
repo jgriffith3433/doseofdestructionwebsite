@@ -557,6 +557,15 @@
       ]
     },
     {
+      "id": "difficulty",
+      "title": "Campaign difficulty: Easy / Normal / Hard on the season map (saved), and after a third loss in a row on one episode the results offer \"Try it on Easy?\", which retries with the foes two CPU levels softer (phone: 390x844 touch, turned to 844x390 to fight)",
+      "description": "Opens the Campaign map, checks the Easy/Normal/Hard choice (three 44 px buttons, Hard stays chosen after leaving the map), then plays one episode (option `chapter`, default title-defense) and loses it three times with the bot standing still: no offer after one or two losses, \"Try it on Easy?\" with 44 px buttons on the third, and accepting starts the episode with a lower CPU level. Events difficulty-picker, difficulty-persist, difficulty-start, difficulty-loss, difficulty-offer, difficulty-easy; metrics cpuLevelBefore, cpuLevelEasy, offerButtonMinPx.",
+      "seconds": 600,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "grades",
       "title": "Episode grades: a won episode shows 1-3 stars on Results with what each star needs, and the season map keeps the best",
       "description": "Option chapter (default house-heavy). Setup shortcut: the chapters before it are marked cleared and dod-stars is emptied (both put back). The bot plays the chapter from the Campaign map; on a win the results show the stars card (1 clear, 2 no stock lost, 3 under par time, or under 100% damage taken on a survive episode; labels on screen, 12 px or more: grade, metric gradeStars) and the map shows the stars with \"N of 3\" on the episode (map-stars, checked against dod-stars); the map is then opened again from the save (map-stars after-reopen). On a 390x844 phone the run plays by taps and everything is checked inside the window.",

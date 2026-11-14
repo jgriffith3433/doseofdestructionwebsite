@@ -114,6 +114,19 @@ A new season just adds `"season": N` chapters (it shows locked until the season 
 
 The names and end lines live in `src/game/campaign/story.ts` (`SEASON_TEXT`) next to the chapter reader.
 
+## Producer's notes: Easy, Normal, Hard (as built)
+
+The show has a producer's desk. On the Campaign map, above the seasons, the player picks how the night is run: **Easy**,
+**Normal** (the show as written) or **Hard**. It is saved (`dod-difficulty`) and every episode's fight starts from it
+(`campaign/difficulty.ts`): Easy plays the foes two CPU levels softer and starts them at 30%; Hard plays them one level
+sharper and starts the player at 20%. Allies are never changed. Nobody calls it a "mode": it is how the producer runs
+the night, and the lines stay about ratings.
+
+After three losses in a row on the same episode the results show the producer's offer, "Try it on Easy?", beside Retry.
+Accepting makes Easy the map's choice and replays the episode with the softer foes. A clear on Easy still counts like any
+other and carries a small green **Easy** badge on the map and the results; clearing it again on Normal or Hard takes the
+badge off. Retry on its own always replays the same setup.
+
 ## Grades: stars on every episode (as built)
 
 A won episode is graded 1 to 3 stars (`campaign/grade.ts`, pure; `test/grade.test.ts`):

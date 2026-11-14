@@ -5,6 +5,7 @@ import { CHARACTERS } from '../sim/characters.ts';
 import { STAGES, type StageDef } from '../sim/stage.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import { CHAPTERS, SEASONS, isOpen, loadStars, seasonCleared, seasonOpen, type Chapter } from '../campaign/story.ts';
+import { DIFFICULTIES, DIFFICULTY_LABEL, DIFFICULTY_NOTE, difficulty, easyCleared, setDifficulty } from '../campaign/difficulty.ts';
 import type { Grade } from '../campaign/grade.ts';
 import { hasReward, pickedTitle, rewardLine, setVariant, variantsFor, type Reward } from '../campaign/rewards.ts';
 import { PLAYER_COLORS, prefetchStage } from '../render/renderer.ts';
@@ -550,8 +551,43 @@ export function setResultActions(actions: (ResultAction & { disabled?: boolean }
 
 // -------------------------------------------------------------- campaign
 
+/** The season map's Easy / Normal / Hard choice (campaign/difficulty.ts): three thumb-size radio buttons, saved on a tap. */
+function renderDifficulty(): void {
+  const box = document.getElementById('difficulty');
+  if (!box) return;
+  const draw = () => {
+    const now = difficulty();
+    box.replaceChildren(
+      h('span', { class: 'difficulty-label', id: 'difficulty-label' }, 'Difficulty'),
+      h(
+        'div',
+        { class: 'difficulty-pick', role: 'radiogroup', 'aria-labelledby': 'difficulty-label' },
+        ...DIFFICULTIES.map((d) =>
+          h('button', {
+            type: 'button',
+            class: `difficulty-btn${d === now ? ' on' : ''}`,
+            role: 'radio',
+            'aria-checked': String(d === now),
+            'data-difficulty': d,
+            onclick: () => {
+              setDifficulty(d);
+              window.dispatchEvent(new CustomEvent('dod:difficulty', { detail: { phase: 'pick', difficulty: d } }));
+              draw();
+              document.querySelector<HTMLElement>(`#difficulty [data-difficulty="${d}"]`)?.focus();
+            },
+          }, DIFFICULTY_LABEL[d]),
+        ),
+      ),
+      h('span', { class: 'difficulty-note', id: 'difficulty-note' }, DIFFICULTY_NOTE[now]),
+    );
+  };
+  draw();
+}
+
 export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => void, onReset: () => void, unlocked?: string): void {
   const path = $('chapter-path');
+  renderDifficulty();
+  const easy = easyCleared();
   const nextIndex = CHAPTERS.findIndex((c) => !done.has(c.id));
   const savedStars = loadStars();
   const focus = CHAPTERS[nextIndex < 0 ? CHAPTERS.length - 1 : nextIndex];
@@ -579,6 +615,7 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
       h('strong', {}, open ? c.title : '???'),
       h('span', { class: 'chapter-tag' }, open ? c.tagline : why),
       h('em', { class: 'chapter-status' }, status, open ? ` · ${STAGES[c.fight.stage].name}` : ''),
+      cleared && easy.has(c.id) ? h('span', { class: 'easy-badge', 'data-difficulty': 'easy' }, 'Easy') : null,
       cleared
         ? h(
             'span',
