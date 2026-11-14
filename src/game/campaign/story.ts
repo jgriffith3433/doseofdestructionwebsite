@@ -17,6 +17,23 @@ export interface Line {
   take?: { text: string; voice: string };
 }
 
+/** What clearing an episode of Season 8 to 10 gives (campaign/rewards.ts; docs/story.md "Rewards"). */
+export type RewardKind = 'title' | 'stage' | 'tint';
+export interface Reward {
+  kind: RewardKind;
+  id: string;
+  name: string;
+  /** One line on results: what it is and where to use it. */
+  line: string;
+  /** stage: the stage it recolours and the stage whose colour grade it borrows. */
+  stage?: string;
+  grade?: string;
+  /** tint: the hue it turns an outfit to, with saturation and value (looks.ts). */
+  hue?: number;
+  sat?: number;
+  val?: number;
+}
+
 export interface Chapter {
   id: string;
   /** The season it airs in (content/campaign.json `season`, 1 when left out). */
@@ -32,6 +49,8 @@ export interface Chapter {
   unlock?: string;
   /** The story cards: one line before the episode's fight and one after it is won (content/campaign.json `card`). */
   card?: { before?: string; after?: string };
+  /** The reward for clearing it (Seasons 8 to 10). */
+  reward?: Reward;
   /** A season premiere's cold open: played in the arena instead of the intro scene and story card (ui/scene.ts `playColdOpen`). */
   coldOpen?: ColdOpenBeat[];
   intro: Line[];

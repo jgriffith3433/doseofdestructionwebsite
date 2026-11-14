@@ -6,6 +6,7 @@ import { STAGES, type StageDef } from '../sim/stage.ts';
 import type { Match, MatchSetup } from '../match.ts';
 import { CHAPTERS, SEASONS, isOpen, loadStars, seasonCleared, seasonOpen, type Chapter } from '../campaign/story.ts';
 import type { Grade } from '../campaign/grade.ts';
+import { hasReward, pickedTitle, rewardLine, setVariant, variantsFor, type Reward } from '../campaign/rewards.ts';
 import { PLAYER_COLORS, prefetchStage } from '../render/renderer.ts';
 import { TEAM_COLORS } from './select.ts';
 import { $, formatTime, h, kids, pct, portraitSize, portraitUrl, thumbUrl } from './dom.ts';
@@ -95,15 +96,28 @@ export function openStages(
       const st = STAGES[index];
       return h(
         'button',
-        { type: 'button', class: 'stage-card', 'data-stage': st.id, 'data-autofocus': index === focus || undefined, onclick: () => onPick(index, entry), onfocus: () => prep(index), onpointerenter: () => prep(index) },
+        { type: 'button', class: 'stage-card', 'data-stage': st.id, 'data-autofocus': index === focus || undefined, onclick: () => { setVariant(null); onPick(index, entry); }, onfocus: () => { setVariant(null); prep(index); }, onpointerenter: () => prep(index) },
         h('div', { class: 'stage-shot' }, stageThumb(st), stagePreview(st)),
         h('strong', {}, entry.name || st.name),
         h('span', {}, entry.blurb || st.blurb),
       );
     }),
+    // Stage variants earned in Seasons 8 to 10: the same stage under another existing colour grade (campaign/rewards.ts).
+    ...variantsFor(list.map((x) => STAGES[x.index].id)).flatMap((v) => {
+      const x = list.find((y) => STAGES[y.index].id === v.stage)!;
+      const st = STAGES[x.index];
+      const src = STAGES.find((y) => y.id === v.grade);
+      return [h(
+        'button',
+        { type: 'button', class: 'stage-card variant', 'data-stage': st.id, 'data-variant': v.id, style: `--grade:${src?.grade?.tint ?? '#ffb070'}`, onclick: () => { setVariant(v.id); onPick(x.index, x.entry); }, onfocus: () => { prep(x.index); setVariant(v.id); }, onpointerenter: () => { prep(x.index); } },
+        h('div', { class: 'stage-shot' }, stageThumb(st)),
+        h('strong', {}, v.name),
+        h('span', {}, 'Stage variant'),
+      )];
+    }),
     h(
       'button',
-      { type: 'button', class: 'stage-card random', onclick: () => { const x = list[Math.floor(Math.random() * list.length)]; if (x) onPick(x.index, x.entry, true); } },
+      { type: 'button', class: 'stage-card random', onclick: () => { const x = list[Math.floor(Math.random() * list.length)]; setVariant(null); if (x) onPick(x.index, x.entry, true); } },
       h('b', {}, '?'),
       h('strong', {}, 'Random'),
       h('span', {}, 'Let the broadcast decide.'),
@@ -154,6 +168,7 @@ export function playVersus(setup: MatchSetup): Promise<void> {
                 h('span', s.cpu ? { class: 'vs-level', 'data-level': String(s.cpu), 'data-auto': s.auto ? '1' : '0' } : {}, setup.online ? setup.online.names[slot] : s.cpu === null ? 'You' : s.cpu === 0 ? 'Dummy' : `CPU · Level ${s.cpu}${s.auto ? ' · Auto' : ''}`),
                 h('strong', {}, c.name),
                 lookChip(s.char, s.look ?? 0),
+                s.cpu === null && setup.mode === 'versus' && !setup.online && pickedTitle() ? h('small', { class: 'vs-reward-title', 'data-title': pickedTitle()!.id }, pickedTitle()!.name) : null,
               ),
               s.scale && s.scale > 100 ? h('em', { class: 'vs-tag' }, 'Giant') : null,
             );
@@ -328,6 +343,16 @@ function gradeCard(g: EpisodeGrade): HTMLElement {
   );
 }
 
+/** The reward line on an episode card (map tile): what clearing it gives, "Earned" once it is yours. */
+export function rewardTag(r: Reward, cleared = false): HTMLElement {
+  return h('span', { class: `chapter-reward${cleared || hasReward(r.id) ? ' earned' : ''}`, 'data-reward': r.id, 'data-kind': r.kind }, h('b', {}, cleared || hasReward(r.id) ? 'Earned' : 'Reward'), ` ${rewardLine(r)}`);
+}
+
+/** The unlock banner on results: the reward a won episode just gave, and where to use it. */
+function rewardBanner(r: Reward): HTMLElement {
+  return h('section', { class: 'results-reward', role: 'status', 'data-reward': r.id, 'data-kind': r.kind }, h('h3', {}, 'Unlocked'), h('p', { class: 'reward-name' }, rewardLine(r)), h('p', { class: 'reward-line' }, r.line));
+}
+
 /** The 'ko' objective's results line: which way it ended. */
 function koLine(m: Match, won: boolean): string {
   const n = m.koTarget;
@@ -365,7 +390,7 @@ export interface ResultAction {
 }
 
 /** `online`: an online match's ending, which can come before the sim's (a forfeit, a lost link, a desync). */
-export function showResults(m: Match, actions: ResultAction[], online?: { headline: string; note?: string; winner?: number }, unlocked: string[] = [], levelChange?: { from: number; to: number; text: string }, grade?: EpisodeGrade): void {
+export function showResults(m: Match, actions: ResultAction[], online?: { headline: string; note?: string; winner?: number }, unlocked: string[] = [], levelChange?: { from: number; to: number; text: string }, grade?: EpisodeGrade, reward?: Reward | null): void {
   const s = m.state;
   const teams = m.setup.slots.some((x) => x.team !== undefined) && new Set(m.setup.slots.map((x) => x.team)).size > 1;
   const colors = s.fighters.map((f, i) => (teams && m.setup.mode !== 'campaign' ? TEAM_COLORS[f.team < 0 ? 0 : f.team] : PLAYER_COLORS[i]));
@@ -414,6 +439,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
         levelChange && h('p', { class: 'results-note level-note', 'data-from': String(levelChange.from), 'data-to': String(levelChange.to) }, levelChange.text),
       ),
     ),
+    reward && rewardBanner(reward),
     grade && gradeCard(grade),
     h(
       'div',

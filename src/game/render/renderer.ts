@@ -1,6 +1,7 @@
 // Draws a GameState with Babylon. Nothing here feeds back into the sim: the
 // renderer only reads state and the events step() returns.
 
+import { gradeSource } from '../campaign/rewards.ts';
 import { Engine } from '@babylonjs/core/Engines/engine.js';
 import { Scene } from '@babylonjs/core/scene.js';
 import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera.js';
@@ -616,6 +617,11 @@ export class Renderer {
     this.showStage(next);
   }
 
+  /** The stage on screen drawn with the grade it has now (a Season 8-10 stage variant picked or put back). */
+  regrade(): void {
+    if (this.stage) this.post.setStage(gradeSource(this.stage.id));
+  }
+
   /** Builds any stage, saved or not (devtools previews unsaved ones). */
   showStage(stage: StageDef): void {
     this.stageRoot?.dispose(false, true);
@@ -623,7 +629,7 @@ export class Renderer {
     this.alive?.dispose();
     this.movers = [];
     this.stage = stage;
-    this.post.setStage(stage.id);
+    this.post.setStage(gradeSource(stage.id));
     this.applyLight();
     this.camCut = true;
     this.kill = null;

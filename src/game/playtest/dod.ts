@@ -33,6 +33,7 @@ import { ACT, ACT_NAMES, bodySize } from '../sim/state.ts';
 import { AnimTrace } from '../sim/trace.ts';
 import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
 import { MAX_WORDS } from '../campaign/sceneText.ts';
+import { REWARDS, reloadRewards } from '../campaign/rewards.ts';
 import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, saveUnlocks, unlocks } from '../campaign/story.ts';
 import { SCENARIOS } from './scenarios.ts';
 import { DAILY_POOL, dailyEpisode, msToNext, objectiveLine, twistLine } from '../campaign/daily.ts';
@@ -218,6 +219,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'auto-quality') await r.autoQuality();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'grades') await r.gradesRun();
+        else if (id === 'rewards') await r.rewardsRun();
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'finale-hijack') await r.finaleHijack();
         else if (id === 'story-cards') await r.storyCards();
@@ -2353,6 +2355,7 @@ class Run {
         await this.checkQuotaResult(c);
         await this.checkStreakResult(c);
         if (won) await this.checkGradeCard(c);
+        if (won) await this.checkRewardBanner(c);
         if (won) {
           await this.click(() => this.button('#results-actions', 'Continue'), 'Continue');
           await this.playDialogue();
@@ -2624,6 +2627,132 @@ class Run {
       if (savedStars === null) localStorage.removeItem('dod-stars');
       else localStorage.setItem('dod-stars', savedStars);
     }
+  }
+
+  /**
+   * The rewards scenario: every Season 8-10 episode card on the map shows its reward before play (inside the window,
+   * unclipped; on a portrait phone checked in the 390x844 window by taps), then option `chapter` (default red-carpet) is
+   * played from the map: the win shows the unlock banner, and the reward is on offer in Versus.
+   */
+  async rewardsRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.phoneScenario();
+    const asked = this.options.chapter ?? 'red-carpet';
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    if (from < 0 || !CHAPTERS[from].reward) {
+      t.problem('bug', `chapter "${String(asked)}" has no reward in content/campaign.json`);
+      t.finish('error');
+      return;
+    }
+    const portrait = touch && innerHeight > innerWidth;
+    this.logViewport(touch && this.isPhone());
+    const KEYS = ['dod-rewards', 'dod-reward-title'];
+    const saved = KEYS.map((k) => localStorage.getItem(k));
+    for (const k of KEYS) localStorage.removeItem(k);
+    reloadRewards();
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((c) => c.id));
+    let restored = false;
+    const restore = () => {
+      if (restored) return;
+      restored = true;
+      this.game.setCampaignProgress(before);
+      KEYS.forEach((k, i) => (saved[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, saved[i]!)));
+      reloadRewards();
+    };
+    try {
+      await this.toMainMenu();
+      if (touch) {
+        this.useTap = true;
+        forceTouchUi(true);
+      }
+      await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+      await this.screen('campaign');
+      // 1. Before play: every reward episode's card names its reward, on screen and not cut off.
+      let shown = 0;
+      for (const { reward, chapter } of REWARDS) {
+        const el = this.q(`#chapter-path .chapter[data-chapter="${chapter.id}"] .chapter-reward`);
+        if (!el) {
+          t.problem('bug', `the episode card for ${chapter.id} shows no reward line`);
+          continue;
+        }
+        el.scrollIntoView({ block: 'center' });
+        const r = el.getBoundingClientRect();
+        const tile = el.closest('.chapter')!.getBoundingClientRect();
+        const px = parseFloat(getComputedStyle(el).fontSize);
+        const clipped = el.scrollWidth > el.clientWidth + 1 || r.left < -1 || r.right > innerWidth + 1 || r.width < 2 || r.height < 8 || r.bottom > tile.bottom + 1 || !(el.textContent ?? '').includes(reward.name);
+        if (clipped) t.problem('bug', `${innerWidth}x${innerHeight}: the reward line on ${chapter.id} is clipped or missing its name ("${el.textContent}")`);
+        else if (px < 11) t.problem('bug', `the reward line on ${chapter.id} is ${px}px, under 11 px`);
+        else {
+          shown++;
+          t.event('reward-card', `${chapter.id}: "${el.textContent}" at ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)} in ${innerWidth}x${innerHeight}`);
+        }
+      }
+      t.metric('rewardCards', shown);
+      if (shown !== REWARDS.length) t.problem('bug', `${shown} of ${REWARDS.length} reward episodes show their reward on the card`);
+      if (portrait) {
+        // A portrait phone can't hold a match: turn it, and play the episode in the landscape frame.
+        restore();
+        return this.touchMatchTurned('rewards');
+      }
+      // 2. Win it: the unlock banner (campaignFrom checks it), then the reward in Versus.
+      const t0 = performance.now();
+      await this.campaignFrom(from, () => performance.now() - t0 > CAMPAIGN_BUDGET_MS, from);
+      const got = JSON.parse(localStorage.getItem('dod-rewards') ?? '[]') as string[];
+      if (got.includes(CHAPTERS[from].reward!.id)) await this.checkRewardInVersus(CHAPTERS[from].reward!);
+      else t.note('the episode was not won, so no reward was earned');
+    } finally {
+      restore();
+    }
+  }
+
+  /** The unlock banner on a won episode's results: the reward, what it is, on screen. */
+  private async checkRewardBanner(c: (typeof CHAPTERS)[number]): Promise<void> {
+    const t = this.t;
+    if (!c.reward) return;
+    const banner = () => this.q('#results-body .results-reward');
+    await t.until(() => !!banner(), 8000, 'the unlock banner').catch((e) => {
+      if (String(e).includes('stopped')) throw e;
+    });
+    const el = banner();
+    if (!el) return void t.problem('bug', `winning ${c.id} shows no unlock banner for "${c.reward.name}" on the results screen`);
+    el.scrollIntoView({ block: 'nearest' });
+    const r = el.getBoundingClientRect();
+    if (el.dataset.reward !== c.reward.id || !(el.textContent ?? '').includes(c.reward.name)) t.problem('bug', `the unlock banner on ${c.id} does not name "${c.reward.name}" ("${el.textContent}")`);
+    if (r.width < 2 || r.left < -1 || r.right > innerWidth + 1) t.problem('bug', `${innerWidth}x${innerHeight}: the unlock banner on ${c.id} is off screen`);
+    t.event('reward-banner', `${c.id}: "${el.textContent}" ${innerWidth}x${innerHeight}`);
+    t.metric('rewardBanners', 1);
+  }
+
+  /** Versus offers the reward: the title chip, the colour swatch or the stage variant card. */
+  private async checkRewardInVersus(rw: NonNullable<(typeof CHAPTERS)[number]['reward']>): Promise<void> {
+    const t = this.t;
+    await this.toMainMenu();
+    await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+    await this.screen('select');
+    if (rw.kind === 'title') {
+      const chip = () => this.q(`#select-slots .title-chip[data-title="${rw.id}"]`);
+      await t.until(() => !!chip(), 6000, `the "${rw.name}" title chip`);
+      chip()!.scrollIntoView({ block: 'center' });
+      await this.click(chip, `title ${rw.name}`);
+      if (chip()?.getAttribute('aria-checked') !== 'true') t.problem('bug', `picking the title "${rw.name}" in Versus did not select it`);
+      else t.event('reward-versus', `title "${rw.name}" picked in Versus`);
+    } else if (rw.kind === 'tint') {
+      const sw = () => [...document.querySelectorAll<HTMLElement>('#select-slots .swatches[data-slot="0"] .swatch')].find((e) => e.getAttribute('aria-label') === rw.name);
+      await t.until(() => !!sw(), 6000, `the "${rw.name}" colour swatch`);
+      sw()!.scrollIntoView({ block: 'center' });
+      await this.click(sw, `colour ${rw.name}`);
+      if (!sw()?.classList.contains('on') || sw()?.classList.contains('locked')) t.problem('bug', `the colour "${rw.name}" could not be picked in Versus`);
+      else t.event('reward-versus', `colour "${rw.name}" picked in Versus`);
+    } else {
+      await this.click(() => this.q('#select-slots .fight'), 'Fight');
+      await this.screen('stages');
+      const card = () => this.q(`#stage-grid .stage-card.variant[data-variant="${rw.id}"]`);
+      await t.until(() => !!card(), 6000, `the "${rw.name}" stage variant`);
+      card()!.scrollIntoView({ block: 'center' });
+      t.event('reward-versus', `stage variant "${rw.name}" offered in Stage Select`);
+    }
+    t.metric('rewardInVersus', 1);
+    await this.toMainMenu();
   }
 
   /** The stars card on a won episode's results: 1-3 stars, a line for each star's test, all on screen (and big enough on a phone). */

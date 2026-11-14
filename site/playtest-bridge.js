@@ -567,6 +567,17 @@
       ]
     },
     {
+      "id": "rewards",
+      "title": "Season 8-10 rewards: every episode card shows its reward before play, a win shows the unlock banner, and the reward can be picked in Versus (phone: 390x844 touch)",
+      "description": "Option chapter (default red-carpet, any Season 8-10 episode). Setup shortcut: the chapters before it are marked cleared and dod-rewards emptied (both put back). On the Campaign map every one of the ten reward episodes shows its reward line (Title / Stage / Colour and the name) inside the window, unclipped, 11 px or more (reward-card; metric rewardCards 10). The bot plays the chapter; the win shows the unlock banner on Results (reward-banner), and Versus then offers the reward: a title chip, a colour swatch or a stage variant card (reward-versus). On a 390x844 phone the map is checked in the portrait window by taps and the episode played in the turned 844x390 frame.",
+      "starts": [],
+      "seconds": 300,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "quota",
       "title": "The quota objective in a campaign chapter: \"Quota 0/300%\" on the HUD with the clock, counting up as damage lands, and a results line saying how it ended",
       "description": "Plays one chapter that uses the quota objective (Season 5's Product Placement by default, or option `chapter`) from the Campaign map with the bot on a virtual pad: setup shortcut marks the chapters before it cleared. Checks the chip as the match starts and as damage lands (an event every 100%), the clock, and the results line (quota met, time ran out or out of stocks), two tries. Events chapter, quota-chip, quota-count, quota-result, chapter-cleared / chapter-failed.",

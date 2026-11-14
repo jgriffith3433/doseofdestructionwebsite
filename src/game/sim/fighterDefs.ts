@@ -21,6 +21,10 @@ export interface Look {
   val?: number;
   /** Wins with this fighter needed to use it (0: open). */
   wins: number;
+  /** A reward tint (campaign/rewards.ts): open once that reward is earned, not by wins. */
+  reward?: string;
+  /** What a locked swatch says instead of "N wins to unlock". */
+  lockedText?: string;
 }
 
 export const CLASSIC: Look = { name: 'Classic', wins: 0 };

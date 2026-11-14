@@ -18,6 +18,7 @@ import { landOn, resetLanding } from './nameCall.ts';
 import { currentScreen } from './screens.ts';
 import { TEAM_COLORS } from '../colourVision.ts';
 import { loadAutoLevel } from '../ai/autoLevel.ts';
+import { ownedOf, pickTitle, pickedTitle } from '../campaign/rewards.ts';
 import { lookCount, lookOpen, openLook, preferredLook, rememberLook, separateLooks } from '../looks.ts';
 
 export interface VersusConfig {
@@ -322,6 +323,16 @@ export function openSelect({ mode, config, onDone }: Options): void {
               renderSlots();
             },
           }),
+          // Titles earned in Seasons 8 to 10: one is worn on your VS card (campaign/rewards.ts).
+          !isCpu && !training && i === 0 && ownedOf('title').length
+            ? h(
+                'div',
+                { class: 'title-pick', role: 'radiogroup', 'aria-label': 'Title' },
+                ...[null, ...ownedOf('title')].map((t) =>
+                  h('button', { type: 'button', class: 'title-chip', role: 'radio', 'aria-checked': String((pickedTitle()?.id ?? null) === (t?.id ?? null)), 'data-title': t?.id ?? 'none', onclick: () => { pickTitle(t?.id ?? null); slotFocus = i; renderSlots(); } }, t?.name ?? 'No title'),
+                ),
+              )
+            : null,
           isCpu &&
             h(
               'div',

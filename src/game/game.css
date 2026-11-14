@@ -1815,7 +1815,7 @@ body.pilot-boot .screen { visibility: hidden; }
 
 /* ---------------------------------------------------------------- colour looks */
 
-.swatches { display: grid; grid-template-columns: repeat(4, minmax(44px, 1fr)); gap: 8px; margin: 2px 0; }
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 8px; margin: 2px 0; }
 .swatch {
   display: grid;
   grid-template-rows: auto 1fr;
@@ -2358,3 +2358,19 @@ body.replaying.replay-bar-off .hud { bottom: max(12px, env(safe-area-inset-botto
 .chapter-stars b { font-size: calc(22px * var(--ts, 1)); letter-spacing: 0.1em; font-weight: 400; }
 .chapter-stars small { font-size: calc(12px * var(--ts, 1)); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .season-stars { font-style: normal; font-weight: 700; color: var(--gold); margin-left: 12px; }
+
+/* Season 8 to 10 rewards (campaign/rewards.ts): the line on the episode card, the unlock banner on results, title chips, stage variants. */
+.chapter-reward { display: block; font-size: calc(12px * var(--ts, 1)); line-height: 1.25; color: var(--text); overflow-wrap: anywhere; }
+.chapter-reward b { color: var(--gold); text-transform: uppercase; letter-spacing: 0.08em; font-size: calc(11px * var(--ts, 1)); }
+.chapter-reward.earned b { color: #5ce08a; }
+.results-reward { margin: 14px 0; padding: 12px 16px; border: 2px solid rgba(92, 224, 138, 0.5); border-radius: 10px; background: rgba(92, 224, 138, 0.08); }
+.results-reward h3 { font-family: Oswald, sans-serif; text-transform: uppercase; font-size: calc(22px * var(--ts, 1)); letter-spacing: 0.06em; color: #5ce08a; }
+.results-reward p { margin: 4px 0 0; overflow-wrap: anywhere; }
+.results-reward .reward-name { font-weight: 700; font-size: calc(18px * var(--ts, 1)); color: var(--gold); }
+.results-reward .reward-line { color: var(--muted); font-size: calc(14px * var(--ts, 1)); }
+.title-pick { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0; }
+.title-chip { min-height: 44px; min-width: 44px; padding: 6px 12px; border-radius: 8px; border: 2px solid rgba(255, 255, 255, 0.2); background: var(--card); color: var(--text); font-size: calc(14px * var(--ts, 1)); }
+.title-chip[aria-checked="true"] { border-color: var(--gold); color: var(--gold); }
+.vs-reward-title { display: block; margin-top: 2px; font-size: calc(13px * var(--ts, 1)); letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold); }
+.stage-card.variant .stage-shot { position: relative; }
+.stage-card.variant .stage-shot::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent, var(--grade, #ffb070)); mix-blend-mode: soft-light; opacity: 0.85; pointer-events: none; }
