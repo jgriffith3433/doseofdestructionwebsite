@@ -921,6 +921,13 @@ export class Renderer {
       m.scaling.set(0.2, 0.2, 1);
       this.sparks.push({ mesh: m, vx: 0, vy: 0, life: 2, max: 2, size: 0.2 });
     }
+    // The contact core, shield ripple, parry flash and clash spark materials are shown once too (the first hit or shield used to compile them mid-fight).
+    for (const mat of Object.values(this.fxMats)) {
+      const m = this.takeSpark(mat);
+      m.position.set(this.camTarget.x, this.camTarget.y, -0.4);
+      m.scaling.set(0.2, 0.2, 1);
+      this.sparks.push({ mesh: m, vx: 0, vy: 0, life: 2, max: 2, size: 0.2 });
+    }
     await breathe();
     // One heavy step per animation frame (each compiles shaders synchronously, seconds on a software renderer),
     // so the match wipe and Ready countdown that run alongside keep painting.
@@ -1414,11 +1421,12 @@ export class Renderer {
     // Independent check: the contact point lies on the victim's hurtbox (gap in scene units).
     const v = this.lastState?.fighters[e.victim];
     if (v) {
+      // Event and fighter coordinates are both fixed point (FX): compare them in the same unit, then convert to scene units.
       const [bw, bh] = bodySize(v);
-      const hw = bw / FX / 2;
-      const gx = Math.max(0, Math.abs(e.x - v.x / FX) - hw);
-      const gy = Math.max(0, e.y - (v.y + bh) / FX, v.y / FX - e.y);
-      st.maxHurtGap = Math.max(st.maxHurtGap, Math.hypot(gx, gy) * W);
+      const hw = bw / 2;
+      const gx = Math.max(0, Math.abs(e.x - v.x) - hw);
+      const gy = Math.max(0, e.y - (v.y + bh), v.y - e.y);
+      st.maxHurtGap = Math.max(st.maxHurtGap, Math.hypot(gx, gy) * S);
     }
     // Under the touch controls? Only the core's own rectangle counts.
     const half = across / 2;
