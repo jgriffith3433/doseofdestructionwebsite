@@ -345,11 +345,12 @@
     {
       "id": "online",
       "title": "Two players online (peers: 2): the lobby with no clicks, a profile change seen by the other, Find match, CPU while searching, Match found, the online fight to its end, results, both rating changes and the Leaderboard",
-      "description": "Needs Hawkes Gen playtest.run with peers: 2 (the two tabs share ?room=<id>, a private test lobby, and get ?peer=0/1). Both land in the lobby and see \"2 online\"; peer 1 renames itself in Profile and peer 0 sees the new name; peer 0 presses Find match and plays a CPU versus match while it searches; peer 1 presses Find match 30 s later; both see \"Match found vs <name> · Starting in N\", fight each other (the CPU bot on each pad; test lobbies play 1 stock, 90 s) with the names on the HUD, and see the result with Queue again; then each sees its rating change on the result (+16 / −16 for a first match) and opens Leaderboard, where both players are listed with the same ranks and ratings (the test lobby has its own table), and the other player's own result arrives over the relays.",
+      "description": "Needs Hawkes Gen playtest.run with peers: 2 (the two tabs share ?room=<id>, a private test lobby, and get ?peer=0/1). Both land in the lobby and see \"2 online\"; peer 1 renames itself in Profile and peer 0 sees the new name; peer 0 presses Find match and plays a CPU versus match while it searches; peer 1 presses Find match 30 s later; both see \"Match found vs <name> · Starting in N\", fight each other (the CPU bot on each pad; test lobbies play 1 stock, 90 s) with the names on the HUD, and see the result with Queue again; the result shows the opponent card (name, fighter, connection), the plain ending line and the rating counting to its final value with the place on the board (`results-opponent`, `rating-count`, `online-results-fit`: on a 390x844 touch phone the card and buttons fit with no scrolling and no text under 14 px); then each sees its rating change on the result (+16 / −16 for a first match) and opens Leaderboard, where both players are listed with the same ranks and ratings (the test lobby has its own table), and the other player's own result arrives over the relays.",
       "seconds": 420,
       "tags": [
         "full",
-        "online"
+        "online",
+        "touch"
       ]
     },
     {
