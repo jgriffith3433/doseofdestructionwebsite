@@ -47,6 +47,7 @@ import { PAIRS, pairFor } from '../campaign/intros.ts';
 import { SEASON_ONE_ENTRANCES, entranceKind } from '../campaign/intro.ts';
 import { DEFENCE_STEPS, PROMPTS, RECOVERY_STEPS, hintText, padGlyphs, type DefenceStep, type RecoveryStep, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
+import { DIFFICULTY_KEY, reloadDifficulty } from '../campaign/difficulty.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { VoiceWatch } from './voiceWatch.ts';
 import { walkMenus, type Mode } from './menuWalk.ts';
@@ -217,6 +218,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'cpu-level') await r.cpuLevel();
         else if (id === 'auto-quality') await r.autoQuality();
         else if (id === 'quota') await r.quotaObjective();
+        else if (id === 'difficulty') await r.difficultyRun();
         else if (id === 'grades') await r.gradesRun();
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'finale-hijack') await r.finaleHijack();
@@ -2592,6 +2594,137 @@ class Run {
     } finally {
       this.game.setCampaignProgress(before);
     }
+  }
+
+  /**
+   * Campaign difficulty (campaign/difficulty.ts): the Easy / Normal / Hard choice on the season map (44 px targets, kept after
+   * leaving the map), then an episode lost three times in a row from real play (the bot's pad held still): no offer after
+   * one or two losses, "Try it on Easy?" on the third (buttons 44 px tall), and accepting starts the episode again with the
+   * foes' CPU level two lower (`dod:difficulty` logs both). Option `chapter` (default title-defense, a level 5-6 foe).
+   * 390x844 touch: the map is checked in portrait, the fights play in the turned 844x390 frame by taps.
+   */
+  async difficultyRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const asked = this.options.chapter ?? 'title-defense';
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    if (from < 0) {
+      t.problem('bug', `chapter "${String(asked)}" is not in content/campaign.json`);
+      t.finish('error');
+      return;
+    }
+    const keys = [DIFFICULTY_KEY, 'dod-campaign-losses', 'dod-campaign-easy'];
+    const saved = keys.map((k) => localStorage.getItem(k));
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((c) => c.id));
+    const restore = () => {
+      keys.forEach((k, i) => (saved[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, saved[i]!)));
+      reloadDifficulty();
+      this.game.setCampaignProgress(before);
+    };
+    keys.forEach((k) => localStorage.removeItem(k));
+    reloadDifficulty();
+    t.log(`setup shortcut: chapters 1-${from} marked cleared, difficulty back to the default`);
+    if (touch) this.useTap = true;
+    try {
+      await this.toMainMenu();
+      await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+      await this.screen('campaign');
+      // 1. The picker: three thumb-size choices that persist.
+      const picks = () => [...document.querySelectorAll<HTMLElement>('#difficulty .difficulty-btn')];
+      const names = picks().map((b) => b.textContent?.trim());
+      const small = picks().filter((b) => { const r = b.getBoundingClientRect(); return r.height < 44 || r.width < 44 || r.left < 0 || r.right > innerWidth; });
+      if (names.join('/') !== 'Easy/Normal/Hard') t.problem('bug', `the season map's difficulty choice reads ${names.join('/') || 'nothing'}`);
+      if (small.length) t.problem('bug', `difficulty buttons under 44 px or off screen at ${innerWidth}x${innerHeight}: ${small.map((b) => b.textContent).join(', ')}`);
+      t.event('difficulty-picker', `${names.join(' / ')} on the season map at ${innerWidth}x${innerHeight}, smallest ${Math.round(Math.min(...picks().map((b) => b.getBoundingClientRect().height)))} px tall; on ${document.querySelector('#difficulty .on')?.textContent}`);
+      await this.click(() => document.querySelector<HTMLElement>('#difficulty [data-difficulty="hard"]'), 'Hard');
+      const stored = () => JSON.parse(localStorage.getItem(DIFFICULTY_KEY) ?? '"normal"');
+      if (stored() !== 'hard') t.problem('bug', `Hard was tapped but ${DIFFICULTY_KEY} is ${stored()}`);
+      await this.click(() => this.q('.back-btn'), 'Back');
+      await this.screen('main');
+      await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+      await this.screen('campaign');
+      const now = document.querySelector('#difficulty .on')?.textContent;
+      if (now !== 'Hard') t.problem('bug', `Hard did not stay: the map shows ${now} after leaving and coming back`);
+      t.event('difficulty-persist', `Hard saved (${DIFFICULTY_KEY}=${stored()}) and still chosen on the map after leaving it`);
+      await this.click(() => document.querySelector<HTMLElement>('#difficulty [data-difficulty="normal"]'), 'Normal');
+      t.metric('difficultyPicker', 1);
+      if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+        restore();
+        this.logViewport(true);
+        return this.touchMatchTurned('difficulty');
+      }
+      if (touch) forceTouchUi(true);
+
+      // 2. Three losses in a row on one episode.
+      const c = CHAPTERS[from];
+      const log: { phase: string; difficulty: string; cpuFrom: number[]; cpuTo: number[] }[] = [];
+      const onDiff = (ev: Event) => log.push((ev as CustomEvent).detail);
+      window.addEventListener('dod:difficulty', onDiff);
+      try {
+        await this.click(() => this.q(`#chapter-path .chapter[data-chapter="${c.id}"]`), `Chapter ${from + 1} · ${c.title}`);
+        await this.playDialogue();
+        await this.matchLive();
+        const started = log.find((e) => e.phase === 'start');
+        t.event('difficulty-start', `${c.id} on ${started?.difficulty}: foe CPU ${started?.cpuTo.join(', ')}`);
+        for (let loss = 1; loss <= 3; loss++) {
+          this.manual = NO_INPUT;
+          const idleFrom = performance.now();
+          while (currentScreen() !== 'results' && performance.now() - idleFrom < 240000) await this.t.wait(500);
+          this.manual = null;
+          if (currentScreen() !== 'results') {
+            t.problem('warning', `the foe did not beat a standing player in 240 s (loss ${loss}), so the offer was not reached`);
+            await this.quitFromPause('campaign');
+            t.finish('done');
+            return;
+          }
+          await this.results();
+          const offer = this.q('#results .easy-offer');
+          const easyBtn = this.button('#results-actions', 'Try it on Easy');
+          t.event('difficulty-loss', `loss ${loss} on ${c.id}: ${offer ? 'offers "Try it on Easy?"' : 'no offer'}; buttons ${[...document.querySelectorAll<HTMLElement>('#results-actions button')].map((b) => `${b.textContent} (${Math.round(b.getBoundingClientRect().height)} px)`).join(', ')}`);
+          if (loss < 3) {
+            if (offer || easyBtn) t.problem('bug', `the Easy offer showed after only ${loss} loss${loss > 1 ? 'es' : ''}`);
+            await this.click(() => this.button('#results-actions', 'Retry'), 'Retry');
+            await this.matchLive();
+            continue;
+          }
+          if (!offer || !easyBtn) {
+            t.problem('bug', 'the third loss in a row on one episode did not offer "Try it on Easy?"');
+            await this.click(() => this.button('#results-actions', 'Campaign map'), 'Campaign map');
+            await this.screen('campaign');
+            t.finish('done');
+            return;
+          }
+          const bad = [...document.querySelectorAll<HTMLElement>('#results-actions button')].filter((b) => b.getBoundingClientRect().height < 44);
+          if (bad.length) t.problem('bug', `the offer's buttons are under 44 px tall at ${innerWidth}x${innerHeight}: ${bad.map((b) => b.textContent).join(', ')}`);
+          const r = easyBtn.getBoundingClientRect();
+          if (r.top < 0 || r.bottom > innerHeight || r.left < 0 || r.right > innerWidth) t.problem('bug', `"Try it on Easy" is off screen at ${innerWidth}x${innerHeight}`);
+          t.event('difficulty-offer', `third loss: "Try it on Easy?" with ${[...document.querySelectorAll<HTMLElement>('#results-actions button')].map((b) => `${b.textContent} ${Math.round(b.getBoundingClientRect().height)} px`).join(', ')} at ${innerWidth}x${innerHeight}`);
+          t.metric('offerButtonMinPx', Math.round(Math.min(...[...document.querySelectorAll<HTMLElement>('#results-actions button')].map((b) => b.getBoundingClientRect().height))));
+          await this.click(() => this.button('#results-actions', 'Try it on Easy'), 'Try it on Easy');
+          await this.matchLive();
+          const e = log.find((x) => x.phase === 'offer');
+          const m = this.game.match();
+          const level = m ? Math.max(...m.setup.slots.filter((s) => s.cpu !== null && s.cpu > 0 && s.team === 1).map((s) => s.cpu as number)) : 0;
+          const was = Math.max(...(started?.cpuTo ?? [0]));
+          if (!e || Math.max(...e.cpuTo) >= Math.max(...e.cpuFrom) || level >= was) t.problem('bug', `accepting Easy did not lower the CPU level (was ${was}, now ${level})`);
+          if (stored() !== 'easy') t.problem('bug', `accepting Easy left the map's difficulty on ${stored()}`);
+          t.metric('cpuLevelBefore', was);
+          t.metric('cpuLevelEasy', level);
+          t.event('difficulty-easy', `Easy accepted: foe CPU ${was} -> ${level} (${e?.cpuFrom.join(', ')} -> ${e?.cpuTo.join(', ')}), difficulty saved as ${stored()}`);
+          await t.wait(1500);
+          await this.quitFromPause('campaign');
+          const chosen = document.querySelector('#difficulty .on')?.textContent;
+          if (chosen !== 'Easy') t.problem('bug', `after accepting, the season map shows ${chosen} chosen, not Easy`);
+        }
+      } finally {
+        window.removeEventListener('dod:difficulty', onDiff);
+      }
+    } finally {
+      this.manual = null;
+      restore();
+    }
+    t.progress(1);
+    t.finish('won');
   }
 
   /** The grades scenario: the chapter (option `chapter`, default house-heavy) played from the map, then the map opened again from the save. */
