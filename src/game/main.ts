@@ -501,7 +501,7 @@ function prepStageSelect(stage: number, immediate = false): void {
       mode: lastSelect,
       stage,
       stocks: cfg.stocks,
-      rules: { timeLimit: cfg.time * 60 * 60 },
+      rules: { ...(lastSelect === 'versus' && cfg.hazards === false ? { hazards: 0 } : {}), timeLimit: cfg.time * 60 * 60 },
       slots: quickSlots(cfg, lastSelect),
     };
     // keepStage: don't rebuild the arena we just set; clipWait 0: sheets finish later via warmTick.
@@ -531,7 +531,7 @@ function pickStage(stage: number, entry: ModeStage, random = false): void {
     stage,
     stocks: cfg.stocks,
     // The mode's version of the stage can change its rules (a calm version with hazards off).
-    rules: { ...entry.rules, timeLimit: cfg.time * 60 * 60 },
+    rules: { ...entry.rules, ...(lastSelect === 'versus' && cfg.hazards === false ? { hazards: 0 } : {}), timeLimit: cfg.time * 60 * 60 },
     slots: quickSlots(cfg, lastSelect),
   };
   // Build (or no-op reuse) on the stages screen; startMatch drains the lock before the VS wipe.
