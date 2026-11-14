@@ -2,6 +2,7 @@
 // run by the Orchestrator. Each chapter is a scene, a fight with its own
 // rules, and a scene after.
 
+import { mergeBest, type Best } from './grade.ts';
 import { characterIndex } from '../sim/characters.ts';
 import { stageIndex } from '../sim/stage.ts';
 import type { MatchSetup, SlotSetup } from '../match.ts';
@@ -183,6 +184,38 @@ export function recordStars(id: string, stars: number): number {
   const best = Math.max(all[id] ?? 0, stars);
   if (best > 0) saveStars({ ...all, [id]: best });
   return best;
+}
+
+const BESTS_KEY = 'dod-bests';
+
+/** The best score and best time kept per chapter id (sim frames). Cleared before scores existed: no entry. */
+export function loadBests(): Record<string, Best> {
+  try {
+    const saved = JSON.parse(localStorage.getItem(BESTS_KEY) ?? '{}');
+    const out: Record<string, Best> = {};
+    if (saved && typeof saved === 'object')
+      for (const [k, v] of Object.entries(saved as Record<string, Partial<Best>>))
+        if (v && Number.isFinite(v.score) && Number.isFinite(v.frames) && (v.frames as number) > 0) out[k] = { score: v.score as number, frames: v.frames as number };
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function saveBests(bests: Record<string, Best>): void {
+  try {
+    localStorage.setItem(BESTS_KEY, JSON.stringify(bests));
+  } catch {
+    // Storage can be blocked; bests then last only for this visit.
+  }
+}
+
+/** Keeps the better score and the faster time for the chapter; returns the best and what this run beat. */
+export function recordBest(id: string, run: Best): { best: Best; beat: ('score' | 'time')[]; before?: Best } {
+  const all = loadBests();
+  const r = mergeBest(all[id], run);
+  saveBests({ ...all, [id]: r.best });
+  return { ...r, before: all[id] };
 }
 
 export function saveProgress(done: Set<string>): void {

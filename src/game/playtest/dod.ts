@@ -2730,6 +2730,8 @@ class Run {
     t.finish('won');
   }
 
+  private seededBest = false;
+
   /** The grades scenario: the chapter (option `chapter`, default house-heavy) played from the map, then the map opened again from the save. */
   async gradesRun(): Promise<void> {
     const t = this.t;
@@ -2742,7 +2744,11 @@ class Run {
     }
     const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((c) => c.id));
     const savedStars = localStorage.getItem('dod-stars');
+    const savedBests = localStorage.getItem('dod-bests');
     localStorage.removeItem('dod-stars');
+    // Setup shortcut: a weak earlier record (1 point, 99 minutes), so any win beats both and must flash New best!.
+    this.seededBest = true;
+    localStorage.setItem('dod-bests', JSON.stringify({ [CHAPTERS[from].id]: { score: 1, frames: 99 * 60 * 60 } }));
     t.log(`setup shortcut: chapters 1-${from} marked cleared, starting at ${CHAPTERS[from].id}`);
     const t0 = performance.now();
     try {
@@ -2754,11 +2760,15 @@ class Run {
         await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
         await this.screen('campaign');
         this.checkMapStars(CHAPTERS[from], 'after-reopen');
+        const saved = JSON.parse(localStorage.getItem('dod-bests') ?? '{}')[CHAPTERS[from].id];
+        if (!saved || saved.score <= 1 || saved.frames >= 99 * 60 * 60) t.problem('bug', 'the best score and time were not kept in dod-bests after the win');
       } else t.note('the chapter was not won, so no grade was kept');
     } finally {
       this.game.setCampaignProgress(before);
       if (savedStars === null) localStorage.removeItem('dod-stars');
       else localStorage.setItem('dod-stars', savedStars);
+      if (savedBests === null) localStorage.removeItem('dod-bests');
+      else localStorage.setItem('dod-bests', savedBests);
     }
   }
 
@@ -2910,6 +2920,19 @@ class Run {
     if (px < 12) t.problem('bug', `the star labels are ${px}px, under 12 px`);
     t.event('grade', `${c.id}: ${stars} of 3 (par ${c.par} s) · ${steps.map((li) => `${li.dataset.met === '1' ? '★' : '☆'} ${li.textContent?.replace(/[★☆]/g, '').trim()}`).join(' | ')} · ${innerWidth}x${innerHeight}`);
     t.metric('gradeStars', stars);
+    // The score card: score, time, and New best! (the weak record seeded by gradesRun is beaten by any win).
+    const sc = el.querySelector<HTMLElement>('.grade-score');
+    const nb = el.querySelector<HTMLElement>('.new-best');
+    if (!sc || !Number(sc.dataset.score)) t.problem('bug', `winning ${c.id} shows no score on the results`);
+    if (this.seededBest && !nb) t.problem('bug', `${c.id}: the win beat the saved best but results show no "New best!"`);
+    if (nb) {
+      nb.scrollIntoView({ block: 'nearest' });
+      const r = nb.getBoundingClientRect();
+      if (r.width < 2 || r.left < -1 || r.right > innerWidth + 1) t.problem('bug', `${innerWidth}x${innerHeight}: "New best!" is off screen`);
+    }
+    t.event('new-best', `${c.id}: score ${sc?.dataset.score} · "${nb?.textContent?.trim() ?? 'none'}" (beat ${nb?.dataset.beat ?? '-'}) · ${innerWidth}x${innerHeight}`);
+    t.metric('episodeScore', Number(sc?.dataset.score ?? 0));
+    t.metric('newBest', nb ? 1 : 0);
   }
 
   /** The season map shows a cleared episode's best stars with their count in words. */
@@ -2923,6 +2946,21 @@ class Run {
     const label = el.querySelector('small')?.textContent ?? '';
     if (Number(el.dataset.stars) !== saved) t.problem('bug', `the map shows ${el.dataset.stars} stars on ${c.id} but the save has ${saved}`);
     if (r.width < 2 || r.height < 2 || r.left < -1 || r.right > innerWidth + 1) t.problem('bug', `${innerWidth}x${innerHeight}: the map's stars for ${c.id} are off screen`);
+    // Best time and score on the episode card, fully inside the window (a phone included), matching the save.
+    const bt = this.q(`#chapter-path .chapter[data-chapter="${c.id}"] .chapter-best`);
+    if (!bt) t.problem('bug', `the episode card for ${c.id} shows no best time and score`);
+    else {
+      bt.scrollIntoView({ block: 'nearest' });
+      const b = bt.getBoundingClientRect();
+      const rec = JSON.parse(localStorage.getItem('dod-bests') ?? '{}')[c.id];
+      const text = bt.textContent ?? '';
+      if (b.width < 2 || b.height < 2 || b.left < -1 || b.right > innerWidth + 1 || b.bottom > innerHeight + 1 || b.top < -1) t.problem('bug', `${innerWidth}x${innerHeight}: best time and score on ${c.id}'s card are not fully on screen`);
+      if (rec && bt.dataset.bestScore !== String(rec.score)) t.problem('bug', `${c.id}'s card shows best score ${bt.dataset.bestScore} but the save has ${rec.score}`);
+      if (!/Best time/.test(text) || !/Best score/.test(text) || text.includes('\u2014')) t.problem('bug', `${c.id}'s card best reads "${text}"`);
+      const px = Math.min(...[...bt.querySelectorAll('small, b')].map((e) => parseFloat(getComputedStyle(e).fontSize)));
+      if (px < 12) t.problem('bug', `best time and score on the card are ${px}px, under 12 px`);
+      t.event('map-best', `${when}: ${c.id} "${text}" at ${Math.round(b.left)},${Math.round(b.top)} ${Math.round(b.width)}x${Math.round(b.height)} ${innerWidth}x${innerHeight}`);
+    }
     t.event('map-stars', `${when}: ${c.id} ${el.dataset.stars} of 3 ("${label}") at ${Math.round(r.left)},${Math.round(r.top)} ${innerWidth}x${innerHeight}`);
   }
 
