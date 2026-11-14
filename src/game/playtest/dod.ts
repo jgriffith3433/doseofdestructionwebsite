@@ -47,6 +47,7 @@ import { VoiceWatch } from './voiceWatch.ts';
 import { walkMenus, type Mode } from './menuWalk.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
 import { GFX_KEY, HAND_KEY, AUTO_KEY, AUTO_TOAST_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
+import { colourVision } from '../colourVision.ts';
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, inWindupTell, isSmashMove, isSpecialMove, moveStartFrame, tellFrames, windupPose, type HitTier } from '../hitFeel.ts';
 import { clipFrame, feetLift, loadAnimSet, pickClip, type AnimSet } from '../render/anims.ts';
 import type { Match, MatchSetup } from '../match.ts';
@@ -90,6 +91,8 @@ export interface GameHooks {
   hitFxStats?(reset?: boolean): { hits: number; last: { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number } | null; tiers: Record<HitTier, number>; shakeApplied: number; shakeMax: number; shakeOn: boolean };
   /** The colour look each built fighter wears and whether its material runs the palette shader (renderer.lookStats). */
   lookStats?(): { slot: number; char: number; look: number; shader: boolean }[];
+  /** The shape and colour each fighter's ring was built with (renderer.ringShapes). */
+  ringShapes?(): { slot: number; shape: string; color: string }[];
   /** The graphics settings in force and what the renderer is doing with them (render scale, glow layer, readout, fps). */
   aliveStats?(): { pieces: string[]; positions: (readonly [string, number, number, number])[]; screen: 'live' | 'loop'; screenRefresh: number; depths: number[] } | null;
   depthStats?(): { quality: string; camX: number; camDist: number; layers: { id: string; z: number; kind: 'far' | 'foreground' | 'haze' | 'stage'; screenX: number; alpha: number; fade: number | null; behind: boolean }[] };
@@ -231,6 +234,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'input-feel') await r.inputFeel();
         else if (id === 'touch-match') await r.touchMatch();
         else if (id === 'touch-settings') await r.touchSettingsRun();
+        else if (id === 'colour-vision') await r.colourVisionRun();
         else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'post-chain') await r.postChain();
         else if (id === 'lighting') await r.lighting();
@@ -8002,6 +8006,153 @@ class Run {
    * live in a match (size and fade measured on the real elements, all kept inside the window), are saved in
    * localStorage "dod.touch", and are still set after a reload. The run treats the desktop browser as a touch device.
    */
+  /**
+   * Settings > Colour vision (colourVision.ts): the switch is on Settings (menu and Pause), the choice survives a reload,
+   * and in a match every fighter's ring, tag and HUD card carries its own shape (circle, triangle, square, diamond) in
+   * both modes, with the Okabe-Ito colours in Colourblind-safe. On a 390x844 phone the portrait Settings is checked, then
+   * the run plays in the turned 844x390 frame by taps.
+   */
+  async colourVisionRun(): Promise<void> {
+    const t = this.t;
+    const KEY = 'dod.colourvision';
+    const RUN = 'hawkes.playtest.colour-vision';
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const carried = sessionStorage.getItem(RUN);
+    const openSettings = async () => {
+      await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      await t.until(settingsShowing, 3000, 'Settings to open');
+    };
+    const switchLook = (where: string) => {
+      const sw = this.q('#colour-switch');
+      if (!sw) {
+        t.problem('bug', `${where}: Settings has no Colour vision switch`);
+        return null;
+      }
+      const r = sw.getBoundingClientRect();
+      if (r.height < 44 || r.width < 44 || r.left < 0 || r.right > innerWidth || r.bottom > innerHeight + 400) t.problem('bug', `${where}: the Colour vision switch is ${Math.round(r.width)}x${Math.round(r.height)} at ${Math.round(r.left)},${Math.round(r.top)}`);
+      return sw;
+    };
+    const shapesInMatch = async (mode: string) => {
+      const want = ['circle', 'triangle', 'square', 'diamond'];
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      await t.wait(1200);
+      const m = this.game.match();
+      const n = m?.state.fighters.length ?? 0;
+      const rings = this.game.ringShapes?.() ?? [];
+      const tags = [...document.querySelectorAll<HTMLElement>('.fighter-tag:not(.edge-tag)')].filter((e) => !e.hidden);
+      const cards = [...document.querySelectorAll<HTMLElement>('.hud-card')];
+      const ringSet = new Set(rings.map((r) => r.shape));
+      const cardSet = new Set(cards.map((c) => c.dataset.shape));
+      const tagSet = new Set(tags.map((e) => e.dataset.shape));
+      if (rings.length < n || ringSet.size !== n || rings.some((r, i) => r.shape !== want[i])) t.problem('bug', `${mode}: the rings are ${rings.map((r) => r.shape).join(', ')} (want ${want.slice(0, n).join(', ')})`);
+      if (cards.length < n || cardSet.size !== n) t.problem('bug', `${mode}: the HUD cards show ${[...cardSet].join(', ')} for ${n} fighters`);
+      if (tags.length && tagSet.size !== tags.length) t.problem('bug', `${mode}: the name tags repeat a shape (${tags.map((e) => e.dataset.shape).join(', ')})`);
+      // The shape itself is drawn (::before glyph) and big enough to read on a phone.
+      for (const c of cards) {
+        const nm = c.querySelector('.hud-name');
+        const glyph = nm ? getComputedStyle(nm, '::before').content : '';
+        const px = nm ? parseFloat(getComputedStyle(nm).fontSize) : 0;
+        const r = c.getBoundingClientRect();
+        if (!/[●▲■◆]/.test(glyph)) t.problem('bug', `${mode}: HUD card ${c.dataset.slot} draws no shape (${glyph})`);
+        else if (px < 10 || r.left < 0 || r.right > innerWidth) t.problem('bug', `${mode}: HUD card ${c.dataset.slot}'s shape is ${px}px or off screen`);
+      }
+      const colours = rings.map((r) => r.color);
+      t.event('shapes', `${mode}: rings ${rings.map((r) => `${r.shape} ${r.color}`).join(', ')}; tags ${tags.map((e) => e.dataset.shape).join(', ') || 'none in view'}; HUD ${cards.map((c) => `${c.dataset.shape} ${c.style.getPropertyValue('--player')}`).join(', ')}${touch ? ' (phone layout, ' + innerWidth + 'x' + innerHeight + ')' : ''}`);
+      t.metric('shapeCount', ringSet.size);
+      return colours;
+    };
+
+    forceTouchUi(touch);
+    this.useTap = touch;
+    try {
+      // A portrait phone: Settings in the portrait window, then the rest in the turned frame.
+      if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+        this.logViewport(true);
+        await this.toMainMenu();
+        await openSettings();
+        const sw = switchLook('portrait phone');
+        if (sw) t.event('colour-switch', `portrait ${innerWidth}x${innerHeight}: Colour vision reads "${sw.textContent}", ${Math.round(sw.getBoundingClientRect().height)} px tall`);
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        this.useTap = false;
+        forceTouchUi(false);
+        return this.touchMatchTurned('colour-vision');
+      }
+      this.logViewport(touch);
+      if (!carried) {
+        const original = localStorage.getItem(KEY);
+        try {
+          localStorage.removeItem(KEY);
+        } catch {
+          // Storage blocked.
+        }
+        sessionStorage.setItem(RUN, JSON.stringify({ original }));
+        await this.toMainMenu();
+        await openSettings();
+        const sw = switchLook('Settings');
+        if (!sw) return;
+        if (sw.textContent !== 'Standard' || colourVision() !== 'standard') t.problem('bug', `Colour vision starts on "${sw.textContent}" (want Standard)`);
+        t.event('colour-switch', `Settings shows Colour vision: ${sw.textContent}`);
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.wait(200);
+        // Standard: a match with four distinct shapes in the orange, blue, yellow, green set.
+        await this.startVersus(3);
+        await shapesInMatch('Standard');
+        // Pause → Settings → Colourblind-safe, live.
+        await tapKey('Escape');
+        await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+        await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+        await t.until(settingsShowing, 3000, 'Settings from Pause');
+        switchLook('Settings (Pause)');
+        await this.tap(() => this.q('#colour-switch'), 'Colour vision');
+        if (localStorage.getItem(KEY) !== 'safe') t.problem('bug', `Colour vision did not save: ${localStorage.getItem(KEY)}`);
+        else t.event('colour-saved', `dod.colourvision = ${localStorage.getItem(KEY)}`);
+        const cards = [...document.querySelectorAll<HTMLElement>('.hud-card')].map((c) => c.style.getPropertyValue('--player').trim().toLowerCase());
+        if (cards[0] !== '#d55e00') t.problem('bug', `the HUD did not take the colourblind-safe colours at once (${cards.join(', ')})`);
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+        await this.click(() => this.q('#btn-quit'), 'Quit');
+        await this.screen('main');
+        t.progress(0.5);
+        t.event('reload', 'the page reloads; the run carries on after it');
+        const url = new URL(location.href);
+        url.searchParams.set('playtest', 'colour-vision');
+        url.searchParams.set('seed', String(this.options.seed ?? 1));
+        await t.wait(300);
+        location.replace(url.toString());
+        await new Promise(() => {});
+        return;
+      }
+
+      const original = (JSON.parse(carried) as { original: string | null }).original;
+      sessionStorage.removeItem(RUN);
+      try {
+        await this.toMainMenu();
+        await openSettings();
+        const sw = switchLook('Settings after the reload');
+        if (sw?.textContent !== 'Colourblind-safe' || colourVision() !== 'safe') t.problem('bug', `after the reload Colour vision reads "${sw?.textContent}" (want Colourblind-safe)`);
+        else t.event('colour-kept', `after the reload: Colour vision ${sw.textContent} (${localStorage.getItem(KEY)})`);
+        await this.tap(() => this.q('#settings-done'), 'Done');
+        await t.wait(200);
+        await this.startVersus(3);
+        const colours = await shapesInMatch('Colourblind-safe');
+        if (colours[0] !== '#d55e00' || colours[1] !== '#56b4e9') t.problem('bug', `the safe colours are ${colours.join(', ')} (want the Okabe-Ito set)`);
+        await this.quitFromPause('main');
+      } finally {
+        try {
+          if (original === null) localStorage.removeItem(KEY);
+          else localStorage.setItem(KEY, original);
+        } catch {
+          // Storage blocked.
+        }
+      }
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+    }
+  }
+
   async touchSettingsRun(): Promise<void> {
     const t = this.t;
     const carried = (() => {

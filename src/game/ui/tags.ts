@@ -42,7 +42,7 @@ export function placeTag(hx: number, hy: number, w: number, h: number, safe: Rec
   return { x, y, clear: !hits(y) };
 }
 
-export interface TagIn { id: number; x: number; y: number; text: string; color: string }
+export interface TagIn { shape?: string; id: number; x: number; y: number; text: string; color: string }
 
 /** What the tags did, for the playtest. */
 export const tagLog: { frames: number; unclear: number; minHeight: number; texts: Record<number, string> } = { frames: 0, unclear: 0, minHeight: 999, texts: {} };
@@ -72,6 +72,7 @@ export function updateTags(list: TagIn[], safe: Rect, blocked: Rect[]): void {
     }
     if (el.textContent !== t.text) el.textContent = t.text;
     el.style.setProperty('--player', t.color);
+    if (t.shape) el.dataset.shape = t.shape;
     el.hidden = false;
     const w = el.offsetWidth || 32;
     const h = el.offsetHeight || 16;

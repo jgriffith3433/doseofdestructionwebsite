@@ -16,6 +16,7 @@ import { audio } from '../audio.ts';
 import { hintText } from './teach.ts';
 import { landOn, resetLanding } from './nameCall.ts';
 import { currentScreen } from './screens.ts';
+import { TEAM_COLORS } from '../colourVision.ts';
 import { lookCount, lookOpen, openLook, preferredLook, rememberLook, separateLooks } from '../looks.ts';
 
 export interface VersusConfig {
@@ -26,7 +27,7 @@ export interface VersusConfig {
   teams: boolean;
 }
 
-export const TEAM_COLORS = ['#ff5a1f', '#3fa7ff'];
+export { TEAM_COLORS };
 const TEAM_NAMES = ['Red', 'Blue'];
 
 // Stat bars compare each fighter with the rest of the roster.
