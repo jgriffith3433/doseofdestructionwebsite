@@ -1463,6 +1463,27 @@ body.mm-chip-on .screen:not(.match-screen) { padding-top: calc(max(10px, env(saf
 }
 .profile-name input:focus { outline: 2px solid var(--hot); }
 #profile-random { justify-self: start; }
+.overlay .invite-panel { width: min(520px, 100%); text-align: left; max-height: calc(100dvh - 32px); overflow-y: auto; gap: 12px; }
+.invite-status { font-weight: 600; font-size: calc(18px * var(--ts, 1)); }
+.invite-panel[data-state="full"] .invite-status, .invite-panel[data-state="closed"] .invite-status { color: var(--gold); }
+.invite-share { display: grid; gap: 10px; }
+.invite-share[hidden] { display: none; }
+.invite-share input {
+  font: 600 calc(16px * var(--ts, 1)) Barlow, sans-serif;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  width: 100%;
+  box-sizing: border-box;
+  text-overflow: ellipsis;
+}
+.invite-share input:focus { outline: 2px solid var(--hot); }
+.invite-panel button { min-height: 44px; }
+.invite-panel .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.invite-panel .actions button { flex: 1 1 140px; }
 .profile-pick-label { font-weight: 600; }
 .profile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 6px; }
 .profile-tile { aspect-ratio: 1; padding: 0; border-radius: 50%; border: 2px solid transparent; background: var(--card); cursor: pointer; overflow: hidden; }

@@ -284,6 +284,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'intro-exchange') await r.introExchange();
         else if (id === 'site-links') await r.siteLinks();
         else if (id === 'online') await r.online();
+        else if (id === 'invite') await r.inviteRun();
         else if (id === 'reconnect') {
           r.cutMode = true;
           await r.online();
@@ -3754,6 +3755,103 @@ class Run {
       const hit = r.left < pct.right && r.right > pct.left && r.top < pct.bottom && r.bottom > pct.top;
       if (hit) t.problem('bug', `the connection bars of card ${i} overlap the percent`);
     });
+  }
+
+
+  /**
+   * Invite a friend (peers: 2, ?room=<id>&peer=0/1; docs/online.md): peer 0 taps Invite a friend (the share sheet, or the
+   * copy fallback), a stand-in third browser takes the second seat so peer 1's link meets a full room (message and Quick
+   * match), the seat is freed and peer 1 opens the link past the title: both are in the same room, pair and see Match
+   * found. Taps only when the window is a touch phone.
+   */
+  async inviteRun(): Promise<void> {
+    const t = this.t;
+    const net = await Promise.race([onlineReady(), new Promise<null>((r) => setTimeout(() => r(null), 60000))]);
+    const parts = net?.onlineParts() ?? null;
+    if (!net || !parts) {
+      t.problem('bug', 'online play did not start on this page (see the console)');
+      t.finish('error');
+      return;
+    }
+    const { PLAYTEST_PEER, TEST_LOBBY } = net;
+    const peer = Math.max(0, PLAYTEST_PEER);
+    if (!TEST_LOBBY) {
+      t.problem('warning', 'the invite scenario needs ?room=<id> (Hawkes Gen playtest.run with peers: 2); without it there is nobody to meet');
+      t.finish('done');
+      return;
+    }
+    const { lobby, mm } = parts;
+    this.useTap = this.phoneScenario();
+    this.logViewport(this.phoneScenario());
+    if (this.options.at !== 'phone-turned' && innerHeight > innerWidth) this.useTap = true;
+    await this.toMainMenu();
+    t.progress(0.05);
+    const panel = () => this.q('#invite');
+    const panelOpen = () => !!panel() && !panel()!.hidden;
+    const log: string[] = [];
+    window.addEventListener('dod:invite', (e) => log.push((e as CustomEvent).detail?.phase));
+    const code = 'TEST42';
+    const link = net.inviteUrl(code);
+    const roomId = new URL(link).searchParams.get('room');
+    if (net.inviteCodeFrom(new URL(link).search) !== code || roomId !== new URLSearchParams(location.search).get('room')) {
+      t.problem('bug', `the invite link ${link} does not carry its code and test room`);
+    }
+
+    // 1. Peer 0: Invite a friend. The share sheet opens (a phone) or the link is copied (the fallback); the link is shown.
+    if (peer === 0) {
+      await this.click(() => this.q('#btn-invite'), 'Invite a friend');
+      await t.until(() => panelOpen(), 5000, 'the Invite panel');
+      await t.until(() => log.includes('shared') || log.includes('copied') || log.includes('share-failed') || log.includes('share-cancelled'), 8000, 'the link shared or copied');
+      const how = log.includes('shared') ? 'share sheet' : log.includes('copied') ? 'copied' : 'selected for copying';
+      const shown = (this.q('#invite-link') as HTMLInputElement)?.value ?? '';
+      if (!/[?&]invite=TEST42\b/.test(shown)) t.problem('bug', `the invite link shown is "${shown}"`);
+      t.event('invite-created', `Invite a friend: link ${shown} (${how}; ${this.q('#invite-note')?.textContent ?? ''})`);
+      t.event(log.includes('shared') ? 'invite-shared' : 'invite-copied', how);
+      const rect = (this.q('#invite .panel') as HTMLElement).getBoundingClientRect();
+      if (rect.left < 0 || rect.right > innerWidth + 1 || rect.bottom > innerHeight + 1) t.problem('bug', `the Invite panel runs off the window (${Math.round(rect.left)}..${Math.round(rect.right)} x ${Math.round(rect.bottom)})`);
+      for (const b of document.querySelectorAll<HTMLElement>('#invite button:not([hidden]), #invite input')) {
+        const r = b.getBoundingClientRect();
+        if (r.height < 43.5 || r.width < 43.5) t.problem('bug', `an Invite control is ${Math.round(r.width)}x${Math.round(r.height)}: ${b.id}`);
+      }
+      // A stand-in third browser takes the second seat, quietly, so peer 1 meets a full room.
+      await t.until(() => net.inviteInfo().state === 'waiting', 30000, 'the invite room to open');
+      const seat = new net.Invite(code, false, { id: net.standInId(), name: 'Seat', avatar: '' }, true);
+      await seat.start();
+      t.event('invite-seat-taken', `a stand-in browser holds the second seat (${seat.state})`);
+      await t.wait(35000);
+      seat.close();
+      t.event('invite-seat-freed', 'the stand-in left the room');
+      await t.until(() => net.inviteInfo().state === 'paired' || mm.state === 'found', 120000, 'the friend to come in');
+      t.event('invite-paired', `${net.inviteInfo().friend || 'a friend'} opened the link and is in the room`);
+    } else {
+      // 2. Peer 1 opens the link while the seat is taken: Hawkes Net refuses, the panel says so and offers Quick match.
+      await t.wait(15000);
+      net.openInvite(net.inviteCodeFrom(new URL(link).search));
+      await t.until(() => panel()?.dataset.state === 'full', 30000, 'the full-room message');
+      const msg = this.q('#invite-status')?.textContent ?? '';
+      const quick = this.q('#invite-quick') as HTMLButtonElement | null;
+      if (!/full/i.test(msg)) t.problem('bug', `the full-room message says "${msg}"`);
+      if (!quick || quick.hidden || quick.getClientRects().length === 0) t.problem('bug', 'a full room has no Quick match button');
+      else if (quick.getBoundingClientRect().height < 43.5) t.problem('bug', 'Quick match is under 44 px tall');
+      t.event('invite-full', `${msg} [${quick?.textContent?.trim() ?? 'no button'}]`);
+      await this.click(() => this.q('#invite-quick'), 'Quick match');
+      await t.until(() => mm.state === 'searching', 5000, 'Quick match to start searching');
+      t.event('invite-quick-match', 'Quick match from the full-room message started a search');
+      mm.cancel();
+      // 3. The seat is free: peer 1 opens the link again and lands in peer 0's room.
+      await t.wait(25000);
+      net.openInvite('TEST42');
+      await t.until(() => net.inviteInfo().state === 'paired', 30000, "peer 0's room");
+      t.event('invite-paired', `in the room with ${net.inviteInfo().friend}`);
+    }
+    t.progress(0.7);
+    // 4. Both in the same room: the pair handshake runs and both see Match found.
+    await t.until(() => (this.q('#mm-found') && !this.q('#mm-found')!.hidden) || this.game.match()?.setup.mode === 'online', 60000, 'Match found');
+    t.event('match-found', (this.q('#mm-found')?.textContent ?? '').replace(/\s+/g, ' ').trim());
+    if (lobby.count() < 2) t.problem('bug', 'the invite pair is not in the shared lobby');
+    t.metric('inviteBoth', 1);
+    mm.cancel();
+    t.finish('done');
   }
 
   /** Two tabs (peers: 2) in one private test lobby: see each other, rename, queue, get matched, fight, results. */
