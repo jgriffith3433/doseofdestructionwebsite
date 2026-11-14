@@ -90,6 +90,7 @@ export class PostChain {
   private quality: Quality = 'high';
   private frames = 0;
   private drawn = 0;
+  private probing = false;
   private glitchUntil = 0;
   private glitchDrawn = 0;
   private glitches = 0;
@@ -118,8 +119,8 @@ export class PostChain {
       if (punching) this.drawn++;
       effect.setFloat('lutOn', this.ready ? 1 : 0);
       effect.setFloat('vignette', high ? 0.34 : 0.3);
-      effect.setFloat('grain', high ? 0.035 : 0);
-      effect.setFloat('seed', (performance.now() % 997) * 0.37);
+      effect.setFloat('grain', high && !this.probing ? 0.035 : 0);
+      effect.setFloat('seed', this.probing ? 0 : (performance.now() % 997) * 0.37);
       effect.setFloat('aberration', punching ? 0.012 : 0);
       effect.setFloat('punch', punching ? 1 : 0);
       // The takeover glitch runs on Low too (one extra texture read, no grain): it is the story beat, not polish.
@@ -144,6 +145,11 @@ export class PostChain {
     tex.wrapU = Texture.CLAMP_ADDRESSMODE;
     tex.wrapV = Texture.CLAMP_ADDRESSMODE;
     this.lutTex = tex;
+  }
+
+  /** The readability probe renders the same frame several times: no grain, so two renders of one scene match. */
+  setProbe(on: boolean): void {
+    this.probing = on;
   }
 
   setQuality(q: Quality): void {
