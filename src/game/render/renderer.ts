@@ -409,7 +409,7 @@ export class Renderer {
     el.setAttribute('role', 'status');
     el.setAttribute('aria-live', 'polite');
     el.textContent = 'Graphics eased to keep the fight smooth.';
-    el.style.cssText = 'position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:55;max-width:min(60vw,420px);padding:8px 14px;border-radius:16px;font:600 13px/1.3 system-ui,sans-serif;text-align:center;color:#f4ead8;background:rgba(16,14,12,.72);pointer-events:none;opacity:0;transition:opacity 300ms';
+    el.style.cssText = 'position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:55;max-width:min(60vw,420px);padding:8px 14px;border-radius:16px;font:600 calc(13px * var(--ts,1))/1.3 system-ui,sans-serif;text-align:center;color:#f4ead8;background:rgba(16,14,12,.72);pointer-events:none;opacity:0;transition:opacity 300ms';
     document.body.appendChild(el);
     this.autoToastEl = el;
     requestAnimationFrame(() => (el.style.opacity = '1'));
@@ -546,7 +546,7 @@ export class Renderer {
     el.id = 'fps-meter';
     el.setAttribute('aria-hidden', 'true');
     el.hidden = !this.gfx.fps;
-    el.style.cssText = 'position:fixed;right:6px;bottom:6px;z-index:60;padding:2px 6px;font:700 11px/1.3 monospace;color:#ffd15a;background:rgba(16,14,12,.7);border-radius:3px;pointer-events:none';
+    el.style.cssText = 'position:fixed;right:6px;bottom:6px;z-index:60;padding:2px 6px;font:700 12px/1.3 monospace;color:#ffd15a;background:rgba(16,14,12,.7);border-radius:3px;pointer-events:none';
     document.body.appendChild(el);
     this.fpsEl = el;
     let last = 0;

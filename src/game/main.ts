@@ -11,6 +11,7 @@ import type { VoiceKind } from './voiceDirector.ts';
 import { panFromScreen } from './roomAudio.ts';
 import { Commentator, introCall, suddenDeathCall, type Call } from './commentary.ts';
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
+import { TEXT_SIZES, onTextSize, setTextSize, textSize } from './textSize.ts';
 import { colourVision, onColourVision, setColourVision, shapeOf } from './colourVision.ts';
 import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
 import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings, hitVibrate } from './touchSettings.ts';
@@ -1748,6 +1749,7 @@ function renderSettings(): void {
   const cv = $('colour-switch');
   cv.setAttribute('aria-checked', String(colourVision() === 'safe'));
   cv.textContent = colourVision() === 'safe' ? 'Colourblind-safe' : 'Standard';
+  document.querySelectorAll<HTMLElement>('#textsize-seg [data-ts]').forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.ts) === textSize())));
   const g = graphics();
   const flip = (id: string, on: boolean, text: string) => {
     $(id).setAttribute('aria-checked', String(on));
@@ -1806,6 +1808,15 @@ function wireSettings(): void {
     // Cards already on screen (Pause in a match) take the new colours now; the rings follow at the next match.
     if (match) document.querySelectorAll<HTMLElement>('.hud-card').forEach((el, i) => el.style.setProperty('--player', slotColor(match!, i)));
   });
+  onTextSize(() => renderSettings());
+  document.querySelectorAll<HTMLElement>('#textsize-seg [data-ts]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const v = Number(b.dataset.ts);
+      if (!(TEXT_SIZES as readonly number[]).includes(v)) return;
+      setTextSize(v as (typeof TEXT_SIZES)[number]);
+      analytics.setting('text_size', v, from());
+    }),
+  );
   $('colour-switch').addEventListener('click', () => {
     setColourVision(colourVision() === 'safe' ? 'standard' : 'safe');
     analytics.setting('colour_vision', colourVision(), from());
