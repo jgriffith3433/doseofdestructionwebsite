@@ -8,6 +8,7 @@ import { audio } from '../audio.ts';
 import { screen as trackScreen } from '../analytics.ts';
 import { startStinger } from './stinger.ts';
 import { flashPressed } from './dom.ts';
+import { hintText } from './teach.ts';
 
 export type ScreenId =
   | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'tour' | 'extras' | 'howto' | 'results' | 'match' | 'leaderboard';
@@ -61,6 +62,10 @@ function show(id: ScreenId): void {
     el.hidden = el.id !== id;
   });
   document.body.dataset.screen = id;
+  // Hints written with control tokens (`data-hint`) read for the device in hand when the screen opens.
+  document.querySelectorAll<HTMLElement>(`#${id} [data-hint]`).forEach((el) => {
+    el.textContent = hintText(el.dataset.hint ?? '');
+  });
   trackScreen(id);
 }
 
