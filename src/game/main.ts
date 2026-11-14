@@ -2,6 +2,7 @@
 // campaign's scene-fight-scene rhythm.
 
 // First: analytics (Hawkes Analytics, analytics.ts) marks the load start and stamps the build.
+import { FutureTaunts } from './campaign/futureTaunts.ts';
 import { bootFail, bootReady, bootStep, pressHandled } from './boot.ts';
 import { setShareExtra } from './ui/share.ts';
 import * as analytics from './analytics.ts';
@@ -1704,6 +1705,8 @@ function beginReady(m: Match): void {
   audio.setMusicIntensity(audio.shouldBeIntense(m.state.fighters));
   lastActions = m.state.fighters.map((f) => f.action);
   crowdStocksBefore = m.state.fighters.map((f) => f.stocks);
+  futureTaunts = new FutureTaunts();
+  document.querySelector('.booth-taunt')?.remove();
   canvas.focus();
 }
 
@@ -1794,6 +1797,25 @@ function showPauseOwner(slot: number | null): void {
 let lastActions: number[] = [];
 /** Stocks snapshot before each KO batch, for crowd comeback cheers (mirrors commentary). */
 let crowdStocksBefore: number[] = [];
+let futureTaunts = new FutureTaunts();
+let futureTauntTimer = 0;
+
+/** Future Man answers the fight: a hit landed or taken, the other fighter on the ledge. A recorded take plays when there is one; the caption is one short line. */
+function futureManTaunt(m: Match, events: ReturnType<Match['tick']>): void {
+  const me = m.state.fighters.findIndex((f) => CHARACTERS[f.char].id === 'future-man');
+  if (me < 0 || m.state.fighters.length < 2) return;
+  for (const e of events) {
+    const t = futureTaunts.react(e, me, m.state.frame);
+    if (!t) continue;
+    void audio.line(t.id, 'taunt');
+    document.querySelector('.booth-taunt')?.remove();
+    document.body.appendChild(h('div', { class: 'booth booth-taunt', 'data-line': t.id, 'data-kind': t.kind }, h('span', { class: 'booth-who' }, 'Future Man'), h('span', { class: 'booth-text' }, t.text)));
+    window.clearTimeout(futureTauntTimer);
+    futureTauntTimer = window.setTimeout(() => document.querySelector('.booth-taunt')?.remove(), 2600);
+    window.dispatchEvent(new CustomEvent('dod:future-taunt', { detail: { id: t.id, kind: t.kind, text: t.text, frame: m.state.frame } }));
+    return;
+  }
+}
 let startToken = 0;
 
 function tick(m: Match): void {
@@ -1969,6 +1991,7 @@ function showBanner(text: string, ms: number): HTMLElement {
 function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
   // A killing blow gets the KO roar, not a gasp on top of it in the same frame.
   const koThisTick = events.some((k) => k.type === 'ko');
+  futureManTaunt(m, events);
   for (const e of events) {
     switch (e.type) {
       case 'hit':
