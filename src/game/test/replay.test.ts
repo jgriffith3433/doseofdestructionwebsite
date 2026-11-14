@@ -60,7 +60,7 @@ if (typeof globalThis.localStorage === 'undefined') {
     mode: 'versus',
     stage: 0,
     stocks: 1,
-    rules: { time: 45, hazards: 1, items: 1 },
+    rules: { timeLimit: 45, hazards: 1 },
     events: [{ id: 'spot-1', kind: 'break', when: { time: 2 } }],
     slots: [
       { char: 0, cpu: null },

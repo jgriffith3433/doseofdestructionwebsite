@@ -17,7 +17,7 @@ import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
 import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings } from './touchSettings.ts';
 import { rumble, rumbleHit } from './rumble.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
-import { ACT } from './sim/state.ts';
+import { ACT, hashState } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
 import { onShieldMode, setShieldActive, setShieldMode, shieldMode, releaseShieldLatch } from './input/shieldMode.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
@@ -51,6 +51,8 @@ import { NO_INPUT } from './sim/input.ts';
 import { step, SUDDEN_HOLD } from './sim/step.ts';
 import { stageIndex } from './sim/stage.ts';
 import type { GameState } from './sim/state.ts';
+import { ReplayPlayer, saveReplay, type Replay } from './replay.ts';
+import { emit as replayEmit, openReplayBar, type ReplayBar } from './ui/replayBar.ts';
 import { HighlightPlayer, loadHighlight, nextChapterId, recapApplies, recapId, saveHighlight, teaseId } from './campaign/highlight.ts';
 import { playSegment, type SegmentEnv, type Showcase } from './ui/segment.ts';
 // Online code is never imported here: it loads after boot through the loader (a failure there can't stop the game).
@@ -716,6 +718,112 @@ function replaySounds(events: SimEvent[]): void {
       audio.crowd('roar');
     }
   }
+}
+
+
+// ------------------------------------------------ Watch replay (Results)
+
+/** The replay on screen: the player (a fresh Match fed the recorded inputs), its control bar and the way back. */
+let replayRun: { player: ReplayPlayer; bar: ReplayBar; hudFor: Match; back: () => void; ended: boolean; seq: number } | null = null;
+let replaySeq = 0;
+
+/** Keeps the finished match's replay with the profile (bounded) and returns the full one for Watch replay. */
+function keepReplay(m: Match): Replay | null {
+  if (m.setup.mode === 'training' || m.setup.teach === 'pilot') return null;
+  const r = m.buildReplay();
+  if (r) saveReplay(r);
+  return r;
+}
+
+/** Adds Watch replay after the primary result button. `reshow` puts the same results back. */
+function addWatchReplay(actions: (ResultAction & { disabled?: boolean })[], m: Match, reshow: () => void): void {
+  const r = keepReplay(m);
+  if (!r) return;
+  actions.splice(Math.min(1, actions.length), 0, { label: 'Watch replay', run: () => void watchReplay(r, reshow) });
+}
+
+function endReplay(): void {
+  const run = replayRun;
+  if (!run) return;
+  replayRun = null;
+  run.bar.destroy();
+  renderer.setFreeCamera(false);
+  audio.stopVoice();
+  replayEmit('exit', { tick: run.player.tick });
+}
+
+async function watchReplay(r: Replay, back: () => void): Promise<void> {
+  const player = new ReplayPlayer(r);
+  const setup = player.match.setup;
+  await go('match', async () => {
+    endMatch();
+    $('hud').hidden = true;
+    audio.stopVoice();
+    await arenaFor(setup.stage, setup.slots.map((x) => x.look ?? 0), player.state, 4000);
+    audio.playStageBed(STAGES[setup.stage].id);
+    buildHud(player.match);
+    renderer.render(player.state);
+  });
+  const seq = ++replaySeq;
+  const exit = (): void => {
+    if (!replayRun || replayRun.seq !== seq) return;
+    endReplay();
+    back();
+  };
+  const note = (phase: string): void => replayEmit(phase, { speed: player.speed, paused: player.paused, camera: player.camera, tick: player.tick, total: player.totalTicks });
+  const bar = openReplayBar(
+    {
+      total: () => player.totalTicks,
+      tick: () => player.tick,
+      paused: () => player.paused || player.done,
+      speed: () => player.speed,
+      camera: () => player.camera,
+      togglePause: () => {
+        if (player.done) { player.restart(); player.paused = false; replayRun!.ended = false; } else player.togglePause();
+        note('pause');
+      },
+      setSpeed: (sp) => { player.setSpeed(sp); note('speed'); },
+      toggleCamera: () => {
+        renderer.setFreeCamera(player.toggleCamera() === 'free');
+        note('camera');
+      },
+      back: (sec) => { player.seek(player.tick - sec * 60); replayRun!.ended = false; note('seek'); },
+      exit,
+      pan: (dx, dy) => { const k = renderer.freeCameraState().d * 0.0016; renderer.panFreeCamera(-dx * k, dy * k); },
+      zoom: (st) => renderer.panFreeCamera(0, 0, st * 1.5),
+    },
+    canvas,
+  );
+  replayRun = { player, bar, hudFor: player.match, back, ended: false, seq };
+  note('start');
+}
+
+/** One frame of the replay: advance by wall time at the chosen speed, draw, keep the HUD on the replayed match. */
+function replayFrame(dtMs: number, draw: boolean): void {
+  const run = replayRun;
+  if (!run) return;
+  const p = run.player;
+  const { events } = p.advance(dtMs);
+  if (events.length) {
+    renderer.onEvents(events);
+    replaySounds(events);
+  }
+  if (run.hudFor !== p.match) {
+    run.hudFor = p.match;
+    buildHud(p.match);
+  }
+  updateHud(p.match);
+  if (p.done && !run.ended) {
+    run.ended = true;
+    const s = p.state;
+    replayEmit('end', {
+      winner: s.winner, stocks: s.fighters.map((f) => f.stocks), percents: s.fighters.map((f) => f.percent),
+      want: p.replay.result.winner, wantStocks: p.replay.result.stocks, hash: hashState(s), wantHash: p.replay.result.hash,
+      tick: p.tick, total: p.totalTicks,
+    });
+  }
+  run.bar.update();
+  if (draw) renderer.render(p.state);
 }
 
 /** A fight's cast standing on their stage, idling: what the tease cuts to. */
@@ -1477,6 +1585,7 @@ function beginReady(m: Match): void {
 }
 
 function endMatch(): void {
+  endReplay();
   releaseShieldLatch();
   skipScene();
   // A match left any other way than its end, a restart or Quit (another match starting over it) ends its level here.
@@ -2092,6 +2201,16 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   }
   // The winner's quote, picked before the screen opens so the caption and the voice are the same line.
   const quote = announceWinQuote(m, m.state.winner, tourRun?.setup === m.setup && won);
+  // Watch replay: the whole match from its recorded inputs (not on the Tour's lost-fight choice, which has its own panel).
+  const tourLost = tourRun?.setup === m.setup && !won;
+  if (!tourLost) {
+    addWatchReplay(actions, m, () => void go('results', () => {
+      endMatch();
+      showResults(m, actions, undefined, [], levelChange ?? undefined);
+      if (tourRun?.setup === m.setup && won) $('results-body').prepend(tourBanner(tourRun.tour, tourRun.continues));
+      startResultsMusic();
+    }));
+  }
   void go('results', () => {
     endMatch();
     if (tourRun?.setup === m.setup && !won) {
@@ -2193,7 +2312,7 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
     session?.decline();
     clearRematchPanel();
   };
-  const actionsFor = (): (ResultAction & { disabled?: boolean })[] => {
+  let actionsFor = (): (ResultAction & { disabled?: boolean })[] => {
     const live = session?.active ?? false;
     const out: (ResultAction & { disabled?: boolean })[] = [];
     if (live && session!.phase === 'open') out.push({ label: 'Rematch', primary: true, run: () => { analytics.feature('rematch', { value: 'press' }); session!.press(); } });
@@ -2210,6 +2329,24 @@ async function onlineEnded(m: Match, f: OnlineFight, end: FightEnd): Promise<voi
     return out;
   };
   const actions = actionsFor();
+  const reshow = (): void => void go('results', () => {
+    endMatch();
+    showResults(m, actionsFor(), { ...ending, winner: end.winner >= 0 ? end.winner : undefined }, []);
+    if (session) renderRematch(session);
+    onlineCall('rating change', (o) => o.showRatingChange(end, f.slot));
+    startResultsMusic();
+  });
+  // Online replays are the confirmed inputs only (net/rollback truncates a rolled-back tick before it is replaced).
+  const replayAction = voided ? null : keepReplay(m);
+  if (replayAction) {
+    const orig = actionsFor;
+    actionsFor = () => {
+      const out = orig();
+      out.splice(Math.min(1, out.length), 0, { label: 'Watch replay', run: () => void watchReplay(replayAction, reshow) });
+      return out;
+    };
+    actions.splice(0, actions.length, ...actionsFor());
+  }
   if (session) {
     let shown = '';
     const redraw = () => {
@@ -2564,7 +2701,9 @@ function frame(draw = true): void {
   }
   if (fight) showNetStatus(fight);
 
-  if (showcase && currentScreen() === 'match') {
+  if (replayRun && currentScreen() === 'match') {
+    replayFrame(dtReal, draw);
+  } else if (showcase && currentScreen() === 'match') {
     // A replay, recap or tease (ui/segment.ts) is on the arena: it advances itself and is drawn instead of the match.
     showcase.advance(dtReal);
     if (showcase && draw) renderer.render(showcase.state);

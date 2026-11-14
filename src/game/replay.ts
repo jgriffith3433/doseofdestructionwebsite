@@ -329,6 +329,14 @@ export class ReplayPlayer {
     this.acc = 0;
   }
 
+  /** Jumps to `tick` (earlier or later) by rebuilding the match and stepping silently to it: the sim is deterministic. */
+  seek(tick: number): void {
+    const to = Math.max(0, Math.min(this.inputs.length, tick | 0));
+    if (to < this.tick) this.restart();
+    while (this.tick < to) this.stepOne();
+    this.acc = 0;
+  }
+
   /** Steps one recorded sim tick and returns its `SimEvent[]`. */
   stepOne(): SimEvent[] {
     if (this.tick >= this.inputs.length) return [];
