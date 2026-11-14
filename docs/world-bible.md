@@ -590,3 +590,12 @@ The booth reacts to play. First KO of a bout: the ON AIR bug flashes red under t
 
 ## Name tags (on-stage identity)
 Every fighter wears the show's name tag: P1-P4 for people, CPU for bots, DUMMY in Training, the profile name online. It sits above the head in the player colour with a dark outline (ui/tags.ts), and rides the edge bubble when the fighter is knocked out of view, so a player knows which fighter is theirs without relying on colour.
+
+## The first bout (the opening beat)
+
+- **Areas:** the stage the first match of a visit is on (Training or a Versus bout); no new area.
+- **Landmarks:** the fly-in from the far layers, the stage-name lower third, the rival's entrance spot.
+- **Who lives here:** whoever stands across from the player: Break, Wallit, Kaelen and the rest each enter as in "The broadcast opens"; the announcer calls the stage.
+- **Characters:** no new character; entrances use each fighter's existing voice and look.
+- **What happens:** the first fight of every page visit, however it starts (the Versus card, Training, a setup shortcut), plays the match intro once (`openingBeatSeen` in `main.ts` `startMatch`): the rival drops in with dust and a thud, the crowd and bed play, then Ready. No input is asked for until Ready; any press skips it. Retry and later bouts go straight to Ready. Lessons, online, Tonight's Episode and episodes with their own scene are unchanged.
+- **Story beats:** told by camera, entrance, crowd and the announcer's call, with one caption line (the stage name).
