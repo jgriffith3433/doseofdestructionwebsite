@@ -415,6 +415,16 @@
       ]
     },
     {
+      "id": "sudden-death",
+      "title": "Sudden death: a dead-even time-out respawns both at 300%, the slam and announcer call it, the zone closes, first KO wins inside 30 s (phone: slam fits, touch live)",
+      "description": "Setup shortcut: a versus match, two idle fighters (2 stocks, 0% each) on a 10 s clock, so stocks and percent are exactly level at time-out. Checks it goes to sudden death instead of naming a winner (sudden-start), the SUDDEN DEATH slam card inside the screen (sudden-slam, sudden-slam-fit), the announcer call (sudden-call), both at 300% with one stock (sudden-percent); then the bot plays and the bout ends on a KO within 30 s, not as a time-out (sudden-end, metric suddenSeconds). On a 390x844 phone it turns to 844x390 and presses the touch stick and Attack with pointer events during sudden death (sudden-touch).",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "ko-objective",
       "title": "The ko objective: \"KOs 0/3\" with the clock, counting up, won on the third KO; then a round lost when time runs out",
       "description": "Setup shortcut: straight into each match as a campaign fight, no menus (the ko objective has no chapter yet). Round 1: Exit Punk (the bot) vs Kaelen (CPU 1, 9 stocks, every life at 120%) on Yo House, 3 KOs before a 2-minute clock; it ends on the third KO. Round 2: vs a giant Break (CPU 9, 9 stocks), 3 KOs before a 20-second clock; it ends on time. Each round checks the chip and the clock as the match starts, every change of the chip against the KOs scored, and the results line saying which way it ended. Events ko-chip, ko-clock, ko-count, ko-result.",

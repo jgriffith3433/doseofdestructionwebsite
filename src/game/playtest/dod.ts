@@ -193,6 +193,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'endings') await r.endingsScenario();
         else if (id === 'opening') await r.openingScenario();
         else if (id === 'ko-objective') await r.koObjective();
+        else if (id === 'sudden-death') await r.suddenDeath();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'finale-hijack') await r.finaleHijack();
@@ -3810,6 +3811,113 @@ class Run {
       await this.wait(150);
     }
     return { card, lines };
+  }
+
+  /**
+   * Sudden death (sim/step.ts startSuddenDeath, main.ts suddenDeathMoment): a setup shortcut puts two idle fighters into a
+   * versus match with a 10 s clock (nobody touches anything, so stocks and percent are exactly level at time-out). It must
+   * go to sudden death instead of naming a winner (`sudden-start`), with the slam card up and inside the screen
+   * (`sudden-slam`, `sudden-slam-fit`), the announcer's call (`sudden-call`), both fighters at 300% (`sudden-percent`);
+   * then the bot plays and the bout must end on a KO inside 30 s (`sudden-end`, metric `suddenSeconds`), not as a time-out.
+   * On a phone (390x844 turned to 844x390) the touch stick and Attack button are pressed with pointer events during it and
+   * the input layer must read them (`sudden-touch`).
+   */
+  async suddenDeath(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('sudden-death');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) forceTouchUi(true);
+    const slams: { text: string; at: number }[] = [];
+    const onSlam = (e: Event) => slams.push({ text: (e as CustomEvent).detail.text, at: performance.now() });
+    let called = false;
+    const onSudden = () => { called = true; };
+    window.addEventListener('dod:slam', onSlam);
+    window.addEventListener('dod:sudden-death', onSudden);
+    try {
+      const id = (list: { id: string }[], want: string) => Math.max(0, list.findIndex((x) => x.id === want));
+      void this.game.startMatch({
+        mode: 'versus', stage: id(STAGES, 'yo-house'), stocks: 2, rules: { timeLimit: 10 * 60, hazards: 0 },
+        slots: [{ char: id(CHARACTERS, 'exit-punk'), cpu: null, team: 0, stocks: 2 }, { char: id(CHARACTERS, 'break'), cpu: null, team: 1, stocks: 2 }],
+      });
+      await this.matchLive();
+      const m = this.game.match()!;
+      this.manual = NO_INPUT;
+      t.event('sudden-setup', 'two idle fighters, 2 stocks each, 0% each, 10 s clock: an exact tie at time-out');
+      await t.until(() => m.state.sudden > 0 || m.state.over === 1, 60000, 'the time-out');
+      if (m.state.over || m.state.timedOut) {
+        t.problem('bug', `an exact tie at time-out ended the match (winner P${m.state.winner + 1}, timedOut ${m.state.timedOut}) instead of going to sudden death`);
+        return t.finish('done');
+      }
+      const at = m.state.frame;
+      t.event('sudden-start', `time-out at ${Math.round(at / 60)} s with stocks ${m.state.fighters.map((f) => f.stocks).join('/')} level: sudden death, no winner named`);
+      await t.until(() => !!document.querySelector('.slam.sudden') || slams.some((s) => /sudden/i.test(s.text)), 4000, 'the sudden death slam');
+      const slam = document.querySelector<HTMLElement>('.slam.sudden');
+      if (!slam) t.problem('bug', 'no sudden death slam card was shown');
+      else {
+        await t.wait(300);
+        const r = slam.getBoundingClientRect();
+        const fits = r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight && r.width > 0;
+        t.event('sudden-slam', `"${slam.textContent}" ${Math.round(r.width)}x${Math.round(r.height)} at ${Math.round(r.left)},${Math.round(r.top)} in ${innerWidth}x${innerHeight}`);
+        if (!fits) t.problem('bug', `the sudden death slam doesn't fit the screen (${Math.round(r.left)},${Math.round(r.top)} to ${Math.round(r.right)},${Math.round(r.bottom)} in ${innerWidth}x${innerHeight})`);
+        else t.event('sudden-slam-fit', `inside the ${innerWidth}x${innerHeight} window`);
+      }
+      await t.until(() => called, 2000, 'the sudden death call').catch(() => undefined);
+      await t.until(() => !!document.querySelector('.booth[data-call="sudden-death"]'), 3000, 'the announcer caption').catch(() => undefined);
+      const caption = document.querySelector('.booth[data-call="sudden-death"] .booth-text')?.textContent ?? '';
+      if (!called || !document.querySelector('.booth[data-call="sudden-death"]')) t.problem('bug', 'the announcer did not call sudden death');
+      else t.event('sudden-call', `Announcer: "${caption}"`);
+      const pct = m.state.fighters.map((f) => Math.round(f.percent / 10));
+      if (pct.every((p) => p === 300) || m.state.fighters.every((f) => f.percent >= 3000)) t.event('sudden-percent', `both fighters at ${pct.join('% and ')}%, one stock each`);
+      else t.problem('bug', `sudden death should start both fighters at 300% (got ${pct.join('%, ')}%)`);
+      if (m.state.fighters.some((f) => f.stocks !== 1)) t.problem('bug', 'sudden death fighters should have one stock each');
+      if (touch) {
+        // The touch controls stay live: a finger on the stick and on Attack must reach the input layer.
+        const root = touchOverlay();
+        const fire = (el: Element, type: string, x: number, y: number) =>
+          el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: 88, isPrimary: true, bubbles: true, cancelable: true, clientX: x, clientY: y, buttons: type === 'pointerup' ? 0 : 1 }));
+        const btn = root?.querySelector('.touch-btn.attack');
+        const stick = root?.querySelector('.touch-stick');
+        if (!root || !btn || !stick) t.problem('bug', 'the touch controls are gone during sudden death');
+        else {
+          const br = btn.getBoundingClientRect();
+          fire(btn, 'pointerdown', br.left + br.width / 2, br.top + br.height / 2);
+          await t.wait(100);
+          const down = (readTouch()[2] & BTN.ATTACK) !== 0;
+          fire(btn, 'pointerup', br.left + br.width / 2, br.top + br.height / 2);
+          const sr = stick.getBoundingClientRect();
+          const cx = sr.left + sr.width / 2;
+          const cy = sr.top + sr.height / 2;
+          fire(stick, 'pointerdown', cx, cy);
+          fire(stick, 'pointermove', cx + sr.width * 0.35, cy);
+          await t.wait(100);
+          const dx = readTouch()[0];
+          fire(stick, 'pointerup', cx, cy);
+          const inside = [br, sr].every((r) => r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight);
+          if (down && dx > 0 && inside) t.event('sudden-touch', `Attack button read ${down ? 'down' : 'up'}, stick read ${dx.toFixed(2)}, both inside ${innerWidth}x${innerHeight}`);
+          else t.problem('bug', `touch controls didn't respond during sudden death (attack read ${down}, stick x ${dx}, on screen ${inside})`);
+        }
+      }
+      this.manual = null;
+      await this.fight(() => false, 60000);
+      const secs = (m.state.frame - at) / 60;
+      t.metric('suddenSeconds', Math.round(secs * 10) / 10);
+      if (m.state.over && !m.state.timedOut && m.state.winner >= 0 && secs <= 30) t.event('sudden-end', `P${m.state.winner + 1} won by the first KO after ${secs.toFixed(1)} s`);
+      else t.problem('bug', `sudden death didn't end in a KO within 30 s (over ${m.state.over}, timedOut ${m.state.timedOut}, ${secs.toFixed(1)} s)`);
+      await this.results();
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.finish('done');
+    } finally {
+      this.manual = null;
+      window.removeEventListener('dod:slam', onSlam);
+      window.removeEventListener('dod:sudden-death', onSudden);
+      if (touch) forceTouchUi(false);
+    }
   }
 
   /** The 'ko' objective, both ways it ends: on the third KO, and on time. */

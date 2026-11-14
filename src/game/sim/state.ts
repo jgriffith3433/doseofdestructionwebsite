@@ -99,6 +99,8 @@ export interface Fighter {
   /** The shared grab: the fighter id + 1 this one holds (0 none), and the id + 1 holding this one. */
   holding: number;
   heldBy: number;
+  /** 1 while this fighter is in sudden death (set when it starts). */
+  suddenIn: number;
   /** The throw being thrown (THROW index + 1, 0 none). */
   throwKind: number;
 }
@@ -144,9 +146,11 @@ export interface Rules {
   timeLimit: number;
   /** 1: the stage's events, damage zones and hazards are on. 0: a quiet stage (wind, water and gravity zones stay). */
   hazards: number;
+  /** 1: a time-out that is exactly level (stocks and percent) goes to sudden death. 0: counting objectives, which end on time. */
+  suddenDeath: number;
 }
 
-export const DEFAULT_RULES: Rules = { gravity: 100, damage: 100, timeLimit: 0, hazards: 1 };
+export const DEFAULT_RULES: Rules = { gravity: 100, damage: 100, timeLimit: 0, hazards: 1, suddenDeath: 1 };
 
 /** A scripted mid-match broadcast event (content/campaign.json `events`). */
 export interface BroadcastDef {
@@ -206,6 +210,8 @@ export interface GameState {
   winnerTeam: number;
   /** Set when the match ended because time ran out. */
   timedOut: number;
+  /** Sudden death: 0 not started, else 1 + frames since it began. */
+  sudden: number;
   /** Frames left of the end-of-game slowdown, or -1. */
   endTimer: number;
   /** Per stage event: 0 waiting, 1 warning, 2 running (stageMath EV_*). */
@@ -277,6 +283,7 @@ export function newFighter(id: number, char: number, stocks: number, stage = 0):
     startPercent: 0,
     holding: 0,
     heldBy: 0,
+    suddenIn: 0,
     throwKind: 0,
   };
 }
@@ -321,6 +328,7 @@ export function newGame(setup: FighterSetup[], opts: GameOptions): GameState {
     winner: -1,
     winnerTeam: -1,
     timedOut: 0,
+    sudden: 0,
     endTimer: -1,
     ...startEvents(STAGES[stage], opts.seed | 0),
     hazHit: (STAGES[stage].hazards ?? []).map(() => 0),
@@ -389,6 +397,8 @@ export function hashState(s: GameState): number {
   mix(s.winner);
   mix(s.winnerTeam);
   mix(s.timedOut);
+  mix(s.sudden);
+  mix(s.rules.suddenDeath);
   mix(s.endTimer);
   for (const v of s.evPhase) mix(v);
   for (const v of s.evTimer) mix(v);

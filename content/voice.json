@@ -260,6 +260,12 @@
       }
     },
     {
+      "id": "announcer.sudden-death",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Sudden death! First hit wins!"
+    },
+    {
       "id": "announcer.versus",
       "group": "announcer",
       "who": "announcer",

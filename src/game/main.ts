@@ -8,7 +8,7 @@ import { addWin } from './looks.ts';
 import { audio, tapState, type Spatial } from './audio.ts';
 import type { VoiceKind } from './voiceDirector.ts';
 import { panFromScreen } from './roomAudio.ts';
-import { Commentator, introCall, type Call } from './commentary.ts';
+import { Commentator, introCall, suddenDeathCall, type Call } from './commentary.ts';
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
 import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
 import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings, hitVibrate } from './touchSettings.ts';
@@ -40,7 +40,7 @@ import { chunkLine, chunkTimes } from './campaign/sceneText.ts';
 import { exchangeFor, markExchangeSeen, seenExchanges, type Exchange } from './campaign/intros.ts';
 import { installDodPlaytest, type MatchWatcher } from './playtest/dod.ts';
 import { NO_INPUT } from './sim/input.ts';
-import { step } from './sim/step.ts';
+import { step, SUDDEN_HOLD } from './sim/step.ts';
 import { stageIndex } from './sim/stage.ts';
 import type { GameState } from './sim/state.ts';
 import { HighlightPlayer, loadHighlight, nextChapterId, recapApplies, recapId, saveHighlight, teaseId } from './campaign/highlight.ts';
@@ -1342,6 +1342,7 @@ function afterTick(m: Match, events: SimEvent[]): void {
   analytics.matchEvents(m, events);
   for (const w of matchWatchers) w(m, events);
   for (const e of events) {
+    if (e.type === 'sudden') suddenDeathMoment(m);
     if (e.type === 'hit' && !e.shield) {
       bumpHud(e.victim, e.dmg, m.state.fighters[e.victim]?.percent ?? 0);
       // Phone feel: a light buzz when you land a hit (Settings → Vibrate, where supported).
@@ -2048,8 +2049,19 @@ let freezeUntil = 0;
 const slamReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 /** ROUND START / GAME!: big type punches in with a camera shake and a hit sound (the announcer's line follows). */
-function slam(text: string, over = false): void {
-  const el = h('div', { class: over ? 'slam game' : 'slam' }, text);
+/** A dead-even time-out went to sudden death: the slam card, the alarm and sting, the announcer's call. */
+function suddenDeathMoment(m: Match): void {
+  document.body.classList.add('sudden-death');
+  slam('Sudden death!', false, 'sudden');
+  audio.synth('alarm', 0.8);
+  audio.synth('sting', 1);
+  audio.setMusicIntensity(true);
+  broadcast(suddenDeathCall());
+  window.dispatchEvent(new CustomEvent('dod:sudden-death', { detail: { at: Math.round(performance.now()), frame: m.state.frame, ids: m.state.fighters.filter((f) => f.suddenIn).map((f) => f.id) } }));
+}
+
+function slam(text: string, over = false, extra = ''): void {
+  const el = h('div', { class: (over ? 'slam game' : 'slam') + (extra ? ` ${extra}` : '') }, text);
   document.body.appendChild(el);
   el.addEventListener('animationend', () => el.remove());
   audio.sfx('vs-slam');
@@ -2112,6 +2124,8 @@ function buildHud(m: Match): void {
   }
   hud.hidden = false;
   const limit = m.state.rules.timeLimit;
+  document.body.classList.remove('sudden-death');
+  $('timer').classList.remove('sudden');
   $('timer').hidden = limit <= 0;
   const objective = $('objective');
   const shown = m.setup.objective === 'survive' || m.setup.objective === 'ko' || m.setup.objective === 'quota' || m.setup.objective === 'streak';
@@ -2135,7 +2149,13 @@ let hudStreak = -1;
 function updateHud(m: Match): void {
   const s = m.state;
   const cards = $('hud').children;
-  if (s.rules.timeLimit > 0) $('timer').textContent = formatTime(s.rules.timeLimit - s.frame);
+  if (s.sudden > 0) {
+    const timer = $('timer');
+    timer.hidden = false;
+    timer.classList.add('sudden');
+    $('match-top').hidden = false;
+    timer.textContent = s.sudden > SUDDEN_HOLD ? 'Zone closing' : 'Sudden death';
+  } else if (s.rules.timeLimit > 0) $('timer').textContent = formatTime(s.rules.timeLimit - s.frame);
   if (m.setup.objective === 'ko' && hudKos !== m.koCount()) {
     hudKos = m.koCount();
     $('objective').textContent = `KOs ${Math.min(hudKos, m.koTarget)}/${m.koTarget}`;
