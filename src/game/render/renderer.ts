@@ -33,7 +33,7 @@ import { ACT, SHIELD_MAX, bodySize, type Fighter, type GameState } from '../sim/
 import { GRAB_FIRST, activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
 import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, coreFor, sparkSizeFor, tellAt, tellFrames, isNormalMove, isSmashMove, isSpecialMove, type HitTier, type TrailKind } from '../hitFeel.ts';
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
-import { cameraFighters, followCamera, frameGoal, punchGoal, type CamBounds, type CamState } from './cameraRig.ts';
+import { cameraFighters, followCamera, frameGoal, KO_TAIL_S, punchGoal, type CamBounds, type CamSample, type CamState } from './cameraRig.ts';
 import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
 import { StageFx, buildLayers, drawnPlatforms, layersFor } from './stageArt.ts';
 import { behindForeground, bodyPoints, fadeToward } from './foreground.ts';
@@ -223,6 +223,13 @@ export class Renderer {
   private camSide = 0;
   private camTilt = 0;
   private camMs = 0;
+  /** The per-frame camera trace the playtest judges (cameraRig.ts analyzeCameraTrace), and what the last update knew for it. */
+  private camTraceBuf: CamSample[] = [];
+  private camLaunch = new Map<number, number>();
+  private camLaunched = new Set<number>();
+  private camTraceNote = { cut: true, ko: false, koUntil: -1 };
+  /** Share of the screen's height the touch controls cover (landscape phone), measured now and then. */
+  private touchInset = { v: 0, at: 0 };
   /** The next gameplay frame sets the camera outright (a new stage, a rematch, a menu shot): an intended cut, never a jump. */
   private camCut = true;
   /** The kill cue in progress: when the finishing hit landed (ms) and where. */
@@ -1413,6 +1420,40 @@ export class Renderer {
     return out;
   }
 
+  /**
+   * The camera trace since the last reset: one sample per rendered frame (camera x, y, distance; each living fighter's
+   * feet and head on screen as shares 0..1; shake, KO zoom and cuts), plus the touch controls' rectangles as shares of the
+   * screen when the phone overlay is up. The playtest judges it with analyzeCameraTrace.
+   */
+  camTrace(reset = false): { samples: CamSample[]; tan: number; touch: { l: number; t: number; r: number; b: number }[] } {
+    const out = { samples: this.camTraceBuf, tan: Math.tan(this.camera.fov / 2), touch: this.touchRects() };
+    if (reset) this.camTraceBuf = [];
+    return out;
+  }
+
+  /** The stick and buttons on a touch phone as shares of the screen (empty when the overlay is not up). */
+  private touchRects(): { l: number; t: number; r: number; b: number }[] {
+    if (typeof document === 'undefined' || !document.body.classList.contains('touch-ui')) return [];
+    const w = innerWidth;
+    const h = innerHeight;
+    const out: { l: number; t: number; r: number; b: number }[] = [];
+    document.querySelectorAll<HTMLElement>('.touch .touch-stick, .touch .touch-btn').forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 1 && r.height > 1) out.push({ l: r.left / w, t: r.top / h, r: r.right / w, b: r.bottom / h });
+    });
+    return out;
+  }
+
+  /** How much of the screen's height (0..0.45) the touch controls take at the bottom: the camera lifts the fight clear of them. */
+  private touchInsetNow(aspect: number, now: number): number {
+    if (now - this.touchInset.at > 500) {
+      this.touchInset.at = now;
+      const rects = aspect >= 0.9 ? this.touchRects() : [];
+      this.touchInset.v = rects.length ? Math.min(0.45, 1 - Math.min(...rects.map((r) => r.t))) : 0;
+    }
+    return this.touchInset.v;
+  }
+
   /** One impact flash: a soft disc that blows up as it fades (two make a heavy burst, a big fast one reads as a shockwave). */
   private sprite(x: number, y: number, rot: number, size: number, life: number, grow: number, mat?: StandardMaterial, z = FX_Z): Mesh {
     const mesh = this.takeSpark(mat);
@@ -1965,11 +2006,14 @@ export class Renderer {
     const dt = Math.min(0.05, Math.max(0.001, (now - (this.camMs || now - 16.7)) / 1000));
     this.camMs = now;
     const b = this.stage.blast;
-    const { live, soon } = cameraFighters(state, this.stage.respawn);
+    const { live, soon } = cameraFighters(state, this.stage.respawn, this.camLaunch);
+    this.camLaunched = new Set(live.flatMap((c, i) => (c.launched ? [state.fighters.filter((f) => f.action !== ACT.DEAD)[i].id] : [])));
     const aspect = this.engine.getAspectRatio(this.camera);
     const tan = Math.tan(this.camera.fov / 2);
     const world: CamBounds = { left: b.left * W, right: b.right * W, bottom: b.bottom * W, top: b.top * W };
-    let { x: cx, y: cy, d: cd } = frameGoal([...live, ...soon], world, aspect, tan);
+    // Phone landscape: the controls cover the bottom of the screen, so the fight is framed in what is left above them.
+    const inset = this.shot || this.intro ? 0 : this.touchInsetNow(aspect, now);
+    let { x: cx, y: cy, d: cd } = frameGoal([...live, ...soon], world, aspect, tan, inset);
 
     let smooth = 0.18;
     let smoothZoom = 0.25;
@@ -1990,6 +2034,7 @@ export class Renderer {
         cd = Math.max(12, Math.min(30, ((b.right - b.left) * W) / (2 * tan * aspect) * 0.62)) - Math.min(2.5, secs * 0.35);
       }
     } else if (this.kill) {
+      this.camTraceNote.koUntil = now + KO_TAIL_S * 1000;
       // The kill cue's punch-in: toward the impact, closer, quickly; then back out as the punch fades.
       const t = (now - this.kill.at) / 1000;
       const p = killPunch(t);
@@ -2006,6 +2051,7 @@ export class Renderer {
     this.camSide += (sideGoal - this.camSide) * k;
     this.camTilt += (tiltGoal - this.camTilt) * k;
 
+    const wasCut = this.camCut;
     if (this.intro) {
       // The match intro's fly-in: from a wide shot of the stage's far layers to the fight framing, eased both ends,
       // set outright each frame (it is a scripted move, not a follow), so it lands exactly where the gameplay camera starts.
@@ -2021,10 +2067,12 @@ export class Renderer {
       this.camSide = sideGoal;
       this.camTilt = tiltGoal;
       this.camCut = false;
-    } else if (followCamera(this.camRig, { x: cx, y: cy, d: cd }, { smooth, smoothZoom, dt, tan, side: this.camSide, tilt: this.camTilt, keep: this.shot ? null : { fighters: live, tan, aspect } }) && !this.shot) {
+    } else if (followCamera(this.camRig, { x: cx, y: cy, d: cd }, { smooth, smoothZoom, dt, tan, side: this.camSide, tilt: this.camTilt, aspect, zoomAsym: !this.shot, deadZone: !this.shot && !this.kill, keep: this.shot ? null : { fighters: live, tan, aspect, bottomInset: inset } }) && !this.shot) {
       // A frame that moved or zoomed past the threshold (scaled for a slow frame) is a jump, scenes aside.
       this.camStats.cameraJumps++;
     }
+    this.camTraceNote.cut = !!this.shot || !!this.intro || wasCut;
+    this.camTraceNote.ko = !!this.kill || now < this.camTraceNote.koUntil;
     this.camTarget.x = this.camRig.x;
     this.camTarget.y = this.camRig.y;
     this.camDist = this.camRig.d;
@@ -2099,19 +2147,31 @@ export class Renderer {
 
   /** After a render: counts a living fighter whose body is outside the view (the playtest wants none). */
   private checkFraming(state: GameState): void {
-    if (this.shot || this.camCut || this.intro) return;
+    const note = this.camTraceNote;
+    if (this.shot || this.camCut || this.intro || note.cut) {
+      this.camTraceBuf.length = 0;
+      return;
+    }
     const w = this.engine.getRenderWidth();
     const h = this.engine.getRenderHeight();
     const vp = this.camera.viewport.toGlobal(w, h);
     const m = this.scene.getTransformMatrix();
+    const f2: CamSample['f'] = [];
     for (const f of state.fighters) {
       if (f.action === ACT.DEAD || this.offstage.has(f.id)) continue;
       const wx = f.x * S;
       const wy = f.y * S;
-      if (f.x / FX <= this.stage.blast.left || f.x / FX >= this.stage.blast.right || f.y / FX >= this.stage.blast.top || f.y / FX <= this.stage.blast.bottom) continue;
+      const gone = f.x / FX <= this.stage.blast.left || f.x / FX >= this.stage.blast.right || f.y / FX >= this.stage.blast.top || f.y / FX <= this.stage.blast.bottom;
       const p = Vector3.Project(new Vector3(wx, wy, 0), Matrix.IdentityReadOnly, m, vp);
+      const hd = Vector3.Project(new Vector3(wx, wy + (CHARACTERS[f.char].height * W * (f.scale / 100)), 0), Matrix.IdentityReadOnly, m, vp);
+      // Launched fighters are the offscreen bubble's job for a moment (the camera lets them fly, then brings them back).
+      f2.push({ x: p.x / w, y: p.y / h, top: hd.y / h, exempt: gone || this.camLaunched.has(f.id) });
+      if (gone || this.camLaunched.has(f.id)) continue;
       if (p.x < 0 || p.x > w || p.y < 0 || p.y > h) this.camStats.framingMisses++;
     }
+    const shaking = screenShake() && this.shake > 0.05;
+    this.camTraceBuf.push({ t: performance.now() / 1000, x: this.camRig.x, y: this.camRig.y, d: this.camRig.d, shake: shaking, ko: note.ko, cut: false, f: f2 });
+    if (this.camTraceBuf.length > 60 * 400) this.camTraceBuf.splice(0, 60 * 20);
   }
 
   /**

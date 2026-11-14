@@ -2263,6 +2263,7 @@ installDodPlaytest({
   hitFxStats: (reset) => renderer.hitFxStats(reset),
   flipStats: (reset) => renderer.flipStats(reset),
   camFxStats: (reset) => renderer.camFxStats(reset),
+  camTrace: (reset) => renderer.camTrace(reset),
   trailStats: (reset) => renderer.trailStats(reset),
   reactFxStats: (reset) => renderer.reactFxStats(reset),
   markerStats: () => ({ ...markerLog, rects: markerRects() }),
