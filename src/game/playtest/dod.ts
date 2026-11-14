@@ -20,7 +20,8 @@ import { forceTouchPrompt, lockLandscape, rotateShowing } from '../ui/rotate.ts'
 import { currentScreen, switching, type ScreenId } from '../ui/screens.ts';
 import { CHARACTERS, FIGHTERS as FIGHTERS_DATA, MOVE, MOVE_KEYS } from '../sim/characters.ts';
 import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
-import { STAGES, ledges } from '../sim/stage.ts';
+import { STAGES, EV_IDLE, EV_RUN, EV_WARN, ledges } from '../sim/stage.ts';
+import { bodyOf, clearance, readDangers } from '../ai/hazardRead.ts';
 import { FX } from '../sim/fixed.ts';
 import { SHADOW_RANGE, hexRgb } from '../render/fighterLight.ts';
 import { analyzeCameraTrace, TRACE_LIMITS, type CamSample, type ScreenRect } from '../render/cameraRig.ts';
@@ -207,6 +208,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'opening') await r.openingScenario();
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'sudden-death') await r.suddenDeath();
+        else if (id === 'hazard-dodge') await r.hazardDodge();
         else if (id === 'auto-quality') await r.autoQuality();
         else if (id === 'quota') await r.quotaObjective();
         else if (id === 'streak') await r.streakObjective();
@@ -4084,6 +4086,117 @@ class Run {
       this.manual = null;
       window.removeEventListener('dod:slam', onSlam);
       window.removeEventListener('dod:sudden-death', onSudden);
+      if (touch) forceTouchUi(false);
+    }
+  }
+
+  /**
+   * Bots read stage hazards (`ai/hazardRead.ts`, `ai/bot.ts`). A versus match on a hazard stage (option `stage`, default
+   * desert; hazards on, the first warning comes inside 45 s of play) with the playtest bot on the player's side and a level
+   * 9 CPU opposite. For each warning (`hazard-warning`) every fighter standing in the warned hazard's way is followed: a
+   * level 9 bot must visibly move out, by a hop, a walk or a drop, before the hazard arrives (`hazard-dodge`: frames after
+   * the warning, the distance moved), and the pass ends with `hazard-avoided` or `hazard-hit` per fighter. On a phone
+   * (390x844 turned to 844x390, touch controls forced on) the bot reads the same warning state the player sees: the alarm,
+   * the stage art. Metrics `hazardWarnings`, `hazardThreatened`, `hazardDodged`, `hazardHits`; the first pass is
+   * `hazard-first` ("the bot avoids the first hazard after its warning").
+   */
+  async hazardDodge(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('hazard-dodge');
+    }
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) forceTouchUi(true);
+    try {
+      const id = (list: { id: string }[], want: string) => Math.max(0, list.findIndex((x) => x.id === want));
+      const stageId = String(this.options.stage ?? 'desert');
+      const stage = id(STAGES, stageId);
+      const def = STAGES[stage];
+      if (!def.hazards?.length) {
+        t.problem('bug', `stage ${stageId} has no hazards to dodge`);
+        return t.finish('error');
+      }
+      void this.game.startMatch({
+        mode: 'versus', stage, stocks: 3, rules: { timeLimit: 10 * 60 },
+        slots: [{ char: id(CHARACTERS, 'exit-punk'), cpu: null, team: 0, stocks: 3 }, { char: id(CHARACTERS, 'break'), cpu: 9, team: 1, stocks: 3 }],
+      });
+      await this.matchLive();
+      const m = this.game.match()!;
+      t.event('hazard-setup', `${def.name}: ${(def.hazards ?? []).map((h) => h.id).join(', ')} on events ${(def.events ?? []).filter((e) => def.hazards!.some((h) => h.during === e.id)).map((e) => e.id).join(', ')}; level 9 bots on both sides${touch ? '; touch controls on' : ''}`);
+      const evOf = (def.events ?? []).map((e, i) => ({ e, i })).filter(({ e }) => def.hazards!.some((h) => h.during === e.id));
+      const prev = evOf.map(() => EV_IDLE as number);
+      interface Watch { fighter: number; event: number; at: number; x: number; y: number; moved: boolean; first: boolean }
+      let watches: Watch[] = [];
+      let warnings = 0;
+      let threatened = 0;
+      let dodged = 0;
+      let hits = 0;
+      let passes = 0;
+      const botOf = (i: number) => (i === m.player ? this.bot : m.bots[i]);
+      const sample = (): boolean => {
+        const s = m.state;
+        if (s.over) return true;
+        evOf.forEach(({ e, i }, k) => {
+          const now = s.evPhase[i];
+          if (now === EV_WARN && prev[k] !== EV_WARN) {
+            warnings++;
+            t.event('hazard-warning', `${e.name ?? e.id} warns on ${def.name}, ${e.warn ?? 0} s before it arrives`);
+            for (const f of s.fighters) {
+              if (f.stocks <= 0 || f.action === ACT.DEAD || f.action === ACT.RESPAWN || f.action === ACT.HITSTUN) continue;
+              const d = readDangers(def, s, f);
+              const [hw, h] = bodyOf(f);
+              if (!d.event || clearance(d, f.x / FX, f.y / FX, hw, h) >= 10) continue;
+              threatened++;
+              watches.push({ fighter: f.id, event: i, at: s.frame, x: f.x / FX, y: f.y / FX, moved: false, first: passes === 0 });
+            }
+          }
+          if (prev[k] === EV_RUN && now === EV_IDLE) {
+            const ride = (def.hazards ?? []).map((hz, j) => ({ hz, j })).filter(({ hz }) => hz.during === e.id);
+            for (const w of watches.filter((x) => x.event === i)) {
+              const hit = ride.some(({ j }) => (s.hazHit[j] & (1 << w.fighter)) !== 0);
+              const who = w.fighter === m.player ? 'playtest bot' : 'CPU';
+              if (hit) hits++;
+              t.event(hit ? 'hazard-hit' : 'hazard-avoided', `${who} (P${w.fighter + 1}) ${hit ? 'was hit by' : 'got clear of'} the ${e.name ?? e.id}`);
+              if (w.first) t.event('hazard-first', `first hazard after its warning: ${who} ${hit ? 'was hit' : 'avoided it'}${w.moved ? ', after moving' : ''}`);
+              if (!w.moved) t.problem('bug', `a level 9 bot stood still in the way of the ${e.name ?? e.id} after its warning`);
+            }
+            if (watches.some((x) => x.event === i)) passes++;
+            watches = watches.filter((x) => x.event !== i);
+          }
+          prev[k] = now;
+        });
+        for (const w of watches) {
+          if (w.moved) continue;
+          const f = s.fighters[w.fighter];
+          const moved = Math.hypot(f.x / FX - w.x, f.y / FX - w.y);
+          if (botOf(w.fighter)?.avoiding || moved >= 120) {
+            w.moved = true;
+            dodged++;
+            t.event('hazard-dodge', `${w.fighter === m.player ? 'playtest bot' : 'CPU'} (P${w.fighter + 1}) moves out of the way ${s.frame - w.at} frames after the warning (${Math.round(moved)} units from where it stood)`);
+          }
+        }
+        return passes >= 2 && watches.length === 0;
+      };
+      this.manual = null;
+      await this.fight(sample, 240000).catch(() => undefined);
+      t.metric('hazardWarnings', warnings);
+      t.metric('hazardThreatened', threatened);
+      t.metric('hazardDodged', dodged);
+      t.metric('hazardHits', hits);
+      if (!warnings) t.problem('bug', `no hazard warning showed on ${def.name} during the match`);
+      if (m.state.over || currentScreen() === 'results') {
+        await this.results();
+        await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      } else {
+        await this.quitFromPause('main');
+      }
+      await this.screen('main');
+      t.finish('done');
+    } finally {
+      this.manual = null;
       if (touch) forceTouchUi(false);
     }
   }

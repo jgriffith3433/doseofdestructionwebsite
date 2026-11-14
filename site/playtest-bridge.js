@@ -493,6 +493,16 @@
       ]
     },
     {
+      "id": "hazard-dodge",
+      "title": "Bots read stage hazards: a bot in a warned hawk dive, skater, vacuum, paint drop or fog surge's way moves out before it arrives (phone: the same warning, touch controls on)",
+      "description": "A versus match on a hazard stage (option `stage`, default desert; also cursed-town, rainbow-full-pipe, watercolor-nebula, yo-house) with the playtest bot and a level 9 CPU. For each stage warning (hazard-warning) each fighter standing in the warned hazard's path is followed: it must move out by a hop, a walk or a drop (hazard-dodge, frames after the warning), and the pass ends hazard-avoided or hazard-hit; hazard-first is the first pass. Ends after two passes. On a 390x844 phone it turns to 844x390 with touch controls on. Metrics hazardWarnings, hazardThreatened, hazardDodged, hazardHits.",
+      "seconds": 240,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "ko-objective",
       "title": "The ko objective: \"KOs 0/3\" with the clock, counting up, won on the third KO; then a round lost when time runs out",
       "description": "Setup shortcut: straight into each match as a campaign fight, no menus (the ko objective has no chapter yet). Round 1: Exit Punk (the bot) vs Kaelen (CPU 1, 9 stocks, every life at 120%) on Yo House, 3 KOs before a 2-minute clock; it ends on the third KO. Round 2: vs a giant Break (CPU 9, 9 stocks), 3 KOs before a 20-second clock; it ends on time. Each round checks the chip and the clock as the match starts, every change of the chip against the KOs scored, and the results line saying which way it ended. Events ko-chip, ko-clock, ko-count, ko-result.",
