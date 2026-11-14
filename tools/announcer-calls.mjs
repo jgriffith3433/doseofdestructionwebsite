@@ -19,6 +19,9 @@ const calls = [
   ['announcer.winner-is', 'announcer', '[shouting] The winner is...'],
   ['announcer.ready-fight.1', 'announcer', '[shouting] Ready... FIGHT!'],
   ['announcer.ready-fight.2', 'announcer', '[shouting] Ready... [pause] FIGHT!'],
+  // "Round 1... FIGHT!": optional until recorded (main.ts prefers it over ready-fight).
+  ['announcer.round-fight.1', 'announcer', '[shouting] Round one... [pause] FIGHT!', true],
+  ['announcer.round-fight.2', 'announcer', '[shouting] Round one! [pause] FIGHT!', true],
   ['announcer.game.1', 'announcer', '[shouting] GAME!'],
   ['announcer.game.2', 'announcer', '[shouting] GAME!!'],
   ['announcer.game.3', 'announcer', '[shouting] And... GAME!'],
@@ -29,12 +32,13 @@ const calls = [
 
 const problems = [];
 const made = new Map();
-for (const [id, group, take] of calls) {
+for (const [id, group, take, optional] of calls) {
   const line = { id, group, who: 'announcer', text: take.replace(/^\[[a-z]+\]\s*/, '').replace(/\[pause\]\s*/, '') };
   if (fs.existsSync(path.join(root, 'audio/voice', `${id}.mp3`))) {
     line.audio = `/audio/voice/${id}.mp3`;
     line.take = { text: take, voice: who };
-  } else problems.push(`no mp3: ${id}`);
+  } else if (optional) continue;
+  else problems.push(`no mp3: ${id}`);
   made.set(id, line);
 }
 for (const c of voice.lines.filter((l) => l.id.startsWith('announcer.name.'))) {
