@@ -1129,7 +1129,9 @@ async function startMatch(setup: MatchSetup, withVersus: boolean, online?: { see
     const loading = Promise.all([fightersReady, audioReady]);
     // The warm-up (shader compiles, particle pools) never starts until the VS card has been painted, and runs
     // one scene render per animation frame (renderer.warmUp yields between them); it carries on behind the match intro.
-    warm = loading.then(() => nextFrame()).then(() => nextFrame()).then(async () => {
+    // It waits for the fighter meshes only, never for audio: a slow audio decode used to push the warm-up's first (synchronous,
+    // shader-compiling) render late into the VS hold, where it blocked the main thread past the hold cap (6-14 s holds).
+    warm = fightersReady.then(() => nextFrame()).then(() => nextFrame()).then(async () => {
       const w0 = performance.now();
       await renderer.warmUp(m.state);
       warmUpMs = Math.round(performance.now() - w0);
