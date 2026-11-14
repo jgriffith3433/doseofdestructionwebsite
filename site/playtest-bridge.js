@@ -693,6 +693,15 @@
       ]
     },
     {
+      "id": "menu-modes",
+      "title": "Main menu mode choice and the loading bar: Story, Versus and Play are three big buttons, and a match loads under a progress bar, not bare text",
+      "description": "From Tap to play to the main menu: the Story / Versus / Play row is on screen, each 44 px or more, inside the window with no sideways scroll (mode-row, mode-fit). Then Versus is tapped from that row and a 1v1 is started; the loading veil and VS progress bar are watched (loading-bar: the veil must hold a bar, never bare text). Phone 390x844 touch: every press is a pointer tap.",
+      "seconds": 120,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "share",
       "title": "Share a result: the results offer Share, a tap sends the PNG card through navigator.share with the file, without it the card downloads and the text line is copied",
       "description": "A versus match (1 stock) is played to the results, which must offer a Share button of 44 px or more. A tap draws the card (winner, fighters, stage, KOs) and calls navigator.share with a PNG file (a stand-in records it: share-sheet, share-card). Then navigator.share is removed and a second tap must download the card and copy the text line (share-fallback). Phone 390x844 touch: every press is a pointer tap, in the turned frame. Metric shareCardBytes.",
