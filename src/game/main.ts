@@ -3,6 +3,7 @@
 
 // First: analytics (Hawkes Analytics, analytics.ts) marks the load start and stamps the build.
 import { bootFail, bootReady, bootStep, pressHandled } from './boot.ts';
+import { setShareExtra } from './ui/share.ts';
 import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
 import { addWin, lookCount, lookOpen, preferredLook } from './looks.ts';
@@ -1394,6 +1395,7 @@ function dailyFinished(m: Match, ep: DailyEpisode, won: boolean): void {
     longest: after.longest,
     breakdown: `${formatTime(s.frame)} played, ${taken}% taken.`,
   });
+  setShareExtra(`Tonight's Episode · ${score.toLocaleString('en-US')}`);
   const strip = $('results-body').querySelector('.results-strip');
   if (strip) strip.after(panel);
   else $('results-body').prepend(panel);

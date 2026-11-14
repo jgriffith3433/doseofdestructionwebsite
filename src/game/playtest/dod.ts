@@ -34,7 +34,7 @@ import { AnimTrace } from '../sim/trace.ts';
 import { SCENE_CARD_MS, sceneShowing } from '../ui/scene.ts';
 import { MAX_WORDS } from '../campaign/sceneText.ts';
 import { REWARDS, reloadRewards } from '../campaign/rewards.ts';
-import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, saveUnlocks, unlocks } from '../campaign/story.ts';
+import { CHAPTERS, LOCKABLE, SEASONS, isUnlocked, nextUnlock, saveUnlocks, unlockRoute, unlocks } from '../campaign/story.ts';
 import { SCENARIOS } from './scenarios.ts';
 import { DAILY_POOL, dailyEpisode, msToNext, objectiveLine, twistLine } from '../campaign/daily.ts';
 import { DAILY_KEY, dailyDate } from '../campaign/dailyStore.ts';
@@ -234,6 +234,8 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'rotate') await r.rotate();
         else if (id === 'first-visit') await r.firstVisit();
         else if (id === 'presentation') await r.presentation();
+        else if (id === 'share') await r.shareScenario();
+        else if (id === 'unlock-route') await r.unlockRouteRun();
         else if (id === 'replay') await r.replayScenario();
         else if (id === 'roster') await r.roster();
         else if (id === 'feet') await r.feetRun();
@@ -2157,6 +2159,98 @@ class Run {
 
 
   /**
+   * Share on the results (`ui/share.ts`): a versus match is played to Results, which must offer Share. A tap draws the PNG
+   * card (winner, fighters, stage, KOs) and hands it to navigator.share with the file (a stand-in records the call:
+   * `share-sheet`; on a phone the tap is a real pointer press at 390x844 touch). Then navigator.share is taken away and a
+   * second tap must download the card and copy the text line (`share-fallback`). Events `share-button`, `share-sheet`,
+   * `share-fallback`, `share-card`; metrics `shareCardBytes`.
+   */
+  async shareScenario(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.phoneScenario();
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+      suppressRotate(true);
+    }
+    const nav = navigator as unknown as Record<string, unknown>;
+    const had = Object.getOwnPropertyDescriptor(navigator, 'share');
+    const hadCan = Object.getOwnPropertyDescriptor(navigator, 'canShare');
+    const calls: { files: { name: string; type: string; size: number }[]; text: string }[] = [];
+    const copied: string[] = [];
+    const clip = navigator.clipboard;
+    const events: Record<string, unknown>[] = [];
+    const onShare = (e: Event) => events.push((e as CustomEvent).detail);
+    window.addEventListener('dod:share', onShare);
+    const stubClip = (fn: ((s: string) => Promise<void>) | null) => {
+      try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: fn ? { writeText: fn } : clip }); } catch { /* read-only here */ }
+    };
+    try {
+      await this.startVersus(1);
+      await this.fight(() => false, 6 * 60 * 1000);
+      await this.screen('results', 30000);
+      await this.wait(900);
+      const share = () => this.q('#results-actions #share-result');
+      if (!share()) {
+        t.problem('bug', 'the results have no Share button');
+        return t.finish('done');
+      }
+      const r = share()!.getBoundingClientRect();
+      t.event('share-button', `Share on the results, ${Math.round(r.width)}x${Math.round(r.height)} px at ${innerWidth}x${innerHeight}`);
+      if (r.height < 44 || r.width < 44 || r.right > innerWidth || r.bottom > innerHeight) t.problem('bug', `the Share button is too small or off screen (${Math.round(r.width)}x${Math.round(r.height)})`);
+
+      // 1. The share sheet, with the card as a file.
+      Object.defineProperty(navigator, 'canShare', { configurable: true, value: (d: ShareData) => !!d.files?.length });
+      Object.defineProperty(navigator, 'share', {
+        configurable: true,
+        value: async (d: ShareData) => { calls.push({ files: (d.files ?? []).map((f) => ({ name: f.name, type: f.type, size: f.size })), text: d.text ?? '' }); },
+      });
+      await this.click(share, 'Share');
+      await t.until(() => events.length > 0, 15000, 'the share to finish');
+      const first = events[0];
+      const f = calls[0]?.files[0];
+      if (first.path !== 'share-sheet' || !f) t.problem('bug', `Share did not open the share sheet with a file (${String(first.path)})`);
+      else if (f.type !== 'image/png' || f.size < 20000) t.problem('bug', `the shared card is not a real PNG (${f.type}, ${f.size} bytes)`);
+      else t.event('share-sheet', `navigator.share got ${f.name} (${f.type}, ${f.size} bytes) with the text "${calls[0].text}"`);
+      t.metric('shareCardBytes', f?.size ?? 0);
+      const m = this.game.match() ?? this.seen;
+      const want = m && m.state.winner >= 0 ? CHARACTERS[m.state.fighters[m.state.winner].char].name : '';
+      if (want && !calls[0]?.text.includes(want)) t.problem('bug', `the share text does not name the winner ${want}`);
+      if (!/doseofdestruction\.com/.test(calls[0]?.text ?? '')) t.problem('bug', 'the share text has no game address');
+      t.event('share-card', `text line: ${calls[0]?.text}`);
+      await this.wait(500);
+
+      // 2. No navigator.share: the card downloads and the text line is copied.
+      Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+      Object.defineProperty(navigator, 'canShare', { configurable: true, value: undefined });
+      stubClip(async (s: string) => { copied.push(s); });
+      const before = events.length;
+      await this.click(share, 'Share');
+      await t.until(() => events.length > before, 15000, 'the fallback share to finish');
+      const second = events[before];
+      if (second.path !== 'download') t.problem('bug', `without navigator.share the card did not download (${String(second.path)})`);
+      else if (!copied.length || !second.copied) t.problem('bug', 'without navigator.share the text line was not copied');
+      else t.event('share-fallback', `downloaded ${second.file} (${second.bytes} bytes) and copied "${copied[0]}"`);
+      await this.wait(700);
+      this.checkClipping('results', this.q('#results'));
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      window.removeEventListener('dod:share', onShare);
+      stubClip(null);
+      for (const [k, d] of [['share', had], ['canShare', hadCan]] as const) {
+        if (d) Object.defineProperty(navigator, k, d);
+        else delete nav[k];
+      }
+      if (touch) suppressRotate(false);
+    }
+  }
+
+  /**
    * Watch replay (`replay.ts`, `ui/replayBar.ts`, main.ts `watchReplay`): a versus match (1 stock) is played by the bot to
    * Results, which must offer Watch replay (`replay-button`). The replay opens with its control bar on screen and fitting
    * (`replay-fit`: every button at least 44 px, 8 px apart, inside the window; a bottom bar on a 390x844 phone), then plays
@@ -3347,6 +3441,99 @@ class Run {
       await this.closeSelect();
       t.progress(1);
       t.finish(stillLocked || picked !== name ? 'lost' : 'won');
+    } finally {
+      this.game.setCampaignProgress(before);
+      unlocks().clear();
+      for (const id of savedUnlocks) unlocks().add(id);
+      saveUnlocks(unlocks());
+    }
+  }
+
+  /**
+   * Locked fighters say how to open them. Setup shortcut: a fresh save (no chapters cleared, nothing unlocked; put back).
+   * Versus select: every locked tile is a silhouette with its route under "Locked" (`locked-tile`), a tap shows the full
+   * route in a status note (`locked-route`, checked against the chapter's own `unlock`, on screen). Then a versus match is
+   * played to Results, which shows the bar toward the next unlock when it is one episode away (`unlock-bar`).
+   * Phone 390x844: every press is a pointer tap.
+   */
+  async unlockRouteRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.phoneScenario();
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+      suppressRotate(true);
+    }
+    const savedUnlocks = [...unlocks()];
+    const before = this.game.setCampaignProgress([]);
+    unlocks().clear();
+    saveUnlocks(unlocks());
+    t.log('setup shortcut: a fresh save (no chapters cleared, nothing unlocked)');
+    try {
+      await this.openSelect();
+      await t.until(() => document.querySelectorAll('#select-grid .tile').length > 0, 5000, 'fighter tiles');
+      const tiles = [...document.querySelectorAll<HTMLElement>('#select-grid .tile.locked')];
+      t.metric('lockedTiles', tiles.length);
+      if (tiles.length !== LOCKABLE.size) t.problem('bug', `a fresh save should show ${LOCKABLE.size} locked tiles, not ${tiles.length}`);
+      let shown = 0;
+      for (const [k, tile] of tiles.entries()) {
+        t.progress(0.05 + (0.5 * k) / tiles.length);
+        const id = tile.dataset.fighter!;
+        const route = unlockRoute(id);
+        const c = CHARACTERS.find((x) => x.id === id);
+        if (!route || !c) {
+          t.problem('bug', `locked tile ${id} has no episode that unlocks it`);
+          continue;
+        }
+        const img = tile.querySelector('img');
+        const dark = !!img && /brightness\(0\)/.test(getComputedStyle(img).filter);
+        const label = tile.querySelector('.lock-route small')?.textContent ?? '';
+        if (!dark) t.problem('bug', `${c.name}'s locked tile is not a silhouette`);
+        if (label !== `S${route.season} · E${route.episode}`) t.problem('bug', `${c.name}'s locked tile reads "${label}", not S${route.season} · E${route.episode}`);
+        tile.scrollIntoView({ block: 'center' });
+        await this.click(() => tile, `locked tile ${c.name}`);
+        const note = () => this.q(`.locked-route-note[data-fighter="${id}"]`);
+        await t.until(() => !!note(), 3000, `the route note for ${c.name}`).catch((e) => {
+          if (String(e).includes('stopped')) throw e;
+        });
+        const n = note();
+        const r = n?.getBoundingClientRect();
+        if (!n || !r) {
+          t.problem('bug', `tapping the locked ${c.name} tile showed no unlock route`);
+          continue;
+        }
+        const bad = !(n.textContent ?? '').includes(route.text) || r.left < -1 || r.right > innerWidth + 1 || r.bottom > innerHeight + 1 || r.top < 0 || n.scrollWidth > n.clientWidth + 1;
+        if (bad) t.problem('bug', `${innerWidth}x${innerHeight}: the route note for ${c.name} is wrong or off screen ("${n.textContent}")`);
+        else {
+          shown++;
+          t.event('locked-route', `${c.name}: "${n.textContent}" (${Math.round(r.width)}x${Math.round(r.height)} at ${innerWidth}x${innerHeight})`);
+        }
+      }
+      t.metric('lockedRoutes', shown);
+      if (shown !== tiles.length) t.problem('bug', `${shown} of ${tiles.length} locked tiles showed their unlock route on a tap`);
+      t.progress(0.6);
+      // Results: one episode from Kaelen.
+      const next = nextUnlock();
+      t.event('next-unlock', next ? `${next.fighter}: ${next.away} episode(s) away (${next.route.text})` : 'none');
+      await this.closeSelect();
+      await this.startVersus(1);
+      await this.fight(() => false, 6 * 60 * 1000);
+      await this.screen('results', 30000);
+      await this.wait(900);
+      const bar = this.q('#results-body .results-unlock');
+      if (!bar) t.problem('bug', 'the results show no progress bar toward the next unlock, one episode before it');
+      else {
+        bar.scrollIntoView({ block: 'nearest' });
+        const r = bar.getBoundingClientRect();
+        const fill = bar.querySelector<HTMLElement>('.bar i')?.getBoundingClientRect().width ?? 0;
+        if (r.width < 2 || r.left < -1 || r.right > innerWidth + 1) t.problem('bug', `${innerWidth}x${innerHeight}: the unlock bar on the results is off screen`);
+        if (bar.dataset.fighter !== next?.fighter) t.problem('bug', `the results bar is for ${bar.dataset.fighter}, the next unlock is ${next?.fighter}`);
+        t.event('unlock-bar', `"${bar.textContent}" fill ${bar.dataset.fill} (${Math.round(fill)} px of ${Math.round(r.width)}) at ${innerWidth}x${innerHeight}`);
+        t.metric('unlockBars', 1);
+      }
+      t.finish('done');
     } finally {
       this.game.setCampaignProgress(before);
       unlocks().clear();
