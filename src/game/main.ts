@@ -80,7 +80,7 @@ import { renderEndings } from './ui/extras.ts';
 import { renderTourChoice, renderTourSelect, tourBanner } from './ui/tour.ts';
 import { VOICE } from './audio.ts';
 import { clearWinQuote, pickWinQuote, type WinQuote } from './winQuote.ts';
-import { PILOT_CHAPTER, PILOT_KAELEN, isFirstVisit, markPilotSeen, pilotState } from './campaign/firstVisit.ts';
+import { PILOT_CHAPTER, PILOT_KAELEN, isFirstVisit, markPilotSeen } from './campaign/firstVisit.ts';
 
 const TICK_MS = 1000 / 60;
 
@@ -1304,7 +1304,8 @@ function updateNextEpisode(): void {
   const btn = document.querySelector<HTMLElement>('.menu-item[data-go="campaign"]');
   if (!btn) return;
   const idx = CHAPTERS.findIndex((x) => !progress.has(x.id));
-  const fresh = pilotState() === 'won' && progress.size === 1 && progress.has(PILOT_CHAPTER) && idx > 0;
+  // Visible whenever an episode is left to play, not just right after the pilot: a reason to come back.
+  const fresh = idx > 0 && progress.has(PILOT_CHAPTER);
   btn.classList.toggle('next-episode', fresh);
   let tag = btn.querySelector<HTMLElement>('.next-tag');
   if (fresh && !tag) {
@@ -2416,6 +2417,8 @@ function showFinish(m: Match, won: boolean, c: Chapter | null): void {
   } else {
     actions.push({ label: 'Rematch', primary: true, run: () => startMatch(rematchSetup(m.setup), false) });
     actions.push({ label: 'Change fighters', run: () => openVersus() });
+    // The next-episode choice: after any versus match, one tap to the campaign map where the next episode waits.
+    if (m.setup.mode === 'versus' && CHAPTERS.some((x) => !progress.has(x.id))) actions.push({ label: 'Next episode', run: () => openCampaignScreen() });
     actions.push({ label: 'Main menu', run: () => go('main', spotlight) });
   }
   // The winner's quote, picked before the screen opens so the caption and the voice are the same line.

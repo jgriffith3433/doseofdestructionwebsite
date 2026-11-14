@@ -376,12 +376,13 @@ export function rewardTag(r: Reward, cleared = false): HTMLElement {
 /** Results: how close the next fighter is, shown when one episode is all that is left (the route is the chapter's own `unlock`). */
 function unlockBar(): HTMLElement | null {
   const n = nextUnlock();
-  if (!n || n.away !== 1) return null;
+  if (!n) return null;
   const who = CHARACTERS.find((c) => c.id === n.fighter)?.name ?? n.fighter;
+  const away = n.away === 1 ? 'one episode away' : `${n.away} episodes away`;
   return h(
     'section',
     { class: 'results-unlock', role: 'status', 'data-fighter': n.fighter, 'data-away': String(n.away), 'data-fill': n.fill.toFixed(2) },
-    h('h3', {}, `${who} is one episode away`),
+    h('h3', {}, `${who} is ${away}`),
     h('p', {}, `${n.route.text} puts them on the card.`),
     h('div', { class: 'bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(n.fill * 100)), 'aria-label': `Progress toward ${who}` }, h('i', { style: `width:${Math.round(n.fill * 100)}%` })),
   );
