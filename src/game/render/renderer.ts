@@ -73,6 +73,8 @@ function mixHex(a: string, b: string, t: number): string {
 }
 /** How far a hanging fighter's hands come up over the ledge's top edge, in scene units. */
 const GRIP = 0.04;
+/** The share of a hanging sprite's frame allowed past the ledge's edge (the empty margin round the pose). */
+const HANG_OVERLAP = 0.12;
 /** How long a fighter's drop-in takes in a story scene. */
 const ARRIVE_MS = 520;
 /** The art stands a little taller than the hurtbox. */
@@ -2075,7 +2077,17 @@ export class Renderer {
       // sprite (the gripping hands) on the ledge's top edge instead.
       if (pick.key === 'ledge' && pick.exact && f.ledge > 0) {
         const l = ledges(this.stage)[f.ledge - 1];
-        if (l) v.body.position.y += l.y * W + GRIP - f.y * S - c.ay * px;
+        if (l) {
+          v.body.position.y += l.y * W + GRIP - f.y * S - c.ay * px;
+          // The hang pose kicks the legs toward the wall, so the sprite sank into the stage face (and into an arched
+          // platform's art). Slide it out until at most HANG_OVERLAP of its frame is past the ledge's edge. Visual only.
+          const fw = c.fw * px;
+          const centre = x + f.facing * v.body.position.x;
+          const inner = centre - l.side * (fw / 2);
+          const limit = l.x * W - l.side * fw * HANG_OVERLAP;
+          const over = (inner - limit) * -l.side;
+          if (over > 0) x += l.side * over;
+        }
       }
     } else {
       setTexture(v.mat, v.still);
