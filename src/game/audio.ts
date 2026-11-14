@@ -310,8 +310,19 @@ class AudioSystem {
     }
     this.buses.ui.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
     this.buses.voice.gain.setTargetAtTime(busLevel('voice'), t, 0.02);
+    this.announceMusicGain();
+  }
+
+  /**
+   * Tells the playtest audio probe where the music bus is heading (busLevel x duck). The probe also reads a music source's
+   * start as the bus gain, so every music loop start calls this again right after `src.start()`; without it a loop that
+   * begins under a voice reset the probe to 1 and the duck read 0 dB.
+   */
+  private announceMusicGain(): void {
+    if (!this.buses) return;
+    const gain = busLevel('music') * (this.duckDepth > 0 ? VOICE_DUCK : 1);
     try {
-      window.dispatchEvent(new CustomEvent('hawkes-sound', { detail: { type: 'bus-gain', bus: 'music', gain: musicGain } }));
+      window.dispatchEvent(new CustomEvent('hawkes-sound', { detail: { type: 'bus-gain', bus: 'music', gain } }));
     } catch {
       // Node tests.
     }
@@ -877,6 +888,7 @@ class AudioSystem {
       src.connect(gain).connect(bus);
       src.onended = () => { if (!stopped) end('done'); };
       src.start();
+      this.announceMusicGain();
     });
     return () => {
       if (stopped) return;
@@ -1476,6 +1488,7 @@ class AudioSystem {
         src.connect(g).connect(this.buses.music);
       }
       src.start();
+      this.announceMusicGain();
       this.music = { id: s.id, src, gain: g, filter };
       if (this.musicState === 'intense') this.applyIntensityMix(true, true);
     });
@@ -1526,6 +1539,7 @@ class AudioSystem {
       g.gain.setTargetAtTime(volume, ctx.currentTime, 0.55);
       src.connect(filter).connect(g).connect(this.buses.music);
       src.start();
+      this.announceMusicGain();
       this.intense = { id: s.id, src, gain: g, filter };
     });
   }

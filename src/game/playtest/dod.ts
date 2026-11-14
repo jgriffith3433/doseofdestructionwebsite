@@ -629,6 +629,7 @@ class Run {
     const st = STAGES[m.state.stage];
     const who = m.state.fighters.map((f) => name(m, f.id)).join(' vs ');
     this.t.event('match-start', `${who} on ${st.name}`);
+    this.t.milestone('gameplay', `${who} on ${st.name}`); // the page-load budget ends when a match is on screen (first call only)
     const fx = this.game.fxStats?.();
     if (fx) {
       this.t.event('warmup', `${st.name}: ${fx.readyLayers}/${fx.totalLayers} stage layers, ${fx.readyClips}/${fx.totalClips} fighter clips, ${fx.sparkPool} sparks warmed up`);
