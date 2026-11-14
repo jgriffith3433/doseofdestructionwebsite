@@ -493,10 +493,47 @@ export function startBed(ctx: BaseAudioContext, out: AudioNode, kind: BedKind, l
   });
   nodes.push(hum, humGain);
 
+  // The looping layers above start once; a fresh soft swell of the place's own tone every ~6 s keeps the bed audible
+  // as sound starts too (wind gust, crowd murmur, hum swell), so a quiet stretch of play is never 10 s without a sound.
+  const swell = () => {
+    try {
+      const st = ctx.currentTime + 0.02;
+      const dur = 2.4 + Math.random() * 1.6;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.exponentialRampToValueAtTime(Math.max(0.0002, recipe.noiseLevel * 1.6), st + dur * 0.4);
+      g.gain.exponentialRampToValueAtTime(0.0001, st + dur);
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = recipe.bpHz * (0.8 + Math.random() * 0.5);
+      f.Q.value = recipe.bpQ;
+      const s = ctx.createBufferSource();
+      s.buffer = noise(ctx);
+      tagBufferSource(s, `bed-swell-${kind}`, 'ambience', recipe.noiseLevel * 1.6, dur, 1, 0.12);
+      s.connect(f).connect(g).connect(master);
+      s.start(st, Math.random() * 1.2);
+      s.stop(st + dur + 0.05);
+      s.onended = () => {
+        try {
+          s.disconnect();
+          f.disconnect();
+          g.disconnect();
+        } catch {
+          // Already disconnected.
+        }
+      };
+    } catch {
+      // Context closed.
+    }
+  };
+  const swellTimer = (typeof window !== 'undefined' ? window.setInterval : setInterval)(swell, 6000);
+  swell();
+
   let stopped = false;
   return () => {
     if (stopped) return;
     stopped = true;
+    (typeof window !== 'undefined' ? window.clearInterval : clearInterval)(swellTimer);
     const t = ctx.currentTime;
     master.gain.cancelScheduledValues(t);
     master.gain.setTargetAtTime(0.0001, t, 0.35);
