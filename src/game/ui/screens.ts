@@ -3,7 +3,7 @@
 // Each screen is a <section class="screen" id="..."> in the page. Only one is
 // shown at a time; go() covers the switch with the show's stinger.
 
-import { pads } from '../input/devices.ts';
+import { pads, scanPads } from '../input/devices.ts';
 import { audio } from '../audio.ts';
 import { screen as trackScreen } from '../analytics.ts';
 import { startStinger } from './stinger.ts';
@@ -207,6 +207,7 @@ let padButtons: boolean[] = [];
 
 export function pollMenuPad(now: number): void {
   if (busy) return;
+  scanPads();
   const pad = pads()[0];
   if (!pad) return;
   listenNav();
