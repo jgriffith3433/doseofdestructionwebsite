@@ -106,6 +106,8 @@ export interface GameHooks {
   /** What the player saw of the stage: presented frames, with stage art still loading, and sampled near-black (reset clears). */
   stageSeen?(reset?: boolean): { frames: number; pending: number; black: number; darkest: number };
   fxStats?(): { active: number; dustBehind: number; dustInFront: number; maxCap: number; sparkPool: number; readyLayers: number; totalLayers: number; readyClips: number; totalClips: number };
+  /** Decoded-audio cache (audio.ts): bytes held, its ceiling, peak, evictions. */
+  audioCacheStats?(): { decodedBytes: number; decodedMB: number; peakMB: number; budgetMB: number; entries: number; pinned: number; evictions: number; rawMB: number };
   /** Layered stage bed: calm/intense, ambience under the theme, intensity stem. */
   musicBedStats?(): {
     stageId: string | null;
@@ -229,6 +231,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'art-style') await r.artStyle();
         else if (id === 'stage-life') await r.stageLife();
         else if (id === 'stage-bed') await r.stageBed();
+        else if (id === 'audio-cache') await r.audioCache();
         else if (id === 'commentary') await r.commentary();
         else if (id === 'fighter-voice') await r.fighterVoice();
         else if (id === 'announcer') await r.announcerRun();
@@ -6197,6 +6200,24 @@ class Run {
     } catch {
       // Storage blocked.
     }
+    // Impact sound per weight and the kill sting, read from the audio's own take log (dod:sound-take).
+    const hitSounds = new Map<string, Set<string>>();
+    let stingTakes = 0;
+    const onHitSound = (ev: Event) => {
+      const d = (ev as CustomEvent<{ id: string; takeId: string; rate: number }>).detail;
+      if (!d) return;
+      if (d.id === 'hit-light' || d.id === 'hit-medium' || d.id === 'hit-heavy') {
+        if (!hitSounds.has(d.id)) {
+          t.event('hit-sound', `${d.id} plays take ${d.takeId} (rate ${d.rate.toFixed(3)})`);
+          hitSounds.set(d.id, new Set());
+        }
+        hitSounds.get(d.id)!.add(d.takeId);
+      } else if (d.id === 'kill-sting') {
+        stingTakes++;
+        t.event('kill-sting', `kill sting ${d.takeId} (rate ${d.rate.toFixed(3)})`);
+      }
+    };
+    window.addEventListener('dod:sound-take', onHitSound);
     const seen: Record<HitTier, { lag: number; frozen: number; dmg: number; fx: string } | null> = { light: null, medium: null, heavy: null };
     const fxLine = (l: NonNullable<ReturnType<NonNullable<GameHooks['hitFxStats']>>['last']>) =>
       `${l.sparks} sparks, ${l.stars} impact stars, ${l.ring ? 'shockwave ring' : 'no ring'}, shake ${l.shake.toFixed(2)}, flash ${l.flash}`;
@@ -6505,6 +6526,11 @@ class Run {
         if (rx.smashSmears > 0) t.event('smear', `${rx.smears} smears, ${rx.smearFrames} streak frames (${rx.smashSmears} on smashes), ${rx.charges} smash charges (${rx.quality} quality)`);
         else if (rx.quality === 'low') t.event('smear-low', 'Low drops smears, keeps squash and tumble');
       }
+      window.removeEventListener('dod:sound-take', onHitSound);
+      t.metric('hitSoundWeights', hitSounds.size);
+      t.metric('killStings', stingTakes);
+      if (hitSounds.size < 2) t.problem('bug', `only ${hitSounds.size} hit weight(s) made an impact sound in this fight`);
+      if (stingTakes === 0) t.problem('warning', 'no kill sting played in this fight (no KO?)');
       this.reportAttackFx('hit-feel');
       {
         const r2 = this.game.reactFxStats?.();
@@ -7383,6 +7409,68 @@ class Run {
    * Layered stage bed: ambience under the theme at calm, lift to intense on last stock / ≥100%,
    * final-KO sting without cutting the music, and mute/volume still covering every layer.
    */
+  /**
+   * The decoded-audio cache (audio.ts `cacheStats`): 5 matches on 5 different stages in a row (each played a few seconds, left
+   * from Pause), the held decoded audio read after each (`cache-size`, metrics `audioCacheMB`, `audioCachePeakMB`, `audioCacheBudgetMB`),
+   * under the ceiling (desktop 120 MB, phone 60 MB); then the first stage again: its music is up within 1 s (`cache-return`, metric
+   * `returnMusicMs`). On a 390x844 phone it turns to 844x390 and plays by touch. Option `stages` (ids) overrides the five.
+   */
+  async audioCache(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('audio-cache');
+    }
+    this.logViewport(touch && this.isPhone());
+    const phone = touch || this.isPhone();
+    const ceiling = phone ? 60 : 120;
+    const stats = () => this.game.audioCacheStats?.();
+    if (!stats()) {
+      t.problem('bug', 'the game exposes no audioCacheStats');
+      t.finish('error');
+      return;
+    }
+    const ids = Array.isArray(this.options.stages) ? (this.options.stages as string[]) : STAGES.map((s) => s.id);
+    const start = Math.abs((this.options.seed ?? 1) - 1) % ids.length;
+    const five = Array.from({ length: Math.min(5, ids.length) }, (_, i) => ids[(start + i) % ids.length]);
+    const opts = this.options as unknown as { stage?: string };
+    const original = opts.stage;
+    await this.toMainMenu();
+    if (touch) forceTouchUi(true);
+    try {
+      for (let i = 0; i < five.length + 1; i++) {
+        const back = i === five.length;
+        const stage = back ? five[0] : five[i];
+        opts.stage = stage;
+        t.progress(0.05 + 0.9 * (i / (five.length + 1)));
+        await this.startVersus(1);
+        const m = () => this.game.match();
+        const at = performance.now();
+        if (back) {
+          await t.until(() => !!this.game.musicBedStats?.()?.musicOn, 4000, 'the returning stage music').catch(() => undefined);
+          const ms = Math.round(performance.now() - at);
+          t.metric('returnMusicMs', ms);
+          t.event('cache-return', `back on ${stage}: music up ${ms} ms after the match went live`);
+          if (!this.game.musicBedStats?.()?.musicOn || ms > 1000) t.problem('bug', `returning to ${stage}: music took ${ms} ms (limit 1000)`);
+        }
+        await t.until(() => (m()?.state.frame ?? 0) > 180, 30000, 'a few seconds of play');
+        const s = stats()!;
+        t.event('cache-size', `${stage}: ${s.decodedMB} MB decoded (${s.entries} files, ${s.evictions} evicted, ceiling ${ceiling} MB, budget ${s.budgetMB} MB)`);
+        t.metric('audioCacheMB', s.decodedMB);
+        t.metric('audioCachePeakMB', s.peakMB);
+        t.metric('audioCacheBudgetMB', s.budgetMB);
+        t.metric('audioCacheEvictions', s.evictions);
+        if (s.peakMB > ceiling) t.problem('bug', `decoded audio peaked at ${s.peakMB} MB (ceiling ${ceiling})`);
+        await this.quitFromPause('main');
+      }
+    } finally {
+      opts.stage = original;
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
   async stageBed(): Promise<void> {
     const t = this.t;
     const original = localStorage.getItem(SOUND_KEY);

@@ -589,6 +589,7 @@ function replaySounds(events: SimEvent[]): void {
       if (e.dmg >= 130 && !events.some((k) => k.type === 'ko')) audio.crowd('ooh');
     } else if (e.type === 'ko') {
       audio.sfx('ko');
+      audio.killSting();
       audio.crowd('roar');
     }
   }
@@ -1541,6 +1542,7 @@ function playEventSounds(m: Match, events: ReturnType<Match['tick']>): void {
         break;
       case 'ko': {
         audio.sfx('ko', { at: at(e.x, true) });
+        audio.killSting(at(e.x, true));
         // Crowd: roar on every KO; rising cheer when the killer was behind and is now level-or-ahead.
         const before = crowdStocksBefore.length === m.state.fighters.length
           ? crowdStocksBefore
@@ -2423,6 +2425,7 @@ const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPla
   lookStats: () => renderer.lookStats(),
   aliveStats: () => renderer.aliveStats(),
   musicBedStats: () => audio.bedStats(),
+  audioCacheStats: () => audio.cacheStats(),
 };
 
 type PlaytestApi = { version: 1; product: string; scenarios(): unknown[]; start(id: string, o?: unknown): Promise<void>; stop(): void; state(): Record<string, unknown>; report(): Record<string, unknown> | null; input?(a: string, d: boolean): void };
