@@ -301,6 +301,10 @@
         <span>Shield</span>
         <button id="shield-switch" class="switch" type="button" role="switch" aria-checked="false" aria-label="Shield: Hold or Toggle">Hold</button>
       </div>
+      <div class="setting-row" id="controls-row">
+        <span>Controls</span>
+        <button id="rebind-open" class="switch" type="button">Rebind</button>
+      </div>
       <div class="setting-row">
         <span id="textsize-label">Text size</span>
         <div class="seg" id="textsize-seg" role="radiogroup" aria-labelledby="textsize-label">
@@ -336,6 +340,23 @@
       </div>
       <p class="hint">Music, Effects and Voice (announcer, commentary, story and fighter lines) are separate. Captions show the spoken lines as text; story lines still show when sound is off. Screen shake is the camera kick on hits and KOs. Rumble buzzes a controller or phone by how hard a hit lands (a short buzz, a jolt, a long one for a KO), softer with reduced motion. Touch size and opacity (touch devices) tune the on-screen stick. Quality Low draws fewer pixels and sparks, for phones; Glow is the bloom on bright art. Press <kbd>M</kbd> any time to turn sound on or off.</p>
       <button id="settings-done" class="primary" type="button">Done</button>
+    </div>
+  </div>
+
+  <div id="rebind" class="overlay" role="dialog" aria-modal="true" aria-labelledby="rebind-title" hidden>
+    <div class="panel rebind-panel">
+      <h2 id="rebind-title">Controls</h2>
+      <div class="seg" id="rebind-tabs" role="radiogroup" aria-label="Device">
+        <button class="switch" type="button" role="radio" data-tab="keyboard" aria-checked="true" data-autofocus>Keyboard</button>
+        <button class="switch" type="button" role="radio" data-tab="gamepad" aria-checked="false">Gamepad</button>
+      </div>
+      <div id="rebind-rows" class="rebind-rows"></div>
+      <p id="rebind-note" class="rebind-note" role="status" aria-live="polite" data-warn="false"></p>
+      <p id="rebind-hint" class="hint"></p>
+      <div class="actions">
+        <button id="rebind-reset" class="secondary" type="button">Reset to defaults</button>
+        <button id="rebind-done" class="primary" type="button">Done</button>
+      </div>
     </div>
   </div>
 
