@@ -60,7 +60,7 @@ import type { OnlineFight, FightEnd } from './net/fight.ts';
 import type { Found, OnlineSetup } from './net/matchmaker.ts';
 import { bootOnline, onlineApi } from './net/loader.ts';
 import { switching } from './ui/screens.ts';
-import { initRotatePrompt, rotateShowing } from './ui/rotate.ts';
+import { initRotatePrompt, rotateShowing, rotateSuppressed, suppressRotate } from './ui/rotate.ts';
 import { Teacher } from './ui/teach.ts';
 import { DAILY_POOL, dailyEpisode, dailyScore, dailySetup, liveStreak, msToNext, recordClear, type DailyEpisode } from './campaign/daily.ts';
 import { dailyDate, loadDaily, saveDaily } from './campaign/dailyStore.ts';
@@ -724,7 +724,7 @@ function replaySounds(events: SimEvent[]): void {
 // ------------------------------------------------ Watch replay (Results)
 
 /** The replay on screen: the player (a fresh Match fed the recorded inputs), its control bar and the way back. */
-let replayRun: { player: ReplayPlayer; bar: ReplayBar; hudFor: Match; back: () => void; ended: boolean; seq: number } | null = null;
+let replayRun: { rotateWas: boolean; player: ReplayPlayer; bar: ReplayBar; hudFor: Match; back: () => void; ended: boolean; seq: number } | null = null;
 let replaySeq = 0;
 
 /** Keeps the finished match's replay with the profile (bounded) and returns the full one for Watch replay. */
@@ -748,6 +748,7 @@ function endReplay(): void {
   replayRun = null;
   run.bar.destroy();
   renderer.setFreeCamera(false);
+  suppressRotate(run.rotateWas);
   audio.stopVoice();
   replayEmit('exit', { tick: run.player.tick });
 }
@@ -794,7 +795,10 @@ async function watchReplay(r: Replay, back: () => void): Promise<void> {
     },
     canvas,
   );
-  replayRun = { player, bar, hudFor: player.match, back, ended: false, seq };
+  // The replay shows in portrait too: the bar sits along the bottom of a 390x844 phone (the Rotate prompt would cover it).
+  const rotateWas = rotateSuppressed();
+  suppressRotate(true);
+  replayRun = { rotateWas, player, bar, hudFor: player.match, back, ended: false, seq };
   note('start');
 }
 
@@ -2837,6 +2841,7 @@ const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPla
     return () => matchWatchers.delete(w);
   },
   startMatch: (setup) => startMatch(setup, false),
+  replayTick: () => (replayRun ? replayRun.player.tick : -1),
   quitMatch: () => {
     endMatch();
     return go('main', spotlight);

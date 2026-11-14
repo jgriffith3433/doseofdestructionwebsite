@@ -24,6 +24,10 @@ export function suppressRotate(on: boolean): void {
   sync();
 }
 
+export function rotateSuppressed(): boolean {
+  return suppressed;
+}
+
 export function rotateShowing(): boolean {
   return showing;
 }
