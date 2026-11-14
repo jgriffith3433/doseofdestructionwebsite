@@ -906,14 +906,23 @@ export class Renderer {
     this.burst(this.camTarget.x, this.camTarget.y, 64, 0);
     // The burst took the pool's meshes: refill it now, so a match that starts while the warm-up is still
     // running (the VS card hands over early) never finds the pool empty.
+    // Refilled 16 meshes per animation frame (each frame is a few ms, never one long frame), each batch finishing itself.
     while (this.sparkPool.length < 96) {
-      const m = this.makeSpark();
-      m.setEnabled(false);
-      this.sparkPool.push(m);
+      for (let i = 0; i < 16 && this.sparkPool.length < 96; i++) {
+        const m = this.makeSpark();
+        m.setEnabled(false);
+        this.sparkPool.push(m);
+      }
+      await breathe();
     }
     // Every special's flipbook texture is uploaded and shown once, tiny, so the first special never compiles or uploads mid-fight.
+    // Two kinds per frame: each upload is a texture decode plus a GPU copy.
     this.flip.prepare();
-    for (const k of FLIPBOOK_KINDS) this.flip.play(k, this.camTarget.x, this.camTarget.y, -0.4, 0.01, COUNTER_TINT, { hold: 1 });
+    let shown = 0;
+    for (const k of FLIPBOOK_KINDS) {
+      this.flip.play(k, this.camTarget.x, this.camTarget.y, -0.4, 0.01, COUNTER_TINT, { hold: 1 });
+      if (++shown % 2 === 0) await breathe();
+    }
     // The launch trail's three looks are shown once with the other spark materials, so the first trail never compiles a shader mid-fight.
     for (const mat of Object.values(this.smokeMats)) {
       const m = this.takeSpark(mat);
@@ -938,15 +947,17 @@ export class Renderer {
     await breathe();
     // Each projectile and trap look is shown once, so their shaders compile now and not on the first throw
     // (the first drawShots with nothing in play hides them again).
-    this.shotMaterials().forEach((mat, i) => {
+    const shotMats = this.shotMaterials();
+    for (let i = 0; i < shotMats.length; i++) {
       const mesh = this.shotMeshes[i] ?? CreatePlane(`shot-${i}`, { width: 1, height: 0.5 }, this.scene);
       mesh.isPickable = false;
       this.glow.addExcludedMesh(mesh);
-      mesh.material = mat;
+      mesh.material = shotMats[i];
       mesh.position.set(this.camTarget.x, this.camTarget.y, -0.3);
       mesh.setEnabled(true);
       this.shotMeshes[i] = mesh;
-    });
+      if (i % 3 === 2) await breathe();
+    }
     this.alive?.setFighters(this.views.map((v) => v.body));
     for (const v of this.views) {
       v.shield.setEnabled(true);
