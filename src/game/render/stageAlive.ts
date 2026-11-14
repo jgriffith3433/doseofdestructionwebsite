@@ -143,6 +143,9 @@ export class StageAlive {
       this.movers.push({ name: `beam${i}`, node, x: node.position.x, y: node.position.y, rot: 0, move: (t) => (node.rotation.z = Math.sin(t * speed + phase) * 0.55) });
     }
 
+    // An open-air stage has no studio audience, crane or crew: their dark silhouettes would hang as a black band in the sky.
+    const studio = !this.stage.openAir;
+
     // Crowd silhouette: a row of heads and raised arms that bobs, one row on Low, two on High.
     const crowd = tex(this.scene, 512, 64, (c) => {
       c.fillStyle = '#0b0710';
@@ -156,7 +159,7 @@ export class StageAlive {
       }
     });
     this.disposables.push(crowd);
-    for (let r = 0; r < (low ? 1 : 2); r++) {
+    for (let r = 0; studio && r < (low ? 1 : 2); r++) {
       const { node, k } = this.anchor(`crowd${r}`, 0, b.bottom + 330 - r * 40, r ? Z.crowdFront : Z.crowd);
       const m = this.mat(crowd, '#ffffff', r ? 1 : 0.85);
       this.plane(`alive-crowd${r}`, m, (span * W * k) / 1.0, ((span * W * k) / 8) * 1.0, node);
@@ -176,7 +179,7 @@ export class StageAlive {
       c.fillRect(238, 14, 10, 6);
     });
     this.disposables.push(crane);
-    {
+    if (studio) {
       const { node, k } = this.anchor('crane', b.left + 150, b.top - 350, Z.crane);
       const m = this.mat(crane, '#ffffff', 1);
       this.plane('alive-crane', m, 6 * k, 0.75 * k, node, 0).position.x = 3 * k;
@@ -184,7 +187,7 @@ export class StageAlive {
     }
 
     // A crew silhouette crossing behind the stage and back.
-    if (!low) {
+    if (studio && !low) {
       const crew = tex(this.scene, 32, 64, (c) => {
         c.fillStyle = '#0d0912';
         c.beginPath();

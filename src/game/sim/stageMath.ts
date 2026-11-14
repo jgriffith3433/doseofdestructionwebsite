@@ -308,6 +308,8 @@ export interface StageDef {
   art?: { style?: string; reference?: string };
   /** The stage's distance haze (render only; dropped on Low): sheets tinted to the stage between the far layers. */
   haze?: StageHaze;
+  /** An outdoor stage (render only): no studio crowd, crane or crew silhouettes hung in the sky. */
+  openAir?: boolean;
   /** The stage's colour grade (render only): baked into stages/<id>/lut.png by tools/make-luts.mjs. */
   /** The light the stage puts on its fighters (render only): key, rim, ambient, glossy floor. */
   light?: StageLight;

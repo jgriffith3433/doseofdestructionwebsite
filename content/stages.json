@@ -667,6 +667,7 @@
   },
   {
     "id": "desert",
+    "openAir": true,
     "room": {
       "name": "canyon",
       "seconds": 0.45,
