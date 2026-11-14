@@ -234,6 +234,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'input-feel') await r.inputFeel();
         else if (id === 'touch-match') await r.touchMatch();
         else if (id === 'touch-settings') await r.touchSettingsRun();
+        else if (id === 'text-size') await r.textSizeRun();
         else if (id === 'colour-vision') await r.colourVisionRun();
         else if (id === 'graphics') await r.graphicsRun();
         else if (id === 'post-chain') await r.postChain();
@@ -8185,6 +8186,164 @@ class Run {
     } finally {
       this.useTap = false;
       forceTouchUi(false);
+    }
+  }
+
+  // ---------------------------------------------------------- text-size
+
+  /**
+   * Settings → Text size 100 / 125 / 150% (textSize.ts, the --ts variable). At 100% no visible text on the screen is
+   * under 12 px; at 150% menus, HUD and captions are measurably larger, nothing is clipped or runs off the window, and
+   * the choice is in localStorage "dod.textsize". On a portrait phone the menus are checked in the portrait window and
+   * the match in the turned frame.
+   */
+  async textSizeRun(): Promise<void> {
+    const t = this.t;
+    const KEY = 'dod.textsize';
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    const original = (() => {
+      try {
+        return localStorage.getItem(KEY);
+      } catch {
+        return null;
+      }
+    })();
+    const restore = () => {
+      try {
+        if (original === null) localStorage.removeItem(KEY);
+        else localStorage.setItem(KEY, original);
+      } catch {
+        // Storage blocked.
+      }
+    };
+    /** Every visible element that owns text: its font size, and whether it is clipped or off the window. */
+    const scan = (where: string, level: number) => {
+      let small = 0;
+      let clipped = 0;
+      let off = 0;
+      const biggest = new Map<string, number>();
+      for (const el of document.body.querySelectorAll<HTMLElement>('*')) {
+        if (el.closest('[hidden], #tap-to-play, .hawkes-ask') || el.closest('svg')) continue;
+        const own = [...el.childNodes].some((n) => n.nodeType === 3 && (n.textContent ?? '').trim().length > 0);
+        if (!own) continue;
+        const cs = getComputedStyle(el);
+        const r = el.getBoundingClientRect();
+        if (cs.visibility === 'hidden' || cs.display === 'none' || Number(cs.opacity) < 0.05 || r.width < 2 || r.height < 2) continue;
+        const label = `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : ''} "${(el.textContent ?? '').trim().slice(0, 24)}"`;
+        const px = parseFloat(cs.fontSize);
+        if (px < 11.95) {
+          small++;
+          t.problem('bug', `${where}: ${label} is ${px.toFixed(1)}px at ${level}% (minimum 12px)`);
+        }
+        const hides = cs.overflowX !== 'visible' || cs.textOverflow === 'clip';
+        if (hides && el.scrollWidth > el.clientWidth + 2 && el.clientWidth > 0 && cs.overflowX !== 'auto' && cs.overflowX !== 'scroll') {
+          clipped++;
+          t.problem('bug', `${where}: ${label} is clipped at ${level}% (${el.scrollWidth}px of text in ${el.clientWidth}px)`);
+        }
+        if (r.left < -1 || r.right > innerWidth + 1) {
+          off++;
+          t.problem('bug', `${where}: ${label} runs off the ${innerWidth}px window at ${level}% (${Math.round(r.left)} to ${Math.round(r.right)})`);
+        }
+        biggest.set(el.tagName, Math.max(biggest.get(el.tagName) ?? 0, px));
+      }
+      t.event('text-scan', `${where} at ${level}%: ${small} under 12px, ${clipped} clipped, ${off} off screen (${innerWidth}x${innerHeight})`);
+      t.metric(`textUnder12.${where}.${level}`, small);
+      return { small, clipped, off };
+    };
+    const px = (sel: string) => {
+      const el = document.querySelector<HTMLElement>(sel);
+      return el ? parseFloat(getComputedStyle(el).fontSize) : 0;
+    };
+    const chooseSize = async (level: number) => {
+      await this.tap(() => this.q(`#textsize-seg [data-ts="${level}"]`), `Text size ${level}%`);
+      await t.wait(200);
+      const saved = localStorage.getItem(KEY);
+      const v = getComputedStyle(document.documentElement).getPropertyValue('--ts').trim();
+      if (saved !== String(level) || Number(v) !== level / 100) t.problem('bug', `Text size ${level}% saved "${saved}" and set --ts to "${v}"`);
+      else t.event('text-saved', `dod.textsize = ${saved}, --ts = ${v}`);
+    };
+    const openSettings = async (from: 'menu' | 'pause') => {
+      if (from === 'menu') await this.tap(() => this.q('[data-go="settings"]'), 'Settings');
+      else await this.tap(() => this.q('#btn-pause-settings'), 'Settings (Pause)');
+      await t.until(settingsShowing, 3000, `Settings from ${from}`);
+    };
+    const menuScans = async (level: number) => {
+      scan('main-menu', level);
+      await openSettings('menu');
+      const seg = this.q('#textsize-seg');
+      if (!seg || seg.getBoundingClientRect().width === 0) t.problem('bug', 'Settings has no Text size 100% / 125% / 150% choice');
+      scan('settings', level);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(300);
+      await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+      await this.screen('select');
+      await t.wait(400);
+      scan('select', level);
+      await this.click(() => this.q('#select [data-back]'), 'Back');
+      await this.screen('main');
+    };
+
+    forceTouchUi(touch);
+    this.useTap = touch;
+    try {
+      this.logViewport(touch);
+      try {
+        localStorage.removeItem(KEY);
+      } catch {
+        // Storage blocked.
+      }
+      const portrait = touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560;
+      await this.toMainMenu();
+      // 100%: the baseline, then 150%.
+      await openSettings('menu');
+      await chooseSize(100);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(300);
+      await menuScans(100);
+      const base = { menu: px('.menu-item strong'), body: px('.setting-row') };
+      t.progress(0.25);
+      await openSettings('menu');
+      await chooseSize(125);
+      await chooseSize(150);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.wait(300);
+      const big = { menu: px('.menu-item strong') };
+      if (!(big.menu > base.menu * 1.4)) t.problem('bug', `the menu text did not grow at 150% (${base.menu}px → ${big.menu}px)`);
+      else t.event('text-bigger', `menu item ${base.menu.toFixed(1)}px → ${big.menu.toFixed(1)}px at 150%`);
+      await menuScans(150);
+      t.progress(0.5);
+      if (portrait) {
+        // The match and its HUD play in the turned frame (it starts from the saved 150%).
+        restore();
+        return this.touchMatchTurned('text-size');
+      }
+      await this.startVersus(3);
+      await t.until(() => this.game.phase() === 'play', 20000, 'the match to begin');
+      await t.wait(1500);
+      const hud150 = px('.hud-pct');
+      scan('hud', 150);
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await openSettings('pause');
+      await chooseSize(100);
+      await this.tap(() => this.q('#settings-done'), 'Done');
+      await t.until(() => !settingsShowing() && !this.q('#pause')!.hidden, 3000, 'back to the pause menu');
+      const hud100 = px('.hud-pct');
+      if (!(hud150 > hud100 * 1.4)) t.problem('bug', `the HUD percent did not grow at 150% (${hud100}px → ${hud150}px)`);
+      else t.event('hud-bigger', `HUD percent ${hud100.toFixed(1)}px at 100% → ${hud150.toFixed(1)}px at 150%`);
+      await this.click(() => this.q('#btn-resume, [data-resume]'), 'Resume');
+      await t.wait(500);
+      scan('hud', 100);
+      await tapKey('Escape');
+      await t.until(() => this.game.phase() === 'pause', 3000, 'the match to pause');
+      await this.click(() => this.q('#btn-quit'), 'Quit');
+      await this.screen('main');
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      this.useTap = false;
+      forceTouchUi(false);
+      restore();
     }
   }
 
