@@ -224,6 +224,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'feet') await r.feetRun();
         else if (id === 'smooth-clips') await r.smoothClips();
         else if (id === 'specials') await r.specialsRun();
+        else if (id === 'extra-jumps') await r.extraJumpsRun();
         else if (id === 'cpu-styles') await r.cpuStylesRun();
         else if (id === 'special-sounds') await r.specialSounds();
         else if (id === 'grab') await r.grabRun();
@@ -6583,6 +6584,106 @@ class Run {
     if (rx.shieldRipples > 0) t.event('shield-ripple', `${rx.shieldRipples} shielded hits drew a shield ripple`);
     if (rx.parryFlashes > 0) t.event('parry-flash', `${rx.parryFlashes} parries drew the white parry flash`);
     if (rx.clashSparks > 0) t.event('clash-spark', `${rx.clashSparks} clashes drew their own spark`);
+  }
+
+  /**
+   * Extra jumps by touch (balance pass on the multi-jump fighters): in Training the fighter (option `fighter`, default
+   * evil-blue-bird) takes off with a left-side upward flick and then flicks again in the air until its jumps run out.
+   * Real touch pointer events on the floating-stick zone, nothing teleported. Events `extra-jump` (each one),
+   * `extra-jumps`; metric `extraJumps`. The power-index rule itself is `test/jumpPower.test.ts`.
+   */
+  async extraJumpsRun(): Promise<void> {
+    const t = this.t;
+    if (innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560 && this.options.at !== 'phone-turned') {
+      this.logViewport(true);
+      return this.touchMatchTurned('extra-jumps');
+    }
+    this.logViewport(this.isPhone());
+    await this.toMainMenu();
+    this.useTap = true;
+    forceTouchUi(true);
+    const id = String(this.options.fighter ?? 'evil-blue-bird');
+    const idx = CHARACTERS.findIndex((c) => c.id === id);
+    if (idx < 0) {
+      t.problem('bug', `fighter ${id} is not on the roster`);
+      t.finish('error');
+      return;
+    }
+    const wanted = CHARACTERS[idx].airJumps;
+    const stage = stagesFor('training')[0]?.index ?? 0;
+    void this.game.startMatch({
+      mode: 'training', stage, stocks: 1, rules: {},
+      slots: [{ char: idx, cpu: null }, { char: (idx + 1) % CHARACTERS.length, cpu: 0 }],
+    });
+    await this.matchLive();
+    this.manual = NO_INPUT;
+    const root = touchOverlay() ?? document.querySelector<HTMLElement>('.touch');
+    if (!root) {
+      t.problem('bug', 'the touch controls were not built');
+      t.finish('error');
+      return;
+    }
+    if (root.hidden) root.hidden = false;
+    t.event('phone-shot', `training with the touch overlay as ${id} at ${innerWidth}x${innerHeight}`);
+    const me = () => {
+      const m = this.game.match()!;
+      return m.state.fighters[m.player];
+    };
+    const frame = () => this.game.match()?.state.frame ?? 0;
+    const frames = async (n: number) => {
+      const end = frame() + n;
+      await t.until(() => frame() >= end, 6000 + n * 150, 'frames to pass');
+    };
+    await t.until(() => me().grounded > 0, 10000, 'the fighter to stand');
+    await frames(8);
+    let pid = 300;
+    const send = (el: HTMLElement, type: string, x: number, y: number, pointer: number) =>
+      el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: pointer, isPrimary: true, button: 0, buttons: type === 'pointerup' ? 0 : 1, bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y }));
+    const flick = async () => {
+      const fx = Math.round(innerWidth * 0.2);
+      const fy = Math.round(innerHeight * 0.7);
+      const hit = document.elementFromPoint(fx, fy) as HTMLElement | null;
+      const zone = (hit?.closest('.touch-move-zone, .touch-stick') as HTMLElement | null) ?? root;
+      const p = ++pid;
+      send(zone, 'pointerdown', fx, fy, p);
+      await t.wait(16);
+      send(document.querySelector<HTMLElement>('.touch-stick') ?? zone, 'pointermove', fx, fy - 28, p);
+      await t.wait(16);
+      send(document.querySelector<HTMLElement>('.touch-stick') ?? zone, 'pointerup', fx, fy - 56, p);
+    };
+    t.progress(0.2);
+    await flick();
+    try {
+      await t.until(() => me().grounded === 0, 2000, 'the first flick to leave the ground');
+    } catch (e) {
+      if (String(e).includes('stopped')) throw e;
+      t.problem('bug', `${id}: the first upward flick did not jump`);
+    }
+    let got = 0;
+    for (let n = 1; n <= wanted; n++) {
+      await frames(14);
+      const before = me().jumpsLeft;
+      await flick();
+      let ok = false;
+      try {
+        await t.until(() => me().jumpsLeft < before, 1500, `air flick ${n}`);
+        ok = true;
+      } catch (e) {
+        if (String(e).includes('stopped')) throw e;
+      }
+      if (!ok) {
+        t.problem('bug', `${id}: air flick ${n} of ${wanted} did not make an extra jump (jumps left ${me().jumpsLeft})`);
+        break;
+      }
+      got++;
+      t.event('extra-jump', `${id}: extra jump ${n} of ${wanted} from a touch flick (jumps left ${me().jumpsLeft}, y ${Math.round(me().y)})`);
+      t.progress(0.2 + (0.6 * n) / wanted);
+    }
+    t.metric('extraJumps', got);
+    if (got === wanted) t.event('extra-jumps', `${id} got all ${wanted} extra jumps from swipes, plus the takeoff`);
+    else t.problem('bug', `${id}: only ${got} of ${wanted} extra jumps came from swipes`);
+    await frames(30);
+    t.finish();
   }
 
   async specialsRun(): Promise<void> {
