@@ -209,7 +209,9 @@ export function installDodPlaytest(game: GameHooks): void {
       // The roster screen after Press start is only for its own scenario; every other one goes straight to the main menu.
       suppressRoster(id !== 'roster-intro');
       // Automatic quality would change the picture under every other scenario's own checks; only its own scenario runs it.
-      game.autoSetup?.({ enabled: id === 'auto-quality', slowMs: 0 });
+      // ledge-options on a phone is the exception: its checks read the sim, not the picture, and it is the long phone run (150 s) where a slowdown that stays must step quality down like it does for a player.
+      const phoneLedge = id === 'ledge-options' && Math.min(innerWidth, innerHeight) <= 560;
+      game.autoSetup?.({ enabled: id === 'auto-quality' || phoneLedge, slowMs: 0 });
       const r = new Run(game, t, options, t.spot);
       r.judgeCamera = id === 'match' || id === 'hit-feel' || id === 'touch-match';
       run = r;
