@@ -216,6 +216,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'cpu-level') await r.cpuLevel();
         else if (id === 'auto-quality') await r.autoQuality();
         else if (id === 'quota') await r.quotaObjective();
+        else if (id === 'grades') await r.gradesRun();
         else if (id === 'streak') await r.streakObjective();
         else if (id === 'finale-hijack') await r.finaleHijack();
         else if (id === 'story-cards') await r.storyCards();
@@ -2349,10 +2350,12 @@ class Run {
         const won = await this.results();
         await this.checkQuotaResult(c);
         await this.checkStreakResult(c);
+        if (won) await this.checkGradeCard(c);
         if (won) {
           await this.click(() => this.button('#results-actions', 'Continue'), 'Continue');
           await this.playDialogue();
           await this.screen('campaign');
+          this.checkMapStars(c);
           cleared++;
           t.metric('chaptersCleared', cleared);
           t.event('chapter-cleared', label);
@@ -2587,6 +2590,76 @@ class Run {
     } finally {
       this.game.setCampaignProgress(before);
     }
+  }
+
+  /** The grades scenario: the chapter (option `chapter`, default house-heavy) played from the map, then the map opened again from the save. */
+  async gradesRun(): Promise<void> {
+    const t = this.t;
+    const asked = this.options.chapter ?? 'house-heavy';
+    const from = CHAPTERS.findIndex((c) => c.id === asked);
+    if (from < 0) {
+      t.problem('bug', `chapter "${String(asked)}" is not in content/campaign.json`);
+      t.finish('error');
+      return;
+    }
+    const before = this.game.setCampaignProgress(CHAPTERS.slice(0, from).map((c) => c.id));
+    const savedStars = localStorage.getItem('dod-stars');
+    localStorage.removeItem('dod-stars');
+    t.log(`setup shortcut: chapters 1-${from} marked cleared, starting at ${CHAPTERS[from].id}`);
+    const t0 = performance.now();
+    try {
+      await this.campaignFrom(from, () => performance.now() - t0 > CAMPAIGN_BUDGET_MS, from);
+      const best = JSON.parse(localStorage.getItem('dod-stars') ?? '{}')[CHAPTERS[from].id];
+      if (best) {
+        // Back to the menu and onto the map again: the map reads the grade from the save.
+        await this.toMainMenu();
+        await this.click(() => this.q('[data-go="campaign"]'), 'Campaign');
+        await this.screen('campaign');
+        this.checkMapStars(CHAPTERS[from], 'after-reopen');
+      } else t.note('the chapter was not won, so no grade was kept');
+    } finally {
+      this.game.setCampaignProgress(before);
+      if (savedStars === null) localStorage.removeItem('dod-stars');
+      else localStorage.setItem('dod-stars', savedStars);
+    }
+  }
+
+  /** The stars card on a won episode's results: 1-3 stars, a line for each star's test, all on screen (and big enough on a phone). */
+  private async checkGradeCard(c: (typeof CHAPTERS)[number]): Promise<void> {
+    const t = this.t;
+    const card = () => this.q('#results-body .results-grade');
+    await t.until(() => !!card(), 8000, 'the stars card').catch((e) => {
+      if (String(e).includes('stopped')) throw e;
+    });
+    const el = card();
+    if (!el) return void t.problem('bug', `winning ${c.id} shows no stars on the results screen`);
+    const stars = Number(el.dataset.stars);
+    const steps = [...el.querySelectorAll<HTMLElement>('.grade-steps li')];
+    if (!(stars >= 1 && stars <= 3) || steps.length !== 3) t.problem('bug', `the stars card says ${stars} stars with ${steps.length} labelled steps`);
+    el.scrollIntoView({ block: 'nearest' });
+    const bad = steps.filter((li) => {
+      const r = li.getBoundingClientRect();
+      return r.width < 2 || r.left < -1 || r.right > innerWidth + 1 || r.bottom > innerHeight + 1 || r.top < -1 || !li.textContent?.trim();
+    });
+    const px = Math.min(...steps.map((li) => parseFloat(getComputedStyle(li).fontSize)));
+    if (bad.length) t.problem('bug', `${innerWidth}x${innerHeight}: ${bad.length} star label(s) are off screen on the results`);
+    if (px < 12) t.problem('bug', `the star labels are ${px}px, under 12 px`);
+    t.event('grade', `${c.id}: ${stars} of 3 (par ${c.par} s) · ${steps.map((li) => `${li.dataset.met === '1' ? '★' : '☆'} ${li.textContent?.replace(/[★☆]/g, '').trim()}`).join(' | ')} · ${innerWidth}x${innerHeight}`);
+    t.metric('gradeStars', stars);
+  }
+
+  /** The season map shows a cleared episode's best stars with their count in words. */
+  private checkMapStars(c: (typeof CHAPTERS)[number], when = 'after-win'): void {
+    const t = this.t;
+    const el = this.q(`#chapter-path .chapter[data-chapter="${c.id}"] .chapter-stars`);
+    if (!el) return void t.problem('bug', `the season map shows no stars on the cleared episode ${c.id}`);
+    el.scrollIntoView({ block: 'nearest' });
+    const r = el.getBoundingClientRect();
+    const saved = JSON.parse(localStorage.getItem('dod-stars') ?? '{}')[c.id] ?? 1;
+    const label = el.querySelector('small')?.textContent ?? '';
+    if (Number(el.dataset.stars) !== saved) t.problem('bug', `the map shows ${el.dataset.stars} stars on ${c.id} but the save has ${saved}`);
+    if (r.width < 2 || r.height < 2 || r.left < -1 || r.right > innerWidth + 1) t.problem('bug', `${innerWidth}x${innerHeight}: the map's stars for ${c.id} are off screen`);
+    t.event('map-stars', `${when}: ${c.id} ${el.dataset.stars} of 3 ("${label}") at ${Math.round(r.left)},${Math.round(r.top)} ${innerWidth}x${innerHeight}`);
   }
 
   /** A chapter with a quota: the HUD chip must show it from the start and follow the damage dealt. Call it every poll. */

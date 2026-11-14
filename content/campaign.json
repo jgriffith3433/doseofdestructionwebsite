@@ -1,6 +1,7 @@
 [
   {
     "id": "open-mic",
+    "par": 60,
     "coldOpen": [
       { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season one. The lights come up on City Top." },
       { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk takes the mic." },
@@ -112,6 +113,7 @@
   },
   {
     "id": "house-heavy",
+    "par": 60,
     "unlock": "break",
     "title": "House Heavy",
     "tagline": "The house fighter is the size of the house.",
@@ -201,6 +203,7 @@
   },
   {
     "id": "bad-signal",
+    "par": 60,
     "unlock": "dj-wont-read",
     "title": "Bad Signal",
     "tagline": "Two on one, on platforms that will not hold still.",
@@ -313,6 +316,7 @@
   },
   {
     "id": "low-pressure",
+    "par": 80,
     "unlock": "small-weather",
     "title": "Low Pressure",
     "tagline": "Someone brought the weather.",
@@ -403,6 +407,7 @@
   },
   {
     "id": "turn-the-page",
+    "par": 105,
     "unlock": "blog-man",
     "title": "Turn the Page",
     "tagline": "A partner, finally. He writes too.",
@@ -512,6 +517,7 @@
   },
   {
     "id": "sudden-death",
+    "par": 35,
     "unlock": "slice",
     "title": "Sudden Death",
     "tagline": "The show is running long. One stock, high damage.",
@@ -593,6 +599,7 @@
   },
   {
     "id": "dead-weight",
+    "par": 60,
     "unlock": "ss-boulder",
     "title": "Dead Weight",
     "tagline": "They want the kid off the air.",
@@ -700,6 +707,7 @@
   },
   {
     "id": "encore",
+    "par": 80,
     "unlock": "orchestrator",
     "title": "Encore",
     "tagline": "The man who runs the show steps onto it.",
@@ -807,6 +815,7 @@
   },
   {
     "id": "title-defense",
+    "par": 60,
     "coldOpen": [
       { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season two. The belt is on the line." },
       { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "The challenger walks on." },
@@ -930,6 +939,7 @@
   },
   {
     "id": "drop-in",
+    "par": 70,
     "unlock": "pyro-singer",
     "season": 2,
     "title": "Drop In",
@@ -1033,6 +1043,7 @@
   },
   {
     "id": "champions-tax",
+    "par": 80,
     "unlock": "susan",
     "season": 2,
     "title": "The Champion's Tax",
@@ -1132,6 +1143,7 @@
   },
   {
     "id": "sponsored",
+    "par": 80,
     "unlock": "wallit",
     "season": 2,
     "title": "Sponsored",
@@ -1260,6 +1272,7 @@
   },
   {
     "id": "walk-on",
+    "par": 105,
     "coldOpen": [
       { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "The finale. One episode. Everything." },
       { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk walks into the loop." },
@@ -1426,6 +1439,7 @@
   },
   {
     "id": "simulcast",
+    "par": 80,
     "coldOpen": [
       { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season four. Two feeds, one fight." },
       { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk, live on both." },
@@ -1540,6 +1554,7 @@
   },
   {
     "id": "rerun",
+    "par": 70,
     "unlock": "try-belt",
     "season": 4,
     "title": "Rerun",
@@ -1661,6 +1676,7 @@
   },
   {
     "id": "cut-to-size",
+    "par": 80,
     "unlock": "crosser",
     "season": 4,
     "title": "Cut to Size",
@@ -1769,6 +1785,7 @@
   },
   {
     "id": "hostile-takeover",
+    "par": 105,
     "unlock": "crystalline-intelligences",
     "season": 4,
     "title": "Hostile Takeover",
@@ -1909,6 +1926,7 @@
   },
   {
     "id": "cold-open",
+    "par": 80,
     "coldOpen": [
       { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season five. Brought to you by everyone." },
       { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk, in the product shot." },
@@ -2014,6 +2032,7 @@
   },
   {
     "id": "product-placement",
+    "par": 60,
     "unlock": "yo-bot",
     "season": 5,
     "title": "Product Placement",
@@ -2126,6 +2145,7 @@
   },
   {
     "id": "dead-air",
+    "par": 60,
     "unlock": "spider-bot",
     "season": 5,
     "title": "Dead Air",
@@ -2236,6 +2256,7 @@
   },
   {
     "id": "clip-show",
+    "par": 105,
     "unlock": "lapis-man",
     "season": 5,
     "title": "Clip Show",
@@ -2373,6 +2394,7 @@
   },
   {
     "id": "local-affiliate",
+    "par": 80,
     "coldOpen": [
       { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season six. Local, loud, live." },
       { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk hits the pipe." },
@@ -2478,6 +2500,7 @@
   },
   {
     "id": "standards-and-practices",
+    "par": 80,
     "unlock": "chooser",
     "season": 6,
     "title": "Standards and Practices",
@@ -2578,6 +2601,7 @@
   },
   {
     "id": "prime-time",
+    "par": 40,
     "unlock": "not-an-old-man-yet",
     "season": 6,
     "title": "Prime Time",
@@ -2680,6 +2704,7 @@
   },
   {
     "id": "global-feed",
+    "par": 105,
     "unlock": "yooba",
     "season": 6,
     "title": "Global Feed",
@@ -2813,6 +2838,7 @@
   },
   {
     "id": "pilot-remake",
+    "par": 60,
     "coldOpen": [
       { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season seven. We're doing it again." },
       { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk, take two." },
@@ -2918,6 +2944,7 @@
   },
   {
     "id": "laugh-track",
+    "par": 55,
     "unlock": "shutup-bot",
     "season": 7,
     "title": "Laugh Track",
@@ -3016,6 +3043,7 @@
   },
   {
     "id": "crossover-event",
+    "par": 105,
     "unlock": "stratabots",
     "season": 7,
     "title": "Crossover Event",
@@ -3140,6 +3168,7 @@
   },
   {
     "id": "series-finale",
+    "par": 55,
     "unlock": "future-man",
     "season": 7,
     "title": "Series Finale",
@@ -3252,6 +3281,7 @@
   },
   {
     "id": "red-carpet",
+    "par": 80,
     "coldOpen": [
       { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season eight. The red carpet rolls out." },
       { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk, camera ready." },
@@ -3356,6 +3386,7 @@
   },
   {
     "id": "best-supporting",
+    "par": 105,
     "season": 8,
     "title": "Best Supporting",
     "tagline": "Two nominees, one category, and a disagreement about who is supporting whom.",
@@ -3479,6 +3510,7 @@
   },
   {
     "id": "lifetime-achievement",
+    "par": 50,
     "season": 8,
     "title": "Lifetime Achievement",
     "tagline": "The network gives the champion a lifetime award, and a quota to earn it.",
@@ -3581,6 +3613,7 @@
   },
   {
     "id": "best-in-show",
+    "par": 55,
     "season": 8,
     "title": "Best in Show",
     "tagline": "The big envelope, and an editor who wants a clean acceptance.",
@@ -3692,6 +3725,7 @@
   },
   {
     "id": "teaser",
+    "par": 80,
     "coldOpen": [
       { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season nine. Coming soon to a ring near you." },
       { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk, in the trailer." },
@@ -3796,6 +3830,7 @@
   },
   {
     "id": "trailer",
+    "par": 105,
     "season": 9,
     "title": "Trailer",
     "tagline": "Two walk-ons cut a trailer together and neither will share the voiceover.",
@@ -3916,6 +3951,7 @@
   },
   {
     "id": "table-read",
+    "par": 55,
     "season": 9,
     "title": "Table Read",
     "tagline": "The cast sits down with the finale script, and every page has a hole in it.",
@@ -4026,6 +4062,7 @@
   },
   {
     "id": "cliffhanger",
+    "par": 55,
     "season": 9,
     "title": "Cliffhanger",
     "tagline": "The last night of the season ends the way television ends a season: mid-sentence.",
@@ -4137,6 +4174,7 @@
   },
   {
     "id": "first-cut",
+    "par": 80,
     "coldOpen": [
       { "ms": 3500, "camera": null, "sting": "sting", "crowd": true, "caption": "Season ten. The first cut." },
       { "ms": 4000, "walk": 0, "camera": 0, "taunt": true, "caption": "Exit Punk walks onto the set." },
@@ -4258,6 +4296,7 @@
   },
   {
     "id": "final-cut",
+    "par": 80,
     "season": 10,
     "title": "Final Cut",
     "tagline": "The walk-on signs the second sheet. Last fight of the last season.",
