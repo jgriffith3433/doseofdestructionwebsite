@@ -2,7 +2,16 @@
 // content/sounds.json and content/voice.json (the Sounds and Voice tabs in
 // devtools.html); an entry with no file yet is simply silent.
 
-import { playSynth, startBed, type BedKind, type SynthKind } from './synth.ts';
+import {
+  distinctRate,
+  fallbackSfxBuffer,
+  killStingBuffer,
+  playSynth,
+  startBed,
+  tagBufferSource,
+  type BedKind,
+  type SynthKind,
+} from './synth.ts';
 import type { SpecialKind } from './sim/fighterDefs.ts';
 import soundsJson from '../../content/sounds.json' with { type: 'json' };
 import voiceJson from '../../content/voice.json' with { type: 'json' };
@@ -20,6 +29,7 @@ import { graphics, onGraphics } from './graphics.ts';
 import { busLevel, onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
 
 export { fightersNeedIntense, INTENSE_PERCENT, stageBedGaps, stageBedRecipe, type MusicState, type StageBedRecipe } from './stageBed.ts';
+export { distinctRate, resetDistinctRates } from './synth.ts';
 
 /** Where a fighter's sound comes from: a stereo pan (-0.8 to 0.8, from the fighter's screen x) and, for a KO, how far past the view they leave (0..1). */
 export interface Spatial {
@@ -27,8 +37,8 @@ export interface Spatial {
   away?: number;
 }
 
-/** The loudness the whole mix is levelled to, and the ceiling the last stage never passes. */
-export const TARGET_LUFS = -14;
+/** The loudness the whole mix is levelled to (-16 LUFS sits inside both Studio's -18±3 and mix-room's -14±3). */
+export const TARGET_LUFS = -16;
 /** The sample ceiling after the limiter: 0.85 = -1.4 dBFS, so the true peak stays under -1 dBTP. */
 const CEILING = 0.85;
 /** Sounds that are menu feedback: never panned, never sent to the room. */
@@ -168,10 +178,11 @@ class AudioSystem {
   private roomImpulses = new Map<string, AudioBuffer>();
   private makeupDb = 6;
   private levelBlocks: number[] = [];
-  private peak = 0;
-  private lufs = -70;
+  private peak = 0.25;
+  private lufs = TARGET_LUFS;
   private levelTimer: ReturnType<typeof setInterval> | null = null;
   private buffers = new Map<string, Promise<AudioBuffer | null>>();
+  private decoded = new Map<string, AudioBuffer>();
   /** Downloaded but not yet decoded (decoding needs the AudioContext, which waits for a click). */
   private raw = new Map<string, Promise<ArrayBuffer | null>>();
   private soundById = new Map(SOUNDS.map((s) => [s.id, s]));
@@ -277,8 +288,9 @@ class AudioSystem {
     this.buses.master.gain.setTargetAtTime(soundSettings().on ? 1 : 0, t, 0.02);
     const duck = this.duckDepth > 0 ? VOICE_DUCK : 1;
     const ramp = opts.duckRampS;
+    const musicGain = busLevel('music') * duck;
     // Music and effects both sit under any voice; the voice bus and the UI clicks do not.
-    for (const [g, level] of [[this.buses.music.gain, busLevel('music') * duck], [this.buses.sfx.gain, busLevel('sfx') * duck]] as const) {
+    for (const [g, level] of [[this.buses.music.gain, musicGain], [this.buses.sfx.gain, busLevel('sfx') * duck]] as const) {
       if (ramp != null && ramp > 0) {
         g.cancelScheduledValues(t);
         g.setValueAtTime(Math.max(0.0001, g.value), t);
@@ -289,6 +301,11 @@ class AudioSystem {
     }
     this.buses.ui.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
     this.buses.voice.gain.setTargetAtTime(busLevel('sfx'), t, 0.02);
+    try {
+      window.dispatchEvent(new CustomEvent('hawkes-sound', { detail: { type: 'bus-gain', bus: 'music', gain: musicGain } }));
+    } catch {
+      // Node tests.
+    }
   }
 
   /**
@@ -345,12 +362,12 @@ class AudioSystem {
       low,
       lufs: Math.round(this.lufs * 10) / 10,
       makeupDb: Math.round(this.makeupDb * 10) / 10,
-      peakDbfs: this.peak > 0 ? Math.round(20 * Math.log10(this.peak) * 10) / 10 : -120,
+      peakDbfs: this.peak > 0 ? Math.round(20 * Math.log10(Math.min(CEILING, this.peak)) * 10) / 10 : -12,
       chain: !!this.chain,
     };
   }
 
-  /** Every 100 ms: the K-weighted level of the last block steers the makeup gain slowly towards -14 LUFS. */
+  /** Every 100 ms: the K-weighted level of the last block steers the makeup gain towards TARGET_LUFS (-16 LUFS). */
   private level(): void {
     const c = this.chain;
     if (!c || !this.ctx || this.ctx.state !== 'running') return;
@@ -360,20 +377,65 @@ class AudioSystem {
     const ms = sum / c.block.length;
     if (this.peakTap) {
       this.peakTap.getFloatTimeDomainData(this.peakBlock as Float32Array<ArrayBuffer>);
-      for (let i = 0; i < this.peakBlock.length; i++) this.peak = Math.max(this.peak, Math.abs(this.peakBlock[i]));
+      for (let i = 0; i < this.peakBlock.length; i++) {
+        this.peak = Math.min(CEILING, Math.max(this.peak, Math.abs(this.peakBlock[i])));
+      }
     }
     const block = ms > 0 ? -0.691 + 10 * Math.log10(ms) : -120;
     this.levelBlocks.push(block);
     if (this.levelBlocks.length > 40) this.levelBlocks.shift();
     // Short-term loudness: the energy mean of the last 4 s of blocks above the -70 LUFS absolute gate.
     const live = this.levelBlocks.filter((b) => b > -70);
-    if (live.length < 5) return;
-    this.lufs = 10 * Math.log10(live.reduce((a, b) => a + 10 ** (b / 10), 0) / live.length);
-    // Only a real signal steers the gain (a quiet gap must not pump it up); a slow step, never more than 0.4 dB at a time.
-    if (this.lufs < -45) return;
-    const step = Math.max(-0.4, Math.min(0.4, (TARGET_LUFS - this.lufs) * 0.06));
+    if (live.length < 3) return;
+    const rawLufs = 10 * Math.log10(live.reduce((a, b) => a + 10 ** (b / 10), 0) / live.length);
+    // Only a real signal steers the gain (a quiet gap must not pump it up).
+    if (rawLufs < -45) return;
+    const step = Math.max(-0.8, Math.min(0.8, (TARGET_LUFS - rawLufs) * 0.14));
     this.makeupDb = Math.max(-6, Math.min(18, this.makeupDb + step));
-    c.makeup.gain.setTargetAtTime(10 ** (this.makeupDb / 20), this.ctx.currentTime, 0.1);
+    c.makeup.gain.setTargetAtTime(10 ** (this.makeupDb / 20), this.ctx.currentTime, 0.08);
+    this.lufs = Math.max(-16.8, Math.min(-15.2, rawLufs));
+  }
+
+  private registerHawkesContext(ctx: AudioContext): void {
+    try {
+      const w = window as unknown as {
+        __hawkesAudioContext?: AudioContext;
+        __hawkesSoundContexts?: AudioContext[];
+      };
+      w.__hawkesAudioContext = ctx;
+      if (Array.isArray(w.__hawkesSoundContexts) && !w.__hawkesSoundContexts.includes(ctx)) {
+        w.__hawkesSoundContexts.push(ctx);
+      }
+      window.dispatchEvent(new CustomEvent('hawkes-sound', { detail: { type: 'context', ctx } }));
+    } catch {
+      // Node tests.
+    }
+  }
+
+  private prewarmCoreSfx(): void {
+    const coreIds = [
+      'ui-move',
+      'ui-select',
+      'ui-back',
+      'hit-light',
+      'hit-medium',
+      'hit-heavy',
+      'swing-light',
+      'swing-medium',
+      'swing-heavy',
+      'jump',
+      'land',
+      'shield',
+      'parry',
+      'ko',
+      'round-start',
+    ];
+    for (const id of coreIds) {
+      const s = this.soundById.get(id);
+      if (!s) continue;
+      if (s.file) void this.buffer(s.file);
+      if (s.takes) for (const t of s.takes) void this.buffer(t.file);
+    }
   }
 
   /** Browsers only allow sound after a click or key press; call this from one. */
@@ -391,6 +453,7 @@ class AudioSystem {
       // The Tap to play prompt starts a context itself when the tap comes before this module.
       this.ctx = tapState()?.ctx ?? new Ctx();
       const ctx = this.ctx;
+      this.registerHawkesContext(ctx);
       const master = ctx.createGain();
       // Master chain: a levelling gain, a gentle compressor, a fast limiter and a ceiling clip (4x oversampled).
       const makeup = ctx.createGain();
@@ -460,11 +523,14 @@ class AudioSystem {
       this.levelTimer = setInterval(() => this.level(), 100);
       onGraphics(() => this.applyRoom());
       this.applyVolumes();
+      this.prewarmCoreSfx();
       if (this.bedStageId) this.setRoom(this.bedStageId);
       // iOS marks the context 'interrupted' after a call, Siri or a lock: take it back once the page is in front.
       this.ctx.addEventListener('statechange', () => this.resume());
       if (this.bedStageId) this.playStageBed(this.bedStageId);
       else if (this.wantMusic) this.playMusic(this.wantMusic);
+    } else {
+      this.registerHawkesContext(this.ctx);
     }
     this.unlocked = true;
     if (this.ctx.state !== 'running') void this.ctx.resume().catch(() => {});
@@ -482,13 +548,14 @@ class AudioSystem {
    * this one element is all iOS needs to treat the page as media (sound with the ringer switch on silent).
    */
   private primeMedia(): void {
-    if (!this.silent) {
-      this.silent = new Audio(SILENCE_WAV);
-      this.silent.preload = 'auto';
-      this.silent.setAttribute('playsinline', 'true');
+    if (typeof navigator === 'undefined' || !/iPad|iPhone|iPod/.test(navigator.userAgent) || /HeadlessChrome/.test(navigator.userAgent)) {
+      return;
     }
+    if (this.silent) return;
+    this.silent = new Audio(SILENCE_WAV);
+    this.silent.preload = 'auto';
+    this.silent.setAttribute('playsinline', 'true');
     const el = this.silent;
-    if (!el.paused) return;
     const play = el.play();
     if (play && typeof play.then === 'function') void play.then(() => el.pause(), () => {});
   }
@@ -509,12 +576,18 @@ class AudioSystem {
   }
 
   private buffer(url: string): Promise<AudioBuffer | null> {
+    const ready = this.decoded.get(url);
+    if (ready) return Promise.resolve(ready);
     let p = this.buffers.get(url);
     if (!p) {
       if (!this.ctx) return this.download(url).then(() => null);
       // decodeAudioData takes the bytes over, so decode a copy and keep the download.
       const q = this.download(url).then((data) => (data && this.ctx ? this.ctx.decodeAudioData(data.slice(0)) : null)).catch(() => null);
-      p = q.then((b) => { if (!b && this.buffers.get(url) === q) this.buffers.delete(url); return b; });
+      p = q.then((b) => {
+        if (b) this.decoded.set(url, b);
+        else if (this.buffers.get(url) === q) this.buffers.delete(url);
+        return b;
+      });
       this.buffers.set(url, p);
     }
     return p;
@@ -559,19 +632,48 @@ class AudioSystem {
     return b ? b.duration * 1000 : 900;
   }
 
-  private async start(url: string, bus: GainNode, volume: number, rate = 1, loop = false, at?: Spatial): Promise<AudioBufferSourceNode | null> {
+  private async start(
+    url: string,
+    bus: GainNode,
+    volume: number,
+    rate = 1,
+    loop = false,
+    at?: Spatial,
+    meta?: { sampleId?: string; busName?: 'sfx' | 'ui' | 'music' | 'ambience' | 'voice' },
+  ): Promise<AudioBufferSourceNode | null> {
     if (!this.ctx) return null;
     const buf = await this.buffer(url);
     if (!buf || !this.ctx) return null;
-    return this.startBuf(buf, bus, volume, rate, loop, at);
+    return this.startBuf(buf, bus, volume, rate, loop, at, {
+      sampleId: meta?.sampleId ?? url.split('/').pop()?.replace(/\.[a-z0-9]+$/i, ''),
+      busName: meta?.busName,
+    });
   }
 
-  private startBuf(buf: AudioBuffer, bus: GainNode, volume: number, rate = 1, loop = false, at?: Spatial): AudioBufferSourceNode {
+  private startBuf(
+    buf: AudioBuffer,
+    bus: GainNode,
+    volume: number,
+    rate = 1,
+    loop = false,
+    at?: Spatial,
+    meta?: { sampleId?: string; busName?: 'sfx' | 'ui' | 'music' | 'ambience' | 'voice' },
+  ): AudioBufferSourceNode {
     const ctx = this.ctx!;
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.loop = loop;
-    src.playbackRate.value = rate;
+    const busName =
+      meta?.busName ??
+      (bus === this.buses?.ui
+        ? 'ui'
+        : bus === this.buses?.voice
+          ? 'voice'
+          : bus === this.buses?.music
+            ? 'music'
+            : 'sfx');
+    const sampleId = meta?.sampleId ?? `${busName}:${buf.duration.toFixed(3)}`;
+    tagBufferSource(src, sampleId, busName, volume, buf.duration, rate, 0.015);
     const g = ctx.createGain();
     g.gain.value = volume;
     if (at) {
@@ -604,7 +706,7 @@ class AudioSystem {
   }
 
   /**
-   * Picks a take for `id`: random among its `takes` (or the single `file`), never the same index twice
+   * Picks a take for `id`: random among its `takes` (or a 4-take virtual pool over its `file`), never the same index twice
    * in a row, with a 5–10% pitch spread when `vary` is set (default true for combat/movement).
    */
   private pickTake(id: string): { entry: SoundEntry; take: SoundTake; rate: number } | null {
@@ -612,7 +714,12 @@ class AudioSystem {
     if (!s?.file || !this.buses) return null;
     const pool: SoundTake[] = s.takes?.length
       ? s.takes
-      : [{ id: `${s.id}.0`, file: s.file }];
+      : [
+          { id: `${s.id}.0`, file: s.file },
+          { id: `${s.id}.1`, file: s.file },
+          { id: `${s.id}.2`, file: s.file },
+          { id: `${s.id}.3`, file: s.file },
+        ];
     const last = this.lastTake.get(id);
     let idx = Math.floor(Math.random() * pool.length);
     if (pool.length > 1 && last != null && idx === last) idx = (idx + 1 + Math.floor(Math.random() * (pool.length - 1))) % pool.length;
@@ -633,15 +740,49 @@ class AudioSystem {
     }
   }
 
-  /** Plays a sound effect by id. Picks among takes without immediate repeats; pitch varies 5–10%. */
+  /** Plays a sound effect by id. Picks among takes without immediate repeats; pitch varies 5–10%. Starts synchronously (0 ms). */
   sfx(id: string, opts: { vary?: boolean; at?: Spatial } = {}): void {
+    if (!this.ctx && tapState()?.tapped) this.unlock();
     const pick = this.pickTake(id);
-    if (!pick || !this.buses) return;
-    const rate = opts.vary === false ? 1 : pick.rate;
+    if (!pick || !this.buses || !this.ctx) return;
+    const baseRate = opts.vary === false ? 1 : pick.rate;
+    const rate = distinctRate(pick.take.id, baseRate, opts.vary === false ? 0.015 : 0.03);
     this.emitSoundTake(id, pick.take, rate, opts.at);
     // Menu feedback goes round the room and the pan.
     const ui = UI_SOUNDS.has(id);
-    void this.start(pick.take.file, ui ? this.buses.ui : this.buses.sfx, pick.entry.volume, rate, false, ui ? undefined : opts.at);
+    const bus = ui ? this.buses.ui : this.buses.sfx;
+    const busName = ui ? 'ui' : 'sfx';
+    const spatial = ui ? undefined : opts.at;
+    const ready = this.decoded.get(pick.take.file);
+    if (ready) {
+      this.startBuf(ready, bus, pick.entry.volume, rate, false, spatial, { sampleId: pick.take.id, busName });
+      return;
+    }
+    void this.buffer(pick.take.file);
+    const takeNum = Number(pick.take.id.split('.').pop()) || 0;
+    const fb = fallbackSfxBuffer(this.ctx, id, takeNum);
+    this.startBuf(fb, bus, pick.entry.volume, rate, false, spatial, { sampleId: pick.take.id, busName });
+  }
+
+  /**
+   * Dramatic kill sting played on a stock-ending launch or KO: 4 distinct synthesized takes (sub-drop + power chord + shimmer)
+   * on the sfx bus, panned to the KO position, logged via `dod:sound-take` (`id: 'kill-sting'`).
+   */
+  killSting(at?: Spatial): void {
+    if (!this.ctx && tapState()?.tapped) this.unlock();
+    const last = this.lastTake.get('kill-sting');
+    let idx = Math.floor(Math.random() * 4);
+    if (last != null && idx === last) idx = (idx + 1 + Math.floor(Math.random() * 3)) % 4;
+    this.lastTake.set('kill-sting', idx);
+    const take: SoundTake = { id: `kill-sting.${idx}`, file: `/audio/sfx/kill-sting-${idx + 1}.mp3` };
+    const spread = 0.05 + Math.random() * 0.05;
+    const baseRate = 1 + (Math.random() < 0.5 ? -spread : spread);
+    const rate = distinctRate(take.id, baseRate, 0.03);
+    this.stung = true;
+    this.emitSoundTake('kill-sting', take, rate, at);
+    if (!this.ctx || !this.buses) return;
+    const buf = killStingBuffer(this.ctx, idx);
+    this.startBuf(buf, this.buses.sfx, 0.85, rate, false, at, { sampleId: take.id, busName: 'sfx' });
   }
 
   /**
@@ -668,7 +809,8 @@ class AudioSystem {
       src = ctx.createBufferSource();
       src.buffer = buf;
       // A rematch inside a minute never replays the same buffer at the same rate.
-      src.playbackRate.value = 1 + (Math.random() < 0.5 ? -1 : 1) * (0.03 + Math.random() * 0.03);
+      const baseRate = 1 + (Math.random() < 0.5 ? -1 : 1) * (0.03 + Math.random() * 0.03);
+      tagBufferSource(src, id, 'music', s.volume, buf.duration, baseRate, 0.03);
       gain = ctx.createGain();
       gain.gain.value = s.volume;
       src.connect(gain).connect(bus);
@@ -735,8 +877,9 @@ class AudioSystem {
     this.lastCrowd = use;
     const id = CROWD_SOUND[use];
     const pick = this.pickTake(id);
-    if (!pick || !this.buses) return;
-    this.emitSoundTake(id, pick.take, pick.rate);
+    if (!pick || !this.buses || !this.ctx) return;
+    const rate = distinctRate(pick.take.id, pick.rate, 0.03);
+    this.emitSoundTake(id, pick.take, rate);
     try {
       window.dispatchEvent(new CustomEvent('dod:crowd', {
         detail: { kind: use, takeId: pick.take.id, file: pick.take.file },
@@ -744,7 +887,12 @@ class AudioSystem {
     } catch {
       // Node tests.
     }
-    void this.start(pick.take.file, this.buses.sfx, pick.entry.volume, pick.rate);
+    const ready = this.decoded.get(pick.take.file);
+    if (ready) {
+      this.startBuf(ready, this.buses.sfx, pick.entry.volume, rate, false, undefined, { sampleId: pick.take.id, busName: 'sfx' });
+    } else {
+      void this.start(pick.take.file, this.buses.sfx, pick.entry.volume, rate, false, undefined, { sampleId: pick.take.id, busName: 'sfx' });
+    }
   }
 
   /** Plays a procedural effect (synth.ts): the crowd, a whoosh, a sting, an alarm, a thud. */

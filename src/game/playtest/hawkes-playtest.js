@@ -33,15 +33,30 @@
 // The explore bot (hawkes-explore.js, docs/playtest.md#explore) hugs walls, jumps edges and maps stuck and fall spots.
 // Give feel.player and explore: { enter: async (t) => game.startLevel() } (or explore: true when the game is playable
 // on load) and the run gets an "explore" scenario. A game's own "explore" scenario wins.
+//
+// The first five minutes (docs/playtest.md#first-five): t.milestone('gameplay' | 'first-input-accepted' | 'first-success' |
+// 'tutorial-step:<name>') says when a stranger got into the game; Studio's built-in first-five scenario plays the live
+// page cold and reports the same moments, taps, walls and developer UI.
+//
+// The audio probe (hawkes-audio.js, docs/playtest.md#audio) taps WebAudio into a MediaRecorder and pushes sound-start
+// and input events (and AudioContext resume on first tap). `audio: false` turns it off.
+//
+// The UI probe (hawkes-ui.js, docs/playtest.md#ui) runs on a touch or phone-sized page: every control's size, spacing, thumb
+// reach, notch and home-bar insets and whether it is on screen, in the viewport's orientation and the other one, and every
+// press (`ui-press`: did the screen answer within 100 ms; Studio adds the sound check). Canvas games give the rects:
+// t.ui([{ id, label, x, y, w, h }]) and each press t.uiPress('Play', { changed: true }). `ui: false` turns it off,
+// `ui: { always: true }` runs it on desktop too.
 
 import { installPerfMonitor, discoverBabylonScene } from './hawkes-perf.js';
 import { startBabylonFeel, startFrameFeel, parseSpot, pushToRunner } from './hawkes-feel.js';
+import { startAudioProbe } from './hawkes-audio.js';
+import { startUiProbe, layoutOtherOrientation } from './hawkes-ui.js';
 import { runExplore, createExploreMap, EXPLORE_DEFAULTS } from './hawkes-explore.js';
 
 export const CONTRACT_VERSION = 1;
 
 export function installPlaytest(opts) {
-  const { product, isReady = () => true, start, stop, input, stallSeconds = 60, feel: feelOpts, explore: exploreOpts } = opts;
+  const { product, isReady = () => true, start, stop, input, stallSeconds = 60, feel: feelOpts, explore: exploreOpts, audio: audioOpts, ui: uiOpts } = opts;
   if (!product || !Array.isArray(opts.scenarios) || typeof start !== 'function') {
     throw new Error('installPlaytest needs product, scenarios and start');
   }
@@ -55,11 +70,28 @@ export function installPlaytest(opts) {
 
   let run = null; // the current run
   let sensor = null; // the feel sensor of the current run
+  let audio = null; // the audio probe of the current run
+  let uiProbe = null; // the UI probe of the current run
+  let uiTimer = null;
   const fps = makeFpsMeter();
 
   const now = () => (run ? (performance.now() - run.t0) / 1000 : 0);
   const tracker = {
-    scene(name) { if (run && run.state.scene !== name) { run.state.scene = name; tracker.event('scene', name); } },
+    scene(name) {
+      if (run && run.state.scene !== name) { run.state.scene = name; tracker.event('scene', name); scheduleUi(1000); }
+    },
+    /** A layout check now (a menu just opened): the DOM's controls, or `rects` ([{ id, label, x, y, w, h }]) for a canvas game. */
+    ui(rects, o = {}) {
+      if (!run || run.done) return null;
+      if (!uiProbe) startUi(run, true);
+      return uiProbe?.layout({ ...o, ...(Array.isArray(rects) ? { rects: rects.map(normRect) } : {}) }) ?? null;
+    },
+    /** A press on a control the DOM doesn't know (canvas): `changed` says the screen answered; `ms` how fast. */
+    uiPress(label, o = {}) {
+      if (!run || run.done) return;
+      if (!uiProbe) startUi(run, true);
+      uiProbe?.press(label, o);
+    },
     progress(p) { if (run) { run.state.progress = Math.max(0, Math.min(1, p)); run.moved = performance.now(); } },
     note(text) { if (run) run.state.note = String(text); },
     // A metric is a reading, not progress: it doesn't reset the softlock timer (progress, add and events do).
@@ -77,6 +109,27 @@ export function installPlaytest(opts) {
       run.problems.push({ severity, message: String(message) });
       tracker.event('problem', `${severity}: ${message}`);
     },
+    // The first five minutes (docs/playtest.md#first-five; src/ftue.ts). Milestones are the moments a stranger gets into the
+    // game: 'gameplay', 'first-input-accepted', 'first-success', 'tutorial-step:<name>'. Each is reported once, with the
+    // seconds since the page opened (what a stranger waited), not since the run started.
+    milestone(name, note) {
+      if (!run) return;
+      const key = String(name).trim().toLowerCase();
+      if (!key) return;
+      run.milestones ??= new Set();
+      if (run.milestones.has(key)) return;
+      run.milestones.add(key);
+      const sincePage = round(performance.now() / 1000);
+      run.metrics[`milestone.${key}`] = sincePage; // a reading, not a rubric limit: only the first-five scenario is judged
+      tracker.event('milestone', key);
+      if (note) tracker.log(`milestone ${key} at ${sincePage}s: ${note}`);
+    },
+    /** One tap or click the bot needed to get from the first screen to play (counted up to the 'gameplay' milestone). */
+    tap() { tracker.event('tap'); },
+    /** Something between the stranger and the game: a terms screen, a sign-in, a menu. `seconds` is what it cost. */
+    wall(kind, label, seconds) { tracker.event('wall', JSON.stringify({ kind: String(kind), label: String(label), seconds: Number(seconds) || 0 })); },
+    /** A developer panel or debug control a player can see (what it is, and the screenshot's Gen asset when there is one). */
+    devUi(what, shot) { tracker.event('dev-ui', JSON.stringify({ what: String(what), ...(shot ? { shot: String(shot) } : {}) })); },
     log(line) { if (run) { run.log.push(`${round(now())}s ${line}`); if (run.log.length > 200) run.log.shift(); } },
     finish(outcome = 'done') {
       if (!run || run.done) return;
@@ -85,6 +138,8 @@ export function installPlaytest(opts) {
       run.seconds = now();
       tracker.event('finish', outcome);
       stopFeel();
+      stopAudio();
+      stopUi();
     },
     get seed() { return run?.options.seed ?? 0; },
     get speed() { return run?.options.speed ?? 1; },
@@ -135,20 +190,128 @@ export function installPlaytest(opts) {
       pushToRunner({ type: 'feel', flag });
     };
     const base = { ...o, seed: r.options.seed, sceneName: () => r.state.scene, emit };
-    try {
-      const scene = o.scene ?? discoverBabylonScene(window);
-      sensor = (scene && startBabylonFeel({ ...base, scene })) || startFrameFeel(base);
-    } catch (e) {
-      sensor = null;
-      tracker.log(`feel sensor off: ${e?.message ?? e}`);
+    // feel.scene is a scene or a function returning one (the game builds its scene later than it installs the playtest).
+    const given = () => { try { return typeof o.scene === 'function' ? o.scene() : o.scene; } catch { return null; } };
+    const attach = (scene) => {
+      try {
+        sensor = (scene && startBabylonFeel({ ...base, scene })) || startFrameFeel(base);
+      } catch (e) {
+        sensor = null;
+        tracker.log(`feel sensor off: ${e?.message ?? e}`);
+      }
+      // Always say what the sensor is (or that it isn't): a sensor that is silently off reads as "no feel problems".
+      const info = sensor?.info?.() ?? { adapter: 'none', player: false, camera: false };
+      tracker.event('feel-sensor', JSON.stringify({ adapter: info.adapter, player: info.player ? 'yes' : 'no', camera: info.camera ? 'yes' : 'no' }));
+    };
+    const first = given() ?? discoverBabylonScene(window);
+    attach(first);
+    // A Babylon scene that renders no frame in 5 s is the wrong scene (a menu scene, a disposed one): look again, once.
+    if (sensor?.info?.().adapter === 'babylon') {
+      const mine = sensor;
+      feelTimer = setTimeout(() => {
+        feelTimer = null;
+        if (r !== run || r.done || sensor !== mine || (mine.metrics?.()['feel.samples'] ?? 0) > 0) return;
+        const again = given() ?? discoverBabylonScene(window);
+        tracker.log(`feel sensor: its scene rendered no frame in 5 s; looking again${again && again !== first ? ' (found another scene)' : again ? ' (same scene)' : ' (none found, frames only)'}`);
+        try { mine.stop(); } catch {}
+        attach(again);
+      }, 5000);
     }
   }
   function feelMetrics() {
-    try { return run?.feelMetrics ?? sensor?.metrics?.() ?? {}; } catch { return {}; }
+    try {
+      if (run?.feelMetrics) return run.feelMetrics;
+      if (sensor) return sensor.metrics?.() ?? {};
+      // The sensor was meant to run and isn't: say so (feel.samples 0), unless the game turned it off.
+      return feelOpts === false ? {} : { 'feel.samples': 0 };
+    } catch { return {}; }
   }
+  function audioMetrics() {
+    try {
+      if (run?.audioMetrics) return run.audioMetrics;
+      if (audio) return audio.metrics?.() ?? {};
+      return audioOpts === false ? {} : {};
+    } catch { return {}; }
+  }
+  let feelTimer = null;
   function stopFeel() {
+    if (feelTimer) { clearTimeout(feelTimer); feelTimer = null; }
     try { if (sensor && run) { run.feelFinal = sensor.flags(); run.feelMetrics = sensor.metrics?.() ?? null; } sensor?.stop(); } catch {}
     sensor = null;
+  }
+  function startAudio(r) {
+    stopAudio();
+    if (audioOpts === false) return;
+    const o = audioOpts && typeof audioOpts === 'object' ? audioOpts : {};
+    try {
+      audio = startAudioProbe({
+        ...o,
+        scene: () => r.state.scene,
+        emit: (ev) => {
+          if (r !== run) return;
+          r.audio = r.audio || [];
+          r.audio.push(ev);
+          if (ev.type === 'sound-start' || ev.type === 'input' || ev.type === 'audiocontext-resume' || ev.type === 'bus-gain') {
+            tracker.event(ev.type, JSON.stringify(ev));
+          } else if (ev.type === 'audio-sensor') {
+            tracker.event('audio-sensor', JSON.stringify(ev));
+          }
+        },
+      });
+      tracker.event('audio-sensor', JSON.stringify(audio.info?.() ?? { adapter: 'none' }));
+    } catch (e) {
+      audio = null;
+      tracker.log(`audio probe off: ${e?.message ?? e}`);
+    }
+  }
+  function stopAudio() {
+    try {
+      if (audio && run) {
+        run.audioFinal = audio.events?.() ?? run.audio ?? [];
+        run.audioMetrics = audio.metrics?.() ?? null;
+      }
+      audio?.stop();
+    } catch {}
+    audio = null;
+  }
+
+  const normRect = (c, i) => ({ id: String(c.id ?? c.label ?? `control-${i}`), label: String(c.label ?? c.id ?? `control-${i}`), x: Number(c.x) || 0, y: Number(c.y) || 0, w: Number(c.w ?? c.width) || 0, h: Number(c.h ?? c.height) || 0, fixed: c.fixed !== false });
+  const uiWanted = () => {
+    if (uiOpts === false) return false;
+    if (uiOpts && typeof uiOpts === 'object' && uiOpts.always) return true;
+    try { return matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 || innerWidth <= 900; } catch { try { return innerWidth <= 900; } catch { return false; } }
+  };
+  function startUi(r, force) {
+    stopUi();
+    if (!force && !uiWanted()) return;
+    const o = uiOpts && typeof uiOpts === 'object' ? uiOpts : {};
+    try {
+      uiProbe = startUiProbe({
+        thresholds: o.thresholds, scene: () => r.state.scene, now,
+        emit: (type, detail) => { if (r === run) tracker.event(type, JSON.stringify(detail)); },
+      });
+      tracker.event('ui-sensor', JSON.stringify(uiProbe.info?.() ?? { adapter: 'none' }));
+      // The first screen, then the other orientation once (a runner plays one viewport; the probe reads the page at the swapped size).
+      scheduleUi(1200);
+      if (o.otherOrientation !== false && !o.canvas) {
+        setTimeout(() => { if (r === run && !r.done && uiProbe && !r.uiOther) { r.uiOther = true; layoutOtherOrientation({ emit: (type, d) => tracker.event(type, JSON.stringify(d)), scene: () => r.state.scene, thresholds: o.thresholds }); } }, 3500);
+      }
+    } catch (e) {
+      uiProbe = null;
+      tracker.log(`ui probe off: ${e?.message ?? e}`);
+    }
+  }
+  // A DOM layout check a moment after a scene change (the menu has drawn), once per scene; canvas games call t.ui(rects) themselves.
+  function scheduleUi(ms) {
+    if (!uiProbe || (uiOpts && typeof uiOpts === 'object' && uiOpts.canvas)) return;
+    const r = run;
+    clearTimeout(uiTimer);
+    uiTimer = setTimeout(() => { if (r === run && !r.done && uiProbe) uiProbe.layout(); }, ms);
+  }
+  function stopUi() {
+    clearTimeout(uiTimer);
+    try { uiProbe?.stop(); } catch {}
+    uiProbe = null;
   }
 
   async function playExplore(r) {
@@ -184,6 +347,8 @@ export function installPlaytest(opts) {
       const mine = run;
       tracker.event('start', id);
       startFeel(mine);
+      startAudio(mine);
+      startUi(mine, false);
       // A start point (options.at): where the scenario starts; the game loads it in start() (t.at).
       if (mine.options.at != null && mine.options.at !== '') tracker.event('start-at', mine.options.at);
       try {
@@ -220,12 +385,13 @@ export function installPlaytest(opts) {
         scenario: run.id,
         outcome: run.done ? run.state.status : 'stuck',
         seconds: round(run.seconds ?? now()),
-        // The feel sensor's measurements (feel.*) first, so a game's own run.metric('feel.…') wins.
-        metrics: { ...feelMetrics(), ...run.metrics, fpsAverage: fps.average(), fpsWorst: fps.worst() },
+        // Feel then audio measurements first, so a game's own run.metric('feel.…' / 'audio.…') wins.
+        metrics: { ...feelMetrics(), ...audioMetrics(), ...(uiProbe?.metrics?.() ?? {}), ...run.metrics, fpsAverage: fps.average(), fpsWorst: fps.worst() },
         events: run.events.slice(),
         problems: run.problems.slice(),
         log: run.log.slice(),
         feel: (run.feelFinal ?? sensor?.flags() ?? run.feel).slice(),
+        audio: (run.audioFinal ?? audio?.events?.() ?? run.audio ?? []).slice(),
         ...(perf ? { perf } : {}),
       };
     },

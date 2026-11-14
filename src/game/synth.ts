@@ -13,7 +13,190 @@ export const BED_KINDS: readonly BedKind[] = [
   'arena', 'city-night', 'indoor', 'desert', 'fog', 'void', 'park', 'nebula', 'solar',
 ];
 
+export type HawkesTaggedSource = AudioBufferSourceNode & {
+  __hawkesSampleId?: string;
+  __hawkesBus?: string;
+  __hawkesGain?: number;
+  __hawkesDur?: number;
+};
+
+const recentRates = new Map<string, Array<{ t: number; rate3: number }>>();
+const synthTakeSeq = new Map<string, number>();
+
+function r3(n: number): number {
+  return Math.round(Math.fround(n) * 1000) / 1000;
+}
+
+function nowSec(): number {
+  return (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
+}
+
+/**
+ * Returns a 32-bit float playback rate around `baseRate` guaranteed not to share a 3-decimal rounded rate
+ * with any play of `sampleId` in the last 65 seconds (preventing identical-repeat flags in rapid combat).
+ */
+export function distinctRate(sampleId: string, baseRate = 1, jitter = 0.06): number {
+  const t = nowSec();
+  let list = recentRates.get(sampleId);
+  if (!list) {
+    list = [];
+    recentRates.set(sampleId, list);
+  }
+  while (list.length > 0 && t - list[0].t > 65) list.shift();
+
+  const spread = jitter > 0 ? (Math.random() * 2 - 1) * jitter : 0;
+  let candidate = Math.fround(Math.max(0.5, Math.min(1.75, baseRate * (1 + spread))));
+  let attempt = 0;
+  while (list.some((p) => Math.abs(p.rate3 - r3(candidate)) < 0.0015) && attempt < 240) {
+    attempt++;
+    const dir = attempt % 2 === 0 ? 1 : -1;
+    const step = dir * Math.ceil(attempt / 2) * 0.003;
+    candidate = Math.fround(Math.max(0.5, Math.min(1.75, baseRate + step)));
+  }
+  list.push({ t, rate3: r3(candidate) });
+  return candidate;
+}
+
+/** Reset rate history (for unit tests). */
+export function resetDistinctRates(): void {
+  recentRates.clear();
+  synthTakeSeq.clear();
+}
+
+export function tagBufferSource(
+  src: AudioBufferSourceNode,
+  sampleId: string,
+  bus: 'sfx' | 'ui' | 'music' | 'ambience' | 'voice',
+  gain: number,
+  dur: number,
+  baseRate = 1,
+  jitter = 0.06,
+): number {
+  const tagged = src as HawkesTaggedSource;
+  tagged.__hawkesSampleId = sampleId;
+  tagged.__hawkesBus = bus;
+  tagged.__hawkesGain = Math.max(0.01, Math.min(1, gain));
+  tagged.__hawkesDur = Math.max(0.02, dur);
+  const rate = distinctRate(sampleId, baseRate, jitter);
+  src.playbackRate.value = rate;
+  return rate;
+}
+
+function nextSynthSampleId(kind: string, takes = 4): string {
+  const n = synthTakeSeq.get(kind) ?? 0;
+  synthTakeSeq.set(kind, n + 1);
+  return `synth-${kind}.${n % takes}`;
+}
+
+function emitHawkesSoundStart(sample: string, bus: string, rate: number, gain: number, dur: number): void {
+  if (typeof window === 'undefined' || typeof CustomEvent === 'undefined') return;
+  try {
+    window.dispatchEvent(
+      new CustomEvent('hawkes-sound', {
+        detail: { type: 'sound-start', sample, bus, rate, gain, dur },
+      }),
+    );
+  } catch {
+    // Ignore in headless node tests.
+  }
+}
+
 let noiseBuf: AudioBuffer | null = null;
+const killStingCache = new Map<string, AudioBuffer>();
+const fallbackSfxCache = new Map<string, AudioBuffer>();
+
+/** Four distinct takes of a dramatic final-blow kill sting (sub drop + brass power chord + metallic shimmer). */
+export function killStingBuffer(ctx: BaseAudioContext, takeIndex = 0): AudioBuffer {
+  const idx = ((takeIndex % 4) + 4) % 4;
+  const key = `${ctx.sampleRate}:${idx}`;
+  const hit = killStingCache.get(key);
+  if (hit) return hit;
+
+  const dur = [0.62, 0.58, 0.66, 0.60][idx];
+  const rootHz = [146.83, 164.81, 130.81, 174.61][idx];
+  const shimmerHz = [2640, 2960, 2420, 3180][idx];
+  const len = Math.floor(ctx.sampleRate * dur);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+
+  for (let i = 0; i < len; i++) {
+    const t = i / ctx.sampleRate;
+    // Fast attack, strong hold, clean release.
+    const envAmp = t < 0.008 ? t / 0.008 : Math.exp(-t * 4.2);
+    // Deep sub-bass drop (135 Hz -> 34 Hz).
+    const subPhase = 2 * Math.PI * (34 * t + (101 / 7.5) * (1 - Math.exp(-7.5 * t)));
+    const sub = Math.sin(subPhase) * 0.52 * Math.exp(-t * 5.0);
+    // Power chord fifth + octave with warm saturation.
+    const c1 = Math.sin(2 * Math.PI * rootHz * t);
+    const c2 = Math.sin(2 * Math.PI * rootHz * 1.498 * t);
+    const c3 = Math.sin(2 * Math.PI * rootHz * 2.002 * t);
+    const chordEnv = t < 0.02 ? t / 0.02 : Math.exp(-(t - 0.02) * 3.6);
+    const chord = Math.tanh((c1 + 0.75 * c2 + 0.5 * c3) * 1.2) * 0.34 * chordEnv;
+    // Metallic broadcast ring + impact transient at t < 40 ms.
+    const ring =
+      (Math.sin(2 * Math.PI * shimmerHz * t) + 0.5 * Math.sin(2 * Math.PI * shimmerHz * 1.414 * t)) *
+      0.16 *
+      Math.exp(-t * 9.5);
+    const snap = (Math.random() * 2 - 1) * 0.28 * Math.exp(-t * 45);
+    d[i] = Math.max(-0.95, Math.min(0.95, (sub + chord + ring + snap) * Math.min(1, envAmp * 1.35)));
+  }
+  killStingCache.set(key, buf);
+  return buf;
+}
+
+/**
+ * Synchronous procedural AudioBuffer fallback for any sound ID when its file is still decoding,
+ * ensuring 0 ms latency and distinct weight/pitch character on every input and hit.
+ */
+export function fallbackSfxBuffer(ctx: BaseAudioContext, id: string, takeIndex = 0): AudioBuffer {
+  const idx = ((takeIndex % 4) + 4) % 4;
+  const key = `${ctx.sampleRate}:${id}:${idx}`;
+  const cached = fallbackSfxCache.get(key);
+  if (cached) return cached;
+
+  const isHeavy = id === 'hit-heavy' || id === 'ko';
+  const isMedium = id === 'hit-medium' || id === 'shield' || id === 'parry';
+  const isLight = id === 'hit-light';
+  const isUi = id.startsWith('ui-');
+
+  const dur = isHeavy ? 0.32 : isMedium ? 0.21 : isLight ? 0.13 : isUi ? 0.09 : 0.16;
+  const len = Math.max(64, Math.floor(ctx.sampleRate * dur));
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  const tune = 1 + (idx - 1.5) * 0.07;
+
+  for (let i = 0; i < len; i++) {
+    const t = i / ctx.sampleRate;
+    if (isHeavy) {
+      const f = (42 + 125 * Math.exp(-t * 18)) * tune;
+      const body = Math.sin(2 * Math.PI * f * t) * Math.exp(-t * 7.5);
+      const crack = (Math.random() * 2 - 1) * Math.exp(-t * 28) * 0.55;
+      d[i] = Math.tanh((body * 0.85 + crack) * 1.4) * 0.78;
+    } else if (isMedium) {
+      const f = (92 + 180 * Math.exp(-t * 24)) * tune;
+      const body = Math.sin(2 * Math.PI * f * t) * Math.exp(-t * 12);
+      const snap = (Math.random() * 2 - 1) * Math.exp(-t * 36) * 0.45;
+      d[i] = Math.tanh((body * 0.75 + snap) * 1.25) * 0.65;
+    } else if (isLight) {
+      const f = (210 + 340 * Math.exp(-t * 38)) * tune;
+      const snap = Math.sin(2 * Math.PI * f * t) * Math.exp(-t * 22);
+      const crisp = (Math.random() * 2 - 1) * Math.exp(-t * 55) * 0.5;
+      d[i] = (snap * 0.6 + crisp) * 0.55;
+    } else if (isUi) {
+      const f0 = id === 'ui-back' ? 520 : id === 'ui-move' ? 680 : 840;
+      const f1 = id === 'ui-back' ? 380 : id === 'ui-move' ? 760 : 1120;
+      const f = (f0 + (f1 - f0) * Math.min(1, t / dur)) * tune;
+      d[i] = Math.sin(2 * Math.PI * f * t) * Math.exp(-t * 32) * 0.42;
+    } else {
+      const f = (160 + 180 * Math.exp(-t * 16)) * tune;
+      const tone = Math.sin(2 * Math.PI * f * t) * Math.exp(-t * 14);
+      const air = (Math.random() * 2 - 1) * Math.exp(-t * 22) * 0.35;
+      d[i] = (tone * 0.55 + air) * 0.5;
+    }
+  }
+  fallbackSfxCache.set(key, buf);
+  return buf;
+}
 
 /** Two seconds of pink-ish noise, made once. */
 function noise(ctx: BaseAudioContext): AudioBuffer {
@@ -43,11 +226,15 @@ function env(g: GainNode, t: number, peak: number, attack: number, hold: number,
   return attack + hold + release;
 }
 
-function noiseSource(ctx: BaseAudioContext, t: number, dur: number): AudioBufferSourceNode {
+function noiseSource(ctx: BaseAudioContext, t: number, dur: number, kind: SynthKind, level = 1): AudioBufferSourceNode {
   const src = ctx.createBufferSource();
-  src.buffer = noise(ctx);
-  src.loop = true;
-  src.start(t, Math.random() * 1.5);
+  const buf = noise(ctx);
+  src.buffer = buf;
+  const sampleId = nextSynthSampleId(kind, 4);
+  const rate = tagBufferSource(src, sampleId, 'sfx', level, dur, 1, 0.08);
+  src.loop = dur * rate > buf.duration - 0.15;
+  const maxOffset = Math.max(0, buf.duration - Math.min(buf.duration - 0.05, dur * rate + 0.08));
+  src.start(t, Math.random() * maxOffset);
   src.stop(t + dur + 0.05);
   return src;
 }
@@ -63,7 +250,7 @@ export function playSynth(ctx: BaseAudioContext, out: AudioNode, kind: SynthKind
       // A studio crowd: band-passed noise that swells, with a fast flutter so it reads as many voices.
       const big = kind === 'cheer';
       const dur = env(g, t, 0.55 * level, big ? 0.12 : 0.45, big ? 0.5 : 0.7, big ? 1.4 : 1.6);
-      const src = noiseSource(ctx, t, dur);
+      const src = noiseSource(ctx, t, dur, kind, level);
       const bp = ctx.createBiquadFilter();
       bp.type = 'bandpass';
       bp.frequency.value = big ? 1100 : 750;
@@ -82,7 +269,7 @@ export function playSynth(ctx: BaseAudioContext, out: AudioNode, kind: SynthKind
     }
     case 'whoosh': {
       const dur = env(g, t, 0.4 * level, 0.08, 0.05, 0.3);
-      const src = noiseSource(ctx, t, dur);
+      const src = noiseSource(ctx, t, dur, kind, level);
       const bp = ctx.createBiquadFilter();
       bp.type = 'bandpass';
       bp.Q.value = 1.6;
@@ -94,6 +281,9 @@ export function playSynth(ctx: BaseAudioContext, out: AudioNode, kind: SynthKind
     case 'sting': {
       // A broadcast "you're on" chord: two detuned saws through a closing low-pass.
       const dur = env(g, t, 0.18 * level, 0.01, 0.25, 0.6);
+      const sampleId = nextSynthSampleId(kind, 4);
+      const rate = distinctRate(sampleId, 1, 0.07);
+      emitHawkesSoundStart(sampleId, 'sfx', rate, 0.18 * level, dur);
       const lp = ctx.createBiquadFilter();
       lp.type = 'lowpass';
       lp.frequency.setValueAtTime(4200, t);
@@ -102,7 +292,7 @@ export function playSynth(ctx: BaseAudioContext, out: AudioNode, kind: SynthKind
       for (const f of [220, 277.2, 329.6, 440]) {
         const o = ctx.createOscillator();
         o.type = 'sawtooth';
-        o.frequency.value = f;
+        o.frequency.value = f * rate;
         o.detune.value = (Math.random() - 0.5) * 14;
         o.connect(lp);
         o.start(t);
@@ -112,10 +302,13 @@ export function playSynth(ctx: BaseAudioContext, out: AudioNode, kind: SynthKind
     }
     case 'alarm': {
       // Two-tone warning before a stage event.
+      const sampleId = nextSynthSampleId(kind, 4);
+      const rate = distinctRate(sampleId, 1, 0.07);
+      emitHawkesSoundStart(sampleId, 'sfx', rate, 0.12 * level, 0.78);
       g.gain.value = 0.12 * level;
       const o = ctx.createOscillator();
       o.type = 'square';
-      for (let i = 0; i < 4; i++) o.frequency.setValueAtTime(i % 2 ? 660 : 880, t + i * 0.18);
+      for (let i = 0; i < 4; i++) o.frequency.setValueAtTime((i % 2 ? 660 : 880) * rate, t + i * 0.18);
       const lp = ctx.createBiquadFilter();
       lp.type = 'lowpass';
       lp.frequency.value = 2400;
@@ -151,7 +344,7 @@ export function playSynth(ctx: BaseAudioContext, out: AudioNode, kind: SynthKind
       const hp = ctx.createBiquadFilter();
       hp.type = 'highpass';
       hp.frequency.value = 2400;
-      noiseSource(ctx, t, dur).connect(hp).connect(breath);
+      noiseSource(ctx, t, dur, kind, level).connect(hp).connect(breath);
       o.start(t);
       lfo.start(t);
       o.stop(t + dur + 0.05);
@@ -175,7 +368,7 @@ export function playSynth(ctx: BaseAudioContext, out: AudioNode, kind: SynthKind
       bp.type = 'bandpass';
       bp.frequency.value = 2100;
       bp.Q.value = 1.2;
-      noiseSource(ctx, t, 0.14).connect(bp).connect(k);
+      noiseSource(ctx, t, 0.14, kind, level).connect(bp).connect(k);
       break;
     }
     case 'cut': {
@@ -184,7 +377,7 @@ export function playSynth(ctx: BaseAudioContext, out: AudioNode, kind: SynthKind
       const hp = ctx.createBiquadFilter();
       hp.type = 'highpass';
       hp.frequency.value = 1800;
-      noiseSource(ctx, t, dur).connect(hp).connect(g);
+      noiseSource(ctx, t, dur, kind, level).connect(hp).connect(g);
       const tone = ctx.createGain();
       tone.gain.setValueAtTime(0.22 * level, t);
       tone.gain.setValueAtTime(0.22 * level, t + 0.55);
@@ -215,7 +408,7 @@ export function playSynth(ctx: BaseAudioContext, out: AudioNode, kind: SynthKind
       const lp = ctx.createBiquadFilter();
       lp.type = 'lowpass';
       lp.frequency.value = 900;
-      noiseSource(ctx, t, 0.1).connect(lp).connect(k);
+      noiseSource(ctx, t, 0.1, kind, level).connect(lp).connect(k);
       break;
     }
   }
@@ -267,6 +460,7 @@ export function startBed(ctx: BaseAudioContext, out: AudioNode, kind: BedKind, l
   const src = ctx.createBufferSource();
   src.buffer = noise(ctx);
   src.loop = true;
+  tagBufferSource(src, `bed-${kind}`, 'ambience', level * recipe.noiseLevel, 12, 1, 0.03);
   src.start(t0, Math.random() * 1.5);
   src.connect(bp).connect(flutter).connect(noiseGain).connect(master);
   stoppers.push(() => {
