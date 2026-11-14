@@ -590,6 +590,16 @@
       ]
     },
     {
+      "id": "cpu-styles",
+      "title": "CPU playstyles: a rushdown CPU closes the distance within 3 s of GO and a zoner CPU keeps more room",
+      "description": "Versus against a CPU while the player stands still (phone 390x844 turned to 844x390 with the touch overlay up). Round 1 a rushdown CPU (Kaelen) closes to a jab's reach within 3 s of GO (cpu-close); round 2 a zoner CPU (Exit Punk) keeps a larger average distance over the same 10 s (cpu-spacing). Events cpu-style, cpu-close, cpu-spacing; metrics rushCloseSeconds, rushAvgDistance, zonerAvgDistance.",
+      "seconds": 120,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "special-sounds",
       "title": "Special sounds: each Season 1 fighter's four specials play their archetype's release sound (within 50 ms of the move starting) with the fighter's accent on top, impacts on a hit, no take twice in a row",
       "description": "Setup shortcut: straight into Training with each of the 13 Season 1 fighters and a dummy. Real input only: the keyboard, or (input: \"touch\" or a phone, 390x844 turned to 844x390) the on-screen stick and Special button as touch pointer events. Each fighter fires neutral, side, up and down at the dummy; the run reads dod:sound-take: special-release (pool special-<archetype>-release, take id and ms after the move started, metric releaseLatencyMs, bug over 50), special-accent (special-accent-<fighter>), special-impact (special-<archetype>-impact when the special lands), archetype-pools (which of the seven archetypes played a release and an impact), a bug for a take twice in a row. Options: fighter (one id), input, at. Metric specialTakes.",
