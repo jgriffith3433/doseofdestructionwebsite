@@ -31,7 +31,7 @@ import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
 import { ACT, SHIELD_MAX, bodySize, type Fighter, type GameState } from '../sim/state.ts';
 import { GRAB_FIRST, activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
-import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, coreFor, sparkSizeFor, tellAt, tellFrames, isNormalMove, isSmashMove, isSpecialMove, type HitTier, type TrailKind } from '../hitFeel.ts';
+import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, killTimeScale, screenShake, trailFor, coreFor, sparkSizeFor, tellAt, tellFrames, moveStartFrame, windupPose, isNormalMove, isSmashMove, isSpecialMove, type HitTier, type TrailKind } from '../hitFeel.ts';
 import { graphics, onGraphics, particleShare, scalingLevel, type Graphics } from '../graphics.ts';
 import { cameraFighters, followCamera, frameGoal, KO_TAIL_S, punchGoal, type CamBounds, type CamSample, type CamState } from './cameraRig.ts';
 import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
@@ -166,7 +166,7 @@ export class Renderer {
   private reactStats: typeof NEW_REACT & Record<'squashes' | 'maxSquash' | 'squashFrames' | 'tumbleFrames' | 'bounces' | 'dustBursts' | 'smears' | 'smearFrames' | 'smashSmears' | 'charges', number> = { squashes: 0, maxSquash: 0, squashFrames: 0, tumbleFrames: 0, bounces: 0, dustBursts: 0, smears: 0, smearFrames: 0, smashSmears: 0, charges: 0, ...NEW_REACT };
   /** Launch-trail looks: grey smoke (medium), white smoke (heavy), a coloured streak (a hit that will KO). */
   private fxMats!: { core: StandardMaterial; shield: StandardMaterial; parry: StandardMaterial; clash: StandardMaterial };
-  private tellSeen = new Map<number, { move: number; n: number }>();
+  private tellSeen = new Map<number, { move: number; n: number; activeChecked: boolean; lastFrame: number }>();
   private lastFxFrame = new Map<number, number>();
   private smokeMats!: { grey: StandardMaterial; white: StandardMaterial; streak: StandardMaterial };
   /** The last hit on each victim (knockback and tier), read when its launch begins. */
@@ -1837,7 +1837,7 @@ export class Renderer {
     const rimOn = this.gfx.quality === 'high' || state.fighters.length <= 2 || v.tell > 0;
     v.rim.setEnabled(rimOn);
     if (rimOn) {
-      const grow = (this.gfx.quality === 'high' ? 1.07 : 1.045) + v.tell * 0.1;
+      const grow = (this.gfx.quality === 'high' ? 1.07 : 1.045) + v.tell * 0.22;
       v.rim.position.x = v.body.position.x;
       v.rim.position.y = v.body.position.y;
       v.rim.scaling.set(v.body.scaling.x * grow, v.body.scaling.y * grow, 1);
@@ -1856,6 +1856,10 @@ export class Renderer {
       // Counter stance: a cold pulse on the fighter while the window is open.
       const pulse = f.frame & 4 ? 0.55 : 0.8;
       v.mat.emissiveColor.set(pulse, 0.95, 1);
+    } else if (v.tell > 0) {
+      // Wind-up startup tell on every special and smash: bright emissive flash so the player can read the move before it goes active.
+      const e = 1 + v.tell * 0.95;
+      v.mat.emissiveColor.set(e, 1 + v.tell * 0.85, 1 + v.tell * 1.15);
     } else {
       v.mat.emissiveColor.set(1, 1, 1);
     }
@@ -1941,58 +1945,82 @@ export class Renderer {
       const ch = CHARACTERS[f.char];
       const m = ch.moves[f.move];
       const w = m.hits[0];
+      const start = moveStartFrame(m);
       this.tellAndTrail(f, v, m, fresh);
-      const big = f.move === MOVE.FSMASH || f.move === MOVE.USMASH || f.move === MOVE.DSMASH;
-      if (w && (big || f.move >= MOVE.UPB)) {
-        if (big && f.frame < w.start) {
-          const g = f.frame / w.start;
-          const e = 1 + g * 0.5;
-          v.mat.emissiveColor.set(e, e, 1 + g);
-          out.dx += (f.frame & 1 ? 1 : -1) * 0.012 * g;
-          if (f.frame === 1) st.charges++;
-        }
-        if (this.gfx.quality === 'high' && f.frame >= w.start && f.frame < w.start + 3) {
-          this.smear(f, w.boxes[0], f.frame - w.start, big);
-          if (f.frame === w.start) st.smears++;
+      const big = isSmashMove(f.move);
+      const spec = isSpecialMove(f.move);
+      if (start > 0 && (big || spec)) {
+        const wp = windupPose(f.frame, start, f.move, f.facing);
+        out.sx *= wp.sx;
+        out.sy *= wp.sy;
+        out.rot = (out.rot ?? 0) + wp.rot;
+        out.dx += wp.dx;
+        out.lift += wp.dy;
+        if (big && f.frame === 1 && fresh) st.charges++;
+        if (this.gfx.quality === 'high' && f.frame >= start && f.frame < start + 3 && fresh) {
+          const box = w?.boxes[0] ?? (m.shot ? { x: m.shot.x, y: m.shot.y } : { x: 36, y: 50 });
+          this.smear(f, box, f.frame - start, big);
+          if (f.frame === start) st.smears++;
           st.smearFrames++;
           if (big) st.smashSmears++;
         }
       }
+    } else {
+      this.tellSeen.delete(f.id);
     }
     return out;
   }
 
   /**
-   * The two attack reads: specials and smashes get a 2-4 frame startup tell (a rim flash in the player's colour and a short whoosh)
-   * before their first active frame; every normal attack draws a swing trail along its hitbox on each active frame.
+   * The two attack reads: every special and smash gets a visible wind-up tell (a coiled pose change, an emissive + player-colour rim flash,
+   * a wind-up ring, and a short whoosh) before its first active/shot/counter frame; every normal attack draws a swing trail along its hitbox on each active frame.
    */
   private tellAndTrail(f: Fighter, v: FighterView, m: (typeof CHARACTERS)[number]['moves'][number], fresh: boolean): void {
     const st = this.reactStats;
-    const w = m.hits[0];
-    if (!w) return;
     const warns = isSmashMove(f.move) || isSpecialMove(f.move);
     if (warns) {
-      const t = tellAt(f.frame, w.start);
+      const start = moveStartFrame(m);
+      if (start <= 0) return;
+      const t = tellAt(f.frame, start);
       v.tell = t;
       if (!fresh) return;
       let seen = this.tellSeen.get(f.id);
-      if (!seen || seen.move !== f.move) seen = { move: f.move, n: 0 };
+      if (!seen || seen.move !== f.move || f.frame < seen.lastFrame) {
+        seen = { move: f.move, n: 0, activeChecked: false, lastFrame: f.frame };
+      }
       if (t > 0) {
         if (seen.n === 0) {
           st.tells++;
+          const wy = f.y * S + CHARACTERS[f.char].height * W * (f.scale / 100) * 0.55;
+          this.sprite(f.x * S, wy, 0, 0.38, 6, 2.2, this.fxMats.parry);
           this.onSynth?.('whoosh');
           st.tellWhooshes += this.onSynth ? 1 : 0;
         }
         seen.n++;
         st.tellFrames++;
       }
-      if (f.frame === w.start) {
+      if (f.frame >= start && !seen.activeChecked) {
+        seen.activeChecked = true;
+        if (seen.n === 0 && tellFrames(start) > 0) {
+          // If the sim stepped multiple ticks in a single render frame and crossed startup into active, fire the tell now so it is never dropped.
+          v.tell = Math.max(v.tell, 0.75);
+          st.tells++;
+          st.tellFrames++;
+          const wy = f.y * S + CHARACTERS[f.char].height * W * (f.scale / 100) * 0.55;
+          this.sprite(f.x * S, wy, 0, 0.38, 6, 2.2, this.fxMats.parry);
+          this.onSynth?.('whoosh');
+          st.tellWhooshes += this.onSynth ? 1 : 0;
+          seen.n = 1;
+        }
         st.tellStarts++;
-        if (seen.n === 0 && tellFrames(w.start) > 0) st.tellMisses++;
-        this.tellSeen.delete(f.id);
-      } else this.tellSeen.set(f.id, seen);
+        if (seen.n === 0 && tellFrames(start) > 0) st.tellMisses++;
+      }
+      seen.lastFrame = f.frame;
+      this.tellSeen.set(f.id, seen);
       return;
     }
+    const w = m.hits[0];
+    if (!w) return;
     if (!isNormalMove(f.move)) return;
     for (const hw of m.hits) {
       if (f.frame < hw.start || f.frame > hw.end) continue;
