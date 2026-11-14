@@ -17,7 +17,7 @@ import { readTouch, touchDevice, touchOverlay } from '../input/touch.ts';
 import { TOUCH_KEY, forceTouchUi, touchSettings } from '../touchSettings.ts';
 import { SHIELD_KEY_NAME, shieldLatched, shieldMode } from '../input/shieldMode.ts';
 import { rumbleLog, rumbleStats, type RumbleSent } from '../rumble.ts';
-import { forceTouchPrompt, lockLandscape, rotateShowing } from '../ui/rotate.ts';
+import { forceTouchPrompt, lockLandscape, rotateShowing, suppressRotate } from '../ui/rotate.ts';
 import { currentScreen, switching, type ScreenId } from '../ui/screens.ts';
 import { CHARACTERS, FIGHTERS as FIGHTERS_DATA, MOVE, MOVE_KEYS } from '../sim/characters.ts';
 import { BTN, NO_INPUT, packInput, stickX, stickY } from '../sim/input.ts';
@@ -75,6 +75,8 @@ export interface GameHooks {
   startMatch(setup: MatchSetup): Promise<void>;
   /** Setup shortcut (roster only): leave the match for the main menu. */
   quitMatch(): Promise<void>;
+  /** The replay on screen: its current tick, or -1 (Watch replay). */
+  replayTick(): number;
   /** Setup shortcut (tour only): after `after` fights are won the run jumps to the fight at index `to` (the last one). */
   tourSkipTo(after: number, to: number): void;
   /** Setup shortcut (tour only): shows the Continue or Quit panel on the results screen without losing a fight, to measure it. */
@@ -220,6 +222,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'rotate') await r.rotate();
         else if (id === 'first-visit') await r.firstVisit();
         else if (id === 'presentation') await r.presentation();
+        else if (id === 'replay') await r.replayScenario();
         else if (id === 'roster') await r.roster();
         else if (id === 'feet') await r.feetRun();
         else if (id === 'smooth-clips') await r.smoothClips();
@@ -2134,6 +2137,145 @@ class Run {
     await this.screen('main');
     t.progress(1);
     t.finish('done');
+  }
+
+
+  /**
+   * Watch replay (`replay.ts`, `ui/replayBar.ts`, main.ts `watchReplay`): a versus match (1 stock) is played by the bot to
+   * Results, which must offer Watch replay (`replay-button`). The replay opens with its control bar on screen and fitting
+   * (`replay-fit`: every button at least 44 px, 8 px apart, inside the window; a bottom bar on a 390x844 phone), then plays
+   * from the recorded inputs: Pause holds the tick (`replay-pause`), 0.5x / 1x / 2x change how fast the ticks come
+   * (`replay-speed`), a tap on the arena hides and shows the bar (`replay-bar-tap`), Camera toggles Follow / Free
+   * (`replay-camera`), and the replay's end has the same winner, stocks and final hash as the match (`replay-result`).
+   * Back to results returns to the same results (`replay-exit`). On a phone every press is a pointer tap, and the
+   * portrait window is kept (the replay shows in portrait; the match itself runs with the Rotate prompt set aside).
+   */
+  async replayScenario(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.phoneScenario();
+    this.logViewport(touch && this.isPhone());
+    await this.toMainMenu();
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+      suppressRotate(true);
+    }
+    const log: { phase: string; tick: number; speed?: number; paused?: boolean; camera?: string; hash?: number; wantHash?: number; winner?: number; want?: number; stocks?: number[]; wantStocks?: number[]; hidden?: boolean }[] = [];
+    const onReplay = (e: Event) => log.push((e as CustomEvent).detail);
+    window.addEventListener('dod:replay', onReplay);
+    try {
+      await this.startVersus(1);
+      t.progress(0.1);
+      await this.fight(() => false, 6 * 60 * 1000);
+      const m = this.game.match() ?? this.seen;
+      await this.screen('results', 30000);
+      await this.wait(900);
+      const watch = () => this.button('#results-actions', 'Watch replay');
+      if (!watch()) {
+        t.problem('bug', 'the results have no Watch replay button');
+        return t.finish('done');
+      }
+      const wantWinner = m?.state.winner ?? -1;
+      const wantStocks = m?.state.fighters.map((f) => f.stocks) ?? [];
+      t.event('replay-button', `Results offer Watch replay (match won by P${wantWinner + 1}, stocks ${wantStocks.join('/')})`);
+      await this.click(watch, 'Watch replay');
+      await t.until(() => log.some((l) => l.phase === 'start') && currentScreen() === 'match', 30000, 'the replay to start');
+      await this.wait(600);
+      t.progress(0.3);
+
+      // The bar fits: every button 44 px or more, 8 px apart, inside the window (and along the bottom on a phone).
+      const btns = [...document.querySelectorAll<HTMLElement>('#replay-bar button')];
+      const rects = btns.map((b) => b.getBoundingClientRect());
+      const small = btns.filter((_, i) => rects[i].width < 44 || rects[i].height < 44).map((b) => `${b.textContent} ${Math.round(b.getBoundingClientRect().width)}x${Math.round(b.getBoundingClientRect().height)}`);
+      const off = btns.filter((_, i) => rects[i].left < 0 || rects[i].right > innerWidth || rects[i].top < 0 || rects[i].bottom > innerHeight).map((b) => b.textContent);
+      let tight = 0;
+      for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+        const a = rects[i];
+        const b = rects[j];
+        const gapX = Math.max(b.left - a.right, a.left - b.right);
+        const gapY = Math.max(b.top - a.bottom, a.top - b.bottom);
+        if (Math.max(gapX, gapY) < 7.5) tight++;
+      }
+      const bottom = Math.max(...rects.map((r) => r.bottom));
+      if (btns.length < 6) t.problem('bug', `the replay bar has only ${btns.length} buttons`);
+      if (small.length) t.problem('bug', `replay buttons under 44 px: ${small.join(', ')}`);
+      if (off.length) t.problem('bug', `replay buttons off screen at ${innerWidth}x${innerHeight}: ${off.join(', ')}`);
+      if (tight) t.problem('bug', `${tight} pairs of replay buttons are closer than 8 px`);
+      if (innerHeight > innerWidth && bottom < innerHeight * 0.7) t.problem('bug', `the replay bar is not along the bottom (lowest button ends at ${Math.round(bottom)} of ${innerHeight})`);
+      t.event('replay-fit', `${btns.length} buttons, smallest ${Math.round(Math.min(...rects.map((r) => Math.min(r.width, r.height))))} px, bar ends at ${Math.round(bottom)} of ${innerHeight} (${innerWidth}x${innerHeight})`);
+      t.metric('replayButtonsMinPx', Math.round(Math.min(...rects.map((r) => Math.min(r.width, r.height)))));
+      this.checkClipping('replay', this.q('#replay'));
+
+      const tickNow = () => this.game.replayTick();
+      // Speeds: ticks gained over the same wall time at 0.5x, 1x and 2x.
+      const gained = async (speed: string, ms: number) => {
+        await this.click(() => this.q(`#replay-bar [data-speed="${speed}"]`), `speed ${speed}x`);
+        await this.wait(300);
+        const a = tickNow();
+        await this.wait(ms);
+        return tickNow() - a;
+      };
+      // Pause holds the tick.
+      await this.click(() => this.q('#replay-pause'), 'Pause');
+      await this.wait(300);
+      const p0 = tickNow();
+      await this.wait(900);
+      const p1 = tickNow();
+      if (p1 !== p0) t.problem('bug', `the replay kept playing while paused (${p0} → ${p1})`);
+      else t.event('replay-pause', `paused at tick ${p0}, held for 0.9 s; button now reads "${this.q('#replay-pause')?.textContent}"`);
+      await this.click(() => this.q('#replay-pause'), 'Play');
+      const g1 = await gained('1', 1500);
+      const gHalf = await gained('0.5', 1500);
+      const g2 = await gained('2', 1500);
+      if (!(gHalf < g1 && g1 < g2)) t.problem('bug', `replay speed buttons do not change the pace (0.5x ${gHalf}, 1x ${g1}, 2x ${g2} ticks in 1.5 s)`);
+      else t.event('replay-speed', `ticks in 1.5 s: 0.5x ${gHalf}, 1x ${g1}, 2x ${g2}`);
+      t.metric('replayTicks1x', g1);
+      t.progress(0.5);
+
+      // Tap the arena: the bar hides, another tap brings it back.
+      await this.tap(() => this.q('#stage'), 'tap the arena');
+      const hidden = !!this.q('#replay')?.classList.contains('bar-hidden');
+      await this.tap(() => this.q('#stage'), 'tap the arena again');
+      const shown = !this.q('#replay')?.classList.contains('bar-hidden');
+      if (!hidden || !shown) t.problem('bug', `a tap on the arena did not hide then show the replay bar (hidden ${hidden}, shown again ${shown})`);
+      else t.event('replay-bar-tap', 'a tap hid the bar, another brought it back');
+
+      // Camera: Follow → Free → Follow.
+      const cam = () => this.q('#replay-camera')?.textContent ?? '';
+      await this.click(() => this.q('#replay-camera'), 'Camera');
+      const free = cam();
+      await this.click(() => this.q('#replay-camera'), 'Camera');
+      const follow = cam();
+      if (!/Free/.test(free) || !/Follow/.test(follow)) t.problem('bug', `the camera button read "${free}" then "${follow}", wanted Free then Follow`);
+      else t.event('replay-camera', `camera toggled ${free} → ${follow}`);
+
+      // Back 5 s works, then run to the end at 2x.
+      const b0 = tickNow();
+      await this.click(() => this.q('#replay-back'), '-5 s');
+      await this.wait(200);
+      const b1 = tickNow();
+      if (!(b1 < b0 || b0 < 300)) t.problem('bug', `-5 s did not go back (${b0} → ${b1})`);
+      else t.event('replay-back', `tick ${b0} → ${b1}`);
+      await this.click(() => this.q('#replay-bar [data-speed="2"]'), 'speed 2x');
+      await t.until(() => log.some((l) => l.phase === 'end'), 6 * 60 * 1000, 'the replay to end');
+      const end = log.find((l) => l.phase === 'end')!;
+      const same = end.winner === wantWinner && (end.stocks ?? []).join() === wantStocks.join() && end.hash === end.wantHash;
+      if (!same) t.problem('bug', `the replay ended differently from the match: winner P${(end.winner ?? -2) + 1} vs P${wantWinner + 1}, stocks ${(end.stocks ?? []).join('/')} vs ${wantStocks.join('/')}, hash ${end.hash} vs ${end.wantHash}`);
+      else t.event('replay-result', `same winner P${wantWinner + 1}, stocks ${wantStocks.join('/')} and final hash ${end.hash}`);
+      t.progress(0.85);
+
+      await this.click(() => this.q('#replay-exit'), 'Back to results');
+      await this.screen('results', 20000);
+      if (!watch()) t.problem('bug', 'Back to results did not bring the results with Watch replay back');
+      else t.event('replay-exit', 'Back to results shows the results again');
+      await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      await this.screen('main');
+      t.progress(1);
+      t.finish('done');
+    } finally {
+      window.removeEventListener('dod:replay', onReplay);
+      if (touch) suppressRotate(false);
+    }
   }
 
   async campaign(): Promise<void> {
