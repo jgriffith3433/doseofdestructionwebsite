@@ -36,6 +36,8 @@ export type SimEvent =
   | { type: 'throw'; attacker: number; victim: number; kind: number; x: number; y: number }
   /** A held fighter got out by mashing or when the hold ran out (mashed tells which). */
   | { type: 'grab-break'; attacker: number; victim: number; x: number; y: number; mashed: boolean; held: number }
+  /** A dead-even time-out went to sudden death: the tied fighters respawn at 300%, first KO wins. */
+  | { type: 'sudden'; ids: number[] }
   | { type: 'jump' | 'land' | 'ledge' | 'shieldbreak' | 'respawn'; id: number; x: number; y: number }
   /** A counter special turned a hit back on its attacker. */
   | { type: 'counter'; id: number; x: number; y: number }
@@ -99,9 +101,11 @@ export function step(s: GameState, inputs: readonly number[]): SimEvent[] {
   stepShots(s, ev);
   stageHits(s, ev);
   for (const f of s.fighters) checkBlastZones(s, f, ev);
+  settleSuddenTie(s);
   triggerEvents(s, ev);
   broadcastEvents(s, ev);
-  checkGameOver(s);
+  checkGameOver(s, ev);
+  if (s.sudden > 0 && !s.over) s.sudden++;
   for (const f of s.fighters) f.prevInput = inputs[f.id] ?? NO_INPUT;
   if (s.endTimer > 0) s.endTimer--;
   s.frame++;
@@ -1589,9 +1593,73 @@ function separate(s: GameState): void {
 
 // ---------------------------------------------------------------- stocks
 
+/** Sudden death: the blast zone holds for this long, then closes in on the stage's middle. */
+export const SUDDEN_HOLD = 600;
+export const SUDDEN_CLOSE = 900;
+/** Every fighter respawns at this percent (tenths: 300%). */
+export const SUDDEN_PERCENT = 3000;
+
+/** The blast zone now: the stage's, or, in sudden death after 10 s, shrinking linearly to nothing by 25 s so the bout always ends. */
+export function blastZone(s: GameState): StageDef['blast'] {
+  const b = stage.blast;
+  const t = s.sudden - 1 - SUDDEN_HOLD;
+  if (s.sudden <= 0 || t <= 0) return b;
+  const left = SUDDEN_CLOSE - t;
+  if (left <= 0) {
+    const cx = idiv(b.left + b.right, 2);
+    const cy = idiv(b.top + b.bottom, 2);
+    return { left: cx, right: cx, top: cy, bottom: cy };
+  }
+  const cx = idiv(b.left + b.right, 2);
+  const cy = idiv(b.top + b.bottom, 2);
+  return {
+    left: cx + idiv((b.left - cx) * left, SUDDEN_CLOSE),
+    right: cx + idiv((b.right - cx) * left, SUDDEN_CLOSE),
+    top: cy + idiv((b.top - cy) * left, SUDDEN_CLOSE),
+    bottom: cy + idiv((b.bottom - cy) * left, SUDDEN_CLOSE),
+  };
+}
+
+/** Both fell on the same frame of sudden death: a coin from the sim's own rng picks who stays (never the host by slot). */
+function settleSuddenTie(s: GameState): void {
+  if (s.sudden <= 0 || s.over) return;
+  const out = s.fighters.filter((f) => f.suddenIn && f.stocks <= 0 && f.action === ACT.DEAD && f.frame === 0);
+  if (out.length < 2 || s.fighters.some((f) => f.suddenIn && f.stocks > 0)) return;
+  let v: number;
+  [s.rng, v] = rngNext(s.rng);
+  const keep = out[v % out.length];
+  keep.stocks = 1;
+  keep.falls--;
+  keep.action = ACT.IDLE;
+  keep.frame = 0;
+  keep.x = idiv(stage.blast.left + stage.blast.right, 2) * FX;
+  keep.y = stage.respawn.y * FX;
+  keep.vx = keep.vy = 0;
+  keep.intangible = 30;
+}
+
+function startSuddenDeath(s: GameState, tied: Fighter[][], ev: SimEvent[]): void {
+  const ids = tied.flat().map((f) => f.id);
+  for (const f of s.fighters) {
+    f.suddenIn = ids.includes(f.id) ? 1 : 0;
+    f.hitlag = f.launchSpeed = f.kbx = f.kby = f.vx = f.vy = f.ledge = f.holding = f.heldBy = 0;
+    if (!f.suddenIn) {
+      f.stocks = 0;
+      setAction(f, ACT.DEAD, 0);
+      continue;
+    }
+    f.stocks = 1;
+    respawn(f, CHARACTERS[f.char], ev);
+    f.percent = SUDDEN_PERCENT;
+  }
+  s.shots = [];
+  s.sudden = 1;
+  ev.push({ type: 'sudden', ids });
+}
+
 function checkBlastZones(s: GameState, f: Fighter, ev: SimEvent[]): void {
   if (f.action === ACT.DEAD) return;
-  const b = stage.blast;
+  const b = blastZone(s);
   if (f.x > b.left * FX && f.x < b.right * FX && f.y > b.bottom * FX && f.y < b.top * FX) return;
   ev.push({ type: 'ko', victim: f.id, by: f.lastHitBy, x: f.x, y: f.y });
   f.stocks--;
@@ -1634,11 +1702,18 @@ function sides(s: GameState): Fighter[][] {
   return [...groups.values()];
 }
 
-function checkGameOver(s: GameState): void {
+function checkGameOver(s: GameState, ev: SimEvent[]): void {
   if (s.over || s.fighters.length < 2) return;
   const alive = sides(s);
-  const timeUp = s.rules.timeLimit > 0 && s.frame + 1 >= s.rules.timeLimit;
+  const timeUp = s.sudden === 0 && s.rules.timeLimit > 0 && s.frame + 1 >= s.rules.timeLimit;
   if (alive.length > 1 && !timeUp) return;
+  if (timeUp && s.rules.suddenDeath) {
+    // Exactly level on stocks and percent: sudden death decides it, never slot order.
+    const sc = alive.map((g) => [g.reduce((n, f) => n + f.stocks, 0), g.reduce((n, f) => n + f.percent, 0)]);
+    const top = sc.reduce((a, b) => (b[0] > a[0] || (b[0] === a[0] && b[1] < a[1]) ? b : a), sc[0]);
+    const tied = alive.filter((_, i) => sc[i][0] === top[0] && sc[i][1] === top[1]);
+    if (tied.length > 1) return startSuddenDeath(s, tied, ev);
+  }
 
   // On time, the side with the most stocks wins, then the least damage.
   let best: Fighter[] | null = null;

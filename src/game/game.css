@@ -2167,3 +2167,10 @@ body[data-nav] :is(button, a[href], select, input, summary, [role="button"], [ta
   100% { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .air-flash { animation-duration: 1ms; animation-fill-mode: none; } }
+
+/* Sudden death: a dead-even time-out. The slam wraps to two lines so it fits a 390 px phone; the timer chip goes red. */
+.slam.sudden { color: #ff3b2f; -webkit-text-stroke: 3px #2a0805; font-size: clamp(44px, 12vw, 150px); white-space: normal; text-align: center; width: min(92vw, 900px); max-width: calc(100vw - 24px); animation-duration: 1.8s; }
+.timer.sudden { font-size: 22px; padding: 2px 16px; border: 2px solid; border-radius: 6px; color: #fff; background: #b3170d; border-color: #ff3b2f; letter-spacing: 0.12em; text-transform: uppercase; animation: sudden-pulse 0.9s ease-in-out infinite; }
+body.sudden-death .hud-card { box-shadow: 0 0 0 2px rgba(255, 59, 47, 0.7); }
+@keyframes sudden-pulse { 50% { filter: brightness(1.35); } }
+@media (prefers-reduced-motion: reduce) { .timer.sudden { animation: none; } }
