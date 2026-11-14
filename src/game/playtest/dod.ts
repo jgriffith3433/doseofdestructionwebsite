@@ -297,6 +297,17 @@ class Run {
     // Every analytics event of the run stays on hawkesAnalytics.debugLog (analytics.ts), so it can be shown going out.
     analyticsDebug();
     this.unwatch = game.watch((m, ev) => this.onTick(m, ev));
+    // The show's reaction to the first KO (main.ts airFlash): the ON AIR flash must be on screen, inside the window, and never a tap target.
+    window.addEventListener('dod:air-flash', () => {
+      const el = document.querySelector('.air-flash');
+      if (!el) return t.problem('bug', 'the first-KO ON AIR flash fired but no .air-flash element is on screen');
+      const r = el.getBoundingClientRect();
+      const inside = r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
+      t.event('air-flash', `First blood: ON AIR flash shown at ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)} in ${innerWidth}x${innerHeight}`);
+      if (!inside) t.problem('bug', 'the ON AIR first-blood flash runs off the screen');
+      if (getComputedStyle(el).pointerEvents !== 'none') t.problem('bug', 'the ON AIR flash would block touches');
+      if (document.documentElement.scrollWidth > innerWidth + 1) t.problem('bug', 'the ON AIR flash caused sideways scrolling');
+    });
     this.poll = window.setInterval(() => this.onPoll(), 250);
     void this.checkSounds();
   }

@@ -571,3 +571,7 @@ Every screen change is the show cutting between segments: three slanted panels (
 - **A pick** plays the confirm pose (taunt clip, else win / jump, with a hop and a light ring), the fighter's own
   recorded taunt (a fighter with none shouts an effort), then the announcer calls their name.
 - **Details** (toggle) opens the stat bars; they are off by default.
+
+
+### Story beat: first blood
+The booth reacts to play. First KO of a bout: the ON AIR bug flashes red under the timer (`.air-flash`, `main.ts` `airFlash`), a sting, and the announcer's first-blood call. Fits phones (top centre, no pointer events).
