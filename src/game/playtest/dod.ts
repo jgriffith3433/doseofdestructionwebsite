@@ -240,6 +240,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'fast-start') await r.fastStart();
         else if (id === 'hit-feel') await r.hitFeel();
         else if (id === 'rumble') await r.rumbleRun();
+        else if (id === 'auto-level') await r.autoLevelRun();
         else if (id === 'input-feel') await r.inputFeel();
         else if (id === 'touch-match') await r.touchMatch();
         else if (id === 'touch-settings') await r.touchSettingsRun();
@@ -8123,6 +8124,130 @@ class Run {
       } catch {
         // Storage blocked.
       }
+    }
+    t.progress(1);
+    t.finish('done');
+  }
+
+  // ---------------------------------------------------------- auto-level
+
+  /**
+   * Auto CPU level (ai/autoLevel.ts): quick play's CPU is on Auto by default. Setup shortcut: the saved Auto level (`dod.profile.cpu`)
+   * is set to 4. Match 1 (3 stocks) is a win by the bot and, with 2+ stocks left, raises the level by 1; match 2 (1 stock, the player
+   * held idle through the virtual pad) is a loss that takes no stock and lowers it by 1. Each match is entered from the menu so the
+   * VS card is read (`vs-level`: "CPU · Level N · Auto"), and the Results' one-line note is measured (`level-note`, `level-note-fit`).
+   * A phone (390x844) turns to 844x390 and plays by taps.
+   */
+  async autoLevelRun(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('auto-level');
+    }
+    this.logViewport(touch && (this.isPhone() || this.options.at === 'phone-turned'));
+    if (touch) {
+      this.useTap = true;
+      forceTouchUi(true);
+    }
+    const KEY = 'dod.profile.cpu';
+    const original = localStorage.getItem(KEY);
+    const saved = () => (JSON.parse(localStorage.getItem(KEY) ?? '{}') as { level?: number }).level ?? 3;
+    localStorage.setItem(KEY, JSON.stringify({ level: 4 }));
+    let vsText = '';
+    let vsLevel = 0;
+    const onVs = () => {
+      const el = document.querySelector<HTMLElement>('.vs-level[data-level]');
+      vsText = el?.textContent ?? '';
+      vsLevel = Number(el?.dataset.level ?? 0);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        const inside = r.left >= 0 && r.right <= innerWidth && r.height < 40 * 1.6;
+        if (!inside) t.problem('bug', `the VS card's level label runs off the screen or wraps ("${vsText}")`);
+      }
+    };
+    window.addEventListener('dod:vs-calls', onVs);
+    type AutoChange = { won: boolean; stocksLeft: number; from: number; to: number; changed: boolean };
+    let change = null as AutoChange | null;
+    const onAuto = (e: Event) => { change = (e as CustomEvent).detail; };
+    window.addEventListener('dod:auto-level', onAuto);
+    const note = () => this.q('.results-hero .level-note');
+    const checkNote = (want: number) => {
+      const el = note();
+      if (!el) return t.problem('bug', 'Results has no level-change note after an Auto match that moved the level');
+      const r = el.getBoundingClientRect();
+      const lh = parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.3;
+      const oneLine = r.height <= lh * 1.5 && el.scrollWidth <= el.clientWidth + 1;
+      const inside = r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight + 2;
+      t.event('level-note', `"${el.textContent}" (${Math.round(r.width)}x${Math.round(r.height)} px)`);
+      if (!oneLine || !inside) t.problem('bug', `the level-change note is not on one line inside the screen (${Math.round(r.width)}x${Math.round(r.height)} px, scroll ${el.scrollWidth}/${el.clientWidth}, window ${innerWidth}x${innerHeight})`);
+      else t.event('level-note-fit', `one line, ${Math.round(r.width)} px wide in a ${innerWidth}x${innerHeight} window`);
+      if (!el.textContent?.includes(`→ ${want}`)) t.problem('bug', `the note says "${el.textContent}", the level moved to ${want}`);
+    };
+    const toResults = async () => {
+      await this.results();
+      await t.until(() => this.q('.results-row')?.getAttribute('data-phase') === 'panel', 12000, 'the results panel').catch(() => undefined);
+      await t.wait(400);
+    };
+    try {
+      await this.toMainMenu();
+      t.progress(0.05);
+
+      // Match 1: a win with 2+ stocks left.
+      await this.startVersus(3);
+      if (vsLevel !== 4 || !/Level 4/.test(vsText) || !/Auto/.test(vsText)) t.problem('bug', `the VS card shows "${vsText}", wanted CPU · Level 4 · Auto`);
+      else t.event('vs-level', `VS card: "${vsText}"`);
+      this.progressNow = () => 0.05 + 0.4 * Math.min(1, (this.game.match()?.state.frame ?? 0) / (180 * 60));
+      await this.fight(() => false, 8 * 60 * 1000);
+      await toResults();
+      const won1 = change as AutoChange | null;
+      if (!won1) t.problem('bug', 'no dod:auto-level event after the first match');
+      else {
+        t.event('auto-win', `won ${won1.won}, ${won1.stocksLeft} stocks left: level ${won1.from} → ${won1.to}`);
+        if (won1.won && won1.stocksLeft >= 2) {
+          if (won1.to !== won1.from + 1 || saved() !== 5) t.problem('bug', `a win with ${won1.stocksLeft} stocks left moved the Auto level ${won1.from} → ${won1.to} (saved ${saved()}), wanted +1`);
+          else checkNote(5);
+        } else t.problem('warning', `the bot ${won1.won ? `won with only ${won1.stocksLeft} stock(s) left` : 'lost'}: no clear win to check +1 on (try another seed)`);
+      }
+      t.metric('autoLevelAfterWin', saved());
+      t.progress(0.5);
+
+      // Match 2: a loss that takes no stock (the player stands still).
+      change = null;
+      await this.click(() => [...document.querySelectorAll<HTMLElement>('#results-actions button')].find((b) => b.textContent === 'Main menu'), 'Main menu');
+      await this.screen('main');
+      await this.startVersus(1, false);
+      if (vsLevel !== saved() || !/Auto/.test(vsText)) t.problem('bug', `the second VS card shows "${vsText}", the Auto level is ${saved()}`);
+      else t.event('vs-level', `VS card: "${vsText}"`);
+      const before = saved();
+      this.manual = NO_INPUT;
+      try {
+        await this.fight(() => false, 8 * 60 * 1000);
+      } finally {
+        this.manual = null;
+      }
+      await toResults();
+      const lost = change as AutoChange | null;
+      if (!lost) t.problem('bug', 'no dod:auto-level event after the second match');
+      else {
+        t.event('auto-loss', `won ${lost.won}: level ${lost.from} → ${lost.to}`);
+        if (lost.won) t.problem('warning', 'the idle player won?');
+        else if (lost.to !== before - 1 || saved() !== before - 1) t.problem('bug', `a loss without taking a stock moved the Auto level ${lost.from} → ${lost.to}, wanted ${before - 1}`);
+        else checkNote(before - 1);
+      }
+      t.metric('autoLevelAfterLoss', saved());
+      await this.click(() => [...document.querySelectorAll<HTMLElement>('#results-actions button')].find((b) => b.textContent === 'Main menu'), 'Main menu');
+      await this.screen('main');
+    } finally {
+      window.removeEventListener('dod:vs-calls', onVs);
+      window.removeEventListener('dod:auto-level', onAuto);
+      this.manual = null;
+      if (touch) {
+        this.useTap = false;
+        forceTouchUi(false);
+      }
+      if (original === null) localStorage.removeItem(KEY);
+      else localStorage.setItem(KEY, original);
     }
     t.progress(1);
     t.finish('done');

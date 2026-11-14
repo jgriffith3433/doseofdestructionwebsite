@@ -2243,3 +2243,8 @@ body.sudden-death .hud-card { box-shadow: 0 0 0 2px rgba(255, 59, 47, 0.7); }
 .hud-card[data-shape='triangle'] .hud-stocks i { border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .hud-card[data-shape='square'] .hud-stocks i { border-radius: 1px; }
 .hud-card[data-shape='diamond'] .hud-stocks i { border-radius: 0; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+
+/* Auto CPU level (ai/autoLevel.ts): the VS card's level and the Results' one-line change note. */
+.vs-card .vs-level { white-space: nowrap; }
+.results-hero .level-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--gold); font-weight: 700; font-size: calc(14px * var(--ts, 1)); }
+.slot-tools button.auto-level[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
