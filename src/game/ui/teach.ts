@@ -2,7 +2,7 @@
 // the device in use (keyboard, gamepad or touch), shown the moment the move is useful and faded once it is used.
 // The Teacher only reads the sim (the player's action, the events, the other fighter); it never changes it.
 
-import { inputDevice, type InputDevice } from '../input/devices.ts';
+import { PAD_NAMES, inputDevice, padFamily, type InputDevice, type PadFamily } from '../input/devices.ts';
 import { touchOverlay } from '../input/touch.ts';
 import { FX } from '../sim/fixed.ts';
 import { ACT, type Fighter } from '../sim/state.ts';
@@ -23,6 +23,24 @@ interface PromptDef {
   glyphs: Record<InputDevice, string[]>;
   /** The real touch button(s) (class on `.touch-btn`) to pulse while the prompt is up. */
   touch?: string | string[];
+}
+
+/**
+ * The pad glyphs of a family for a prompt (Xbox letters, PlayStation symbols, Switch letters). `name` is the logged word
+ * (Cross, Circle, Square, Triangle, L1, R1 / A, B, X, Y, L, R / ...); `symbol` is what the glyph shows.
+ */
+export function padGlyphs(step: TeachStep, f: PadFamily): { symbol: string; name: string }[] {
+  const n = PAD_NAMES[f];
+  const g = (k: 'attack' | 'special' | 'jump' | 'shield') => ({ symbol: n.symbol[k], name: k === 'jump' ? n.jump.split(' / ')[0] : n[k] });
+  const dir = (s: string) => ({ symbol: s, name: s });
+  switch (step) {
+    case 'move': return [dir('L-stick')];
+    case 'attack': return [g('attack')];
+    case 'jump': return [g('jump')];
+    case 'smash': return [dir('R-stick')];
+    case 'shield': return [g('shield')];
+    case 'recover': return [dir('↑'), dir('+'), g('special')];
+  }
 }
 
 export const PROMPTS: Record<TeachStep, PromptDef> = {
@@ -278,7 +296,11 @@ export class Teacher {
     this.el.dataset.device = dev;
     const row = document.createElement('div');
     row.className = 'teach-glyphs';
-    for (const g of def.glyphs[dev]) {
+    const fam = padFamily();
+    const pad = dev === 'gamepad' ? padGlyphs(step, fam) : null;
+    const list = pad ? pad.map((p) => p.symbol) : def.glyphs[dev];
+    this.el.dataset.family = dev === 'gamepad' ? fam : '';
+    for (const [i, g] of list.entries()) {
       if (g === '+') {
         const plus = document.createElement('b');
         plus.className = 'teach-plus';
@@ -289,6 +311,7 @@ export class Teacher {
       const k = document.createElement('kbd');
       k.className = `teach-glyph ${dev}${g === 'stick' || g.startsWith('stick') ? ' stick' : ''}`;
       k.textContent = g === 'stick' ? '' : g;
+      if (pad && pad[i]!.name !== g) k.setAttribute('aria-label', pad[i]!.name);
       if (g === 'stick') k.setAttribute('aria-label', 'Left stick');
       row.append(k);
     }
@@ -307,7 +330,7 @@ export class Teacher {
       }
       this.el.append(pips);
     }
-    this.el.dataset.glyphs = def.glyphs[dev].join(' ');
+    this.el.dataset.glyphs = (pad ? pad.map((p) => p.name) : def.glyphs[dev]).join(' ');
     this.pulse(dev === 'touch' ? [def.touch ?? []].flat() : []);
   }
 
@@ -320,7 +343,7 @@ export class Teacher {
   }
 
   private sync(): void {
-    if (this.el && this.current && !this.fading && this.el.dataset.device !== inputDevice()) this.paint();
+    if (this.el && this.current && !this.fading && (this.el.dataset.device !== inputDevice() || (this.el.dataset.device === 'gamepad' && this.el.dataset.family !== padFamily()))) this.paint();
   }
 
   /** The prompt's context passed without the move: it goes, and can come back at the next chance. */

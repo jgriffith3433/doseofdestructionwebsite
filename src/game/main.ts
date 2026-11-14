@@ -17,7 +17,7 @@ import { onSoundSettings, setSoundSettings, soundSettings } from './soundSetting
 import { ACT } from './sim/state.ts';
 import { STAGES } from './sim/stage.ts';
 import { initTouchControls, showTouchControls, touchDevice } from './input/touch.ts';
-import { GAMEPAD_HELP, KEYBOARD_HELP, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
+import { KEYBOARD_HELP, gamepadHelp, padFamily, TOUCH_HELP, listenKeyboard, onKey, pausePressed, readLocal, tauntPressed } from './input/devices.ts';
 import { damageColor, damageShake, hitTier } from './hitFeel.ts';
 import { clearMarkers, markerLog, markerRects, updateMarkers, type MarkerIn } from './ui/offscreen.ts';
 import { PLAYER_COLORS, Renderer, prefetchFighters, prefetchStage } from './render/renderer.ts';
@@ -161,6 +161,20 @@ function startPressed(): void {
   go('main', spotlight);
 }
 
+let shownPadFamily = '';
+/** The controls lists; the pad one is named for the family of whichever pad last gave input (refilled when it changes). */
+function fillControlLists(): void {
+  const fill = (id: string, rows: [string, string][]) =>
+    $(id).replaceChildren(...rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]));
+  shownPadFamily = padFamily();
+  fill('keys-kb', KEYBOARD_HELP);
+  fill('keys-pad', gamepadHelp());
+  fill('keys-touch', TOUCH_HELP);
+  fill('ctl-kb', KEYBOARD_HELP);
+  fill('ctl-pad', gamepadHelp());
+  fill('ctl-touch', TOUCH_HELP);
+}
+
 function wireMenus(): void {
   $('btn-start').addEventListener('click', () => {
     if (pressHandled()) return; // Game/index.html took this press while the engine loaded and carries it out in bootReady
@@ -259,14 +273,7 @@ function wireMenus(): void {
     if (match) banner(on ? 'Sound on' : 'Sound off');
   });
 
-  const fill = (id: string, rows: [string, string][]) =>
-    $(id).replaceChildren(...rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]));
-  fill('keys-kb', KEYBOARD_HELP);
-  fill('keys-pad', GAMEPAD_HELP);
-  fill('keys-touch', TOUCH_HELP);
-  fill('ctl-kb', KEYBOARD_HELP);
-  fill('ctl-pad', GAMEPAD_HELP);
-  fill('ctl-touch', TOUCH_HELP);
+  fillControlLists();
 }
 
 /** The key list as a panel over Pause ("All controls"); the same lists are the All controls screen in the menu. */
@@ -2261,6 +2268,7 @@ function frame(draw = true): void {
     if (me) audio.fighterVoice(CHARACTERS[me.char].id, 'taunt');
   }
   if (phase !== 'play' && phase !== 'ready' && !showcase) pollMenuPad(now);
+  if (padFamily() !== shownPadFamily) fillControlLists();
 
   if (match && phase === 'ready') {
     // Offline, Ready waits (up to READY_ART_WAIT_MS) for the stage pictures, so "Go!" never opens on a black arena.
