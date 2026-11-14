@@ -2796,6 +2796,28 @@
       }
     },
     {
+      "id": "announcer.round-fight.1",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Round one... FIGHT!",
+      "audio": "/audio/voice/announcer.round-fight.1.mp3",
+      "take": {
+        "text": "[shouting] Round one... [pause] FIGHT!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
+      "id": "announcer.round-fight.2",
+      "group": "announcer",
+      "who": "announcer",
+      "text": "Round one! FIGHT!",
+      "audio": "/audio/voice/announcer.round-fight.2.mp3",
+      "take": {
+        "text": "[shouting] Round one! [pause] FIGHT!",
+        "voice": "nPczCjzI2devNBz1zQrb"
+      }
+    },
+    {
       "id": "announcer.game.1",
       "group": "announcer",
       "who": "announcer",
