@@ -53,6 +53,16 @@ export class Bot {
   private pits = new Set<number>();
   /** True while the bot is moving out of a hazard's way (the playtest reads it). */
   avoiding = false;
+  /** The current trip off the stage: when it started and the mistakes this bot will make on it (see recover). */
+  private rec: { since: number; late: number; spLate: number; forgetSp: boolean; drift: boolean; delay: number } | null = null;
+  /** The ledge option the bot last chose (the playtest and the ladder test read it). */
+  lastLedge = '';
+  /** Trips off the stage so far (the ladder test reads it). */
+  recoveries = 0;
+  /** True while the bot is on a trip back to the stage. */
+  get recovering(): boolean {
+    return this.rec !== null;
+  }
 
   /** level runs 1 (easy) to 9 (hard); pilot makes it the slow, readable opponent of the first fight. */
   constructor(id: number, level: number, seed: number, pilot = false) {
@@ -109,7 +119,8 @@ export class Bot {
   }
 
   private reaction(): number {
-    return 24 - this.level * 2 + Math.floor(this.random() * 4);
+    const e = this.sloppy();
+    return 6 + Math.round(e * e * 10 + e * 14) + Math.floor(this.random() * 4);
   }
 
   /** Queue a button press; a release frame follows so the next press registers. */
@@ -167,6 +178,7 @@ export class Bot {
       return;
     }
     if (this.offstage(me)) return this.recover(me);
+    this.rec = null;
     this.avoiding = false;
     if (this.hazardous && this.avoidHazards(s, me)) return;
 
@@ -201,44 +213,101 @@ export class Bot {
     return x < h.x1 - 10 || x > h.x2 + 10 || y < h.y - 20;
   }
 
+  /** How far from a sharp player this bot is: 0 at level 9, 1 at level 1. */
+  private sloppy(): number {
+    return (9 - this.level) / 8;
+  }
+
+  /**
+   * Back to the stage. Level sets how well: a late start (reaction), a late jump or up special (timing), forgetting the
+   * up special altogether, and at the bottom steering the wrong way. Level 9 makes none of these.
+   */
   private recover(me: Fighter, to?: Platform): void {
     const x = me.x / FX;
     const y = me.y / FX;
     const h = to ?? this.home(x);
-    const toward = x > (h.x1 + h.x2) / 2 ? -100 : 100;
+    const e = this.sloppy();
+    if (!this.rec) {
+      this.recoveries++;
+      this.rec = {
+        since: this.state ? this.state.frame : 0,
+        late: e * e * 330 * this.random(),
+        spLate: e * 160 * this.random(),
+        forgetSp: this.random() < e * e * 0.6,
+        drift: this.random() < e * e * 0.3,
+        delay: Math.floor(e * e * 40 * this.random()),
+      };
+    }
+    const r = this.rec;
+    let toward = x > (h.x1 + h.x2) / 2 ? -100 : 100;
+    if (r.drift) toward = -toward;
     const gap = x < h.x1 ? h.x1 - x : x > h.x2 ? x - h.x2 : 0;
-    this.wait = 3;
+    this.wait = 3 + Math.round(e * 3);
     if (me.action === ACT.HELPLESS || me.action === ACT.ATTACK || me.action === ACT.AIRDODGE) {
       this.steer(toward);
       return;
     }
+    // A low-level bot takes a moment to see it is off the stage.
+    if (this.state && this.state.frame - r.since < r.delay) {
+      this.steer(0);
+      return;
+    }
     const falling = me.vy <= 0;
-    if (me.jumpsLeft > 0 && falling && y < h.y + 80) {
+    if (me.jumpsLeft > 0 && falling && y < h.y + 80 - r.late) {
       this.press(toward, 0, BTN.JUMP, 2);
       return;
     }
     // Out of jumps: the up special. An angled one is aimed by the stick, so the bot points it at the ledge; a
     // straight or gliding one only steers a little, and the bot leans toward the stage while it climbs.
     const angled = this.recoveryVariant(me) === 'angled';
-    if (me.jumpsLeft === 0 && falling && (y < h.y - 60 || gap > 160 || (angled && gap > 60))) {
+    if (!r.forgetSp && me.jumpsLeft === 0 && falling && (y < h.y - 60 - r.spLate || gap > 160 || (angled && gap > 60))) {
       this.press(angled ? toward : toward * 0.4, 100, BTN.SPECIAL);
       return;
     }
     this.steer(toward);
   }
 
+  /**
+   * On the ledge: how long to hang and which of the four options. Level 1 and 2 climb the same way every time, and
+   * sometimes hang until the hang runs out; from level 3 the bot mixes getup, roll, jump and attack, and from level 5 it
+   * reads the opponent: attack a target at the edge, jump or roll away from a swing, getup when the way is clear.
+   */
   private ledge(me: Fighter): void {
-    if (me.frame < 10 + this.random() * 30) return;
+    const s = this.state;
+    const e = this.sloppy();
+    this.wait = 2;
+    const hangFor = 10 + Math.floor((1 - e) * 30 * this.random() + e * e * 150 * this.random());
+    const gone = this.random() < e * e * 0.05;
+    if (me.frame < hangFor || (gone && me.frame < 400)) return;
     const held = ledges(this.stage)[me.ledge - 1];
     const toward = held ? -held.side * 100 : 0;
-    // The four ledge options: getup, ledge jump, ledge attack (when the target is near the edge), ledge roll.
+    const t = s ? this.pickTarget(s, me) : null;
+    const getup = (): string => (this.press(toward, 0, 0, 2), 'getup');
+    const jump = (): string => (this.press(0, 0, BTN.JUMP, 4), 'jump');
+    const attack = (): string => (this.press(0, 0, BTN.ATTACK), 'attack');
+    const roll = (): string => (this.press(0, 0, BTN.SHIELD, 2), 'roll');
     const r = this.random();
-    if (r < 0.3) this.press(toward, 0, 0, 2);
-    else if (r < 0.5) this.press(0, 0, BTN.JUMP, 4);
-    else if (r < 0.75) this.press(0, 0, BTN.ATTACK);
-    else this.press(0, 0, BTN.SHIELD, 2);
+    if (this.level <= 2) {
+      this.lastLedge = r < 0.85 ? getup() : jump();
+      return;
+    }
+    if (this.level <= 4 || !t) {
+      this.lastLedge = r < 0.4 ? getup() : r < 0.6 ? jump() : r < 0.8 ? attack() : roll();
+      return;
+    }
+    // Level 5 and up: read the opponent standing over the ledge.
+    const dx = Math.abs(t.x - me.x) / FX;
+    const dy = Math.abs(t.y - me.y) / FX;
+    const near = dx < 170 && dy < 140;
+    const swinging = t.action === ACT.ATTACK;
+    const guarding = t.action === ACT.SHIELD || t.action === ACT.SHIELD_STUN;
+    const sharp = this.random() < 0.55 + 0.45 * (1 - e);
+    if (!sharp) this.lastLedge = r < 0.5 ? getup() : r < 0.75 ? roll() : jump();
+    else if (near && swinging) this.lastLedge = r < 0.6 ? roll() : jump();
+    else if (near && guarding) this.lastLedge = r < 0.5 ? roll() : jump();
+    else if (near) this.lastLedge = t.percent > 1000 - this.level * 40 || r < 0.45 ? attack() : r < 0.75 ? jump() : roll();
+    else this.lastLedge = r < 0.5 ? getup() : r < 0.8 ? roll() : jump();
   }
-
 
   // ---------------------------------------------------------------- stage hazards
 
@@ -627,6 +696,11 @@ export class Bot {
     if (this.state && adx < reach * 2 && Math.abs(dy) < 150) this.lastClose = this.state.frame;
     const busy = me.action === ACT.ATTACK || me.action === ACT.LAND || me.action === ACT.JUMPSQUAT;
     if (busy) return;
+    // A lower-level bot hesitates now and then: a beat of standing still instead of the next move.
+    if (this.state && me.grounded && this.random() < this.sloppy() * 0.34) {
+      this.wait = 6;
+      return;
+    }
 
     const h = this.home(mx);
     const towardEdge = side > 0 ? h.x2 - mx : mx - h.x1;
@@ -656,7 +730,8 @@ export class Bot {
     }
 
     // Defend against an attack that is about to come out.
-    const threat = t.action === ACT.ATTACK && adx < reach + 60 && Math.abs(dy) < 90;
+    // A low-level bot sees the swing late: it only reacts once the move is well under way.
+    const threat = t.action === ACT.ATTACK && adx < reach + 60 && Math.abs(dy) < 90 && t.frame >= Math.round(this.sloppy() * 10);
     // The opponent commits to a swing: a counter special turns it back on them.
     if (threat && me.grounded && me.facing === Math.sign(dx) && this.special(me, 'counter', side, 0.25 + skill * 0.4)) return;
     if (threat && me.grounded && this.random() < skill * 0.55) {
