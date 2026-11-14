@@ -28,6 +28,8 @@ export interface VersusConfig {
   /** Minutes, 0 for none. */
   time: number;
   teams: boolean;
+  /** Stage hazards in the fight (default on). */
+  hazards?: boolean;
 }
 
 export { TEAM_COLORS };
@@ -674,6 +676,16 @@ export function openSelect({ mode, config, onDone }: Options): void {
         { class: 'rule' },
         h('span', {}, 'Teams'),
         h('button', { type: 'button', class: 'value', onclick: () => { cfg.teams = !cfg.teams; renderRules(); renderSlots(); } }, cfg.teams ? 'On' : 'Off'),
+      ),
+      h(
+        'div',
+        { class: 'rule', 'data-rule': 'hazards' },
+        h('span', {}, 'Hazards'),
+        h(
+          'button',
+          { type: 'button', class: 'value', 'aria-pressed': String(cfg.hazards !== false), onclick: () => { cfg.hazards = cfg.hazards === false; renderRules(); } },
+          cfg.hazards === false ? 'Off' : 'On',
+        ),
       ),
     );
   }

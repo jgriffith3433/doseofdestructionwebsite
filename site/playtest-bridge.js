@@ -569,6 +569,16 @@
       ]
     },
     {
+      "id": "hazard-rule",
+      "title": "Versus rules: Hazards On/Off saved, hazard marks on stage cards, no hazard fires in 2 minutes with it Off",
+      "description": "Versus select shows the Hazards rule (On by default, 44 px, inside the rules panel), a tap turns it Off and it is saved and still Off after leaving and reopening Versus (hazards-rule, hazards-fit, hazards-persist); the stage select marks exactly the stages with events, hazards or damage zones (hazards-icons); then a 2-minute match (option stage, default desert) with the rule Off: rules.hazards is 0 and no event warns or runs and no hazard hits (hazards-off-match, hazards-off-2min; metrics hazardEventsFired, hazardHitsOff, hazardMarks). The rule is put back. Phone: the select checked at 390x844 by taps, the match played in the turned 844x390 frame by taps.",
+      "seconds": 240,
+      "tags": [
+        "rules",
+        "phone"
+      ]
+    },
+    {
       "id": "ko-objective",
       "title": "The ko objective: \"KOs 0/3\" with the clock, counting up, won on the third KO; then a round lost when time runs out",
       "description": "Setup shortcut: straight into each match as a campaign fight, no menus (the ko objective has no chapter yet). Round 1: Exit Punk (the bot) vs Kaelen (CPU 1, 9 stocks, every life at 120%) on Yo House, 3 KOs before a 2-minute clock; it ends on the third KO. Round 2: vs a giant Break (CPU 9, 9 stocks), 3 KOs before a 20-second clock; it ends on time. Each round checks the chip and the clock as the match starts, every change of the chip against the KOs scored, and the results line saying which way it ended. Events ko-chip, ko-clock, ko-count, ko-result.",
