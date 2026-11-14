@@ -254,6 +254,16 @@
       ]
     },
     {
+      "id": "rebind",
+      "title": "Rebind controls: Settings > Controls, pick an action, press the new key, clash warning, Reset, saved across a reload, the new key works in a match, a second gamepad plays (phone 390x844 touch: no rebinding row, Settings fits, nothing overlaps)",
+      "description": "Desktop: main menu > Settings > Rebind (44 px buttons). Special is put on J (Attack's key): the clash note names Attack and Attack takes K (a swap); Reset to defaults restores Attack J / Special K and saves; Attack is put on H by tapping its slot and pressing H (saved in dod.bindings); the page reloads and the run carries on: Attack is still H, the All controls page lists Attack as H, and in a Versus match H attacks while J no longer does; then a second emulated gamepad (pad 2 only, no pad 1) presses A and attacks. Phone (390x844 touch, hit-tested taps): Settings has no rebinding row, every control is inside the screen and none overlaps, Done is 44 px. Puts dod.bindings back. Events rebind-open, rebind-clash, rebind-reset, rebind-set, rebind-saved, rebind-survived-reload, rebind-controls-page, rebind-key-works, rebind-old-key-dead, rebind-second-pad, rebind-phone-hidden, rebind-phone-fit.",
+      "seconds": 150,
+      "tags": [
+        "full",
+        "touch"
+      ]
+    },
+    {
       "id": "shield-toggle",
       "title": "Shield Hold / Toggle: Settings > Shield; with Toggle one press keeps the shield up with no button held, a second press, a roll or a jump drops it, and on a phone the Shield button shows it is latched",
       "description": "Settings from the main menu shows the Shield switch (Hold by default, 44 px, on screen); one tap turns it to Toggle and it is saved (shield-saved, dod.shield). In a versus match one press of Shield (the L key, or the touch Shield button) raises the shield and 1.4 s later it is still up with nothing held (shield-latched); on touch the Shield button carries the latched look and aria-pressed (shield-button-latched); a second press drops it (shield-dropped-press); a press then a roll (stick sideways) rolls and drops it (shield-dropped-roll); a press then a jump drops it (shield-dropped-jump). On a 390x844 phone the portrait Settings is checked, then the run plays in the turned 844x390 frame by taps and a stick drag. Puts dod.shield back.",
