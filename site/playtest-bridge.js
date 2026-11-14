@@ -244,6 +244,15 @@
       ]
     },
     {
+      "id": "text-size",
+      "title": "Text size: Settings has 100% / 125% / 150%, every visible text is at least 12 px at 100%, 150% is bigger on menus and HUD without clipping, and it is kept",
+      "description": "Main menu → Settings → Text size 100% (text-saved: localStorage dod.textsize, --ts); scans the main menu, Settings and the select screen for text under 12 px, clipped text and text off the window (text-scan; metrics textUnder12.<screen>.<level>); sets 125% then 150% (text-bigger: the menu item grows), scans the same screens again, plays a match and scans the HUD at 150% (hud-bigger: the HUD percent against its 100% size from Pause). A 390x844 phone runs the menus by touch in portrait and the match in the turned frame. The player's own dod.textsize is put back.",
+      "seconds": 150,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "touch-settings",
       "title": "Touch size and opacity: Settings shows the two sliders on touch devices, they resize and fade the stick and buttons live in a match, and are kept after a reload",
       "description": "The run is treated as a touch device. Main menu → Settings shows Touch size (75-150%) and Touch opacity (30-100%) (touch-sliders); sets 150% / 50% (touch-saved: localStorage dod.touch); in a match measures the stick, Attack and Pause button and their opacity, all inside the window (touch-look); from Pause sets 75% / 100% (touch-resized: the controls shrink) and 120% / 60%; reloads (the run carries on through ?playtest=touch-settings) and checks Settings and a new match still have 120% / 60% (touch-kept). The player's own dod.touch is put back.",
