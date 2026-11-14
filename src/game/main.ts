@@ -1655,7 +1655,8 @@ function beginReady(m: Match): void {
   slam('Round start');
   renderer.stageEvent('start');
   // "Ready... FIGHT!" is one call (2 takes) that lands its FIGHT on the Go frame; without a take it is "Ready?" then "Go!".
-  readyFightId = audio.pickLine('announcer.ready-fight');
+  // "Round 1... FIGHT!" (announcer.round-fight.N) is preferred once recorded; every match is round 1 (stocks, not rounds).
+  readyFightId = audio.pickLine('announcer.round-fight') ?? audio.pickLine('announcer.ready-fight');
   if (readyFightId) void audio.call(readyFightId);
   else audio.line('announcer.ready');
   airFlashed = false;
@@ -3012,7 +3013,12 @@ const tapped = (): Promise<void> =>
     else document.addEventListener('dod:tapped', () => resolve(), { once: true });
   });
 // Once the prompt has gone, the title's Press start takes the focus.
-document.addEventListener('dod:tapped', () => focusFirst());
+document.addEventListener('dod:tapped', () => {
+  focusFirst();
+  // The title theme starts on the tap itself (the first moment sound is allowed), not on the next 300 ms menu check.
+  const s = currentScreen();
+  if (!openingShowing() && (!s || s === 'title')) audio.playMusic('music-title');
+});
 // The title screen is up: the game is playable (game_ready).
 const titleUp = go('title').then(() => analytics.ready());
 // Menus are wired and the title is up: a Press start pressed while loading goes on into the menu now.
