@@ -44,6 +44,7 @@ import { PROMPTS, type TeachStep } from '../ui/teach.ts';
 import { stagesFor } from '../modes.ts';
 import { SOUNDS, VOICE, audio } from '../audio.ts';
 import { VoiceWatch } from './voiceWatch.ts';
+import { walkMenus, type Mode } from './menuWalk.ts';
 import { SOUND_KEY, soundSettings } from '../soundSettings.ts';
 import { GFX_KEY, graphics, setGraphics, isTouchDevice, renderScaleCap } from '../graphics.ts';
 import { SHAKE_STORAGE_KEY, screenShake, hitTier, type HitTier } from '../hitFeel.ts';
@@ -205,6 +206,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'special-sounds') await r.specialSounds();
         else if (id === 'grab') await r.grabRun();
         else if (id === 'special-fx') await r.specialFx();
+        else if (id === 'menu-walk') await r.menuWalk();
         else if (id === 'select-specials') await r.selectSpecials();
         else if (id === 'select-set') await r.selectSet();
         else if (id === 'portraits') await r.portraitsRun();
@@ -1198,7 +1200,7 @@ class Run {
 
   /**
    * The show's stinger (ui/stinger.ts) on every screen change and the slams (main.ts): each `dod:stinger` is one
-   * event with its length (0.5-0.7 s unless the next screen was still loading: loadMs), ROUND START and GAME! come
+   * event with its length (150-300 ms, the one shared screen transition, unless the next screen was still loading: loadMs), ROUND START and GAME! come
    * with `dod:slam` (GAME! with its 0.5 s freeze offline). A screen switch with no stinger is a problem.
    */
   private watchStingers(): () => void {
@@ -1213,7 +1215,7 @@ class Run {
       t.event('stinger', `${d.from} -> ${d.to}: ${d.ms} ms (loading held ${d.loadMs} ms)${d.reduced ? ' reduced-motion crossfade' : ''}`);
       t.metric('stingers', stingers);
       const loading = d.loadMs > 150;
-      if (!d.reduced && !loading && (d.ms < 480 || d.ms > 720)) t.problem('bug', `Stinger ${d.from} -> ${d.to} lasted ${d.ms} ms (want 500-700 ms unless loading runs longer)`);
+      if (!d.reduced && !loading && (d.ms < 150 || d.ms > 300)) t.problem('bug', `Stinger ${d.from} -> ${d.to} lasted ${d.ms} ms (want 150-300 ms unless loading runs longer)`);
     };
     const onSlam = (e: Event) => {
       const d = (e as CustomEvent<{ text: string; over: boolean; freezeMs: number }>).detail;
@@ -6559,6 +6561,37 @@ class Run {
     await this.screen('select');
     await this.tap(() => this.q('#select .back-btn'), 'Back');
     await this.screen('main');
+  }
+
+  // ---------------------------------------------------------- menu-walk
+
+  /**
+   * Every menu screen from Tap to play (main, Versus select, stage pick, Settings, controls, campaign map, tour list, extras,
+   * leaderboard, Pause, results), walked by keyboard, an emulated gamepad, then touch (menuWalk.ts has the measuring). On a
+   * 390x844 touch phone it turns to 844x390 and walks by touch only. Option `input`: keyboard, gamepad or touch, to walk one.
+   */
+  async menuWalk(): Promise<void> {
+    const touchOnly = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touchOnly && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560) {
+      this.logViewport(true);
+      return this.touchMatchTurned('menu-walk');
+    }
+    this.logViewport(touchOnly && this.isPhone());
+    const asked = this.options.input;
+    const modes: Mode[] = touchOnly ? ['touch'] : asked === 'keyboard' || asked === 'gamepad' ? [asked] : ['keyboard', 'gamepad', 'touch'];
+    await walkMenus(
+      this.t,
+      {
+        toMainMenu: () => this.toMainMenu(),
+        startVersus: (stocks) => this.startVersus(stocks),
+        setTap: (on) => { this.useTap = on; },
+        setSpeed: (n) => this.game.setSpeed(n),
+        fightToEnd: async (ms) => { await this.fight(() => false, ms); },
+        phase: () => this.game.phase(),
+      },
+      modes,
+      this.isPhone(),
+    );
   }
 
   // ---------------------------------------------------------- touch-settings

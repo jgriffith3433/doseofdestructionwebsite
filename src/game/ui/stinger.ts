@@ -7,10 +7,13 @@ import { audio } from '../audio.ts';
 const reduceMotion = (): boolean => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-/** Timings in ms: the cover closing, the cover opening. In + out is 0.58 s (0.5-0.7 s), longer only while loading. */
-export const STINGER_IN_MS = 290;
-export const STINGER_OUT_MS = 300;
-export const STINGER_REDUCED_MS = 120;
+/**
+ * Timings in ms: the cover closing, the cover opening (game.css `.wipe.in` / `.wipe.out` last as long). In + out is 0.21 s:
+ * one shared 150-250 ms transition for every screen change, longer only while the next screen is loading.
+ */
+export const STINGER_IN_MS = 100;
+export const STINGER_OUT_MS = 110;
+export const STINGER_REDUCED_MS = 90;
 
 export interface StingerRun {
   /** Resolves once the cover is closed; the next screen may be built behind it. */

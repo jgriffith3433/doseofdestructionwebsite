@@ -7,6 +7,7 @@ import { pads } from '../input/devices.ts';
 import { audio } from '../audio.ts';
 import { screen as trackScreen } from '../analytics.ts';
 import { startStinger } from './stinger.ts';
+import { flashPressed } from './dom.ts';
 
 export type ScreenId =
   | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'tour' | 'extras' | 'howto' | 'results' | 'match' | 'leaderboard';
@@ -95,6 +96,22 @@ export function focusFirst(): void {
   preferred?.focus({ preventScroll: true });
 }
 
+const MOVE_SOUND_GAP_MS = 70;
+let lastMoveSound = -Infinity;
+
+/** Marks that keys or a pad drive the menu (game.css draws the focus ring on whatever has focus); a mouse or finger clears it. */
+function setNav(on: boolean): void {
+  if (on) document.body.dataset.nav = '1';
+  else delete document.body.dataset.nav;
+}
+let navListening = false;
+function listenNav(): void {
+  if (navListening) return;
+  navListening = true;
+  window.addEventListener('keydown', () => setNav(true), true);
+  window.addEventListener('pointerdown', () => setNav(false), true);
+}
+
 /** Moves focus to the nearest control in a direction, by on-screen position. */
 export function moveFocus(dx: number, dy: number): void {
   if (tapPrompt()) return;
@@ -124,7 +141,12 @@ export function moveFocus(dx: number, dy: number): void {
       bestScore = score;
     }
   }
-  if (best) audio.sfx('ui-move');
+  // Holding a direction repeats fast: the tick is throttled, so it never turns into a buzz.
+  const now = performance.now();
+  if (best && now - lastMoveSound >= MOVE_SOUND_GAP_MS) {
+    lastMoveSound = now;
+    audio.sfx('ui-move');
+  }
   best?.focus();
   best?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
@@ -146,6 +168,7 @@ export function typing(e: KeyboardEvent): boolean {
 }
 
 export function listenMenuKeys(inMatch: () => boolean): void {
+  listenNav();
   window.addEventListener('keydown', (e) => {
     if (inMatch() || busy) return;
     // Typing a name (Profile): letters are letters; only Esc still backs out.
@@ -165,7 +188,9 @@ export function listenMenuKeys(inMatch: () => boolean): void {
       e.preventDefault();
       back();
     } else if (e.code === 'KeyJ') {
-      (document.activeElement as HTMLElement | null)?.click();
+      const el = document.activeElement as HTMLElement | null;
+      flashPressed(el);
+      el?.click();
     }
   });
 }
@@ -179,6 +204,7 @@ export function pollMenuPad(now: number): void {
   if (busy) return;
   const pad = pads()[0];
   if (!pad) return;
+  listenNav();
   const ax = pad.axes[0] ?? 0;
   const ay = pad.axes[1] ?? 0;
   const btn = (i: number) => !!pad.buttons[i]?.pressed;
@@ -187,13 +213,18 @@ export function pollMenuPad(now: number): void {
   else if (btn(15) || ax > 0.6) dir = 'r';
   else if (btn(12) || ay < -0.6) dir = 'u';
   else if (btn(13) || ay > 0.6) dir = 'd';
+  if (dir || pad.buttons.some((b, i) => b.pressed && !padButtons[i])) setNav(true);
   if (dir && (dir !== padHeld || now >= padNext)) {
     moveFocus(dir === 'l' ? -1 : dir === 'r' ? 1 : 0, dir === 'u' ? -1 : dir === 'd' ? 1 : 0);
     padNext = now + (dir === padHeld ? 90 : 260);
   }
   padHeld = dir;
   const pressed = (i: number) => btn(i) && !padButtons[i];
-  if (pressed(0) || pressed(9)) (document.activeElement as HTMLElement | null)?.click();
+  if (pressed(0) || pressed(9)) {
+    const el = document.activeElement as HTMLElement | null;
+    flashPressed(el);
+    el?.click();
+  }
   if (pressed(1)) back();
   padButtons = pad.buttons.map((b) => b.pressed);
 }

@@ -19,7 +19,7 @@
     {
       "id": "smoke",
       "title": "Boot, menus, a quick versus match for 20 s, quit to the menu",
-      "description": "options: stage, fighter (ids) to play specific content. Logs viewport (size + touch). On a portrait phone (390x844) it turns to an 844x390 landscape frame and plays the match there (phone-turned, viewport); a phone run at desktop size is a bug. Also checks the show's stinger (events stinger / slam-round-start / slam-game, metrics stingers, slams, screenSwitches): every screen change plays one, 0.5-0.7 s unless loading holds it.",
+      "description": "options: stage, fighter (ids) to play specific content. Logs viewport (size + touch). On a portrait phone (390x844) it turns to an 844x390 landscape frame and plays the match there (phone-turned, viewport); a phone run at desktop size is a bug. Also checks the show's stinger (events stinger / slam-round-start / slam-game, metrics stingers, slams, screenSwitches): every screen change plays one, 150-300 ms (one shared transition) unless loading holds it.",
       "seconds": 50,
       "tags": [
         "smoke"
@@ -518,6 +518,17 @@
       "tags": [
         "full",
         "touch"
+      ]
+    },
+    {
+      "id": "menu-walk",
+      "title": "Menu walk: every menu screen from Tap to play by keyboard, gamepad and touch: pressed state and sound within 50 ms, screen changes under 300 ms with no blank frame, a visible focus ring, Back on every screen (phone 844x390: 44 px buttons, Back in thumb reach)",
+      "description": "Walks main, Versus select, stage pick, Settings (sound, music, effects, touch sliders on touch), controls, campaign map, tour list, extras, leaderboard, Pause (and its Settings) and the results of a fight played to its end. First by keyboard (arrows, J, Escape), then an emulated gamepad (D-pad, A, B, Start through input/devices.ts emulatePad), then touch (pointer taps, hit-tested). Per button: press to pressed state (menu-screen; problem over 50 ms or no change in look), press to ui sound (dod:sound-take, 50 ms); per screen change: press to the end of the stinger (menu-transition, under 300 ms, blank or unstyled frames counted), focus ring on every control for keys and pad, Back by Escape / pad B / the Back button (menu-back, menu-back-reach). Option input: keyboard, gamepad or touch walks one. On a 390x844 touch phone it turns to 844x390 and walks by touch only: every button 44 px tall, none off the screen sideways. Metrics menuScreens, menuButtonsPressed, menuPressedMaxMs, menuSoundMaxMs, menuTransitionMaxMs, menuBlankFrames, menuFocusMissing, menuBackFailures, menuSmallestButtonPx.",
+      "seconds": 420,
+      "tags": [
+        "full",
+        "touch",
+        "sound"
       ]
     },
     {

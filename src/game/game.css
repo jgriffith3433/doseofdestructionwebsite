@@ -890,16 +890,17 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
   will-change: transform, opacity;
 }
 .wipe.in, .wipe.hold, .wipe.out { pointer-events: all; }
-.wipe.in i:nth-child(1) { animation: wipe-in 260ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
-.wipe.in i:nth-child(2) { animation: wipe-in 260ms cubic-bezier(0.7, 0, 0.3, 1) 30ms forwards; }
-.wipe.in i:nth-child(3) { animation: wipe-in 260ms cubic-bezier(0.7, 0, 0.3, 1) 60ms forwards; }
-.wipe.in .stinger-streak { animation: stinger-streak 320ms cubic-bezier(0.5, 0, 0.5, 1) 40ms forwards; }
+/* One shared 210 ms transition (100 in, 110 out; stinger.ts STINGER_IN_MS / STINGER_OUT_MS): every panel is home by the time the screen swaps. */
+.wipe.in i:nth-child(1) { animation: wipe-in 80ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
+.wipe.in i:nth-child(2) { animation: wipe-in 80ms cubic-bezier(0.7, 0, 0.3, 1) 10ms forwards; }
+.wipe.in i:nth-child(3) { animation: wipe-in 80ms cubic-bezier(0.7, 0, 0.3, 1) 20ms forwards; }
+.wipe.in .stinger-streak { animation: stinger-streak 100ms cubic-bezier(0.5, 0, 0.5, 1) forwards; }
 .wipe.hold i, .wipe.out i { transform: translateX(-5%) skewX(-18deg); }
 .wipe.hold i b { animation: stinger-pulse 700ms ease-in-out infinite alternate; }
 .wipe.hold .stinger-streak { animation: stinger-loop 900ms linear infinite; }
-.wipe.out i:nth-child(1) { animation: wipe-out 300ms cubic-bezier(0.7, 0, 0.3, 1) 60ms forwards; }
-.wipe.out i:nth-child(2) { animation: wipe-out 300ms cubic-bezier(0.7, 0, 0.3, 1) 30ms forwards; }
-.wipe.out i:nth-child(3) { animation: wipe-out 300ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
+.wipe.out i:nth-child(1) { animation: wipe-out 90ms cubic-bezier(0.7, 0, 0.3, 1) 20ms forwards; }
+.wipe.out i:nth-child(2) { animation: wipe-out 90ms cubic-bezier(0.7, 0, 0.3, 1) 10ms forwards; }
+.wipe.out i:nth-child(3) { animation: wipe-out 90ms cubic-bezier(0.7, 0, 0.3, 1) forwards; }
 @keyframes wipe-in { to { transform: translateX(-5%) skewX(-18deg); } }
 @keyframes wipe-out { to { transform: translateX(110%) skewX(-18deg); } }
 @keyframes stinger-streak { 0% { opacity: 0; transform: translateX(-120%) skewX(-18deg); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateX(820%) skewX(-18deg); } }
@@ -2073,3 +2074,34 @@ body.intro-on .touch > * { opacity: 0; pointer-events: none; }
 .opening-skip { position: absolute; right: max(12px, env(safe-area-inset-right)); top: max(12px, env(safe-area-inset-top)); min-width: 64px; min-height: 44px; padding: 0 16px; border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 22px; background: rgba(0, 0, 0, 0.5); color: #fff; font: 600 14px Oswald, sans-serif; text-transform: uppercase; letter-spacing: 0.1em; }
 @media (prefers-reduced-motion: reduce) { .opening.slam { animation: none; } }
 .opening-replay { margin: 0 auto 12px; max-width: 520px; display: block; }
+
+/* ------------------------------------------------------------ menu kit
+   One pressed state, one hover, one focus ring and 44 px targets for every menu control (ui/dom.ts installPressFeedback
+   marks `data-pressed` on pointer down, key and pad press, in the same task, so state and sound start together). Last in
+   the file on purpose: it wins over the per-screen outline:none rules above. */
+button, a[href], [role="button"] { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+/* Pressed: the individual `scale` and `filter` properties, so each screen's own transform (hover lift, slide) still applies.
+   No transition, so the first style after the press already shows it. */
+:is(button, a[href], [role="button"]):is([data-pressed], :active):not(:disabled) {
+  scale: 0.96;
+  filter: brightness(1.28) saturate(1.1);
+  transition: none !important;
+}
+
+/* Focus: a gold ring on whatever is selected, for keys, pad and Tab. A pad or key press marks body[data-nav] (screens.ts),
+   because focus() from script does not always count as :focus-visible. A mouse or finger clears it. */
+:is(button, a[href], select, input, summary, [role="button"], [tabindex="0"]):focus-visible,
+body[data-nav] :is(button, a[href], select, input, summary, [role="button"], [tabindex="0"]):focus {
+  outline: 3px solid var(--gold) !important;
+  outline-offset: 2px !important;
+}
+
+/* Phones: every menu button is thumb-sized (44 px tall). */
+@media (pointer: coarse), (max-height: 500px), (max-width: 560px) {
+  .screen:not(.match-screen) :is(button, a.menu-item, [role="button"]), .overlay :is(button, [role="button"]) { min-height: 44px; }
+  .screen:not(.match-screen) .back-btn { min-width: 64px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(button, a[href], [role="button"]):is([data-pressed], :active) { filter: brightness(1.28); }
+}

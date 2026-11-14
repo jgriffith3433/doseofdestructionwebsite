@@ -26,7 +26,7 @@ import type { SimEvent } from './sim/step.ts';
 import { ruleLabel, takeoverLines } from './campaign/takeover.ts';
 import { CHAPTERS, isUnlocked, loadProgress, saveProgress, storyCard, unlockFor, type Chapter } from './campaign/story.ts';
 import { stagesFor, type ModeStage } from './modes.ts';
-import { $, formatTime, h, headUrl, largeUrl, thumbUrl } from './ui/dom.ts';
+import { $, formatTime, h, headUrl, installPressFeedback, largeUrl, thumbUrl } from './ui/dom.ts';
 import { back, currentScreen, focusFirst, go, listenMenuKeys, onBack, onPanelBack, pollMenuPad, syncPad } from './ui/screens.ts';
 import { TEAM_COLORS, openSelect, type VersusConfig } from './ui/select.ts';
 import { openCampaign, openStages, playVersus, showResults, type ResultAction } from './ui/views.ts';
@@ -151,9 +151,22 @@ function wireMenus(): void {
     audio.line('announcer.title');
     go('main', spotlight);
   });
-  // Every button press in a menu clicks.
+  // Every button press in a menu clicks: on pointer down (with the pressed state, ui/dom.ts), so it sounds with the press, not
+  // after the release; a key or pad press has no pointer down, so its click plays it. The click that follows a pointer-down
+  // sound on the same control is not played again.
+  let downSound: { el: HTMLElement; at: number } | null = null;
+  installPressFeedback((el) => {
+    downSound = { el, at: performance.now() };
+    audio.sfx('ui-select');
+  });
   document.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).closest('button, a')) audio.sfx('ui-select');
+    const el = (e.target as HTMLElement).closest<HTMLElement>('button, a');
+    if (!el) return;
+    if (downSound && downSound.el === el && performance.now() - downSound.at < 2000) {
+      downSound = null;
+      return;
+    }
+    audio.sfx('ui-select');
   });
   wireSettings();
   document.querySelectorAll<HTMLButtonElement>('[data-go]').forEach((b) =>
@@ -185,6 +198,9 @@ function wireMenus(): void {
   onBack('howto', () => go('main', spotlight));
   wirePilot();
   onBack('leaderboard', () => go('main', spotlight));
+  // Pause (a pad's B, Backspace) resumes; the results step out through their last button (Main menu, Campaign map, Quit).
+  onBack('match', () => { if (phase === 'pause') pauseKey(); });
+  onBack('results', () => ([...document.querySelectorAll<HTMLButtonElement>('#results-actions button')].pop())?.click());
 
   $('btn-resume').addEventListener('click', () => setPaused(false));
   $('btn-restart').addEventListener('click', () => {
