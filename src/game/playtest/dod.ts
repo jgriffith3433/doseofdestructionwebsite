@@ -5984,6 +5984,8 @@ class Run {
         }
       }
       t.metric('windupTellMoves', checkedMoves);
+      t.metric('specials.total', CHARACTERS.length * tellMoveIds.length);
+      t.metric('specials.withTell', checkedMoves);
       if (missingTells > 0) t.problem('bug', `${missingTells} specials or smashes in the roster are missing a startup wind-up flash or pose change`);
       else t.event('windup-tell-roster', `all ${checkedMoves} specials and smashes across ${CHARACTERS.length} fighters have a startup wind-up flash and coiled pose tell`);
     }
@@ -6342,7 +6344,7 @@ class Run {
       unwatch();
       if (touch) {
         this.useTap = false;
-        forceTouchUi(null);
+        forceTouchUi(false);
       }
       try {
         if (original === null) localStorage.removeItem(SHAKE_STORAGE_KEY);
