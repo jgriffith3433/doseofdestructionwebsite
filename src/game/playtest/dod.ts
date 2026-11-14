@@ -216,6 +216,7 @@ export function installDodPlaytest(game: GameHooks): void {
         else if (id === 'ko-objective') await r.koObjective();
         else if (id === 'sudden-death') await r.suddenDeath();
         else if (id === 'hazard-dodge') await r.hazardDodge();
+        else if (id === 'hazard-rule') await r.hazardRule();
         else if (id === 'cpu-level') await r.cpuLevel();
         else if (id === 'auto-quality') await r.autoQuality();
         else if (id === 'quota') await r.quotaObjective();
@@ -4920,6 +4921,114 @@ class Run {
     } finally {
       this.manual = null;
       if (touch) forceTouchUi(false);
+    }
+  }
+
+  /**
+   * The Hazards rule (`ui/select.ts` Versus rules, `main.ts` `pickStage`, `net/online.ts` `hostHazardsOff`). Versus select:
+   * the Hazards row shows On, fits the rules panel with 44 px targets, a tap turns it Off and it is saved (`dod-versus`), and
+   * it is still Off after leaving and reopening Versus (`hazards-rule`, `hazards-fit`, `hazards-persist`). The stage select
+   * marks the stages that have a hazard and only those (`hazards-icons`). Then a 2-minute match (option `stage`, default
+   * desert) with the rule Off: the stage's events never warn or run and no hazard hits anyone (`hazards-off-match`;
+   * metric `hazardEventsFired` must be 0). The rule is put back to On. Phone: the select is checked at 390x844 by taps,
+   * then the match plays in the turned 844x390 frame by taps.
+   */
+  async hazardRule(): Promise<void> {
+    const t = this.t;
+    const touch = this.options.input === 'touch' || this.options.at === 'phone' || this.options.at === 'phone-turned' || this.isPhone();
+    if (touch) this.useTap = true;
+    const turn = touch && this.options.at !== 'phone-turned' && innerHeight > innerWidth && Math.min(innerWidth, innerHeight) <= 560;
+    this.logViewport(touch && this.isPhone());
+    if (touch && !turn) forceTouchUi(true);
+    const row = () => document.querySelector<HTMLElement>('#select-rules .rule[data-rule="hazards"]');
+    const value = () => row()?.querySelector<HTMLElement>('.value');
+    const saved = () => { try { return JSON.parse(localStorage.getItem('dod-versus') ?? 'null')?.hazards; } catch { return undefined; } };
+    const wasSaved = saved();
+    try {
+      await this.toMainMenu();
+      await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+      await this.screen('select');
+      await t.until(() => !!value(), 5000, 'the Hazards rule');
+      const r = value()!.getBoundingClientRect();
+      const panel = this.q('#select-rules')!.getBoundingClientRect();
+      const inside = r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight && r.left >= panel.left - 1 && r.right <= panel.right + 1;
+      const big = r.width >= 44 && r.height >= 44;
+      t.event('hazards-rule', `Versus rules list "${row()!.querySelector('span')?.textContent}" = ${value()!.textContent}`);
+      if (value()!.textContent !== 'On') t.problem('bug', `Hazards should start On (it reads ${value()!.textContent})`);
+      t.event('hazards-fit', `toggle ${Math.round(r.width)}x${Math.round(r.height)} at ${Math.round(r.left)},${Math.round(r.top)} in ${innerWidth}x${innerHeight}`);
+      if (!inside || !big) t.problem('bug', `the Hazards toggle ${inside ? 'is under 44 px' : 'is not inside the rules panel and the window'} at ${innerWidth}x${innerHeight}`);
+      await this.click(() => value(), 'Hazards');
+      await t.until(() => value()?.textContent === 'Off', 3000, 'Hazards Off');
+      if (saved() !== false) t.problem('bug', 'Hazards Off was not saved with the Versus rules');
+      // Leave and come back: the choice stays.
+      await this.click(() => this.q('#select [data-back]'), 'Back');
+      await this.screen('main');
+      await this.click(() => this.q('[data-go="versus"]'), 'Versus');
+      await this.screen('select');
+      await t.until(() => !!value(), 5000, 'the Hazards rule again');
+      t.event('hazards-persist', `after leaving and reopening Versus the rule reads ${value()!.textContent}, saved ${String(saved())}`);
+      if (value()!.textContent !== 'Off') t.problem('bug', 'Hazards did not stay Off after reopening Versus');
+      if (turn) {
+        await this.click(() => value(), 'Hazards');
+        await t.until(() => value()?.textContent === 'On', 3000, 'Hazards On');
+        await this.click(() => this.q('#select [data-back]'), 'Back');
+        await this.screen('main');
+        return this.touchMatchTurned('hazard-rule');
+      }
+      // Stage select: the mark is on the stages that have something to switch off, and only those.
+      const stageId = String(this.options.stage ?? 'desert');
+      (this.options as Record<string, unknown>).stage = stageId;
+      this.onStages = async (cards) => {
+        const marked = cards.filter((c) => !!c.querySelector('[data-hazard]'));
+        const wrong = cards.filter((c) => {
+          const st = STAGES.find((x) => x.id === c.dataset.stage);
+          return !!c.querySelector('[data-hazard]') !== (!!st && (!!st.events?.length || !!st.hazards?.length || !!st.zones?.some((z) => z.kind === 'damage')));
+        });
+        t.event('hazards-icons', `${marked.length} of ${cards.length} stage cards carry the hazard mark (${marked.map((c) => c.dataset.stage).join(', ')})`);
+        if (!marked.length || wrong.length) t.problem('bug', `hazard marks are wrong on: ${wrong.map((c) => c.dataset.stage).join(', ') || 'every stage (none shown)'}`);
+        const small = marked.map((c) => c.getBoundingClientRect()).filter((b) => b.right > innerWidth || b.left < 0);
+        if (small.length) t.problem('bug', 'a stage card with the hazard mark runs off the screen');
+        t.metric('hazardMarks', marked.length);
+      };
+      await this.startVersus(9, true);
+      this.onStages = null;
+      await this.matchLive();
+      const m = this.game.match()!;
+      const def = STAGES[m.setup.stage];
+      if (m.state.rules.hazards !== 0) t.problem('bug', `the match started with rules.hazards ${m.state.rules.hazards} although Hazards is Off`);
+      t.event('hazards-off-match', `${def.name}: rules.hazards ${m.state.rules.hazards}; ${def.events?.length ?? 0} events, ${def.hazards?.length ?? 0} hazards; playing 2 minutes`);
+      let fired = 0;
+      let hit = 0;
+      const sample = (): boolean => {
+        const s = m.state;
+        fired += s.evPhase.filter((p) => p !== EV_IDLE).length ? 1 : 0;
+        hit += s.hazHit.filter((x) => x !== 0).length;
+        return s.frame >= 7200;
+      };
+      this.manual = null;
+      await this.fight(sample, 420000).catch(() => undefined);
+      t.metric('hazardEventsFired', fired);
+      t.metric('hazardHitsOff', hit);
+      t.metric('hazardMatchSeconds', Math.round(m.state.frame / 60));
+      if (fired || hit) t.problem('bug', `with Hazards Off ${def.name}'s hazard still ran (${fired} frames with an event up, ${hit} hits)`);
+      else t.event('hazards-off-2min', `${Math.round(m.state.frame / 60)} s of play on ${def.name}: no event warned or ran, no hazard hit anyone`);
+      if (m.state.frame < 7200) t.problem('bug', `the match ended at ${Math.round(m.state.frame / 60)} s, before the 2 minutes were played`);
+      if (m.state.over || currentScreen() === 'results') {
+        await this.results();
+        await this.click(() => this.button('#results-actions', 'Main menu'), 'Main menu');
+      } else {
+        await this.quitFromPause('main');
+      }
+      await this.screen('main');
+      t.finish('done');
+    } finally {
+      this.onStages = null;
+      this.manual = null;
+      try {
+        const v = JSON.parse(localStorage.getItem('dod-versus') ?? 'null');
+        if (v) { if (wasSaved === undefined) delete v.hazards; else v.hazards = wasSaved; localStorage.setItem('dod-versus', JSON.stringify(v)); }
+      } catch { /* storage blocked */ }
+      if (touch && !turn) forceTouchUi(false);
     }
   }
 

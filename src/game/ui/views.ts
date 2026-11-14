@@ -3,6 +3,9 @@
 
 import { CHARACTERS } from '../sim/characters.ts';
 import { STAGES, type StageDef } from '../sim/stage.ts';
+
+/** A stage the Hazards rule changes: it has events, hazards or damage zones (what the sim gates on rules.hazards). */
+export const hasHazard = (st: StageDef): boolean => !!st.events?.length || !!st.hazards?.length || !!st.zones?.some((z) => z.kind === 'damage');
 import type { Match, MatchSetup } from '../match.ts';
 import { CHAPTERS, SEASONS, isOpen, loadBests, loadStars, seasonCleared, seasonOpen, type Chapter } from '../campaign/story.ts';
 import { DIFFICULTIES, DIFFICULTY_LABEL, DIFFICULTY_NOTE, difficulty, easyCleared, setDifficulty } from '../campaign/difficulty.ts';
@@ -102,6 +105,7 @@ export function openStages(
         h('div', { class: 'stage-shot' }, stageThumb(st), stagePreview(st)),
         h('strong', {}, entry.name || st.name),
         h('span', {}, entry.blurb || st.blurb),
+        hasHazard(st) && entry.rules?.hazards !== 0 && h('i', { class: 'hazard-icon', 'data-hazard': '', title: 'Has a stage hazard', 'aria-label': 'Has a stage hazard' }, '⚠'),
       );
     }),
     // Stage variants earned in Seasons 8 to 10: the same stage under another existing colour grade (campaign/rewards.ts).
