@@ -3,7 +3,7 @@
 // before the hazard read did (BASELINE, measured on beta 98bdcd6 with this same harness), a level-1 bot must still get
 // caught now and then, and a level-9 bot must read a warning and move before the hazard arrives.
 
-import { CHARACTERS, FIGHTERS, fighter } from '../sim/characters.ts';
+import { CHARACTERS } from '../sim/characters.ts';
 import { STAGES } from '../sim/stage.ts';
 import { ACT, newGame } from '../sim/state.ts';
 import { step } from '../sim/step.ts';
@@ -34,12 +34,7 @@ const BASELINE: Record<string, number> = {
 
 const A = CHARACTERS.findIndex((c) => c.id === 'exit-punk');
 const B = CHARACTERS.findIndex((c) => c.id === 'break');
-// BASELINE was measured with the shared moveset: this harness plays Break on it (standard archetype), so a change to the
-// archetype normals doesn't move the hazard numbers. (Only this test process sees the swap.)
-{
-  const e = FIGHTERS[B];
-  CHARACTERS[B] = fighter(e.id, e.name, e.role, e.blurb, { ...e, archetype: 'standard' });
-}
+// Every fighter plays its real archetype from content/archetypes.json (Break is a heavy).
 
 /** Plays the seeds on a stage; returns hits the stage landed, and for each warning the frames from warn to the first move. */
 export function hazardHits(stageId: string, level: number): { hits: number; byZone: number; matches: number; threatened: number; reacted: number } {
