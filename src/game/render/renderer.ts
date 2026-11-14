@@ -917,7 +917,8 @@ export class Renderer {
       rimMat.disableLighting = true;
       rimMat.backFaceCulling = false;
       rimMat.diffuseColor = Color3.Black();
-      rimMat.emissiveColor = Color3.FromHexString(color);
+      // Brighter than the player colour (30% toward white) so the fighter lifts off a busy background.
+      rimMat.emissiveColor = Color3.Lerp(Color3.FromHexString(color), Color3.White(), 0.3);
       rimMat.useAlphaFromDiffuseTexture = true;
       rimMat.alpha = 0.9;
       const rim = CreatePlane(`rim-${f.id}`, { size: 1 }, this.scene);
@@ -2138,12 +2139,12 @@ export class Renderer {
     const rimOn = this.gfx.quality === 'high' || state.fighters.length <= 2 || v.tell > 0;
     v.rim.setEnabled(rimOn);
     if (rimOn) {
-      const grow = (this.gfx.quality === 'high' ? 1.07 : 1.045) + v.tell * 0.22;
+      const grow = (this.gfx.quality === 'high' ? 1.09 : 1.06) + v.tell * 0.22;
       v.rim.position.x = v.body.position.x;
       v.rim.position.y = v.body.position.y;
       v.rim.scaling.set(v.body.scaling.x * grow, v.body.scaling.y * grow, 1);
       if (v.rimMat.diffuseTexture !== v.mat.diffuseTexture) v.rimMat.diffuseTexture = v.mat.diffuseTexture;
-      v.rimMat.alpha = v.tell > 0 ? 1 : 0.9;
+      v.rimMat.alpha = 1;
     }
 
     this.sizeOutline(v);
