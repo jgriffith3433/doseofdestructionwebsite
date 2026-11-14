@@ -6,6 +6,7 @@ import * as analytics from './analytics.ts';
 import { CHARACTERS, MOVE } from './sim/characters.ts';
 import { addWin } from './looks.ts';
 import { audio, tapState, type Spatial } from './audio.ts';
+import type { VoiceKind } from './voiceDirector.ts';
 import { panFromScreen } from './roomAudio.ts';
 import { Commentator, introCall, type Call } from './commentary.ts';
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
@@ -427,7 +428,7 @@ interface SceneCue {
 }
 
 /** The arena, camera and sound a scene drives, for this match. The player stands first in the cast. */
-function sceneStage(m: Match): SceneStage {
+function sceneStage(m: Match, kind: VoiceKind = 'scene'): SceneStage {
   const ids = m.state.fighters.map((f) => f.id);
   const order = m.player >= 0 ? [m.player, ...ids.filter((id) => id !== m.player)] : ids;
   return {
@@ -437,7 +438,7 @@ function sceneStage(m: Match): SceneStage {
     arrive: (id) => renderer.arrive(id),
     cue: (id) => renderer.cue(id),
     taunt: (who) => audio.fighterVoice(who, 'taunt'),
-    voice: (url) => audio.voice(url),
+    voice: (url) => audio.voice(url, kind),
     stopVoice: () => audio.stopVoice(),
     voiceMs: (url) => audio.voiceMs(url),
     synth: (kind, level) => audio.synth(kind, level),
@@ -462,7 +463,7 @@ async function runExchange(m: Match, ex: Exchange): Promise<void> {
   phase = 'scene';
   audio.playStageBed(STAGES[m.setup.stage].id);
   $('scene-next').focus();
-  const end = await playExchange(sceneStage(m), ex.id, ex.lines);
+  const end = await playExchange(sceneStage(m, 'banter'), ex.id, ex.lines);
   if (!ex.generic) markExchangeSeen(ex.id);
   analytics.scene(ex.id, { skipped: end.skipped, line: Math.max(0, end.lines - 1) }, ex.lines.length);
 }
@@ -1218,7 +1219,7 @@ function beginReady(m: Match): void {
   readyFightId = audio.pickLine('announcer.ready-fight');
   if (readyFightId) void audio.call(readyFightId);
   else audio.line('announcer.ready');
-  commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state) : null;
+  commentator = setup.mode === 'versus' || setup.mode === 'campaign' ? new Commentator(m.state, Math.random, (id) => audio.voiceFresh(id)) : null;
   introPending = (commentator && (chapter ? introCall(chapter.id) : dailyRun?.setup === setup ? introCall(dailyRun.ep.blogChapter) : null)) || null;
   audio.playStageBed(STAGES[setup.stage].id);
   audio.setMusicIntensity(audio.shouldBeIntense(m.state.fighters));
@@ -1402,7 +1403,7 @@ function startTakeover(m: Match, e: { index: number; mood?: number; hot?: number
     if (seq !== takeoverSeq || i >= lines.ids.length) return;
     const id = lines.ids[i];
     const text = VOICE.lines.find((l) => l.id === id)?.text ?? '';
-    audio.line(id);
+    void audio.line(id, 'banter');
     said.push(id);
     document.querySelector('.booth')?.remove();
     document.querySelector('.booth-orchestrator')?.remove();
@@ -1905,7 +1906,15 @@ function askOnResults(m: Match): void {
 
 /** A commentary call: spoken if it has a take, and captioned one short line at a time (and announced to the playtest). */
 function broadcast(c: Call): void {
-  audio.line(c.id);
+  // The caption goes up when the take starts, and never for a take the voice director dropped (one speaker, one caption).
+  const voiced = !!VOICE.lines.find((l) => l.id === c.id)?.audio && audio.state === 'running';
+  if (!voiced) return showBooth(c);
+  void audio.line(c.id, 'commentary').then((ms) => {
+    if (ms) showBooth(c);
+  });
+}
+
+function showBooth(c: Call): void {
   document.querySelector('.booth')?.remove();
   clearTimeout(boothTimer);
   const who = c.who === 'blog-man' ? 'Blog Man' : 'Announcer';
