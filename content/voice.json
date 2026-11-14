@@ -5707,6 +5707,105 @@
         "text": "Final cut. One giant host. Two would have cost extra.",
         "voice": "onwK4e9ZLuTAKqWW03F9"
       }
+    },
+    {
+      "id": "taunt.future-man.hit.0",
+      "group": "taunt",
+      "who": "future-man",
+      "text": "Left jab. I counted that one.",
+      "audio": "/audio/voice/taunt.future-man.hit.0.mp3",
+      "take": {
+        "text": "Left jab. I counted that one.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "taunt.future-man.hit.1",
+      "group": "taunt",
+      "who": "future-man",
+      "text": "You blinked. I did not.",
+      "audio": "/audio/voice/taunt.future-man.hit.1.mp3",
+      "take": {
+        "text": "You blinked. I did not.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "taunt.future-man.hit.2",
+      "group": "taunt",
+      "who": "future-man",
+      "text": "Seen it. It still lands.",
+      "audio": "/audio/voice/taunt.future-man.hit.2.mp3",
+      "take": {
+        "text": "Seen it. It still lands.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "taunt.future-man.hurt.0",
+      "group": "taunt",
+      "who": "future-man",
+      "text": "Yes. I felt that coming.",
+      "audio": "/audio/voice/taunt.future-man.hurt.0.mp3",
+      "take": {
+        "text": "Yes. I felt that coming.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "taunt.future-man.hurt.1",
+      "group": "taunt",
+      "who": "future-man",
+      "text": "Spoiler: that one hurts.",
+      "audio": "/audio/voice/taunt.future-man.hurt.1.mp3",
+      "take": {
+        "text": "Spoiler: that one hurts.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "taunt.future-man.hurt.2",
+      "group": "taunt",
+      "who": "future-man",
+      "text": "Expected. Still rude.",
+      "audio": "/audio/voice/taunt.future-man.hurt.2.mp3",
+      "take": {
+        "text": "Expected. Still rude.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "taunt.future-man.ledge.0",
+      "group": "taunt",
+      "who": "future-man",
+      "text": "Nice ledge. Hold it. Four seconds.",
+      "audio": "/audio/voice/taunt.future-man.ledge.0.mp3",
+      "take": {
+        "text": "Nice ledge. Hold it. Four seconds.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "taunt.future-man.ledge.1",
+      "group": "taunt",
+      "who": "future-man",
+      "text": "Hanging on? I saw how this ends.",
+      "audio": "/audio/voice/taunt.future-man.ledge.1.mp3",
+      "take": {
+        "text": "Hanging on? I saw how this ends.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
+    },
+    {
+      "id": "taunt.future-man.ledge.2",
+      "group": "taunt",
+      "who": "future-man",
+      "text": "Climb or drop. I know which.",
+      "audio": "/audio/voice/taunt.future-man.ledge.2.mp3",
+      "take": {
+        "text": "Climb or drop. I know which.",
+        "voice": "CwhRBWXzGAHq8TQ4Fs17"
+      }
     }
   ],
   "winQuotes": {

@@ -1091,6 +1091,11 @@ class AudioSystem {
   }
 
   /** Plays a catalog voice line by id, like 'announcer.go' or 'fighter.slice.win', as the kind its id says (or `kind`). */
+  /** True when the catalog has a recorded take for this line id. */
+  hasTake(id: string): boolean {
+    return !!this.lineById.get(id)?.audio;
+  }
+
   line(id: string, kind?: VoiceKind): Promise<number> {
     const l = this.lineById.get(id);
     if (!l?.audio) return Promise.resolve(0);
