@@ -8,9 +8,27 @@
 // for what can't wait: the fight's inputs (sendInputs) and a ping every second, so the round trip is the inputs' own.
 import { join, type Room } from '@hawkesgen/net';
 import { Emitter, netError, now, sha256Hex } from './util.ts';
-import { NET_ENDPOINT, NET_PROJECT, roomName } from './hawkes.ts';
+import { IS_LIVE, NET_ENDPOINT, NET_PROJECT, roomName } from './hawkes.ts';
 
 const PING_MS = 1000;
+/** Playtest only: added one-way latency on every express frame (`?netlag=150`). Ignored on the live site. */
+export const TEST_LAG_MS = (() => {
+  try {
+    if (IS_LIVE) return 0;
+    return Math.max(0, Math.min(1000, Number(new URLSearchParams(location.search).get('netlag')) || 0));
+  } catch {
+    return 0;
+  }
+})();
+/** Playtest only: `?netdelay=2` keeps the old fixed delay, to compare stalls with the measured one. */
+export const TEST_FIXED_DELAY = (() => {
+  try {
+    if (IS_LIVE) return 0;
+    return Math.max(0, Math.min(4, Number(new URLSearchParams(location.search).get('netdelay')) || 0));
+  } catch {
+    return 0;
+  }
+})();
 const SILENT_MS = 6000;
 /** A tick this much later than due means our own page was frozen (loading a stage): we heard nothing because we couldn't. */
 const FROZEN_MS = 2500;
@@ -283,6 +301,19 @@ export class PairRoom extends Emitter {
 
   private express(bytes: Uint8Array): boolean {
     if (!this.net || !this.peer || this.closed) return false;
+    if (TEST_LAG_MS > 0) {
+      // Playtest setup shortcut (?netlag=<ms>, never on the live site): every frame we send leaves that much late.
+      const peer = this.peer;
+      setTimeout(() => {
+        if (this.closed || !this.net) return;
+        try {
+          this.net.express(bytes, { to: peer });
+        } catch {
+          /* (the room closed meanwhile) */
+        }
+      }, TEST_LAG_MS);
+      return true;
+    }
     try {
       return this.net.express(bytes, { to: this.peer });
     } catch (e) {

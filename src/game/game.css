@@ -1120,6 +1120,17 @@ body.scene-on #edge-markers { display: none; }
 .hud-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
 .hud-name { color: var(--player); font-weight: 700; white-space: nowrap; }
 .hud-stocks { display: flex; gap: 3px; }
+/* Connection bars (online): four bars rising left to right, lit by data-bars 1-4; green good, amber middling, red poor. */
+.conn-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; margin-left: 2px; flex: none; --bar: #5be37a; }
+.conn-bars i { display: block; width: 3px; border-radius: 1px; background: rgba(255, 255, 255, 0.25); }
+.conn-bars i:nth-child(1) { height: 4px; }
+.conn-bars i:nth-child(2) { height: 7px; }
+.conn-bars i:nth-child(3) { height: 9px; }
+.conn-bars i:nth-child(4) { height: 12px; }
+.conn-bars[data-bars="1"] { --bar: #ff5d5d; }
+.conn-bars[data-bars="2"] { --bar: #ffb23e; }
+.conn-bars[data-bars="1"] i:nth-child(-n+1), .conn-bars[data-bars="2"] i:nth-child(-n+2),
+.conn-bars[data-bars="3"] i:nth-child(-n+3), .conn-bars[data-bars="4"] i:nth-child(-n+4) { background: var(--bar); }
 .hud-stocks i { display: block; width: 9px; height: 9px; border-radius: 50%; background: var(--player); }
 
 .match-top { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); display: grid; justify-items: center; gap: 4px; pointer-events: none; z-index: 5; }

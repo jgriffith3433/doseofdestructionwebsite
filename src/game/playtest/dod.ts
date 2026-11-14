@@ -2910,6 +2910,33 @@ class Run {
     t.progress(0.97);
   }
 
+  /**
+   * The connection bars and the agreed delay (docs/online.md, "Delay and the bars"): a bar block by each name on the HUD
+   * with a reading, clear of the percent and (on a phone) inside the screen and at least 3 px wide per bar; the delay
+   * both tabs run with, from the ping measured before the match. Events `net-delay`, `net-bars`.
+   */
+  private async connectionBars(net: NonNullable<Awaited<ReturnType<typeof onlineReady>>>, peer: number): Promise<void> {
+    const t = this.t;
+    const stats = () => net.fightStats();
+    await t.until(() => (stats()?.delay ?? 0) > 0, 20000, 'the agreed input delay');
+    const s = stats()!;
+    t.event('net-delay', `peer ${peer}: delay ${s.delay} frames from ping ${s.ping} ms`);
+    t.metric('netDelayStart', s.delay);
+    const bars = () => Array.from(document.querySelectorAll<HTMLElement>('#hud .conn-bars'));
+    await t.until(() => bars().length === 2 && bars().every((b) => Number(b.dataset.bars) > 0), 15000, 'connection bars with a reading by both names');
+    const rects = bars().map((b) => b.getBoundingClientRect());
+    const levels = bars().map((b) => b.dataset.bars);
+    t.event('net-bars', `bars ${levels.join(' / ')} at ${window.innerWidth}x${window.innerHeight}${isTouchDevice() ? ' touch' : ''}`);
+    bars().forEach((b, i) => {
+      const r = rects[i];
+      const card = b.closest('.hud-card') as HTMLElement;
+      const pct = card.querySelector('.hud-pct')!.getBoundingClientRect();
+      if (r.width < 8 || r.height < 6 || r.right > window.innerWidth || r.bottom > window.innerHeight || r.left < 0) t.problem('bug', `the connection bars of card ${i} are not on screen (${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)})`);
+      const hit = r.left < pct.right && r.right > pct.left && r.top < pct.bottom && r.bottom > pct.top;
+      if (hit) t.problem('bug', `the connection bars of card ${i} overlap the percent`);
+    });
+  }
+
   /** Two tabs (peers: 2) in one private test lobby: see each other, rename, queue, get matched, fight, results. */
   /** The `reconnect` scenario: `online`'s lobby and match, with the connection cut during the fight (see reconnectPart). */
   cutMode = false;
@@ -3018,9 +3045,25 @@ class Run {
     t.event('online-start', `${names[0]} vs ${names[1]} on ${STAGES[m.state.stage].name}, this tab is slot ${m.player}`);
     if (introOnline) t.problem('bug', 'the match intro played in an online match');
     else t.event('online-no-intro', 'the online match started with no match intro');
+    await this.connectionBars(net, peer);
     if (this.cutMode) return this.reconnectPart(net, peer, opp);
+    let lastStats = net.fightStats();
+    const statsWatch = window.setInterval(() => {
+      lastStats = net.fightStats() ?? lastStats;
+    }, 400);
     this.progressNow = () => 0.45 + 0.45 * Math.min(1, (this.game.match()?.state.frame ?? 0) / Math.max(1, m.state.rules.timeLimit || 5400));
     await t.until(() => currentScreen() === 'results', 5 * 60 * 1000, 'the online match to end');
+    window.clearInterval(statsWatch);
+    if (lastStats) {
+      t.metric('netDelay', lastStats.delay);
+      t.metric('netPing', lastStats.ping);
+      t.metric('netRollbacks', lastStats.rollbacks);
+      t.metric('netRolledFrames', lastStats.rolledFrames);
+      t.metric('netMaxRolled', lastStats.maxRolled);
+      t.metric('netStalls', lastStats.stallTicks);
+      t.metric('netStallShare', Number((lastStats.stallTicks / Math.max(1, lastStats.stallTicks + lastStats.ranTicks)).toFixed(4)));
+      t.event('net-stats', `delay ${lastStats.delay}f, ping ${lastStats.ping} ms, ${lastStats.rollbacks} rollbacks (${lastStats.rolledFrames} frames, max ${lastStats.maxRolled}), ${lastStats.stallTicks} stalled ticks`);
+    }
     this.progressNow = () => 0.95;
 
     // 6. Results, with Queue again.
