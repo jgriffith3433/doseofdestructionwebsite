@@ -23,6 +23,8 @@ export const WINDOW_FRAMES = 6;
 export const DECIDE_MS = 12000;
 /** Consecutive windows inside the budget that count as settled. */
 export const SETTLE_WINDOWS = 2;
+/** After the decide window a step down needs this many over-budget windows in a row (~3 s of calm play): a one-off dip is left alone, a slowdown that stays (a stage event, a long fight) is not. */
+export const LATE_WINDOWS = 4;
 /** A settled median at or above this fps is headroom: the next match tries one level higher. */
 export const HEADROOM_FPS = 56;
 
@@ -98,6 +100,7 @@ export class AutoQuality {
   private win: number[] = [];
   private winMs = 0;
   private okWindows = 0;
+  private badWindows = 0;
   private okFps: number[] = [];
 
   constructor(level = 0) {
@@ -110,6 +113,7 @@ export class AutoQuality {
     this.win = [];
     this.winMs = 0;
     this.okWindows = 0;
+    this.badWindows = 0;
     this.okFps = [];
     this.settled = false;
     this.settledAtMs = -1;
@@ -134,7 +138,6 @@ export class AutoQuality {
     // A load stall, a tab in the background: not the picture's cost.
     if (!(dt > 0) || dt > 1500) return null;
     this.playMs += dt;
-    if (this.settled && this.playMs >= DECIDE_MS) return null;
     if (!calm) return null;
     this.win.push(dt);
     this.winMs += dt;
@@ -143,10 +146,11 @@ export class AutoQuality {
     this.win = [];
     this.winMs = 0;
     if (med <= BUDGET_MS) {
+      this.badWindows = 0;
       this.okWindows++;
       this.okFps.push(1000 / med);
       this.lastFps = 1000 / med;
-      if (this.okWindows >= SETTLE_WINDOWS && !this.settled) {
+      if (this.okWindows >= SETTLE_WINDOWS && !this.settled && this.playMs < DECIDE_MS) {
         this.settled = true;
         this.settledAtMs = this.playMs;
         this.headroomFps = median(this.okFps);
@@ -158,7 +162,9 @@ export class AutoQuality {
     this.okWindows = 0;
     this.okFps = [];
     this.settled = false;
-    if (this.playMs > DECIDE_MS) return null;
+    this.badWindows++;
+    if (this.playMs > DECIDE_MS && this.badWindows < LATE_WINDOWS) return null;
+    this.badWindows = 0;
     // One level per decision, however slow: the renderer spreads a step over frames, and the next window decides again.
     const to = nextLevel(this.level, 1, base);
     if (to === this.level) return null;

@@ -1,6 +1,6 @@
 declare const process: { exit(code: number): never };
 // Auto quality (render/autoQuality.ts): steps down over budget inside 5 s, never on a hit-stop frame, skips levels that change
-// nothing on this device, never after the decide window, steps back up only at a match start (and not again after a failed
+// nothing on this device, after the decide window only on a slowdown that stays, steps back up only at a match start (and not again after a failed
 // try), and does nothing while disabled (a quality picked by hand).
 
 let failed = 0;
@@ -84,8 +84,10 @@ ok(signature(1, { scale: 0.6, glow: false, quality: 'low' }) === signature(0, { 
   a.beginMatch(desktop);
   play(a, desktop, DECIDE_MS + 100, () => 16.7);
   const before = a.level;
-  const late = play(a, desktop, 5000, () => 60);
-  ok(late.length === 0 && a.level === before, 'no step down late in a match');
+  const late = play(a, desktop, 1500, () => 60);
+  ok(late.length === 0 && a.level === before, 'a short dip late in a match is left alone');
+  const stuck = play(a, desktop, 6000, (l) => (l === before ? 60 : 16.7));
+  ok(stuck.length === 1 && a.level > before, 'a slowdown that stays late in a match steps down once');
 }
 
 // Step up: only at the next match start, one level, only with headroom; a failed try is never repeated.
