@@ -11,6 +11,7 @@ import type { VoiceKind } from './voiceDirector.ts';
 import { panFromScreen } from './roomAudio.ts';
 import { Commentator, introCall, suddenDeathCall, type Call } from './commentary.ts';
 import { graphics, onGraphics, setGraphics } from './graphics.ts';
+import { colourVision, onColourVision, setColourVision, shapeOf } from './colourVision.ts';
 import { onScreenShake, screenShake, setScreenShake } from './hitFeel.ts';
 import { onTouchSettings, touchUiForced, setTouchSettings, touchSettings, hitVibrate } from './touchSettings.ts';
 import { onSoundSettings, setSoundSettings, soundSettings } from './soundSettings.ts';
@@ -1744,6 +1745,9 @@ function renderSettings(): void {
   const shake = $('shake-switch');
   shake.setAttribute('aria-checked', String(screenShake()));
   shake.textContent = screenShake() ? 'On' : 'Off';
+  const cv = $('colour-switch');
+  cv.setAttribute('aria-checked', String(colourVision() === 'safe'));
+  cv.textContent = colourVision() === 'safe' ? 'Colourblind-safe' : 'Standard';
   const g = graphics();
   const flip = (id: string, on: boolean, text: string) => {
     $(id).setAttribute('aria-checked', String(on));
@@ -1797,6 +1801,15 @@ function wireSettings(): void {
   onSoundSettings(renderSettings);
   const from = () => (match ? 'pause' : 'menu');
   onScreenShake(() => renderSettings());
+  onColourVision(() => {
+    renderSettings();
+    // Cards already on screen (Pause in a match) take the new colours now; the rings follow at the next match.
+    if (match) document.querySelectorAll<HTMLElement>('.hud-card').forEach((el, i) => el.style.setProperty('--player', slotColor(match!, i)));
+  });
+  $('colour-switch').addEventListener('click', () => {
+    setColourVision(colourVision() === 'safe' ? 'standard' : 'safe');
+    analytics.setting('colour_vision', colourVision(), from());
+  });
   $('shake-switch').addEventListener('click', () => {
     setScreenShake(!screenShake());
     analytics.setting('shake', screenShake(), from());
@@ -2232,7 +2245,7 @@ function buildHud(m: Match): void {
     const avatar = online?.avatars[f.id];
     const card = h(
       'div',
-      { class: `hud-card${online ? ' online' : ''}`, style: `--player:${slotColor(m, f.id)}` },
+      { class: `hud-card${online ? ' online' : ''}`, style: `--player:${slotColor(m, f.id)}`, 'data-shape': shapeOf(f.id), 'data-slot': String(f.id) },
       h('img', { src: thumbUrl(ch.id), alt: '' }),
       avatar && avatar !== ch.id ? h('img', { class: 'hud-avatar', src: headUrl(avatar), alt: '' }) : null,
       h('div', { class: 'hud-pct' }),
@@ -2417,11 +2430,11 @@ function drawEdgeMarkers(m: Match): void {
       const e = renderer.fighterEdge(f);
       if (e?.off && (phase === 'play' || phase === 'pause')) {
         const avatar = m.setup.online?.avatars[f.id];
-        list.push({ id: f.id, x: e.x, y: e.y, gap: e.gap, color: slotColor(m, f.id), portrait: headUrl(avatar || CHARACTERS[f.char].id), tag: text });
+        list.push({ id: f.id, x: e.x, y: e.y, gap: e.gap, color: slotColor(m, f.id), shape: shapeOf(f.id), portrait: headUrl(avatar || CHARACTERS[f.char].id), tag: text });
       } else if (e) {
         // On the stage: the tag rides above the head (the renderer's head point), moving with it.
         const head = renderer.fighterScreen(f);
-        if (head) tags.push({ id: f.id, x: head.x, y: head.y, text, color: slotColor(m, f.id) });
+        if (head) tags.push({ id: f.id, x: head.x, y: head.y, text, color: slotColor(m, f.id), shape: shapeOf(f.id) });
       }
     }
   }
@@ -2566,6 +2579,7 @@ const playtestHooks: Parameters<typeof import('./playtest/dod.ts').installDodPla
   readabilityProbe: (sets) => renderer.readabilityProbe(sets),
   styleStats: () => renderer.styleStats(),
   lookStats: () => renderer.lookStats(),
+  ringShapes: () => renderer.ringShapes(),
   aliveStats: () => renderer.aliveStats(),
   musicBedStats: () => audio.bedStats(),
   audioCacheStats: () => audio.cacheStats(),

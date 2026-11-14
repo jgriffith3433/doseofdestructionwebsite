@@ -11,6 +11,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder.js';
 import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder.js';
+import { CreateGround } from '@babylonjs/core/Meshes/Builders/groundBuilder.js';
 import { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder.js';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
 import { LookPlugin } from './lookPlugin.ts';
@@ -42,6 +43,7 @@ import { behindForeground, bodyPoints, fadeToward } from './foreground.ts';
 import { StageLive } from './stageLive.ts';
 import { StageAlive } from './stageAlive.ts';
 import { PostChain } from './post.ts';
+import { PLAYER_COLORS, colourVision, shapeOf } from '../colourVision.ts';
 import { Constants } from '@babylonjs/core/Engines/constants.js';
 
 /** Sim units to scene units: 100 world units per scene unit. */
@@ -75,7 +77,7 @@ const ARRIVE_MS = 520;
 /** The art stands a little taller than the hurtbox. */
 const ART_SCALE = 1.18;
 
-export const PLAYER_COLORS = ['#ff5a1f', '#3fa7ff', '#ffd15a', '#5ce08a'];
+export { PLAYER_COLORS };
 
 interface FighterView {
   root: TransformNode;
@@ -763,7 +765,12 @@ export class Renderer {
 
   /** Stable id for a match's fighter lineup (meshes only care about character and scale). */
   static fightersKey(state: GameState, looks: number[] = []): string {
-    return state.fighters.map((f) => `${f.char}:${f.scale}:${looks[f.id] ?? 0}`).join('|');
+    return state.fighters.map((f) => `${f.char}:${f.scale}:${looks[f.id] ?? 0}`).join('|') + `#${colourVision()}`;
+  }
+
+  /** The shape each fighter's ring was built as (playtest). */
+  ringShapes(): { slot: number; shape: string; color: string }[] {
+    return this.views.map((v, slot) => ({ slot, shape: (v.ring.metadata as { shape?: string } | null)?.shape ?? 'circle', color: PLAYER_COLORS[slot % PLAYER_COLORS.length] }));
   }
 
   /** What each built fighter wears (playtest): the look index and whether the palette shader is on its material. */
@@ -852,9 +859,19 @@ export class Renderer {
 
       const k = f.scale / 100;
       const color = PLAYER_COLORS[f.id % PLAYER_COLORS.length];
-      const ring = CreateDisc(`ring-${f.id}`, { radius: ch.width * W * 0.8 * k, tessellation: 32 }, this.scene);
-      ring.rotation.x = Math.PI / 2;
-      ring.scaling.y = 0.35;
+      // The ring is the player's shape (circle, triangle, square, diamond), so colour is never the only cue.
+      const shape = shapeOf(f.id);
+      const rr = ch.width * W * 0.8 * k;
+      const ring =
+        shape === 'square'
+          ? CreateGround(`ring-${f.id}`, { width: rr * 1.7, height: rr * 1.7 }, this.scene)
+          : CreateDisc(`ring-${f.id}`, { radius: shape === 'circle' ? rr : rr * 1.15, tessellation: shape === 'circle' ? 32 : shape === 'triangle' ? 3 : 4 }, this.scene);
+      if (shape === 'square') ring.scaling.z = 0.35;
+      else {
+        ring.rotation.x = Math.PI / 2;
+        ring.scaling.y = 0.35;
+      }
+      ring.metadata = { shape };
       ring.position.y = 0.01;
       ring.material = this.flatMaterial(`ring-${f.id}`, color, 0.55);
       ring.parent = root;

@@ -226,6 +226,15 @@
       ]
     },
     {
+      "id": "colour-vision",
+      "title": "Colour vision: Settings has Standard / Colourblind-safe (Okabe-Ito), it persists after a reload, and every player has a shape (circle, triangle, square, diamond) on ring, tag and HUD card",
+      "description": "Settings from the main menu shows the Colour vision switch (44 px, on screen); a versus match in Standard checks each fighter's ring, name tag and HUD card carry distinct shapes (event shapes, metric shapeCount); from Pause the switch is turned to Colourblind-safe (colour-saved, dod.colourvision) and the HUD takes the new colours at once; the page reloads and Settings still reads Colourblind-safe (colour-kept); a second match checks the Okabe-Ito colours and shapes again. On a 390x844 phone the portrait Settings is checked (colour-switch), then the run plays in the turned 844x390 frame by taps. Puts dod.colourvision back.",
+      "seconds": 240,
+      "tags": [
+        "full"
+      ]
+    },
+    {
       "id": "touch-settings",
       "title": "Touch size and opacity: Settings shows the two sliders on touch devices, they resize and fade the stick and buttons live in a match, and are kept after a reload",
       "description": "The run is treated as a touch device. Main menu → Settings shows Touch size (75-150%) and Touch opacity (30-100%) (touch-sliders); sets 150% / 50% (touch-saved: localStorage dod.touch); in a match measures the stick, Attack and Pause button and their opacity, all inside the window (touch-look); from Pause sets 75% / 100% (touch-resized: the controls shrink) and 120% / 60%; reloads (the run carries on through ?playtest=touch-settings) and checks Settings and a new match still have 120% / 60% (touch-kept). The player's own dod.touch is put back.",
