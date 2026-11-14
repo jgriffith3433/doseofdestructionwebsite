@@ -2210,6 +2210,14 @@ body.sudden-death .hud-card { box-shadow: 0 0 0 2px rgba(255, 59, 47, 0.7); }
 @keyframes sudden-pulse { 50% { filter: brightness(1.35); } }
 @media (prefers-reduced-motion: reduce) { .timer.sudden { animation: none; } }
 
+/* Lesson complete card (main.ts lessonCard) and the ticks on the How to play menu items */
+.lesson-card { position: fixed; left: 50%; top: 50%; z-index: 60; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - 16px); overflow: auto; display: grid; gap: 10px; padding: 16px 18px calc(16px + env(safe-area-inset-bottom, 0px)); background: rgba(20, 16, 28, 0.96); border: 3px solid var(--gold); border-radius: 8px; box-shadow: 0 6px 0 #14101c; text-align: center; }
+.lesson-card h2 { margin: 0; font: 800 clamp(26px, 5vw, 40px) Oswald, system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
+.lesson-card p { margin: 0; color: var(--muted); font-size: 15px; }
+.lesson-card .menu-item { min-height: 48px; justify-items: center; text-align: center; }
+.menu-item .lesson-tick { justify-self: start; font-style: normal; padding: 1px 8px; background: #3fbf6f; color: #0d1a12; font: 700 12px Oswald, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 3px; margin-bottom: 4px; }
+.menu-item.lesson-done { border-left-color: #3fbf6f; }
+
 /* Colour vision: each player's shape (circle, triangle, square, diamond) beside their name, on the tag, HUD card and edge bubble. */
 .fighter-tag::before, .hud-name::before { display: inline-block; margin-right: 0.35em; font-size: 0.95em; line-height: 1; -webkit-text-stroke: 0; }
 .fighter-tag[data-shape='circle']::before, .hud-card[data-shape='circle'] .hud-name::before { content: '●'; }
