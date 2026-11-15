@@ -2,6 +2,7 @@
 // run by the Orchestrator. Each chapter is a scene, a fight with its own
 // rules, and a scene after.
 
+import { mergeBest, type Best } from './grade.ts';
 import { characterIndex } from '../sim/characters.ts';
 import { stageIndex } from '../sim/stage.ts';
 import type { MatchSetup, SlotSetup } from '../match.ts';
@@ -17,6 +18,23 @@ export interface Line {
   take?: { text: string; voice: string };
 }
 
+/** What clearing an episode of Season 8 to 10 gives (campaign/rewards.ts; docs/story.md "Rewards"). */
+export type RewardKind = 'title' | 'stage' | 'tint';
+export interface Reward {
+  kind: RewardKind;
+  id: string;
+  name: string;
+  /** One line on results: what it is and where to use it. */
+  line: string;
+  /** stage: the stage it recolours and the stage whose colour grade it borrows. */
+  stage?: string;
+  grade?: string;
+  /** tint: the hue it turns an outfit to, with saturation and value (looks.ts). */
+  hue?: number;
+  sat?: number;
+  val?: number;
+}
+
 export interface Chapter {
   id: string;
   /** The season it airs in (content/campaign.json `season`, 1 when left out). */
@@ -26,9 +44,31 @@ export interface Chapter {
   tagline: string;
   /** What the fight asks of the player, shown before it starts. */
   hint: string;
+  /** The par time in seconds that earns the third star (campaign/grade.ts). */
+  par: number;
+  /** The fighter id this chapter unlocks for Versus and online when it is cleared (docs/story.md, "Unlocks"). */
+  unlock?: string;
+  /** The story cards: one line before the episode's fight and one after it is won (content/campaign.json `card`). */
+  card?: { before?: string; after?: string };
+  /** The reward for clearing it (Seasons 8 to 10). */
+  reward?: Reward;
+  /** A season premiere's cold open: played in the arena instead of the intro scene and story card (ui/scene.ts `playColdOpen`). */
+  coldOpen?: ColdOpenBeat[];
   intro: Line[];
   outro: Line[];
   fight: MatchSetup;
+}
+
+/** One beat of a cold open: the camera, who walks on (cast index, player first), a taunt, a sting and a one-line caption. */
+export interface ColdOpenBeat {
+  ms: number;
+  /** Cast index to close in on; null or left out is the wide dolly over the stage. */
+  camera?: number | null;
+  walk?: number;
+  taunt?: boolean;
+  sting?: 'sting' | 'whoosh' | 'cheer' | 'alarm';
+  crowd?: boolean;
+  caption?: string;
 }
 
 /** A chapter as written in content/campaign.json, with fighters and stages by id. */
@@ -57,6 +97,23 @@ export const CHAPTERS: Chapter[] = CHAPTER_ENTRIES.map((c): Chapter => ({
   },
 })).sort((a, b) => a.season - b.season);
 
+/** What a story card says: the episode's place in its season, its title and its line (the chapter's `card`, else its tagline). */
+export interface StoryCard {
+  kicker: string;
+  title: string;
+  line: string;
+}
+
+export function storyCard(c: Chapter, which: 'before' | 'after'): StoryCard {
+  const inSeason = CHAPTERS.filter((x) => x.season === c.season);
+  const n = String(inSeason.indexOf(c) + 1).padStart(2, '0');
+  return {
+    kicker: `Season ${c.season} \u00b7 Episode ${n}`,
+    title: c.title,
+    line: c.card?.[which] ?? (which === 'before' ? c.tagline : 'Cleared.'),
+  };
+}
+
 export interface Season {
   number: number;
   /** Under the "Season N" heading on the map. */
@@ -70,6 +127,14 @@ export interface Season {
 const SEASON_TEXT: Record<number, { subtitle: string; end: string }> = {
   1: { subtitle: 'Open Mic to Encore', end: 'Season 1 cleared. The card is yours now.' },
   2: { subtitle: 'The card is yours', end: 'Four walk-ons. Four defenses. The card is still his.' },
+  3: { subtitle: 'The Orchestrator Returns', end: 'He signed the sheet. He took the baton. The show goes on.' },
+  4: { subtitle: 'The Rival Broadcast', end: 'Two networks. One card. The show is still his.' },
+  5: { subtitle: 'Sweeps Week', end: 'Four nights. Four sweeps. Nobody changed the channel.' },
+  6: { subtitle: 'Syndication', end: 'Four markets. Four feeds. The card travels.' },
+  7: { subtitle: 'The Reboot', end: 'Four pilots. Four reboots. The champion was never recast.' },
+  8: { subtitle: 'Awards Season', end: 'Four nominees. Four envelopes. The speech was four words.' },
+  9: { subtitle: 'The Cliffhanger', end: 'Four teasers. One cliffhanger. Two names on the sheet.' },
+  10: { subtitle: 'The Finale', end: 'Two Orchestrators. Two fights. One finale. The card is yours, and the show is over.' },
 };
 
 /** The seasons that have chapters, in order. */
@@ -89,6 +154,68 @@ export function loadProgress(): Set<string> {
   } catch {
     return new Set();
   }
+}
+
+const STARS_KEY = 'dod-stars';
+
+/** The best grade (1 to 3 stars) kept per chapter id. A chapter cleared before grades existed counts as 1 star. */
+export function loadStars(): Record<string, number> {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STARS_KEY) ?? '{}');
+    const out: Record<string, number> = {};
+    if (saved && typeof saved === 'object') for (const [k, v] of Object.entries(saved)) if (v === 1 || v === 2 || v === 3) out[k] = v;
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function saveStars(stars: Record<string, number>): void {
+  try {
+    localStorage.setItem(STARS_KEY, JSON.stringify(stars));
+  } catch {
+    // Storage can be blocked; grades then last only for this visit.
+  }
+}
+
+/** Keeps the better of the saved grade and this run's; returns the best. */
+export function recordStars(id: string, stars: number): number {
+  const all = loadStars();
+  const best = Math.max(all[id] ?? 0, stars);
+  if (best > 0) saveStars({ ...all, [id]: best });
+  return best;
+}
+
+const BESTS_KEY = 'dod-bests';
+
+/** The best score and best time kept per chapter id (sim frames). Cleared before scores existed: no entry. */
+export function loadBests(): Record<string, Best> {
+  try {
+    const saved = JSON.parse(localStorage.getItem(BESTS_KEY) ?? '{}');
+    const out: Record<string, Best> = {};
+    if (saved && typeof saved === 'object')
+      for (const [k, v] of Object.entries(saved as Record<string, Partial<Best>>))
+        if (v && Number.isFinite(v.score) && Number.isFinite(v.frames) && (v.frames as number) > 0) out[k] = { score: v.score as number, frames: v.frames as number };
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function saveBests(bests: Record<string, Best>): void {
+  try {
+    localStorage.setItem(BESTS_KEY, JSON.stringify(bests));
+  } catch {
+    // Storage can be blocked; bests then last only for this visit.
+  }
+}
+
+/** Keeps the better score and the faster time for the chapter; returns the best and what this run beat. */
+export function recordBest(id: string, run: Best): { best: Best; beat: ('score' | 'time')[]; before?: Best } {
+  const all = loadBests();
+  const r = mergeBest(all[id], run);
+  saveBests({ ...all, [id]: r.best });
+  return { ...r, before: all[id] };
 }
 
 export function saveProgress(done: Set<string>): void {
@@ -115,4 +242,103 @@ export function seasonOpen(season: number, done: Set<string>): boolean {
 /** Every chapter of the season is cleared. */
 export function seasonCleared(season: number, done: Set<string>): boolean {
   return CHAPTERS.every((c) => c.season !== season || done.has(c.id));
+}
+
+// ------------------------------------------------------------------ unlocks
+// Heroes join the card as the campaign clears them. A fighter named by some chapter's `unlock` is locked in Versus
+// and online until that chapter is cleared; every other fighter is open from the start. Campaign walk-ons, training
+// and the CPU's own picks are not gated, and Exit Punk is the campaign player whatever is unlocked.
+
+const UNLOCK_KEY = 'dod-unlocks';
+
+/** Fighter ids some chapter unlocks: locked on a fresh save. */
+export const LOCKABLE: ReadonlySet<string> = new Set(CHAPTERS.flatMap((c) => (c.unlock ? [c.unlock] : [])));
+
+/** The fighters unlocked: the saved store (dod-unlocks) plus those of every chapter already cleared (older saves). */
+export function loadUnlocks(done: Set<string> = loadProgress()): Set<string> {
+  const out = new Set<string>();
+  try {
+    const saved = JSON.parse(localStorage.getItem(UNLOCK_KEY) ?? '[]');
+    if (Array.isArray(saved)) for (const s of saved) if (typeof s === 'string') out.add(s);
+  } catch {
+    // Unreadable storage: only what the cleared chapters give.
+  }
+  for (const c of CHAPTERS) if (c.unlock && done.has(c.id)) out.add(c.unlock);
+  return out;
+}
+
+export function saveUnlocks(unlocked: Set<string>): void {
+  try {
+    localStorage.setItem(UNLOCK_KEY, JSON.stringify([...unlocked]));
+  } catch {
+    // Storage can be blocked; unlocks then last only for this visit (the cleared chapters give them back).
+  }
+}
+
+/** The one rule for who may be picked in Versus and online (select, the profile picture and the online setup). */
+export function fighterOpen(id: string, unlocked: ReadonlySet<string>): boolean {
+  return !LOCKABLE.has(id) || unlocked.has(id);
+}
+
+/** The live set, shared by the screens (loaded on first use). */
+let live: Set<string> | null = null;
+export function unlocks(): Set<string> {
+  return (live ??= loadUnlocks());
+}
+export function isUnlocked(id: string): boolean {
+  return fighterOpen(id, unlocks());
+}
+
+/** Clearing a chapter: unlocks its fighter (kept) and returns the fighter id when it is new, else null. */
+export function unlockFor(chapter: Chapter, unlocked: Set<string> = unlocks()): string | null {
+  if (!chapter.unlock || unlocked.has(chapter.unlock)) return null;
+  unlocked.add(chapter.unlock);
+  saveUnlocks(unlocked);
+  return chapter.unlock;
+}
+
+// ------------------------------------------------------------------ the route to a locked fighter
+// Read from the chapters' own `unlock` (no new rules): the episode that opens a fighter, in the map's words.
+
+export interface UnlockRoute {
+  chapter: Chapter;
+  season: number;
+  /** 1-based place in its season, as the map numbers it. */
+  episode: number;
+  /** "Clear Season 1, Episode 1" */
+  short: string;
+  /** "Clear Season 1, Episode 1: Open Mic" */
+  text: string;
+}
+
+/** The episode that unlocks a fighter, or undefined for a fighter who is open from the start. */
+export function unlockRoute(id: string): UnlockRoute | undefined {
+  const chapter = CHAPTERS.find((c) => c.unlock === id);
+  if (!chapter) return undefined;
+  const episode = CHAPTERS.filter((c) => c.season === chapter.season).indexOf(chapter) + 1;
+  const short = `Clear Season ${chapter.season}, Episode ${episode}`;
+  return { chapter, season: chapter.season, episode, short, text: `${short}: ${chapter.title}` };
+}
+
+export interface NextUnlock {
+  fighter: string;
+  route: UnlockRoute;
+  /** Uncleared episodes to play, this one included (chapters open in order). */
+  away: number;
+  /** Cleared share of the way there (0..1): episodes done before it over the episodes up to and including it. */
+  fill: number;
+}
+
+/** The next fighter the campaign will open: the first uncleared episode that unlocks someone who is still locked. */
+export function nextUnlock(done: Set<string> = loadProgress(), unlocked: ReadonlySet<string> = unlocks()): NextUnlock | null {
+  let away = 0;
+  for (const c of CHAPTERS) {
+    if (!done.has(c.id)) away++;
+    if (done.has(c.id) || !c.unlock || unlocked.has(c.unlock)) continue;
+    const route = unlockRoute(c.unlock)!;
+    const upTo = CHAPTERS.filter((x) => x.season === c.season).indexOf(c) + 1;
+    const before = CHAPTERS.filter((x) => x.season === c.season && done.has(x.id)).length;
+    return { fighter: c.unlock, route, away, fill: Math.min(1, before / upTo) };
+  }
+  return null;
 }

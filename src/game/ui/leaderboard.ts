@@ -141,18 +141,31 @@ export function renderProfileStats(): void {
 
 // ------------------------------------------------------------ result screen
 
-let shown: { matchId: string; opponent: string; state: 'signing' | 'void' | 'same' | 'done' } | null = null;
+let shown: { matchId: string; opponent: string; fighter: string; link: string; state: 'signing' | 'void' | 'same' | 'dropped' | 'done' } | null = null;
+let countRaf = 0;
+
+const reduced = (): boolean => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** "Direct · 42 ms", "Relay · 80 ms": how the two pages were joined. */
+function linkText(link: FightEnd['link']): string {
+  const route = link.route === 'direct' ? 'Direct' : link.route === 'relay' ? 'Relay' : link.route ? 'Signal' : '';
+  return [route, link.ping >= 0 ? `${link.ping} ms` : ''].filter(Boolean).join(' · ') || 'Connection unknown';
+}
 
 /**
- * The online results get a rating line: "Rating 1016 (+16)" with the opponent's change, once both signatures are
- * in. Called when the results show; the signed record lands a moment later.
+ * The online results get an opponent card (name, fighter, connection), the rating change counting up or down to its
+ * final value, and your place on the board, once both signatures are in. Called when the results show; the signed
+ * record lands a moment later.
  */
 export function showRatingChange(end: FightEnd, slot: number): void {
   const r = end.result;
   const opponent = r.players[1 - slot];
   const same = r.players[0].pid === r.players[1].pid;
-  shown = { matchId: r.matchId, opponent: opponent.name, state: end.reason === 'desync' || end.reason === 'no-start' ? 'void' : same ? 'same' : 'signing' };
-  renderRatingLine();
+  const fighter = CHARACTERS.find((c) => c.id === opponent.fighter)?.name ?? opponent.fighter;
+  const unrated = end.reason === 'desync' || end.reason === 'no-start';
+  shown = { matchId: r.matchId, opponent: opponent.name, fighter, link: linkText(end.link), state: unrated ? 'void' : end.reason === 'disconnect' ? 'dropped' : same ? 'same' : 'signing' };
+  cancelAnimationFrame(countRaf);
+  renderRatingLine(opponent.fighter);
   void end.rated.then((rated) => {
     if (shown?.matchId !== r.matchId) return;
     if (!rated || same) {
@@ -165,28 +178,87 @@ export function showRatingChange(end: FightEnd, slot: number): void {
   });
 }
 
-function renderRatingLine(): void {
+let counted = '';
+
+function renderRatingLine(fighterId?: string): void {
   if (!shown || currentScreen() !== 'results') return;
   let el = document.getElementById('results-rating');
   if (!el) {
-    const hero = document.querySelector('#results-body .results-hero > div');
-    if (!hero) return;
+    const panel = document.querySelector('#results-body .results-panel');
+    const hero = panel?.querySelector('.results-hero');
+    if (!panel || !hero) return;
     el = h('p', { id: 'results-rating', class: 'results-rating', 'aria-live': 'polite' });
-    hero.append(el);
+    const card = h(
+      'section',
+      { class: 'online-card', id: 'results-opponent', 'aria-label': 'Opponent' },
+      h('img', { class: 'online-face', src: fighterId ? headUrl(fighterId) : '', alt: '' }),
+      h('div', { class: 'online-who' }, h('span', { class: 'online-vs' }, 'You played'), h('strong', {}, shown.opponent), h('span', { class: 'online-fighter' }, shown.fighter)),
+      h('span', { class: 'online-link' }, shown.link),
+      el,
+    );
+    hero.after(card);
+    panel.closest('.results-row')?.classList.add('results-online');
   }
   const board = sharedBoard();
   const c = shown.state === 'done' ? board?.change(shown.matchId) : null;
-  if (shown.state === 'void') el.replaceChildren('Void and unrated matches don’t change ratings.');
+  // Redraw only when something changed, so a board update never restarts the count.
+  const sig = `${shown.state}|${JSON.stringify(c)}|${board?.stats('all')?.rank ?? ''}`;
+  if (el.dataset.sig === sig) return;
+  el.dataset.sig = sig;
+  if (shown.state === 'void') el.replaceChildren('Void matches don’t change ratings.');
   else if (shown.state === 'same') el.replaceChildren('Unrated: both sides are the same profile.');
+  else if (shown.state === 'dropped') el.replaceChildren('Unrated: a dropped link isn’t a quit, so no rating change.');
   else if (shown.state === 'signing' || !c) el.replaceChildren(`Rating: confirming the result with ${shown.opponent}…`);
   else if (c.overLimit) el.replaceChildren(`Unrated: you two have played ${PAIR_PER_DAY} rated matches today.`);
-  else
+  else {
+    const place = board?.stats('all');
+    const up = c.delta >= 0;
+    const ratingEl = h('strong', { class: 'rating-now' }, String(c.rating - c.delta));
+    const deltaEl = h('b', { class: 'rating-delta' }, formatDelta(0));
     el.replaceChildren(
       ...kids(
-      h('span', { class: `rating-you ${c.delta >= 0 ? 'up' : 'down'}` }, 'Rating ', h('strong', {}, String(c.rating)), ' ', h('b', { class: 'rating-delta' }, formatDelta(c.delta))),
-      h('span', { class: 'rating-them' }, `${shown.opponent} ${c.theirRating} (${formatDelta(c.theirs)})`),
-      c.confirmed ? null : h('em', {}, `Counts once ${shown.opponent}’s copy reaches the board.`),
+        h('span', { class: `rating-you ${up ? 'up' : 'down'}` }, 'Rating ', ratingEl, ' ', deltaEl),
+        place ? h('span', { class: 'rating-place' }, `#${place.rank} on the board`) : null,
+        h('span', { class: 'rating-them' }, `${shown.opponent} ${c.theirRating} (${formatDelta(c.theirs)})`),
+        c.confirmed ? null : h('em', {}, `Counts once ${shown.opponent}’s copy reaches the board.`),
       ),
     );
+    countUp(ratingEl, deltaEl, c.rating, c.delta, `${shown.matchId}:${c.confirmed}`);
+  }
   el.dataset.state = shown.state === 'done' && c ? (c.confirmed ? 'confirmed' : 'expected') : shown.state;
+}
+
+/** The rating walks from what it was to what it is, and the change from 0 to its final value (instant with reduced motion). */
+function countUp(ratingEl: HTMLElement, deltaEl: HTMLElement, rating: number, delta: number, key: string): void {
+  const el = document.getElementById('results-rating');
+  const finish = () => {
+    ratingEl.textContent = String(rating);
+    deltaEl.textContent = formatDelta(delta);
+    if (el) el.dataset.counted = '1';
+  };
+  if (el) el.dataset.counted = '0';
+  cancelAnimationFrame(countRaf);
+  const again = counted === key;
+  counted = key;
+  if (reduced() || again || delta === 0) {
+    finish();
+    if (!again) window.dispatchEvent(new CustomEvent('dod:rating-count', { detail: { from: rating - delta, to: rating, delta, steps: 1 } }));
+    return;
+  }
+  const start = performance.now();
+  const MS = 1100;
+  let steps = 0;
+  const tick = (t: number) => {
+    const k = Math.min(1, (t - start) / MS);
+    const eased = 1 - Math.pow(1 - k, 3);
+    ratingEl.textContent = String(Math.round(rating - delta + delta * eased));
+    deltaEl.textContent = formatDelta(Math.round(delta * eased));
+    steps++;
+    if (k < 1) countRaf = requestAnimationFrame(tick);
+    else {
+      finish();
+      window.dispatchEvent(new CustomEvent('dod:rating-count', { detail: { from: rating - delta, to: rating, delta, steps } }));
+    }
+  };
+  countRaf = requestAnimationFrame(tick);
 }

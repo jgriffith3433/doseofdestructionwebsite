@@ -3,37 +3,48 @@
  "clips": {
   "idle": {
    "file": "idle.webp",
-   "frames": 24,
+   "frames": 42,
    "cols": 7,
-   "rows": 4,
-   "fw": 276,
+   "rows": 6,
+   "fw": 275,
    "fh": 324,
-   "ax": 108,
-   "ay": 320,
-   "fps": 15,
+   "ax": 107,
+   "ay": 321,
+   "fps": 30.0,
    "loop": true,
-   "source": "idle.mp4",
+   "source": "evil-blue-bird__idle.mp4",
    "sourceMtime": 1792049143478,
    "options": {},
    "speed": 1.0,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "idle.half.webp",
+   "fringe": true,
+   "smoothed": true,
+   "feet": [-2, -1, -2, -1, -2, -3, -3, -7, -9, -19, -27, -9, -17, -25, -29, -35, -31, -20, -17, -7, -17, -21, -15, -17, -17, -23, -27, -21, -13, -21, -25, -29, -29, -29, -17, -5, -3, -3, -3, -5, -3, -1]
   },
   "walk": {
    "file": "walk.webp",
-   "frames": 24,
+   "frames": 47,
    "cols": 8,
-   "rows": 3,
-   "fw": 249,
+   "rows": 6,
+   "fw": 250,
    "fh": 326,
-   "ax": 125,
-   "ay": 322,
-   "fps": 15,
+   "ax": 126,
+   "ay": 323,
+   "fps": 30.0,
    "loop": true,
-   "source": "walk.mp4",
+   "source": "evil-blue-bird__walk.mp4",
    "sourceMtime": 1792049160103,
    "options": {},
    "speed": 1.25,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "walk.half.webp",
+   "fringe": true,
+   "smoothed": true,
+   "feet": [-11, -9, -5, -5, -1, -3, -3, -5, -3, -3, -3, -5, -7, -9, -9, -13, -11, -9, -9, -13, -9, -11, -11, -13, -13, -9, -5, -5, -3, -3, -3, -7, -3, -5, -5, -5, -7, -9, -9, -13, -11, -9, -9, -13, -9, -11, -11],
+   "stride": 497.8,
+   "slip": 19,
+   "travel": [5, 11, 2.7, 2.7, 16, 13, 2.7, 22.5, 5.5, 7.5, 14, 16, 7, 9.5, 2.7, 2.7, 10.5, 11.5, 22, 10.5, 16, 16.5, 14.5, 11, 5.5, 5.5, 2.7, 2.7, 8.5, 8.5, 22.5, 14, 15.5, 21, 11.5, 5.5, 6.5, 6.5, 2.7, 2.7, 10.5, 9.5, 22.5, 9, 15.5, 15.5, 20.5]
   },
   "crouch": {
    "file": "crouch.webp",
@@ -50,7 +61,10 @@
    "sourceMtime": 1792049174067,
    "options": {},
    "speed": 1.0,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "crouch.half.webp",
+   "fringe": true,
+   "feet": [-37, -40, -37, -32, -36, -35, -30, -29, -30, -31, -33, -33, -31, -35, -34, -32, -32, -32, -34, -34, -32, -29, -31, -36]
   },
   "fall": {
    "file": "fall.webp",
@@ -67,7 +81,10 @@
    "sourceMtime": 1792049180506,
    "options": {},
    "speed": 1.25,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "fall.half.webp",
+   "fringe": true,
+   "feet": [-10, -6, -16, -10, -9, -9, -15, -11, -6, -13, -21, -15, -11, -10, -20, -14, -11, -14, -13, -7, -7, -13, -19, -13]
   },
   "shield": {
    "file": "shield.webp",
@@ -84,7 +101,10 @@
    "sourceMtime": 1792049188709,
    "options": {},
    "speed": 1.0,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "shield.half.webp",
+   "fringe": true,
+   "feet": [-2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2]
   },
   "ledge": {
    "file": "ledge.webp",
@@ -101,7 +121,10 @@
    "sourceMtime": 1792049192613,
    "options": {},
    "speed": 1.0,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "ledge.half.webp",
+   "fringe": true,
+   "feet": [-6, -5, -5, -3, -8, -47, -63, -62, -50, -50, -33, -32, -24, -29, -49, -56, -61, -55, -46, -12, -13, -16, -12, -8]
   },
   "dizzy": {
    "file": "dizzy.webp",
@@ -118,7 +141,10 @@
    "sourceMtime": 1792049224422,
    "options": {},
    "speed": 1.0,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "dizzy.half.webp",
+   "fringe": true,
+   "feet": [-12, -13, -12, -3, -10, -16, -16, -16, -13, -12, -13, -13, -13, -13, -13, -13, -13, -13, -15, -15, -15, -12, -13, -15]
   },
   "helpless": {
    "file": "helpless.webp",
@@ -135,7 +161,10 @@
    "sourceMtime": 1792049228857,
    "options": {},
    "speed": 1.25,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "helpless.half.webp",
+   "fringe": true,
+   "feet": [-30, -10, -3, -4, -13, -15, -20, -36, -40, -25, -37, -45, -25, -41, -50, -45, -28, -51, -52, -46, -42, -23, -2, -35]
   },
   "hurt": {
    "file": "hurt.webp",
@@ -152,7 +181,10 @@
    "sourceMtime": 1792049238031,
    "options": {},
    "speed": 1.5,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "hurt.half.webp",
+   "fringe": true,
+   "feet": [-26, -19, -11, -9, -12, -20, -24, -39, -56, -56, -56, -55, -55, -55, -56, -56, -56, -47, -43, -31, -10, -3, -9, -15]
   },
   "jumpsquat": {
    "file": "jumpsquat.webp",
@@ -169,7 +201,10 @@
    "sourceMtime": 1792049252895,
    "options": {},
    "speed": 2.0,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "jumpsquat.half.webp",
+   "fringe": true,
+   "feet": [-3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -11, -19, -25]
   },
   "jump": {
    "file": "jump.webp",
@@ -186,7 +221,10 @@
    "sourceMtime": 1792049265015,
    "options": {},
    "speed": 1.5,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "jump.half.webp",
+   "fringe": true,
+   "feet": [-11, -60, -33, -27, -26, -19, -14, -13, -5, -1, -8, -17, -34, -58, -79, -83, -82, -82, -82, -82, -79, -72, -64, -36]
   },
   "land": {
    "file": "land.webp",
@@ -206,7 +244,10 @@
    "autoTrim": [
     0.0,
     0.55
-   ]
+   ],
+   "halfFile": "land.half.webp",
+   "fringe": true,
+   "feet": [-6, -6, -6, -18, -2, -2, -4, -4, -4, -4, -4, -3]
   },
   "roll": {
    "file": "roll.webp",
@@ -226,7 +267,10 @@
    "autoTrim": [
     0.05,
     2.65
-   ]
+   ],
+   "halfFile": "roll.half.webp",
+   "fringe": true,
+   "feet": [-18, -18, -21, -21, -24, -28, -1, -26, -26, -30, -46, -7, -11, -6, -31, -12, -61, -77, -61, -53, -18, -18, -18, -18]
   },
   "dodge": {
    "file": "dodge.webp",
@@ -246,7 +290,10 @@
    "autoTrim": [
     0.05,
     2.8
-   ]
+   ],
+   "halfFile": "dodge.half.webp",
+   "fringe": true,
+   "feet": [-3, -3, -3, -3, -3, -3, -3, -3, -3, -2, -2, -2, -2, -2, -2, -2, -2, -3, -3, -3, -3, -3, -3, -3]
   },
   "airdodge": {
    "file": "airdodge.webp",
@@ -266,7 +313,10 @@
    "autoTrim": [
     0.0,
     2.8
-   ]
+   ],
+   "halfFile": "airdodge.half.webp",
+   "fringe": true,
+   "feet": [-10, -7, -12, -22, -16, -22, -34, -48, -51, -44, -45, -39, -37, -36, -45, -28, -14, -7, -7, -3, -6, -24, -27, -16]
   },
   "climb": {
    "file": "climb.webp",
@@ -286,27 +336,34 @@
    "autoTrim": [
     0.0,
     2.65
-   ]
+   ],
+   "halfFile": "climb.half.webp",
+   "fringe": true,
+   "feet": [-4, -4, -22, -73, -99, -102, -103, -102, -74, -46, -37, -30, -28, -26, -23, -22, -17, -16, -13, -12, -11, -11, -11, -11]
   },
   "jab": {
    "file": "jab.webp",
-   "frames": 24,
+   "frames": 35,
    "cols": 6,
-   "rows": 4,
-   "fw": 325,
+   "rows": 6,
+   "fw": 324,
    "fh": 310,
    "ax": 112,
    "ay": 306,
-   "fps": 20,
+   "fps": 30.0,
    "loop": false,
-   "source": "jab.mp4",
+   "source": "evil-blue-bird__jab.mp4",
    "sourceMtime": 1792049329841,
    "options": {},
    "speed": 1.0,
    "autoTrim": [
     0.05,
     2.55
-   ]
+   ],
+   "halfFile": "jab.half.webp",
+   "fringe": true,
+   "smoothed": true,
+   "feet": [-2, -1, -1, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -2, -1]
   },
   "ftilt": {
    "file": "ftilt.webp",
@@ -326,7 +383,10 @@
    "autoTrim": [
     0.0,
     2.55
-   ]
+   ],
+   "halfFile": "ftilt.half.webp",
+   "fringe": true,
+   "feet": [-3, -3, -4, -7, -14, -23, -23, -23, -23, -23, -23, -23, -23, -23, -23, -23, -23, -23, -15, -5, -3, -3, -3, -3]
   },
   "utilt": {
    "file": "utilt.webp",
@@ -346,7 +406,10 @@
    "autoTrim": [
     0.05,
     2.3
-   ]
+   ],
+   "halfFile": "utilt.half.webp",
+   "fringe": true,
+   "feet": [-2, -2, -2, -2, -2, -2, -2, -1, -3, -3, -3, -2, -1, -1, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2]
   },
   "dtilt": {
    "file": "dtilt.webp",
@@ -363,27 +426,34 @@
    "sourceMtime": 1792049366015,
    "options": {},
    "speed": 1.0,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "dtilt.half.webp",
+   "fringe": true,
+   "feet": [-37, -39, -33, -29, -45, -45, -45, -46, -51, -42, -41, -41, -39, -31, -32, -35, -26, -42, -43, -43, -44, -44, -43, -48]
   },
   "fsmash": {
    "file": "fsmash.webp",
-   "frames": 24,
+   "frames": 30,
    "cols": 5,
-   "rows": 5,
-   "fw": 384,
+   "rows": 6,
+   "fw": 385,
    "fh": 321,
    "ax": 159,
    "ay": 317,
-   "fps": 20,
+   "fps": 30.0,
    "loop": false,
-   "source": "fsmash.mp4",
+   "source": "evil-blue-bird__fsmash.mp4",
    "sourceMtime": 1792049387566,
    "options": {},
    "speed": 1.0,
    "autoTrim": [
     0.2,
     3.4
-   ]
+   ],
+   "halfFile": "fsmash.half.webp",
+   "fringe": true,
+   "smoothed": true,
+   "feet": [-2, -2, -2, -2, -2, -4, -8, -9, -4, -4, -4, -4, -4, -4, -4, -2, -2, -2, -2, -2, -2, -2, -2, -2, -6, -10, -12, -8, -4, -2]
   },
   "usmash": {
    "file": "usmash.webp",
@@ -403,7 +473,10 @@
    "autoTrim": [
     0.8,
     1.2
-   ]
+   ],
+   "halfFile": "usmash.half.webp",
+   "fringe": true,
+   "feet": [-2, -2, -2, -2, -3, -4, -4, -3, -2]
   },
   "nair": {
    "file": "nair.webp",
@@ -420,7 +493,10 @@
    "sourceMtime": 1792049416149,
    "options": {},
    "speed": 1.0,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "nair.half.webp",
+   "fringe": true,
+   "feet": [-22, -18, -14, -11, -13, -8, -5, -7, -18, -21, -16, -18, -23, -16, -23, -12, -15, -13, -5, -3, -10, -17, -27, -14]
   },
   "dsmash": {
    "file": "dsmash.webp",
@@ -440,7 +516,10 @@
    "autoTrim": [
     0.05,
     3.3
-   ]
+   ],
+   "halfFile": "dsmash.half.webp",
+   "fringe": true,
+   "feet": [-7, -7, -7, -8, -15, -27, -29, -28, -27, -27, -22, -2, -16, -13, -20, -22, -20, -16, -16, -20, -17, -15, -10, -8]
   },
   "fair": {
    "file": "fair.webp",
@@ -457,7 +536,10 @@
    "sourceMtime": 1792049427205,
    "options": {},
    "speed": 1.0,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "fair.half.webp",
+   "fringe": true,
+   "feet": [-18, -17, -13, -12, -9, -13, -8, -3, -21, -16, -22, -17, -29, -21, -36, -30, -38, -41, -34, -32, -24, -11, -24, -17]
   },
   "bair": {
    "file": "bair.webp",
@@ -477,7 +559,10 @@
    "autoTrim": [
     0.05,
     2.8
-   ]
+   ],
+   "halfFile": "bair.half.webp",
+   "fringe": true,
+   "feet": [-4, -3, -16, -23, -20, -22, -66, -70, -65, -48, -43, -37, -62, -33, -36, -79, -74, -58, -64, -27, -17, -16, -16, -6]
   },
   "uair": {
    "file": "uair.webp",
@@ -497,7 +582,10 @@
    "autoTrim": [
     0.05,
     2.65
-   ]
+   ],
+   "halfFile": "uair.half.webp",
+   "fringe": true,
+   "feet": [-19, -20, -33, -28, -20, -2, -50, -104, -111, -117, -122, -126, -128, -127, -127, -119, -113, -109, -99, -97, -66, -63, -31, -13]
   },
   "dair": {
    "file": "dair.webp",
@@ -514,7 +602,10 @@
    "sourceMtime": 1792049464791,
    "options": {},
    "speed": 1.0,
-   "autoTrim": null
+   "autoTrim": null,
+   "halfFile": "dair.half.webp",
+   "fringe": true,
+   "feet": [-19, -20, -23, -17, -5, -3, -12, -13, -19, -24, -13, -8, -18, -22, -25, -22, -6, -6, -10, -14, -16, -20, -14, -10]
   },
   "upb": {
    "file": "upb.webp",
@@ -534,7 +625,10 @@
    "autoTrim": [
     0.5,
     1.85
-   ]
+   ],
+   "halfFile": "upb.half.webp",
+   "fringe": true,
+   "feet": [-2, -2, -2, -2, -2, -3, -16, -63, -80, -104, -128, -128, -151, -154, -136, -136, -121, -81, -28, -28, -16, -11, -10, -11]
   },
   "nspecial": {
    "file": "nspecial.webp",
@@ -554,9 +648,12 @@
    "autoTrim": [
     0.55,
     2.4
-   ]
+   ],
+   "halfFile": "nspecial.half.webp",
+   "fringe": true,
+   "feet": [-3, -3, -2, -3, -3, -11, -9, -13, -27, -12, -8, -10, -27, -12, -11, -10, -18, -18, -18, -20, -20, -21, -14, -4]
   }
  },
  "idleScale": 0.625,
- "version": 1792049512
+ "version": 1792049546
 }

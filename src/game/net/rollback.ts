@@ -56,7 +56,8 @@ const MAX_PACKET_INPUTS = 120;
 
 export class Rollback<S> {
   readonly slot: number;
-  readonly delay: number;
+  /** Input delay in frames: set before frame 0 (setDelay) once both sides have agreed on it. */
+  delay: number;
   readonly maxRollback: number;
   readonly hashEvery: number;
   private readonly noInput: number;
@@ -105,6 +106,14 @@ export class Rollback<S> {
     this.noInput = opts.noInput;
     this.nextHash = this.hashEvery - 1;
     for (let f = 0; f < this.delay; f++) this.local.push(this.noInput);
+  }
+
+  /** Changes the input delay; only before the first frame (both peers must run the same value). */
+  setDelay(delay: number): void {
+    if (this.frame !== 0) return;
+    this.delay = delay;
+    this.local.length = 0;
+    for (let f = 0; f < delay; f++) this.local.push(this.noInput);
   }
 
   /** The last frame both inputs are known for (everything up to it is final). */

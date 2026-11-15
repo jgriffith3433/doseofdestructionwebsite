@@ -716,6 +716,18 @@ button.play {
 @media (max-width: 520px) {
   .features { grid-template-columns: 1fr; }
 
+  /* The facts read as one column, left-aligned inside a centred block, so none wraps off the edge. */
+  .facts {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    width: max-content;
+    max-width: 100%;
+    margin-inline: auto;
+    gap: 0.3rem;
+    text-align: left;
+  }
+
   .starters { gap: 0.6rem; }
 
   .starter img { height: 150px; }

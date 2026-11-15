@@ -1,0 +1,979 @@
+{
+ "note": "Pre-fight exchanges (ui/scene.ts playExchange). pairs: two lines each, either order of fighters; generic: by the first fighter's type, booth voices.",
+ "pairs": [
+  {
+   "id": "intro.exit-punk.orchestrator",
+   "a": "exit-punk",
+   "b": "orchestrator",
+   "lines": [
+    {
+     "who": "orchestrator",
+     "text": "Welcome back, kid. The exit is still closed.",
+     "audio": "/audio/voice/intro.exit-punk.orchestrator.1.mp3",
+     "take": {
+      "text": "Welcome back, kid. The exit is still closed.",
+      "voice": "onwK4e9ZLuTAKqWW03F9"
+     }
+    },
+    {
+     "who": "exit-punk",
+     "text": "Then I'll knock.",
+     "audio": "/audio/voice/intro.exit-punk.orchestrator.2.mp3",
+     "take": {
+      "text": "Then I'll knock.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.kaelen",
+   "a": "exit-punk",
+   "b": "kaelen",
+   "lines": [
+    {
+     "who": "exit-punk",
+     "text": "Nice speed. Try standing still.",
+     "audio": "/audio/voice/intro.exit-punk.kaelen.1.mp3",
+     "take": {
+      "text": "Nice speed. Try standing still.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    },
+    {
+     "who": "kaelen",
+     "text": "Can't. Hi. Bye.",
+     "audio": "/audio/voice/intro.exit-punk.kaelen.2.mp3",
+     "take": {
+      "text": "Can't. Hi. Bye.",
+      "voice": "TX3LPaxmHKxFdv7VOQHJ"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.break",
+   "a": "exit-punk",
+   "b": "break",
+   "lines": [
+    {
+     "who": "break",
+     "text": "I don't fall. Ask the ratings.",
+     "audio": "/audio/voice/intro.exit-punk.break.1.mp3",
+     "take": {
+      "text": "I don't fall. Ask the ratings.",
+      "voice": "N2lVS1w4EtoT3dr4eOWO"
+     }
+    },
+    {
+     "who": "exit-punk",
+     "text": "Rule two: stages end.",
+     "audio": "/audio/voice/intro.exit-punk.break.2.mp3",
+     "take": {
+      "text": "Rule two: stages end.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.small-weather",
+   "a": "exit-punk",
+   "b": "small-weather",
+   "lines": [
+    {
+     "who": "small-weather",
+     "text": "Forecast: you, flat, by midnight.",
+     "audio": "/audio/voice/intro.exit-punk.small-weather.1.mp3",
+     "take": {
+      "text": "Forecast: you, flat, by midnight.",
+      "voice": "cjVigY5qzO86Huf0OWal"
+     }
+    },
+    {
+     "who": "exit-punk",
+     "text": "Brought an umbrella. And a skateboard.",
+     "audio": "/audio/voice/intro.exit-punk.small-weather.2.mp3",
+     "take": {
+      "text": "Brought an umbrella. And a skateboard.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.slice",
+   "a": "exit-punk",
+   "b": "slice",
+   "lines": [
+    {
+     "who": "slice",
+     "text": "One clean hit. That's all I need.",
+     "audio": "/audio/voice/intro.exit-punk.slice.1.mp3",
+     "take": {
+      "text": "One clean hit. That's all I need.",
+      "voice": "XB0fDUnXU5powFXDhCwa"
+     }
+    },
+    {
+     "who": "exit-punk",
+     "text": "I didn't flinch. I ducked.",
+     "audio": "/audio/voice/intro.exit-punk.slice.2.mp3",
+     "take": {
+      "text": "I didn't flinch. I ducked.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.kaelen.slice",
+   "a": "kaelen",
+   "b": "slice",
+   "lines": [
+    {
+     "who": "kaelen",
+     "text": "Fast? Cute. Hi. Bye.",
+     "audio": "/audio/voice/intro.kaelen.slice.1.mp3",
+     "take": {
+      "text": "Fast? Cute. Hi. Bye.",
+      "voice": "TX3LPaxmHKxFdv7VOQHJ"
+     }
+    },
+    {
+     "who": "slice",
+     "text": "You said bye. I'm already done.",
+     "audio": "/audio/voice/intro.kaelen.slice.2.mp3",
+     "take": {
+      "text": "You said bye. I'm already done.",
+      "voice": "XB0fDUnXU5powFXDhCwa"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.break.ss-boulder",
+   "a": "break",
+   "b": "ss-boulder",
+   "lines": [
+    {
+     "who": "ss-boulder",
+     "text": "Biggest hits on the card. Ask anyone.",
+     "audio": "/audio/voice/intro.break.ss-boulder.1.mp3",
+     "take": {
+      "text": "Biggest hits on the card. Ask anyone.",
+      "voice": "XrExE9yKIg1WjnnlVkGX"
+     }
+    },
+    {
+     "who": "break",
+     "text": "Everyone's on the floor. Not me.",
+     "audio": "/audio/voice/intro.break.ss-boulder.2.mp3",
+     "take": {
+      "text": "Everyone's on the floor. Not me.",
+      "voice": "N2lVS1w4EtoT3dr4eOWO"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.dj-wont-read.shutup-bot",
+   "a": "dj-wont-read",
+   "b": "shutup-bot",
+   "lines": [
+    {
+     "who": "dj-wont-read",
+     "text": "I'll do the talking. You do the losing.",
+     "audio": "/audio/voice/intro.dj-wont-read.shutup-bot.1.mp3",
+     "take": {
+      "text": "I'll do the talking. You do the losing.",
+      "voice": "iP95p4xoKVk53GoZ742B"
+     }
+    },
+    {
+     "who": "shutup-bot",
+     "text": "Fine.",
+     "audio": "/audio/voice/intro.dj-wont-read.shutup-bot.2.mp3",
+     "take": {
+      "text": "Fine.",
+      "voice": "SAz9YHcvj6GT2YYXdXww"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.small-weather.pyro-singer",
+   "a": "small-weather",
+   "b": "pyro-singer",
+   "lines": [
+    {
+     "who": "small-weather",
+     "text": "Your forecast says hot. Mine says hail.",
+     "audio": "/audio/voice/intro.small-weather.pyro-singer.1.mp3",
+     "take": {
+      "text": "Your forecast says hot. Mine says hail.",
+      "voice": "cjVigY5qzO86Huf0OWal"
+     }
+    },
+    {
+     "who": "pyro-singer",
+     "text": "Hail melts. Louder, honey.",
+     "audio": "/audio/voice/intro.small-weather.pyro-singer.2.mp3",
+     "take": {
+      "text": "Hail melts. Louder, honey.",
+      "voice": "9BWtsMINqrJLrRacOk9x"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.evil-blue-bird.got-ur-back",
+   "a": "evil-blue-bird",
+   "b": "got-ur-back",
+   "lines": [
+    {
+     "who": "got-ur-back",
+     "text": "Hey, buddy. Remember the old tag team?",
+     "audio": "/audio/voice/intro.evil-blue-bird.got-ur-back.1.mp3",
+     "take": {
+      "text": "Hey, buddy. Remember the old tag team?",
+      "voice": "IKne3meq5aSn9XLyUdCD"
+     }
+    },
+    {
+     "who": "evil-blue-bird",
+     "text": "I remember. I carried us. Cute, right?",
+     "audio": "/audio/voice/intro.evil-blue-bird.got-ur-back.2.mp3",
+     "take": {
+      "text": "I remember. I carried us. Cute, right?",
+      "voice": "cgSgspJ2msm6clMCkdW9"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.blog-man.future-man",
+   "a": "blog-man",
+   "b": "future-man",
+   "lines": [
+    {
+     "who": "blog-man",
+     "text": "Future Man! No spoilers. Headline only.",
+     "audio": "/audio/voice/intro.blog-man.future-man.1.mp3",
+     "take": {
+      "text": "Future Man! No spoilers. Headline only.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17"
+     }
+    },
+    {
+     "who": "future-man",
+     "text": "Seen it. You lose. Boring headline.",
+     "audio": "/audio/voice/intro.blog-man.future-man.2.mp3",
+     "take": {
+      "text": "Seen it. You lose. Boring headline.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.future-man",
+   "a": "exit-punk",
+   "b": "future-man",
+   "lines": [
+    {
+     "who": "future-man",
+     "text": "I've seen this ending. You walk away.",
+     "audio": "/audio/voice/intro.exit-punk.future-man.1.mp3",
+     "take": {
+      "text": "I've seen this ending. You walk away.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17"
+     }
+    },
+    {
+     "who": "exit-punk",
+     "text": "Don't spoil it. I like surprises.",
+     "audio": "/audio/voice/intro.exit-punk.future-man.2.mp3",
+     "take": {
+      "text": "Don't spoil it. I like surprises.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.shark-dude",
+   "a": "exit-punk",
+   "b": "shark-dude",
+   "lines": [
+    {
+     "who": "shark-dude",
+     "text": "Smell blood yet? That's yours.",
+     "audio": "/audio/voice/intro.exit-punk.shark-dude.1.mp3",
+     "take": {
+      "text": "Smell blood yet? That's yours.",
+      "voice": "N2lVS1w4EtoT3dr4eOWO"
+     }
+    },
+    {
+     "who": "exit-punk",
+     "text": "That's the skateboard. It's old.",
+     "audio": "/audio/voice/intro.exit-punk.shark-dude.2.mp3",
+     "take": {
+      "text": "That's the skateboard. It's old.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.yooba.shark-dude",
+   "a": "yooba",
+   "b": "shark-dude",
+   "lines": [
+    {
+     "who": "shark-dude",
+     "text": "A mouth with legs. We're basically family.",
+     "audio": "/audio/voice/intro.yooba.shark-dude.1.mp3",
+     "take": {
+      "text": "A mouth with legs. We're basically family.",
+      "voice": "N2lVS1w4EtoT3dr4eOWO"
+     }
+    },
+    {
+     "who": "yooba",
+     "text": "Yooba yooba. Yooba!",
+     "audio": "/audio/voice/intro.yooba.shark-dude.2.mp3",
+     "take": {
+      "text": "Yooba yooba. Yooba!",
+      "voice": "FGY2WhTYpPnrIDTdsKH5"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.pyro-singer",
+   "a": "exit-punk",
+   "b": "pyro-singer",
+   "lines": [
+    {
+     "who": "pyro-singer",
+     "text": "Hope you brought earplugs, skater.",
+     "audio": "/audio/voice/intro.exit-punk.pyro-singer.1.mp3",
+     "take": {
+      "text": "Hope you brought earplugs, skater.",
+      "voice": "9BWtsMINqrJLrRacOk9x"
+     }
+    },
+    {
+     "who": "exit-punk",
+     "text": "Brought a board. Sing all you want.",
+     "audio": "/audio/voice/intro.exit-punk.pyro-singer.2.mp3",
+     "take": {
+      "text": "Brought a board. Sing all you want.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.susan",
+   "a": "exit-punk",
+   "b": "susan",
+   "lines": [
+    {
+     "who": "susan",
+     "text": "Come into the fog. Nobody leaves.",
+     "audio": "/audio/voice/intro.exit-punk.susan.1.mp3",
+     "take": {
+      "text": "Come into the fog. Nobody leaves.",
+      "voice": "EXAVITQu4vr4xnSDxMaL"
+     }
+    },
+    {
+     "who": "exit-punk",
+     "text": "I only need the exit.",
+     "audio": "/audio/voice/intro.exit-punk.susan.2.mp3",
+     "take": {
+      "text": "I only need the exit.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.wallit",
+   "a": "exit-punk",
+   "b": "wallit",
+   "lines": [
+    {
+     "who": "wallit",
+     "text": "No sponsor? I can fix that. Pay up.",
+     "audio": "/audio/voice/intro.exit-punk.wallit.1.mp3",
+     "take": {
+      "text": "No sponsor? I can fix that. Pay up.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17"
+     }
+    },
+    {
+     "who": "exit-punk",
+     "text": "Pass. I'll take the ratings.",
+     "audio": "/audio/voice/intro.exit-punk.wallit.2.mp3",
+     "take": {
+      "text": "Pass. I'll take the ratings.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.cel",
+   "a": "exit-punk",
+   "b": "cel",
+   "lines": [
+    {
+     "who": "cel",
+     "text": "Catch me, then. I've got four jumps.",
+     "audio": "/audio/voice/intro.exit-punk.cel.1.mp3",
+     "take": {
+      "text": "Catch me, then. I've got four jumps.",
+      "voice": "Xb7hH8MSUJpSbSDYk0k2"
+     }
+    },
+    {
+     "who": "exit-punk",
+     "text": "I have one jump and a floor.",
+     "audio": "/audio/voice/intro.exit-punk.cel.2.mp3",
+     "take": {
+      "text": "I have one jump and a floor.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.try-belt",
+   "a": "exit-punk",
+   "b": "try-belt",
+   "lines": [
+    {
+     "who": "try-belt",
+     "text": "Go on, try. I've watched every tape.",
+     "audio": "/audio/voice/intro.exit-punk.try-belt.1.mp3",
+     "take": {
+      "text": "Go on, try. I've watched every tape.",
+      "voice": "IKne3meq5aSn9XLyUdCD"
+     }
+    },
+    {
+     "who": "exit-punk",
+     "text": "The tape's wrong. Watch live.",
+     "audio": "/audio/voice/intro.exit-punk.try-belt.2.mp3",
+     "take": {
+      "text": "The tape's wrong. Watch live.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.uh-me",
+   "a": "exit-punk",
+   "b": "uh-me",
+   "lines": [
+    {
+     "who": "exit-punk",
+     "text": "Nice float. Don't drift off.",
+     "audio": "/audio/voice/intro.exit-punk.uh-me.1.mp3",
+     "take": {
+      "text": "Nice float. Don't drift off.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    },
+    {
+     "who": "uh-me",
+     "text": "Uh. Me. Float. Won't.",
+     "audio": "/audio/voice/intro.exit-punk.uh-me.2.mp3",
+     "take": {
+      "text": "Uh. Me. Float. Won't.",
+      "voice": "SAz9YHcvj6GT2YYXdXww"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.yo-bot",
+   "a": "exit-punk",
+   "b": "yo-bot",
+   "lines": [
+    {
+     "who": "yo-bot",
+     "text": "Ping me, loser. Latency is your problem.",
+     "audio": "/audio/voice/intro.exit-punk.yo-bot.1.mp3",
+     "take": {
+      "text": "Ping me, loser. Latency is your problem.",
+      "voice": "TX3LPaxmHKxFdv7VOQHJ"
+     }
+    },
+    {
+     "who": "exit-punk",
+     "text": "Unplug it. I'll wait.",
+     "audio": "/audio/voice/intro.exit-punk.yo-bot.2.mp3",
+     "take": {
+      "text": "Unplug it. I'll wait.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.spider-bot",
+   "a": "exit-punk",
+   "b": "spider-bot",
+   "lines": [
+    {
+     "who": "spider-bot",
+     "text": "Eight legs. Zero ways out for you.",
+     "audio": "/audio/voice/intro.exit-punk.spider-bot.1.mp3",
+     "take": {
+      "text": "Eight legs. Zero ways out for you.",
+      "voice": "cjVigY5qzO86Huf0OWal"
+     }
+    },
+    {
+     "who": "exit-punk",
+     "text": "Funny. I only need one exit.",
+     "audio": "/audio/voice/intro.exit-punk.spider-bot.2.mp3",
+     "take": {
+      "text": "Funny. I only need one exit.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.crosser.try-belt",
+   "a": "crosser",
+   "b": "try-belt",
+   "lines": [
+    {
+     "who": "try-belt",
+     "text": "Go on, try. I'm patient too.",
+     "audio": "/audio/voice/intro.crosser.try-belt.1.mp3",
+     "take": {
+      "text": "Go on, try. I'm patient too.",
+      "voice": "IKne3meq5aSn9XLyUdCD"
+     }
+    },
+    {
+     "who": "crosser",
+     "text": "I can wait. You can lose slowly.",
+     "audio": "/audio/voice/intro.crosser.try-belt.2.mp3",
+     "take": {
+      "text": "I can wait. You can lose slowly.",
+      "voice": "JBFqnCBsd6RMkjVDRZzb"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.ball-person.chooser",
+   "a": "ball-person",
+   "b": "chooser",
+   "lines": [
+    {
+     "who": "ball-person",
+     "text": "Round, small, bouncy. You look like a ball.",
+     "audio": "/audio/voice/intro.ball-person.chooser.1.mp3",
+     "take": {
+      "text": "Round, small, bouncy. You look like a ball.",
+      "voice": "TX3LPaxmHKxFdv7VOQHJ"
+     }
+    },
+    {
+     "who": "chooser",
+     "text": "I chose not to be kicked.",
+     "audio": "/audio/voice/intro.ball-person.chooser.2.mp3",
+     "take": {
+      "text": "I chose not to be kicked.",
+      "voice": "FGY2WhTYpPnrIDTdsKH5"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.lapis-man.spider-bot",
+   "a": "lapis-man",
+   "b": "spider-bot",
+   "lines": [
+    {
+     "who": "lapis-man",
+     "text": "Mind your elders, little crawler.",
+     "audio": "/audio/voice/intro.lapis-man.spider-bot.1.mp3",
+     "take": {
+      "text": "Mind your elders, little crawler.",
+      "voice": "pqHfZKP75CvOlQylNhV4"
+     }
+    },
+    {
+     "who": "spider-bot",
+     "text": "Elders have eight legs? Web's ready.",
+     "audio": "/audio/voice/intro.lapis-man.spider-bot.2.mp3",
+     "take": {
+      "text": "Elders have eight legs? Web's ready.",
+      "voice": "cjVigY5qzO86Huf0OWal"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.not-an-old-man-yet.slow-rider",
+   "a": "not-an-old-man-yet",
+   "b": "slow-rider",
+   "lines": [
+    {
+     "who": "not-an-old-man-yet",
+     "text": "Come get me. Middle of the stage.",
+     "audio": "/audio/voice/intro.not-an-old-man-yet.slow-rider.1.mp3",
+     "take": {
+      "text": "Come get me. Middle of the stage.",
+      "voice": "onwK4e9ZLuTAKqWW03F9"
+     }
+    },
+    {
+     "who": "slow-rider",
+     "text": "No rush, friend. I'll drift over.",
+     "audio": "/audio/voice/intro.not-an-old-man-yet.slow-rider.2.mp3",
+     "take": {
+      "text": "No rush, friend. I'll drift over.",
+      "voice": "nPczCjzI2devNBz1zQrb"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.stratabots.tt",
+   "a": "stratabots",
+   "b": "tt",
+   "lines": [
+    {
+     "who": "tt",
+     "text": "Slow. Steady. Obviously.",
+     "audio": "/audio/voice/intro.stratabots.tt.1.mp3",
+     "take": {
+      "text": "Slow. Steady. Obviously.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    },
+    {
+     "who": "stratabots",
+     "text": "Plates locked. Shell cracking soon.",
+     "audio": "/audio/voice/intro.stratabots.tt.2.mp3",
+     "take": {
+      "text": "Plates locked. Shell cracking soon.",
+      "voice": "pqHfZKP75CvOlQylNhV4"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.crystalline-intelligences.wallit",
+   "a": "crystalline-intelligences",
+   "b": "wallit",
+   "lines": [
+    {
+     "who": "wallit",
+     "text": "Show me money. Can you calculate prices?",
+     "audio": "/audio/voice/intro.crystalline-intelligences.wallit.1.mp3",
+     "take": {
+      "text": "Show me money. Can you calculate prices?",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17"
+     }
+    },
+    {
+     "who": "crystalline-intelligences",
+     "text": "Compute your end. Your price: everything.",
+     "audio": "/audio/voice/intro.crystalline-intelligences.wallit.2.mp3",
+     "take": {
+      "text": "Compute your end. Your price: everything.",
+      "voice": "pFZP5JQG7iQjIQuC4Bku"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.susan.uh-me",
+   "a": "susan",
+   "b": "uh-me",
+   "lines": [
+    {
+     "who": "susan",
+     "text": "Come into the fog. Stay awhile.",
+     "audio": "/audio/voice/intro.susan.uh-me.1.mp3",
+     "take": {
+      "text": "Come into the fog. Stay awhile.",
+      "voice": "EXAVITQu4vr4xnSDxMaL"
+     }
+    },
+    {
+     "who": "uh-me",
+     "text": "Uh. Me. Float. Fog okay.",
+     "audio": "/audio/voice/intro.susan.uh-me.2.mp3",
+     "take": {
+      "text": "Uh. Me. Float. Fog okay.",
+      "voice": "SAz9YHcvj6GT2YYXdXww"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.blog-man.yo-bot",
+   "a": "blog-man",
+   "b": "yo-bot",
+   "lines": [
+    {
+     "who": "yo-bot",
+     "text": "Ping me, loser. Front page my ping.",
+     "audio": "/audio/voice/intro.blog-man.yo-bot.1.mp3",
+     "take": {
+      "text": "Ping me, loser. Front page my ping.",
+      "voice": "TX3LPaxmHKxFdv7VOQHJ"
+     }
+    },
+    {
+     "who": "blog-man",
+     "text": "Headline: Laptop Loses To Man With Better Headlines.",
+     "audio": "/audio/voice/intro.blog-man.yo-bot.2.mp3",
+     "take": {
+      "text": "Headline: Laptop Loses To Man With Better Headlines.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.exit-punk.stratabots",
+   "a": "exit-punk",
+   "b": "stratabots",
+   "lines": [
+    {
+     "who": "stratabots",
+     "text": "Plates locked. You're next, skater.",
+     "audio": "/audio/voice/intro.exit-punk.stratabots.1.mp3",
+     "take": {
+      "text": "Plates locked. You're next, skater.",
+      "voice": "pqHfZKP75CvOlQylNhV4"
+     }
+    },
+    {
+     "who": "exit-punk",
+     "text": "Plates rust. Skateboards don't.",
+     "audio": "/audio/voice/intro.exit-punk.stratabots.2.mp3",
+     "take": {
+      "text": "Plates rust. Skateboards don't.",
+      "voice": "bIHbv24MWmeRgasZH58o"
+     }
+    }
+   ]
+  },
+  {
+   "id": "intro.blog-man.orchestrator",
+   "a": "blog-man",
+   "b": "orchestrator",
+   "lines": [
+    {
+     "who": "blog-man",
+     "text": "Maestro, a quote for the front page?",
+     "audio": "/audio/voice/intro.blog-man.orchestrator.1.mp3",
+     "take": {
+      "text": "Maestro, a quote for the front page?",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17"
+     }
+    },
+    {
+     "who": "orchestrator",
+     "text": "Off the record: you're a footnote.",
+     "audio": "/audio/voice/intro.blog-man.orchestrator.2.mp3",
+     "take": {
+      "text": "Off the record: you're a footnote.",
+      "voice": "onwK4e9ZLuTAKqWW03F9"
+     }
+    }
+   ]
+  }
+ ],
+ "types": {
+  "Heavy": "heavy",
+  "Super heavy": "heavy",
+  "Tank": "heavy",
+  "Rock": "heavy",
+  "Big friend": "heavy",
+  "Shell": "heavy",
+  "Grinder": "heavy",
+  "Rig": "heavy",
+  "Fast": "fast",
+  "Striker": "fast",
+  "Rushdown": "fast",
+  "Glass cannon": "fast",
+  "Combo": "fast",
+  "Switch hitter": "fast",
+  "Aerial": "air",
+  "Floaty": "air",
+  "Air striker": "air",
+  "Floater": "air",
+  "Drifter": "air",
+  "Bouncer": "air",
+  "Gooey": "air",
+  "Zoner": "zone",
+  "Burner": "zone",
+  "Storm caller": "zone",
+  "Shadow": "zone",
+  "Walker": "zone",
+  "Conductor": "zone",
+  "Bruiser": "brawl",
+  "Brawler": "brawl",
+  "Slugger": "brawl",
+  "Counter-puncher": "brawl",
+  "All-rounder": "allround"
+ },
+ "generic": {
+  "heavy": {
+   "id": "intro.generic.heavy",
+   "lines": [
+    {
+     "who": "announcer",
+     "text": "Big one tonight. The floor is nervous.",
+     "audio": "/audio/voice/intro.generic.heavy.1.mp3",
+     "take": {
+      "text": "Big one tonight. The floor is nervous.",
+      "voice": "nPczCjzI2devNBz1zQrb"
+     }
+    },
+    {
+     "who": "blog-man",
+     "text": "Headline: Floor Files Complaint Before Fight Begins.",
+     "audio": "/audio/voice/intro.generic.heavy.2.mp3",
+     "take": {
+      "text": "Headline: Floor Files Complaint Before Fight Begins.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17"
+     }
+    }
+   ]
+  },
+  "fast": {
+   "id": "intro.generic.fast",
+   "lines": [
+    {
+     "who": "announcer",
+     "text": "Quick hands on the card. Blink and miss.",
+     "audio": "/audio/voice/intro.generic.fast.1.mp3",
+     "take": {
+      "text": "Quick hands on the card. Blink and miss.",
+      "voice": "nPczCjzI2devNBz1zQrb"
+     }
+    },
+    {
+     "who": "blog-man",
+     "text": "Headline: Fastest Fighter Gets Fastest Headline.",
+     "audio": "/audio/voice/intro.generic.fast.2.mp3",
+     "take": {
+      "text": "Headline: Fastest Fighter Gets Fastest Headline.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17"
+     }
+    }
+   ]
+  },
+  "air": {
+   "id": "intro.generic.air",
+   "lines": [
+    {
+     "who": "announcer",
+     "text": "Tonight's fight starts off the ground.",
+     "audio": "/audio/voice/intro.generic.air.1.mp3",
+     "take": {
+      "text": "Tonight's fight starts off the ground.",
+      "voice": "nPczCjzI2devNBz1zQrb"
+     }
+    },
+    {
+     "who": "blog-man",
+     "text": "Headline: Gravity Declines To Comment.",
+     "audio": "/audio/voice/intro.generic.air.2.mp3",
+     "take": {
+      "text": "Headline: Gravity Declines To Comment.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17"
+     }
+    }
+   ]
+  },
+  "zone": {
+   "id": "intro.generic.zone",
+   "lines": [
+    {
+     "who": "announcer",
+     "text": "Long reach tonight. Stay out of range.",
+     "audio": "/audio/voice/intro.generic.zone.1.mp3",
+     "take": {
+      "text": "Long reach tonight. Stay out of range.",
+      "voice": "nPczCjzI2devNBz1zQrb"
+     }
+    },
+    {
+     "who": "blog-man",
+     "text": "Headline: Personal Space Dies In The Foundry.",
+     "audio": "/audio/voice/intro.generic.zone.2.mp3",
+     "take": {
+      "text": "Headline: Personal Space Dies In The Foundry.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17"
+     }
+    }
+   ]
+  },
+  "brawl": {
+   "id": "intro.generic.brawl",
+   "lines": [
+    {
+     "who": "announcer",
+     "text": "Two fighters. One middle. Neither leaves.",
+     "audio": "/audio/voice/intro.generic.brawl.1.mp3",
+     "take": {
+      "text": "Two fighters. One middle. Neither leaves.",
+      "voice": "nPczCjzI2devNBz1zQrb"
+     }
+    },
+    {
+     "who": "blog-man",
+     "text": "Headline: Nobody Takes The Stairs Tonight.",
+     "audio": "/audio/voice/intro.generic.brawl.2.mp3",
+     "take": {
+      "text": "Headline: Nobody Takes The Stairs Tonight.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17"
+     }
+    }
+   ]
+  },
+  "allround": {
+   "id": "intro.generic.allround",
+   "lines": [
+    {
+     "who": "announcer",
+     "text": "Clean fundamentals. No gimmicks. Ratings noted.",
+     "audio": "/audio/voice/intro.generic.allround.1.mp3",
+     "take": {
+      "text": "Clean fundamentals. No gimmicks. Ratings noted.",
+      "voice": "nPczCjzI2devNBz1zQrb"
+     }
+    },
+    {
+     "who": "blog-man",
+     "text": "Headline: Nothing Weird Happens. Weirdly Gripping.",
+     "audio": "/audio/voice/intro.generic.allround.2.mp3",
+     "take": {
+      "text": "Headline: Nothing Weird Happens. Weirdly Gripping.",
+      "voice": "CwhRBWXzGAHq8TQ4Fs17"
+     }
+    }
+   ]
+  }
+ }
+}

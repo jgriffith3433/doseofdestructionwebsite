@@ -14,6 +14,22 @@ export interface PlatformMotion {
   phase?: number;
 }
 
+/**
+ * A platform that fades out and back on a steady timer (frame-driven, so it is rollback-safe and
+ * keeps going with Hazards Off: it is layout, not a hazard). Each cycle it is solid for
+ * cycle - warn - gone seconds, flashes for `warn` seconds (still solid), then is gone for `gone`.
+ */
+export interface PlatformFade {
+  /** Seconds per full cycle. */
+  cycle: number;
+  /** Seconds of flashing before it goes. */
+  warn: number;
+  /** Seconds it is gone. */
+  gone: number;
+  /** Seconds into the cycle at frame 0 (offsets two platforms so one is always up). */
+  phase?: number;
+}
+
 export interface Platform {
   x1: number;
   x2: number;
@@ -24,6 +40,8 @@ export interface Platform {
   depth?: number;
   /** Only thin platforms move. */
   motion?: PlatformMotion;
+  /** Fades out and back on a timer. */
+  fade?: PlatformFade;
   /**
    * Collision only: the stage art draws this platform, so the game paints no
    * block for it (once a layer that draws it has an image).
@@ -126,6 +144,15 @@ export interface StageLayer {
   opacity?: number;
   /** In front only: fighters behind it show through as a colored silhouette. */
   occluder?: boolean;
+  /**
+   * In front only: a foreground element at the play area's edge. It turns see-through (30%) while a fighter stands behind
+   * one of its solid pixels, and comes back when they walk out (render only; see render/foreground.ts).
+   */
+  foreground?: boolean;
+  /** Built on High only (the extra depth layers): Low keeps its three or four layers for the frame rate. */
+  high?: boolean;
+  /** Built on Low only: the whole backdrop picture, which High replaces with the depth layers cut from it (far sky, far set, mid set, near set). */
+  low?: boolean;
   /** Adds light instead of covering (neon, glows). */
   glow?: boolean;
   hidden?: boolean;
@@ -215,6 +242,44 @@ export interface StageTheme {
   props: 'frame' | 'skyline' | 'clouds' | 'embers' | 'pipes';
 }
 
+/** A stage's light on its fighters. Colours are hex. `key` points to where the light comes from, in screen x/y. */
+export interface StageLight {
+  key: { dir: [number, number]; color: string; strength: number };
+  rim: { color: string; strength: number };
+  /** What the whole fighter is multiplied by (the set's ambient colour). */
+  ambient: string;
+  /** A polished studio floor: a faint mirror image under the fighter. */
+  glossy?: boolean;
+}
+
+/** Distance haze: tinted gradient sheets at these depths (z behind the fighters), strongest low, near the horizon. */
+export interface StageHaze {
+  color: string;
+  /** Opacity of the strongest sheet, 0..1 (the nearer sheets are lighter). */
+  strength: number;
+  /** Depths of the sheets, far to near. */
+  z: number[];
+}
+
+/** Per-stage room numbers: a reverb impulse is generated from them in code. */
+export interface StageRoom {
+  /** The room's name, logged as `dod:mix-room`. */
+  name: string;
+  /** Reverb length (RT60-ish), seconds. */
+  seconds: number;
+  /** Where the tail has darkened to by its end (Hz); it starts bright and falls to this. */
+  brightnessHz: number;
+  /** Share of the sound sent to the room, 0.10 to 0.25. */
+  wet: number;
+  preDelayMs: number;
+  /** Echo density 0..1 (low = a few slaps, high = a smooth wash). */
+  density: number;
+  /** Low-pass on the room's return (Hz). */
+  lowpassHz: number;
+  /** Low-pass on the dry effects too (Hz), for underwater. */
+  dryLowpassHz?: number;
+}
+
 export interface StageDef {
   id: string;
   name: string;
@@ -241,6 +306,16 @@ export interface StageDef {
   notes?: string;
   /** Art direction for painting the stage, and the concept image it is styled on. */
   art?: { style?: string; reference?: string };
+  /** The stage's distance haze (render only; dropped on Low): sheets tinted to the stage between the far layers. */
+  haze?: StageHaze;
+  /** An outdoor stage (render only): no studio crowd, crane or crew silhouettes hung in the sky. */
+  openAir?: boolean;
+  /** The stage's colour grade (render only): baked into stages/<id>/lut.png by tools/make-luts.mjs. */
+  /** The light the stage puts on its fighters (render only): key, rim, ambient, glossy floor. */
+  light?: StageLight;
+  /** The stage's acoustics (roomAudio.ts builds the impulse from these numbers; audio only, never the sim). */
+  room?: StageRoom;
+  grade?: { lift: number; gamma: number; gain: number; saturation: number; tint: string; tintAmount: number };
 }
 
 export interface Ledge {
@@ -271,9 +346,12 @@ export function ledges(stage: StageDef): Ledge[] {
 export function platformOffset(p: Platform, frame: number): [number, number] {
   const m = p.motion;
   if (!m) return [0, 0];
-  // Degrees through the cycle, kept integral so the result is engine independent.
-  const deg = idiv(frame % m.period * 360, m.period) + (m.phase ?? 0);
-  const s = isin(deg);
+  // Sixteenths of a degree through the cycle, kept integral so the result is engine independent: whole degrees
+  // would step a slow platform in jumps of several units, so the table is interpolated between them.
+  const q = idiv(frame % m.period * 360 * 16, m.period) + (m.phase ?? 0) * 16;
+  const w = ((q % 5760) + 5760) % 5760;
+  const d = w >> 4;
+  const s = isin(d) + idiv((isin(d + 1) - isin(d)) * (w & 15), 16);
   return [idiv(m.ax * FX * s, TRIG_ONE), idiv(m.ay * FX * s, TRIG_ONE)];
 }
 
@@ -329,9 +407,35 @@ export function eventElapsed(stage: StageDef, c: StageClock, i: number): number 
   return secs(stage.events![i].duration) - c.evTimer[i];
 }
 
-/** Whether a platform is there now (event toggles). */
+/** Where a fading platform is in its cycle: 0 solid, 1 flashing (still solid), 2 gone. Plain platforms are always 0. */
+export function fadeState(p: Platform, frame: number): 0 | 1 | 2 {
+  const f = p.fade;
+  if (!f) return 0;
+  const cycle = Math.max(1, secs(f.cycle));
+  const t = (frame + secs(f.phase)) % cycle;
+  const gone = secs(f.gone);
+  const warn = secs(f.warn);
+  if (t >= cycle - gone) return 2;
+  if (t >= cycle - gone - warn) return 1;
+  return 0;
+}
+
+/** How visible a fading platform is (0 to 1): flashes while it warns, ramps in over 0.4 s once it is back. */
+export function fadeAlpha(p: Platform, frame: number): number {
+  const f = p.fade;
+  if (!f) return 1;
+  const st = fadeState(p, frame);
+  if (st === 2) return 0;
+  const cycle = Math.max(1, secs(f.cycle));
+  const t = (frame + secs(f.phase)) % cycle;
+  if (st === 1) return Math.floor((t - (cycle - secs(f.gone) - secs(f.warn))) / 6) % 2 === 0 ? 0.35 : 1;
+  return Math.min(1, 0.3 + t / 24);
+}
+
+/** Whether a platform is there now (event toggles, the fade timer). */
 export function platformOn(stage: StageDef, c: StageClock, i: number): boolean {
   const p = stage.platforms[i];
+  if (p.fade && fadeState(p, c.frame) === 2) return false;
   if (p.offDuring && eventOn(stage, c, p.offDuring)) return false;
   if (p.onlyDuring && !eventOn(stage, c, p.onlyDuring)) return false;
   return true;

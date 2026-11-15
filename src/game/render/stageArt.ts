@@ -8,12 +8,14 @@
 // Layers in front of the fighters with `occluder` write depth, so the
 // renderer can draw a silhouette of anyone standing behind them.
 
+import { backdropDim } from '../readability.ts';
 import type { Scene } from '@babylonjs/core/scene.js';
 import { Color3 } from '@babylonjs/core/Maths/math.color.js';
 import { Constants } from '@babylonjs/core/Engines/constants.js';
 import { Material } from '@babylonjs/core/Materials/material.js';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture.js';
+import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture.js';
 import type { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder.js';
@@ -21,6 +23,7 @@ import type { GlowLayer } from '@babylonjs/core/Layers/glowLayer.js';
 import { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder.js';
 import { eventOn, type StageClock, type StageDef, type StageEffect, type StageLayer } from '../sim/stageMath.ts';
 import type { Placed } from './stageLive.ts';
+import { maskFromRGBA } from './foreground.ts';
 
 /** World units per scene unit, as in the renderer. */
 const W = 1 / 100;
@@ -42,16 +45,36 @@ export function drawnPlatforms(stage: StageDef): Set<number> {
 }
 
 /**
- * Builds a stage's picture layers under root. Returns whether any is an
- * occluder, and every layer built (StageLive moves them each frame).
+ * Which of a stage's layers are built at this quality: `high`-only layers (the depth layers cut from the backdrop) are dropped
+ * on Low, and the `low`-only whole backdrop picture is dropped on High, where those layers replace it.
  */
-export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, glow: GlowLayer): { occluders: boolean; placed: Placed[] } {
+export function layersFor(stage: StageDef, high: boolean): StageLayer[] {
+  return (stage.layers ?? []).filter((l) => (high ? !l.low : !l.high));
+}
+
+/**
+ * Builds a stage's picture layers under root. Returns whether any is an
+ * occluder, and every layer built (StageLive moves them each frame). On High
+ * the stage's distance haze and its extra depth bands are built too; Low keeps
+ * the core layers and the foreground.
+ */
+export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, glow: GlowLayer, high = false): { occluders: boolean; placed: Placed[] } {
   let occluders = false;
   const placed: Placed[] = [];
-  // Layers behind the fighters draw far to near; at the same depth, in list order.
-  const behind = (stage.layers ?? []).map((l, i) => ({ l, i })).filter(({ l }) => l.z > 0).sort((a, b) => b.l.z - a.l.z || a.i - b.i);
-  const rank = new Map(behind.map(({ l }, n) => [l, n]));
-  for (const l of stage.layers ?? []) {
+  const layers = layersFor(stage, high);
+  const sheets = high && stage.haze ? stage.haze.z : [];
+  // Layers (and haze sheets) behind the fighters draw far to near; at the same depth, in list order.
+  const behind = layers.map((l, i) => ({ l, i })).filter(({ l }) => l.z > 0).sort((a, b) => b.l.z - a.l.z || a.i - b.i);
+  const order: { z: number; layer?: StageLayer; sheet?: number }[] = [
+    ...behind.map(({ l }) => ({ z: l.z, layer: l })),
+    ...sheets.map((z, sheet) => ({ z, sheet })),
+  ];
+  // Stable: a sheet draws just in front of the layers at its own depth.
+  order.sort((a, b) => b.z - a.z || (a.layer ? 0 : 1) - (b.layer ? 0 : 1));
+  const rank = new Map(order.map((o, n) => [o.layer ?? o.sheet, n]));
+  // Only the farthest picture behind the fighters is softened (High): depth of field for the backdrop, never the play space.
+  const farthest = high && behind.length ? behind[0].l : null;
+  for (const l of layers) {
     if (l.hidden || !l.image) continue;
     const at = layerPlacement(l);
     const plane = CreatePlane(`layer-${l.id}`, { size: 1 }, scene);
@@ -63,20 +86,32 @@ export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, 
     mat.backFaceCulling = false;
     mat.alpha = l.opacity ?? 1;
     const size = { w: 0, h: 0 };
-    const tex = new Texture(`/${l.image}`, scene, false, true, Texture.TRILINEAR_SAMPLINGMODE, () => {
+    let entry: Placed | null = null;
+    // A picture that fails to load must not leave a 1x1 white plane (and a stage that is waited for forever):
+    // the layer is hidden and counted as done, and the stage's lit sky shows through.
+    // A layer a platform sits on has hard painted edges: mipmaps and trilinear blend the colour hidden under the
+    // transparent pixels into them (green and red fringes), so those layers sample bilinear from the full-size picture.
+    // Layers behind the fighters (parallax buildings) get the same: their mipmapped alpha edges showed a dotted red fringe.
+    const crisp = (l.platforms?.length ?? 0) > 0 || (l.z > 0 && !l.glow);
+    const tex = new Texture(`/${l.image}`, scene, crisp, true, crisp ? Texture.BILINEAR_SAMPLINGMODE : Texture.TRILINEAR_SAMPLINGMODE, () => {
       const s = tex.getSize();
       size.w = at.width;
       size.h = (at.width * s.height) / Math.max(1, s.width);
       plane.scaling.set(size.w, size.h, 1);
+    }, (_msg, err) => {
+      console.error(`[dod-stage] layer ${l.id} (${l.image}) failed to load`, err);
+      if (entry) entry.failed = true;
+      plane.setEnabled(false);
     });
     tex.hasAlpha = true;
     mat.diffuseTexture = tex;
     mat.emissiveTexture = tex;
     mat.useAlphaFromDiffuseTexture = true;
     mat.diffuseColor = Color3.Black();
-    mat.emissiveColor = Color3.White();
+    mat.emissiveColor = Color3.White().scale(backdropDim(l.z, (l.platforms?.length ?? 0) > 0, l.foreground));
+    if (l === farthest) softenFar(l.image, mat, scene);
     if (l.glow) mat.alphaMode = Constants.ALPHA_ADD;
-    if (l.occluder && l.z < 0) {
+    if (l.occluder && l.z < 0 && !l.foreground) {
       // Alpha tested so its solid pixels write depth (silhouettes test against it).
       mat.transparencyMode = Material.MATERIAL_ALPHATEST;
       mat.alphaCutOff = 0.5;
@@ -85,11 +120,110 @@ export function buildLayers(scene: Scene, root: TransformNode, stage: StageDef, 
     plane.material = mat;
     // Fixed draw order behind the fighters, so layers at one depth never flicker.
     if (rank.has(l)) plane.alphaIndex = rank.get(l)!;
-    placed.push({ layer: l, mesh: plane, mat, x: at.x, y: at.y, k: (REF_DIST + l.z) / REF_DIST, size });
+    entry = { layer: l, mesh: plane, mat, x: at.x, y: at.y, k: (REF_DIST + l.z) / REF_DIST, size };
+    if (l.foreground && l.z < 0) {
+      // A foreground element: its alpha is read once, so the renderer can tell when a fighter is behind a solid pixel.
+      entry.fade = 1;
+      loadMask(l.image, entry, scene);
+    }
+    placed.push(entry);
     root.onDisposeObservable.add(() => mat.dispose(true, true));
     glow.addExcludedMesh(plane);
   }
+  if (high && stage.haze) buildHaze(scene, root, stage, layers, glow, rank, placed);
   return { occluders, placed };
+}
+
+/** Reads a layer's alpha into a small grid (once, after the picture decodes). */
+function loadMask(image: string, entry: Placed, scene: Scene): void {
+  const img = new Image();
+  img.onload = () => {
+    if (scene.isDisposed || !img.naturalWidth) return;
+    const w = Math.min(256, img.naturalWidth);
+    const h = Math.max(1, Math.round((img.naturalHeight * w) / img.naturalWidth));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+    ctx.drawImage(img, 0, 0, w, h);
+    entry.mask = maskFromRGBA(ctx.getImageData(0, 0, w, h).data, w, h);
+  };
+  img.src = `/${image}`;
+}
+
+/**
+ * The stage's distance haze: sheets at each depth in stage.haze.z, a vertical gradient in the stage's tint (clear at the
+ * top, thickest low where the set meets the floor), lighter the nearer the sheet. Everything farther than a sheet is
+ * veiled by it, so far layers read as far.
+ */
+function buildHaze(scene: Scene, root: TransformNode, stage: StageDef, layers: StageLayer[], glow: GlowLayer, rank: Map<unknown, number>, placed: Placed[]): void {
+  const h = stage.haze!;
+  const width = Math.max(4000, ...layers.filter((l) => l.z > 0).map((l) => l.width));
+  h.z.forEach((z, i) => {
+    const tex = new DynamicTexture(`haze-${stage.id}-${i}`, { width: 4, height: 128 }, scene, false, Texture.BILINEAR_SAMPLINGMODE);
+    const ctx = tex.getContext() as CanvasRenderingContext2D;
+    const g = ctx.createLinearGradient(0, 0, 0, 128);
+    const c = Color3.FromHexString(h.color);
+    const rgb = `${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)}`;
+    const peak = Math.max(0, Math.min(1, h.strength * (1 - 0.25 * i)));
+    g.addColorStop(0, `rgba(${rgb},0)`);
+    g.addColorStop(0.45, `rgba(${rgb},${(peak * 0.25).toFixed(3)})`);
+    g.addColorStop(0.75, `rgba(${rgb},${peak.toFixed(3)})`);
+    g.addColorStop(1, `rgba(${rgb},${(peak * 0.8).toFixed(3)})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 4, 128);
+    tex.hasAlpha = true;
+    tex.update(false);
+    const sheet: StageLayer = { id: `haze-${i}`, image: '', x: 0, y: 250, width, z, note: 'Distance haze (render only).' };
+    const at = layerPlacement(sheet);
+    const plane = CreatePlane(`haze-${stage.id}-${i}`, { size: 1 }, scene);
+    plane.parent = root;
+    plane.position.set(at.x, at.y, at.z);
+    plane.scaling.set(at.width, at.width * (1900 / width), 1);
+    plane.isPickable = false;
+    const mat = new StandardMaterial(`haze-${stage.id}-${i}`, scene);
+    mat.disableLighting = true;
+    mat.backFaceCulling = false;
+    mat.diffuseTexture = tex;
+    mat.emissiveTexture = tex;
+    mat.useAlphaFromDiffuseTexture = true;
+    mat.diffuseColor = Color3.Black();
+    mat.emissiveColor = Color3.White();
+    mat.disableDepthWrite = true;
+    plane.material = mat;
+    plane.alphaIndex = rank.get(i) ?? 0;
+    root.onDisposeObservable.add(() => {
+      mat.dispose(true, true);
+    });
+    glow.addExcludedMesh(plane);
+    // Not a stage layer: StageLive keeps it still, the camera does the work.
+    placed.push({ layer: sheet, mesh: plane, mat, x: at.x, y: at.y, k: (REF_DIST + z) / REF_DIST, size: { w: at.width, h: plane.scaling.y }, haze: true });
+  });
+}
+
+/**
+ * Swaps the layer's picture for a soft copy: drawn at a fifth of its size and stretched back by the GPU's bilinear
+ * filter, which reads as a gentle blur on every browser. The sharp texture shows until the copy is ready.
+ */
+function softenFar(image: string, mat: StandardMaterial, scene: Scene): void {
+  const img = new Image();
+  img.onload = () => {
+    if (scene.isDisposed || !img.naturalWidth) return;
+    const w = Math.max(64, Math.round(img.naturalWidth / 5));
+    const h = Math.max(64, Math.round(img.naturalHeight / 5));
+    const soft = new DynamicTexture(`soft-${image}`, { width: w, height: h }, scene, false, Texture.BILINEAR_SAMPLINGMODE);
+    const ctx = soft.getContext() as CanvasRenderingContext2D;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, w, h);
+    soft.update(false);
+    soft.hasAlpha = true;
+    const old = mat.diffuseTexture;
+    if (old?.isReady()) old.dispose();
+    mat.emissiveTexture = soft;
+    mat.diffuseTexture = soft;
+  };
+  img.src = `/${image}`;
 }
 
 // ------------------------------------------------------------------ effects
@@ -147,6 +281,9 @@ export class StageFx {
   /** Effects that keep spawning while their event runs. */
   private streams: { fx: StageEffect; id: string; next: number }[] = [];
   private clock: StageClock | null = null;
+  /** Particle meshes built after warmUp (a mid-fight allocation; the playtest's hitch trace reads it, 0 when the pools were big enough). */
+  private warmed = false;
+  private grown = 0;
 
   constructor(scene: Scene, stage: StageDef, hooks: FxHooks = {}, glow?: GlowLayer) {
     this.scene = scene;
@@ -170,6 +307,11 @@ export class StageFx {
     return { active: this.parts.length, dustBehind, dustInFront, maxCap: MAX_PARTS };
   }
 
+  /** Meshes built after warmUp finished: spawn() found its pool empty and made one in the middle of a frame. */
+  meshesGrown(): number {
+    return this.grown;
+  }
+
   /** Pre-builds every effect material and particle mesh pool for this stage during the VS screen. */
   warmUp(): void {
     const colors = new Set<string>(['#fff2c0', ...DEFAULT_COLORS]);
@@ -178,8 +320,9 @@ export class StageFx {
     }
     const colorList = [...colors];
     for (const c of colorList) this.mat(c);
-    const wantPlanes = Math.max(48, colorList.length * 2);
-    const wantDiscs = Math.max(24, colorList.length);
+    // Sized to the most spawn() can have alive (MAX_PARTS planes, MAX_DUST dust discs), so a long dust stream never builds a mesh mid-fight.
+    const wantPlanes = Math.max(MAX_PARTS, colorList.length * 2);
+    const wantDiscs = Math.max(MAX_DUST, colorList.length);
     for (let i = 0; i < wantPlanes; i++) {
       const m = this.acquire(false);
       m.material = this.mat(colorList[i % colorList.length]);
@@ -198,6 +341,7 @@ export class StageFx {
       m.setEnabled(true);
       this.discPool.push(m);
     }
+    this.warmed = true;
   }
 
   /** Parks warmed-up pool meshes after the warm-up frames have compiled their shaders. */
@@ -336,6 +480,7 @@ export class StageFx {
     const mesh = round ? CreateDisc('fx', { radius: 0.5, tessellation: 18 }, this.scene) : CreatePlane('fx', { size: 1 }, this.scene);
     mesh.isPickable = false;
     if (round && this.glow) this.glow.addExcludedMesh(mesh);
+    if (this.warmed) this.grown++;
     return mesh;
   }
 

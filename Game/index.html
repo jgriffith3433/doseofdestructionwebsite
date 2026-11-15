@@ -4,9 +4,36 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Play | Dose of Destruction</title>
-  <meta name="theme-color" content="#100e0c">
+  <meta name="theme-color" content="#3a1608">
+  <!-- First paint: the brand loader (orange glow, wordmark in plain HTML/CSS) shows before game.css, the fonts or the JS bundle load. -->
+  <style>
+    html, body { margin: 0; height: 100%; background: #1c0d06 radial-gradient(ellipse at 50% 45%, #8a3010 0%, #3a1608 45%, #100e0c 80%); }
+    body { animation: dod-boot-in 0.25s ease both; } /* the landing page hands off with a fade into the brand colour */
+    #stage { opacity: 0; transition: opacity 0.4s ease; }
+    #stage.ready { opacity: 1; }
+    #tap-to-play { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; text-align: center; color: #f4efe8; font-family: Oswald, Impact, 'Arial Narrow', sans-serif; animation: dod-boot-in 0.25s ease both; }
+    #tap-to-play .logo { margin: 0; font-weight: 700; font-size: clamp(28px, 7vw, 80px); text-transform: uppercase; letter-spacing: 0.06em; color: #fff3df; }
+    #tap-to-play .logo span { color: #ffd15a; text-shadow: 0 3px 0 #5a2410; }
+    /* The Play button is styled here too, in the fallback font, so its label is there on the first paint (Oswald swaps in after). */
+    #tap-to-play .tap-cta { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 100%; max-width: 420px; min-width: 160px; min-height: 52px; margin: 18px auto 0; padding: 12px 16px; border: 2px solid #ff6a1f; border-radius: 999px; background: rgba(255, 106, 31, 0.18); color: #ffd15a; font: 600 20px Oswald, Impact, 'Arial Narrow', sans-serif; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer; }
+    #tap-to-play .tap-cta:active { transform: scale(0.97); background: rgba(255, 106, 31, 0.4); }
+    /* Boot line under Press start: real load steps (the inline script below), above the safe area. The bar's shimmer runs on the compositor, so it moves even while the main thread is busy. */
+    #btn-start.starting { transform: scale(0.97); background: #ff6a1f; color: #1c0d06; animation: none; }
+    .boot-progress { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); z-index: 60; transform: translateX(-50%); box-sizing: border-box; width: min(86vw, 420px); margin: 0; text-align: center; color: #f4efe8; font: 500 14px Barlow, 'Arial Narrow', sans-serif; letter-spacing: 0.04em; transition: opacity 0.4s ease; }
+    .boot-progress[hidden] { display: none; }
+    .boot-progress.done { opacity: 0; }
+    .boot-progress .bar { display: block; position: relative; overflow: hidden; height: 6px; margin: 0 0 8px; border-radius: 3px; background: rgba(255, 255, 255, 0.14); }
+    .boot-progress .bar b { display: block; height: 100%; width: 0; border-radius: 3px; background: #ff6a1f; transition: width 0.3s ease; }
+    .boot-progress .bar::after { content: ''; position: absolute; top: 0; bottom: 0; width: 30%; background: linear-gradient(90deg, transparent, rgba(255, 209, 90, 0.55), transparent); animation: dod-boot-sweep 1.2s linear infinite; }
+    .boot-fail { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+    .boot-fail[hidden] { display: none; }
+    .boot-fail button { min-width: 88px; min-height: 44px; padding: 8px 18px; border: 2px solid #ff6a1f; border-radius: 999px; background: rgba(255, 106, 31, 0.25); color: #ffd15a; font: 600 16px Oswald, Impact, 'Arial Narrow', sans-serif; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
+    @keyframes dod-boot-sweep { from { left: -30%; } to { left: 100%; } }
+    @keyframes dod-boot-in { from { opacity: 0; } to { opacity: 1; } }
+  </style>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Oswald:wght@500;600&display=swap">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../src/game/game.css">
@@ -15,6 +42,14 @@
   <canvas id="stage" aria-label="Game view"></canvas>
 
   <div id="hud" class="hud" hidden></div>
+  <div id="training-readout" class="training-readout" aria-live="off" hidden>
+    <div class="tr-combo"><span class="tr-count">0</span><span class="tr-unit">HIT COMBO</span></div>
+    <div class="tr-line"><span>Combo</span><b class="tr-dmg">0.0%</b></div>
+    <div class="tr-line"><span>Last hit</span><b class="tr-last">0.0%</b></div>
+    <div class="tr-tag">True combo</div>
+  </div>
+  <div id="edge-markers" class="edge-markers" aria-hidden="true"></div>
+  <div id="fighter-tags" class="fighter-tags" aria-hidden="true"></div>
   <div id="match-top" class="match-top" hidden>
     <div id="timer" class="timer" hidden></div>
     <p id="objective" class="objective" hidden></p>
@@ -34,6 +69,20 @@
     <a class="version-tag" href="/whatsnew.html" data-hawkes-version hidden></a>
   </section>
 
+  <section id="roster" class="screen roster-screen" hidden>
+    <header class="screen-head">
+      <button class="back-btn" type="button" data-back>&larr; Back</button>
+      <h2>The roster</h2>
+      <span id="roster-count" class="tour-count"></span>
+    </header>
+    <div id="roster-progress" class="roster-progress"></div>
+    <div id="roster-grid" class="roster-grid"></div>
+    <p id="roster-detail" class="roster-detail" aria-live="polite"></p>
+    <footer class="roster-foot">
+      <button id="btn-roster-go" class="primary big" type="button" data-autofocus>Continue</button>
+    </footer>
+  </section>
+
   <section id="main" class="screen main-screen" hidden>
     <nav class="main-menu" aria-label="Main menu">
       <h1 class="logo small">Dose of <span>Destruction</span></h1>
@@ -41,13 +90,25 @@
         <p class="lobby-count"><i class="dot"></i><span id="lobby-count">Connecting&hellip;</span></p>
         <ul id="lobby-list" class="lobby-list"></ul>
       </div>
-      <button class="menu-item" type="button" data-go="campaign" data-autofocus><strong>Campaign</strong><span>Eight chapters. One way off the air.</span></button>
+      <section id="daily-card" class="daily-card" aria-label="Tonight's Episode"></section>
+      <div class="mode-row" role="group" aria-label="Choose a mode">
+        <button class="mode-btn" type="button" data-go="campaign"><strong>Story</strong><span>Campaign</span></button>
+        <button class="mode-btn" type="button" data-go="versus"><strong>Versus</strong><span>Local</span></button>
+        <button class="mode-btn" type="button" data-go="online"><strong>Play</strong><span>Online</span></button>
+      </div>
+      <button class="menu-item" type="button" data-go="campaign" data-autofocus><strong>Campaign</strong><span id="campaign-blurb">The whole run. One way off the air.</span></button>
+      <button id="btn-tour" class="menu-item" type="button" data-go="tour"><strong>Tour</strong><span>Pick a fighter. Six fights, one rival, one ending.</span></button>
       <button class="menu-item" type="button" data-go="versus"><strong>Versus</strong><span>Up to four fighters, any mix of you and bots.</span></button>
       <button id="btn-find" class="menu-item online-item" type="button" data-go="online"><strong>Find match</strong><span id="find-sub">Fight another player online. Play on while you wait.</span></button>
+      <button id="btn-invite" class="menu-item online-item" type="button" data-go="invite"><strong>Invite a friend</strong><span>Send a link. They open it and you are in the same fight.</span></button>
       <button id="btn-profile" class="menu-item profile-item" type="button" data-go="profile"><img id="profile-img" alt=""><strong>Profile</strong><span id="profile-sub">Your name and picture.</span></button>
       <button id="btn-board" class="menu-item board-item" type="button" data-go="leaderboard"><strong>Leaderboard</strong><span id="board-sub">Top 100 online, this week and all time.</span></button>
-      <button class="menu-item" type="button" data-go="training"><strong>Training</strong><span>A dummy, no stocks, hitboxes on H.</span></button>
-      <button class="menu-item" type="button" data-go="howto"><strong>How to play</strong><span>Controls and the basics.</span></button>
+      <button id="btn-extras" class="menu-item" type="button" data-go="extras"><strong>Extras</strong><span>Endings: replay every Tour's last scene.</span></button>
+      <button class="menu-item" type="button" data-go="training"><strong>Training</strong><span data-hint="A dummy, no stocks. Hitboxes on {hitbox}.">A dummy, no stocks.</span></button>
+      <button class="menu-item" type="button" data-go="howto"><strong>How to play</strong><span>Learn it on the stage, one move at a time.</span></button>
+      <button class="menu-item" type="button" data-go="howto2"><strong>How to play 2</strong><span>Grab, throw, roll and dodge.</span></button>
+      <button class="menu-item" type="button" data-go="howto3"><strong>How to play 3</strong><span>Specials, fast fall and the way back.</span></button>
+      <button class="menu-item quiet" type="button" data-go="controls"><strong>All controls</strong></button>
       <button class="menu-item" type="button" data-go="settings"><strong>Settings</strong><span>Sound on or off, music and effects.</span></button>
       <a class="menu-item quiet" href="/"><strong>Back to site</strong></a>
       <a class="version-tag in-menu" href="/whatsnew.html" data-hawkes-version data-prefix="What&rsquo;s new &middot; v" hidden></a>
@@ -56,6 +117,15 @@
       <img id="main-spot-img" alt="">
       <figcaption id="main-spot-name"></figcaption>
     </figure>
+    <p class="on-air-bug" id="on-air-bug"><i class="dot"></i>On air</p>
+    <div class="ticker" id="ticker" aria-hidden="true">
+      <b class="ticker-tag">Tonight</b>
+      <div class="ticker-lines">
+        <span>Midnight, the Foundry floor. The whole city tunes in.</span>
+        <span>The card is set. Nobody leaves the way they came.</span>
+        <span>Ratings are up. The Orchestrator is pleased.</span>
+      </div>
+    </div>
   </section>
 
   <section id="select" class="screen select-screen" hidden>
@@ -65,8 +135,8 @@
       <div id="select-rules" class="rules"></div>
     </header>
     <div class="select-body">
-      <aside id="select-preview" class="preview" aria-live="polite"></aside>
       <div id="select-grid" class="grid"></div>
+      <aside id="select-preview" class="preview" aria-live="polite"></aside>
     </div>
     <footer id="select-slots" class="slots"></footer>
   </section>
@@ -89,30 +159,38 @@
       <h2>Campaign</h2>
       <button id="btn-campaign-reset" class="secondary small" type="button">Start over</button>
     </header>
-    <p class="lede">A walk-on fighter, a nightly broadcast, and the man who runs it. Clear each chapter to open the next.</p>
+    <div class="campaign-bar">
+      <p class="lede">A walk-on fighter, a nightly broadcast, and the man who runs it. Clear each chapter to open the next.</p>
+      <div id="difficulty" class="difficulty"></div>
+    </div>
     <div id="chapter-path" class="chapter-path"></div>
   </section>
 
-  <section id="dialogue" class="screen dialogue-screen" hidden>
-    <p id="dlg-chapter" class="dlg-chapter"></p>
-    <div class="dlg-stage">
-      <img id="dlg-left" class="dlg-portrait left" alt="">
-      <img id="dlg-right" class="dlg-portrait right" alt="">
-    </div>
-    <div class="dlg-box">
-      <p id="dlg-name" class="dlg-name"></p>
-      <p id="dlg-text" class="dlg-text" aria-live="polite"></p>
-      <div class="dlg-actions">
-        <button id="dlg-skip" class="secondary" type="button">Skip</button>
-        <button id="dlg-next" class="primary" type="button" data-autofocus>Next</button>
-      </div>
-    </div>
+  <section id="tour" class="screen tour-screen" hidden>
+    <header class="screen-head">
+      <button class="back-btn" type="button" data-back>&larr; Back</button>
+      <h2>Tour</h2>
+      <span id="tour-count" class="tour-count"></span>
+    </header>
+    <p class="lede">Pick a fighter and play their own six fights, ending on their rival. Clear it and the Tour stays marked.</p>
+    <div id="tour-grid" class="tour-grid"></div>
+  </section>
+
+  <section id="extras" class="screen extras-screen" hidden>
+    <header class="screen-head">
+      <button class="back-btn" type="button" data-back>&larr; Back</button>
+      <h2>Extras · Endings</h2>
+      <span id="extras-count" class="tour-count"></span>
+    </header>
+    <button id="btn-opening" class="menu-item opening-replay" type="button"><strong>Opening</strong><span>Watch the show's 30 second opening titles.</span></button>
+    <p class="lede">Clear a fighter's Tour to open their ending. Tap one to watch it again.</p>
+    <div id="ending-grid" class="ending-grid"></div>
   </section>
 
   <section id="howto" class="screen howto-screen" hidden>
     <header class="screen-head">
       <button class="back-btn" type="button" data-back data-autofocus>&larr; Back</button>
-      <h2>How to play</h2>
+      <h2>All controls</h2>
     </header>
     <div class="howto-body">
       <div class="basics">
@@ -121,11 +199,14 @@
           <li><strong>Hits add damage.</strong> The percent under each fighter is how far the next hit sends them.</li>
           <li><strong>Launch them off.</strong> Past the edge of the screen, that fighter loses a stock.</li>
           <li><strong>Get back.</strong> Jump, use your air jumps, then up special (up + special) to reach the ledge.</li>
+          <li><strong>On the ledge, choose.</strong> Stick up gets you up, Attack sweeps low, Shield rolls in, Jump leaps. Hang too long and you drop.</li>
+          <li><strong>Special changes with the stick.</strong> Hold a direction with Special for the side, up or down special; each fighter's are their own.</li>
           <li><strong>Last one standing</strong> takes the match.</li>
         </ol>
       </div>
       <div><h3>Keyboard</h3><dl id="keys-kb" class="keys"></dl></div>
       <div><h3>Gamepad</h3><dl id="keys-pad" class="keys"></dl></div>
+      <div><h3>Touch</h3><dl id="keys-touch" class="keys"></dl></div>
     </div>
   </section>
 
@@ -154,14 +235,69 @@
 
   <section id="match" class="screen match-screen" hidden></section>
 
+  <!-- Live story scenes (src/game/ui/scene.ts): letterbox, the show's lower third and one short line at a time. -->
+  <div id="scene" class="scene" hidden>
+    <div class="scene-bar top"></div>
+    <!-- The show's logo bug over the replay, the recap and the tease (ui/segment.ts). -->
+    <div id="scene-bug" class="scene-bug" hidden><span class="scene-bug-logo">Dose of <b>Destruction</b></span><span id="scene-bug-tag" class="scene-bug-tag"></span></div>
+    <div id="scene-card" class="scene-card" hidden>
+      <p id="scene-card-tag" class="scene-card-tag"></p>
+      <p id="scene-card-kicker" class="scene-card-kicker"></p>
+      <h2 id="scene-card-title" class="scene-card-title"></h2>
+      <p id="scene-card-line" class="scene-card-line" aria-live="polite"></p>
+    </div>
+    <div id="scene-sub" class="scene-sub" hidden>
+      <img id="scene-head" class="scene-head" alt="" hidden>
+      <span id="scene-who" class="scene-who"></span>
+      <span id="scene-text" class="scene-text" aria-live="polite"></span>
+    </div>
+    <div class="scene-bar bottom">
+      <button id="scene-skip" class="secondary" type="button">Skip</button>
+      <button id="scene-next" class="primary" type="button">Next</button>
+    </div>
+  </div>
+
+  <!-- First visit: the title logo over the cold open's first shot (campaign/firstVisit.ts), and the small Menu link that opts out. -->
+  <div id="pilot-logo" class="pilot-logo" aria-hidden="true">
+    <h1 class="logo">Dose of <span>Destruction</span></h1>
+  </div>
+  <button id="pilot-menu" class="pilot-menu" type="button" hidden>Menu</button>
+
+  <div id="controls-panel" class="overlay" role="dialog" aria-modal="true" aria-labelledby="controls-title" hidden>
+    <div class="panel controls-panel">
+      <h2 id="controls-title">All controls</h2>
+      <div class="controls-cols">
+        <div><h3>Keyboard</h3><dl id="ctl-kb" class="keys"></dl></div>
+        <div><h3>Gamepad</h3><dl id="ctl-pad" class="keys"></dl></div>
+        <div><h3>Touch</h3><dl id="ctl-touch" class="keys"></dl></div>
+      </div>
+      <div class="actions column"><button id="btn-controls-close" class="primary" type="button">Back</button></div>
+    </div>
+  </div>
+
   <div id="pause" class="overlay" hidden>
     <div class="panel small">
       <h2>Paused</h2>
+      <p id="pause-owner" class="pause-owner" hidden></p>
+      <div class="pause-body">
+      <div id="training-options" class="training-options" hidden>
+        <h3>Dummy</h3>
+        <div class="to-group" role="group" aria-label="Dummy behaviour" id="to-modes"></div>
+        <div class="to-level" id="to-level-row" hidden>
+          <button id="to-level-down" class="secondary" type="button" aria-label="CPU level down">−</button>
+          <span id="to-level">CPU level 5</span>
+          <button id="to-level-up" class="secondary" type="button" aria-label="CPU level up">+</button>
+        </div>
+        <h3>Dummy percent</h3>
+        <div class="to-group pct" role="group" aria-label="Dummy percent" id="to-percents"></div>
+      </div>
       <div class="actions column">
         <button id="btn-resume" class="primary" type="button" data-autofocus>Resume</button>
         <button id="btn-restart" class="secondary" type="button">Restart</button>
+        <button id="btn-pause-controls" class="secondary" type="button">All controls</button>
         <button id="btn-pause-settings" class="secondary" type="button">Settings</button>
         <button id="btn-quit" class="secondary" type="button">Quit</button>
+      </div>
       </div>
     </div>
   </div>
@@ -173,12 +309,89 @@
         <span>Sound</span>
         <button id="sound-switch" class="switch" type="button" role="switch" aria-checked="true" data-autofocus>On</button>
       </div>
+      <div class="setting-row">
+        <span>Reduce motion</span>
+        <button id="motion-switch" class="switch" type="button" role="switch" aria-checked="false" aria-label="Reduce motion: no KO slow motion or zoom">Off</button>
+      </div>
+      <div class="settings-levels">
+        <label class="slider"><span>Screen shake</span><input id="shake-level" type="range" min="0" max="100" step="5"><output id="shake-level-value"></output></label>
+      </div>
+      <div class="setting-row">
+        <span id="flash-label">Flashes</span>
+        <div class="seg" id="flash-seg" role="radiogroup" aria-labelledby="flash-label">
+          <button class="switch" type="button" role="radio" data-fl="full" aria-checked="true">Full</button>
+          <button class="switch" type="button" role="radio" data-fl="soft" aria-checked="false">Soft</button>
+          <button class="switch" type="button" role="radio" data-fl="off" aria-checked="false">Off</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span>Rumble</span>
+        <button id="rumble-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
+      </div>
+      <div class="setting-row">
+        <span>Colour vision</span>
+        <button id="colour-switch" class="switch" type="button" role="switch" aria-checked="false">Standard</button>
+      </div>
+      <div class="setting-row">
+        <span>Shield</span>
+        <button id="shield-switch" class="switch" type="button" role="switch" aria-checked="false" aria-label="Shield: Hold or Toggle">Hold</button>
+      </div>
+      <div class="setting-row" id="controls-row">
+        <span>Controls</span>
+        <button id="rebind-open" class="switch" type="button">Rebind</button>
+      </div>
+      <div class="setting-row">
+        <span id="textsize-label">Text size</span>
+        <div class="seg" id="textsize-seg" role="radiogroup" aria-labelledby="textsize-label">
+          <button class="switch" type="button" role="radio" data-ts="100" aria-checked="true">100%</button>
+          <button class="switch" type="button" role="radio" data-ts="125" aria-checked="false">125%</button>
+          <button class="switch" type="button" role="radio" data-ts="150" aria-checked="false">150%</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span>Quality</span>
+        <button id="quality-switch" class="switch" type="button" role="switch" aria-checked="true">High</button>
+      </div>
+      <div class="setting-row">
+        <span>Glow</span>
+        <button id="glow-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
+      </div>
+      <div class="setting-row">
+        <span>Show FPS</span>
+        <button id="fps-switch" class="switch" type="button" role="switch" aria-checked="false">Off</button>
+      </div>
       <div id="settings-levels" class="settings-levels">
         <label class="slider"><span>Music</span><input id="vol-music" type="range" min="0" max="100" step="1"><output id="vol-music-value"></output></label>
         <label class="slider"><span>Effects</span><input id="vol-sfx" type="range" min="0" max="100" step="1"><output id="vol-sfx-value"></output></label>
+        <label class="slider"><span>Voice</span><input id="vol-voice" type="range" min="0" max="100" step="1"><output id="vol-voice-value"></output></label>
       </div>
-      <p class="hint">Effects covers hits, menus and voices. Press <kbd>M</kbd> any time to turn sound on or off.</p>
+      <div class="setting-row">
+        <span>Captions</span>
+        <button id="captions-switch" class="switch" type="button" role="switch" aria-checked="true">On</button>
+      </div>
+      <div id="settings-touch" class="settings-levels" hidden>
+        <label class="slider"><span>Touch size</span><input id="touch-size" type="range" min="75" max="150" step="5"><output id="touch-size-value"></output></label>
+        <label class="slider"><span>Touch opacity</span><input id="touch-opacity" type="range" min="30" max="100" step="5"><output id="touch-opacity-value"></output></label>
+      </div>
+      <p class="hint">Music, Effects and Voice (announcer, commentary, story and fighter lines) are separate. Captions show the spoken lines as text; story lines still show when sound is off. Screen shake is the camera kick on hits and KOs. Rumble buzzes a controller or phone by how hard a hit lands (a short buzz, a jolt, a long one for a KO), softer with reduced motion. Touch size and opacity (touch devices) tune the on-screen stick. Quality Low draws fewer pixels and sparks, for phones; Glow is the bloom on bright art. Press <kbd>M</kbd> any time to turn sound on or off.</p>
       <button id="settings-done" class="primary" type="button">Done</button>
+    </div>
+  </div>
+
+  <div id="rebind" class="overlay" role="dialog" aria-modal="true" aria-labelledby="rebind-title" hidden>
+    <div class="panel rebind-panel">
+      <h2 id="rebind-title">Controls</h2>
+      <div class="seg" id="rebind-tabs" role="radiogroup" aria-label="Device">
+        <button class="switch" type="button" role="radio" data-tab="keyboard" aria-checked="true" data-autofocus>Keyboard</button>
+        <button class="switch" type="button" role="radio" data-tab="gamepad" aria-checked="false">Gamepad</button>
+      </div>
+      <div id="rebind-rows" class="rebind-rows"></div>
+      <p id="rebind-note" class="rebind-note" role="status" aria-live="polite" data-warn="false"></p>
+      <p id="rebind-hint" class="hint"></p>
+      <div class="actions">
+        <button id="rebind-reset" class="secondary" type="button">Reset to defaults</button>
+        <button id="rebind-done" class="primary" type="button">Done</button>
+      </div>
     </div>
   </div>
 
@@ -198,6 +411,25 @@
     </div>
   </div>
 
+  <div id="invite" class="overlay" role="dialog" aria-modal="true" aria-labelledby="invite-title" hidden>
+    <div class="panel invite-panel">
+      <h2 id="invite-title">Invite a friend</h2>
+      <p id="invite-status" class="invite-status" role="status" aria-live="polite"></p>
+      <div id="invite-share-row" class="invite-share" hidden>
+        <input id="invite-link" type="text" readonly aria-label="Invite link" spellcheck="false" autocomplete="off">
+        <div class="actions">
+          <button id="invite-share" class="primary" type="button" data-autofocus>Share</button>
+          <button id="invite-copy" class="secondary" type="button">Copy link</button>
+        </div>
+        <p id="invite-note" class="hint" role="status" aria-live="polite"></p>
+      </div>
+      <div class="actions">
+        <button id="invite-quick" class="primary" type="button" hidden>Quick match</button>
+        <button id="invite-cancel" class="secondary" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <div id="mm-chip" class="mm-chip" role="status" hidden>
     <span id="mm-chip-text">Searching for opponent&hellip;</span>
     <button id="mm-cancel" type="button">Cancel</button>
@@ -213,16 +445,34 @@
   </div>
   <p id="net-status" class="net-status" hidden></p>
 
-  <div id="loading" class="loading" hidden>Loading fighters&hellip;</div>
-  <div id="wipe" class="wipe" aria-hidden="true"><i></i><i></i></div>
+  <!-- Boot line: the inline script below fills it with real load steps; a one-line message with Retry replaces it when WebGL is missing or too slow. -->
+  <div id="boot-progress" class="boot-progress" role="status" aria-live="polite">
+    <i class="bar"><b></b></i>
+    <span class="boot-label">Loading&hellip;</span>
+    <span class="boot-fail" hidden><span class="boot-msg"></span><button type="button" class="boot-retry">Retry</button></span>
+  </div>
+  <div id="loading" class="loading" hidden role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Loading"><span id="loading-text" class="loading-text">Loading fighters&hellip;</span><div class="loading-bar"><i id="loading-fill" class="loading-fill"></i></div></div>
+  <div id="wipe" class="wipe" aria-hidden="true"><i></i><i class="stinger-slots"><u></u><u></u><u></u><u></u></i><i class="stinger-logo"><b>Dose of <span>Destruction</span></b></i><em class="stinger-streak"></em></div>
 
   <!-- Studio standard: one tap before the game starts turns sound on (iOS needs a gesture). -->
-  <div id="tap-to-play" class="tap-to-play" role="button" tabindex="0" aria-label="Tap to play">
-    <div>
-      <p class="kicker">Live from the Foundry</p>
-      <h1 class="logo">Dose of <span>Destruction</span></h1>
-      <p class="tap-cta">Tap to play</p>
-      <p class="tap-note">Sound on. Turn it up.</p>
+  <div id="tap-to-play" class="tap-to-play" role="dialog" tabindex="-1" aria-label="Play as guest: tap to play">
+    <!-- Key art: the whole roster, full screen, behind the card (same file as the card's picture, so one download). -->
+    <picture class="tap-backdrop" aria-hidden="true">
+      <source type="image/webp" srcset="/site/img/lineup-900.webp">
+      <img src="/site/img/lineup-1600.jpg" alt="" decoding="async">
+    </picture>
+    <div class="tap-card">
+      <picture class="tap-art" aria-hidden="true">
+        <source type="image/webp" srcset="/site/img/lineup-900.webp">
+        <img src="/site/img/lineup-1600.jpg" alt="" width="900" height="506" decoding="async">
+      </picture>
+      <div class="tap-copy">
+        <p class="kicker">Live from the Foundry</p>
+        <h1 class="logo">Dose of <span>Destruction</span></h1>
+        <p class="tap-pitch">A platform fighter: knock every rival off the stage.</p>
+        <button class="tap-cta" type="button" tabindex="-1" aria-label="Play as guest">Play</button>
+        <p class="tap-note">Play as guest. No sign-in. Starting&hellip;</p>
+      </div>
     </div>
   </div>
   <script>
@@ -238,17 +488,34 @@
         if (!tap.onTap) {
           try {
             var Ctor = window.AudioContext || window.webkitAudioContext;
-            if (Ctor) {
+            if (Ctor && !tap.ctx) {
               tap.ctx = new Ctor();
               if (tap.ctx.resume) tap.ctx.resume().catch(function () {});
             }
           } catch (e) {}
         }
+        // The press answers with a sound on the same frame (every input has one, within 150 ms). It is a short blip on a
+        // context of its own, reported to the sound probe as a sound start like the game's other synth sounds.
+        try {
+          var Bctor = window.AudioContext || window.webkitAudioContext;
+          var bctx = tap.ctx || (Bctor ? (tap.ctx = new Bctor()) : null);
+          if (bctx) {
+            if (bctx.resume) bctx.resume().catch(function () {});
+            var bt = bctx.currentTime, bo = bctx.createOscillator(), bg = bctx.createGain();
+            bo.type = 'triangle'; bo.frequency.setValueAtTime(660, bt); bo.frequency.exponentialRampToValueAtTime(990, bt + 0.07);
+            bg.gain.setValueAtTime(0.0001, bt); bg.gain.exponentialRampToValueAtTime(0.07, bt + 0.01); bg.gain.exponentialRampToValueAtTime(0.0001, bt + 0.16);
+            bo.connect(bg); bg.connect(bctx.destination); bo.start(bt); bo.stop(bt + 0.18);
+            window.dispatchEvent(new CustomEvent('hawkes-sound', { detail: { type: 'sound-start', sample: 'ui-tap-to-play', bus: 'ui', rate: 1, gain: 0.07, dur: 0.18 } }));
+          }
+        } catch (e) {}
         // It keeps catching taps while it fades, so the tap's own click never lands on the title below.
         prompt.classList.add('gone');
         setTimeout(function () { prompt.hidden = true; document.dispatchEvent(new Event('dod:tapped')); }, 400);
         if (tap.onTap) tap.onTap();
       };
+      // Nobody has to tap: a stranger who only watches is dropped into the cold open after 3 s (sound unlocks on their
+      // first touch or key). Not under a playtest, which taps it like a player.
+      if (!/[?&](playtest|play|chapter)\b/.test(location.search)) setTimeout(go, 3000);
       prompt.addEventListener('click', go);
       prompt.addEventListener('pointerup', go);
       prompt.addEventListener('touchend', go);
@@ -262,9 +529,133 @@
       }, true);
     })();
   </script>
+  <script>
+    // Boot (src/game/boot.ts is the module's side). Everything here runs before the engine exists, so Press start answers on the
+    // press itself (pressed look, a blip, "Starting…") and goes into the menu the moment main.ts calls ready(). Progress moves on
+    // real events only: page parsed, fonts, key art decoded, module running, engine created, first frame, menus wired.
+    (function () {
+      var line = document.getElementById('boot-progress');
+      var btn = document.getElementById('btn-start');
+      var label = line.querySelector('.boot-label');
+      var fill = line.querySelector('.bar b');
+      var failBox = line.querySelector('.boot-fail');
+      var t0 = performance.now();
+      var STEPS = { page: 8, fonts: 25, art: 40, module: 55, engine: 75, frame: 90, ready: 100 };
+      var LABELS = { page: 'Page loaded', fonts: 'Fonts loaded', art: 'Title art ready', module: 'Starting the engine', engine: 'Engine ready', frame: 'First frame drawn', ready: 'Ready' };
+      var state = { software: false, handledAt: 0, isReady: false, failed: false, pending: false, start: null, pct: 0, text: 'Loading', last: t0 };
+      var boot = window.__dodBoot = state;
+      function paint() {
+        if (state.failed || state.isReady) return;
+        var s = Math.round((performance.now() - t0) / 1000);
+        label.textContent = state.text + '… ' + s + ' s';
+        fill.style.width = state.pct + '%';
+      }
+      state.step = function (name, text) {
+        if (state.failed) return;
+        var pct = STEPS[name] || state.pct;
+        if (pct > state.pct) state.pct = pct;
+        state.text = text || LABELS[name] || state.text;
+        state.last = performance.now();
+        paint();
+        try { document.dispatchEvent(new CustomEvent('dod:boot', { detail: { step: name, at: Math.round(performance.now() - t0) } })); } catch (e) {}
+      };
+      state.fail = function (message) {
+        if (state.failed) return;
+        state.failed = true;
+        line.querySelector('.bar').hidden = true;
+        label.hidden = true;
+        line.querySelector('.boot-msg').textContent = message;
+        failBox.hidden = false;
+        btn.classList.remove('starting');
+        if (btn.firstChild) btn.textContent = 'Press start';
+        try { document.dispatchEvent(new CustomEvent('dod:boot', { detail: { step: 'fail', message: message } })); } catch (e) {}
+      };
+      state.ready = function (start) {
+        state.isReady = true;
+        state.failed = false;
+        failBox.hidden = true;
+        state.start = start;
+        state.pct = 100;
+        fill.style.width = '100%';
+        label.textContent = 'Ready';
+        line.classList.add('done');
+        setTimeout(function () { line.hidden = true; }, 450);
+        document.dispatchEvent(new CustomEvent('dod:boot', { detail: { step: 'ready', at: Math.round(performance.now() - t0) } }));
+        if (state.pending) {
+          state.pending = false;
+          start();
+          setTimeout(function () { btn.classList.remove('starting'); btn.textContent = 'Press start'; }, 700);
+        }
+      };
+      line.querySelector('.boot-retry').addEventListener('click', function () { location.reload(); });
+
+      // WebGL: none at all is a one-line message; a software renderer (no GPU) is noted so the game starts on Low with Glow off.
+      try {
+        var probe = document.createElement('canvas');
+        var gl = probe.getContext('webgl2') || probe.getContext('webgl');
+        if (!gl) {
+          state.fail('Graphics (WebGL) are not available in this browser.');
+        } else {
+          var info = gl.getExtension('WEBGL_debug_renderer_info');
+          var name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : '';
+          state.software = /swiftshader|llvmpipe|software|softpipe/i.test(name);
+          var lose = gl.getExtension('WEBGL_lose_context');
+          if (lose) lose.loseContext();
+        }
+      } catch (e) { state.fail('Graphics (WebGL) are not available in this browser.'); }
+
+      // The press: answered here, at once, whatever the engine is doing.
+      var blip = function () {
+        try {
+          var tap = window.__dodTap || {};
+          var ctx = tap.ctx;
+          if (!ctx) {
+            var Ctor = window.AudioContext || window.webkitAudioContext;
+            if (Ctor) { ctx = tap.ctx = new Ctor(); }
+          }
+          if (!ctx) return;
+          if (ctx.resume) ctx.resume().catch(function () {});
+          var o = ctx.createOscillator(), g = ctx.createGain();
+          o.type = 'square'; o.frequency.setValueAtTime(520, ctx.currentTime); o.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.08);
+          g.gain.setValueAtTime(0.08, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.14);
+          o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.16);
+        } catch (e) {}
+      };
+      var press = function () {
+        if (state.isReady || state.failed || state.pending) return;
+        state.pending = true;
+        state.handledAt = performance.now();
+        btn.classList.add('starting');
+        btn.textContent = 'Starting…';
+        blip();
+        try { document.dispatchEvent(new CustomEvent('dod:boot', { detail: { step: 'press', at: Math.round(performance.now() - t0) } })); } catch (e) {}
+      };
+      btn.addEventListener('pointerdown', press, true);
+      btn.addEventListener('click', press, true); // keyboard: Enter or Space on the focused button
+      document.addEventListener('dod:tapped', function () { if (!state.isReady) btn.focus({ preventScroll: true }); });
+
+      // Real steps.
+      state.step('page');
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { state.step('fonts'); });
+      var art = document.querySelector('.title-art img');
+      if (art) { if (art.complete) state.step('art'); else art.addEventListener('load', function () { state.step('art'); }, { once: true }); art.addEventListener('error', function () { state.step('art'); }, { once: true }); }
+      // A heartbeat for the seconds shown on the line (a clock, not a request).
+      var beat = setInterval(function () { if (state.isReady || state.failed) clearInterval(beat); else paint(); }, 1000);
+      // Too slow: the engine never came up. The message is one line; Retry reloads.
+      var slow = setTimeout(function () {
+        if (!state.isReady && !state.failed && state.pct < STEPS.engine) state.fail('This device is too slow to start the game graphics.');
+      }, 60000);
+      var slowFrame = setTimeout(function () {
+        if (!state.isReady && !state.failed) state.fail('The game graphics are too slow on this device to start.');
+      }, 120000);
+      document.addEventListener('dod:boot', function (e) { if (e.detail && e.detail.step === 'ready') { clearTimeout(slow); clearTimeout(slowFrame); } });
+    })();
+  </script>
   <!-- Hawkes Analytics (anonymous gameplay statistics; AGENTS.md "Analytics"): before the game module, which uses it. -->
   <script src="https://hawkesgen.ai/sdk/analytics@1.js" data-product="doseofdestruction" defer></script>
   <script type="module" src="../src/game/main.ts"></script>
   <script src="/site/hawkes-release.js" data-releases="/releases.json" defer></script>
+  <div id="ending" class="ending" hidden role="dialog" aria-label="Tour ending"></div>
+  <div id="opening" class="opening" hidden role="dialog" aria-label="The show's opening"></div>
 </body>
 </html>

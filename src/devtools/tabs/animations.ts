@@ -799,8 +799,10 @@ function takesCard(st: FighterState, name: string): HTMLElement | null {
 }
 
 function timelineParts(move: Move): HTMLElement[] {
-  const first = Math.min(...move.hits.map((w) => w.start));
-  const last = Math.max(...move.hits.map((w) => w.end));
+  // Specials without a hit window (a throw, a trap, a counter) show their own moment instead.
+  const spans = move.hits.length ? move.hits : [{ start: move.shot?.frame ?? move.counter?.from ?? 0, end: move.counter?.to ?? move.shot?.frame ?? 0 }];
+  const first = Math.min(...spans.map((w) => w.start));
+  const last = Math.max(...spans.map((w) => w.end));
   const pct = (n: number) => `${(n / move.total) * 100}%`;
   return [
     h('span', { class: 'startup', style: `width:${pct(first)}` }, first > 4 ? `startup ${first}` : ''),

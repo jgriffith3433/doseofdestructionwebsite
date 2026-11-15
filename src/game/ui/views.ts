@@ -1,15 +1,29 @@
-// Stage select, the VS splash, the end-of-match screen, the campaign map and
-// dialogue scenes.
+// Stage select, the VS splash, the end-of-match screen and the campaign map. Story scenes play in the
+// arena (scene.ts).
 
 import { CHARACTERS } from '../sim/characters.ts';
 import { STAGES, type StageDef } from '../sim/stage.ts';
+
+/** A stage the Hazards rule changes: it has events, hazards or damage zones (what the sim gates on rules.hazards). */
+export const hasHazard = (st: StageDef): boolean => !!st.events?.length || !!st.hazards?.length || !!st.zones?.some((z) => z.kind === 'damage');
 import type { Match, MatchSetup } from '../match.ts';
-import { CHAPTERS, SEASONS, isOpen, seasonCleared, seasonOpen, type Chapter, type Line } from '../campaign/story.ts';
-import { PLAYER_COLORS } from '../render/renderer.ts';
+import { CHAPTERS, SEASONS, isOpen, nextUnlock, loadBests, loadStars, seasonCleared, seasonOpen, type Chapter } from '../campaign/story.ts';
+import { DIFFICULTIES, DIFFICULTY_LABEL, DIFFICULTY_NOTE, difficulty, easyCleared, setDifficulty } from '../campaign/difficulty.ts';
+import type { Grade, Score } from '../campaign/grade.ts';
+import { hasReward, pickedTitle, rewardLine, setVariant, variantsFor, type Reward } from '../campaign/rewards.ts';
+import { PLAYER_COLORS, prefetchStage } from '../render/renderer.ts';
+import { SHAPE_GLYPH, shapeOf } from '../colourVision.ts';
 import { TEAM_COLORS } from './select.ts';
-import { $, formatTime, h, kids, largeUrl, pct, thumbUrl } from './dom.ts';
+import { $, formatTime, h, kids, largeUrl, pct, portraitSize, portraitUrl, thumbUrl } from './dom.ts';
 import type { ModeStage } from '../modes.ts';
 import { audio } from '../audio.ts';
+import { lookChip, paintImage } from './lookUi.ts';
+import { currentWinQuote } from '../winQuote.ts';
+import { quoteCaption } from './quoteCaption.ts';
+import { victoryStage } from './victory.ts';
+import { stagePreview } from './stagePreview.ts';
+import { hintText } from './teach.ts';
+import { setShareInfo, hasShareInfo, shareResult } from './share.ts';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -63,24 +77,54 @@ export function stageThumb(stage: StageDef): SVGElement {
   return root;
 }
 
-/** The stage select: the stages a mode offers (content/modes.json), in its order. */
-export function openStages(list: { index: number; entry: ModeStage }[], onPick: (stage: number, entry: ModeStage, random?: boolean) => void, chosen: number): void {
+/**
+ * The stage select: the stages a mode offers (content/modes.json), in its order.
+ * `onPrep(stage, immediate)` builds the Babylon stage + fighters while the player browses
+ * (images via prefetchStage first), so startMatch's wipe into VS isn't blocked by showStage.
+ * The focused card is prepped immediately; later focus/hover can debounce.
+ */
+export function openStages(
+  list: { index: number; entry: ModeStage }[],
+  onPick: (stage: number, entry: ModeStage, random?: boolean) => void,
+  chosen: number,
+  onPrep?: (stage: number, immediate?: boolean) => void,
+): void {
   const grid = $('stage-grid');
   const focus = list.some((x) => x.index === chosen) ? chosen : list[0]?.index;
+  const prep = (index: number, immediate?: boolean) => {
+    prefetchStage(index);
+    onPrep?.(index, immediate);
+  };
+  if (focus !== undefined) prep(focus, true);
+  void audio.preloadLines(list.map(({ index }) => `announcer.stage.${STAGES[index].id}`));
   grid.replaceChildren(
     ...list.map(({ index, entry }) => {
       const st = STAGES[index];
       return h(
         'button',
-        { type: 'button', class: 'stage-card', 'data-stage': st.id, 'data-autofocus': index === focus || undefined, onclick: () => onPick(index, entry) },
-        stageThumb(st),
+        { type: 'button', class: 'stage-card', 'data-stage': st.id, 'data-autofocus': index === focus || undefined, onclick: () => { setVariant(null); onPick(index, entry); }, onfocus: () => { setVariant(null); prep(index); }, onpointerenter: () => prep(index) },
+        h('div', { class: 'stage-shot' }, stageThumb(st), stagePreview(st)),
         h('strong', {}, entry.name || st.name),
         h('span', {}, entry.blurb || st.blurb),
+        hasHazard(st) && entry.rules?.hazards !== 0 && h('i', { class: 'hazard-icon', 'data-hazard': '', title: 'Has a stage hazard', 'aria-label': 'Has a stage hazard' }, '⚠'),
       );
+    }),
+    // Stage variants earned in Seasons 8 to 10: the same stage under another existing colour grade (campaign/rewards.ts).
+    ...variantsFor(list.map((x) => STAGES[x.index].id)).flatMap((v) => {
+      const x = list.find((y) => STAGES[y.index].id === v.stage)!;
+      const st = STAGES[x.index];
+      const src = STAGES.find((y) => y.id === v.grade);
+      return [h(
+        'button',
+        { type: 'button', class: 'stage-card variant', 'data-stage': st.id, 'data-variant': v.id, style: `--grade:${src?.grade?.tint ?? '#ffb070'}`, onclick: () => { setVariant(v.id); onPick(x.index, x.entry); }, onfocus: () => { prep(x.index); setVariant(v.id); }, onpointerenter: () => { prep(x.index); } },
+        h('div', { class: 'stage-shot' }, stageThumb(st)),
+        h('strong', {}, v.name),
+        h('span', {}, 'Stage variant'),
+      )];
     }),
     h(
       'button',
-      { type: 'button', class: 'stage-card random', onclick: () => { const x = list[Math.floor(Math.random() * list.length)]; if (x) onPick(x.index, x.entry, true); } },
+      { type: 'button', class: 'stage-card random', onclick: () => { const x = list[Math.floor(Math.random() * list.length)]; setVariant(null); if (x) onPick(x.index, x.entry, true); } },
       h('b', {}, '?'),
       h('strong', {}, 'Random'),
       h('span', {}, 'Let the broadcast decide.'),
@@ -91,6 +135,32 @@ export function openStages(list: { index: number; entry: ModeStage }[], onPick: 
 // ---------------------------------------------------------------- versus
 
 /** Fills the VS splash. Resolves when it has played or the player skips it. */
+/** A picture of a fighter in the colour it plays in. */
+function paintedImg(url: string, char: number, look: number, cls = ''): HTMLImageElement {
+  const img = h('img', { alt: '', class: cls || undefined, 'data-fighter': CHARACTERS[char]?.id }) as HTMLImageElement;
+  // A portrait that fails to load falls back to the fighter's large cutout, then the thumbnail, never a blank plate
+  // (character select does the same); `data-fallback` says which one is showing, so the playtest can report it.
+  const id = CHARACTERS[char]?.id;
+  const fallbacks = id ? [largeUrl(id), thumbUrl(id)] : [];
+  img.addEventListener('error', () => {
+    const next = fallbacks.shift();
+    if (!next) return;
+    img.dataset.fallback = next;
+    img.src = next;
+  });
+  paintImage(img, url, char, look);
+  return img;
+}
+
+/** The painted portrait on a VS card (also built by the portraits playtest for every fighter, so the real element is what it checks). */
+export function vsPortrait(char: number, look = 0, size: 256 | 512 = portraitSize()): HTMLImageElement {
+  return paintedImg(portraitUrl(CHARACTERS[char].id, size), char, look, 'vs-portrait');
+}
+
+/** Gap between two announcer calls on the VS card, and the most the calls may take (so the card is never held past its cap). */
+const VS_GAP_MS = 60;
+const VS_CALLS_MAX_MS = 3300;
+
 export function playVersus(setup: MatchSetup): Promise<void> {
   const body = $('versus-body');
   const teams = setup.slots.some((s) => s.team !== undefined) && new Set(setup.slots.map((s) => s.team)).size > 1;
@@ -98,7 +168,7 @@ export function playVersus(setup: MatchSetup): Promise<void> {
   const stage = STAGES[setup.stage];
 
   body.replaceChildren(...kids(
-    setup.title ? h('p', { class: 'vs-title' }, setup.title) : null,
+    h('p', { class: 'vs-title' }, setup.title ?? 'Tonight’s main event'),
     h(
       'div',
       { class: `vs-row n${sides.length}` },
@@ -112,9 +182,16 @@ export function playVersus(setup: MatchSetup): Promise<void> {
             const c = CHARACTERS[s.char];
             return h(
               'figure',
-              { class: 'vs-fighter', style: `--slot:${color}` },
-              h('img', { src: largeUrl(c.id), alt: '' }),
-              h('figcaption', {}, h('span', {}, setup.online ? setup.online.names[slot] : s.cpu === null ? 'You' : s.cpu === 0 ? 'Dummy' : `CPU ${s.cpu}`), h('strong', {}, c.name)),
+              { class: 'vs-fighter', 'data-fighter': c.id, 'data-look': String(s.look ?? 0), style: `--slot:${color}` },
+              vsPortrait(s.char, s.look ?? 0),
+              h(
+                'figcaption',
+                { class: 'vs-card' },
+                h('span', s.cpu ? { class: 'vs-level', 'data-level': String(s.cpu), 'data-auto': s.auto ? '1' : '0' } : {}, setup.online ? setup.online.names[slot] : s.cpu === null ? (setup.slots.filter((o) => o.cpu === null).length > 1 ? `Player ${slot + 1}` : 'You') : s.cpu === 0 ? 'Dummy' : `CPU · Level ${s.cpu}${s.auto ? ' · Auto' : ''}`),
+                h('strong', {}, c.name),
+                lookChip(s.char, s.look ?? 0),
+                s.cpu === null && setup.mode === 'versus' && !setup.online && pickedTitle() ? h('small', { class: 'vs-reward-title', 'data-title': pickedTitle()!.id }, pickedTitle()!.name) : null,
+              ),
               s.scale && s.scale > 100 ? h('em', { class: 'vs-tag' }, 'Giant') : null,
             );
           }),
@@ -122,7 +199,7 @@ export function playVersus(setup: MatchSetup): Promise<void> {
         return i < sides.length - 1 ? [group, h('div', { class: 'vs-mark', style: `--d:${i * 120 + 260}ms` }, 'VS')] : [group];
       }),
     ),
-    h('p', { class: 'vs-stage' }, stage.name, setup.subtitle ? h('span', {}, setup.subtitle) : null),
+    h('p', { class: 'vs-stage' }, stage.name, setup.subtitle ? h('span', {}, hintText(setup.subtitle)) : null),
   ));
 
   // The announcer's lines load first, so the slam and the calls play on time, in order (not
@@ -131,24 +208,29 @@ export function playVersus(setup: MatchSetup): Promise<void> {
   const timers: ReturnType<typeof setTimeout>[] = [];
   let cancelled = false;
   const schedule = async () => {
-    // Each call starts when the one before it has finished, by the clip's real length.
+    // Each call starts when the one before has finished, by the clip's real length; one call at a time (audio.call).
     const ids = calls.map((s) => `announcer.name.${CHARACTERS[s.char].id}`);
-    let at = 520;
+    const lens = await Promise.all(ids.map((id) => audio.lineMs(id)));
+    const versusMs = await audio.lineMs('announcer.versus');
+    // "Versus!" between the names only while the whole exchange still fits the VS card's time (two long names skip it).
+    const withVersus = ids.length > 1 && 250 + lens.reduce((a, b) => a + b + VS_GAP_MS, 0) + (ids.length - 1) * (versusMs + VS_GAP_MS) <= VS_CALLS_MAX_MS;
+    let at = 250;
     const cues: [number, string][] = [];
     for (let i = 0; i < ids.length; i++) {
       cues.push([at, ids[i]]);
-      at += (await audio.lineMs(ids[i])) + 150;
-      if (i < ids.length - 1) {
+      at += lens[i] + VS_GAP_MS;
+      if (withVersus && i < ids.length - 1) {
         cues.push([at, 'announcer.versus']);
-        at += (await audio.lineMs('announcer.versus')) + 150;
+        at += versusMs + VS_GAP_MS;
       }
     }
     if (cancelled) return;
     timers.push(
       setTimeout(() => audio.sfx('vs-slam'), 300),
-      ...cues.map(([t, id]) => setTimeout(() => audio.line(id), t)),
-      setTimeout(finish, Math.max(setup.subtitle ? 3600 : 2600, at + 500)),
+      ...cues.map(([t, id]) => setTimeout(() => void audio.call(id), t)),
+      setTimeout(finish, Math.min(VS_CALLS_MAX_MS + 400, Math.max(2600, at + 350))),
     );
+    window.dispatchEvent(new CustomEvent('dod:vs-calls', { detail: { ids: cues.map(([, id]) => id), at: cues.map(([t]) => t), withVersus } }));
     // Let the slam land before a key can skip it.
     timers.push(setTimeout(() => {
       window.addEventListener('keydown', finish);
@@ -165,9 +247,20 @@ export function playVersus(setup: MatchSetup): Promise<void> {
     timers.forEach(clearTimeout);
     window.removeEventListener('keydown', finish);
     body.removeEventListener('click', finish);
+    // Skipped or finished: a call still playing (or waiting) is cut with the card.
+    if (audio.callBusyMs() > 0) audio.stopCall();
     resolveSplash();
   }
-  const splash = new Promise<void>((resolve) => { resolveSplash = resolve; });
+  // The 3 s VS cap can leave for the match before the splash clock ends: tear down listeners then.
+  const versus = document.getElementById('versus');
+  const stopIfLeft = () => {
+    if (versus?.hidden || !body.isConnected) finish();
+  };
+  const leftWatch = versus ? new MutationObserver(stopIfLeft) : null;
+  leftWatch?.observe(versus!, { attributes: true, attributeFilter: ['hidden'] });
+  const splash = new Promise<void>((resolve) => {
+    resolveSplash = () => { leftWatch?.disconnect(); resolve(); };
+  });
   void audio.preloadLines([...calls.map((s) => `announcer.name.${CHARACTERS[s.char].id}`), 'announcer.versus']).then(schedule);
   return splash;
 }
@@ -246,6 +339,75 @@ function chart(m: Match, colors: string[]): SVGElement {
   return root;
 }
 
+/** A won episode's grade for the results screen: this run's steps and the best kept in the save. */
+export interface EpisodeGrade extends Grade {
+  best: number;
+  /** The best was beaten by this run. */
+  improved: boolean;
+  /** This run's score (campaign/grade.ts `scoreEpisode`), its parts, time in sim frames, and the best score and time kept. */
+  score: number;
+  parts: Score['parts'];
+  frames: number;
+  bestScore: number;
+  bestFrames: number;
+  /** What this run beat of an earlier best: 'score', 'time' (empty on a first clear). */
+  beat: ('score' | 'time')[];
+}
+
+const starRow = (n: number, of = 3) => '\u2605'.repeat(n) + '\u2606'.repeat(of - n);
+
+/** The stars card: three rows, each star with what it needs, lit when this run earned it. */
+function gradeCard(g: EpisodeGrade): HTMLElement {
+  return h(
+    'section',
+    { class: 'results-grade', 'aria-label': `${g.stars} of 3 stars`, 'data-stars': String(g.stars), 'data-best': String(g.best) },
+    h('h3', {}, h('span', { class: 'grade-stars', 'aria-hidden': 'true' }, starRow(g.stars)), ` ${g.stars} of 3`),
+    h(
+      'ol',
+      { class: 'grade-steps' },
+      ...g.steps.map((st, i) =>
+        h('li', { class: st.met ? 'met' : '', 'data-star': String(i + 1), 'data-met': st.met ? '1' : '0' }, h('b', { 'aria-hidden': 'true' }, st.met ? '\u2605' : '\u2606'), h('span', {}, st.label)),
+      ),
+    ),
+    h(
+      'div',
+      { class: 'grade-score', 'data-score': String(g.score), 'data-best-score': String(g.bestScore), 'data-best-frames': String(g.bestFrames) },
+      g.beat.length
+        ? h('p', { class: 'new-best', role: 'status', 'data-beat': g.beat.join(',') }, 'New best!', h('small', {}, g.beat.length === 2 ? ' Score and time' : g.beat[0] === 'score' ? ' Score' : ' Time'))
+        : null,
+      h('p', { class: 'score-line' }, h('span', {}, 'Score'), h('strong', {}, g.score.toLocaleString('en-US')), h('span', {}, 'Time'), h('strong', {}, formatTime(g.frames))),
+      h('p', { class: 'score-parts' }, g.parts.map((p) => `${p.label} ${p.points < 0 ? '\u2212' : '+'}${Math.abs(p.points)}`).join(' \u00b7 ')),
+      h('p', { class: 'score-best' }, `Best ${g.bestScore.toLocaleString('en-US')} \u00b7 ${formatTime(g.bestFrames)}`),
+    ),
+    h('p', { class: 'grade-best' }, g.improved ? 'New best.' : `Best ${starRow(g.best)}`),
+  );
+}
+
+/** The reward line on an episode card (map tile): what clearing it gives, "Earned" once it is yours. */
+export function rewardTag(r: Reward, cleared = false): HTMLElement {
+  return h('span', { class: `chapter-reward${cleared || hasReward(r.id) ? ' earned' : ''}`, 'data-reward': r.id, 'data-kind': r.kind }, h('b', {}, cleared || hasReward(r.id) ? 'Earned' : 'Reward'), ` ${rewardLine(r)}`);
+}
+
+/** Results: how close the next fighter is, shown when one episode is all that is left (the route is the chapter's own `unlock`). */
+function unlockBar(): HTMLElement | null {
+  const n = nextUnlock();
+  if (!n) return null;
+  const who = CHARACTERS.find((c) => c.id === n.fighter)?.name ?? n.fighter;
+  const away = n.away === 1 ? 'one episode away' : `${n.away} episodes away`;
+  return h(
+    'section',
+    { class: 'results-unlock', role: 'status', 'data-fighter': n.fighter, 'data-away': String(n.away), 'data-fill': n.fill.toFixed(2) },
+    h('h3', {}, `${who} is ${away}`),
+    h('p', {}, `${n.route.text} puts them on the card.`),
+    h('div', { class: 'bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(n.fill * 100)), 'aria-label': `Progress toward ${who}` }, h('i', { style: `width:${Math.round(n.fill * 100)}%` })),
+  );
+}
+
+/** The unlock banner on results: the reward a won episode just gave, and where to use it. */
+function rewardBanner(r: Reward): HTMLElement {
+  return h('section', { class: 'results-reward', role: 'status', 'data-reward': r.id, 'data-kind': r.kind }, h('h3', {}, 'Unlocked'), h('p', { class: 'reward-name' }, rewardLine(r)), h('p', { class: 'reward-line' }, r.line));
+}
+
 /** The 'ko' objective's results line: which way it ended. */
 function koLine(m: Match, won: boolean): string {
   const n = m.koTarget;
@@ -256,14 +418,59 @@ function koLine(m: Match, won: boolean): string {
   return `Out of stocks at ${got} of ${n} KOs. They cut to commercial.`;
 }
 
+/** The 'quota' objective's results line: which way it ended. */
+function quotaLine(m: Match, won: boolean): string {
+  const need = m.quotaTarget / 10;
+  const got = Math.floor(Math.min(m.quotaDealt(), m.quotaTarget) / 10);
+  if (won && got >= need) return `${need}% delivered before the clock. The sponsor is thrilled.`;
+  if (won) return 'Nobody left to hit. The sponsor will take it.';
+  if (m.state.timedOut) return `Time ran out at ${got} of ${need}%. The sponsor wants a refund.`;
+  return `Out of stocks at ${got} of ${need}%. The sponsor pulled the ad.`;
+}
+
+/** The 'streak' objective's results line: which way it ended. */
+function streakLine(m: Match, won: boolean): string {
+  const need = m.streakTarget;
+  const got = Math.min(m.streakBest(), need);
+  if (won && got >= need) return `${need} clean hits in a row before the clock. That one goes in the supercut.`;
+  if (won) return 'Nobody left to hit. The editor will make do.';
+  if (m.state.timedOut) return `Time ran out at a best streak of ${got} of ${need}. Nothing for the supercut.`;
+  return `Out of stocks at a best streak of ${got} of ${need}. The editor cut around you.`;
+}
+
 export interface ResultAction {
   label: string;
   primary?: boolean;
   run: () => void;
 }
 
+/**
+ * A couch match (two or more people on this machine): each human's own numbers under their tag (colour + shape + P#), side
+ * by side. Solo, CPU-only and online matches get nothing, so their results are unchanged.
+ */
+function couchCards(m: Match, colors: string[]): HTMLElement | null {
+  if (m.setup.mode !== 'versus' || m.setup.online || m.humans < 2) return null;
+  const people = m.setup.slots.map((s, i) => ({ s, i })).filter(({ s }) => s.cpu === null && !s.remote);
+  const win = m.state.winnerTeam >= 0 ? (i: number) => m.state.fighters[i].team === m.state.winnerTeam : (i: number) => i === m.state.winner;
+  return h(
+    'section',
+    { class: 'couch-stats', 'aria-label': 'Player stats' },
+    ...people.map(({ i }, k) => {
+      const st = m.stats[i];
+      const f = m.state.fighters[i];
+      const cell = (key: string, label: string, value: string) => h('div', { 'data-stat': key }, h('dt', {}, label), h('dd', {}, value));
+      return h(
+        'article',
+        { class: 'couch-card', 'data-player': String(k + 1), 'data-slot': String(i), 'data-shape': shapeOf(i), 'data-winner': win(i) ? '1' : undefined, style: `--slot:${colors[i]}` },
+        h('header', {}, h('b', { class: 'couch-tag' }, `${SHAPE_GLYPH[shapeOf(i)]} P${k + 1}`), h('span', {}, CHARACTERS[f.char].name), win(i) && h('em', {}, 'Winner')),
+        h('dl', {}, cell('kos', 'KOs', String(st.kos)), cell('falls', 'Falls', String(st.falls)), cell('damage', 'Damage', pct(st.dealt)), cell('best', 'Best hit', pct(st.biggestHit))),
+      );
+    }),
+  );
+}
+
 /** `online`: an online match's ending, which can come before the sim's (a forfeit, a lost link, a desync). */
-export function showResults(m: Match, actions: ResultAction[], online?: { headline: string; note?: string; winner?: number }): void {
+export function showResults(m: Match, actions: ResultAction[], online?: { headline: string; note?: string; winner?: number }, unlocked: string[] = [], levelChange?: { from: number; to: number; text: string }, grade?: EpisodeGrade, reward?: Reward | null): void {
   const s = m.state;
   const teams = m.setup.slots.some((x) => x.team !== undefined) && new Set(m.setup.slots.map((x) => x.team)).size > 1;
   const colors = s.fighters.map((f, i) => (teams && m.setup.mode !== 'campaign' ? TEAM_COLORS[f.team < 0 ? 0 : f.team] : PLAYER_COLORS[i]));
@@ -272,6 +479,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
     const bw = s.winnerTeam >= 0 ? b.team === s.winnerTeam : b.id === s.winner;
     return Number(bw) - Number(aw) || b.stocks - a.stocks || m.stats[b.id].kos - m.stats[a.id].kos || a.percent - b.percent;
   });
+  const look = (i: number) => m.setup.slots[i]?.look ?? 0;
   const winner = s.fighters[s.winner];
   const campaign = m.setup.mode === 'campaign';
   const won = m.playerWon();
@@ -281,20 +489,67 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
   if (online) headline = online.headline;
 
   const hero = (online?.winner !== undefined ? s.fighters[online.winner] : undefined) ?? winner ?? s.fighters[0];
-  $('results-body').replaceChildren(
+  // The winner's quote (winQuote.ts), when this screen is for a finished match with a winner.
+  const quote = currentWinQuote()?.winner === CHARACTERS[hero.char].id ? currentWinQuote() : null;
+  // The summary strip: who won, how long it ran, how much damage the winner (or winning team) dealt.
+  const side = s.winnerTeam >= 0 && !campaign ? s.fighters.filter((f) => f.team === s.winnerTeam) : [hero];
+  const dealt = side.reduce((n, f) => n + m.stats[f.id].dealt, 0);
+  const heroKos = side.reduce((n, f) => n + m.stats[f.id].kos, 0);
+  const winnerName = !winner && !online ? 'No contest' : s.winnerTeam >= 0 && !campaign ? `${s.winnerTeam === 0 ? 'Red' : 'Blue'} team` : m.label(hero.id).split(' · ')[1] ?? CHARACTERS[hero.char].name;
+  const stat = (key: string, label: string, value: string, slot?: string) =>
+    h('div', { class: 'stat', 'data-stat': key, style: slot ? `--slot:${slot}` : undefined }, h('span', {}, label), h('strong', {}, value));
+  const panel = h(
+    'div',
+    { class: 'results-panel' },
     h(
       'header',
       { class: 'results-hero', style: `--slot:${colors[hero.id]}` },
-      h('img', { src: largeUrl(CHARACTERS[hero.char].id), alt: '' }),
+      paintedImg(portraitUrl(CHARACTERS[hero.char].id, portraitSize()), hero.char, look(hero.id), 'results-portrait'),
       h(
         'div',
         {},
         h('p', { class: 'kicker' }, s.timedOut ? 'Time' : 'Game', ' · ', formatTime(s.frame)),
         h('h2', {}, headline),
+        h('p', { class: 'results-look' }, lookChip(hero.char, look(hero.id)), unlocked.length ? h('em', { class: 'look-new' }, `New colour: ${unlocked.join(', ')}`) : null),
         campaign && m.setup.objective === 'survive' && h('p', {}, won ? 'You lasted the whole minute.' : 'They took you off the air.'),
         m.setup.objective === 'ko' && h('p', { class: 'results-objective' }, koLine(m, won)),
+        m.setup.objective === 'quota' && h('p', { class: 'results-objective' }, quotaLine(m, won)),
+        m.setup.objective === 'streak' && h('p', { class: 'results-objective' }, streakLine(m, won)),
         online?.note && h('p', { class: 'results-note' }, online.note),
+        levelChange && h('p', { class: 'results-note level-note', 'data-from': String(levelChange.from), 'data-to': String(levelChange.to) }, levelChange.text),
       ),
+    ),
+    reward && rewardBanner(reward),
+    !online && unlockBar(),
+    grade && gradeCard(grade),
+    h(
+      'div',
+      { class: 'results-strip', 'aria-label': 'Match summary' },
+      stat('winner', 'Winner', winnerName, colors[hero.id]),
+      stat('time', s.timedOut ? 'Time (clock ran out)' : 'Time', formatTime(s.frame)),
+      stat('damage', 'Damage dealt', pct(dealt)),
+      stat('kos', 'KOs', String(heroKos)),
+    ),
+    couchCards(m, colors),
+    h(
+      'section',
+      { class: 'highlights', 'aria-label': 'Highlights' },
+      h('h3', {}, 'Highlights'),
+      m.kos.length
+        ? h(
+            'ol',
+            { class: 'reel' },
+            ...m.kos.slice(0, 6).map((k, i) =>
+              h(
+                'li',
+                { style: `--slot:${colors[k.by >= 0 ? k.by : k.victim]}`, class: 'reel-item', 'data-ko': String(i + 1) },
+                h('b', {}, formatTime(k.frame)),
+                h('span', {}, k.by >= 0 ? `${CHARACTERS[s.fighters[k.by].char].name} KOs ${CHARACTERS[s.fighters[k.victim].char].name}` : `${CHARACTERS[s.fighters[k.victim].char].name} falls`),
+                h('em', {}, `at ${pct(k.percent)}`),
+              ),
+            ),
+          )
+        : h('p', { class: 'results-note' }, 'No knockouts tonight. The cameras found nothing to replay.'),
     ),
     h(
       'div',
@@ -310,7 +565,7 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
             { class: 'standing', style: `--slot:${colors[f.id]}` },
             h('b', { class: 'rank' }, String(rank + 1)),
             h('img', { src: thumbUrl(CHARACTERS[f.char].id), alt: '' }),
-            h('div', { class: 'who' }, h('strong', {}, m.label(f.id)), h('span', {}, f.stocks > 0 && f.stocks < 90 ? `${f.stocks} stock${f.stocks > 1 ? 's' : ''} left` : f.stocks >= 90 ? 'Training' : 'Out')),
+            h('div', { class: 'who' }, h('strong', {}, m.label(f.id)), lookChip(f.char, look(f.id)), h('span', {}, f.stocks > 0 && f.stocks < 90 ? `${f.stocks} stock${f.stocks > 1 ? 's' : ''} left` : f.stocks >= 90 ? 'Training' : 'Out')),
             h(
               'dl',
               {},
@@ -344,28 +599,120 @@ export function showResults(m: Match, actions: ResultAction[], online?: { headli
       ),
     ),
   );
-  $('results-actions').replaceChildren(
-    ...actions.map((a, i) =>
-      h('button', { type: 'button', class: a.primary ? 'primary' : 'secondary', 'data-autofocus': i === 0 || undefined, onclick: a.run }, a.label),
-    ),
+  // The victory stage (ui/victory.ts) opens first, with the winner on the podium and the beaten fighter in an inset; the panel
+  // slides in after it (or on any input). A match with no winner has no stage.
+  const loser = order.find((f) => !side.some((w) => w.id === f.id));
+  const stage =
+    winner || online?.winner !== undefined
+      ? victoryStage({
+          winnerChar: hero.char,
+          winnerLook: look(hero.id),
+          winnerColor: colors[hero.id],
+          winnerName,
+          loserChar: loser?.char,
+          loserLook: loser ? look(loser.id) : 0,
+          loserName: loser ? CHARACTERS[loser.char].name : undefined,
+          caption: quote ? quoteCaption(quote) : null,
+        })
+      : null;
+  // Share (ui/share.ts): what the card draws, set for a finished match with a winner.
+  const stageDef = STAGES[m.setup.stage];
+  const foe = loser ?? order.find((f) => f.id !== hero.id);
+  setShareInfo(
+    winner || online?.winner !== undefined
+      ? {
+          headline,
+          winnerId: CHARACTERS[hero.char].id,
+          winnerName,
+          winnerColor: colors[hero.id],
+          loserId: foe ? CHARACTERS[foe.char].id : undefined,
+          loserName: foe ? CHARACTERS[foe.char].name : undefined,
+          stage: stageDef?.name ?? 'The arena',
+          context: m.setup.mode,
+          kos: heroKos,
+          bestHit: side.reduce((n, f) => Math.max(n, m.stats[f.id].biggestHit), 0) > 0 ? pct(side.reduce((n, f) => Math.max(n, m.stats[f.id].biggestHit), 0)) : '',
+          time: formatTime(s.frame),
+          extra: grade ? `${starRow(grade.stars)} ${grade.score.toLocaleString('en-US')}` : '',
+          sky: [stageDef?.theme.sky[0] ?? '#1b1b2a', stageDef?.theme.sky[2] ?? '#0b0b12'],
+        }
+      : null,
   );
+  const row = h('div', { class: `results-row${stage ? '' : ' no-stage'}`, 'data-phase': stage ? 'pose' : 'panel' }, stage?.el, panel);
+  $('results-body').replaceChildren(row);
+  stage?.start(row);
+  setResultActions(actions);
+}
+
+/** The results' buttons (an online result swaps them as the rematch moves on). `disabled` actions are shown but dead. */
+export function setResultActions(actions: (ResultAction & { disabled?: boolean })[]): void {
+  const buttons = actions.map((a, i) =>
+    h('button', { type: 'button', class: a.primary ? 'primary' : 'secondary', 'data-autofocus': i === 0 || undefined, disabled: a.disabled, onclick: a.run }, a.label),
+  );
+  // Share sits before the last button (Back on this screen clicks the last one).
+  if (hasShareInfo() && buttons.length > 0) {
+    buttons.splice(
+      buttons.length - 1,
+      0,
+      h('button', { type: 'button', class: 'secondary share-btn', id: 'share-result', onclick: () => void shareResult() }, 'Share'),
+    );
+  }
+  $('results-actions').replaceChildren(...buttons);
 }
 
 // -------------------------------------------------------------- campaign
 
-export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => void, onReset: () => void): void {
+/** The season map's Easy / Normal / Hard choice (campaign/difficulty.ts): three thumb-size radio buttons, saved on a tap. */
+function renderDifficulty(): void {
+  const box = document.getElementById('difficulty');
+  if (!box) return;
+  const draw = () => {
+    const now = difficulty();
+    box.replaceChildren(
+      h('span', { class: 'difficulty-label', id: 'difficulty-label' }, 'Difficulty'),
+      h(
+        'div',
+        { class: 'difficulty-pick', role: 'radiogroup', 'aria-labelledby': 'difficulty-label' },
+        ...DIFFICULTIES.map((d) =>
+          h('button', {
+            type: 'button',
+            class: `difficulty-btn${d === now ? ' on' : ''}`,
+            role: 'radio',
+            'aria-checked': String(d === now),
+            'data-difficulty': d,
+            onclick: () => {
+              setDifficulty(d);
+              window.dispatchEvent(new CustomEvent('dod:difficulty', { detail: { phase: 'pick', difficulty: d } }));
+              draw();
+              document.querySelector<HTMLElement>(`#difficulty [data-difficulty="${d}"]`)?.focus();
+            },
+          }, DIFFICULTY_LABEL[d]),
+        ),
+      ),
+      h('span', { class: 'difficulty-note', id: 'difficulty-note' }, DIFFICULTY_NOTE[now]),
+    );
+  };
+  draw();
+}
+
+export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => void, onReset: () => void, unlocked?: string, onReplay?: (chapter: Chapter) => void): void {
   const path = $('chapter-path');
+  renderDifficulty();
+  const easy = easyCleared();
   const nextIndex = CHAPTERS.findIndex((c) => !done.has(c.id));
+  const savedStars = loadStars();
+  const savedBests = loadBests();
   const focus = CHAPTERS[nextIndex < 0 ? CHAPTERS.length - 1 : nextIndex];
   const chapter = (c: Chapter, n: number) => {
     const i = CHAPTERS.indexOf(c);
     const open = isOpen(i, done);
     const cleared = done.has(c.id);
+    const stars = Math.max(1, savedStars[c.id] ?? 1);
+    const best = savedBests[c.id];
     const status = cleared ? 'Cleared' : open ? 'Next' : 'Locked';
     const foe = c.fight.slots.find((s) => s.cpu !== null && s.team !== 0) ?? c.fight.slots[1];
     // The first chapter of a locked season waits on the season before, not on a chapter.
     const why = n === 0 && c.season > 1 ? `Clear Season ${c.season - 1} to open it.` : 'Clear the chapter before it.';
-    return h(
+    const card = h(
       'button',
       {
         type: 'button',
@@ -380,12 +727,47 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
       h('strong', {}, open ? c.title : '???'),
       h('span', { class: 'chapter-tag' }, open ? c.tagline : why),
       h('em', { class: 'chapter-status' }, status, open ? ` · ${STAGES[c.fight.stage].name}` : ''),
+      cleared && easy.has(c.id) ? h('span', { class: 'easy-badge', 'data-difficulty': 'easy' }, 'Easy') : null,
+      cleared
+        ? h(
+            'span',
+            { class: 'chapter-stars', 'data-stars': String(stars), role: 'img', 'aria-label': `${stars} of 3 stars` },
+            h('b', { 'aria-hidden': 'true' }, starRow(stars)),
+            h('small', {}, `${stars} of 3`),
+          )
+        : null,
+      cleared
+        ? h(
+            'span',
+            { class: 'chapter-best', 'data-best-score': best ? String(best.score) : '', 'data-best-frames': best ? String(best.frames) : '' },
+            h('span', {}, h('small', {}, 'Best time'), h('b', {}, best ? formatTime(best.frames) : '\u2014')),
+            h('span', {}, h('small', {}, 'Best score'), h('b', {}, best ? best.score.toLocaleString('en-US') : '\u2014')),
+          )
+        : null,
+    );
+    // A cleared episode can be played again as any unlocked fighter; the button sits under the card (a button can't hold a button).
+    if (!cleared || !onReplay) return card;
+    return h(
+      'div',
+      { class: 'chapter-cell' },
+      card,
+      h('button', { type: 'button', class: 'replay-as', 'data-chapter': c.id, onclick: () => onReplay(c) }, 'Replay as…'),
     );
   };
-  path.replaceChildren(
+  const fresh = unlocked ? CHARACTERS.find((c) => c.id === unlocked) : undefined;
+  path.replaceChildren(...kids(
+    fresh
+      ? h(
+          'p',
+          { class: 'unlock-note', role: 'status', 'data-unlocked': fresh.id },
+          h('img', { src: thumbUrl(fresh.id), alt: '' }),
+          h('span', {}, h('b', {}, `${fresh.name} joins the card.`), ' Unlocked for Versus and online.'),
+        )
+      : null,
     ...SEASONS.map((s) => {
       const open = seasonOpen(s.number, done);
       const cleared = seasonCleared(s.number, done);
+      const earned = s.chapters.reduce((n, c) => n + (done.has(c.id) ? Math.max(1, savedStars[c.id] ?? 1) : 0), 0);
       return h(
         'section',
         { class: `season ${cleared ? 'cleared' : open ? 'open' : 'locked'}`, 'data-season': s.number },
@@ -394,116 +776,17 @@ export function openCampaign(done: Set<string>, onPlay: (chapter: Chapter) => vo
           { class: 'season-head' },
           h('h3', {}, `Season ${s.number}`),
           s.subtitle ? h('span', { class: 'season-sub' }, open ? s.subtitle : '???') : null,
+          earned ? h('em', { class: 'season-stars', 'data-earned': String(earned), 'data-of': String(s.chapters.length * 3) }, `\u2605 ${earned}/${s.chapters.length * 3}`) : null,
           open ? null : h('em', { class: 'season-lock' }, `Locked · Clear Season ${s.number - 1} first`),
         ),
         h('div', { class: 'season-chapters' }, ...s.chapters.map(chapter)),
         cleared ? h('p', { class: 'season-end' }, s.end) : null,
       );
     }),
-  );
+  ));
   const reset = $<HTMLButtonElement>('btn-campaign-reset');
   reset.onclick = () => {
     if (confirm('Start the campaign over? Cleared chapters will be locked again.')) onReset();
   };
   reset.disabled = done.size === 0;
-}
-
-// --------------------------------------------------------------- dialogue
-
-/** The characters on your side of the story stand on the left. */
-const LEFT = new Set(['exit-punk', 'blog-man']);
-
-/** How a scene ended: skipped (and at which line), or read to the end. */
-export interface SceneEnd {
-  skipped: boolean;
-  /** The line it was on (0-based). */
-  line: number;
-}
-
-/** Plays a scene line by line. Resolves when it ends or is skipped. */
-export function playDialogue(lines: Line[], chapterTitle: string): Promise<SceneEnd> {
-  const left = $<HTMLImageElement>('dlg-left');
-  const right = $<HTMLImageElement>('dlg-right');
-  const name = $('dlg-name');
-  const text = $('dlg-text');
-  const next = $<HTMLButtonElement>('dlg-next');
-  const skip = $<HTMLButtonElement>('dlg-skip');
-  $('dlg-chapter').textContent = chapterTitle;
-  let leftWho = '';
-  let rightWho = '';
-  // Seed each side with the first speaker who will stand there.
-  for (const l of lines) {
-    if (l.who === 'narrator') continue;
-    if (LEFT.has(l.who) && !leftWho) leftWho = l.who;
-    if (!LEFT.has(l.who) && !rightWho) rightWho = l.who;
-  }
-
-  const setPortrait = (img: HTMLImageElement, who: string) => {
-    const c = CHARACTERS.find((x) => x.id === who);
-    img.hidden = !c;
-    if (c) img.src = largeUrl(c.id);
-  };
-
-  return new Promise((resolve) => {
-    let i = -1;
-    let timer = 0;
-    let typing = false;
-    const end = (skipped = false) => {
-      clearInterval(timer);
-      audio.stopVoice();
-      next.onclick = null;
-      skip.onclick = null;
-      window.removeEventListener('keydown', onKey);
-      resolve({ skipped, line: Math.max(0, Math.min(i, lines.length - 1)) });
-    };
-    const finishTyping = () => {
-      clearInterval(timer);
-      typing = false;
-      text.textContent = lines[i].text;
-    };
-    const advance = () => {
-      if (typing) return finishTyping();
-      i++;
-      if (i >= lines.length) return end();
-      const l = lines[i];
-      const narrator = l.who === 'narrator';
-      if (!narrator) {
-        if (LEFT.has(l.who)) leftWho = l.who;
-        else rightWho = l.who;
-      }
-      setPortrait(left, leftWho);
-      setPortrait(right, rightWho);
-      left.classList.toggle('speaking', !narrator && LEFT.has(l.who));
-      right.classList.toggle('speaking', !narrator && !LEFT.has(l.who));
-      audio.voice(l.audio);
-      const c = CHARACTERS.find((x) => x.id === l.who);
-      name.textContent = narrator ? '' : (c?.name ?? l.who);
-      name.hidden = narrator;
-      text.classList.toggle('narration', narrator);
-      next.textContent = i === lines.length - 1 ? 'Continue' : 'Next';
-      // Type the line out; a press finishes it, a second press moves on.
-      let n = 0;
-      typing = true;
-      text.textContent = '';
-      clearInterval(timer);
-      timer = window.setInterval(() => {
-        n += 2;
-        text.textContent = l.text.slice(0, n);
-        if (n >= l.text.length) finishTyping();
-      }, 28);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      // A focused button already turns Enter and Space into a click, and the
-      // menu keys turn J into one.
-      if (document.activeElement instanceof HTMLButtonElement) return;
-      if (e.code === 'Enter' || e.code === 'Space') {
-        e.preventDefault();
-        advance();
-      }
-    };
-    next.onclick = advance;
-    skip.onclick = () => end(true);
-    window.addEventListener('keydown', onKey);
-    advance();
-  });
 }

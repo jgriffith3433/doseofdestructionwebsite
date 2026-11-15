@@ -23,6 +23,7 @@ import {
   hazardAt,
   platformOffset,
   platformOn,
+  fadeAlpha,
   zoneOn,
   type LayerReact,
   type StageClock,
@@ -30,6 +31,7 @@ import {
   type StageLayer,
 } from '../sim/stageMath.ts';
 import { layerPlacement } from './stageArt.ts';
+import type { AlphaMask } from './foreground.ts';
 
 const W = 1 / 100;
 
@@ -45,6 +47,15 @@ export interface Placed {
   k: number;
   /** Size once the image has loaded, scene units. */
   size: { w: number; h: number };
+  /** A foreground element (layer.foreground): its picture's alpha once read, and its opacity now (FADE_TO while a fighter is behind it). */
+  mask?: AlphaMask;
+  fade?: number;
+  /** A haze sheet, not a stage layer: it never moves or reacts. */
+  haze?: boolean;
+  /** The picture failed to load: the layer stays hidden (the stage's lit sky shows instead of a 1x1 white square) and is not waited for. */
+  failed?: boolean;
+  /** Automatic quality hid this parallax layer: it stays hidden. */
+  culled?: boolean;
 }
 
 interface Playing {
@@ -125,6 +136,7 @@ export class StageLive {
   /** Enables every stage layer, zone, hazard and toggle during warm-up so their textures and shaders compile before the fight. */
   warmUp(): void {
     for (const pl of this.placed) {
+      if (pl.failed) continue;
       pl.mesh.setEnabled(true);
       if (pl.layer.reacts?.some((r) => r.kind === 'flash')) {
         pl.mesh.renderOverlay = true;
@@ -140,12 +152,32 @@ export class StageLive {
     for (const tg of this.toggles) tg.node.setEnabled(true);
   }
 
+  /** The foreground elements (they fade while a fighter is behind them). */
+  foregrounds(): Placed[] {
+    return this.placed.filter((p) => p.layer.foreground && p.layer.z < 0);
+  }
+
+  /** Every layer and haze sheet built. */
+  allPlaced(): Placed[] {
+    return this.placed;
+  }
+
+  /** Resolves once every layer's picture has loaded (a layer is a 1x1 plane until then, so the arena would show only the clear colour). */
+  artLoaded(): Promise<void> {
+    const waits: Promise<void>[] = [];
+    for (const pl of this.placed) {
+      const tex = pl.mat.diffuseTexture as Texture | null;
+      if (tex && !pl.failed && !tex.isReady()) waits.push(new Promise((r) => { tex.onLoadObservable.addOnce(() => r()); }));
+    }
+    return Promise.all(waits).then(() => undefined);
+  }
+
   /** Number of stage art layers whose textures are ready on the GPU. */
   readyLayers(): { ready: number; total: number } {
     let ready = 0;
     for (const pl of this.placed) {
       const tex = pl.mat.diffuseTexture as Texture | null;
-      if (!tex || tex.isReady()) ready++;
+      if (!tex || pl.failed || tex.isReady()) ready++;
     }
     return { ready, total: this.placed.length };
   }
@@ -192,10 +224,11 @@ export class StageLive {
         h.ring.position.set(Math.max(b.left + 150, Math.min(b.right - 150, p.x)) * W, Math.max(b.bottom + 150, Math.min(b.top - 150, p.y)) * W, -0.2);
       }
     }
-    for (const tg of this.toggles) tg.node.setEnabled(platformOn(this.stage, c, tg.index));
+    for (const tg of this.toggles) tg.node.setEnabled(platformOn(this.stage, c, tg.index) && fadeAlpha(this.stage.platforms[tg.index], c.frame) > 0.5);
   }
 
   private place(pl: Placed, c: StageClock, t: number, now: number): void {
+    if (pl.haze) return;
     const l = pl.layer;
     let visible = true;
     if (l.showDuring) visible = eventOn(this.stage, c, l.showDuring);
@@ -217,10 +250,18 @@ export class StageLive {
     } else {
       const moving = (l.platforms ?? []).map((i) => this.stage.platforms[i]).find((p) => p?.motion);
       if (moving) {
-        const [dx, dy] = platformOffset(moving, c.frame);
+        const [dx, dy] = platformOffset(moving, Math.max(0, c.frame - 1));
         x += (dx / FX) * W * pl.k;
         y += (dy / FX) * W * pl.k;
       }
+    }
+    if (pl.failed || pl.culled) visible = false;
+    // Art that draws a fading platform flashes before it goes, is gone, and ramps back in.
+    const fading = (l.platforms ?? []).filter((i) => this.stage.platforms[i]?.fade);
+    if (fading.length) {
+      const fade = Math.min(...fading.map((i) => fadeAlpha(this.stage.platforms[i], c.frame)));
+      pl.mesh.visibility = fade;
+      if (fade <= 0) visible = false;
     }
     pl.mesh.setEnabled(visible);
     if (!visible) return;

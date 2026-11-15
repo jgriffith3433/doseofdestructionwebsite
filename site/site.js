@@ -15,3 +15,17 @@ if (toggle && menu) {
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
   });
 }
+
+// Play hands off to the game with a fade into the brand colour, so nothing flashes between the pages.
+(function () {
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href="/Game/"]');
+    if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+    e.preventDefault();
+    var veil = document.createElement('div');
+    veil.setAttribute('style', 'position:fixed;inset:0;z-index:2147483647;opacity:0;transition:opacity .25s ease;background:#1c0d06 radial-gradient(ellipse at 50% 45%,#8a3010 0%,#3a1608 45%,#100e0c 80%)');
+    document.body.appendChild(veil);
+    requestAnimationFrame(function () { veil.style.opacity = '1'; });
+    setTimeout(function () { location.href = a.href; }, 260);
+  });
+})();

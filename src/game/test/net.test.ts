@@ -10,6 +10,7 @@ import { BTN, NO_INPUT, packInput } from '../sim/input.ts';
 import { hashState } from '../sim/state.ts';
 import { Match, type MatchSetup, type MatchSnapshot } from '../match.ts';
 import { pairFor, allPairs, type QueueEntry } from '../net/pairing.ts';
+import { agreedDelay, barsFor, delayForRtt } from '../net/quality.ts';
 import { Rollback, decodePacket, encodePacket, type InputPacket, type HashReport } from '../net/rollback.ts';
 
 declare const process: { exit(code: number): never };
@@ -207,6 +208,19 @@ function playOnline(opts: { ms: number; delay: [number, number]; loss: number; s
   check(decodePacket(new Uint8Array([2, 0, 0])) === null, 'input packet: another version is refused');
   check(decodePacket(new Uint8Array([1, 128])) === null, 'input packet: a short one is refused, never thrown');
   check(decodePacket(Uint8Array.from([1, 0, 0, 0, 0, 1, 200, 1, 5])) === null, 'input packet: more than 120 inputs is refused');
+}
+
+// ------------------------------------------------------------------ delay from ping, and the bars
+{
+  check(delayForRtt(10) === 1 && delayForRtt(60) === 2 && delayForRtt(100) === 3 && delayForRtt(150) === 4 && delayForRtt(900) === 4, 'delay: about ping / 2 in frames, clamped 1 to 4');
+  check(delayForRtt(-1) === 2 && agreedDelay(-1, -1) === 2, 'delay: no reading keeps the old 2');
+  check(agreedDelay(20, 140) === agreedDelay(140, 20) && agreedDelay(20, 140) === 4, 'delay: both peers get the worse ping, in either order');
+  check(barsFor(-1) === 0 && barsFor(20) === 4 && barsFor(80) === 3 && barsFor(150) === 2 && barsFor(400) === 1 && barsFor(20, true) === 3 && barsFor(400, true) === 1, 'bars: 1-4 from the ping, none without a reading, a stall costs one');
+  const r = new Rollback<number>({ save: () => 0, load: () => {}, step: () => {}, hash: () => 0 }, { slot: 0, noInput: NO_INPUT });
+  r.setDelay(4);
+  r.tick(5);
+  r.setDelay(1);
+  check(r.delay === 4, 'delay: cannot change after the first frame');
 }
 
 if (failed) {

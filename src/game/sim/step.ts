@@ -3,7 +3,8 @@
 // every peer that feeds it the same inputs reaches the same state.
 
 import { FX, TRIG_ONE, approach, clamp, iatan2, icos, idiv, isin, isqrt, normDeg, rngNext, sign } from './fixed.ts';
-import { AERIALS, CHARACTERS, MOVE, type CharacterDef, type Hitbox } from './characters.ts';
+import { AERIALS, CHARACTERS, MOVE, THROW, type CharacterDef, type CounterDef, type Hitbox, type ShotDef } from './characters.ts';
+import type { SpecialKind } from './fighterDefs.ts';
 import { BTN, C_ANY, NO_INPUT, stickX, stickY } from './input.ts';
 import {
   EV_IDLE,
@@ -20,24 +21,55 @@ import {
   type StageDef,
   type StageZone,
 } from './stage.ts';
-import { ACT, SHIELD_MAX, allies, bodySize, type Fighter, type GameState } from './state.ts';
+import { predictLaunchKo } from '../hitFeel.ts';
+import { ACT, SHIELD_MAX, allies, bodySize, newShot, type Fighter, type GameState, type Shot, type TakeoverRule } from './state.ts';
+
+/** What a fighter chose on the ledge. */
+export type LedgeOption = 'getup' | 'roll' | 'attack' | 'jump' | 'drop';
 
 export type SimEvent =
-  | { type: 'hit'; attacker: number; victim: number; x: number; y: number; dmg: number; kb: number; shield: boolean }
+  /** special: the archetype of the special that landed it (a shot is projectile or trap), for the impact sound. Presentation only. */
+  | { type: 'hit'; attacker: number; victim: number; x: number; y: number; dmg: number; kb: number; shield: boolean; lag: number; special?: SpecialKind }
+  /** A launch begins as hit-stop ends. ko: the launch carries the victim out of the blast zone, so the kill cue plays (hitFeel.ts). Presentation only. */
+  | { type: 'launch'; victim: number; by: number; x: number; y: number; ko: boolean }
   | { type: 'ko'; victim: number; by: number; x: number; y: number }
+  /** The shared grab caught a fighter (a shielding one too): attacker holds victim. */
+  | { type: 'grab'; attacker: number; victim: number; x: number; y: number; shield: boolean; hold: number }
+  /** A held fighter was thrown: kind is a THROW index (0 forward, 1 back, 2 up, 3 down). */
+  | { type: 'throw'; attacker: number; victim: number; kind: number; x: number; y: number }
+  /** A held fighter got out by mashing or when the hold ran out (mashed tells which). */
+  | { type: 'grab-break'; attacker: number; victim: number; x: number; y: number; mashed: boolean; held: number }
+  /** A dead-even time-out went to sudden death: the tied fighters respawn at 300%, first KO wins. */
+  | { type: 'sudden'; ids: number[] }
   | { type: 'jump' | 'land' | 'ledge' | 'shieldbreak' | 'respawn'; id: number; x: number; y: number }
+  /** What a fighter chose on the ledge (or 'drop': the hang ran out, or the stick pushed down or away). */
+  | { type: 'ledge-option'; id: number; option: LedgeOption; x: number; y: number }
+  /** A counter special turned a hit back on its attacker. */
+  | { type: 'counter'; id: number; x: number; y: number }
+  /** Two fighters' active hitboxes met each other on the same frame (a trade): where the circles touch. Presentation only. */
+  | { type: 'clash'; a: number; b: number; x: number; y: number }
+  /** A special put a projectile (kind 0) or a trap (kind 1) in play. */
+  | { type: 'shot'; id: number; kind: number; x: number; y: number }
   /** The stage hurt someone: a damage zone or a hazard (index into stage.zones or stage.hazards). */
   | { type: 'hurt'; victim: number; source: 'zone' | 'hazard'; index: number; x: number; y: number; dmg: number; kb: number }
   /** A stage event (index into stage.events) warned, started or ended. */
-  | { type: 'stage'; event: number; phase: 'warn' | 'start' | 'end' };
+  | { type: 'stage'; event: number; phase: 'warn' | 'start' | 'end' }
+  /** A broadcast event (state.bc[index]) started or ended; who is the fighter a chant is for. */
+  | { type: 'broadcast'; index: number; kind: string; phase: 'start' | 'end'; who: number; mood?: number; hot?: number };
+
+/** The four special moves: only these carry an archetype into a hit event. */
+const SPECIAL_SLOTS: ReadonlySet<number> = new Set([MOVE.NSPECIAL, MOVE.SSPECIAL, MOVE.UPB, MOVE.DSPECIAL]);
 
 const BUTTONS = BTN.ATTACK | BTN.SPECIAL | BTN.JUMP | BTN.SHIELD | C_ANY;
-const BUFFER_FRAMES = 6;
+export const BUFFER_FRAMES = 6;
+export const COYOTE_FRAMES = 6;
 const JUMPSQUAT = 3;
 // Launch speed per unit of knockback (percent), and how fast that launch decays.
 const KB_SPEED = 17;
 const KB_DECAY = 300;
-const RESPAWN_DELAY = 70;
+export const RESPAWN_DELAY = 70;
+/** Frames a successful counter freezes both fighters (the flash plays with it). */
+export const COUNTER_FREEZE = 6;
 
 // The stage and frame being stepped. Set at the top of step() and only read
 // below it, so the sim stays a pure function of (state, inputs).
@@ -59,15 +91,26 @@ export function step(s: GameState, inputs: readonly number[]): SimEvent[] {
   frame = s.frame;
   gravityPct = s.rules.gravity;
   clock = s;
+  pendingGrabs = [];
   const ev: SimEvent[] = [];
+  // A commercial break stops play; prevInput is left alone, so presses made during it still register after.
+  if (s.freeze > 0) {
+    if (--s.freeze === 0) ev.push({ type: 'broadcast', index: s.bc.findIndex((b) => b.kind === 'break'), kind: 'break', phase: 'end', who: 0 });
+    return ev;
+  }
   advanceEvents(s, ev);
   for (const f of s.fighters) updateFighter(s, f, inputs[f.id] ?? NO_INPUT, ev);
   separate(s);
   resolveHits(s, ev);
+  applyGrabs(s, ev);
+  stepShots(s, ev);
   stageHits(s, ev);
   for (const f of s.fighters) checkBlastZones(s, f, ev);
+  settleSuddenTie(s);
   triggerEvents(s, ev);
-  checkGameOver(s);
+  broadcastEvents(s, ev);
+  checkGameOver(s, ev);
+  if (s.sudden > 0 && !s.over) s.sudden++;
   for (const f of s.fighters) f.prevInput = inputs[f.id] ?? NO_INPUT;
   if (s.endTimer > 0) s.endTimer--;
   s.frame++;
@@ -89,13 +132,13 @@ function updateFighter(s: GameState, f: Fighter, inp: number, ev: SimEvent[]): v
   if (pressed) {
     f.buffer = pressed;
     f.bufferAge = 0;
-  } else if (f.buffer && ++f.bufferAge > BUFFER_FRAMES) {
+  } else if (f.buffer && f.hitlag === 0 && ++f.bufferAge > BUFFER_FRAMES) {
     f.buffer = 0;
   }
 
   if (f.hitlag > 0) {
     f.hitlag--;
-    if (f.hitlag === 0 && f.launchSpeed > 0) launch(f, inp);
+    if (f.hitlag === 0 && f.launchSpeed > 0) launch(f, inp, ev);
     return;
   }
 
@@ -135,38 +178,48 @@ function updateFighter(s: GameState, f: Fighter, inp: number, ev: SimEvent[]): v
       break;
     case ACT.LAND:
       friction(f, ch);
-      if (f.frame >= f.length) {
-        setAction(f, ACT.IDLE, 0);
-        groundNeutral(f, ch, c);
-      }
+      if (f.frame >= f.length) finishGround(f, ch, c);
       break;
     case ACT.ATTACK:
-      attack(f, ch, c);
+      attack(s, f, ch, c, ev);
       break;
     case ACT.HITSTUN:
       if (f.grounded) friction(f, ch);
       else drift(f, ch, c, 2);
-      if (--f.hitstun <= 0) setAction(f, f.grounded ? ACT.IDLE : ACT.AIR, 0);
+      if (--f.hitstun <= 0) {
+        if (f.grounded) finishGround(f, ch, c);
+        else finishAir(f, ch, c, ev);
+      }
       break;
     case ACT.SHIELD:
       shield(f, ch, c, ev);
       break;
     case ACT.SHIELD_STUN:
       friction(f, ch);
-      if (f.frame >= f.length) setAction(f, inp & BTN.SHIELD ? ACT.SHIELD : ACT.IDLE, 0);
+      if (f.frame >= f.length) {
+        if (f.buffer & (BTN.JUMP | C_ANY | BTN.SPECIAL | BTN.ATTACK)) {
+          finishGround(f, ch, c);
+        } else if ((inp & BTN.SHIELD) || (f.buffer & BTN.SHIELD)) {
+          if (f.buffer & BTN.SHIELD) consume(f);
+          setAction(f, ACT.SHIELD, 0);
+          shield(f, ch, c, ev);
+        } else {
+          finishGround(f, ch, c);
+        }
+      }
       break;
     case ACT.ROLL:
       if (f.frame === 3) f.intangible = 15;
       f.vx = f.frame >= 4 && f.frame <= 20 ? f.dir * 5 * FX : 0;
       if (f.frame >= f.length) {
         f.facing = -f.dir;
-        setAction(f, ACT.IDLE, 0);
+        finishGround(f, ch, c);
       }
       break;
     case ACT.SPOTDODGE:
       if (f.frame === 2) f.intangible = 16;
       friction(f, ch);
-      if (f.frame >= f.length) setAction(f, ACT.IDLE, 0);
+      if (f.frame >= f.length) finishGround(f, ch, c);
       break;
     case ACT.AIRDODGE:
       if (f.dir) {
@@ -175,30 +228,61 @@ function updateFighter(s: GameState, f: Fighter, inp: number, ev: SimEvent[]): v
       } else {
         drift(f, ch, c, 2);
       }
-      if (f.frame >= f.length) setAction(f, ACT.AIR, 0);
+      if (f.frame >= f.length) finishAir(f, ch, c, ev);
       break;
     case ACT.LEDGE:
       ledge(f, ch, c, ev);
       break;
     case ACT.LEDGE_CLIMB:
-      ledgeClimb(f);
+      ledgeClimb(f, ch, c);
+      break;
+    case ACT.LEDGE_ROLL:
+      ledgeRoll(f, ch, c);
+      break;
+    case ACT.LEDGE_ATTACK:
+      ledgeAttack(f, ch, c);
+      break;
+    case ACT.LEDGE_JUMP:
+      // A jump off the ledge is a short action of its own, but the fighter can act out of it (air jump, aerial) after a few frames.
+      if (f.frame >= LEDGE_JUMP_ACT && tryAir(f, ch, c, ev)) break;
+      drift(f, ch, c, 1);
+      fastFall(f, ch, c);
+      // Back to the ordinary air state without restarting the frame count (the jump clip carries on).
+      if (f.frame >= f.length) {
+        f.action = ACT.AIR;
+        f.length = 0;
+      }
       break;
     case ACT.HELPLESS:
       drift(f, ch, c, 2);
       break;
     case ACT.DIZZY:
       friction(f, ch);
-      if (f.frame >= f.length && f.grounded) setAction(f, ACT.IDLE, 0);
+      if (f.frame >= f.length && f.grounded) finishGround(f, ch, c);
+      break;
+    case ACT.GRAB:
+      grabReach(s, f, ch, c);
+      break;
+    case ACT.GRAB_HOLD:
+      grabHold(s, f, ch, c, ev);
+      break;
+    case ACT.THROW:
+      throwing(s, f, ch, c, ev);
+      break;
+    case ACT.GRABBED:
+      grabbed(s, f, c, pressed, ev);
       break;
     case ACT.RESPAWN:
       f.intangible = 120;
       if (f.frame > 180 || (f.frame > 20 && (Math.abs(c.sx) > 40 || Math.abs(c.sy) > 40 || f.buffer))) {
-        setAction(f, ACT.AIR, 0);
+        finishAir(f, ch, c, ev);
       }
       break;
   }
 
-  if (f.action !== ACT.LEDGE && f.action !== ACT.LEDGE_CLIMB && f.action !== ACT.RESPAWN) {
+  if (f.coyote > 0) f.coyote--;
+
+  if (!PINNED.has(f.action)) {
     physics(s, f, ch, c, ev);
   }
 }
@@ -207,8 +291,22 @@ function setAction(f: Fighter, action: number, length: number): void {
   f.action = action;
   f.frame = 0;
   f.length = length;
+  f.coyote = 0;
   if (action !== ACT.ATTACK) f.move = -1;
   if (action === ACT.JUMPSQUAT) f.shortHop = 0;
+}
+
+function finishGround(f: Fighter, ch: CharacterDef, c: Ctx): void {
+  setAction(f, ACT.IDLE, 0);
+  groundNeutral(f, ch, c);
+}
+
+function finishAir(f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): void {
+  setAction(f, ACT.AIR, 0);
+  if (!tryAir(f, ch, c, ev)) {
+    drift(f, ch, c, 1);
+    fastFall(f, ch, c);
+  }
 }
 
 function consume(f: Fighter): number {
@@ -252,6 +350,12 @@ function tryGround(f: Fighter, ch: CharacterDef, c: Ctx): boolean {
     setAction(f, ACT.JUMPSQUAT, JUMPSQUAT);
     return true;
   }
+  // Shield and Attack together (keyboard L+J, pad trigger+A, touch Shield+Attack) are the grab.
+  if (b & (BTN.ATTACK | BTN.SHIELD) && ((b | c.inp) & BTN.ATTACK) && ((b | c.inp) & BTN.SHIELD)) {
+    consume(f);
+    startGrab(f);
+    return true;
+  }
   if (b & C_ANY) {
     consume(f);
     const dir = cDirection(b, c);
@@ -266,7 +370,7 @@ function tryGround(f: Fighter, ch: CharacterDef, c: Ctx): boolean {
   if (b & BTN.SPECIAL) {
     consume(f);
     if (Math.abs(c.sx) > 40) f.facing = sign(c.sx);
-    startMove(f, ch, c.sy > 50 ? MOVE.UPB : MOVE.NSPECIAL);
+    startMove(f, ch, specialMove(ch, c));
     return true;
   }
   if (b & BTN.ATTACK) {
@@ -279,7 +383,7 @@ function tryGround(f: Fighter, ch: CharacterDef, c: Ctx): boolean {
     } else startMove(f, ch, MOVE.JAB);
     return true;
   }
-  if (c.inp & BTN.SHIELD) {
+  if ((b & BTN.SHIELD) || (c.inp & BTN.SHIELD)) {
     if (b & BTN.SHIELD) consume(f);
     setAction(f, ACT.SHIELD, 0);
     return true;
@@ -292,6 +396,12 @@ function shield(f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): void {
   if (f.buffer & BTN.JUMP) {
     consume(f);
     setAction(f, ACT.JUMPSQUAT, JUMPSQUAT);
+    return;
+  }
+  // Attack out of shield is the grab.
+  if (f.buffer & BTN.ATTACK) {
+    consume(f);
+    startGrab(f);
     return;
   }
   if (Math.abs(c.sx) > 60 && Math.abs(c.psx) <= 60) {
@@ -327,11 +437,18 @@ function friction(f: Fighter, ch: CharacterDef): void {
 
 function tryAir(f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): boolean {
   const b = f.buffer;
-  if (b & BTN.JUMP && f.jumpsLeft > 0) {
+  if (b & BTN.JUMP && (f.coyote > 0 || f.jumpsLeft > 0)) {
     consume(f);
-    f.jumpsLeft--;
-    f.vy = ch.airJumpVel;
-    f.vx = idiv(c.sx * ch.airSpeed, 100);
+    if (f.coyote > 0) {
+      f.coyote = 0;
+      f.jumpsLeft = ch.airJumps;
+      f.vy = ch.jumpVel;
+      f.vx = clamp(f.vx + idiv(c.sx * ch.airAccel * 4, 100), -ch.airSpeed, ch.airSpeed);
+    } else {
+      f.jumpsLeft--;
+      f.vy = ch.airJumpVel;
+      f.vx = idiv(c.sx * ch.airSpeed, 100);
+    }
     f.fastFall = 0;
     ev.push({ type: 'jump', id: f.id, x: f.x, y: f.y });
     return false;
@@ -339,7 +456,7 @@ function tryAir(f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): boolean {
   if (b & BTN.SPECIAL) {
     consume(f);
     if (Math.abs(c.sx) > 40) f.facing = sign(c.sx);
-    startMove(f, ch, c.sy > 50 ? MOVE.UPB : MOVE.NSPECIAL);
+    startMove(f, ch, specialMove(ch, c));
     return true;
   }
   if (b & (BTN.ATTACK | C_ANY)) {
@@ -417,16 +534,28 @@ function cDirection(b: number, c: Ctx): Dir {
 
 // ------------------------------------------------------------------ attacks
 
+/**
+ * Which special the stick picks. Fighters with their own specials get four (up, down, side, neutral);
+ * everyone else keeps the shared Up and Neutral special whatever the stick does sideways or down.
+ */
+function specialMove(ch: CharacterDef, c: Ctx): number {
+  if (c.sy > 50) return MOVE.UPB;
+  if (!ch.specials) return MOVE.NSPECIAL;
+  if (c.sy < -50) return MOVE.DSPECIAL;
+  if (Math.abs(c.sx) > 40) return MOVE.SSPECIAL;
+  return MOVE.NSPECIAL;
+}
+
 function startMove(f: Fighter, ch: CharacterDef, move: number): void {
   setAction(f, ACT.ATTACK, ch.moves[move].total);
   f.move = move;
   f.hitMask = 0;
-  if (move === MOVE.NSPECIAL && !f.grounded) f.airSpecial++;
+  if (ch.moves[move].airLimited && !f.grounded) f.airSpecial++;
 }
 
-function attack(f: Fighter, ch: CharacterDef, c: Ctx): void {
+function attack(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): void {
   const m = ch.moves[f.move];
-  const spent = f.move === MOVE.NSPECIAL && f.airSpecial > 1;
+  const spent = m.airLimited === true && f.airSpecial > 1;
   for (const imp of m.impulses ?? []) {
     if (imp.frame !== f.frame || spent) continue;
     if (imp.vx !== null) f.vx = f.facing * imp.vx * FX + (imp.steer ? idiv(c.sx * imp.steer * FX, 100) : 0);
@@ -435,21 +564,46 @@ function attack(f: Fighter, ch: CharacterDef, c: Ctx): void {
       f.fastFall = 0;
     }
   }
+  // A drive holds the fighter's velocity for a run of frames (a dash, a recovery's climb or glide).
+  let driving = false;
+  if (!spent) {
+    for (const d of m.drive ?? []) {
+      if (f.frame < d.from || f.frame > d.to) continue;
+      driving = true;
+      if (d.aim !== undefined) {
+        // Angled: the stick aims it when the move starts; neutral goes the way the fighter faces.
+        if (f.frame === d.from && Math.abs(c.sx) > 20) f.facing = sign(c.sx);
+        f.vx = f.facing * d.aim;
+      } else if (d.vx !== null) {
+        f.vx = f.facing * d.vx + (d.steer ? idiv(c.sx * d.steer, 100) : 0);
+      }
+      if (d.vy !== null) {
+        f.vy = d.vy;
+        f.fastFall = 0;
+      }
+    }
+  }
+  for (const w of m.hits) if (w.rehit && f.frame === w.start) f.hitMask = 0;
+  if (m.shot && f.frame === m.shot.frame && !spent) spawnShot(s, f, m.shot, ev);
   if (f.grounded) {
     // Grounded attacks keep walking while the stick is held sideways, instead of stopping dead.
-    if (!m.impulses && Math.abs(c.sx) > 20) {
-      f.vx = approach(f.vx, idiv(c.sx * ch.walkSpeed, 100), ch.groundAccel);
-    } else if (!m.impulses) friction(f, ch);
-    else f.vx = approach(f.vx, 0, idiv(ch.groundFriction, 2));
+    if (driving) {
+      // The drive owns the speed.
+    } else if (m.drive) f.vx = approach(f.vx, 0, ch.groundFriction * 3);
+    else if (m.impulses) f.vx = approach(f.vx, 0, idiv(ch.groundFriction, 2));
+    else if (m.kind) friction(f, ch);
+    else if (Math.abs(c.sx) > 20) f.vx = approach(f.vx, idiv(c.sx * ch.walkSpeed, 100), ch.groundAccel);
+    else friction(f, ch);
   } else if (AERIALS.has(f.move)) {
     drift(f, ch, c, 1);
     fastFall(f, ch, c);
-  } else {
+  } else if (!driving) {
     drift(f, ch, c, 3);
   }
   if (f.frame >= f.length) {
     if (m.helpless && !f.grounded) setAction(f, ACT.HELPLESS, 0);
-    else setAction(f, f.grounded ? ACT.IDLE : ACT.AIR, 0);
+    else if (f.grounded) finishGround(f, ch, c);
+    else finishAir(f, ch, c, ev);
   }
 }
 
@@ -477,10 +631,41 @@ function hittable(f: Fighter): boolean {
   return f.intangible === 0 && f.action !== ACT.DEAD && f.action !== ACT.RESPAWN && f.action !== ACT.LEDGE_CLIMB;
 }
 
+/**
+ * The centre of the overlap between a hitbox circle (centre hx,hy, radius r) and a hurtbox rectangle (x1..x2, y1..y2), in
+ * fixed point: the average of the grid points that lie in both (the closest point on the rectangle when the overlap is a sliver).
+ * Presentation only (the hit event's x,y): the sim state never reads it.
+ */
+export function contactPoint(hx: number, hy: number, r: number, x1: number, y1: number, x2: number, y2: number): { x: number; y: number } {
+  const lx = Math.max(x1, hx - r);
+  const hxr = Math.min(x2, hx + r);
+  const ly = Math.max(y1, hy - r);
+  const hyr = Math.min(y2, hy + r);
+  let sx = 0;
+  let sy = 0;
+  let n = 0;
+  const N = 6;
+  for (let i = 0; i < N; i++) {
+    const px = lx + idiv((hxr - lx) * (2 * i + 1), 2 * N);
+    for (let j = 0; j < N; j++) {
+      const py = ly + idiv((hyr - ly) * (2 * j + 1), 2 * N);
+      const dx = px - hx;
+      const dy = py - hy;
+      if (dx * dx + dy * dy <= r * r) {
+        sx += px;
+        sy += py;
+        n++;
+      }
+    }
+  }
+  if (n > 0) return { x: idiv(sx, n), y: idiv(sy, n) };
+  return { x: clamp(hx, x1, x2), y: clamp(hy, y1, y2) };
+}
+
 function resolveHits(s: GameState, ev: SimEvent[]): void {
   // Collect every hit first and apply them after, so trades land on both
   // fighters and the result does not depend on who is checked first.
-  const hits: { a: Fighter; v: Fighter; box: Hitbox; x: number; y: number }[] = [];
+  const hits: { a: Fighter; v: Fighter; box: Hitbox; x: number; y: number; hx: number; hy: number; r: number }[] = [];
   for (const a of s.fighters) {
     if (a.hitlag > 0) continue;
     const boxes = activeHitboxes(a);
@@ -491,18 +676,336 @@ function resolveHits(s: GameState, ev: SimEvent[]): void {
       const half = w >> 1;
       const top = v.y + h;
       for (const hb of boxes) {
+        // A command grab needs the other fighter on the same floor.
+        if (hb.box.grab && !(v.grounded && a.grounded && v.platform === a.platform)) continue;
         const px = clamp(hb.x, v.x - half, v.x + half);
         const py = clamp(hb.y, v.y, top);
         const dx = hb.x - px;
         const dy = hb.y - py;
         if (dx * dx + dy * dy <= hb.r * hb.r) {
-          hits.push({ a, v, box: hb.box, x: (hb.x + px) >> 1, y: (hb.y + py) >> 1 });
+          const c = contactPoint(hb.x, hb.y, hb.r, v.x - half, v.y, v.x + half, top);
+          hits.push({ a, v, box: hb.box, x: c.x, y: c.y, hx: hb.x, hy: hb.y, r: hb.r });
           break;
         }
       }
     }
   }
+  // A trade where the two hitboxes also touch each other is a clash: its own spark, where the circles meet.
+  for (const h of hits) {
+    if (h.a.id > h.v.id) continue;
+    const o = hits.find((g) => g.a === h.v && g.v === h.a);
+    if (!o) continue;
+    const dx = o.hx - h.hx;
+    const dy = o.hy - h.hy;
+    const reach = h.r + o.r;
+    if (dx * dx + dy * dy > reach * reach) continue;
+    const t = reach > 0 ? idiv(h.r * 1000, reach) : 500;
+    ev.push({ type: 'clash', a: h.a.id, b: h.v.id, x: h.hx + idiv(dx * t, 1000), y: h.hy + idiv(dy * t, 1000) });
+  }
   for (const h of hits) applyHit(s, h.a, h.v, h.box, h.x, h.y, ev);
+}
+
+// ---------------------------------------------------------------- grab and throws
+//
+// Shield and Attack together reach out with the jab's reach. A grab beats a shield (the shield is not
+// touched) and loses to an attack: a hit that lands on the grabber the same frame ends the reach (hits are
+// applied before grabs). The held fighter is pinned in front; the hold lasts longer as their damage rises
+// and each mash (a fresh button press or stick flick) shortens it. The holder throws with the stick:
+// forward, back, up or down, each with its own damage, angle and knockback (ch.throws).
+
+export const GRAB_TOTAL = 30;
+export const GRAB_FIRST = 5;
+export const GRAB_LAST = 8;
+/** Fastest the holder can throw, so a stick already held when the grab connects still reads as a grab. */
+const THROW_FROM = 8;
+const HOLD_BASE = 40;
+const HOLD_MAX = 240;
+/** Frames one mash takes off the hold. */
+const MASH_CUT = 4;
+/** Frames of hit-stop when the grab connects. */
+const GRAB_LAG = 6;
+
+/** The hold's length for a victim at this damage (tenths of a percent): 40 frames at 0%, 100 at 100%. */
+export function holdFrames(percent: number): number {
+  return Math.min(HOLD_MAX, HOLD_BASE + idiv(percent * 6, 100));
+}
+
+function startGrab(f: Fighter): void {
+  setAction(f, ACT.GRAB, GRAB_TOTAL);
+  f.holding = 0;
+}
+
+function grabbable(g: Fighter, v: Fighter): boolean {
+  if (v === g || allies(g, v) || !hittable(v) || !v.grounded || !g.grounded || v.platform !== g.platform) return false;
+  return v.action !== ACT.HITSTUN && v.action !== ACT.GRABBED && v.action !== ACT.GRAB_HOLD && v.action !== ACT.THROW;
+}
+
+/** The grab's reach: the jab's, from the grabber's feet forward. */
+function grabReachBox(g: Fighter): [number, number] {
+  const reach = idiv(CHARACTERS[g.char].grabReach * g.scale * FX, 100);
+  return g.facing > 0 ? [g.x - 6 * FX, g.x + reach] : [g.x - reach, g.x + 6 * FX];
+}
+
+function grabReach(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx): void {
+  friction(f, ch);
+  if (f.frame >= GRAB_FIRST && f.frame <= GRAB_LAST) {
+    const [lo, hi] = grabReachBox(f);
+    for (const v of s.fighters) {
+      if (!grabbable(f, v)) continue;
+      const half = bodySize(v)[0] >> 1;
+      if (v.x + half < lo || v.x - half > hi) continue;
+      // Two grabs that reach each other cancel out.
+      if (v.action === ACT.GRAB && v.frame >= GRAB_FIRST && v.frame <= GRAB_LAST) {
+        const [vlo, vhi] = grabReachBox(v);
+        const gh = bodySize(f)[0] >> 1;
+        if (f.x + gh >= vlo && f.x - gh <= vhi) continue;
+      }
+      pendingGrabs.push([f, v]);
+      break;
+    }
+  }
+  if (f.frame >= f.length) finishGround(f, ch, c);
+}
+
+/** Grabs that connected this frame, applied after the hits so an attack beats a grab. */
+let pendingGrabs: [Fighter, Fighter][] = [];
+
+function applyGrabs(s: GameState, ev: SimEvent[]): void {
+  const list = pendingGrabs;
+  pendingGrabs = [];
+  for (const [g, v] of list) {
+    // A hit that landed this frame already took the grabber out of its reach; and a fighter two grabs reach is held once.
+    if (g.action !== ACT.GRAB || !grabbable(g, v)) continue;
+    const hold = holdFrames(v.percent);
+    const shield = v.action === ACT.SHIELD || v.action === ACT.SHIELD_STUN;
+    g.holding = v.id + 1;
+    v.heldBy = g.id + 1;
+    v.vx = v.vy = v.kbx = v.kby = 0;
+    v.buffer = 0;
+    v.dir = 0;
+    v.fastFall = 0;
+    v.facing = g.x < v.x ? -1 : 1;
+    setAction(v, ACT.GRABBED, 0);
+    setAction(g, ACT.GRAB_HOLD, hold);
+    g.facing = v.x < g.x ? -1 : 1;
+    pinHeld(g, v);
+    g.hitlag = v.hitlag = GRAB_LAG;
+    ev.push({ type: 'grab', attacker: g.id, victim: v.id, x: (g.x + v.x) >> 1, y: g.y + (bodySize(g)[1] >> 1), shield, hold });
+  }
+}
+
+/** Where the held fighter stands: just in front of the holder, kept on the floor they share. */
+function pinHeld(g: Fighter, v: Fighter): void {
+  const gap = (bodySize(g)[0] >> 1) + (bodySize(v)[0] >> 1) - 8 * FX;
+  let x = g.x + g.facing * Math.max(gap, 16 * FX);
+  if (g.platform >= 0) {
+    const p = platformAt(stage.platforms[g.platform], frame);
+    x = clamp(x, p.x1 * FX, p.x2 * FX);
+  }
+  v.x = x;
+  v.y = g.y;
+  v.vx = v.vy = 0;
+}
+
+function heldVictim(s: GameState, f: Fighter): Fighter | null {
+  const v = f.holding ? s.fighters[f.holding - 1] : null;
+  return v && v.action === ACT.GRABBED && v.heldBy === f.id + 1 ? v : null;
+}
+
+function release(f: Fighter, v: Fighter | null): void {
+  f.holding = 0;
+  f.throwKind = 0;
+  if (v && v.heldBy === f.id + 1) v.heldBy = 0;
+}
+
+function grabHold(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): void {
+  friction(f, ch);
+  const v = heldVictim(s, f);
+  if (!v) {
+    release(f, null);
+    finishGround(f, ch, c);
+    return;
+  }
+  if (f.frame >= f.length) {
+    // The hold is over: the victim wriggles free (sooner when they mashed).
+    ev.push({ type: 'grab-break', attacker: f.id, victim: v.id, x: v.x, y: v.y, mashed: v.dir > 0, held: f.frame });
+    release(f, v);
+    setAction(v, ACT.IDLE, 0);
+    v.vx = (sign(v.x - f.x) || 1) * 3 * FX;
+    v.intangible = 8;
+    setAction(f, ACT.LAND, 10);
+    return;
+  }
+  if (f.frame < THROW_FROM) return;
+  const b = f.buffer;
+  const dir = b & C_ANY ? cDirection(b, c) : stickDirection(c);
+  if (dir === 'neutral' && !(b & (BTN.ATTACK | C_ANY))) return;
+  consume(f);
+  let kind: number = THROW.FORWARD;
+  if (dir === 'up') kind = THROW.UP;
+  else if (dir === 'down') kind = THROW.DOWN;
+  else if (dir === 'left' || dir === 'right') kind = (dir === 'right' ? 1 : -1) === f.facing ? THROW.FORWARD : THROW.BACK;
+  f.throwKind = kind + 1;
+  setAction(f, ACT.THROW, ch.throws[kind].total);
+}
+
+function throwing(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): void {
+  friction(f, ch);
+  const t = ch.throws[Math.max(0, f.throwKind - 1)];
+  const v = heldVictim(s, f);
+  if (f.frame === t.release && v) {
+    const kind = f.throwKind - 1;
+    const [, vh] = bodySize(v);
+    if (kind === THROW.BACK) {
+      v.x = f.x - f.facing * Math.max((bodySize(f)[0] >> 1) + (bodySize(v)[0] >> 1) - 8 * FX, 16 * FX);
+      if (f.platform >= 0) {
+        const p = platformAt(stage.platforms[f.platform], frame);
+        v.x = clamp(v.x, p.x1 * FX, p.x2 * FX);
+      }
+    }
+    release(f, v);
+    f.throwKind = kind + 1;
+    ev.push({ type: 'throw', attacker: f.id, victim: v.id, kind, x: v.x, y: v.y + (vh >> 1) });
+    const box: Hitbox = { x: 0, y: 0, r: 0, dmg: t.dmg, angle: t.angle, bkb: t.bkb, kbg: t.kbg };
+    applyHit(s, f, v, box, v.x, v.y + (vh >> 1), ev, { facing: f.facing });
+  } else if (!v && f.frame < t.release) {
+    // The held fighter was taken from us (hit by a third fighter): nothing to throw.
+    release(f, null);
+    finishGround(f, ch, c);
+    return;
+  }
+  if (f.frame >= f.length) {
+    f.throwKind = 0;
+    finishGround(f, ch, c);
+  }
+}
+
+function grabbed(s: GameState, f: Fighter, c: Ctx, pressed: number, ev: SimEvent[]): void {
+  const a = f.heldBy ? s.fighters[f.heldBy - 1] : null;
+  if (!a || a.holding !== f.id + 1 || (a.action !== ACT.GRAB_HOLD && a.action !== ACT.THROW)) {
+    // Let go of (the holder was hit, or the hold ended another way).
+    f.heldBy = 0;
+    setAction(f, ACT.IDLE, 0);
+    return;
+  }
+  f.buffer = 0;
+  if (a.action === ACT.GRAB_HOLD) {
+    const flick = (Math.abs(c.sx) > 60 && Math.abs(c.psx) <= 60) || (Math.abs(c.sy) > 60 && Math.abs(c.psy) <= 60);
+    if (pressed || flick) {
+      // Mashing: each press takes frames off the hold (never the one it is on).
+      a.length = Math.max(a.frame + 1, a.length - MASH_CUT);
+      f.dir++;
+    }
+  }
+  pinHeld(a, f);
+}
+
+// -------------------------------------------------------------------- shots
+
+/** A special's projectile or trap appears. At the fighter's limit a trap replaces the old one; a projectile waits. */
+function spawnShot(s: GameState, f: Fighter, d: ShotDef, ev: SimEvent[]): void {
+  // A trap needs a floor under it; in the air the move is only a whiff.
+  if (d.kind === 1 && (!f.grounded || f.platform < 0)) return;
+  let mine = 0;
+  let oldest = -1;
+  for (let i = 0; i < s.shots.length; i++) {
+    const o = s.shots[i];
+    if (o.owner !== f.id || o.kind !== d.kind) continue;
+    mine++;
+    if (oldest < 0) oldest = i;
+  }
+  if (mine >= d.max) {
+    if (d.kind !== 1) return;
+    s.shots.splice(oldest, 1);
+  }
+  const o = newShot();
+  o.kind = d.kind;
+  o.owner = f.id;
+  o.facing = f.facing;
+  o.x = f.x + f.facing * idiv(d.x * f.scale * FX, 100);
+  o.y = f.y + idiv(d.y * f.scale * FX, 100);
+  if (d.kind === 1) {
+    const p = platformAt(stage.platforms[f.platform], frame);
+    o.x = clamp(o.x, p.x1 * FX, p.x2 * FX);
+    o.y = p.y;
+    o.plat = f.platform;
+  }
+  o.vx = f.facing * d.vx;
+  o.vy = d.vy;
+  o.g = d.g;
+  o.life = d.life;
+  o.arm = d.arm;
+  o.r = idiv(d.r * f.scale * FX, 100);
+  o.dmg = d.dmg;
+  o.angle = d.angle;
+  o.bkb = d.bkb;
+  o.kbg = d.kbg;
+  o.style = d.style;
+  s.shots.push(o);
+  ev.push({ type: 'shot', id: f.id, kind: d.kind, x: o.x, y: o.y });
+}
+
+/** Moves every projectile and trap, then lets each hit the first fighter it touches (and vanish) or run out. */
+function stepShots(s: GameState, ev: SimEvent[]): void {
+  if (!s.shots.length) return;
+  const b = stage.blast;
+  const keep: Shot[] = [];
+  for (const o of s.shots) {
+    o.age++;
+    o.life--;
+    if (o.arm > 0) o.arm--;
+    if (o.kind === 0) {
+      o.vy -= o.g;
+      o.x += o.vx;
+      o.y += o.vy;
+    } else if (o.plat >= 0) {
+      // A trap rides its floor, and goes with it when an event switches the floor off.
+      if (!platformOn(stage, s, o.plat)) continue;
+      const p = stage.platforms[o.plat];
+      if (p.motion) {
+        const now = platformAt(p, frame);
+        o.x += now.x1 - platformAt(p, frame - 1).x1;
+        o.y = now.y;
+      }
+    }
+    if (o.life <= 0 || o.x < b.left * FX || o.x > b.right * FX || o.y < b.bottom * FX || o.y > b.top * FX) continue;
+    if (o.kind === 0 && inSolid(s, o)) continue;
+    if (shotHit(s, o, ev)) continue;
+    keep.push(o);
+  }
+  s.shots = keep;
+}
+
+/** A projectile that runs into a solid block (a wall or the underside of the stage) stops there. */
+function inSolid(s: GameState, o: Shot): boolean {
+  for (let i = 0; i < stage.platforms.length; i++) {
+    const p = stage.platforms[i];
+    if (!p.solid || !platformOn(stage, s, i)) continue;
+    const top = p.y * FX;
+    if (o.x > p.x1 * FX && o.x < p.x2 * FX && o.y < top && o.y > top - (p.depth ?? 90) * FX) return true;
+  }
+  return false;
+}
+
+/** Whether the shot hit someone this frame (it is spent if so). */
+function shotHit(s: GameState, o: Shot, ev: SimEvent[]): boolean {
+  if (o.kind === 1 && o.arm > 0) return false;
+  const owner = s.fighters[o.owner];
+  for (const v of s.fighters) {
+    if (v.id === o.owner || !hittable(v) || (owner && allies(owner, v))) continue;
+    const [w, h] = bodySize(v);
+    const half = w >> 1;
+    const px = clamp(o.x, v.x - half, v.x + half);
+    const py = clamp(o.y, v.y, v.y + h);
+    const dx = o.x - px;
+    const dy = o.y - py;
+    if (dx * dx + dy * dy > o.r * o.r) continue;
+    const box: Hitbox = { x: 0, y: 0, r: 0, dmg: o.dmg, angle: o.angle, bkb: o.bkb, kbg: o.kbg };
+    const c = contactPoint(o.x, o.y, o.r, v.x - half, v.y, v.x + half, v.y + h);
+    applyHit(s, owner, v, box, c.x, c.y, ev, { facing: o.facing, shot: true, shotKind: o.kind === 1 ? 'trap' : 'projectile' });
+    return true;
+  }
+  return false;
 }
 
 export function knockback(percent: number, dmg: number, weight: number, bkb: number, kbg: number): number {
@@ -513,21 +1016,52 @@ export function knockback(percent: number, dmg: number, weight: number, bkb: num
   return idiv(b * kbg, 100) + bkb * 1000;
 }
 
-function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, y: number, ev: SimEvent[]): void {
-  a.hitMask |= 1 << v.id;
+/** Where a hit comes from when it isn't the attacker's own body: a shot flies its own way and doesn't freeze its owner. */
+interface Via {
+  facing: number;
+  shot?: boolean;
+  /** Archetype of the shot (projectile or trap). */
+  shotKind?: SpecialKind;
+  counter?: boolean;
+}
+
+/** The counter window a fighter is in, if any. */
+function counterWindow(v: Fighter): CounterDef | null {
+  if (v.action !== ACT.ATTACK) return null;
+  const cd = CHARACTERS[v.char].moves[v.move].counter;
+  return cd && v.frame >= cd.from && v.frame <= cd.to ? cd : null;
+}
+
+function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, y: number, ev: SimEvent[], via?: Via): void {
+  const facing = via?.facing ?? a.facing;
+  if (!via?.shot) a.hitMask |= 1 << v.id;
+  const cw = via?.counter || box.grab ? null : counterWindow(v);
+  if (cw) {
+    // The hit is turned back: the countering fighter takes nothing, the attacker takes it with interest.
+    const back = Math.max(cw.box.dmg, idiv(box.dmg * cw.mult, 100));
+    v.frame = Math.max(v.frame, cw.to + 1);
+    ev.push({ type: 'counter', id: v.id, x, y });
+    applyHit(s, v, a, { ...cw.box, dmg: back }, x, y, ev, { facing: v.facing, counter: true });
+    // A parry freezes both fighters for at least 6 frames, on the frame of the parry (the flash plays with it).
+    a.hitlag = Math.max(a.hitlag, COUNTER_FREEZE);
+    v.hitlag = Math.max(v.hitlag, COUNTER_FREEZE);
+    return;
+  }
   const dmg = idiv(box.dmg * s.rules.damage, 100);
-  const lag = 4 + idiv(dmg, 30);
-  a.hitlag = lag;
+  const special = via?.shot ? via.shotKind : a.action === ACT.ATTACK && SPECIAL_SLOTS.has(a.move) ? CHARACTERS[a.char].moves[a.move].kind : undefined;
+  // Hit-stop scales with damage: a jab freezes 3 frames, a smash 8 or more (at most 14).
+  const lag = Math.min(14, 3 + idiv(dmg, 25));
+  if (!via?.shot) a.hitlag = lag;
   v.hitlag = lag;
 
-  if (v.action === ACT.SHIELD || v.action === ACT.SHIELD_STUN) {
+  if (!box.grab && (v.action === ACT.SHIELD || v.action === ACT.SHIELD_STUN)) {
     v.shield -= dmg;
-    ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: 0, shield: true });
+    ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: 0, shield: true, lag, special });
     if (v.shield <= 0) {
       breakShield(v, ev);
     } else {
       setAction(v, ACT.SHIELD_STUN, 3 + idiv(dmg * 5, 100));
-      v.vx = (sign(v.x - a.x) || a.facing) * idiv(dmg * FX, 15);
+      v.vx = (sign(v.x - a.x) || facing) * idiv(dmg * FX, 15);
     }
     return;
   }
@@ -539,7 +1073,7 @@ function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, 
   const weight = idiv(vc.weight * v.scale, 100);
   const kb = knockback(v.percent, dmg, weight, box.bkb, box.kbg);
   v.launchSpeed = idiv(kb * KB_SPEED, 100);
-  v.launchAngle = normDeg(a.facing > 0 ? box.angle : 180 - box.angle);
+  v.launchAngle = normDeg(facing > 0 ? box.angle : 180 - box.angle);
   v.hitstun = idiv(kb * 4, 10000);
   setAction(v, ACT.HITSTUN, 0);
   v.vx = 0;
@@ -550,13 +1084,14 @@ function applyHit(s: GameState, a: Fighter, v: Fighter, box: Hitbox, x: number, 
   v.airSpecial = 0;
   v.ledge = 0;
   v.buffer = 0;
-  v.facing = a.x < v.x ? -1 : 1;
+  v.facing = via?.shot ? -facing : a.x < v.x ? -1 : 1;
+  if (box.grab) v.x = a.x + facing * idiv((box.pull ?? 0) * a.scale * FX, 100);
   v.lastHitBy = a.id;
-  ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: idiv(kb, 1000), shield: false });
+  ev.push({ type: 'hit', attacker: a.id, victim: v.id, x, y, dmg, kb: idiv(kb, 1000), shield: false, lag, special });
 }
 
 /** Applies a stored launch once hitlag ends, bent by the victim's stick (DI). */
-function launch(f: Fighter, inp: number): void {
+function launch(f: Fighter, inp: number, ev: SimEvent[]): void {
   let a = f.launchAngle;
   const sx = stickX(inp);
   const sy = stickY(inp);
@@ -576,6 +1111,19 @@ function launch(f: Fighter, inp: number): void {
       f.platform = -1;
     }
   }
+  const vc = CHARACTERS[f.char];
+  const ko = predictLaunchKo({
+    x: f.x,
+    y: f.y,
+    kx: f.kbx,
+    ky: f.kby,
+    gravity: idiv(vc.gravity * gravityPct, 100),
+    fallSpeed: fallSpeed(vc, false),
+    blast: stage.blast,
+    drift: idiv(vc.airSpeed * 3, 4),
+    floors: stage.platforms.map((p) => ({ x1: p.x1, x2: p.x2, y: p.y, depth: p.solid ? (p.depth ?? 100) : undefined })),
+  });
+  ev.push({ type: 'launch', victim: f.id, by: f.lastHitBy, x: f.x, y: f.y, ko });
 }
 
 // -------------------------------------------------------------------- ledge
@@ -591,26 +1139,88 @@ function hangPosition(f: Fighter): [number, number] {
   return [l.x * FX + l.side * (w >> 1), l.y * FX - h + 20 * FX];
 }
 
+// The ledge is a choice. Held for LEDGE_CHOOSE frames (the grab's own invincibility covers them), then:
+//   getup  (stick up or toward the stage)  22 frames, invincible all of it; stand at the edge
+//   roll   (Shield)                        34 frames, invincible 28; lands a body-length further in
+//   attack (Attack, or the smash stick)    12 frames climbing, then the fighter's down tilt, invincible 14; a low sweep
+//   jump   (Jump)                          a higher hop, a little inward, invincible 14; air jump and aerials open at frame 6
+//   drop   (stick down or away, or the hang runs out after LEDGE_HANG_MAX)
+// Special does nothing here. All of it is integers in the fighter's own state (action, frame, ledge), so it rolls back.
+
+/** Frames from grabbing before an option is read. */
+export const LEDGE_CHOOSE = 8;
+/** The longest a fighter can hang (4 s); then they let go. */
+export const LEDGE_HANG_MAX = 240;
+export const LEDGE_GETUP_FRAMES = 22;
+export const LEDGE_ROLL_FRAMES = 34;
+export const LEDGE_ROLL_INVULN = 28;
+/** Climbing frames of a roll and a ledge attack (the fighter rises over the edge, then moves). */
+export const LEDGE_RISE = 8;
+export const LEDGE_ATTACK_FRAMES = 12;
+export const LEDGE_ATTACK_INVULN = 14;
+export const LEDGE_JUMP_FRAMES = 16;
+export const LEDGE_JUMP_INVULN = 14;
+/** The frame a ledge jump can air jump or throw an aerial. */
+const LEDGE_JUMP_ACT = 6;
+/** Frames before the same ledge can be grabbed again after letting go on purpose, or after the hang ran out. */
+const LEDGE_REGRAB = 30;
+const LEDGE_REGRAB_TIMEOUT = 90;
+
+/** Actions the sim moves by hand (the ledge ones, the respawn drop), so physics leaves them alone. */
+const PINNED: ReadonlySet<number> = new Set([ACT.LEDGE, ACT.LEDGE_CLIMB, ACT.LEDGE_ROLL, ACT.LEDGE_ATTACK, ACT.RESPAWN]);
+
+function ledgeOption(f: Fighter, option: LedgeOption, ev: SimEvent[]): void {
+  ev.push({ type: 'ledge-option', id: f.id, option, x: f.x, y: f.y });
+}
+
 function ledge(f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEvent[]): void {
-  if (!platformOn(stage, clock, heldLedge(f).platform)) {
+  const l = heldLedge(f);
+  if (!platformOn(stage, clock, l.platform)) {
     leaveLedge(f, 30);
     return;
   }
   [f.x, f.y] = hangPosition(f);
-  if (f.frame < 8) return;
-  const toward = -heldLedge(f).side;
-  if (f.buffer & BTN.JUMP) {
+  const toward = -l.side;
+  if (f.frame > LEDGE_HANG_MAX) {
+    ledgeOption(f, 'drop', ev);
+    leaveLedge(f, LEDGE_REGRAB_TIMEOUT);
+    f.x -= toward * 4 * FX;
+    return;
+  }
+  if (f.frame < LEDGE_CHOOSE) return;
+  const b = f.buffer;
+  if (b & BTN.JUMP) {
     consume(f);
-    leaveLedge(f, 20);
-    f.vy = ch.jumpVel;
-    f.vx = toward * 2 * FX;
+    f.ledge = 0;
+    f.ledgeCooldown = 20;
+    f.grounded = 0;
+    f.platform = -1;
+    f.fastFall = 0;
+    setAction(f, ACT.LEDGE_JUMP, LEDGE_JUMP_FRAMES);
+    f.intangible = LEDGE_JUMP_INVULN;
+    f.vy = idiv(ch.jumpVel * 115, 100);
+    f.vx = toward * 3 * FX;
+    ledgeOption(f, 'jump', ev);
     ev.push({ type: 'jump', id: f.id, x: f.x, y: f.y });
-  } else if (c.sy > 60 || c.sx * toward > 60 || f.buffer & (BTN.ATTACK | BTN.SPECIAL | BTN.SHIELD)) {
+  } else if (b & BTN.SHIELD) {
     consume(f);
-    setAction(f, ACT.LEDGE_CLIMB, 22);
-    f.intangible = 22;
-  } else if (c.sy < -60 || c.sx * toward < -60 || f.frame > 300) {
-    leaveLedge(f, 30);
+    setAction(f, ACT.LEDGE_ROLL, LEDGE_ROLL_FRAMES);
+    f.intangible = LEDGE_ROLL_INVULN;
+    ledgeOption(f, 'roll', ev);
+  } else if (b & (BTN.ATTACK | C_ANY)) {
+    consume(f);
+    setAction(f, ACT.LEDGE_ATTACK, LEDGE_ATTACK_FRAMES);
+    f.intangible = LEDGE_ATTACK_INVULN;
+    ledgeOption(f, 'attack', ev);
+  } else if (b & BTN.SPECIAL) {
+    consume(f);
+  } else if (c.sy > 60 || c.sx * toward > 60) {
+    setAction(f, ACT.LEDGE_CLIMB, LEDGE_GETUP_FRAMES);
+    f.intangible = LEDGE_GETUP_FRAMES;
+    ledgeOption(f, 'getup', ev);
+  } else if (c.sy < -60 || c.sx * toward < -60) {
+    ledgeOption(f, 'drop', ev);
+    leaveLedge(f, LEDGE_REGRAB);
     f.x -= toward * 4 * FX;
   }
 }
@@ -623,16 +1233,32 @@ function leaveLedge(f: Fighter, cooldown: number): void {
   setAction(f, ACT.AIR, 0);
 }
 
-function ledgeClimb(f: Fighter): void {
+/** Where a fighter who climbed the ledge stands: just inside the edge. */
+function ledgeTopX(f: Fighter, l: Ledge): number {
+  return l.x * FX - l.side * ((bodySize(f)[0] >> 1) + 6 * FX);
+}
+
+/** Puts the fighter on the platform at x and hands them back to the ground states. */
+function standOnLedge(f: Fighter, l: Ledge, x: number): void {
+  f.x = x;
+  f.y = l.y * FX;
+  f.ledge = 0;
+  f.ledgeCooldown = 10;
+  f.grounded = 1;
+  f.platform = l.platform;
+  f.vx = 0;
+  f.vy = 0;
+}
+
+function ledgeClimb(f: Fighter, ch: CharacterDef, c: Ctx): void {
   const l = heldLedge(f);
   if (!platformOn(stage, clock, l.platform)) {
     leaveLedge(f, 30);
     return;
   }
   const [hx, hy] = hangPosition(f);
-  const [w] = bodySize(f);
   const top = l.y * FX;
-  const endX = l.x * FX - l.side * ((w >> 1) + 6 * FX);
+  const endX = ledgeTopX(f, l);
   if (f.frame <= 11) {
     f.x = hx;
     f.y = hy + idiv((top - hy) * f.frame, 11);
@@ -641,15 +1267,64 @@ function ledgeClimb(f: Fighter): void {
     f.x = hx + idiv((endX - hx) * (f.frame - 11), 11);
   }
   if (f.frame >= f.length) {
-    f.x = endX;
+    standOnLedge(f, l, endX);
+    finishGround(f, ch, c);
+  }
+}
+
+/** Where the ledge roll ends: a body-length inside the getup's spot, but never past the middle of a small platform. */
+export function ledgeRollEndX(f: Fighter, l: Ledge): number {
+  const [w] = bodySize(f);
+  const p = stage.platforms[l.platform];
+  const room = idiv((p.x2 - p.x1) * FX, 2);
+  const inward = Math.min((w >> 1) + 6 * FX + w, room);
+  return l.x * FX - l.side * inward;
+}
+
+function ledgeRoll(f: Fighter, ch: CharacterDef, c: Ctx): void {
+  const l = heldLedge(f);
+  if (!platformOn(stage, clock, l.platform)) {
+    leaveLedge(f, 30);
+    return;
+  }
+  const [hx, hy] = hangPosition(f);
+  const top = l.y * FX;
+  const endX = ledgeRollEndX(f, l);
+  f.facing = -l.side;
+  if (f.frame <= LEDGE_RISE) {
+    f.x = hx;
+    f.y = hy + idiv((top - hy) * f.frame, LEDGE_RISE);
+  } else {
     f.y = top;
-    f.ledge = 0;
-    f.ledgeCooldown = 10;
-    f.grounded = 1;
-    f.platform = l.platform;
-    f.vx = 0;
-    f.vy = 0;
-    setAction(f, ACT.IDLE, 0);
+    f.x = hx + idiv((endX - hx) * (f.frame - LEDGE_RISE), f.length - LEDGE_RISE);
+  }
+  if (f.frame >= f.length) {
+    standOnLedge(f, l, endX);
+    finishGround(f, ch, c);
+  }
+}
+
+/** The ledge attack climbs like the getup, then swings the fighter's own down tilt (a low sweep) from the top. */
+function ledgeAttack(f: Fighter, ch: CharacterDef, c: Ctx): void {
+  const l = heldLedge(f);
+  if (!platformOn(stage, clock, l.platform)) {
+    leaveLedge(f, 30);
+    return;
+  }
+  const [hx, hy] = hangPosition(f);
+  const top = l.y * FX;
+  const endX = ledgeTopX(f, l);
+  if (f.frame <= LEDGE_RISE) {
+    f.x = hx;
+    f.y = hy + idiv((top - hy) * f.frame, LEDGE_RISE);
+  } else {
+    f.y = top;
+    f.x = hx + idiv((endX - hx) * (f.frame - LEDGE_RISE), f.length - LEDGE_RISE);
+  }
+  if (f.frame >= f.length) {
+    standOnLedge(f, l, endX);
+    f.facing = -l.side;
+    startMove(f, ch, MOVE.DTILT);
   }
 }
 
@@ -677,7 +1352,7 @@ function tryGrabLedge(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: Si
     const hangX = lx + l.side * half;
     const top = f.y + h - ly;
     if (Math.abs(f.x - hangX) > 45 * FX || top < -25 * FX || top > 70 * FX) continue;
-    if (s.fighters.some((o) => o !== f && (o.action === ACT.LEDGE || o.action === ACT.LEDGE_CLIMB) && o.ledge === i + 1)) continue;
+    if (s.fighters.some((o) => o !== f && o.ledge === i + 1 && (o.action === ACT.LEDGE || o.action === ACT.LEDGE_CLIMB || o.action === ACT.LEDGE_ROLL || o.action === ACT.LEDGE_ATTACK))) continue;
 
     f.ledge = i + 1;
     f.facing = -l.side;
@@ -749,7 +1424,10 @@ function physics(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEven
     f.grounded = 0;
     f.platform = -1;
     f.jumpsLeft = ch.airJumps;
-    if (f.action !== ACT.HITSTUN && f.action !== ACT.DIZZY) setAction(f, ACT.AIR, 0);
+    if (f.action !== ACT.HITSTUN && f.action !== ACT.DIZZY) {
+      setAction(f, ACT.AIR, 0);
+      f.coyote = COYOTE_FRAMES;
+    }
   }
 
   if (f.grounded) {
@@ -769,7 +1447,10 @@ function physics(s: GameState, f: Fighter, ch: CharacterDef, c: Ctx, ev: SimEven
           f.grounded = 0;
           f.platform = -1;
           f.jumpsLeft = ch.airJumps;
-          if (f.action !== ACT.HITSTUN && f.action !== ACT.DIZZY) setAction(f, ACT.AIR, 0);
+          if (f.action !== ACT.HITSTUN && f.action !== ACT.DIZZY) {
+            setAction(f, ACT.AIR, 0);
+            f.coyote = COYOTE_FRAMES;
+          }
         }
       }
     }
@@ -1034,6 +1715,8 @@ function land(f: Fighter, ch: CharacterDef, platform: number, y: number, ev: Sim
       setAction(f, ACT.LAND, 10);
       break;
     case ACT.AIR:
+    case ACT.LEDGE_JUMP:
+      if (f.buffer) f.bufferAge = 0;
       setAction(f, ACT.LAND, 4);
       break;
   }
@@ -1060,9 +1743,73 @@ function separate(s: GameState): void {
 
 // ---------------------------------------------------------------- stocks
 
+/** Sudden death: the blast zone holds for this long, then closes in on the stage's middle. */
+export const SUDDEN_HOLD = 600;
+export const SUDDEN_CLOSE = 900;
+/** Every fighter respawns at this percent (tenths: 300%). */
+export const SUDDEN_PERCENT = 3000;
+
+/** The blast zone now: the stage's, or, in sudden death after 10 s, shrinking linearly to nothing by 25 s so the bout always ends. */
+export function blastZone(s: GameState): StageDef['blast'] {
+  const b = stage.blast;
+  const t = s.sudden - 1 - SUDDEN_HOLD;
+  if (s.sudden <= 0 || t <= 0) return b;
+  const left = SUDDEN_CLOSE - t;
+  if (left <= 0) {
+    const cx = idiv(b.left + b.right, 2);
+    const cy = idiv(b.top + b.bottom, 2);
+    return { left: cx, right: cx, top: cy, bottom: cy };
+  }
+  const cx = idiv(b.left + b.right, 2);
+  const cy = idiv(b.top + b.bottom, 2);
+  return {
+    left: cx + idiv((b.left - cx) * left, SUDDEN_CLOSE),
+    right: cx + idiv((b.right - cx) * left, SUDDEN_CLOSE),
+    top: cy + idiv((b.top - cy) * left, SUDDEN_CLOSE),
+    bottom: cy + idiv((b.bottom - cy) * left, SUDDEN_CLOSE),
+  };
+}
+
+/** Both fell on the same frame of sudden death: a coin from the sim's own rng picks who stays (never the host by slot). */
+function settleSuddenTie(s: GameState): void {
+  if (s.sudden <= 0 || s.over) return;
+  const out = s.fighters.filter((f) => f.suddenIn && f.stocks <= 0 && f.action === ACT.DEAD && f.frame === 0);
+  if (out.length < 2 || s.fighters.some((f) => f.suddenIn && f.stocks > 0)) return;
+  let v: number;
+  [s.rng, v] = rngNext(s.rng);
+  const keep = out[v % out.length];
+  keep.stocks = 1;
+  keep.falls--;
+  keep.action = ACT.IDLE;
+  keep.frame = 0;
+  keep.x = idiv(stage.blast.left + stage.blast.right, 2) * FX;
+  keep.y = stage.respawn.y * FX;
+  keep.vx = keep.vy = 0;
+  keep.intangible = 30;
+}
+
+function startSuddenDeath(s: GameState, tied: Fighter[][], ev: SimEvent[]): void {
+  const ids = tied.flat().map((f) => f.id);
+  for (const f of s.fighters) {
+    f.suddenIn = ids.includes(f.id) ? 1 : 0;
+    f.hitlag = f.launchSpeed = f.kbx = f.kby = f.vx = f.vy = f.ledge = f.holding = f.heldBy = 0;
+    if (!f.suddenIn) {
+      f.stocks = 0;
+      setAction(f, ACT.DEAD, 0);
+      continue;
+    }
+    f.stocks = 1;
+    respawn(f, CHARACTERS[f.char], ev);
+    f.percent = SUDDEN_PERCENT;
+  }
+  s.shots = [];
+  s.sudden = 1;
+  ev.push({ type: 'sudden', ids });
+}
+
 function checkBlastZones(s: GameState, f: Fighter, ev: SimEvent[]): void {
   if (f.action === ACT.DEAD) return;
-  const b = stage.blast;
+  const b = blastZone(s);
   if (f.x > b.left * FX && f.x < b.right * FX && f.y > b.bottom * FX && f.y < b.top * FX) return;
   ev.push({ type: 'ko', victim: f.id, by: f.lastHitBy, x: f.x, y: f.y });
   f.stocks--;
@@ -1105,11 +1852,18 @@ function sides(s: GameState): Fighter[][] {
   return [...groups.values()];
 }
 
-function checkGameOver(s: GameState): void {
+function checkGameOver(s: GameState, ev: SimEvent[]): void {
   if (s.over || s.fighters.length < 2) return;
   const alive = sides(s);
-  const timeUp = s.rules.timeLimit > 0 && s.frame + 1 >= s.rules.timeLimit;
+  const timeUp = s.sudden === 0 && s.rules.timeLimit > 0 && s.frame + 1 >= s.rules.timeLimit;
   if (alive.length > 1 && !timeUp) return;
+  if (timeUp && s.rules.suddenDeath) {
+    // Exactly level on stocks and percent: sudden death decides it, never slot order.
+    const sc = alive.map((g) => [g.reduce((n, f) => n + f.stocks, 0), g.reduce((n, f) => n + f.percent, 0)]);
+    const top = sc.reduce((a, b) => (b[0] > a[0] || (b[0] === a[0] && b[1] < a[1]) ? b : a), sc[0]);
+    const tied = alive.filter((_, i) => sc[i][0] === top[0] && sc[i][1] === top[1]);
+    if (tied.length > 1) return startSuddenDeath(s, tied, ev);
+  }
 
   // On time, the side with the most stocks wins, then the least damage.
   let best: Fighter[] | null = null;
@@ -1127,4 +1881,144 @@ function checkGameOver(s: GameState): void {
   s.winner = best ? best[0].id : -1;
   s.winnerTeam = best && best[0].team >= 0 ? best[0].team : -1;
   s.endTimer = 120;
+}
+
+// -------------------------------------------------------- broadcast events
+
+const RIG_WARN = 60;
+const RIG_FALL = 24;
+const RIG_R = 90;
+const FLICKER_FRAMES = 150;
+const HIJACK_FRAMES = 600;
+/** The finale takeover: the feed stays up this long; its rule lands this many frames after the glitch starts (inside 1 s). */
+export const TAKEOVER_FRAMES = 600;
+export const TAKEOVER_RULE_FRAMES = 45;
+export const BREAK_FRAMES = 90;
+export const RIG_DROP_FRAMES = RIG_WARN + RIG_FALL;
+
+/** Fires each scripted event once, when its trigger is met, and runs the rig light. */
+function broadcastEvents(s: GameState, ev: SimEvent[]): void {
+  if (s.over) return;
+  const koed = ev.some((e) => e.type === 'ko');
+  for (let i = 0; i < s.bc.length; i++) {
+    const b = s.bc[i];
+    if (s.bcFired[i]) continue;
+    const w = b.when;
+    const met =
+      (w.time !== undefined && s.frame >= secs(w.time)) ||
+      (w.stockLost && koed) ||
+      (w.stocks !== undefined && s.fighters[0].stocks <= w.stocks) ||
+      (w.damage !== undefined && s.fighters.some((f) => f.percent >= w.damage! * 10));
+    if (!met) continue;
+    if (b.kind === 'rig-drop' && (!s.rules.hazards || s.rigFrame >= 0)) continue;
+    // One takeover at a time, and none once the fight is decided.
+    if (b.kind === 'takeover' && s.takeover > 0) continue;
+    s.bcFired[i] = 1;
+    let who = 0;
+    let mood: number | undefined;
+    let hot: number | undefined;
+    if (b.kind === 'takeover') {
+      s.takeover = TAKEOVER_FRAMES;
+      s.takeoverIdx = i;
+      s.takeoverAt = b.rule ? TAKEOVER_RULE_FRAMES : 0;
+      mood = playerMood(s);
+      hot = s.fighters[0].percent >= 1000 ? 1 : 0;
+    } else if (b.kind === 'flicker') s.flicker = FLICKER_FRAMES;
+    else if (b.kind === 'hijack') s.hijack = HIJACK_FRAMES;
+    else if (b.kind === 'break') {
+      s.freeze = BREAK_FRAMES;
+      s.angle = (s.angle + 1) % 3;
+    } else if (b.kind === 'chant') {
+      // The crowd chants for whoever is ahead: most stocks, then least damage.
+      for (const f of s.fighters) {
+        const c = s.fighters[who];
+        if (f.stocks > c.stocks || (f.stocks === c.stocks && f.percent < c.percent)) who = f.id;
+      }
+    } else {
+      who = callRig(s);
+    }
+    ev.push({ type: 'broadcast', index: i, kind: b.kind, phase: 'start', who, mood, hot });
+  }
+  if (s.takeoverAt > 0 && --s.takeoverAt === 0) {
+    const rule = s.bc[s.takeoverIdx]?.rule;
+    if (rule) {
+      applyTakeoverRule(s, rule);
+      ev.push({ type: 'broadcast', index: s.takeoverIdx, kind: 'takeover-rule', phase: 'start', who: 0 });
+    }
+  }
+  if (s.takeover > 0 && --s.takeover === 0) ev.push({ type: 'broadcast', index: s.takeoverIdx, kind: 'takeover', phase: 'end', who: 0 });
+  if (s.flicker > 0 && --s.flicker === 0) ev.push({ type: 'broadcast', index: s.bc.findIndex((b) => b.kind === 'flicker'), kind: 'flicker', phase: 'end', who: 0 });
+  if (s.hijack > 0 && --s.hijack === 0) ev.push({ type: 'broadcast', index: s.bc.findIndex((b) => b.kind === 'hijack'), kind: 'hijack', phase: 'end', who: 0 });
+  if (s.rigFrame >= 0) {
+    s.rigFrame++;
+    const at = rigPos(s);
+    if (s.rigFrame > RIG_WARN) {
+      const r = RIG_R * FX;
+      const dmg = idiv(120 * s.rules.damage, 100);
+      for (const v of s.fighters) {
+        if (s.rigHit & (1 << v.id) || !hittable(v)) continue;
+        const [w, h] = bodySize(v);
+        const px = clamp(at.x, v.x - (w >> 1), v.x + (w >> 1));
+        const py = clamp(at.y, v.y, v.y + h);
+        if ((at.x - px) ** 2 + (at.y - py) ** 2 > r * r) continue;
+        s.rigHit |= 1 << v.id;
+        const weight = idiv(CHARACTERS[v.char].weight * v.scale, 100);
+        const kb = knockback(Math.min(v.percent + dmg, 9999), dmg, weight, 30, 90);
+        stageHit(s, v, dmg, kb, v.x >= at.x ? 60 : 120, px, py, 'hazard', -1, ev);
+      }
+    }
+    if (s.rigFrame > RIG_DROP_FRAMES + 20) s.rigFrame = -1;
+  }
+}
+
+/** The rig light picks either fighter, from the match rng; returns who. */
+function callRig(s: GameState): number {
+  let v: number;
+  [s.rng, v] = rngNext(s.rng);
+  const live = s.fighters.filter((f) => f.action !== ACT.DEAD);
+  const t = live[v % Math.max(1, live.length)] ?? s.fighters[0];
+  s.rigX = t.x;
+  s.rigFrame = 0;
+  s.rigHit = 0;
+  return t.id;
+}
+
+/** How the player (fighter 0) is doing against the others: 1 ahead (more stocks, then less damage, ties go to the player), -1 behind. */
+export function playerMood(s: GameState): number {
+  const me = s.fighters[0];
+  for (const f of s.fighters) {
+    if (f.id === 0 || (me.team >= 0 && f.team === me.team)) continue;
+    if (f.stocks > me.stocks || (f.stocks === me.stocks && f.percent < me.percent)) return -1;
+  }
+  return 1;
+}
+
+/** The Orchestrator's rewrite, through the rule system the match already has (gravity, scale, hazards, respawn percent). */
+function applyTakeoverRule(s: GameState, r: TakeoverRule): void {
+  if (r.gravity !== undefined) s.rules.gravity = r.gravity;
+  if (r.hazard) {
+    s.rules.hazards = 1;
+    if (s.rigFrame < 0) callRig(s);
+  }
+  if (r.giant) {
+    const me = s.fighters[0];
+    for (const f of s.fighters) {
+      const mine = f.id === 0 || (me.team >= 0 && f.team === me.team);
+      if (mine === (r.giant === 'player')) f.scale = Math.max(f.scale, 150);
+    }
+  }
+  if (r.startPercent !== undefined) {
+    for (const f of s.fighters) {
+      f.startPercent = r.startPercent;
+      if (f.stocks > 0) f.percent = Math.max(f.percent, r.startPercent);
+    }
+  }
+}
+
+/** Where the rig light is now: hanging above the stage while it warns, then falling to the floor. */
+export function rigPos(s: GameState): { x: number; y: number } {
+  const floor = stage.platforms[0].y * FX;
+  const top = floor + 700 * FX;
+  const k = Math.max(0, Math.min(RIG_FALL, s.rigFrame - RIG_WARN));
+  return { x: s.rigX, y: top - idiv((top - floor - 40 * FX) * k, RIG_FALL) };
 }

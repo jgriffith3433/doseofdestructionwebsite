@@ -47,7 +47,7 @@ interface Cache {
 const encoder = new TextEncoder();
 
 /** A relay event is what it says: its id is the hash of its body and the signature is the pubkey's. */
-function eventOk(e: NostrEvent): boolean {
+export function eventOk(e: NostrEvent): boolean {
   try {
     const id = toHex(sha256(encoder.encode(JSON.stringify([0, e.pubkey, e.created_at, e.kind, e.tags, e.content]))));
     return id === e.id && schnorr.verify(fromHex(e.sig), fromHex(e.id), fromHex(e.pubkey));

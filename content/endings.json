@@ -1,0 +1,299 @@
+[
+ {
+  "fighter": "ball-person",
+  "art": "/characters/endings/ball-person.webp",
+  "lines": [
+   "The stadium empties. The chant does not.",
+   "Ball Person scores once more, in an empty net."
+  ],
+  "audio": "/audio/voice/ending.ball-person.mp3"
+ },
+ {
+  "fighter": "blog-man",
+  "art": "/characters/endings/blog-man.webp",
+  "lines": [
+   "He files the story before the cameras are off.",
+   "Blog Man writes the headline. It is about him."
+  ],
+  "audio": "/audio/voice/ending.blog-man.mp3"
+ },
+ {
+  "fighter": "break",
+  "art": "/characters/endings/break.webp",
+  "lines": [
+   "Everyone else is on the floor.",
+   "Break never fell. Rule one still holds."
+  ],
+  "audio": "/audio/voice/ending.break.mp3"
+ },
+ {
+  "fighter": "cel",
+  "art": "/characters/endings/cel.webp",
+  "lines": [
+   "Three extra jumps. All of them used.",
+   "Cel lands last, and drawn best."
+  ],
+  "audio": "/audio/voice/ending.cel.mp3"
+ },
+ {
+  "fighter": "chooser",
+  "art": "/characters/endings/chooser.webp",
+  "lines": [
+   "Six doors. Six choices.",
+   "Chooser picks the seventh. Nobody saw it."
+  ],
+  "audio": "/audio/voice/ending.chooser.mp3"
+ },
+ {
+  "fighter": "crosser",
+  "art": "/characters/endings/crosser.webp",
+  "lines": [
+   "The crossing is quiet now.",
+   "Crosser remembers every one who crossed him."
+  ],
+  "audio": "/audio/voice/ending.crosser.mp3"
+ },
+ {
+  "fighter": "crystalline-intelligences",
+  "art": "/characters/endings/crystalline-intelligences.webp",
+  "lines": [
+   "The numbers settle.",
+   "Probability of another fight: zero point zero."
+  ],
+  "audio": "/audio/voice/ending.crystalline-intelligences.mp3"
+ },
+ {
+  "fighter": "dj-wont-read",
+  "art": "/characters/endings/dj-wont-read.webp",
+  "lines": [
+   "One last record. No one asked.",
+   "DJ Won't Read drops it. Won't read the reviews."
+  ],
+  "audio": "/audio/voice/ending.dj-wont-read.mp3"
+ },
+ {
+  "fighter": "evil-blue-bird",
+  "art": "/characters/endings/evil-blue-bird.webp",
+  "lines": [
+   "The tower is quiet at dawn.",
+   "Evil Blue Bird tweets. The network listens."
+  ],
+  "audio": "/audio/voice/ending.evil-blue-bird.mp3"
+ },
+ {
+  "fighter": "exit-punk",
+  "art": "/characters/endings/exit-punk.webp",
+  "lines": [
+   "The set goes dark behind him.",
+   "Exit Punk finds the door. It was never locked."
+  ],
+  "audio": "/audio/voice/ending.exit-punk.mp3"
+ },
+ {
+  "fighter": "future-man",
+  "art": "/characters/endings/future-man.webp",
+  "lines": [
+   "He read tomorrow's card yesterday.",
+   "Future Man was right again. Spoilers withheld."
+  ],
+  "audio": "/audio/voice/ending.future-man.mp3"
+ },
+ {
+  "fighter": "got-ur-back",
+  "art": "/characters/endings/got-ur-back.webp",
+  "lines": [
+   "The lights dim. Everyone is behind him.",
+   "Got Ur Back keeps his word. Nobody got past."
+  ],
+  "audio": "/audio/voice/ending.got-ur-back.mp3"
+ },
+ {
+  "fighter": "kaelen",
+  "art": "/characters/endings/kaelen.webp",
+  "lines": [
+   "A flash on the bridge. Then nothing.",
+   "Kaelen was gone before the cameras turned."
+  ],
+  "audio": "/audio/voice/ending.kaelen.mp3"
+ },
+ {
+  "fighter": "lapis-man",
+  "art": "/characters/endings/lapis-man.webp",
+  "lines": [
+   "The staff finds the path home.",
+   "Lapis Man walks it slowly. Respect, earned."
+  ],
+  "audio": "/audio/voice/ending.lapis-man.mp3"
+ },
+ {
+  "fighter": "not-an-old-man-yet",
+  "art": "/characters/endings/not-an-old-man-yet.webp",
+  "lines": [
+   "He owns the middle of the room.",
+   "Not an Old Man Yet. Still not yet."
+  ],
+  "audio": "/audio/voice/ending.not-an-old-man-yet.mp3"
+ },
+ {
+  "fighter": "orchestrator",
+  "art": "/characters/endings/orchestrator.webp",
+  "lines": [
+   "The pit is full. The seats are not.",
+   "The Orchestrator raises the baton. The show goes on."
+  ],
+  "audio": "/audio/voice/ending.orchestrator.mp3"
+ },
+ {
+  "fighter": "pyro-singer",
+  "art": "/characters/endings/pyro-singer.webp",
+  "lines": [
+   "The encore starts in flames.",
+   "Pyro Singer opens and closes the night."
+  ],
+  "audio": "/audio/voice/ending.pyro-singer.mp3"
+ },
+ {
+  "fighter": "shark-dude",
+  "art": "/characters/endings/shark-dude.webp",
+  "lines": [
+   "The belt stays on the chair.",
+   "Shark Dude bites. The belt isn't a belt."
+  ],
+  "audio": "/audio/voice/ending.shark-dude.mp3"
+ },
+ {
+  "fighter": "shutup-bot",
+  "art": "/characters/endings/shutup-bot.webp",
+  "lines": [
+   "The crowd waits for a word.",
+   "Shutup Bot says nothing. It is a very loud nothing."
+  ],
+  "audio": "/audio/voice/ending.shutup-bot.mp3"
+ },
+ {
+  "fighter": "slice",
+  "art": "/characters/endings/slice.webp",
+  "lines": [
+   "A thin line across the wall.",
+   "Slice sheathes the blade. Clean, as promised."
+  ],
+  "audio": "/audio/voice/ending.slice.mp3"
+ },
+ {
+  "fighter": "slow-rider",
+  "art": "/characters/endings/slow-rider.webp",
+  "lines": [
+   "Dust settles on an empty road.",
+   "Slow Rider takes the long way. No rush."
+  ],
+  "audio": "/audio/voice/ending.slow-rider.mp3"
+ },
+ {
+  "fighter": "small-weather",
+  "art": "/characters/endings/small-weather.webp",
+  "lines": [
+   "A small storm clears.",
+   "Small Weather's forecast: clear skies, for a minute."
+  ],
+  "audio": "/audio/voice/ending.small-weather.mp3"
+ },
+ {
+  "fighter": "spider-bot",
+  "art": "/characters/endings/spider-bot.webp",
+  "lines": [
+   "Eight legs. All of them planted.",
+   "Spider Bot spins the finale. The net holds."
+  ],
+  "audio": "/audio/voice/ending.spider-bot.mp3"
+ },
+ {
+  "fighter": "ss-boulder",
+  "art": "/characters/endings/ss-boulder.webp",
+  "lines": [
+   "She sets it down. Gently.",
+   "SS Boulder wins. The boulder always wins."
+  ],
+  "audio": "/audio/voice/ending.ss-boulder.mp3"
+ },
+ {
+  "fighter": "stratabots",
+  "art": "/characters/endings/stratabots.webp",
+  "lines": [
+   "The plates settle. The rubble does not.",
+   "Stratabots stands. Opponents cracked."
+  ],
+  "audio": "/audio/voice/ending.stratabots.mp3"
+ },
+ {
+  "fighter": "susan",
+  "art": "/characters/endings/susan.webp",
+  "lines": [
+   "The light goes out, politely.",
+   "Susan prefers the dark. Stay in it."
+  ],
+  "audio": "/audio/voice/ending.susan.mp3"
+ },
+ {
+  "fighter": "the-mechanic",
+  "art": "/characters/endings/the-mechanic.webp",
+  "lines": [
+   "The cameras are off. The stage is broken.",
+   "The Mechanic tightens the last bolt. Show's over."
+  ],
+  "audio": "/audio/voice/ending.the-mechanic.mp3"
+ },
+ {
+  "fighter": "try-belt",
+  "art": "/characters/endings/try-belt.webp",
+  "lines": [
+   "He told them he'd try.",
+   "Try Belt tried. Twice. It counted."
+  ],
+  "audio": "/audio/voice/ending.try-belt.mp3"
+ },
+ {
+  "fighter": "tt",
+  "art": "/characters/endings/tt.webp",
+  "lines": [
+   "Slow. Steady. Obviously.",
+   "TT finishes the match, then the chapter."
+  ],
+  "audio": "/audio/voice/ending.tt.mp3"
+ },
+ {
+  "fighter": "uh-me",
+  "art": "/characters/endings/uh-me.webp",
+  "lines": [
+   "It looks up. Very calmly.",
+   "Uh Me. Done. Home by midnight."
+  ],
+  "audio": "/audio/voice/ending.uh-me.mp3"
+ },
+ {
+  "fighter": "wallit",
+  "art": "/characters/endings/wallit.webp",
+  "lines": [
+   "Everyone is paid. Some twice.",
+   "Wallit clears the card, and the bill."
+  ],
+  "audio": "/audio/voice/ending.wallit.mp3"
+ },
+ {
+  "fighter": "yo-bot",
+  "art": "/characters/endings/yo-bot.webp",
+  "lines": [
+   "The progress bar fills. Finally.",
+   "Yo Bot: upload complete. Please clap."
+  ],
+  "audio": "/audio/voice/ending.yo-bot.mp3"
+ },
+ {
+  "fighter": "yooba",
+  "art": "/characters/endings/yooba.webp",
+  "lines": [
+   "Both eyes saw the end.",
+   "Yooba yooba. The mouth has the last word."
+  ],
+  "audio": "/audio/voice/ending.yooba.mp3"
+ }
+]

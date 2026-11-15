@@ -1,0 +1,25 @@
+# Read-only: the live site (doseofdestruction.com, GitHub Pages) and its beta copy (dod.hawkesgen.ai, Studio's R2 sites, behind Studio's sign-in
+# pass, so a redirect or 401 there is expected). No secrets, no environment.
+#   gh workflow run ops-health.yml --repo jgriffith3433/doseofdestructionwebsite
+name: ops-health
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ops-health
+  cancel-in-progress: true
+jobs:
+  health:
+    name: Live and beta site
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check
+        run: |
+          live=$(curl -s -L --max-time 30 -o live.html -w '%{http_code} %{time_total}s %{size_download}B' https://doseofdestruction.com/ || echo 000)
+          beta=$(curl -s --max-time 30 -o /dev/null -w '%{http_code}' https://dod.hawkesgen.ai/ || echo 000)
+          title=$(grep -o '<title>[^<]*' live.html | head -1 | sed 's/<title>//')
+          { echo "### doseofdestruction.com: $live"; echo "title: $title"; echo "### dod.hawkesgen.ai: $beta (302/401 = behind Studio's pass, expected)"; } >> "$GITHUB_STEP_SUMMARY"
+          echo "live $live | beta $beta | $title"
+          case "$live" in 200*) ;; *) exit 1 ;; esac

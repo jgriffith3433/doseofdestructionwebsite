@@ -1,0 +1,2754 @@
+[
+ {
+  "fighter": "ball-person",
+  "title": "Back of the Net",
+  "rival": "chooser",
+  "ending": "Six fights. Six goals. The crowd chants.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "kaelen"
+    ],
+    "stage": "city-top",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Hi. Bye. Gone before the trade."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "shark-dude"
+    ],
+    "stage": "yo-house",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Runs in, bites, runs in again."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "tt",
+     "cel"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "TT and Cel share a card."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "yooba"
+    ],
+    "stage": "space-chess",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Two extra jumps. A very long reach."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "not-an-old-man-yet"
+    ],
+    "stage": "yo-house",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Owns the middle. Refuses to leave it."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "chooser"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The round one stands in goal."
+   }
+  ]
+ },
+ {
+  "fighter": "blog-man",
+  "title": "Above the Fold",
+  "rival": "orchestrator",
+  "ending": "Six fights. The headline wrote itself.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "chooser"
+    ],
+    "stage": "yo-house",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Small, round, and always opting out."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "wallit"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "The bat adds reach. The cash, attitude."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "try-belt"
+    ],
+    "stage": "space-chess",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Told you he'd try. Twice."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "uh-me"
+    ],
+    "stage": "yo-house",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Calm. Light. Almost impossible to catch."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "yo-bot",
+     "crosser"
+    ],
+    "stage": "solar-array",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Yo Bot and Crosser share a card."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "orchestrator"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The man he replaced wants the front page."
+   }
+  ]
+ },
+ {
+  "fighter": "break",
+  "title": "House Rules",
+  "rival": "ss-boulder",
+  "ending": "Rule one held. Break never fell.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "uh-me"
+    ],
+    "stage": "cursed-town",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Calm. Light. Almost impossible to catch."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "dj-wont-read"
+    ],
+    "stage": "cursed-town",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Quick hits. Won't read the card."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "spider-bot"
+    ],
+    "stage": "solar-array",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Wide, low, and eight legs deep."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "shark-dude",
+     "got-ur-back"
+    ],
+    "stage": "solar-array",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Shark Dude and Got Ur Back share a card."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "stratabots"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Plates locked. Short, hard hits."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "ss-boulder"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The only one bigger than the house."
+   }
+  ]
+ },
+ {
+  "fighter": "cel",
+  "title": "In-Betweens",
+  "rival": "evil-blue-bird",
+  "ending": "Six fights, drawn frame by frame.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "tt"
+    ],
+    "stage": "desert",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Small, slow, and heavier than he looks."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "try-belt",
+     "lapis-man"
+    ],
+    "stage": "desert",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Try Belt and Lapis Man share a card."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "ball-person"
+    ],
+    "stage": "rainbow-full-pipe",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Fast feet. Kicks that carry."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "uh-me"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Calm. Light. Almost impossible to catch."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "yooba"
+    ],
+    "stage": "space-chess",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Two extra jumps. A very long reach."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "evil-blue-bird"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "Two flyers. One sky. Pick a frame."
+   }
+  ]
+ },
+ {
+  "fighter": "chooser",
+  "title": "Opt Out",
+  "rival": "ball-person",
+  "ending": "Six fights. Chose every one.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "yooba"
+    ],
+    "stage": "rainbow-full-pipe",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Two extra jumps. A very long reach."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "tt"
+    ],
+    "stage": "yo-house",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Small, slow, and heavier than he looks."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "kaelen"
+    ],
+    "stage": "city-top",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Hi. Bye. Gone before the trade."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "wallit",
+     "spider-bot"
+    ],
+    "stage": "city-top",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Wallit and Spider Bot share a card."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "yo-bot"
+    ],
+    "stage": "solar-array",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Four legs. A laptop that hits back."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "ball-person"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The ball in the net wants a rematch."
+   }
+  ]
+ },
+ {
+  "fighter": "crosser",
+  "title": "Final Cut",
+  "rival": "try-belt",
+  "ending": "Six fights. Six cuts. Wrap.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "yooba"
+    ],
+    "stage": "solar-array",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Two extra jumps. A very long reach."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "tt"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Small, slow, and heavier than he looks."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "slow-rider",
+     "wallit"
+    ],
+    "stage": "city-top",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Slow Rider and Wallit share a card."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "stratabots"
+    ],
+    "stage": "city-top",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Plates locked. Short, hard hits."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "future-man"
+    ],
+    "stage": "rainbow-full-pipe",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Already saw how this ends."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "try-belt"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "He rewrites every scene. Cut him."
+   }
+  ]
+ },
+ {
+  "fighter": "crystalline-intelligences",
+  "title": "Facet Storm",
+  "rival": "wallit",
+  "ending": "Six fights. The network approves.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "cel"
+    ],
+    "stage": "space-chess",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Three extra jumps. Drawn by hand."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "spider-bot"
+    ],
+    "stage": "cursed-town",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Wide, low, and eight legs deep."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "kaelen"
+    ],
+    "stage": "city-top",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Hi. Bye. Gone before the trade."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "chooser"
+    ],
+    "stage": "desert",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Small, round, and always opting out."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "slow-rider",
+     "yooba"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Slow Rider and Yooba share a card."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "wallit"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The partner meets the sponsor."
+   }
+  ]
+ },
+ {
+  "fighter": "dj-wont-read",
+  "title": "Drop It Again",
+  "rival": "shutup-bot",
+  "ending": "Six fights. Six drops. One encore.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "try-belt"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Told you he'd try. Twice."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "ball-person",
+     "small-weather"
+    ],
+    "stage": "desert",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Ball Person and Small Weather share a card."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "evil-blue-bird"
+    ],
+    "stage": "yo-house",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Cute. Then the air game starts."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "yooba"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Two extra jumps. A very long reach."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "slice"
+    ],
+    "stage": "cursed-town",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "The fastest hands on the card."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "shutup-bot"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "He never answers. Make him."
+   }
+  ]
+ },
+ {
+  "fighter": "evil-blue-bird",
+  "title": "Cute Until It Isn't",
+  "rival": "got-ur-back",
+  "ending": "Six fights. Still cute. Barely.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "slow-rider"
+    ],
+    "stage": "city-top",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Walks slow. Flies far."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "yooba"
+    ],
+    "stage": "yo-house",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Two extra jumps. A very long reach."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "uh-me",
+     "pyro-singer"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Uh Me and Pyro Singer share a card."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "cel"
+    ],
+    "stage": "space-chess",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Three extra jumps. Drawn by hand."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "try-belt"
+    ],
+    "stage": "yo-house",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Told you he'd try. Twice."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "got-ur-back"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "Tag team partners. Only one gets billing."
+   }
+  ]
+ },
+ {
+  "fighter": "exit-punk",
+  "title": "The Long Way Out",
+  "rival": "orchestrator",
+  "ending": "Six fights. The exit stays closed.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "spider-bot"
+    ],
+    "stage": "yo-house",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Wide, low, and eight legs deep."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "shark-dude"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Runs in, bites, runs in again."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "small-weather"
+    ],
+    "stage": "space-chess",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Brought the weather. Again."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "slice"
+    ],
+    "stage": "yo-house",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "The fastest hands on the card."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "dj-wont-read",
+     "break"
+    ],
+    "stage": "solar-array",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "DJ Won't Read and Break share a card."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "orchestrator"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The man who runs the show, again."
+   }
+  ]
+ },
+ {
+  "fighter": "future-man",
+  "title": "Spoiler Alert",
+  "rival": "blog-man",
+  "ending": "Six fights. He already knew.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "wallit"
+    ],
+    "stage": "cursed-town",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "The bat adds reach. The cash, attitude."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "tt"
+    ],
+    "stage": "cursed-town",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Small, slow, and heavier than he looks."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "cel"
+    ],
+    "stage": "solar-array",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Three extra jumps. Drawn by hand."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "slow-rider",
+     "chooser"
+    ],
+    "stage": "solar-array",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Slow Rider and Chooser share a card."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "crosser"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Slow to start. Every hit lands heavy."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "blog-man"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "He wants the spoiler. He won't get it."
+   }
+  ]
+ },
+ {
+  "fighter": "got-ur-back",
+  "title": "Got Your Back",
+  "rival": "evil-blue-bird",
+  "ending": "Six fights. Nobody got past him.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "lapis-man"
+    ],
+    "stage": "desert",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "The staff reaches farther than expected."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "chooser",
+     "dj-wont-read"
+    ],
+    "stage": "desert",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Chooser and DJ Won't Read share a card."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "break"
+    ],
+    "stage": "rainbow-full-pipe",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "The house fighter. Rule one: no falling."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "tt"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Small, slow, and heavier than he looks."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "yooba"
+    ],
+    "stage": "space-chess",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Two extra jumps. A very long reach."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "evil-blue-bird"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "His old partner. Different corner now."
+   }
+  ]
+ },
+ {
+  "fighter": "kaelen",
+  "title": "Hi, Bye, Tour",
+  "rival": "slice",
+  "ending": "Six fights. Gone before the trade.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "chooser"
+    ],
+    "stage": "rainbow-full-pipe",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Small, round, and always opting out."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "break"
+    ],
+    "stage": "yo-house",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "The house fighter. Rule one: no falling."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "uh-me"
+    ],
+    "stage": "city-top",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Calm. Light. Almost impossible to catch."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "shark-dude",
+     "pyro-singer"
+    ],
+    "stage": "city-top",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Shark Dude and Pyro Singer share a card."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "crosser"
+    ],
+    "stage": "solar-array",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Slow to start. Every hit lands heavy."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "slice"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The only hands faster than his."
+   }
+  ]
+ },
+ {
+  "fighter": "lapis-man",
+  "title": "Respect Your Elders",
+  "rival": "spider-bot",
+  "ending": "Six fights. Respect earned.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "uh-me"
+    ],
+    "stage": "solar-array",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Calm. Light. Almost impossible to catch."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "ball-person"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Fast feet. Kicks that carry."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "crosser",
+     "slice"
+    ],
+    "stage": "city-top",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Crosser and Slice share a card."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "wallit"
+    ],
+    "stage": "city-top",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "The bat adds reach. The cash, attitude."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "chooser"
+    ],
+    "stage": "rainbow-full-pipe",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Small, round, and always opting out."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "spider-bot"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "Reach against eight legs."
+   }
+  ]
+ },
+ {
+  "fighter": "not-an-old-man-yet",
+  "title": "Not Yet",
+  "rival": "slow-rider",
+  "ending": "Six fights. Still not yet.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "uh-me"
+    ],
+    "stage": "space-chess",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Calm. Light. Almost impossible to catch."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "dj-wont-read"
+    ],
+    "stage": "cursed-town",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Quick hits. Won't read the card."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "yooba"
+    ],
+    "stage": "city-top",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Two extra jumps. A very long reach."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "shark-dude"
+    ],
+    "stage": "desert",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Runs in, bites, runs in again."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "lapis-man",
+     "pyro-singer"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Lapis Man and Pyro Singer share a card."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "slow-rider"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "Slow, steady, and just as stubborn."
+   }
+  ]
+ },
+ {
+  "fighter": "orchestrator",
+  "title": "The Last Baton",
+  "rival": "exit-punk",
+  "ending": "Six fights. The show goes on.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "tt"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Small, slow, and heavier than he looks."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "break",
+     "small-weather"
+    ],
+    "stage": "desert",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Break and Small Weather share a card."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "blog-man"
+    ],
+    "stage": "yo-house",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Writes the headline before the fight."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "slice"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "The fastest hands on the card."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "susan"
+    ],
+    "stage": "cursed-town",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Comes in with the fog."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "exit-punk"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The kid who ended his show."
+   }
+  ]
+ },
+ {
+  "fighter": "pyro-singer",
+  "title": "Opener, Closer",
+  "rival": "small-weather",
+  "ending": "Six fights. Opener and closer.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "ball-person"
+    ],
+    "stage": "city-top",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Fast feet. Kicks that carry."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "shark-dude"
+    ],
+    "stage": "yo-house",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Runs in, bites, runs in again."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "uh-me",
+     "dj-wont-read"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Uh Me and DJ Won't Read share a card."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "cel"
+    ],
+    "stage": "space-chess",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Three extra jumps. Drawn by hand."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "got-ur-back"
+    ],
+    "stage": "yo-house",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Huge, soft, and launches people anyway."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "small-weather"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "Fire meets weather. Someone gets rained on."
+   }
+  ]
+ },
+ {
+  "fighter": "shark-dude",
+  "title": "One More Bite",
+  "rival": "exit-punk",
+  "ending": "Six fights. The belt isn't a belt.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "yooba"
+    ],
+    "stage": "yo-house",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Two extra jumps. A very long reach."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "break"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "The house fighter. Rule one: no falling."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "try-belt"
+    ],
+    "stage": "space-chess",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Told you he'd try. Twice."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "chooser"
+    ],
+    "stage": "yo-house",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Small, round, and always opting out."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "evil-blue-bird",
+     "yo-bot"
+    ],
+    "stage": "solar-array",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Evil Blue Bird and Yo Bot share a card."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "exit-punk"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "He keeps the card. Take it."
+   }
+  ]
+ },
+ {
+  "fighter": "shutup-bot",
+  "title": "Plates Locked",
+  "rival": "dj-wont-read",
+  "ending": "Six fights. Not one word.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "cel"
+    ],
+    "stage": "cursed-town",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Three extra jumps. Drawn by hand."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "ball-person"
+    ],
+    "stage": "cursed-town",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Fast feet. Kicks that carry."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "small-weather"
+    ],
+    "stage": "solar-array",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Brought the weather. Again."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "yooba",
+     "slice"
+    ],
+    "stage": "solar-array",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Yooba and Slice share a card."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "crosser"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Slow to start. Every hit lands heavy."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "dj-wont-read"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "He never stops talking. Fine."
+   }
+  ]
+ },
+ {
+  "fighter": "slice",
+  "title": "Clean Cut",
+  "rival": "kaelen",
+  "ending": "Six fights. Clean.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "slow-rider"
+    ],
+    "stage": "desert",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Walks slow. Flies far."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "break",
+     "tt"
+    ],
+    "stage": "desert",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Break and TT share a card."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "try-belt"
+    ],
+    "stage": "rainbow-full-pipe",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Told you he'd try. Twice."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "ball-person"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Fast feet. Kicks that carry."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "cel"
+    ],
+    "stage": "space-chess",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Three extra jumps. Drawn by hand."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "kaelen"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "Fast against faster. Blink and miss it."
+   }
+  ]
+ },
+ {
+  "fighter": "slow-rider",
+  "title": "The Long Haul",
+  "rival": "not-an-old-man-yet",
+  "ending": "Six fights. No rush. Never was.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "spider-bot"
+    ],
+    "stage": "rainbow-full-pipe",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Wide, low, and eight legs deep."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "chooser"
+    ],
+    "stage": "yo-house",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Small, round, and always opting out."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "wallit"
+    ],
+    "stage": "city-top",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "The bat adds reach. The cash, attitude."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "shark-dude",
+     "pyro-singer"
+    ],
+    "stage": "city-top",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Shark Dude and Pyro Singer share a card."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "lapis-man"
+    ],
+    "stage": "solar-array",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "The staff reaches farther than expected."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "not-an-old-man-yet"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "He owns the middle. Ride around him."
+   }
+  ]
+ },
+ {
+  "fighter": "small-weather",
+  "title": "Forecast",
+  "rival": "pyro-singer",
+  "ending": "Six fights. Clear skies. For a minute.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "spider-bot"
+    ],
+    "stage": "solar-array",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Wide, low, and eight legs deep."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "tt"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Small, slow, and heavier than he looks."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "dj-wont-read",
+     "break"
+    ],
+    "stage": "city-top",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "DJ Won't Read and Break share a card."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "uh-me"
+    ],
+    "stage": "city-top",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Calm. Light. Almost impossible to catch."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "crosser"
+    ],
+    "stage": "rainbow-full-pipe",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Slow to start. Every hit lands heavy."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "pyro-singer"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "Rain on a stage full of sparks."
+   }
+  ]
+ },
+ {
+  "fighter": "spider-bot",
+  "title": "Eight Legs",
+  "rival": "lapis-man",
+  "ending": "Six fights. Eight legs. No chance.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "kaelen"
+    ],
+    "stage": "space-chess",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Hi. Bye. Gone before the trade."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "chooser"
+    ],
+    "stage": "cursed-town",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Small, round, and always opting out."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "shark-dude"
+    ],
+    "stage": "city-top",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Runs in, bites, runs in again."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "tt"
+    ],
+    "stage": "desert",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Small, slow, and heavier than he looks."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "blog-man",
+     "wallit"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Blog Man and Wallit share a card."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "lapis-man"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The long staff takes the long way."
+   }
+  ]
+ },
+ {
+  "fighter": "ss-boulder",
+  "title": "The Boulder Wins",
+  "rival": "break",
+  "ending": "Six fights. The boulder always wins.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "lapis-man"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "The staff reaches farther than expected."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "dj-wont-read",
+     "uh-me"
+    ],
+    "stage": "desert",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "DJ Won't Read and Uh Me share a card."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "small-weather"
+    ],
+    "stage": "yo-house",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Brought the weather. Again."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "shark-dude"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Runs in, bites, runs in again."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "crosser"
+    ],
+    "stage": "cursed-town",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Slow to start. Every hit lands heavy."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "break"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The house fighter and the boulder."
+   }
+  ]
+ },
+ {
+  "fighter": "stratabots",
+  "title": "Plates Up",
+  "rival": "tt",
+  "ending": "Six fights. Opponents cracked.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "kaelen"
+    ],
+    "stage": "city-top",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Hi. Bye. Gone before the trade."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "dj-wont-read"
+    ],
+    "stage": "yo-house",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Quick hits. Won't read the card."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "ball-person",
+     "yooba"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Ball Person and Yooba share a card."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "pyro-singer"
+    ],
+    "stage": "space-chess",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Sings the opener. Burns the closer."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "crosser"
+    ],
+    "stage": "yo-house",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Slow to start. Every hit lands heavy."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "tt"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "Plate against shell. Neither blinks."
+   }
+  ]
+ },
+ {
+  "fighter": "susan",
+  "title": "Into the Fog",
+  "rival": "uh-me",
+  "ending": "Six fights. Stay in the dark.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "ball-person"
+    ],
+    "stage": "yo-house",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Fast feet. Kicks that carry."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "chooser"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Small, round, and always opting out."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "tt"
+    ],
+    "stage": "space-chess",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "Small, slow, and heavier than he looks."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "shark-dude"
+    ],
+    "stage": "yo-house",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Runs in, bites, runs in again."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "wallit",
+     "cel"
+    ],
+    "stage": "solar-array",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Wallit and Cel share a card."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "uh-me"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The calm one. Louder than the fog."
+   }
+  ]
+ },
+ {
+  "fighter": "try-belt",
+  "title": "Retakes",
+  "rival": "crosser",
+  "ending": "Six fights. Told you he'd try.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "tt"
+    ],
+    "stage": "cursed-town",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Small, slow, and heavier than he looks."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "dj-wont-read"
+    ],
+    "stage": "cursed-town",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Quick hits. Won't read the card."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "break"
+    ],
+    "stage": "solar-array",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "The house fighter. Rule one: no falling."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "uh-me",
+     "yooba"
+    ],
+    "stage": "solar-array",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Uh Me and Yooba share a card."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "slice"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "The fastest hands on the card."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "crosser"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The editor wants the last word."
+   }
+  ]
+ },
+ {
+  "fighter": "tt",
+  "title": "Slow and Steady",
+  "rival": "stratabots",
+  "ending": "Six fights. Slow. Steady. Obviously.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "cel"
+    ],
+    "stage": "desert",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Three extra jumps. Drawn by hand."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "ball-person",
+     "small-weather"
+    ],
+    "stage": "desert",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Ball Person and Small Weather share a card."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "yooba"
+    ],
+    "stage": "rainbow-full-pipe",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Two extra jumps. A very long reach."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "slice"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "The fastest hands on the card."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "shark-dude"
+    ],
+    "stage": "space-chess",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Runs in, bites, runs in again."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "stratabots"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "Plates and shells. A slow, heavy night."
+   }
+  ]
+ },
+ {
+  "fighter": "uh-me",
+  "title": "Uh. Me.",
+  "rival": "susan",
+  "ending": "Six fights. Uh. Me. Done.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "ball-person"
+    ],
+    "stage": "rainbow-full-pipe",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Fast feet. Kicks that carry."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "break"
+    ],
+    "stage": "yo-house",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "The house fighter. Rule one: no falling."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "wallit"
+    ],
+    "stage": "city-top",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "The bat adds reach. The cash, attitude."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "dj-wont-read",
+     "spider-bot"
+    ],
+    "stage": "city-top",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "DJ Won't Read and Spider Bot share a card."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "shark-dude"
+    ],
+    "stage": "solar-array",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Runs in, bites, runs in again."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "susan"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The fog rolls in, and Uh Me stays."
+   }
+  ]
+ },
+ {
+  "fighter": "wallit",
+  "title": "Pay Up",
+  "rival": "crystalline-intelligences",
+  "ending": "Six fights. Everybody paid.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "cel"
+    ],
+    "stage": "solar-array",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Three extra jumps. Drawn by hand."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "ball-person"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Fast feet. Kicks that carry."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "tt",
+     "chooser"
+    ],
+    "stage": "city-top",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "TT and Chooser share a card."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "slice"
+    ],
+    "stage": "city-top",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "The fastest hands on the card."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "yooba"
+    ],
+    "stage": "rainbow-full-pipe",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Two extra jumps. A very long reach."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "crystalline-intelligences"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The network's partner wants a refund."
+   }
+  ]
+ },
+ {
+  "fighter": "yo-bot",
+  "title": "Uploading Victory",
+  "rival": "blog-man",
+  "ending": "Six fights. Upload complete.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "cel"
+    ],
+    "stage": "space-chess",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Three extra jumps. Drawn by hand."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "dj-wont-read"
+    ],
+    "stage": "cursed-town",
+    "cpu": 3,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Quick hits. Won't read the card."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "break"
+    ],
+    "stage": "city-top",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "The house fighter. Rule one: no falling."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "tt"
+    ],
+    "stage": "desert",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Small, slow, and heavier than he looks."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "shark-dude",
+     "pyro-singer"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Shark Dude and Pyro Singer share a card."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "blog-man"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "The writer got a laptop of his own."
+   }
+  ]
+ },
+ {
+  "fighter": "yooba",
+  "title": "Yooba Yooba",
+  "rival": "shark-dude",
+  "ending": "Six fights. Yooba yooba.",
+  "fights": [
+   {
+    "twist": "plain",
+    "foes": [
+     "try-belt"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 2,
+    "title": "Opening Bout",
+    "line": "Told you he'd try. Twice."
+   },
+   {
+    "twist": "two",
+    "foes": [
+     "ball-person",
+     "tt"
+    ],
+    "stage": "desert",
+    "cpu": 2,
+    "stocks": 3,
+    "foeStocks": 1,
+    "title": "Two on One",
+    "line": "Ball Person and TT share a card."
+   },
+   {
+    "twist": "giant",
+    "foes": [
+     "slice"
+    ],
+    "stage": "yo-house",
+    "cpu": 4,
+    "stocks": 3,
+    "foeStocks": 2,
+    "scale": 140,
+    "title": "Giant Night",
+    "line": "The fastest hands on the card."
+   },
+   {
+    "twist": "low",
+    "foes": [
+     "small-weather"
+    ],
+    "stage": "watercolor-nebula",
+    "cpu": 5,
+    "stocks": 3,
+    "foeStocks": 3,
+    "gravity": 55,
+    "title": "Thin Air",
+    "line": "Brought the weather. Again."
+   },
+   {
+    "twist": "race",
+    "foes": [
+     "got-ur-back"
+    ],
+    "stage": "cursed-town",
+    "cpu": 6,
+    "stocks": 3,
+    "foeStocks": 5,
+    "kos": 3,
+    "timeLimit": 7200,
+    "foeStart": 600,
+    "title": "Ratings Race",
+    "line": "Huge, soft, and launches people anyway."
+   },
+   {
+    "twist": "rival",
+    "foes": [
+     "shark-dude"
+    ],
+    "stage": "humans-in-the-loop",
+    "cpu": 8,
+    "stocks": 3,
+    "foeStocks": 3,
+    "title": "The Rival",
+    "line": "All mouth against all teeth."
+   }
+  ]
+ }
+]

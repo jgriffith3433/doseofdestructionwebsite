@@ -1,0 +1,81 @@
+{
+  "_about": "Layered sound beds per fight stage. Ambience and intense reuse existing music files at low volume (no dedicated ambience loops yet — those are the PR gaps). music is the stage theme. bed is a procedural under-layer (crowd / wind / hum) so every stage has its own place tone under the track.",
+  "stages": {
+    "city-top": {
+      "music": "music-city-top",
+      "ambience": "music-rooftop",
+      "ambienceVolume": 0.16,
+      "intense": "music-foundry",
+      "intenseVolume": 0.28,
+      "bed": "city-night"
+    },
+    "desert": {
+      "music": "music-desert",
+      "ambience": "music-drift",
+      "ambienceVolume": 0.14,
+      "intense": "music-split",
+      "intenseVolume": 0.26,
+      "bed": "desert"
+    },
+    "cursed-town": {
+      "music": "music-cursed-town",
+      "ambience": "music-pit",
+      "ambienceVolume": 0.14,
+      "intense": "music-split",
+      "intenseVolume": 0.28,
+      "bed": "fog"
+    },
+    "humans-in-the-loop": {
+      "music": "music-humans-in-the-loop",
+      "ambience": "music-foundry",
+      "ambienceVolume": 0.18,
+      "intense": "music-pit",
+      "intenseVolume": 0.26,
+      "bed": "arena"
+    },
+    "rainbow-full-pipe": {
+      "music": "music-rainbow-full-pipe",
+      "ambience": "music-rooftop",
+      "ambienceVolume": 0.12,
+      "intense": "music-split",
+      "intenseVolume": 0.26,
+      "bed": "park"
+    },
+    "solar-array": {
+      "music": "music-solar-array",
+      "ambience": "music-drift",
+      "ambienceVolume": 0.14,
+      "intense": "music-foundry",
+      "intenseVolume": 0.24,
+      "bed": "solar"
+    },
+    "space-chess": {
+      "music": "music-space-chess",
+      "ambience": "music-pit",
+      "ambienceVolume": 0.12,
+      "intense": "music-split",
+      "intenseVolume": 0.24,
+      "bed": "void"
+    },
+    "watercolor-nebula": {
+      "music": "music-watercolor-nebula",
+      "ambience": "music-drift",
+      "ambienceVolume": 0.16,
+      "intense": "music-pit",
+      "intenseVolume": 0.24,
+      "bed": "nebula"
+    },
+    "yo-house": {
+      "music": "music-yo-house",
+      "ambience": "music-drift",
+      "ambienceVolume": 0.1,
+      "intense": "music-foundry",
+      "intenseVolume": 0.22,
+      "bed": "indoor"
+    }
+  },
+  "gaps": [
+    "No dedicated ambience loops yet (crowd murmur, studio hum, weather beds as one-shot SFX loops). Stages reuse the closest legacy music file under a low-pass as the ambience layer until Gen SFX beds are approved.",
+    "No dedicated intensity stems; intensity fades in a second reused track plus a tempo/filter lift on the stage theme."
+  ]
+}

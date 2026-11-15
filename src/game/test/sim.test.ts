@@ -4,14 +4,20 @@
 // 3. Bots finish matches on every stage, including teams, giants and odd rules.
 
 import { rngNext } from '../sim/fixed.ts';
-import { CHARACTERS } from '../sim/characters.ts';
-import { BTN, packInput } from '../sim/input.ts';
-import { STAGES } from '../sim/stage.ts';
+import { CHARACTERS, MOVE } from '../sim/characters.ts';
+import { BTN, NO_INPUT, packInput } from '../sim/input.ts';
+import { STAGES, fadeState, platformAt } from '../sim/stage.ts';
 import { cloneState, hashState, newGame, type FighterSetup, type GameOptions, type GameState } from '../sim/state.ts';
-import { step } from '../sim/step.ts';
+import { BUFFER_FRAMES, COYOTE_FRAMES, step } from '../sim/step.ts';
 import { Bot } from '../ai/bot.ts';
 import { Match, type SlotSetup } from '../match.ts';
 import { CHAPTERS, SEASONS, isOpen, seasonOpen } from '../campaign/story.ts';
+import { AnimTrace, TRACE_GRACE, type TraceProblem } from '../sim/trace.ts';
+import { ACT } from '../sim/state.ts';
+import { walkFrame, type Clip } from '../render/anims.ts';
+import { runSpecialsTests } from './specials.test.ts';
+import { runRosterTests } from './roster.test.ts';
+import { runGrabTests } from './grab.test.ts';
 
 declare const process: { exit(code: number): never };
 
@@ -57,7 +63,8 @@ const four: FighterSetup[] = [{ char: 0 }, { char: 2 }, { char: 8 }, { char: 12 
     ...base,
     id: 'test-dynamic',
     name: 'Test Dynamic',
-    platforms: base.platforms.map((p, i) => (i === base.platforms.length - 1 ? { ...p, offDuring: 'storm' } : p)),
+    // City Top's own fading catwalks are covered by its own entry in the loops below; here the toggles come from events only.
+    platforms: base.platforms.map(({ fade: _fade, ...p }, i) => (i === base.platforms.length - 1 ? { ...p, offDuring: 'storm' } : p)),
     events: [
       { id: 'storm', every: [2, 4], first: 1, warn: 1, duration: 3 },
       { id: 'cheer', trigger: 'ko', duration: 0 },
@@ -66,7 +73,7 @@ const four: FighterSetup[] = [{ char: 0 }, { char: 2 }, { char: 8 }, { char: 12 
     zones: [
       { kind: 'wind', x1: -2000, x2: 2000, y1: -500, y2: 2000, during: 'storm', force: [90, 0] },
       // Off to the side: under the whole stage, bots float below the floor and never come back.
-      { kind: 'water', x1: 900, x2: 2000, y1: -900, y2: -150 },
+      { kind: 'water', x1: 1500, x2: 2000, y1: -900, y2: -150 },
       { kind: 'damage', x1: -3000, x2: 3000, y1: -900, y2: 3000, damage: 1, tick: 4, knock: 30, angle: 60 },
       { kind: 'gravity', x1: -300, x2: 300, y1: top, y2: top + 600, gravity: 60, during: 'tilt' },
     ],
@@ -94,13 +101,17 @@ STAGES.forEach((stage, si) => {
   check(`${stage.name}: deterministic and rollback-safe`, a === b && hashState(restored) === a, a.toString(16));
 });
 
+/** Every bot match is also an animation-over-time trace (studio rule 5): state must match motion every frame. */
+const traced: string[] = [];
 function botMatch(setup: FighterSetup[], opts: GameOptions, level = 6): { state: GameState; secs: number; hits: number } {
   const state = newGame(setup, opts);
   const bots = setup.map((_, i) => new Bot(i, level, 1000 + i));
+  const trace = new AnimTrace();
   let frames = 0;
   let hits = 0;
   while (!state.over && frames < 60 * 60 * 8) {
     hits += step(state, bots.map((b) => b.think(state))).filter((e) => e.type === 'hit').length;
+    for (const p of trace.check(state)) traced.push(`${STAGES[opts.stage ?? 0].name} frame ${p.frame}: ${p.text}`);
     frames++;
   }
   return { state, secs: Math.round(frames / 60), hits };
@@ -110,6 +121,11 @@ STAGES.forEach((stage, si) => {
   const { state, secs, hits } = botMatch(four, { stocks: 2, seed: 99, stage: si });
   check(`${stage.name}: four bots finish`, state.over === 1, `${secs}s, ${hits} hits, winner P${state.winner + 1}`);
 });
+
+// Special archetypes: projectile, dash, counter, command grab, trap, flurry, recoveries; hashing and rollback for each.
+runSpecialsTests(check);
+// The shared grab and its four throws.
+runGrabTests(check);
 
 {
   // Two-on-one: allies never damage each other, and a team wins together.
@@ -186,6 +202,14 @@ STAGES.forEach((stage, si) => {
   check('season 2 has a Ratings fight and a Rainbow Full Pipe night', s2.some((c) => c.fight.objective === 'ko') && s2.some((c) => STAGES[c.fight.stage].id === 'rainbow-full-pipe'));
   const unrecorded = s2.flatMap((c) => [...c.intro, ...c.outro]).filter((l) => !l.audio || l.take?.text !== l.text);
   check('season 2 lines are all recorded', unrecorded.length === 0, unrecorded.map((l) => l.text).join(' / '));
+  // Season 3, the Orchestrator's return (docs/story.md): the Orchestrator comes back as a fighter, never scenery, and the champion has top billing.
+  const finale = CHAPTERS.filter((c) => c.season === 3);
+  const fin = finale[0]?.fight;
+  const orch = fin?.slots.find((sl) => CHARACTERS[sl.char].id === 'orchestrator');
+  const punk = fin?.slots.find((sl) => sl.cpu === null);
+  check('season 3 is the one-episode Orchestrator arc', finale.length === 1 && SEASONS.some((s) => s.number === 3 && s.subtitle !== 'The Finale'), finale.map((c) => c.id).join(' '));
+  check('season 3: the Orchestrator fights, at normal size, with a stock more', !!orch && orch.cpu !== null && orch.cpu > 0 && (orch.scale ?? 100) === 100 && (orch.stocks ?? 0) > (punk?.stocks ?? 0));
+  check('season 3: Exit Punk has top billing (the giant)', !!punk && CHARACTERS[punk.char].id === 'exit-punk' && (punk.scale ?? 100) > 100);
 }
 
 {
@@ -209,6 +233,446 @@ STAGES.forEach((stage, si) => {
   short.stats[0].kos = 2;
   while (!short.state.over) short.tick(0);
   check('ko objective: 2 of 3 KOs at the bell is a loss', short.state.timedOut === 1 && !short.playerWon());
+}
+
+{
+  // The 'quota' objective: deal N% damage before the clock wins (the match ends the moment it is met); the clock or the stocks running out loses.
+  const char = (id: string) => CHARACTERS.findIndex((c) => c.id === id);
+  const quotaSetup = (foe: SlotSetup, timeLimit: number, quota: number) => ({
+    mode: 'campaign' as const, stage: STAGES.findIndex((st) => st.id === 'yo-house'), stocks: 9, rules: { timeLimit, damage: 130 }, objective: 'quota' as const, quota,
+    slots: [{ char: char('exit-punk'), cpu: null, team: 0 }, { team: 1, stocks: 9, ...foe }] as SlotSetup[],
+  });
+  const play = (m: Match, seed: number, frames = 60 * 60 * 5) => {
+    const me = new Bot(0, 9, seed + 1);
+    const inputs: number[] = [];
+    for (let i = 0; i < frames && !m.state.over; i++) {
+      const v = me.think(m.state);
+      inputs.push(v);
+      m.tick(v);
+    }
+    return inputs;
+  };
+  const foe: SlotSetup = { char: char('kaelen'), cpu: 1, startPercent: 1200 };
+
+  const win = new Match(quotaSetup(foe, 60 * 120, 150), 21);
+  play(win, 21);
+  check('quota objective: dealing 150% before the clock wins', win.state.over === 1 && !win.state.timedOut && win.playerWon() && win.quotaDealt() >= win.quotaTarget, `${Math.round(win.state.frame / 60)}s, ${win.quotaDealt() / 10}%`);
+  check('quota objective: it ends the moment the number is met, foe still in', win.state.winner === 0 && win.state.fighters[1].stocks > 0 && win.state.frame < 60 * 120);
+  check('quota objective: the dealt count is the player\'s own damage', win.quotaDealt() === win.stats[0].dealt && win.quotaDealt() < win.quotaTarget + 400);
+
+  const late = new Match(quotaSetup({ char: char('break'), cpu: 9, scale: 135 }, 60 * 10, 400), 22);
+  play(late, 22);
+  check('quota objective: the clock running out first loses', late.state.over === 1 && late.state.timedOut === 1 && !late.playerWon() && late.quotaDealt() < late.quotaTarget, `${late.quotaDealt() / 10}% in 10s`);
+
+  // Just short at the bell is still a loss, even when the player has more stocks left.
+  const short = new Match(quotaSetup({ char: char('kaelen'), cpu: 0, stocks: 9 }, 60, 300), 3);
+  short.stats[0].dealt = 2990;
+  while (!short.state.over) short.tick(0);
+  check('quota objective: 299 of 300% at the bell is a loss', short.state.timedOut === 1 && !short.playerWon() && short.quotaDealt() < short.quotaTarget);
+  const exact = new Match(quotaSetup({ char: char('kaelen'), cpu: 0, stocks: 9 }, 600, 300), 3);
+  exact.stats[0].dealt = 3000;
+  exact.tick(0);
+  check('quota objective: exactly the number ends the match won', exact.state.over === 1 && exact.playerWon() && !exact.state.timedOut);
+
+  // Out of stocks before the quota: the player was eliminated, so it is lost and not a timeout.
+  const out = new Match({ ...quotaSetup({ char: char('break'), cpu: 9, scale: 135, startPercent: 0 }, 0, 9999), stocks: 1, slots: [{ char: char('exit-punk'), cpu: null, team: 0, stocks: 1 }, { char: char('break'), cpu: 9, team: 1, stocks: 9, scale: 135 }] }, 5);
+  play(out, 5, 60 * 60 * 10);
+  check('quota objective: out of stocks first is a loss', out.state.over === 1 && !out.state.timedOut && !out.playerWon(), `${out.quotaDealt() / 10}%`);
+
+  // Determinism: the same seed and inputs give the same match; snapshot + restore + replay (rollback) lands on the same hash, damage and result.
+  const a = new Match(quotaSetup(foe, 60 * 120, 150), 21);
+  play(a, 21);
+  check('quota objective: the same seed and inputs repeat exactly', hashState(a.state) === hashState(win.state) && a.quotaDealt() === win.quotaDealt() && a.state.frame === win.state.frame);
+  // Rollback: record both players' inputs from a live run, then replay them through tickInputs, as the netcode does.
+  const botInputs: number[] = [];
+  {
+    const bot0 = new Bot(0, 9, 22);
+    const bot1 = new Bot(1, 1, 21 + 7919);
+    const rec = new Match(quotaSetup({ ...foe, cpu: null }, 60 * 120, 150), 21);
+    for (let i = 0; i < 60 * 60 * 5 && !rec.state.over; i++) {
+      const x = bot0.think(rec.state);
+      const y = bot1.think(rec.state);
+      botInputs.push(x, y);
+      rec.tickInputs([x, y]);
+    }
+    const run = (m: Match, from: number, to: number) => { for (let i = from; i < to && !m.state.over; i++) m.tickInputs([botInputs[i * 2], botInputs[i * 2 + 1]]); };
+    const frames = botInputs.length / 2;
+    const half = Math.floor(frames / 2);
+    const ref = new Match(quotaSetup({ ...foe, cpu: null }, 60 * 120, 150), 21);
+    run(ref, 0, frames);
+    const mid = new Match(quotaSetup({ ...foe, cpu: null }, 60 * 120, 150), 21);
+    run(mid, 0, half);
+    const snapshot = mid.snapshot();
+    run(mid, half, frames);
+    const hashEnd = hashState(mid.state);
+    // Roll back to the snapshot (what a late remote input does) and replay the same inputs.
+    mid.restore(snapshot);
+    check('quota objective: restoring a snapshot brings the damage count back', mid.quotaDealt() === snapshot.stats[0].dealt && !mid.state.over);
+    run(mid, half, frames);
+    check('quota objective: rollback and replay land on the same hash, damage and result', hashState(mid.state) === hashEnd && mid.quotaDealt() === ref.quotaDealt() && mid.state.over === ref.state.over && mid.playerWon() === ref.playerWon() && hashEnd === hashState(ref.state) && ref.state.over === 1, `${frames} frames, ${ref.quotaDealt() / 10}%`);
+  }
+
+  // The chapter: Season 5's Product Placement, a quota night with a clock.
+  const pp = CHAPTERS.find((ch) => ch.id === 'product-placement');
+  check('season 5: Product Placement is a quota fight with a clock', pp?.fight.objective === 'quota' && (pp.fight.quota ?? 0) >= 100 && (pp.fight.rules.timeLimit ?? 0) > 0);
+  check('season 5: the quota chapter keeps the sponsor\'s damage rule and its unlock', pp?.fight.rules.damage === 130 && pp.unlock === 'yo-bot');
+}
+
+{
+  // The 'streak' objective: land N hits in a row without being hit back; the match ends on the hit that makes it. The clock or the stocks running out loses.
+  const char = (id: string) => CHARACTERS.findIndex((c) => c.id === id);
+  const streakSetup = (foe: SlotSetup, timeLimit: number, streak: number) => ({
+    mode: 'campaign' as const, stage: STAGES.findIndex((st) => st.id === 'city-top'), stocks: 9, rules: { timeLimit, damage: 120 }, objective: 'streak' as const, streak,
+    slots: [{ char: char('exit-punk'), cpu: null, team: 0 }, { team: 1, stocks: 9, ...foe }] as SlotSetup[],
+  });
+  const play = (m: Match, seed: number, frames = 60 * 60 * 5) => {
+    const me = new Bot(0, 9, seed + 1);
+    for (let i = 0; i < frames && !m.state.over; i++) m.tick(me.think(m.state));
+  };
+  const foe: SlotSetup = { char: char('kaelen'), cpu: 1, startPercent: 1200 };
+
+  const win = new Match(streakSetup(foe, 60 * 120, 3), 21);
+  play(win, 21);
+  check('streak objective: 3 clean hits in a row before the clock wins', win.state.over === 1 && !win.state.timedOut && win.playerWon() && win.streakBest() >= win.streakTarget, `${Math.round(win.state.frame / 60)}s`);
+  check('streak objective: it ends on the hit that makes it, foe still in', win.state.winner === 0 && win.state.fighters[1].stocks > 0 && win.state.frame < 60 * 120 && win.streakBest() === 3);
+
+  // Taking a hit starts the count over; a hit on a shield counts for neither side.
+  const m = new Match(streakSetup({ char: char('kaelen'), cpu: 0 }, 60 * 60, 5), 3);
+  m.stats[0].streak = 2; m.stats[0].bestStreak = 2;
+  const ev = (attacker: number, victim: number, shield = 0) => ({ type: 'hit', attacker, victim, dmg: 50, shield }) as never;
+  (m as unknown as { record(e: unknown[], b: number[]): void }).record([ev(1, 0)], [0, 0]);
+  check('streak objective: being hit starts the streak over, the best stays', m.streakNow() === 0 && m.streakBest() === 2);
+  (m as unknown as { record(e: unknown[], b: number[]): void }).record([ev(0, 1), ev(0, 1)], [0, 0]);
+  (m as unknown as { record(e: unknown[], b: number[]): void }).record([ev(1, 0, 1)], [0, 0]);
+  check('streak objective: hits landed count up, a shielded hit changes nothing', m.streakNow() === 2 && m.streakBest() === 2 && !m.state.over);
+
+  const late = new Match(streakSetup({ char: char('break'), cpu: 9, scale: 135 }, 60 * 10, 40), 22);
+  play(late, 22);
+  check('streak objective: the clock running out first loses', late.state.over === 1 && late.state.timedOut === 1 && !late.playerWon() && late.streakBest() < late.streakTarget, `best ${late.streakBest()}`);
+
+  const exact = new Match(streakSetup({ char: char('kaelen'), cpu: 0, stocks: 9 }, 600, 5), 3);
+  exact.stats[0].bestStreak = 4;
+  while (!exact.state.over) exact.tick(0);
+  check('streak objective: 4 of 5 at the bell is a loss', exact.state.timedOut === 1 && !exact.playerWon());
+  exact.stats[0].bestStreak = 5;
+  check('streak objective: 5 of 5 counts as met', exact.playerWon());
+
+  const out = new Match({ ...streakSetup({ char: char('break'), cpu: 9, scale: 135 }, 0, 40), stocks: 1, slots: [{ char: char('exit-punk'), cpu: null, team: 0, stocks: 1 }, { char: char('break'), cpu: 9, team: 1, stocks: 9, scale: 135 }] }, 5);
+  play(out, 5, 60 * 60 * 10);
+  check('streak objective: out of stocks first is a loss', out.state.over === 1 && !out.state.timedOut && !out.playerWon());
+
+  // Determinism: the same seed and inputs repeat exactly; snapshot + restore + replay (rollback) lands on the same hash, streaks and result.
+  const a = new Match(streakSetup(foe, 60 * 120, 3), 21);
+  play(a, 21);
+  check('streak objective: the same seed and inputs repeat exactly', hashState(a.state) === hashState(win.state) && a.streakBest() === win.streakBest() && a.state.frame === win.state.frame);
+  const botInputs: number[] = [];
+  const bot0 = new Bot(0, 9, 22);
+  const bot1 = new Bot(1, 1, 21 + 7919);
+  const mk = () => new Match(streakSetup({ ...foe, cpu: null }, 60 * 120, 3), 21);
+  const rec = mk();
+  for (let i = 0; i < 60 * 60 * 5 && !rec.state.over; i++) {
+    const x = bot0.think(rec.state);
+    const y = bot1.think(rec.state);
+    botInputs.push(x, y);
+    rec.tickInputs([x, y]);
+  }
+  const frames = botInputs.length / 2;
+  const half = Math.floor(frames / 2);
+  const run = (mm: Match, from: number, to: number) => { for (let i = from; i < to && !mm.state.over; i++) mm.tickInputs([botInputs[i * 2], botInputs[i * 2 + 1]]); };
+  const ref = mk();
+  run(ref, 0, frames);
+  const mid = mk();
+  run(mid, 0, half);
+  const snapshot = mid.snapshot();
+  run(mid, half, frames);
+  const hashEnd = hashState(mid.state);
+  mid.restore(snapshot);
+  check('streak objective: restoring a snapshot brings the streak back', mid.streakNow() === snapshot.stats[0].streak && mid.streakBest() === snapshot.stats[0].bestStreak && !mid.state.over);
+  run(mid, half, frames);
+  check('streak objective: rollback and replay land on the same hash, streak and result', hashState(mid.state) === hashEnd && hashEnd === hashState(ref.state) && mid.streakBest() === ref.streakBest() && mid.playerWon() === ref.playerWon() && ref.state.over === 1, `${frames} frames, best ${ref.streakBest()}`);
+
+  // The chapter: Season 7's Series Finale, a clean-streak night with a clock.
+  const sf = CHAPTERS.find((ch) => ch.id === 'series-finale');
+  check('season 7: Series Finale is a streak fight with a clock', sf?.fight.objective === 'streak' && (sf.fight.streak ?? 0) >= 2 && (sf.fight.rules.timeLimit ?? 0) > 0);
+  check('season 7: the streak chapter keeps the damage rule and its unlock', sf?.fight.rules.damage === 120 && sf.unlock === 'future-man');
+}
+
+{
+  // Animation over time: no bot match above showed a state that didn't match the motion.
+  check('trace: every bot match keeps state and motion in step (landing fires, no walking in place, every state exits)', traced.length === 0, traced.slice(0, 3).join('; '));
+
+  // The checker itself catches a landing that never fires, and lets a short one pass.
+  const state = newGame([{ char: 0 }, { char: 1 }], { stocks: 1, seed: 1, stage: 0 });
+  const f = state.fighters[0];
+  const trace = new AnimTrace();
+  const found: TraceProblem[] = [];
+  f.action = ACT.AIR;
+  f.grounded = 1;
+  for (let i = 0; i < TRACE_GRACE; i++) { state.frame++; found.push(...trace.check(state)); }
+  check('trace: an air state on the ground for 0.3 s or less passes', found.length === 0);
+  for (let i = 0; i < 4; i++) { state.frame++; found.push(...trace.check(state)); }
+  check('trace: an air state on the ground past 0.3 s fails', found.some((p) => p.kind === 'air-while-grounded' && p.fighter === 0));
+  f.action = ACT.WALK;
+  f.vx = 0;
+  for (let i = 0; i < TRACE_GRACE + 2; i++) { state.frame++; found.push(...trace.check(state)); }
+  check('trace: walking in place fails', found.some((p) => p.kind === 'walk-in-place'));
+
+  // No foot sliding: walk frames follow the ground covered, so half speed takes twice the frames per cycle.
+  const clip: Clip = { file: '', frames: 8, cols: 8, rows: 1, fw: 1, fh: 1, ax: 0, ay: 0, fps: 12, loop: true };
+  const walker = { ...f, action: ACT.WALK, facing: 1, x: 0 };
+  const ch = CHARACTERS[f.char];
+  const cycle = (speed: number) => {
+    let frames = 0;
+    let wraps = 0;
+    let prev = walkFrame(walker, clip);
+    walker.x = 0;
+    while (wraps < 2 && frames < 10000) {
+      walker.x += speed;
+      const i = walkFrame(walker, clip);
+      if (i < prev) wraps++;
+      prev = i;
+      frames++;
+    }
+    return frames / 2;
+  };
+  const full = cycle(ch.walkSpeed);
+  const half = cycle(ch.walkSpeed / 2);
+  check('walk: at full speed one cycle plays at the clip\'s own rate', Math.abs(full - (60 * clip.frames) / clip.fps) <= 1, `${full} frames`);
+  check('walk: at half speed a cycle takes twice as long (feet stay planted)', Math.abs(half - 2 * full) <= 2, `${half} vs ${full}`);
+  walker.x = 1234;
+  const stopped = walkFrame(walker, clip);
+  check('walk: standing still holds the stride', walkFrame(walker, clip) === stopped);
+  walker.facing = -1;
+  walker.x = 0;
+  const a = walkFrame(walker, clip);
+  // A quarter cycle to the left (full speed, 10 frames) is two frames further on, not two back.
+  walker.x = -ch.walkSpeed * 10;
+  check('walk: walking left plays the cycle forward too', a === 0 && walkFrame(walker, clip) === 2, `${a} -> ${walkFrame(walker, clip)}`);
+}
+
+{
+  // Broadcast events: same inputs, same hash; the break freezes play and keeps inputs; the rig light hits.
+  const events = [
+    { id: 'f', kind: 'flicker' as const, when: { time: 2 } },
+    { id: 'r', kind: 'rig-drop' as const, when: { time: 3 } },
+    { id: 'b', kind: 'break' as const, when: { time: 6 } },
+    { id: 'h', kind: 'hijack' as const, when: { stockLost: true } },
+  ];
+  const run = () => {
+    const g = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 5, broadcast: events });
+    const bots = [new Bot(0, 5, 1), new Bot(1, 5, 2)];
+    let froze = 0;
+    let rig = 0;
+    for (let i = 0; i < 900; i++) {
+      const before = g.frame;
+      const ev = step(g, bots.map((b) => b.think(g)));
+      if (g.frame === before) froze++;
+      rig += ev.filter((e) => e.type === 'hurt' && e.index === -1).length;
+    }
+    return { h: hashState(g), froze, rig, fired: g.bcFired.join('') };
+  };
+  const a = run();
+  const b = run();
+  check('broadcast: events are deterministic', a.h === b.h);
+  check('broadcast: the commercial break freezes play for 1.5 s', a.froze === 90, `${a.froze}`);
+  check('broadcast: events fire', a.fired.startsWith('111'), a.fired);
+}
+
+// ------------------------------------------------ input buffer & coyote time
+{
+  // 1. 6-frame (~0.1 s) input buffer for jump, attack, special and shield:
+  // Pressing 1..6 frames before recovery ends triggers the action on the first
+  // actionable frame; pressing 7 frames before expires and stays idle.
+  const testGroundBuffer = (btn: number, expectedAction: number, expectedMove = -1): boolean => {
+    for (let early = 1; early <= BUFFER_FRAMES + 1; early++) {
+      const g = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 42 });
+      const f = g.fighters[0];
+      // Start a jab; total frames = f.length.
+      step(g, [packInput(0, 0, BTN.ATTACK), NO_INPUT]);
+      const total = f.length;
+      const pressAt = total - early;
+      for (let i = 1; i <= total; i++) {
+        const inp = i === pressAt ? packInput(0, 0, btn) : NO_INPUT;
+        step(g, [inp, NO_INPUT]);
+      }
+      if (early <= BUFFER_FRAMES) {
+        if (f.action !== expectedAction) return false;
+        if (expectedMove >= 0 && f.move !== expectedMove) return false;
+      } else {
+        if (f.action !== ACT.IDLE) return false;
+      }
+    }
+    return true;
+  };
+
+  check('input buffer: jump pressed 1..6 frames before recovery comes out (7 expires)', testGroundBuffer(BTN.JUMP, ACT.JUMPSQUAT));
+  check('input buffer: attack pressed 1..6 frames before recovery comes out (7 expires)', testGroundBuffer(BTN.ATTACK, ACT.ATTACK, MOVE.JAB));
+  check('input buffer: special pressed 1..6 frames before recovery comes out (7 expires)', testGroundBuffer(BTN.SPECIAL, ACT.ATTACK, MOVE.NSPECIAL));
+  check('input buffer: shield tap 1..6 frames before recovery comes out (7 expires)', testGroundBuffer(BTN.SHIELD, ACT.SHIELD));
+
+  // Also test buffering out of landing lag and air recovery (aerials/airdodge).
+  const testAirBuffer = (btn: number, expectedAction: number): boolean => {
+    for (let early = 1; early <= BUFFER_FRAMES + 1; early++) {
+      const g = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 43 });
+      const f = g.fighters[0];
+      f.grounded = 0;
+      f.platform = -1;
+      f.y = 400 * 256;
+      f.action = ACT.HITSTUN;
+      f.hitstun = 12;
+      const pressAt = 12 - early;
+      for (let i = 1; i <= 12; i++) {
+        const inp = i === pressAt ? packInput(0, 0, btn) : NO_INPUT;
+        step(g, [inp, NO_INPUT]);
+      }
+      if (early <= BUFFER_FRAMES) {
+        if (f.action !== expectedAction) return false;
+      } else {
+        if (f.action !== ACT.AIR) return false;
+      }
+    }
+    return true;
+  };
+  check('input buffer: air attack, special and airdodge buffered 1..6 frames before hitstun ends',
+    testAirBuffer(BTN.ATTACK, ACT.ATTACK) && testAirBuffer(BTN.SPECIAL, ACT.ATTACK) && testAirBuffer(BTN.SHIELD, ACT.AIRDODGE));
+
+  // 2. Coyote time (~0.1 s = 6 frames) after walking/running off a ledge:
+  // Jumping 1..6 frames after leaving the platform gives a ground jump (ch.jumpVel)
+  // and keeps all airJumps; frame 7 uses an air jump (ch.airJumpVel, jumpsLeft - 1).
+  const testCoyote = (framesAfterLedge: number): { jumped: boolean; vy: number; jumpsLeft: number; coyoteAtEdge: number } => {
+    const g = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 44 });
+    const f = g.fighters[0];
+    const ch = CHARACTERS[f.char];
+    const p = STAGES[g.stage].platforms[f.platform];
+    // Place fighter right at the right edge of the platform and walk off.
+    f.x = p.x2 * 256 - 100;
+    step(g, [packInput(100, 0, 0), NO_INPUT]);
+    while (f.grounded) step(g, [packInput(100, 0, 0), NO_INPUT]);
+    const coyoteAtEdge = f.coyote;
+    let jumped = false;
+    let jumpVy = 0;
+    for (let i = 1; i <= framesAfterLedge; i++) {
+      const inp = i === framesAfterLedge ? packInput(100, 0, BTN.JUMP) : packInput(100, 0, 0);
+      const ev = step(g, [inp, NO_INPUT]);
+      if (ev.some((e) => e.type === 'jump' && e.id === f.id)) {
+        jumped = true;
+        jumpVy = ch.jumpVel;
+      }
+    }
+    return { jumped, vy: f.vy + ch.gravity, jumpsLeft: f.jumpsLeft, coyoteAtEdge };
+  };
+
+  const ch0 = CHARACTERS[0];
+  let allCoyoteOk = true;
+  for (let d = 1; d <= COYOTE_FRAMES; d++) {
+    const res = testCoyote(d);
+    if (!res.jumped || res.coyoteAtEdge !== COYOTE_FRAMES || res.jumpsLeft !== ch0.airJumps || res.vy !== ch0.jumpVel) {
+      allCoyoteOk = false;
+    }
+  }
+  const pastCoyote = testCoyote(COYOTE_FRAMES + 1);
+  check('coyote time: jumping 1..6 frames (~0.1 s) after walking off a ledge gives ground jump and keeps air jumps', allCoyoteOk);
+  check('coyote time: jumping 7 frames after walking off a ledge uses an air jump instead',
+    pastCoyote.jumped && pastCoyote.jumpsLeft === ch0.airJumps - 1 && pastCoyote.vy === ch0.airJumpVel);
+
+  // Normal ground jump does not grant coyote time.
+  {
+    const g = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 45 });
+    const f = g.fighters[0];
+    for (let i = 0; i < 5; i++) step(g, [packInput(0, 0, BTN.JUMP), NO_INPUT]);
+    check('coyote time: jumping from the ground does not grant coyote frames', !f.grounded && f.coyote === 0);
+  }
+
+  // 3. Determinism & rollback safety for buffered inputs and coyote jumps across input sources:
+  {
+    const buildSequence = (): number[][] => {
+      const seq: number[][] = [];
+      // Walk to ledge, coyote jump on frame 5 off ledge, buffer aerial during jump, land and buffer shield -> jump -> special.
+      for (let i = 0; i < 90; i++) seq.push([packInput(100, 0, i % 11 === 0 ? BTN.ATTACK : 0), packInput(-100, 0, i % 9 === 0 ? BTN.JUMP : 0)]);
+      for (let i = 0; i < 90; i++) seq.push([packInput(i % 2 ? -80 : 80, 0, i % 7 === 0 ? BTN.JUMP : i % 5 === 0 ? BTN.SHIELD : BTN.SPECIAL), packInput(50, 0, BTN.ATTACK)]);
+      return seq;
+    };
+    const seq = buildSequence();
+    const g1 = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 77 });
+    const g2 = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 77 });
+    const h1 = run(g1, seq);
+    const h2 = run(g2, seq);
+
+    const g3 = newGame([{ char: 0 }, { char: 1 }], { stocks: 2, seed: 77 });
+    run(g3, seq.slice(0, 65));
+    const snap = cloneState(g3);
+    for (let i = 0; i < 6; i++) step(g3, [packInput(-100, -100, BTN.SHIELD), packInput(100, 100, BTN.SPECIAL)]);
+    const restored = cloneState(snap);
+    run(restored, seq, 65);
+    check('determinism: buffered inputs and coyote jumps produce identical state hashes and rollback cleanly',
+      h1 === h2 && hashState(restored) === h1, h1.toString(16));
+  }
+
+  // 4. Input-to-action latency measurement in Match.tick():
+  {
+    const m = new Match(
+      {
+        mode: 'versus',
+        stage: 0,
+        stocks: 2,
+        rules: {},
+        slots: [{ char: 0, cpu: null }, { char: 1, cpu: 6 }],
+      },
+      101,
+    );
+    const bot = new Bot(0, 9, 202);
+    for (let i = 0; i < 600 && !m.state.over; i++) {
+      m.tick(bot.think(m.state));
+    }
+    const lat = m.latencyStats();
+    check('input latency: median input-to-action latency is measured and under 100 ms',
+      lat.samples >= 5 && lat.median > 0 && lat.median < 100 && lat.worst >= lat.median,
+      `median ${lat.median} ms, worst ${lat.worst} ms, ${lat.samples} samples`);
+  }
+}
+
+// Bot against bot across the 13 Season 1 fighters: own kits, win rates between 35% and 65%.
+runRosterTests(check);
+
+// Moving and fading platforms are layout: they run with Hazards Off, ride fighters and are never all gone.
+{
+  const idx = (id: string) => STAGES.findIndex((x) => x.id === id);
+  const city = STAGES[idx('city-top')];
+  const fades = city.platforms.filter((p) => p.fade);
+  let bothGone = 0;
+  const seen = new Set<number>();
+  for (let f = 0; f < 60 * 25; f++) {
+    const st = fades.map((p) => fadeState(p, f));
+    st.forEach((x) => seen.add(x));
+    if (st.every((x) => x === 2)) bothGone++;
+  }
+  check('City Top: two fading catwalks flash, go and come back, never both gone', fades.length === 2 && seen.has(1) && seen.has(2) && bothGone === 0);
+  for (const id of ['humans-in-the-loop', 'space-chess']) {
+    const si = idx(id);
+    const mi = STAGES[si].platforms.findIndex((p) => p.motion);
+    const p = STAGES[si].platforms[mi];
+    const g = newGame([{ char: 0 }, { char: 2 }], { stocks: 3, seed: 5, stage: si });
+    g.rules.hazards = 0;
+    const rider = g.fighters[0];
+    const a = platformAt(p, 0);
+    rider.x = (a.x1 + a.x2) >> 1;
+    rider.y = a.y;
+    rider.grounded = 1;
+    rider.platform = mi;
+    let lo = Infinity;
+    let hi = -Infinity;
+    let drift = 0;
+    step(g, [NO_INPUT, NO_INPUT]);
+    const base = rider.x - platformAt(p, g.frame - 1).x1;
+    for (let f = 0; f < p.motion!.period; f++) {
+      step(g, [NO_INPUT, NO_INPUT]);
+      if (rider.platform === mi && rider.grounded) drift = Math.max(drift, Math.abs(rider.x - platformAt(p, g.frame - 1).x1 - base));
+      else drift = 1e9;
+      lo = Math.min(lo, rider.x);
+      hi = Math.max(hi, rider.x);
+    }
+    check(`${STAGES[si].name}: a standing fighter is carried by the moving platform with Hazards Off`, hi - lo > 40 * 1000 && drift <= 1000, `${Math.round((hi - lo) / 1000)} units, drift ${drift / 1000}`);
+  }
 }
 
 if (failed) {

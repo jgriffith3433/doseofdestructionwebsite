@@ -1,16 +1,18 @@
 // Screens, the wipe between them, and menu navigation with keyboard or gamepad.
 //
 // Each screen is a <section class="screen" id="..."> in the page. Only one is
-// shown at a time; go() covers the switch with a diagonal wipe.
+// shown at a time; go() covers the switch with the show's stinger.
 
-import { pads } from '../input/devices.ts';
+import { pads, scanPads } from '../input/devices.ts';
 import { audio } from '../audio.ts';
 import { screen as trackScreen } from '../analytics.ts';
+import { startStinger } from './stinger.ts';
+import { flashPressed } from './dom.ts';
+import { hintText } from './teach.ts';
 
 export type ScreenId =
-  | 'title' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'dialogue' | 'howto' | 'results' | 'match' | 'leaderboard';
+  | 'title' | 'roster' | 'main' | 'select' | 'stages' | 'versus' | 'campaign' | 'tour' | 'extras' | 'howto' | 'results' | 'match' | 'leaderboard';
 
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const backHandlers = new Map<ScreenId, () => void>();
 /** A panel over the screen (Settings): Back closes it first. */
 let panelBack: (() => void) | null = null;
@@ -36,27 +38,21 @@ export function onBack(id: ScreenId, fn: () => void): void {
   backHandlers.set(id, fn);
 }
 
-const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
-/** Switches screens behind a wipe. The callback runs while the screen is covered. */
+/** Switches screens behind the show's stinger (ui/stinger.ts). The callback runs while the screen is covered. */
 export async function go(id: ScreenId, whileCovered?: () => void | Promise<void>): Promise<void> {
   if (busy) return;
   busy = true;
-  const wipe = document.getElementById('wipe')!;
   const first = current === null;
-  if (!first) {
-    audio.sfx('wipe');
-    wipe.className = 'wipe in';
-    await wait(reduceMotion ? 120 : 340);
+  const from = current ?? 'none';
+  const st = first ? null : startStinger(from, id);
+  await st?.covered;
+  try {
+    await whileCovered?.();
+  } finally {
+    show(id);
+    await st?.open();
+    busy = false;
   }
-  await whileCovered?.();
-  show(id);
-  if (!first) {
-    wipe.className = 'wipe out';
-    await wait(reduceMotion ? 120 : 360);
-    wipe.className = 'wipe';
-  }
-  busy = false;
   focusFirst();
 }
 
@@ -66,6 +62,10 @@ function show(id: ScreenId): void {
     el.hidden = el.id !== id;
   });
   document.body.dataset.screen = id;
+  // Hints written with control tokens (`data-hint`) read for the device in hand when the screen opens.
+  document.querySelectorAll<HTMLElement>(`#${id} [data-hint]`).forEach((el) => {
+    el.textContent = hintText(el.dataset.hint ?? '');
+  });
   trackScreen(id);
 }
 
@@ -98,7 +98,23 @@ export function focusFirst(): void {
   }
   const list = candidates();
   const preferred = list.find((el) => el.dataset.autofocus !== undefined) ?? list[0];
-  preferred?.focus({ preventScroll: false });
+  preferred?.focus({ preventScroll: true });
+}
+
+const MOVE_SOUND_GAP_MS = 70;
+let lastMoveSound = -Infinity;
+
+/** Marks that keys or a pad drive the menu (game.css draws the focus ring on whatever has focus); a mouse or finger clears it. */
+function setNav(on: boolean): void {
+  if (on) document.body.dataset.nav = '1';
+  else delete document.body.dataset.nav;
+}
+let navListening = false;
+function listenNav(): void {
+  if (navListening) return;
+  navListening = true;
+  window.addEventListener('keydown', () => setNav(true), true);
+  window.addEventListener('pointerdown', () => setNav(false), true);
 }
 
 /** Moves focus to the nearest control in a direction, by on-screen position. */
@@ -130,7 +146,12 @@ export function moveFocus(dx: number, dy: number): void {
       bestScore = score;
     }
   }
-  if (best) audio.sfx('ui-move');
+  // Holding a direction repeats fast: the tick is throttled, so it never turns into a buzz.
+  const now = performance.now();
+  if (best && now - lastMoveSound >= MOVE_SOUND_GAP_MS) {
+    lastMoveSound = now;
+    audio.sfx('ui-move');
+  }
   best?.focus();
   best?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
@@ -152,8 +173,11 @@ export function typing(e: KeyboardEvent): boolean {
 }
 
 export function listenMenuKeys(inMatch: () => boolean): void {
+  listenNav();
   window.addEventListener('keydown', (e) => {
     if (inMatch() || busy) return;
+    // Another player's pause: the keyboard belongs to player 1 and stands down.
+    if (menuOwner !== null && menuOwner !== 0) return;
     // Typing a name (Profile): letters are letters; only Esc still backs out.
     if (typing(e) && e.code !== 'Escape') return;
     if (e.target instanceof HTMLSelectElement && (e.code === 'ArrowUp' || e.code === 'ArrowDown')) return;
@@ -171,9 +195,22 @@ export function listenMenuKeys(inMatch: () => boolean): void {
       e.preventDefault();
       back();
     } else if (e.code === 'KeyJ') {
-      (document.activeElement as HTMLElement | null)?.click();
+      const el = document.activeElement as HTMLElement | null;
+      flashPressed(el);
+      el?.click();
     }
   });
+}
+
+/**
+ * Couch pause: while someone's pause menu is up, only that person's devices move it. `slot` is the player who paused
+ * (null = no owner, every device works); slot 0 owns the keyboard and the pads nobody else holds.
+ */
+let menuOwner: number | null = null;
+let ownerSlotOf: (p: Gamepad) => number = () => 0;
+export function setMenuOwner(slot: number | null, slotOfPad?: (p: Gamepad) => number): void {
+  menuOwner = slot;
+  if (slotOfPad) ownerSlotOf = slotOfPad;
 }
 
 // Gamepad menu controls, polled from the main loop.
@@ -181,10 +218,27 @@ let padHeld = '';
 let padNext = 0;
 let padButtons: boolean[] = [];
 
+/** The rebinding screen is listening for a button: the menu pad stands down so the press isn't also a menu press. */
+let padHeldBack = false;
+export function holdMenuPad(on: boolean): void {
+  padHeldBack = on;
+  if (!on) syncPad();
+}
+
+/** Versus select's joining pads: `skip` pads belong to another player and don't drive the menu; `noStart` pads' Start joins instead of pressing. */
+let menuPadRules: { skip: (p: Gamepad) => boolean; noStart: (p: Gamepad) => boolean } | null = null;
+export function setMenuPadRules(r: typeof menuPadRules): void {
+  menuPadRules = r;
+}
+
 export function pollMenuPad(now: number): void {
-  if (busy) return;
-  const pad = pads()[0];
+  if (busy || padHeldBack) return;
+  scanPads();
+  // Any connected controller can drive the menus: the one in use right now, else the first.
+  const all = (menuOwner === null ? pads() : pads().filter((p) => ownerSlotOf(p) === menuOwner)).filter((p) => !menuPadRules?.skip(p));
+  const pad = all.find((p) => p.buttons.some((b) => b.pressed) || p.axes.some((a) => Math.abs(a) > 0.5)) ?? all[0];
   if (!pad) return;
+  listenNav();
   const ax = pad.axes[0] ?? 0;
   const ay = pad.axes[1] ?? 0;
   const btn = (i: number) => !!pad.buttons[i]?.pressed;
@@ -193,19 +247,25 @@ export function pollMenuPad(now: number): void {
   else if (btn(15) || ax > 0.6) dir = 'r';
   else if (btn(12) || ay < -0.6) dir = 'u';
   else if (btn(13) || ay > 0.6) dir = 'd';
+  if (dir || pad.buttons.some((b, i) => b.pressed && !padButtons[i])) setNav(true);
   if (dir && (dir !== padHeld || now >= padNext)) {
     moveFocus(dir === 'l' ? -1 : dir === 'r' ? 1 : 0, dir === 'u' ? -1 : dir === 'd' ? 1 : 0);
     padNext = now + (dir === padHeld ? 90 : 260);
   }
   padHeld = dir;
   const pressed = (i: number) => btn(i) && !padButtons[i];
-  if (pressed(0) || pressed(9)) (document.activeElement as HTMLElement | null)?.click();
+  if (pressed(0) || (pressed(9) && !menuPadRules?.noStart(pad))) {
+    const el = document.activeElement as HTMLElement | null;
+    flashPressed(el);
+    el?.click();
+  }
   if (pressed(1)) back();
   padButtons = pad.buttons.map((b) => b.pressed);
 }
 
 /** Resets edge tracking so a button held from a match doesn't fire in a menu. */
 export function syncPad(): void {
-  const pad = pads()[0];
+  const all = (menuOwner === null ? pads() : pads().filter((p) => ownerSlotOf(p) === menuOwner)).filter((p) => !menuPadRules?.skip(p));
+  const pad = all.find((p) => p.buttons.some((b) => b.pressed)) ?? all[0];
   padButtons = pad ? pad.buttons.map((b) => b.pressed) : [];
 }

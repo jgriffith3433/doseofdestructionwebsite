@@ -1,42 +1,86 @@
 // Draws a GameState with Babylon. Nothing here feeds back into the sim: the
 // renderer only reads state and the events step() returns.
 
+import { gradeSource } from '../campaign/rewards.ts';
 import { Engine } from '@babylonjs/core/Engines/engine.js';
 import { Scene } from '@babylonjs/core/scene.js';
 import { FreeCamera } from '@babylonjs/core/Cameras/freeCamera.js';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight.js';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color.js';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector.js';
+import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector.js';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh.js';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder.js';
 import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder.js';
+import { CreateGround } from '@babylonjs/core/Meshes/Builders/groundBuilder.js';
 import { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder.js';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial.js';
+import { LookPlugin } from './lookPlugin.ts';
+import { LightPlugin } from './lightPlugin.ts';
+import { RemapPlugin, OutlinePlugin } from './stylePlugin.ts';
+import { IDENTITY, outlineWidthPx } from '../artStyle.ts';
+import { REFLECTION_ALPHA, floorBelow, lightOf, shadowAt } from './fighterLight.ts';
+import { COUNTER_TINT, Flipbooks, FLIPBOOK_KINDS, fighterTint, type FlipStats } from './flipbook.ts';
+import { lookOf, recolorHex } from '../looks.ts';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture.js';
 import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture.js';
 import { GlowLayer } from '@babylonjs/core/Layers/glowLayer.js';
 import '@babylonjs/core/Layers/effectLayerSceneComponent.js';
 
 import { FX } from '../sim/fixed.ts';
+import { entranceBeats, entrancePose, flyCamera, flyProgress, type BeatFx, type IntroPlan, type Pose } from '../campaign/intro.ts';
 import { CHARACTERS, MOVE } from '../sim/characters.ts';
 import { STAGES, ledges, platformAt, type Platform, type StageDef } from '../sim/stage.ts';
-import { ACT, SHIELD_MAX, type Fighter, type GameState } from '../sim/state.ts';
-import { activeHitboxes, type SimEvent } from '../sim/step.ts';
-import { clipFrame, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
-import { StageFx, buildLayers, drawnPlatforms } from './stageArt.ts';
+import { ACT, SHIELD_MAX, bodySize, type Fighter, type GameState } from '../sim/state.ts';
+import { GRAB_FIRST, activeHitboxes, rigPos, type SimEvent } from '../sim/step.ts';
+import { KILL_CUE, TUMBLE_SPEED, reactionFor, hitTier, impactFor, killPunch, killTimeScale, screenShake, shakeScale, flashScale, flashAllowed, flashStats, flashMode, reduceMotion, trailFor, coreFor, sparkSizeFor, tellAt, tellFrames, moveStartFrame, windupPose, isNormalMove, isSmashMove, isSpecialMove, type HitTier, type TrailKind } from '../hitFeel.ts';
+import { autoToastShown, graphics, markAutoToastShown, onGraphics, particleShare, pickedByHand, saveAutoLevel, savedAutoLevel, scalingLevel, type Graphics } from '../graphics.ts';
+import { AutoQuality, effectsFor, type AutoChange, type AutoEffects } from './autoQuality.ts';
+import type { Placed } from './stageLive.ts';
+import { cameraFighters, followCamera, frameGoal, KO_TAIL_S, punchGoal, type CamBounds, type CamSample, type CamState } from './cameraRig.ts';
+import { clipFrame, clipSheetFile, feetLift, loadAnimSet, pickClip, type AnimSet } from './anims.ts';
+import { StageFx, buildLayers, drawnPlatforms, layersFor } from './stageArt.ts';
+import { behindForeground, bodyPoints, fadeToward } from './foreground.ts';
 import { StageLive } from './stageLive.ts';
+import { StageAlive, aliveTexturesBuilt } from './stageAlive.ts';
+import { PostChain } from './post.ts';
+import { PLAYER_COLORS, colourVision, shapeOf } from '../colourVision.ts';
 import { Constants } from '@babylonjs/core/Engines/constants.js';
 
 /** Sim units to scene units: 100 world units per scene unit. */
+/**
+ * Gives the page one chance to paint (the wipe, the VS card, the fps meter) between warm-up steps,
+ * instead of holding the main thread for the whole warm-up. The timer covers a hidden page.
+ */
+const breathe = (): Promise<void> =>
+  new Promise((r) => {
+    requestAnimationFrame(() => r());
+    setTimeout(r, 24);
+  });
+
 const S = 1 / (100 * FX);
 const W = 1 / 100;
+/** The lit lip along a drawn platform's top, scene units: a bright core between two dark lines, hanging from the top edge, just in front of the art. */
+export const LIP_CORE = 0.05;
+export const LIP_KEYLINE = 0.025;
+const LIP_Z = -0.02;
+
+/** `a` mixed toward `b` by t, as a hex colour. */
+function mixHex(a: string, b: string, t: number): string {
+  const ca = Color3.FromHexString(a);
+  const cb = Color3.FromHexString(b);
+  return Color3.Lerp(ca, cb, t).toHexString();
+}
 /** How far a hanging fighter's hands come up over the ledge's top edge, in scene units. */
 const GRIP = 0.04;
+/** The share of a hanging sprite's frame allowed past the ledge's edge (the empty margin round the pose). */
+const HANG_OVERLAP = 0.12;
+/** How long a fighter's drop-in takes in a story scene. */
+const ARRIVE_MS = 520;
 /** The art stands a little taller than the hurtbox. */
 const ART_SCALE = 1.18;
 
-export const PLAYER_COLORS = ['#ff5a1f', '#3fa7ff', '#ffd15a', '#5ce08a'];
+export { PLAYER_COLORS };
 
 interface FighterView {
   root: TransformNode;
@@ -54,30 +98,106 @@ interface FighterView {
   /** The fighter's silhouette, shown only where stage art in front covers them. */
   ghost: Mesh | null;
   ghostMat: StandardMaterial | null;
+  /** A thin player-colour silhouette just behind the body, so a fighter separates from a busy stage. */
+  rim: Mesh;
+  rimMat: StandardMaterial;
+  /** Roster index and colour look this view was built for (playtest). */
+  charIdx: number;
+  lookIdx: number;
+  tumble?: number;
+  /** Startup tell 0..1 (a rim flash in the player colour before a special or smash's first active frame). */
+  tell: number;
+  /** The stage's key, rim and ambient on the sprite (lightPlugin.ts). */
+  light: LightPlugin;
+  /** The art bible's remap and outline on the sprite (stylePlugin.ts). */
+  outline: OutlinePlugin;
+  /** The soft contact shadow under the feet, and its material (alpha follows the height). */
+  shadow: Mesh;
+  shadowMat: StandardMaterial;
+  /** The faint mirror image on a glossy floor (High only): a pivot flipped under the floor, its plane and material. */
+  reflRoot: TransformNode;
+  reflPose: TransformNode;
+  refl: Mesh;
+  reflMat: StandardMaterial;
+  /** What the last frame drew, for the playtest. */
+  lit: { height: number; scale: number; alpha: number; shadow: boolean; reflection: boolean };
 }
+
+/** One launch's smoke trail, kept for the playtest: what it was and how many puffs it threw. */
+export interface TrailRecord { seq: number; victim: number; tier: HitTier; kb: number; kind: TrailKind; ko: boolean; puffs: number }
 
 interface Spark {
   mesh: Mesh;
+  /** Impact sprites (stars, rings) grow as they fade; plain sparks don't. */
+  grow?: number;
   vx: number;
   vy: number;
   life: number;
   max: number;
   size: number;
+  /** A streak (dash trail): stretched along x. */
+  stretch?: number;
 }
+
+/** Looks of a special's projectile or trap, by ShotDef.style: 0 thrown board, 1 placed trap, 2 orb. */
+const SHOT_LOOKS = ['board', 'trap', 'orb'] as const;
+
+/** Depth of every hit, dust and streak effect: behind the fighters (they sit at z 0 to -0.05), in front of the stage, so no effect covers a body or its outline. */
+const FX_Z = 0.06;
+
+/** Depth of the small bright core of a landed hit: in front of the fighters (z 0 to -0.15), so the contact point reads on top of the hurt fighter. */
+const CORE_Z = -0.4;
+
+/** Counters of the tell, trail and contact-spark layer (reactFxStats): zeroed on reset. */
+const NEW_REACT = {
+  tells: 0, tellFrames: 0, tellWhooshes: 0, tellMisses: 0, tellStarts: 0,
+  trails: 0, trailFrames: 0, normalActives: 0,
+  contacts: 0, maxContactDist: 0, maxHurtGap: 0, coreFrames: 0, coreMinPx: 0, coreHeavyMinPx: 0, coreUnderControl: 0,
+  shieldRipples: 0, parryFlashes: 0, clashSparks: 0,
+};
 
 export class Renderer {
   readonly engine: Engine;
   readonly scene: Scene;
   private camera: FreeCamera;
+  private sky!: HemisphericLight;
+  private rig: Mesh | null = null;
   private views: FighterView[] = [];
   private sparks: Spark[] = [];
   /** Finished spark meshes, reused so a KO burst doesn't build geometry mid-fight. */
   private sparkPool: Mesh[] = [];
   private sparkMat: StandardMaterial;
+  /** Visual-only reactions per fighter (squash, push, bounce); render reads sim state and never writes it. */
+  private react = new Map<number, { age: number; frames: number; squash: number; push: number; dir: number; hop: number }>();
+  private prevGround = new Map<number, number>();
+  private reactStats: typeof NEW_REACT & Record<'squashes' | 'maxSquash' | 'squashFrames' | 'tumbleFrames' | 'bounces' | 'dustBursts' | 'smears' | 'smearFrames' | 'smashSmears' | 'charges', number> = { squashes: 0, maxSquash: 0, squashFrames: 0, tumbleFrames: 0, bounces: 0, dustBursts: 0, smears: 0, smearFrames: 0, smashSmears: 0, charges: 0, ...NEW_REACT };
+  /** Launch-trail looks: grey smoke (medium), white smoke (heavy), a coloured streak (a hit that will KO). */
+  private fxMats!: { core: StandardMaterial; shield: StandardMaterial; parry: StandardMaterial; clash: StandardMaterial };
+  private tellSeen = new Map<number, { move: number; n: number; activeChecked: boolean; lastFrame: number }>();
+  private lastFxFrame = new Map<number, number>();
+  private smokeMats!: { grey: StandardMaterial; white: StandardMaterial; streak: StandardMaterial };
+  /** The last hit on each victim (knockback and tier), read when its launch begins. */
+  private lastHits = new Map<number, { kb: number; tier: HitTier }>();
+  /** Launches in hit-stun that throw a trail until they recover (victim id -> trail). */
+  private trails = new Map<number, TrailRecord>();
+  private trailLog: TrailRecord[] = [];
+  private trailSeq = 0;
+  /** Projectile and trap sprites, one plane per shot in play (index = position in state.shots), and their looks. */
+  private shotMeshes: Mesh[] = [];
+  private shotMats: StandardMaterial[] | null = null;
+  private lastTrail = -1;
+  /** Painted special-effect flipbooks (render/flipbook.ts): a pre-warmed pool, tinted per fighter. */
+  private flip: Flipbooks;
+  private flipTints = new Map<number, Color3>();
+  /** Sim frame the special effects last ran for (a pause or a paused render draws none twice). */
+  private flipFrame = -1;
+  private flipLast = new Map<number, { move: number; frame: number }>();
+  private lastState: GameState | null = null;
   private debugMeshes: Mesh[] = [];
   private debugMat: StandardMaterial;
   private hurtMat: StandardMaterial;
   private glow: GlowLayer;
+  private post: PostChain;
   private stageRoot: TransformNode | null = null;
   private movers: { platform: Platform; node: TransformNode }[] = [];
   private stage: StageDef = STAGES[0];
@@ -89,6 +209,7 @@ export class Renderer {
   private clipCache = new Map<string, Texture>();
   private fx: StageFx | null = null;
   private live: StageLive | null = null;
+  private alive: StageAlive | null = null;
   /** A plane over the whole view that stage effects flash. */
   private flashPlane: Mesh;
   private flashMat: StandardMaterial;
@@ -96,31 +217,102 @@ export class Renderer {
   private occluders = false;
   /** Plays a sound effect for stage effects (main wires it to the audio system). */
   onSound: ((id: string) => void) | null = null;
+  /** Procedural effects (synth.ts) the renderer asks for, like an arrival's thud. */
+  onSynth: ((kind: 'thud' | 'whoosh' | 'whistle') => void) | null = null;
   private shake = 0;
+  /** A story scene's camera (scene.ts): a close-up on one fighter, or a wide shot; null is the gameplay camera. */
+  private shot: { focus: number | null; since: number } | null = null;
+  /** Fighters held off stage until their arrival, and arrivals in progress (fighter id -> start time). */
+  private offstage = new Set<number>();
+  private arriving = new Map<number, number>();
+  /** The match intro in progress (campaign/intro.ts): its clock, each fighter's entrance pose and the beats already fired. */
+  private intro: { t0: number; plan: IntroPlan; fired: Map<number, number>; poses: Map<number, Pose>; beats: number; flyMax: number; lastD: number } | null = null;
+  private introMats = new Map<string, StandardMaterial>();
+  private introProps = new Map<number, Mesh>();
+  /** Called at each entrance beat (main.ts plays the taunt on 'taunt'). */
+  onIntroBeat: ((slot: number, who: string, fx: BeatFx) => void) | null = null;
+  /** Speakers in a story scene: a small bounce while their line starts (fighter id -> start time). */
+  private talking = new Map<number, number>();
+  /** The last hit's effect and the camera shake actually applied, for the playtest to read. */
+  private hitStats = { hits: 0, last: null as null | { tier: HitTier; lag: number; sparks: number; stars: number; ring: boolean; shake: number; flash: number }, tiers: { light: 0, medium: 0, heavy: 0 }, shakeApplied: 0, shakeMax: 0 };
+  /** Camera follow state: smoothed distance and the critically damped velocities (pan x, pan y, zoom), and the last frame's time. */
+  private camDist = 14;
+  private camRig: CamState = { x: 0, y: 1.6, d: 14, vx: 0, vy: 0, vd: 0 };
+  private camSide = 0;
+  private camTilt = 0;
+  private camMs = 0;
+  /** The per-frame camera trace the playtest judges (cameraRig.ts analyzeCameraTrace), and what the last update knew for it. */
+  private camTraceBuf: CamSample[] = [];
+  private camLaunch = new Map<number, number>();
+  private camLaunched = new Set<number>();
+  private camTraceNote = { cut: true, ko: false, koUntil: -1 };
+  /** Share of the screen's height the touch controls cover (landscape phone), measured now and then. */
+  private touchInset = { v: 0, at: 0 };
+  /** The next gameplay frame sets the camera outright (a new stage, a rematch, a menu shot): an intended cut, never a jump. */
+  private camCut = true;
+  /** The kill cue in progress: when the finishing hit landed (ms) and where. */
+  private kill: { at: number; x: number; y: number } | null = null;
+  /** What the camera and kill cues did, for the playtest (cameraJumps must stay 0). */
+  private camStats = { cameraJumps: 0, framingMisses: 0, killCues: 0, slowFpsMin: 0, lastCue: null as null | { zoom: boolean; slow: boolean; whistle: boolean; shake: number; punch: number } };
   private camPos = new Vector3(0, 1.6, -14);
   private camTarget = new Vector3(0, 1.6, 0);
   debug = false;
 
   constructor(canvas: HTMLCanvasElement) {
-    this.engine = new Engine(canvas, true, { stencil: true, preserveDrawingBuffer: false }, true);
+    this.engine = new Engine(canvas, true, { stencil: true, preserveDrawingBuffer: false }, false);
     this.scene = new Scene(this.engine);
-    this.scene.clearColor = new Color4(0.063, 0.055, 0.047, 1);
+    this.scene.clearColor = new Color4(0.063, 0.055, 0.047, 1) // brand dark (#100e0c), the fallback if the canvas ever shows;
 
     this.camera = new FreeCamera('cam', this.camPos.clone(), this.scene);
     this.camera.fov = 0.55;
     this.camera.setTarget(this.camTarget);
     this.camera.inputs.clear();
 
-    const light = new HemisphericLight('sky', new Vector3(0.2, 1, -0.6), this.scene);
+    const light = (this.sky = new HemisphericLight('sky', new Vector3(0.2, 1, -0.6), this.scene));
     light.intensity = 0.95;
     light.groundColor = new Color3(0.18, 0.1, 0.08);
 
+    this.post = new PostChain(this.scene, this.camera);
     this.glow = new GlowLayer('glow', this.scene, { mainTextureSamples: 2 });
     this.glow.intensity = 0.6;
     // Silhouettes draw in group 1 against the depth group 0 left behind.
     this.scene.setRenderingAutoClearDepthStencil(1, false, false, false);
 
     this.sparkMat = this.flatMaterial('spark', '#ffd15a');
+    // Soft radial alpha so impact stars/rings read as a glow, not a hard square (GlowLayer
+    // used to bloom the whole opaque plane into a blown-out white rectangle over the fighter).
+    const soft = this.softSparkTex();
+    this.sparkMat.diffuseTexture = soft;
+    this.sparkMat.opacityTexture = soft;
+    this.sparkMat.emissiveTexture = soft;
+    this.sparkMat.alphaMode = Constants.ALPHA_ADD;
+    this.sparkMat.disableDepthWrite = true;
+    // The spark/KO pool exists from the start, so the warm-up (which can finish under the match wipe) never counts an empty one.
+    // Smoke for the launch trail: alpha-blended (grey and white) and additive (the KO streak), sharing the soft disc.
+    const smoke = (name: string, hex: string, add: boolean): StandardMaterial => {
+      const m = this.flatMaterial(name, hex);
+      m.diffuseTexture = soft;
+      m.opacityTexture = soft;
+      m.emissiveTexture = soft;
+      m.disableDepthWrite = true;
+      if (add) m.alphaMode = Constants.ALPHA_ADD;
+      else m.alpha = 0.3; // faint: smoke must never compete with the fighters
+      return m;
+    };
+    this.smokeMats = { grey: smoke('smoke-grey', '#9a9a9e', false), white: smoke('smoke-white', '#ffffff', false), streak: smoke('smoke-streak', '#ff4a1f', true) };
+    // Contact looks: the bright core (white), the shield ripple (cyan), the parry flash (white-blue) and the clash spark (orange).
+    const glow = (name: string, hex: string): StandardMaterial => {
+      const m = smoke(name, hex, true);
+      return m;
+    };
+    this.fxMats = { core: glow('fx-core', '#ffffff'), shield: glow('fx-shield', '#58d8ff'), parry: glow('fx-parry', '#e8f4ff'), clash: glow('fx-clash', '#ff9a2a') };
+    for (let i = 0; i < 96; i++) {
+      const m = this.makeSpark();
+      m.setEnabled(false);
+      this.sparkPool.push(m);
+    }
+    this.flip = new Flipbooks(this.scene, (m) => this.glow.addExcludedMesh(m));
+    this.flip.setQuality(this.gfx.quality);
     this.debugMat = this.flatMaterial('dbg-hit', '#ff2a2a', 0.45);
     this.hurtMat = this.flatMaterial('dbg-hurt', '#ffd15a', 0.22);
 
@@ -136,7 +328,243 @@ export class Renderer {
     this.glow.addExcludedMesh(this.flashPlane);
 
     this.setStage(0);
-    window.addEventListener('resize', () => this.engine.resize());
+    this.applyGraphics(graphics());
+    onGraphics((g) => this.applyGraphics(g));
+    this.buildFpsMeter();
+    // A new pixel ratio (zoom, another screen) arrives with a resize.
+    window.addEventListener('resize', () => {
+      this.applyGraphics(graphics());
+      this.engine.resize();
+    });
+  }
+
+  private gfx: Graphics = graphics();
+
+  // ---- Auto quality: the frame-time governor (render/autoQuality.ts) lives here, in the render loop ----
+  private auto = new AutoQuality(savedAutoLevel());
+  /** Scenarios that need a fixed picture switch the governor off; it is on for every player. */
+  private autoAllowed = true;
+  private autoLastFrame = -1;
+  private autoToastEl: HTMLElement | null = null;
+  private autoToasts = 0;
+  /** Playtest only: a simulated slow device (ms a frame costs at full quality; 0 = off). */
+  private slowFullMs = 0;
+  private placedLayers: Placed[] = [];
+
+  /** The effects drawn right now: a step down lands one part per frame, so this trails `auto.level`'s full effects. */
+  private autoApplied: AutoEffects = effectsFor(this.auto.level);
+  /** Parts of the last step still to land, one per rendered frame. */
+  private autoQueue: { part: 'glow' | 'post' | 'parallax'; level: number }[] = [];
+
+  /** The effects drawn, or none while the governor is off or the player chose by hand. */
+  private autoFx(): AutoEffects {
+    return this.auto.enabled ? this.autoApplied : effectsFor(0);
+  }
+
+  /** What the settings alone would render and draw: the base the governor steps down from. */
+  private autoBase(g: Graphics = this.gfx) {
+    return { scale: 1 / scalingLevel(g.quality, window.devicePixelRatio), glow: g.glow, quality: g.quality as string };
+  }
+
+  private effectiveScalingLevel(g: Graphics): number {
+    const base = scalingLevel(g.quality, window.devicePixelRatio);
+    return 1 / Math.min(1 / base, this.autoFx().scaleMax);
+  }
+
+  /** Parallax layers between the backdrop and the stage, and the haze sheets, are hidden from level 3 (the backdrop stays). */
+  private applyParallax(): void {
+    const hide = this.autoFx().hideParallax;
+    const zFar = Math.max(0, ...this.placedLayers.filter((p) => !p.haze).map((p) => p.layer.z));
+    for (const p of this.placedLayers) {
+      if (p.haze) {
+        p.mesh.setEnabled(!hide);
+        continue;
+      }
+      const l = p.layer;
+      p.culled = hide && l.z > 0 && l.z < zFar && !l.foreground && !(l.platforms?.length) && !l.follows && !l.showDuring && !l.hideDuring;
+    }
+  }
+
+  /** The governor's changes only land through here: render scale, glow, post, parallax, the note, the saved level. */
+  private onAutoChange(c: AutoChange): void {
+    // A step is never taken in one frame: the render scale (a new framebuffer) lands now, glow, post and parallax on the
+    // frames after it, one per frame (autoStepParts).
+    const to = effectsFor(c.to);
+    const was = this.autoApplied;
+    this.autoQueue = [];
+    this.autoApplied = { ...was, scaleMax: to.scaleMax };
+    if (was.glowOff !== to.glowOff) this.autoQueue.push({ part: 'glow', level: c.to });
+    if (was.postLow !== to.postLow) this.autoQueue.push({ part: 'post', level: c.to });
+    if (was.hideParallax !== to.hideParallax) this.autoQueue.push({ part: 'parallax', level: c.to });
+    this.applyGraphics(this.gfx);
+    saveAutoLevel(this.auto.level);
+    window.dispatchEvent(new CustomEvent('dod:auto-quality', { detail: { ...c, level: this.auto.level, scale: Number((1 / this.engine.getHardwareScalingLevel()).toFixed(3)) } }));
+    if (c.dir === 'down') this.autoToast();
+  }
+
+  /** The one quiet note, the first time quality is lowered (ever on this device): mid-screen, clear of every control. */
+  private autoToast(): void {
+    if (autoToastShown() || this.autoToastEl) return;
+    markAutoToastShown();
+    this.autoToasts++;
+    const el = document.createElement('div');
+    el.id = 'auto-quality-toast';
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    el.textContent = 'Graphics eased to keep the fight smooth.';
+    el.style.cssText = 'position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:55;max-width:min(60vw,420px);padding:8px 14px;border-radius:16px;font:600 calc(13px * var(--ts,1))/1.3 system-ui,sans-serif;text-align:center;color:#f4ead8;background:rgba(16,14,12,.72);pointer-events:none;opacity:0;transition:opacity 300ms';
+    document.body.appendChild(el);
+    this.autoToastEl = el;
+    requestAnimationFrame(() => (el.style.opacity = '1'));
+    window.setTimeout(() => (el.style.opacity = '0'), 3800);
+    window.setTimeout(() => el.remove(), 4300);
+  }
+
+  /** Playtest: whether the governor runs, and a simulated slow device. */
+  autoSetup(opts: { enabled?: boolean; slowMs?: number; reset?: boolean }): void {
+    if (opts.enabled !== undefined) this.autoAllowed = opts.enabled;
+    if (opts.slowMs !== undefined) this.slowFullMs = opts.slowMs;
+    if (opts.reset) {
+      this.auto = new AutoQuality(0);
+      this.autoApplied = effectsFor(0);
+      this.autoQueue = [];
+      saveAutoLevel(0);
+    }
+    this.applyGraphics(this.gfx);
+  }
+
+  autoStats() {
+    return {
+      enabled: this.auto.enabled,
+      hand: pickedByHand(),
+      level: this.auto.level,
+      changes: this.auto.changes.map((c) => ({ ...c })),
+      settled: this.auto.settled,
+      settledAtMs: Math.round(this.auto.settledAtMs),
+      fps: Math.round(this.auto.lastFps),
+      toasts: this.autoToasts,
+      toastRect: (() => {
+        const r = this.autoToastEl?.getBoundingClientRect();
+        return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null;
+      })(),
+      slowMs: this.slowFullMs,
+    };
+  }
+
+  /** A simulated device's frame cost: the full-quality ms scaled by what the current level still draws. */
+  private burnSlow(): void {
+    const g = this.gfx;
+    const base = 1 / scalingLevel(g.quality, window.devicePixelRatio);
+    const s = 1 / this.engine.getHardwareScalingLevel();
+    const parallax = this.autoFx().hideParallax ? 0 : 0.15;
+    const cost = 0.55 * (s / base) ** 2 + (this.glow.isEnabled ? 0.2 : 0) + (g.quality === 'high' && !this.autoFx().postLow ? 0.1 : 0) + parallax;
+    const until = performance.now() + this.slowFullMs * cost;
+    while (performance.now() < until) { /* a slow device is busy, not idle */ }
+  }
+
+  /** Lands the next part of a step down (one per rendered frame, so no frame carries glow, post and parallax together). */
+  private autoStepParts(state: GameState): void {
+    // Like the decision itself, never during a hit-stop or punch frame: the rest of the step waits for a calm frame.
+    if (!this.autoQueue.length || this.post.punching() || state.fighters.some((f) => f.hitlag > 0)) return;
+    const q = this.autoQueue.shift();
+    if (!q) return;
+    const to = effectsFor(q.level);
+    if (q.part === 'glow') this.autoApplied = { ...this.autoApplied, glowOff: to.glowOff };
+    else if (q.part === 'post') this.autoApplied = { ...this.autoApplied, postLow: to.postLow };
+    else this.autoApplied = { ...this.autoApplied, hideParallax: to.hideParallax };
+    this.applyGraphics(this.gfx);
+    window.dispatchEvent(new CustomEvent('dod:auto-quality-part', { detail: { part: q.part, level: q.level, left: this.autoQueue.length } }));
+  }
+
+  /** One rendered frame of play for the governor: only advancing sim frames, never the intro, never a hit-stop or punch frame. */
+  private autoTick(state: GameState): void {
+    this.autoStepParts(state);
+    const advancing = state.frame !== this.autoLastFrame;
+    this.autoLastFrame = state.frame;
+    if (!this.auto.enabled || !this.presenting || this.intro || !advancing) return;
+    const calm = !this.post.punching() && !state.fighters.some((f) => f.hitlag > 0);
+    const c = this.auto.frame(this.engine.getDeltaTime(), calm, this.autoBase());
+    if (c) this.onAutoChange(c);
+  }
+
+  private fpsEl: HTMLElement | null = null;
+
+  /** Quality, Glow and Show FPS, applied live: render scale, the glow layer, particle counts, the readout. */
+  private applyGraphics(g: Graphics): void {
+    const qualityChanged = g.quality !== this.gfx.quality;
+    this.gfx = g;
+    this.auto.enabled = this.autoAllowed && !pickedByHand();
+    this.engine.setHardwareScalingLevel(this.effectiveScalingLevel(g));
+    if (qualityChanged && this.alive) this.showStage(this.stage);
+    if (qualityChanged) this.engine.resize();
+    // Low loads half-resolution clip sheets when present; drop cached textures so the next preload picks the right file.
+    if (qualityChanged) {
+      for (const tex of this.clipCache.values()) tex.dispose();
+      this.clipCache.clear();
+      for (const v of this.views) v.clipTex.clear();
+      void this.preloadClips(0);
+    }
+    if (qualityChanged) this.flip.setQuality(g.quality);
+    const fx = this.autoFx();
+    this.glow.isEnabled = g.glow && !fx.glowOff;
+    this.post.setQuality(fx.postLow ? 'low' : g.quality);
+    this.applyParallax();
+    this.applyLight();
+    if (this.fpsEl) this.fpsEl.hidden = !g.fps;
+  }
+
+  /** The Orchestrator seizes the feed: a 1 s RGB-split glitch over the whole picture (the HUD and screens are DOM, so they get a CSS glitch of their own). */
+  glitch(ms = 1000): void {
+    this.post.glitch(ms);
+    this.shake = Math.max(this.shake, 0.25);
+  }
+
+  /** The post chain's state (grade, vignette, grain, hit punches), for the playtest. */
+  postStats() {
+    return this.post.report();
+  }
+
+  /** Stage life pieces and the screen mode, for the playtest. */
+  aliveStats() {
+    return this.alive?.stats() ?? null;
+  }
+
+  /** What could build something in the middle of a frame, for the playtest's hitch trace: particle meshes made after warm-up, StageAlive textures made so far. */
+  hitchStats(): { fxGrown: number; aliveTextures: number } {
+    return { fxGrown: this.fx?.meshesGrown() ?? 0, aliveTextures: aliveTexturesBuilt() };
+  }
+
+  /** The render scale and glow actually in use, for the playtest. */
+  gfxStats() {
+    return {
+      quality: this.gfx.quality,
+      glow: this.gfx.glow,
+      showFps: this.gfx.fps,
+      dpr: window.devicePixelRatio || 1,
+      scale: Number((1 / this.engine.getHardwareScalingLevel()).toFixed(3)),
+      glowOn: this.glow.isEnabled,
+      fpsShown: !!this.fpsEl && !this.fpsEl.hidden,
+      fpsNow: this.engine.getFps(),
+    };
+  }
+
+  /** A small corner readout, redrawn twice a second from the render loop's own frame end (no timers). */
+  private buildFpsMeter(): void {
+    const el = document.createElement('div');
+    el.id = 'fps-meter';
+    el.setAttribute('aria-hidden', 'true');
+    el.hidden = !this.gfx.fps;
+    el.style.cssText = 'position:fixed;right:6px;bottom:6px;z-index:60;padding:2px 6px;font:700 12px/1.3 monospace;color:#ffd15a;background:rgba(16,14,12,.7);border-radius:3px;pointer-events:none';
+    document.body.appendChild(el);
+    this.fpsEl = el;
+    let last = 0;
+    this.engine.onEndFrameObservable.add(() => {
+      if (el.hidden) return;
+      const now = performance.now();
+      if (now - last < 500) return;
+      last = now;
+      el.textContent = `${Math.round(this.engine.getFps())} FPS`;
+    });
   }
 
   private flatMaterial(name: string, hex: string, alpha = 1): StandardMaterial {
@@ -148,37 +576,89 @@ export class Renderer {
     return m;
   }
 
+  /** Soft white disc for hit sparks / impact flashes (alpha falls off to the edge). */
+  private softSparkTex(): DynamicTexture {
+    const t = new DynamicTexture('spark-soft', { width: 64, height: 64 }, this.scene, false);
+    const c = t.getContext() as CanvasRenderingContext2D;
+    const g = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.4, 'rgba(255,255,255,0.55)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.clearRect(0, 0, 64, 64);
+    c.fillStyle = g;
+    c.fillRect(0, 0, 64, 64);
+    t.hasAlpha = true;
+    t.update();
+    return t;
+  }
+
+  /** One spark plane from the pool (or a new one), soft-glowed and kept out of the glow layer. */
+  private takeSpark(mat: StandardMaterial = this.sparkMat): Mesh {
+    const reused = this.sparkPool.pop();
+    if (reused) {
+      reused.material = mat;
+      reused.setEnabled(true);
+      return reused;
+    }
+    const mesh = this.makeSpark();
+    mesh.material = mat;
+    mesh.setEnabled(true);
+    return mesh;
+  }
+
+  private makeSpark(): Mesh {
+    const mesh = CreatePlane('spark', { size: 1 }, this.scene);
+    mesh.material = this.sparkMat;
+    mesh.isPickable = false;
+    // Soft material already looks like a glow; exclude so GlowLayer doesn't square-bloom the plane.
+    this.glow.addExcludedMesh(mesh);
+    return mesh;
+  }
+
   // ------------------------------------------------------------------ stage
 
   setStage(index: number): void {
-    this.showStage(STAGES[index] ?? STAGES[0]);
+    const next = STAGES[index] ?? STAGES[0];
+    // Same stage already built (Stage Select prep, or a rematch): skip the rebuild so the VS wipe stays free.
+    if (this.stage === next && this.stageRoot) return;
+    this.showStage(next);
+  }
+
+  /** The stage on screen drawn with the grade it has now (a Season 8-10 stage variant picked or put back). */
+  regrade(): void {
+    if (this.stage) this.post.setStage(gradeSource(this.stage.id));
   }
 
   /** Builds any stage, saved or not (devtools previews unsaved ones). */
   showStage(stage: StageDef): void {
     this.stageRoot?.dispose(false, true);
     this.fx?.dispose();
+    this.alive?.dispose();
     this.movers = [];
     this.stage = stage;
+    this.post.setStage(gradeSource(stage.id));
+    this.applyLight();
+    this.camCut = true;
+    this.kill = null;
     const root = new TransformNode('stage', this.scene);
     this.stageRoot = root;
     const t = this.stage.theme;
     this.sparkMat.emissiveColor = Color3.FromHexString(t.thinEdge);
 
     this.buildBackdrop(root);
-    const built = buildLayers(this.scene, root, this.stage, this.glow);
+    const built = buildLayers(this.scene, root, this.stage, this.glow, this.gfx.quality === 'high');
+    this.fgMs = 0;
     this.occluders = built.occluders;
     this.live = new StageLive(this.scene, root, this.stage, built.placed, this.glow);
+    this.placedLayers = built.placed;
+    this.applyParallax();
+    this.alive = new StageAlive(this.scene, root, this.stage, this.glow, this.gfx.quality, () => this.views.map((v) => v.body), this.camera);
     // Collision-only platforms whose art isn't painted yet still get a block, so the stage is playable.
     const drawn = drawnPlatforms(this.stage);
     this.fx = new StageFx(this.scene, this.stage, {
       sound: (id) => this.onSound?.(id),
       shake: (a) => (this.shake = Math.max(this.shake, a)),
-      flash: (color) => {
-        this.flashMat.emissiveColor = Color3.FromHexString(color);
-        this.flashMat.alpha = 0.75;
-        this.flashPlane.setEnabled(true);
-      },
+      flash: (color) => this.flashScreen(Color3.FromHexString(color), 0.75),
     }, this.glow);
 
     const body = new StandardMaterial('stage-body', this.scene);
@@ -189,21 +669,37 @@ export class Renderer {
     under.specularColor = Color3.Black();
     const edge = this.flatMaterial('edge', t.edge);
     const thinEdge = this.flatMaterial('edge-thin', t.thinEdge);
-    for (const m of [body, under, edge, thinEdge]) this.track(root, m);
+    // The lit lip of a platform the art draws: a bright core between two dark lines (so it parts from a light or a dark picture).
+    const core = this.flatMaterial('lip-core', mixHex(t.thinEdge, '#ffffff', 0.7));
+    const keyline = this.flatMaterial('lip-line', mixHex(t.under, '#000000', 0.6));
+    for (const m of [body, under, edge, thinEdge, core, keyline]) this.track(root, m);
 
     for (const [index, p] of this.stage.platforms.entries()) {
       const artDraws = p.hidden && drawn.has(index);
-      // Collision-only platforms: the stage art draws them. Moving ones still need a node.
-      if (artDraws && !p.motion) continue;
       const width = (p.x2 - p.x1) * W;
       const cx = ((p.x1 + p.x2) / 2) * W;
       const node = new TransformNode('platform', this.scene);
       node.parent = root;
       node.position.set(cx, p.y * W, 0);
       // Blocks that events switch off come and go with them.
-      if (p.offDuring || p.onlyDuring) this.live.addToggle(node, index);
+      if (p.offDuring || p.onlyDuring || p.fade) this.live.addToggle(node, index);
       if (artDraws) {
-        this.movers.push({ platform: p, node });
+        // The stage art draws the platform; the game adds a lit lip along its top so the edge reads on any picture.
+        const k = LIP_KEYLINE;
+        const bars: { y: number; h: number; mat: StandardMaterial }[] = [
+          { y: -k / 2, h: k, mat: keyline },
+          { y: -k - LIP_CORE / 2, h: LIP_CORE, mat: core },
+          { y: -k - LIP_CORE - k / 2, h: k, mat: keyline },
+        ];
+        for (const b of bars) {
+          const bar = CreateBox('art-lip', { width, height: b.h, depth: 0.02 }, this.scene);
+          bar.position.set(0, b.y, LIP_Z);
+          bar.material = b.mat;
+          bar.isPickable = false;
+          bar.parent = node;
+          this.glow.addExcludedMesh(bar);
+        }
+        if (p.motion) this.movers.push({ platform: p, node });
       } else if (p.solid) {
         const depth = (p.depth ?? 90) * W;
         const top = CreateBox('block', { width, height: depth, depth: 3 }, this.scene);
@@ -265,8 +761,61 @@ export class Renderer {
 
   // --------------------------------------------------------------- fighters
 
-  /** Builds a sprite for each fighter. Still art is cropped to its visible pixels first. */
-  async setFighters(state: GameState, keepStage = false): Promise<void> {
+  /** Told (sheets ready, sheets total) while a match's clip sheets load; the VS card shows it. */
+  onLoadProgress: ((done: number, total: number) => void) | null = null;
+
+  /** Fingerprint of the fighters currently in `views` (char+scale), so Stage Select pre-builds can be reused at VS. */
+  private fighterKey = '';
+  private looks: number[] = [];
+  /** Ghost planes depend on stage occluders: reuse only when that matches too. */
+  private fightersHadOccluders = false;
+  /** One setFighters at a time (Stage Select prep must not interleave with startMatch). */
+  private fightersLock: Promise<void> = Promise.resolve();
+
+  /** Stable id for a match's fighter lineup (meshes only care about character and scale). */
+  static fightersKey(state: GameState, looks: number[] = []): string {
+    return state.fighters.map((f) => `${f.char}:${f.scale}:${looks[f.id] ?? 0}`).join('|') + `#${colourVision()}`;
+  }
+
+  /** The shape each fighter's ring was built as (playtest). */
+  ringShapes(): { slot: number; shape: string; color: string }[] {
+    return this.views.map((v, slot) => ({ slot, shape: (v.ring.metadata as { shape?: string } | null)?.shape ?? 'circle', color: PLAYER_COLORS[slot % PLAYER_COLORS.length] }));
+  }
+
+  /** What each built fighter wears (playtest): the look index and whether the palette shader is on its material. */
+  lookStats(): { slot: number; char: number; look: number; shader: boolean }[] {
+    return this.views.map((v, slot) => ({ slot, char: v.charIdx, look: v.lookIdx, shader: v.mat.pluginManager?.getPlugin('DodLook') !== undefined }));
+  }
+
+  /** The colour look of each fighter slot for the next setFighters (looks.ts; 0 is the original art). Cosmetic only, never in the sim. */
+  setLooks(looks: number[]): void {
+    this.looks = looks.slice();
+  }
+
+  /**
+   * Builds a sprite for each fighter. Still art is cropped to its visible pixels first.
+   * `clipWaitMs` caps how long we wait for every clip sheet (VS uses 0 so the card can hand off; the rest finish via warmTick).
+   * Same lineup already built (Stage Select pre-build): skip the mesh work and only refresh clip waits.
+   */
+  async setFighters(state: GameState, keepStage = false, clipWaitMs = 30000): Promise<void> {
+    const next = this.fightersLock.then(() => this.setFightersBody(state, keepStage, clipWaitMs));
+    this.fightersLock = next.then(() => undefined, () => undefined);
+    return next;
+  }
+
+  /** Resolves when any in-flight setFighters (Stage Select prep) has finished. */
+  whenFightersIdle(): Promise<void> {
+    return this.fightersLock;
+  }
+
+  private async setFightersBody(state: GameState, keepStage = false, clipWaitMs = 30000): Promise<void> {
+    const key = Renderer.fightersKey(state, this.looks);
+    // keepStage: devtools shows an unsaved stage that isn't in STAGES.
+    if (!keepStage && this.stage !== STAGES[state.stage]) this.setStage(state.stage);
+    if (key === this.fighterKey && this.views.length === state.fighters.length && this.fightersHadOccluders === this.occluders) {
+      await this.preloadClips(clipWaitMs);
+      return;
+    }
     for (const v of this.views) {
       // Clip sheets stay cached; only the fighter's own meshes, materials and still go.
       v.mat.diffuseTexture = v.mat.emissiveTexture = null;
@@ -275,11 +824,16 @@ export class Renderer {
       v.still.dispose();
     }
     this.views = [];
-    // keepStage: devtools shows an unsaved stage that isn't in STAGES.
-    if (!keepStage && this.stage !== STAGES[state.stage]) this.setStage(state.stage);
-    for (const f of state.fighters) {
+    this.fighterKey = '';
+    // Load every fighter's still + anim set together (was sequential: two fighters nearly doubled VS wait).
+    const loaded = await Promise.all(state.fighters.map(async (f) => {
       const ch = CHARACTERS[f.char];
       const [art, anims] = await Promise.all([loadArt(`/characters/large/${ch.id}.webp`), loadAnimSet(ch.id)]);
+      return { f, ch, art, anims };
+    }));
+    for (const { f, ch, art, anims } of loaded) {
+      // Yield between fighters so menus / the VS card can paint (software GL otherwise freezes for seconds).
+      await breathe();
       const still = new DynamicTexture(`art-${f.id}`, { width: art.width, height: art.height }, this.scene, true);
       (still.getContext() as CanvasRenderingContext2D).drawImage(art, 0, 0);
       still.update();
@@ -294,6 +848,17 @@ export class Renderer {
       mat.backFaceCulling = false;
       mat.emissiveColor = Color3.White();
       setTexture(mat, still);
+      // A colour look other than Classic recolours the sprite in the shader; Classic keeps the plain material.
+      const look = lookOf(f.char, this.looks[f.id] ?? 0);
+      if (look.from !== undefined) new LookPlugin(mat, look);
+      // The stage's light comes after the look: the palette is recoloured first, then lit.
+      const style = ch.style;
+      // The art bible: the remap sits between the look and the light (priority 275), the outline after the light (350).
+      new RemapPlugin(mat, style?.remap ?? IDENTITY);
+      const lightPlugin = new LightPlugin(mat, lightOf(this.stage), this.gfx.quality === 'high');
+      // The outline is the fighter's darkened main hue, turned with the colour look so a recoloured fighter keeps a matching line.
+      const outlinePlugin = new OutlinePlugin(mat, style ? recolorHex(style.outline, look) : '#1a1a1a');
+      outlinePlugin.setQuality(this.gfx.quality === 'high');
 
       const body = CreatePlane(`body-${f.id}`, { size: 1 }, this.scene);
       body.position.z = -0.05 * f.id;
@@ -303,9 +868,19 @@ export class Renderer {
 
       const k = f.scale / 100;
       const color = PLAYER_COLORS[f.id % PLAYER_COLORS.length];
-      const ring = CreateDisc(`ring-${f.id}`, { radius: ch.width * W * 0.8 * k, tessellation: 32 }, this.scene);
-      ring.rotation.x = Math.PI / 2;
-      ring.scaling.y = 0.35;
+      // The ring is the player's shape (circle, triangle, square, diamond), so colour is never the only cue.
+      const shape = shapeOf(f.id);
+      const rr = ch.width * W * 0.8 * k;
+      const ring =
+        shape === 'square'
+          ? CreateGround(`ring-${f.id}`, { width: rr * 1.7, height: rr * 1.7 }, this.scene)
+          : CreateDisc(`ring-${f.id}`, { radius: shape === 'circle' ? rr : rr * 1.15, tessellation: shape === 'circle' ? 32 : shape === 'triangle' ? 3 : 4 }, this.scene);
+      if (shape === 'square') ring.scaling.z = 0.35;
+      else {
+        ring.rotation.x = Math.PI / 2;
+        ring.scaling.y = 0.35;
+      }
+      ring.metadata = { shape };
       ring.position.y = 0.01;
       ring.material = this.flatMaterial(`ring-${f.id}`, color, 0.55);
       ring.parent = root;
@@ -337,11 +912,67 @@ export class Renderer {
         root.onDisposeObservable.add(() => ghostMat!.dispose());
       }
 
+      // The rim: the same sprite in the player's colour, a little larger, one step behind the body.
+      const rimMat = new StandardMaterial(`rim-${f.id}`, this.scene);
+      rimMat.disableLighting = true;
+      rimMat.backFaceCulling = false;
+      rimMat.diffuseColor = Color3.Black();
+      // Brighter than the player colour (30% toward white) so the fighter lifts off a busy background.
+      rimMat.emissiveColor = Color3.Lerp(Color3.FromHexString(color), Color3.White(), 0.3);
+      rimMat.useAlphaFromDiffuseTexture = true;
+      rimMat.alpha = 0.9;
+      const rim = CreatePlane(`rim-${f.id}`, { size: 1 }, this.scene);
+      rim.material = rimMat;
+      rim.parent = pose;
+      rim.position.z = body.position.z + 0.012;
+      rim.isPickable = false;
+      this.glow.addExcludedMesh(rim);
+      root.onDisposeObservable.add(() => rimMat.dispose());
+
+      // The contact shadow: a soft ellipse on the platform below, parented to the root so it hides and goes with it.
+      const shadowMat = new StandardMaterial(`shadow-${f.id}`, this.scene);
+      shadowMat.disableLighting = true;
+      shadowMat.backFaceCulling = false;
+      shadowMat.diffuseColor = Color3.Black();
+      shadowMat.emissiveColor = Color3.Black();
+      shadowMat.diffuseTexture = this.shadowTexture();
+      shadowMat.useAlphaFromDiffuseTexture = true;
+      const shadow = CreatePlane(`shadow-${f.id}`, { size: 1 }, this.scene);
+      shadow.material = shadowMat;
+      shadow.parent = root;
+      shadow.position.z = 0.02;
+      shadow.isPickable = false;
+      this.glow.addExcludedMesh(shadow);
+      root.onDisposeObservable.add(() => shadowMat.dispose());
+
+      // The mirror image for glossy floors: rotated half a turn about x (no negative scale), under the floor line.
+      const reflRoot = new TransformNode(`refl-root-${f.id}`, this.scene);
+      reflRoot.parent = root;
+      reflRoot.rotation.x = Math.PI;
+      const reflPose = new TransformNode(`refl-pose-${f.id}`, this.scene);
+      reflPose.parent = reflRoot;
+      const reflMat = new StandardMaterial(`refl-${f.id}`, this.scene);
+      reflMat.disableLighting = true;
+      reflMat.backFaceCulling = false;
+      reflMat.emissiveColor = Color3.White();
+      reflMat.useAlphaFromDiffuseTexture = true;
+      reflMat.alpha = REFLECTION_ALPHA;
+      const refl = CreatePlane(`refl-${f.id}`, { size: 1 }, this.scene);
+      refl.material = reflMat;
+      refl.parent = reflPose;
+      refl.isPickable = false;
+      refl.setEnabled(false);
+      this.glow.addExcludedMesh(refl);
+      root.onDisposeObservable.add(() => reflMat.dispose());
+
       this.views.push({
-        root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, ghost, ghostMat,
+        light: lightPlugin, outline: outlinePlugin, shadow, shadowMat, reflRoot, reflPose, refl, reflMat, lit: { height: -1, scale: 0, alpha: 0, shadow: false, reflection: false },
+        root, pose, body, mat, still, stillAspect: art.width / art.height, anims, clipTex: new Map(), ring, shield, flash: 0, tell: 0, ghost, ghostMat, rim, rimMat, charIdx: f.char, lookIdx: this.looks[f.id] ?? 0,
       });
     }
-    await this.preloadClips();
+    this.fighterKey = key;
+    this.fightersHadOccluders = this.occluders;
+    await this.preloadClips(clipWaitMs);
   }
 
   /**
@@ -349,24 +980,31 @@ export class Renderer {
    * no clip waits on the network the first time it plays. Sheets for fighters
    * no longer in the match are freed.
    */
-  private async preloadClips(): Promise<void> {
+  private async preloadClips(timeoutMs = 30000): Promise<void> {
     const keep = new Set<string>();
     const waits: Promise<void>[] = [];
+    let total = 0;
+    let loaded = 0;
+    const quality = this.gfx.quality;
     this.views.forEach((v, slot) => {
       if (!v.anims) return;
       for (const key of Object.keys(v.anims.clips)) {
-        const url = `${v.anims.base}${v.anims.clips[key].file}?v=${v.anims.version}`;
+        const file = clipSheetFile(v.anims.clips[key], quality);
+        const url = `${v.anims.base}${file}?v=${v.anims.version}`;
         const id = `${slot}|${url}`;
         keep.add(id);
         let tex = this.clipCache.get(id);
         if (!tex) {
-          const made = new Texture(url, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE);
+          // A sheet that fails (404) counts as settled, so it can't hold the match up; the fighter falls back to its still.
+          const made: Texture = new Texture(url, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE, null, () => made.onLoadObservable.notifyObservers(made));
           made.hasAlpha = true;
           this.clipCache.set(id, made);
           tex = made;
         }
         v.clipTex.set(key, tex);
-        if (!tex.isReady()) waits.push(new Promise((done) => tex!.onLoadObservable.addOnce(() => done())));
+        total++;
+        if (tex.isReady()) loaded++;
+        else waits.push(new Promise((done) => tex!.onLoadObservable.addOnce(() => { loaded++; this.onLoadProgress?.(loaded, total); done(); })));
       }
     });
     for (const [id, tex] of this.clipCache) {
@@ -375,8 +1013,65 @@ export class Renderer {
         this.clipCache.delete(id);
       }
     }
-    // A sheet that fails to load shouldn't hold the match up forever.
-    await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, 15000))]);
+    this.onLoadProgress?.(loaded, total);
+    // Wait for sheets up to timeoutMs; a short VS cap lets the match start while the rest finish in the background (warmTick / first use).
+    await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, timeoutMs))]);
+  }
+
+  /** Resolves once the stage's painted layers are drawn at size (or after timeoutMs), so a match never opens on an empty arena. */
+  async stageArtReady(timeoutMs = 2500): Promise<void> {
+    if (!this.live) return;
+    await Promise.race([this.live.artLoaded(), new Promise((r) => setTimeout(r, timeoutMs))]);
+  }
+
+  /** Frames the player has seen on the match screen, how many had stage art still loading, and how many sampled near-black. */
+  private seen = { frames: 0, pending: 0, black: 0, darkest: 255 };
+  /** Set by main.ts while the arena is on screen for the player (not under the loading veil or a wipe); only then are frames counted. */
+  private presenting = false;
+  private seenCanvas: HTMLCanvasElement | null = null;
+
+  setPresenting(on: boolean): void {
+    // A match begins: measuring starts over, and a level that had headroom last match is tried one step higher (never mid-match).
+    if (on && !this.presenting) {
+      this.auto.enabled = this.autoAllowed && !pickedByHand();
+      const c = this.auto.beginMatch(this.autoBase());
+      if (c) this.onAutoChange(c);
+    }
+    this.presenting = on;
+  }
+
+  /** What the player saw of the stage (playtest `stage.blackFrames`): presented frames with art pending, or whose pixels are near-black. */
+  stageSeen(reset = false): { frames: number; pending: number; black: number; darkest: number } {
+    const out = { ...this.seen };
+    if (reset) this.seen = { frames: 0, pending: 0, black: 0, darkest: 255 };
+    return out;
+  }
+
+  /** Samples the frame just drawn (same task as scene.render, so the buffer is valid) and counts it. */
+  private countSeen(): void {
+    const s = this.seen;
+    s.frames++;
+    if (this.stageArtPending()) s.pending++;
+    const cv = this.engine.getRenderingCanvas();
+    if (!cv || !cv.width) return;
+    try {
+      const pc = (this.seenCanvas ??= Object.assign(document.createElement('canvas'), { width: 16, height: 16 }));
+      const ctx = pc.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+      ctx.drawImage(cv, 0, 0, 16, 16);
+      const d = ctx.getImageData(0, 0, 16, 16).data;
+      let sum = 0;
+      for (let i = 0; i < d.length; i += 4) sum += Math.max(d[i], d[i + 1], d[i + 2]);
+      const mean = sum / (d.length / 4);
+      s.darkest = Math.min(s.darkest, mean);
+      if (mean < 14) s.black++;
+    } catch { /* tainted or lost context: nothing to count */ }
+  }
+
+  /** True while some stage picture is still loading (the arena would show only the clear colour). */
+  stageArtPending(): boolean {
+    const l = this.live?.readyLayers();
+    return !!l && l.ready < l.total;
   }
 
   /** Resolves once every texture in the scene (stage art, clips) is loaded, or after a while. */
@@ -389,15 +1084,69 @@ export class Renderer {
    * while a loading screen is up. Without it the first frame on the match screen can stall for
    * seconds (a frozen, blank wipe on slower machines).
    */
-  async warmUp(state: GameState, timeoutMs = 15000): Promise<void> {
+  async warmUp(state: GameState, timeoutMs = 4000): Promise<void> {
     this.engine.resize();
     this.render(state);
+    await breathe();
     // Enable every stage layer, hazard, shield, hit-flash overlay, spark burst, KO burst material
     // and KO flash once, so their shaders (and the glow layer's variants) compile now instead of on
     // the first hit, event or KO, and the particle pools are filled.
     this.burst(this.camTarget.x, this.camTarget.y, 64, 0);
+    // The burst took the pool's meshes: refill it now, so a match that starts while the warm-up is still
+    // running (the VS card hands over early) never finds the pool empty.
+    // Refilled 16 meshes per animation frame (each frame is a few ms, never one long frame), each batch finishing itself.
+    while (this.sparkPool.length < 96) {
+      for (let i = 0; i < 16 && this.sparkPool.length < 96; i++) {
+        const m = this.makeSpark();
+        m.setEnabled(false);
+        this.sparkPool.push(m);
+      }
+      await breathe();
+    }
+    // Every special's flipbook texture is uploaded and shown once, tiny, so the first special never compiles or uploads mid-fight.
+    // Two kinds per frame: each upload is a texture decode plus a GPU copy.
+    this.flip.prepare();
+    let shown = 0;
+    for (const k of FLIPBOOK_KINDS) {
+      this.flip.play(k, this.camTarget.x, this.camTarget.y, -0.4, 0.01, COUNTER_TINT, { hold: 1 });
+      if (++shown % 2 === 0) await breathe();
+    }
+    // The launch trail's three looks are shown once with the other spark materials, so the first trail never compiles a shader mid-fight.
+    for (const mat of Object.values(this.smokeMats)) {
+      const m = this.takeSpark(mat);
+      m.position.set(this.camTarget.x, this.camTarget.y, -0.4);
+      m.scaling.set(0.2, 0.2, 1);
+      this.sparks.push({ mesh: m, vx: 0, vy: 0, life: 2, max: 2, size: 0.2 });
+    }
+    // The contact core, shield ripple, parry flash and clash spark materials are shown once too (the first hit or shield used to compile them mid-fight).
+    for (const mat of Object.values(this.fxMats)) {
+      const m = this.takeSpark(mat);
+      m.position.set(this.camTarget.x, this.camTarget.y, -0.4);
+      m.scaling.set(0.2, 0.2, 1);
+      this.sparks.push({ mesh: m, vx: 0, vy: 0, life: 2, max: 2, size: 0.2 });
+    }
+    await breathe();
+    // One heavy step per animation frame (each compiles shaders synchronously, seconds on a software renderer),
+    // so the match wipe and Ready countdown that run alongside keep painting.
+    await breathe();
     this.fx?.warmUp();
+    await breathe();
     this.live?.warmUp();
+    await breathe();
+    // Each projectile and trap look is shown once, so their shaders compile now and not on the first throw
+    // (the first drawShots with nothing in play hides them again).
+    const shotMats = this.shotMaterials();
+    for (let i = 0; i < shotMats.length; i++) {
+      const mesh = this.shotMeshes[i] ?? CreatePlane(`shot-${i}`, { width: 1, height: 0.5 }, this.scene);
+      mesh.isPickable = false;
+      this.glow.addExcludedMesh(mesh);
+      mesh.material = shotMats[i];
+      mesh.position.set(this.camTarget.x, this.camTarget.y, -0.3);
+      mesh.setEnabled(true);
+      this.shotMeshes[i] = mesh;
+      if (i % 3 === 2) await breathe();
+    }
+    this.alive?.setFighters(this.views.map((v) => v.body));
     for (const v of this.views) {
       v.shield.setEnabled(true);
       if (v.ghost) v.ghost.setEnabled(true);
@@ -408,26 +1157,19 @@ export class Renderer {
     this.flashMat.alpha = 0.5;
     this.flashPlane.setEnabled(true);
     await this.ready(timeoutMs);
+    await breathe();
     this.scene.render();
-    // Warm up every clip texture on the fighter materials in lockstep so the first attack/jump/hurt doesn't upload a sheet mid-fight.
-    const lists = this.views.map((v) => [...v.clipTex.values()]);
-    const maxClips = Math.max(0, ...lists.map((l) => l.length));
-    for (let i = 0; i < maxClips; i++) {
-      for (let slot = 0; slot < this.views.length; slot++) {
-        const v = this.views[slot];
-        const tex = lists[slot][i];
-        if (!tex) continue;
-        setTexture(v.mat, tex);
-        if (v.ghostMat) v.ghostMat.diffuseTexture = tex;
-      }
-      this.scene.render();
-    }
+    await breathe();
+    // Clip sheets are uploaded a few ms per frame by warmTick (called from the render loop), not here.
+    this.queueClipWarm();
     this.fx?.endWarmUp();
     for (const s of this.sparks) {
       s.mesh.setEnabled(false);
-      this.sparkPool.push(s.mesh);
+      if (this.sparkPool.length < 128) this.sparkPool.push(s.mesh);
+      else s.mesh.dispose();
     }
     this.sparks = [];
+    this.flip.clear();
     this.flashMat.alpha = 0;
     this.flashPlane.setEnabled(false);
     // Two more presented frames in normal state; the timeout covers a hidden page, where rAF never fires.
@@ -437,6 +1179,34 @@ export class Renderer {
         setTimeout(r, 100);
       });
       this.render(state);
+    }
+  }
+
+  private clipWarm: { slot: number; tex: Texture }[] = [];
+
+  /** Queues every clip sheet of the fighters in lockstep, so the first attack/jump/hurt doesn't upload a sheet mid-fight. */
+  queueClipWarm(): void {
+    const lists = this.views.map((v) => [...v.clipTex.values()]);
+    const max = Math.max(0, ...lists.map((l) => l.length));
+    this.clipWarm = [];
+    for (let i = 0; i < max; i++) lists.forEach((l, slot) => { if (l[i]) this.clipWarm.push({ slot, tex: l[i] }); });
+  }
+
+  /** Whether clip sheets still wait to be uploaded. */
+  get warming(): boolean {
+    return this.clipWarm.length > 0;
+  }
+
+  /** Uploads queued clip sheets within a small time budget; call once per animation frame, before the frame's own render. */
+  warmTick(budgetMs = 4): void {
+    const end = performance.now() + budgetMs;
+    while (this.clipWarm.length && performance.now() < end) {
+      const w = this.clipWarm.shift()!;
+      const v = this.views[w.slot];
+      if (!v || !w.tex.isReady()) continue;
+      setTexture(v.mat, w.tex);
+      if (v.ghostMat) v.ghostMat.diffuseTexture = w.tex;
+      this.scene.render();
     }
   }
 
@@ -467,7 +1237,8 @@ export class Renderer {
     // Normally preloaded (preloadClips); made here only if a clip appears mid-match.
     let tex = v.clipTex.get(key);
     if (!tex) {
-      const url = `${v.anims.base}${v.anims.clips[key].file}?v=${v.anims.version}`;
+      const file = clipSheetFile(v.anims.clips[key], this.gfx.quality);
+      const url = `${v.anims.base}${file}?v=${v.anims.version}`;
       tex = new Texture(url, this.scene, false, true, Texture.TRILINEAR_SAMPLINGMODE);
       tex.hasAlpha = true;
       v.clipTex.set(key, tex);
@@ -480,12 +1251,27 @@ export class Renderer {
     for (const e of events) {
       if (e.type === 'hit' || e.type === 'hurt') {
         const shield = e.type === 'hit' && e.shield;
-        const n = shield ? 6 : 8 + Math.min(16, e.kb >> 3);
-        this.burst(e.x * S, e.y * S, n, shield ? 0.06 : 0.09 + e.kb * 0.0006);
-        if (!shield && this.views[e.victim]) {
-          this.views[e.victim].flash = 10;
+        if (shield) {
+          this.burst(e.x * S, e.y * S, 6, 0.06);
+          // The shield ripple: two cyan rings spreading from the point of contact over the bubble.
+          this.sprite(e.x * S, e.y * S, 0, 0.5, 12, 2.6, this.fxMats.shield);
+          this.sprite(e.x * S, e.y * S, 0, 0.3, 8, 1.6, this.fxMats.shield);
+          this.reactStats.shieldRipples++;
+        } else if (e.type === 'hit') {
+          this.lastHits.set(e.victim, { kb: e.kb, tier: hitTier(e.dmg) });
+          this.impact(e);
+          if (hitTier(e.dmg) === 'heavy') this.punchPost();
+        } else {
+          this.burst(e.x * S, e.y * S, 8 + Math.min(16, e.kb >> 3), 0.09 + e.kb * 0.0006);
           this.shake = Math.max(this.shake, Math.min(0.5, e.kb * 0.003));
         }
+        if (!shield && e.type === 'hit') {
+          const r = reactionFor(hitTier(e.dmg), e.kb);
+          this.react.set(e.victim, { age: 0, frames: r.frames, squash: r.squash, push: r.push, dir: 0, hop: 0 });
+          this.reactStats.squashes++;
+          this.reactStats.maxSquash = Math.max(this.reactStats.maxSquash, r.squash);
+        }
+        if (!shield && this.views[e.victim]) this.views[e.victim].flash = 10;
         if (!shield) {
           this.fx?.trigger('hit', { x: e.x * S, y: e.y * S });
           this.live?.trigger('hit');
@@ -496,45 +1282,542 @@ export class Renderer {
         const on = e.phase === 'warn' ? `warn:${id}` : e.phase === 'start' ? `event:${id}` : `eventEnd:${id}`;
         this.fx?.trigger(on);
         this.live?.trigger(on);
+      } else if (e.type === 'launch') {
+        // The launch that will carry the victim out of the blast zone: the kill cue.
+        if (e.ko) this.punchPost();
+        if (e.ko && !this.shot) this.killCue(e.x * S, e.y * S + 0.5);
+        this.startTrail(e.victim, e.ko);
       } else if (e.type === 'ko') {
         const b = this.stage.blast;
         const x = Math.max(b.left + 40, Math.min(b.right - 40, e.x / FX)) * W;
         const y = Math.max(b.bottom + 40, Math.min(b.top - 40, e.y / FX)) * W;
-        this.burst(x, y, 40, 0.25);
+        this.burst(x, y, 28, 0.25);
         this.shake = 0.9;
         this.fx?.trigger('ko', { x, y });
         this.live?.trigger('ko');
       } else if (e.type === 'shieldbreak') {
-        this.burst(e.x * S, e.y * S + 0.6, 24, 0.16);
+        this.burst(e.x * S, e.y * S + 0.6, 16, 0.16);
         this.shake = 0.5;
+      } else if (e.type === 'clash') {
+        // Two hitboxes meet: an orange cross-spark where they touch and sparks thrown both ways.
+        const x = e.x * S;
+        const y = e.y * S;
+        this.sprite(x, y, 0.8, 0.8, 9, 1.8, this.fxMats.clash);
+        this.sprite(x, y, -0.8, 0.8, 9, 1.8, this.fxMats.clash);
+        this.sprite(x, y, 0, 0.35, 4, 1, this.fxMats.core, CORE_Z);
+        this.burst(x, y, 10, 0.11, this.fxMats.clash);
+        this.shake = Math.max(this.shake, 0.15);
+        this.reactStats.clashSparks++;
       } else if (e.type === 'land' || e.type === 'jump') {
         this.burst(e.x * S, e.y * S + 0.02, 3, 0.03);
+      } else if (e.type === 'counter') {
+        // The counter flash: a bright ring and star where the hit was caught, and the fighter lights up.
+        const x = e.x * S;
+        const y = e.y * S;
+        this.sprite(x, y, 0, 0.5, 18, 6);
+        this.sprite(x, y, 0.4, 0.7, 12, 2.4);
+        // The parry's own look: a hard white flash and a thin ring, unlike any hit spark.
+        this.sprite(x, y, 0, 1.2, 4, 0.6, this.fxMats.parry, CORE_Z);
+        this.sprite(x, y, 0, 0.5, 10, 4.5, this.fxMats.parry);
+        this.reactStats.parryFlashes++;
+        this.burst(x, y, 14, 0.1);
+        if (this.views[e.id]) this.views[e.id].flash = 14;
+        this.shake = Math.max(this.shake, 0.3);
+        // The painted parry: a white-blue flash and ring, with the sim's 6-frame freeze (step.ts COUNTER_FREEZE).
+        this.flip.play('counter', x, y, -0.5, 2.1, COUNTER_TINT);
+        this.flashScreen(new Color3(0.7, 0.88, 1), 0.45);
+        this.punchPost();
+      } else if (e.type === 'grab') {
+        // The grab flash: a bright ring and star where the hands close, and both fighters light up.
+        const x = e.x * S;
+        const y = e.y * S;
+        this.sprite(x, y, 0, 0.45, 14, 5);
+        this.sprite(x, y, 0.3, 0.6, 10, 2);
+        this.burst(x, y, 10, 0.08);
+        if (this.views[e.attacker]) this.views[e.attacker].flash = 6;
+        if (this.views[e.victim]) this.views[e.victim].flash = 10;
+        this.shake = Math.max(this.shake, e.shield ? 0.22 : 0.12);
+      } else if (e.type === 'throw') {
+        this.burst(e.x * S, e.y * S, 12, 0.1);
+        // The slam: a painted shockwave ring where the victim lands.
+        this.flip.play('grab', e.x * S, e.y * S, -0.4, 2.3, this.tintOf(e.attacker));
+        this.shake = Math.max(this.shake, 0.25);
+      } else if (e.type === 'shot') {
+        this.onSynth?.(e.kind === 1 ? 'thud' : 'whoosh');
+        this.burst(e.x * S, e.y * S, 4, 0.04);
+        // Muzzle flash on a projectile's release, a glyph on a placed trap.
+        const dir = this.lastState?.fighters[e.id]?.facing ?? 1;
+        if (e.kind === 1) this.flip.play('trap', e.x * S, e.y * S + 0.12, -0.28, 1.9, this.tintOf(e.id));
+        else this.flip.play('projectile', e.x * S, e.y * S, -0.4, 1.5, this.tintOf(e.id), { flip: dir });
       }
     }
   }
 
-  private burst(x: number, y: number, n: number, speed: number): void {
+  private shotMaterials(): StandardMaterial[] {
+    if (this.shotMats) return this.shotMats;
+    const make = (name: string, draw: (c: CanvasRenderingContext2D) => void): StandardMaterial => {
+      const t = new DynamicTexture(`shot-${name}`, { width: 128, height: 64 }, this.scene, true);
+      const c = t.getContext() as CanvasRenderingContext2D;
+      c.clearRect(0, 0, 128, 64);
+      draw(c);
+      t.hasAlpha = true;
+      t.update();
+      const m = new StandardMaterial(`shot-${name}`, this.scene);
+      m.disableLighting = true;
+      m.emissiveTexture = t;
+      m.diffuseTexture = t;
+      m.opacityTexture = t;
+      m.backFaceCulling = false;
+      m.disableDepthWrite = true;
+      return m;
+    };
+    const deck = (c: CanvasRenderingContext2D, y: number) => {
+      c.fillStyle = '#1a1a1a';
+      c.beginPath();
+      c.roundRect(10, y, 108, 14, 7);
+      c.fill();
+      c.fillStyle = '#ff7a2a';
+      c.beginPath();
+      c.roundRect(14, y + 2, 100, 8, 4);
+      c.fill();
+      c.fillStyle = '#ffe3b0';
+      c.fillRect(30, y + 4, 68, 2);
+      c.fillStyle = '#d8d8d8';
+      for (const wx of [30, 98]) {
+        c.beginPath();
+        c.arc(wx, y + 18, 6, 0, Math.PI * 2);
+        c.fill();
+        c.strokeStyle = '#1a1a1a';
+        c.lineWidth = 2;
+        c.stroke();
+      }
+    };
+    this.shotMats = [
+      // The thrown board: deck and wheels, spinning as it flies.
+      make('board', (c) => deck(c, 22)),
+      // The trap: a board lying on the floor inside a warning ring.
+      make('trap', (c) => {
+        c.strokeStyle = 'rgba(255,209,90,0.95)';
+        c.lineWidth = 4;
+        c.setLineDash([10, 6]);
+        c.beginPath();
+        c.ellipse(64, 40, 58, 16, 0, 0, Math.PI * 2);
+        c.stroke();
+        c.setLineDash([]);
+        c.scale(0.8, 0.8);
+        c.translate(16, 14);
+        deck(c, 22);
+      }),
+      make('orb', (c) => {
+        const g = c.createRadialGradient(64, 32, 0, 64, 32, 30);
+        g.addColorStop(0, 'rgba(255,255,255,1)');
+        g.addColorStop(0.35, 'rgba(255,170,60,0.95)');
+        g.addColorStop(1, 'rgba(255,90,20,0)');
+        c.fillStyle = g;
+        c.fillRect(0, 0, 128, 64);
+      }),
+    ];
+    return this.shotMats;
+  }
+
+  /** Draws the projectiles and traps in play, and a dash's trail behind a fighter that is driving. */
+  private drawShots(state: GameState): void {
+    const mats = this.shotMaterials();
+    for (let i = 0; i < state.shots.length; i++) {
+      const o = state.shots[i];
+      let mesh = this.shotMeshes[i];
+      if (!mesh) {
+        mesh = CreatePlane(`shot-${i}`, { width: 1, height: 0.5 }, this.scene);
+        mesh.isPickable = false;
+        this.glow.addExcludedMesh(mesh);
+        this.shotMeshes[i] = mesh;
+      }
+      const look = SHOT_LOOKS[o.style] ?? 'board';
+      mesh.material = mats[o.style] ?? mats[0];
+      mesh.setEnabled(true);
+      const size = Math.max(0.5, o.r * S * 2.6);
+      if (look === 'trap') {
+        // Lies on the floor; dim while it arms, then pulses.
+        const pulse = o.arm > 0 ? 0.6 : 1 + Math.sin(o.age * 0.3) * 0.08;
+        mesh.position.set(o.x * S, o.y * S + size * 0.22, -0.25);
+        mesh.scaling.set(size * pulse, size * pulse, 1);
+        mesh.rotation.z = 0;
+        mesh.visibility = o.arm > 0 ? 0.55 : 1;
+      } else {
+        mesh.position.set(o.x * S, o.y * S, -0.3);
+        mesh.scaling.set(o.facing * size, size, 1);
+        mesh.rotation.z = look === 'board' ? -o.facing * o.age * 0.55 : 0;
+        mesh.visibility = 1;
+      }
+    }
+    for (let i = state.shots.length; i < this.shotMeshes.length; i++) this.shotMeshes[i].setEnabled(false);
+
+    // A dash leaves a streak behind each frame it drives (once per sim frame, so a pause leaves none).
+    if (state.frame === this.lastTrail) return;
+    this.lastTrail = state.frame;
+    this.specialFx(state);
+    for (const f of state.fighters) {
+      if (f.action !== ACT.ATTACK) continue;
+      const m = CHARACTERS[f.char].moves[f.move];
+      if (m.kind !== 'dash' && !(m.kind === 'recovery' && m.drive?.some((d) => f.frame >= d.from && f.frame <= d.to))) continue;
+      if (m.kind === 'dash' && !m.drive?.some((d) => f.frame >= d.from && f.frame <= d.to)) continue;
+      const mesh = this.takeSpark();
+      mesh.position.set((f.x - f.facing * 24 * FX * (f.scale / 100)) * S, (f.y + 40 * FX) * S, FX_Z);
+      mesh.rotation.z = m.kind === 'dash' ? 0 : Math.atan2(f.vy, f.vx * f.facing) * f.facing;
+      this.sparks.push({ mesh, vx: 0, vy: 0, life: 6, max: 6, size: 0.26, stretch: m.kind === 'dash' ? 3.2 : 2, grow: 0 });
+    }
+  }
+
+  /** A fighter's own colour for its special effects (content/fighters.json: the hue of its main outfit colour). */
+  private tintOf(id: number): Color3 {
+    const f = this.lastState?.fighters[id];
+    const char = f ? f.char : id;
+    let t = this.flipTints.get(char);
+    if (!t) {
+      const c = CHARACTERS[char];
+      t = fighterTint(c?.looks, c?.id ?? String(char));
+      this.flipTints.set(char, t);
+    }
+    return t;
+  }
+
+  /**
+   * The painted flipbooks that follow the state (the events do the rest: muzzle flash and trap glyph on 'shot', slam on
+   * 'throw', the parry flash on 'counter'): a dash lunges, a recovery climbs, each flurry hit slashes, and a shot
+   * leaves a trail. Runs once per sim frame; each effect is keyed to the frame it starts on.
+   */
+  private specialFx(state: GameState): void {
+    for (const f of state.fighters) {
+      const prev = this.flipLast.get(f.id);
+      this.flipLast.set(f.id, { move: f.move, frame: f.action === ACT.ATTACK ? f.frame : -1 });
+      if (f.action !== ACT.ATTACK || f.hitlag > 0) continue;
+      const fresh = !prev || prev.move !== f.move || prev.frame !== f.frame;
+      if (!fresh) continue;
+      const ch = CHARACTERS[f.char];
+      const m = ch.moves[f.move];
+      if (!m.kind) continue;
+      const k = f.scale / 100;
+      const cy = ch.height * W * k * 0.5;
+      const x = f.x * S;
+      const y = f.y * S;
+      const tint = this.tintOf(f.id);
+      const from = m.drive?.[0]?.from ?? m.hits[0]?.start ?? 1;
+      if (m.kind === 'dash' && f.frame === from) {
+        this.flip.play('dash', x + f.facing * 0.25, y + cy, -0.36, 2.2 * k, tint, { flip: f.facing });
+      } else if (m.kind === 'recovery' && f.frame === from) {
+        this.flip.play('recovery', x, y + cy * 0.9, -0.36, 2.4 * k, tint);
+      } else if (m.kind === 'flurry') {
+        const i = m.hits.findIndex((h) => h.start === f.frame || (h.rehit !== undefined && h.rehit > 0 && f.frame === h.start));
+        if (i >= 0) this.flip.play('flurry', x + f.facing * 0.45 * k, y + cy, -0.38, 1.5 * k, tint, { flip: f.facing, rot: ((i % 3) - 1) * 0.4 });
+      }
+    }
+    // A shot in flight leaves a short trail behind it every few frames.
+    for (const o of state.shots) {
+      if (o.style === 1 || o.age % 4 !== 2) continue;
+      const dir = o.vx >= 0 ? 1 : -1;
+      this.flip.play('dash', o.x * S - dir * 0.2, o.y * S, -0.34, 0.95, this.tintOf(o.owner), { flip: dir, hold: 1 });
+    }
+  }
+
+  /** A launch begins: if the hit was medium or heavy (or will KO) the victim throws a smoke trail for the length of its hit-stun. */
+  private startTrail(victim: number, ko: boolean): void {
+    const hit = this.lastHits.get(victim);
+    if (!hit) return;
+    const look = trailFor(hit.tier, hit.kb, ko);
+    const rec: TrailRecord = { seq: ++this.trailSeq, victim, tier: hit.tier, kb: hit.kb, kind: look.kind, ko, puffs: 0 };
+    this.trailLog.push(rec);
+    if (this.trailLog.length > 60) this.trailLog.shift();
+    if (look.kind === 'none') this.trails.delete(victim);
+    else this.trails.set(victim, rec);
+  }
+
+  /** Every frame: a fighter still in hit-stop-free hit-stun from a launch leaves puffs behind it (more and bigger with knockback). */
+  private emitTrails(state: GameState): void {
+    for (const [id, rec] of this.trails) {
+      const f = state.fighters[id];
+      if (!f || f.action !== ACT.HITSTUN) {
+        if (!f || f.hitlag <= 0) this.trails.delete(id);
+        continue;
+      }
+      if (f.hitlag > 0) continue;
+      const look = trailFor(rec.tier, rec.kb, rec.ko);
+      if (look.every === 0 || f.frame % look.every !== 0) continue;
+      const n = Math.max(1, Math.ceil(look.puffs * particleShare(this.gfx.quality)));
+      const ang = Math.atan2(f.kby, f.kbx);
+      const h = CHARACTERS[f.char].height * W * (f.scale / 100) * 0.5;
+      const cx = f.x * S;
+      const cy = f.y * S + h;
+      for (let i = 0; i < n; i++) {
+        const j = (Math.random() - 0.5) * h * 0.5;
+        if (look.kind === 'streak') {
+          const mesh = this.takeSpark(this.smokeMats.streak);
+          mesh.position.set(cx, cy + j * 0.4, FX_Z);
+          mesh.rotation.z = ang;
+          this.sparks.push({ mesh, vx: 0, vy: 0, life: 10, max: 10, size: look.size * 1.1, stretch: 3.4, grow: 0 });
+        } else {
+          const mesh = this.takeSpark(look.kind === 'white' ? this.smokeMats.white : this.smokeMats.grey);
+          // Behind the fighters (they sit at z 0 to -0.05), so smoke never covers a body or its outline.
+          mesh.position.set(cx + j * Math.cos(ang + 1.57), cy + j * Math.sin(ang + 1.57), 0.08);
+          mesh.rotation.z = Math.random() * 6.28;
+          const life = 10 + Math.floor(Math.random() * 6);
+          // The puff stays where it was dropped (the fighter moves on, so it lines up behind it) and billows as it thins.
+          this.sparks.push({ mesh, vx: 0, vy: 0.003, life, max: life, size: look.size * (0.8 + Math.random() * 0.4), grow: 0.8 });
+        }
+        rec.puffs++;
+      }
+    }
+  }
+
+  /** The launch trails so far (and which are still burning), for the playtest. */
+  trailStats(reset = false) {
+    const out = { log: this.trailLog.map((r) => ({ ...r })), active: this.trails.size, puffs: this.trailLog.reduce((n, r) => n + r.puffs, 0) };
+    if (reset) this.trailLog = [];
+    return out;
+  }
+
+  /** A landed hit: sparks, impact sprites and shake that grow with the damage (hitFeel.ts). Heavy hits add a ring and a flash. */
+  private impact(e: Extract<SimEvent, { type: 'hit' }>): void {
+    const tier = hitTier(e.dmg);
+    const fx = impactFor(tier, e.kb);
+    const x = e.x * S;
+    const y = e.y * S;
+    this.burst(x, y, fx.sparks, (tier === 'light' ? 0.06 : 0.09) + e.kb * 0.0006);
+    // The spark sits on the overlap of hitbox and hurtbox (the sim's contact point), sized by tier; a small bright core
+    // is drawn in front of the hurt fighter for 2-3 frames while the rest of the effect stays behind (FX_Z).
+    const flash = this.sprite(x, y, Math.random() * 3, sparkSizeFor(tier), 8, 1.2);
+    this.contactCore(e, tier, flash);
+    for (let i = 0; i < fx.stars; i++) this.sprite(x, y, i * (Math.PI / 4) + Math.random(), tier === 'heavy' ? 0.4 : 0.26, 8 + i * 2, 1);
+    if (fx.ring) this.sprite(x, y, 0, 0.3, 12, 3.2);
+    this.shake = Math.max(this.shake, fx.shake);
+    if (fx.flash > 0) {
+      this.flashScreen(Color3.White(), fx.flash);
+    }
+    const st = this.hitStats;
+    st.hits++;
+    st.tiers[tier]++;
+    st.last = { tier, lag: e.lag, sparks: fx.sparks, stars: fx.stars, ring: fx.ring, shake: fx.shake, flash: fx.flash };
+  }
+
+  /** The bright core of a landed hit, in front of the hurt fighter, sized up so it reads on a phone; counts it and its distance to the contact point. */
+  private contactCore(e: Extract<SimEvent, { type: 'hit' }>, tier: HitTier, flash: Mesh): void {
+    const st = this.reactStats;
+    const c = coreFor(tier);
+    const x = e.x * S;
+    const y = e.y * S;
+    const px = this.pxPerUnit(x, y);
+    const size = px > 0 ? Math.max(c.size, c.minPx / px) : c.size;
+    const core = this.sprite(x, y, 0, size, c.frames, 0, this.fxMats.core, CORE_Z);
+    const across = size * px;
+    st.contacts++;
+    st.coreFrames += c.frames;
+    st.maxContactDist = Math.max(st.maxContactDist, Math.hypot(core.position.x - x, core.position.y - y, flash.position.x - x, flash.position.y - y));
+    st.coreMinPx = st.coreMinPx ? Math.min(st.coreMinPx, across) : across;
+    if (tier === 'heavy') st.coreHeavyMinPx = st.coreHeavyMinPx ? Math.min(st.coreHeavyMinPx, across) : across;
+    // Independent check: the contact point lies on the victim's hurtbox (gap in scene units).
+    const v = this.lastState?.fighters[e.victim];
+    if (v) {
+      // Event and fighter coordinates are both fixed point (FX): compare them in the same unit, then convert to scene units.
+      const [bw, bh] = bodySize(v);
+      const hw = bw / 2;
+      const gx = Math.max(0, Math.abs(e.x - v.x) - hw);
+      const gy = Math.max(0, e.y - (v.y + bh), v.y - e.y);
+      st.maxHurtGap = Math.max(st.maxHurtGap, Math.hypot(gx, gy) * S);
+    }
+    // Under the touch controls? Only the core's own rectangle counts.
+    const half = across / 2;
+    for (const el of document.querySelectorAll('.touch-stick, .touch-buttons, .touch-pause')) {
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0) continue;
+      const sp = this.screenOf(x, y);
+      if (sp && sp.x + half > r.left && sp.x - half < r.right && sp.y + half > r.top && sp.y - half < r.bottom) st.coreUnderControl++;
+    }
+  }
+
+  /** CSS px per scene unit at a point, and where the point is on screen (CSS px). */
+  private screenOf(x: number, y: number): { x: number; y: number } | null {
+    const canvas = this.engine.getRenderingCanvas();
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    if (!canvas || !w || !h) return null;
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const p = Vector3.Project(new Vector3(x, y, CORE_Z), Matrix.IdentityReadOnly, this.scene.getTransformMatrix(), vp);
+    const k = canvas.clientWidth / w;
+    return { x: p.x * k, y: p.y * k };
+  }
+
+  private pxPerUnit(x: number, y: number): number {
+    const a = this.screenOf(x, y);
+    const b = this.screenOf(x + 1, y);
+    return a && b ? Math.abs(b.x - a.x) : 0;
+  }
+
+  /**
+   * The hit that ends a stock announces itself (hitFeel.ts predicts it as the hit-stop ends and the launch begins): a red-tinted
+   * flash, a sharper impact ring, a punch-in on the impact, a beat of slow motion (`timeScale`) and a rising whistle.
+   * Screen shake off still removes the shake; the zoom stays.
+   */
+  private killCue(x: number, y: number): void {
+    // Reduce motion keeps the sprites, whistle and sting but drops the slow motion and the punch-in zoom (`kill` drives both).
+    const calm = reduceMotion();
+    if (calm) this.camTraceNote.koUntil = performance.now() + KO_TAIL_S * 1000;
+    else this.kill = { at: performance.now(), x, y };
+    this.flashScreen(new Color3(1, 0.12, 0.08), KILL_CUE.redFlash);
+    this.sprite(x, y, 0, 0.45, 12, 6);
+    this.sprite(x, y, 0.5, 0.7, 16, 4);
+    this.shake = Math.max(this.shake, 0.8);
+    this.onSynth?.('whistle');
+    const c = this.camStats;
+    c.killCues++;
+    c.lastCue = { zoom: !calm, slow: !calm, whistle: !!this.onSynth, shake: this.shake * shakeScale(), punch: 0 };
+  }
+
+  /**
+   * One full-screen flash, scaled by Settings → Flashes (Full / Soft / Off) and held to 3 starts a second (hitFeel.ts
+   * `flashAllowed`). A flash already on screen is only raised, never restarted, so overlapping calls don't stack.
+   */
+  private flashScreen(color: Color3, alpha: number): void {
+    const a = alpha * flashScale();
+    if (a <= 0 || !flashAllowed(performance.now())) return;
+    if (this.flashMat.alpha >= a) return;
+    this.flashMat.emissiveColor = color;
+    this.flashMat.alpha = a;
+    this.flashPlane.setEnabled(true);
+    const st = this.flashLog;
+    st.flashes++;
+    st.maxAlpha = Math.max(st.maxAlpha, a);
+  }
+
+  /** The post chain's exposure punch and aberration: a brightness flash too, so it follows the same Flashes setting and rate gate. */
+  private punchPost(): void {
+    if (!flashAllowed(performance.now())) return;
+    this.post.punch(flashScale());
+  }
+
+  private flashLog = { flashes: 0, maxAlpha: 0 };
+
+  /** Flash counters for the playtest (the gate's own counters are in hitFeel.ts `flashStats`). */
+  flashFxStats(reset = false) {
+    const out = { ...this.flashLog, ...flashStats(reset), mode: flashMode(), scale: flashScale() };
+    if (reset) this.flashLog = { flashes: 0, maxAlpha: 0 };
+    return out;
+  }
+
+  /** How fast the match clock should run right now: slow motion for the kill cue's beat, else 1. */
+  timeScale(): number {
+    if (!this.kill || reduceMotion()) return 1;
+    const t = (performance.now() - this.kill.at) / 1000;
+    if (t > KILL_CUE.slowSeconds + KILL_CUE.easeBack + 0.1) this.kill = null;
+    return killTimeScale(t);
+  }
+
+  /** Camera and kill-cue counters for the playtest. */
+  camFxStats(reset = false) {
+    const out = { ...this.camStats, killActive: !!this.kill };
+    if (reset) {
+      this.camStats.cameraJumps = 0;
+      this.camStats.framingMisses = 0;
+    }
+    return out;
+  }
+
+  /**
+   * The camera trace since the last reset: one sample per rendered frame (camera x, y, distance; each living fighter's
+   * feet and head on screen as shares 0..1; shake, KO zoom and cuts), plus the touch controls' rectangles as shares of the
+   * screen when the phone overlay is up. The playtest judges it with analyzeCameraTrace.
+   */
+  camTrace(reset = false): { samples: CamSample[]; tan: number; touch: { l: number; t: number; r: number; b: number }[] } {
+    const out = { samples: this.camTraceBuf, tan: Math.tan(this.camera.fov / 2), touch: this.touchRects() };
+    if (reset) this.camTraceBuf = [];
+    return out;
+  }
+
+  /** The stick and buttons on a touch phone as shares of the screen (empty when the overlay is not up). */
+  private touchRects(): { l: number; t: number; r: number; b: number }[] {
+    if (typeof document === 'undefined' || !document.body.classList.contains('touch-ui')) return [];
+    const w = innerWidth;
+    const h = innerHeight;
+    const out: { l: number; t: number; r: number; b: number }[] = [];
+    document.querySelectorAll<HTMLElement>('.touch .touch-stick, .touch .touch-btn').forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 1 && r.height > 1) out.push({ l: r.left / w, t: r.top / h, r: r.right / w, b: r.bottom / h });
+    });
+    return out;
+  }
+
+  /** How much of the screen's height (0..0.45) the touch controls take at the bottom: the camera lifts the fight clear of them. */
+  private touchInsetNow(aspect: number, now: number): number {
+    if (now - this.touchInset.at > 500) {
+      this.touchInset.at = now;
+      const rects = aspect >= 0.9 ? this.touchRects() : [];
+      this.touchInset.v = rects.length ? Math.min(0.45, 1 - Math.min(...rects.map((r) => r.t))) : 0;
+    }
+    return this.touchInset.v;
+  }
+
+  /** One impact flash: a soft disc that blows up as it fades (two make a heavy burst, a big fast one reads as a shockwave). */
+  private sprite(x: number, y: number, rot: number, size: number, life: number, grow: number, mat?: StandardMaterial, z = FX_Z): Mesh {
+    const mesh = this.takeSpark(mat);
+    mesh.position.set(x, y, z);
+    mesh.rotation.z = rot;
+    this.sparks.push({ mesh, vx: 0, vy: 0, life, max: life, size, grow });
+    return mesh;
+  }
+
+  /** The special-effect flipbooks' counters, for the playtest. */
+  flipStats(reset = false): FlipStats {
+    return this.flip.stats(reset);
+  }
+
+  /** What the last hits did, for the playtest. */
+  hitFxStats(reset = false) {
+    const out = { ...this.hitStats, tiers: { ...this.hitStats.tiers }, shakeOn: screenShake() };
+    if (reset) {
+      this.hitStats.hits = 0;
+      this.hitStats.shakeMax = 0;
+    }
+    return out;
+  }
+
+  private burst(x: number, y: number, count: number, speed: number, mat?: StandardMaterial): void {
+    const n = Math.ceil(count * particleShare(this.gfx.quality));
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = speed * (0.4 + Math.random() * 0.8);
-      const mesh = this.sparkPool.pop() ?? CreatePlane('spark', { size: 1 }, this.scene);
-      mesh.material = this.sparkMat;
-      mesh.setEnabled(true);
-      mesh.position.set(x, y, -0.4);
+      const mesh = this.takeSpark(mat);
+      mesh.position.set(x, y, FX_Z);
       mesh.rotation.z = a;
-      const life = 14 + Math.floor(Math.random() * 14);
+      const life = 10 + Math.floor(Math.random() * 10);
       this.sparks.push({ mesh, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life, max: life, size: 0.06 + Math.random() * 0.08 });
     }
   }
 
   /** Draws one frame. */
   render(state: GameState): void {
+    this.lastState = state;
     for (const m of this.movers) {
-      const p = platformAt(m.platform, state.frame);
+      // The sim moves a platform with the frame it is stepping, one behind the count it shows afterwards.
+      const p = platformAt(m.platform, Math.max(0, state.frame - 1));
       m.node.position.set(((p.x1 + p.x2) / 2) * S, p.y * S, 0);
     }
     this.live?.update(state);
-    for (const f of state.fighters) this.drawFighter(f, this.views[f.id]);
+    this.alive?.update(performance.now() / 1000);
+    if (this.intro) this.introTick(state);
+    // Broadcast events: the studio lights flicker, the rig light hangs and falls.
+    this.sky.intensity = state.flicker > 0 ? (state.frame % 8 < 3 ? 0.15 : 1) : 1;
+    if (state.rigFrame >= 0) {
+      if (!this.rig) {
+        this.rig = CreateBox('rig', { width: 0.9, height: 0.5, depth: 0.9 }, this.scene);
+        const m = new StandardMaterial('rigm', this.scene);
+        m.emissiveColor = new Color3(1, 0.9, 0.5);
+        this.rig.material = m;
+      }
+      const p = rigPos(state);
+      this.rig.setEnabled(true);
+      this.rig.position.set(p.x * S, p.y * S, 0);
+    } else this.rig?.setEnabled(false);
+    for (const f of state.fighters) this.drawFighter(f, this.views[f.id], state);
+    this.drawShots(state);
+    this.emitTrails(state);
     this.updateSparks();
     this.fx?.setClock(state);
     this.fx?.update();
@@ -544,28 +1827,249 @@ export class Renderer {
     }
     this.drawDebug(state);
     this.updateCamera(state);
+    this.updateForeground(state);
+    if (this.slowFullMs > 0 && this.presenting) this.burnSlow();
     this.scene.render();
+    this.autoTick(state);
+    if (this.presenting) this.countSeen();
+    this.post.endFrame();
+    this.checkFraming(state);
+    if (this.kill && (performance.now() - this.kill.at) / 1000 > 0.15 && (performance.now() - this.kill.at) / 1000 < KILL_CUE.slowSeconds) {
+      const fps = this.engine.getFps();
+      this.camStats.slowFpsMin = this.camStats.slowFpsMin === 0 ? fps : Math.min(this.camStats.slowFpsMin, fps);
+    }
   }
 
-  private drawFighter(f: Fighter, v: FighterView | undefined): void {
+  private fgMs = 0;
+
+  /**
+   * Foreground elements at the play area's edge fade to 30% while a fighter is behind one of their solid pixels (seen from
+   * the camera, so the parallax counts) and come back when they walk out. Runs after the camera has moved.
+   */
+  private updateForeground(state: GameState): void {
+    const fgs = this.live?.foregrounds();
+    if (!fgs?.length) return;
+    const now = performance.now();
+    const dt = this.fgMs ? Math.min(0.1, (now - this.fgMs) / 1000) : 0.1;
+    this.fgMs = now;
+    const cam = { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z };
+    const bodies = [];
+    for (const f of state.fighters) {
+      const v = this.views[f.id];
+      if (!v || f.action === ACT.DEAD || this.offstage.has(f.id)) continue;
+      const ch = CHARACTERS[f.char];
+      const k = f.scale / 100;
+      bodies.push(bodyPoints(v.root.position.x, v.root.position.y, ch.height * W * ART_SCALE * k, ch.width * W * ART_SCALE * k * 0.35, v.body.position.z));
+    }
+    for (const pl of fgs) {
+      let behind = false;
+      if (pl.mask && pl.size.w && pl.mesh.isEnabled()) {
+        const plane = { x: pl.mesh.position.x, y: pl.mesh.position.y, z: pl.mesh.position.z, w: pl.size.w, h: pl.size.h };
+        behind = bodies.some((pts) => behindForeground(pl.mask!, plane, cam, pts));
+      }
+      pl.fade = fadeToward(pl.fade ?? 1, behind, dt);
+      pl.mat.alpha = (pl.layer.opacity ?? 1) * pl.fade;
+    }
+  }
+
+  /** Every layer's depth and where its picture sits on the page (CSS px, from the last render), for the playtest's parallax check. */
+  depthStats(): { quality: string; camX: number; camDist: number; layers: { id: string; z: number; kind: 'far' | 'foreground' | 'haze' | 'stage'; screenX: number; alpha: number; fade: number | null; behind: boolean }[] } {
+    const canvas = this.engine.getRenderingCanvas();
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const k = canvas ? canvas.clientWidth / w : 1;
+    const layers = (this.live?.allPlaced() ?? []).map((pl) => {
+      const p = Vector3.Project(new Vector3(pl.mesh.position.x, pl.mesh.position.y, pl.mesh.position.z), Matrix.IdentityReadOnly, m, vp);
+      const kind: 'far' | 'foreground' | 'haze' | 'stage' = pl.haze ? 'haze' : pl.layer.foreground ? 'foreground' : pl.layer.z > 0.5 ? 'far' : 'stage';
+      return { id: pl.layer.id, z: pl.layer.z, kind, screenX: p.x * k, alpha: pl.mat.alpha, fade: pl.fade ?? null, behind: pl.fade !== undefined && pl.fade < 0.99 };
+    });
+    return { quality: this.gfx.quality, camX: this.camera.position.x, camDist: this.camDist, layers };
+  }
+
+  private probeCanvas: HTMLCanvasElement | null = null;
+
+  /**
+   * The readability probe (playtest `readability`, readability.ts): the current frame drawn again for each request with only
+   * some fighters (by slot) and the foreground art on or off, each read back as pixels, plus where each fighter and each
+   * platform's top edge sit on the canvas. Fixed grain, so two renders of one scene match. Everything is put back.
+   */
+  readabilityProbe(sets: { id: string; fighters: number[]; fg: boolean }[]): {
+    w: number;
+    h: number;
+    quality: string;
+    shots: Record<string, Uint8ClampedArray>;
+    fighters: { slot: number; box: { x1: number; y1: number; x2: number; y2: number } }[];
+    platforms: { index: number; x1: number; x2: number; y: number; lipPx: number }[];
+  } | null {
+    const canvas = this.engine.getRenderingCanvas();
+    if (!canvas || !this.lastState) return null;
+    const state = this.lastState;
+    this.render(state); // meshes follow the state as it is now
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    if (!this.probeCanvas) this.probeCanvas = document.createElement('canvas');
+    const pc = this.probeCanvas;
+    pc.width = w;
+    pc.height = h;
+    const ctx = pc.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+    const fgs = this.live?.foregrounds() ?? [];
+    const wasOn = this.views.map((v) => v.pose.isEnabled());
+    const fgOn = fgs.map((p) => p.mesh.isEnabled());
+    this.post.setProbe(true);
+    const shots: Record<string, Uint8ClampedArray> = {};
+    try {
+      for (const set of sets) {
+        this.views.forEach((v, i) => v.pose.setEnabled(wasOn[i] && set.fighters.includes(i)));
+        fgs.forEach((p) => p.mesh.setEnabled(set.fg && fgOn[fgs.indexOf(p)]));
+        this.scene.render();
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(canvas, 0, 0, w, h);
+        shots[set.id] = ctx.getImageData(0, 0, w, h).data;
+      }
+    } finally {
+      this.post.setProbe(false);
+      this.views.forEach((v, i) => v.pose.setEnabled(wasOn[i]));
+      fgs.forEach((p, i) => p.mesh.setEnabled(fgOn[i]));
+    }
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const proj = (x: number, y: number, z: number) => Vector3.Project(new Vector3(x, y, z), Matrix.IdentityReadOnly, m, vp);
+    const fighters = this.views.map((v, slot) => {
+      v.body.computeWorldMatrix(true);
+      const pts = v.body.getBoundingInfo().boundingBox.vectorsWorld.map((q) => proj(q.x, q.y, q.z));
+      return { slot, box: { x1: Math.min(...pts.map((q) => q.x)), y1: Math.min(...pts.map((q) => q.y)), x2: Math.max(...pts.map((q) => q.x)), y2: Math.max(...pts.map((q) => q.y)) } };
+    });
+    const platforms = this.stage.platforms.flatMap((p, index) => {
+      if (p.offDuring || p.onlyDuring || p.fade) return [];
+      const at = platformAt(p, state.frame);
+      const a = proj(at.x1 * S, at.y * S, 0);
+      const b = proj(at.x2 * S, at.y * S, 0);
+      const below = proj(at.x1 * S, at.y * S - (LIP_CORE + 2 * LIP_KEYLINE), 0);
+      return [{ index, x1: a.x, x2: b.x, y: a.y, lipPx: Math.abs(below.y - a.y) }];
+    });
+    return { w, h, quality: this.gfx.quality, shots, fighters, platforms };
+  }
+
+  private shadowTex: DynamicTexture | null = null;
+
+  /** One soft radial blob shared by every contact shadow (black, opaque in the middle, clear at the rim). */
+  private shadowTexture(): DynamicTexture {
+    if (this.shadowTex) return this.shadowTex;
+    const tex = new DynamicTexture('shadow-blob', { width: 128, height: 128 }, this.scene, true);
+    const ctx = tex.getContext() as CanvasRenderingContext2D;
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(0,0,0,1)');
+    g.addColorStop(0.45, 'rgba(0,0,0,0.7)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+    tex.hasAlpha = true;
+    tex.update();
+    this.shadowTex = tex;
+    return tex;
+  }
+
+  /** Every fighter's light and shadow as last drawn, for the playtest. */
+  lightStats() {
+    const st = this.stage;
+    return {
+      stage: st.id,
+      quality: this.gfx.quality,
+      glossy: !!st.light?.glossy,
+      fighters: this.views.map((v, slot) => ({ slot, plugin: v.light.state(), ...v.lit })),
+    };
+  }
+
+  /** The stage's light goes onto every fighter's material (a new stage, or a quality change). */
+  private applyLight(): void {
+    const light = lightOf(this.stage);
+    for (const v of this.views) {
+      v.light.set(light, this.gfx.quality === 'high');
+      v.outline.setQuality(this.gfx.quality === 'high');
+    }
+  }
+
+  /** The outline's width in the sprite's own units: 2 px at 1080p, never under 1 px, from how big the fighter is on screen. */
+  private sizeOutline(v: FighterView): void {
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const p = v.root.getAbsolutePosition();
+    const a = Vector3.Project(p, Matrix.IdentityReadOnly, m, vp);
+    const b = Vector3.Project(new Vector3(p.x + 1, p.y, p.z), Matrix.IdentityReadOnly, m, vp);
+    const pxPerWorld = Math.max(1, Math.abs(b.x - a.x));
+    v.outline.setWidth(outlineWidthPx(h), 1 / (Math.max(0.01, v.body.scaling.x) * pxPerWorld), 1 / (Math.max(0.01, v.body.scaling.y) * pxPerWorld));
+  }
+
+  /** Where a platform is on the canvas right now, in render px with the render size (playtest: the moving platform stays in frame). */
+  platformBox(index: number): { x1: number; x2: number; y: number; w: number; h: number } | null {
+    const st = this.lastState;
+    const p = this.stage.platforms[index];
+    if (!st || !p) return null;
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const at = platformAt(p, Math.max(0, st.frame - 1));
+    const a = Vector3.Project(new Vector3(at.x1 * S, at.y * S, 0), Matrix.IdentityReadOnly, m, vp);
+    const b = Vector3.Project(new Vector3(at.x2 * S, at.y * S, 0), Matrix.IdentityReadOnly, m, vp);
+    return { x1: a.x, x2: b.x, y: a.y, w, h };
+  }
+
+  /** Every fighter's outline as drawn (playtest): colour, width in device px, and the render height it was sized for. */
+  styleStats() {
+    return {
+      quality: this.gfx.quality,
+      renderHeight: this.engine.getRenderHeight(),
+      fighters: this.views.map((v, slot) => ({ slot, char: v.charIdx, look: v.lookIdx, outline: v.outline.state(), remap: v.mat.pluginManager?.getPlugin('DodRemap') !== undefined, outlinePass: v.mat.pluginManager?.getPlugin('DodOutline') !== undefined })),
+    };
+  }
+
+  private drawFighter(f: Fighter, v: FighterView | undefined, state: GameState): void {
     if (!v) return;
     const ch = CHARACTERS[f.char];
     const dead = f.action === ACT.DEAD;
-    v.root.setEnabled(!dead);
-    if (dead) return;
+    const ip = this.intro?.poses.get(f.id);
+    const away = this.offstage.has(f.id) || !!ip?.hidden;
+    v.root.setEnabled(!dead && !away);
+    if (dead || away) return;
 
     const k = f.scale / 100;
     const height = ch.height * W * ART_SCALE * k;
     let x = f.x * S;
     if (f.hitlag > 0 && f.action === ACT.HITSTUN) x += (f.hitlag & 1 ? 1 : -1) * 0.04;
-    v.root.position.set(x, f.y * S, 0);
+    let drop = 0;
+    const came = this.arriving.get(f.id);
+    if (came !== undefined) {
+      // Falls in over ARRIVE_MS (eased like gravity), then lands with dust, a thud and a little shake.
+      const k = Math.min(1, (performance.now() - came) / ARRIVE_MS);
+      drop = (1 - k * k) * 7;
+      if (k >= 1) {
+        this.arriving.delete(f.id);
+        this.burst(x, f.y * S + 0.02, 10, 0.07);
+        this.shake = Math.max(this.shake, 0.35);
+        this.onSound?.('land');
+        this.onSynth?.('thud');
+      }
+    }
+    if (ip) {
+      // An entrance (match intro): its offset in fighter heights, on top of where the sim stands them.
+      x += ip.dx * height;
+      drop += ip.dy * height;
+    }
+    v.root.position.set(x, f.y * S + drop, 0);
 
-    // A clip if there is one, else the still with procedural motion.
-    const pick = pickClip(f, v.anims);
+    // A clip if there is one, else the still with procedural motion. An entrance borrows the walk, jump, fall or land clip.
+    const fa = ip && ip.anim !== 'idle' ? { ...f, x: x / S, action: ip.anim === 'walk' ? ACT.WALK : ip.anim === 'land' ? ACT.LAND : ACT.AIR, vy: ip.anim === 'jump' ? 1 : -1, frame: Math.floor(((performance.now() - this.intro!.t0) / 1000) * 60) } : f;
+    const pick = pickClip(fa, v.anims);
     const tex = pick ? this.clipTexture(v, pick.key) : null;
     if (pick && tex && v.anims) {
       const c = pick.clip;
-      const i = clipFrame(f, pick);
+      const i = clipFrame(fa, pick);
       tex.uScale = 1 / c.cols;
       tex.vScale = 1 / c.rows;
       tex.uOffset = (i % c.cols) / c.cols;
@@ -574,12 +2078,22 @@ export class Renderer {
       const px = height / v.anims.refHeight;
       v.body.scaling.set(c.fw * px, c.fh * px, 1);
       v.body.position.x = (c.fw / 2 - c.ax) * px;
-      v.body.position.y = (c.ay - c.fh / 2) * px;
+      v.body.position.y = (c.ay - c.fh / 2 + feetLift(fa, pick, i)) * px;
       // Clips line up on the feet, but a hang is about the hands: put the top of the
       // sprite (the gripping hands) on the ledge's top edge instead.
       if (pick.key === 'ledge' && pick.exact && f.ledge > 0) {
         const l = ledges(this.stage)[f.ledge - 1];
-        if (l) v.body.position.y += l.y * W + GRIP - f.y * S - c.ay * px;
+        if (l) {
+          v.body.position.y += l.y * W + GRIP - f.y * S - c.ay * px;
+          // The hang pose kicks the legs toward the wall, so the sprite sank into the stage face (and into an arched
+          // platform's art). Slide it out until at most HANG_OVERLAP of its frame is past the ledge's edge. Visual only.
+          const fw = c.fw * px;
+          const centre = x + f.facing * v.body.position.x;
+          const inner = centre - l.side * (fw / 2);
+          const limit = l.x * W - l.side * fw * HANG_OVERLAP;
+          const over = (inner - limit) * -l.side;
+          if (over > 0) x += l.side * over;
+        }
       }
     } else {
       setTexture(v.mat, v.still);
@@ -588,10 +2102,31 @@ export class Renderer {
       v.body.position.y = height / 2;
     }
 
-    const [sx, sy, rot, lift] = pick?.exact ? [1, 1, 0, 0] : proceduralPose(f, this.stage);
+    let [sx, sy, rot, lift] = pick?.exact ? [1, 1, 0, 0] : proceduralPose(f, this.stage);
+    const spoke = this.talking.get(f.id);
+    if (spoke !== undefined) {
+      const k = (performance.now() - spoke) / 420;
+      if (k >= 1) this.talking.delete(f.id);
+      else {
+        const b = Math.sin(k * Math.PI) * 0.07;
+        sx *= 1 - b * 0.5;
+        sy *= 1 + b;
+      }
+    }
+    const rx = this.reaction(f, v, state);
+    sx *= rx.sx;
+    sy *= rx.sy;
+    if (rx.rot !== null) rot = rx.rot;
+    if (ip) {
+      sx *= ip.sx;
+      sy *= ip.sy;
+      rot += ip.rot;
+    }
+    x += rx.dx;
+    v.root.position.x = x;
     v.pose.scaling.set(f.facing * sx, sy, 1);
     v.pose.rotation.z = rot;
-    v.pose.position.y = lift;
+    v.pose.position.y = lift + rx.lift;
 
     if (v.ghost && v.ghostMat) {
       v.ghost.position.x = v.body.position.x;
@@ -600,16 +2135,67 @@ export class Renderer {
       if (v.ghostMat.diffuseTexture !== v.mat.diffuseTexture) v.ghostMat.diffuseTexture = v.mat.diffuseTexture;
     }
 
+    // The rim follows the body, a touch larger. On Low it is thinner and only drawn in one-on-ones (two fighters), which is cheaper.
+    const rimOn = this.gfx.quality === 'high' || state.fighters.length <= 2 || v.tell > 0;
+    v.rim.setEnabled(rimOn);
+    if (rimOn) {
+      const grow = (this.gfx.quality === 'high' ? 1.09 : 1.06) + v.tell * 0.22;
+      v.rim.position.x = v.body.position.x;
+      v.rim.position.y = v.body.position.y;
+      v.rim.scaling.set(v.body.scaling.x * grow, v.body.scaling.y * grow, 1);
+      if (v.rimMat.diffuseTexture !== v.mat.diffuseTexture) v.rimMat.diffuseTexture = v.mat.diffuseTexture;
+      v.rimMat.alpha = 1;
+    }
+
+    this.sizeOutline(v);
+
     const flicker = f.intangible > 0 && f.action !== ACT.LEDGE ? (f.frame & 4 ? 0.45 : 0.8) : 1;
-    v.mat.alpha = flicker;
+    v.mat.alpha = flicker * (ip ? ip.alpha : 1);
     if (v.flash > 0) {
       v.flash--;
       v.mat.emissiveColor.set(1, 0.55 + (10 - v.flash) * 0.045, 0.45 + (10 - v.flash) * 0.055);
+    } else if (f.action === ACT.ATTACK && CHARACTERS[f.char].moves[f.move].counter && f.frame >= CHARACTERS[f.char].moves[f.move].counter!.from && f.frame <= CHARACTERS[f.char].moves[f.move].counter!.to) {
+      // Counter stance: a cold pulse on the fighter while the window is open.
+      const pulse = f.frame & 4 ? 0.55 : 0.8;
+      v.mat.emissiveColor.set(pulse, 0.95, 1);
+    } else if (v.tell > 0) {
+      // Wind-up startup tell on every special and smash: bright emissive flash so the player can read the move before it goes active.
+      const e = 1 + v.tell * 0.95;
+      v.mat.emissiveColor.set(e, 1 + v.tell * 0.85, 1 + v.tell * 1.15);
     } else {
       v.mat.emissiveColor.set(1, 1, 1);
     }
 
-    v.ring.setEnabled(f.grounded === 1 || f.action === ACT.RESPAWN);
+    // The contact shadow on the platform below: smaller and fainter with height, gone above 300 units.
+    const floor = floorBelow(this.stage, state.frame, f.x, f.y);
+    const sh = shadowAt(floor === null ? null : f.y / FX - floor);
+    const floorLocal = floor === null ? 0 : floor / 100 - v.root.position.y;
+    const wide = ch.width * W * k * 1.7 * sh.scale;
+    v.shadow.setEnabled(sh.on);
+    if (sh.on) {
+      v.shadow.scaling.set(wide, wide * 0.24, 1);
+      v.shadow.position.y = floorLocal - 0.005;
+      v.shadowMat.alpha = sh.alpha;
+    }
+    // On a glossy floor (High only) a faint mirror of the fighter shows under the platform, fading with the same height.
+    const mirror = sh.on && this.gfx.quality === 'high' && !!this.stage.light?.glossy;
+    v.refl.setEnabled(mirror);
+    if (mirror) {
+      v.reflRoot.position.y = 2 * floorLocal;
+      v.reflPose.position.y = v.pose.position.y;
+      v.reflPose.scaling.copyFrom(v.pose.scaling);
+      v.reflPose.rotation.z = v.pose.rotation.z;
+      v.refl.position.copyFrom(v.body.position);
+      v.refl.scaling.copyFrom(v.body.scaling);
+      v.reflMat.alpha = REFLECTION_ALPHA * (1 - Math.max(0, sh.height) / 300);
+      if (v.reflMat.diffuseTexture !== v.mat.diffuseTexture) {
+        v.reflMat.diffuseTexture = v.mat.diffuseTexture;
+        v.reflMat.emissiveTexture = v.mat.diffuseTexture;
+      }
+    }
+    v.lit = { height: Number(sh.height.toFixed(1)), scale: Number(sh.scale.toFixed(3)), alpha: Number(sh.alpha.toFixed(3)), shadow: sh.on, reflection: mirror };
+
+    v.ring.setEnabled((f.grounded === 1 || f.action === ACT.RESPAWN) && !(ip && ip.dy > 0.05));
     const shielding = f.action === ACT.SHIELD || f.action === ACT.SHIELD_STUN;
     v.shield.setEnabled(shielding);
     if (shielding) {
@@ -618,7 +2204,180 @@ export class Renderer {
     }
   }
 
+  /** Procedural reaction on top of the clips: hit squash and push, tumble in hit-stun, ground bounce with dust, smash charge glow, smears. */
+  private reaction(f: Fighter, v: FighterView, state: GameState): { sx: number; sy: number; rot: number | null; dx: number; lift: number } {
+    const out = { sx: 1, sy: 1, rot: null as number | null, dx: 0, lift: 0 };
+    const st = this.reactStats;
+    const r = this.react.get(f.id);
+    const hurt = f.action === ACT.HITSTUN;
+    if (r) {
+      if (f.hitlag <= 0 || r.age > 0) r.age++;
+      const k = r.age <= r.frames ? 1 : 0;
+      if (k) {
+        out.sx = 1 + r.squash;
+        out.sy = 1 - r.squash;
+        st.squashFrames++;
+      }
+      if (r.push > 0 && r.age < 8) out.dx = -f.facing * r.push * (1 - r.age / 8);
+      if (r.hop > 0) {
+        r.hop--;
+        out.lift = Math.sin((r.hop / 14) * Math.PI) * 0.18;
+      }
+      if (r.age > 40 && r.hop <= 0 && !hurt) this.react.delete(f.id);
+    }
+    const speed = Math.hypot(f.kbx, f.kby) / FX;
+    if (hurt && speed > TUMBLE_SPEED) {
+      v.tumble = (v.tumble ?? 0) + 1;
+      out.rot = f.facing * v.tumble * 0.35;
+      st.tumbleFrames++;
+    } else v.tumble = 0;
+    const was = this.prevGround.get(f.id) ?? 1;
+    this.prevGround.set(f.id, f.grounded);
+    if (hurt && !was && f.grounded && f.kby <= 0 && r) {
+      r.hop = 14;
+      st.bounces++;
+      st.dustBursts++;
+      this.burst(f.x * S, f.y * S + 0.02, 7, 0.07);
+      this.onSynth?.('thud');
+    }
+    v.tell = 0;
+    const fresh = this.lastFxFrame.get(f.id) !== state.frame;
+    this.lastFxFrame.set(f.id, state.frame);
+    if (f.action === ACT.ATTACK) {
+      const ch = CHARACTERS[f.char];
+      const m = ch.moves[f.move];
+      const w = m.hits[0];
+      const start = moveStartFrame(m);
+      this.tellAndTrail(f, v, m, fresh);
+      const big = isSmashMove(f.move);
+      const spec = isSpecialMove(f.move);
+      if (start > 0 && (big || spec)) {
+        const wp = windupPose(f.frame, start, f.move, f.facing);
+        out.sx *= wp.sx;
+        out.sy *= wp.sy;
+        out.rot = (out.rot ?? 0) + wp.rot;
+        out.dx += wp.dx;
+        out.lift += wp.dy;
+        if (big && f.frame === 1 && fresh) st.charges++;
+        if (this.gfx.quality === 'high' && f.frame >= start && f.frame < start + 3 && fresh) {
+          const box = w?.boxes[0] ?? (m.shot ? { x: m.shot.x, y: m.shot.y } : { x: 36, y: 50 });
+          this.smear(f, box, f.frame - start, big);
+          if (f.frame === start) st.smears++;
+          st.smearFrames++;
+          if (big) st.smashSmears++;
+        }
+      }
+    } else {
+      this.tellSeen.delete(f.id);
+    }
+    return out;
+  }
+
+  /**
+   * The two attack reads: every special and smash gets a visible wind-up tell (a coiled pose change, an emissive + player-colour rim flash,
+   * a wind-up ring, and a short whoosh) before its first active/shot/counter frame; every normal attack draws a swing trail along its hitbox on each active frame.
+   */
+  private tellAndTrail(f: Fighter, v: FighterView, m: (typeof CHARACTERS)[number]['moves'][number], fresh: boolean): void {
+    const st = this.reactStats;
+    const warns = isSmashMove(f.move) || isSpecialMove(f.move);
+    if (warns) {
+      const start = moveStartFrame(m);
+      if (start <= 0) return;
+      const t = tellAt(f.frame, start);
+      v.tell = t;
+      if (!fresh) return;
+      let seen = this.tellSeen.get(f.id);
+      if (!seen || seen.move !== f.move || f.frame < seen.lastFrame) {
+        seen = { move: f.move, n: 0, activeChecked: false, lastFrame: f.frame };
+      }
+      if (t > 0) {
+        if (seen.n === 0) {
+          st.tells++;
+          const wy = f.y * S + CHARACTERS[f.char].height * W * (f.scale / 100) * 0.55;
+          this.sprite(f.x * S, wy, 0, 0.38, 6, 2.2, this.fxMats.parry);
+          this.onSynth?.('whoosh');
+          st.tellWhooshes += this.onSynth ? 1 : 0;
+        }
+        seen.n++;
+        st.tellFrames++;
+      }
+      if (f.frame >= start && !seen.activeChecked) {
+        seen.activeChecked = true;
+        if (seen.n === 0 && tellFrames(start) > 0) {
+          // If the sim stepped multiple ticks in a single render frame and crossed startup into active, fire the tell now so it is never dropped.
+          v.tell = Math.max(v.tell, 0.75);
+          st.tells++;
+          st.tellFrames++;
+          const wy = f.y * S + CHARACTERS[f.char].height * W * (f.scale / 100) * 0.55;
+          this.sprite(f.x * S, wy, 0, 0.38, 6, 2.2, this.fxMats.parry);
+          this.onSynth?.('whoosh');
+          st.tellWhooshes += this.onSynth ? 1 : 0;
+          seen.n = 1;
+        }
+        st.tellStarts++;
+        if (seen.n === 0 && tellFrames(start) > 0) st.tellMisses++;
+      }
+      seen.lastFrame = f.frame;
+      this.tellSeen.set(f.id, seen);
+      return;
+    }
+    const w = m.hits[0];
+    if (!w) return;
+    if (!isNormalMove(f.move)) return;
+    for (const hw of m.hits) {
+      if (f.frame < hw.start || f.frame > hw.end) continue;
+      if (fresh && f.frame === hw.start && hw === w) st.normalActives++;
+      if (!fresh) return;
+      const drawn = this.trail(f, hw.boxes[0]);
+      if (drawn) {
+        if (f.frame === hw.start && hw === w) st.trails++;
+        st.trailFrames++;
+      }
+    }
+  }
+
+  /** A swing trail frame: a streak from the shoulder through the hitbox, as long as the reach and as thick as the box. */
+  private trail(f: Fighter, b: { x: number; y: number; r: number } | undefined): boolean {
+    if (!b) return false;
+    const ch = CHARACTERS[f.char];
+    const k = f.scale / 100;
+    const bx = f.facing * b.x * W * k;
+    const by = b.y * W * k;
+    const sx = 0;
+    const sy = ch.height * W * k * 0.6;
+    const len = Math.hypot(bx - sx, by - sy) + b.r * W * k;
+    const thick = Math.max(0.16, b.r * W * k * 1.3);
+    const mesh = this.takeSpark(this.fxMats.core);
+    mesh.position.set(f.x * S + (bx + sx) / 2, f.y * S + (by + sy) / 2, FX_Z);
+    mesh.rotation.z = Math.atan2(by - sy, bx - sx);
+    this.sparks.push({ mesh, vx: 0, vy: 0, life: 4, max: 4, size: thick, stretch: Math.max(1, len / thick), grow: 0 });
+    return true;
+  }
+
+  /** One of three streak frames along the swing, from the body to the active hitbox. */
+  private smear(f: Fighter, b: { x: number; y: number }, i: number, big: boolean): void {
+    const ch = CHARACTERS[f.char];
+    const k = f.scale / 100;
+    const hw = ch.height * W * k;
+    const bx = f.facing * b.x * W * k;
+    const by = b.y * W * k;
+    const cy = hw * 0.5;
+    const t = (i + 1) / 3;
+    const mesh = this.takeSpark(this.smokeMats.streak);
+    mesh.position.set(f.x * S + bx * t * 0.9, f.y * S + cy + (by - cy) * t, FX_Z);
+    mesh.rotation.z = Math.atan2(by - cy, bx || f.facing);
+    this.sparks.push({ mesh, vx: 0, vy: 0, life: 3, max: 3, size: (big ? 0.55 : 0.4) * (0.6 + t * 0.6), stretch: 3, grow: 0 });
+  }
+
+  /** What the reaction layer has done, for the playtest. */
+  reactFxStats(reset = false) {
+    const out = { ...this.reactStats, quality: this.gfx.quality };
+    if (reset) for (const k of Object.keys(this.reactStats) as (keyof typeof this.reactStats)[]) this.reactStats[k] = 0;
+    return out;
+  }
+
   private updateSparks(): void {
+    this.flip.update();
     for (let i = this.sparks.length - 1; i >= 0; i--) {
       const s = this.sparks[i];
       s.mesh.position.x += s.vx;
@@ -627,7 +2386,8 @@ export class Renderer {
       s.vy *= 0.9;
       s.vy -= 0.002;
       const k = --s.life / s.max;
-      s.mesh.scaling.set(k * s.size, k * s.size, 1);
+      const sz = s.grow ? s.size * (1 + (1 - k) * s.grow) * Math.min(1, k * 2) : k * s.size;
+      s.mesh.scaling.set(sz * (s.stretch ?? 1), sz, 1);
       if (s.life <= 0) {
         s.mesh.setEnabled(false);
         this.sparkPool.push(s.mesh);
@@ -657,54 +2417,482 @@ export class Renderer {
     }
   }
 
+  /**
+   * The match camera: frames the box around every living fighter (plus padding and a little of the stage), with
+   * critically damped pan and zoom (smoothDamp: it never snaps, whatever a KO or a respawn does to the box), clamped
+   * to the stage's blast zone and to zoom limits that keep fighters readable. A kill cue punches in on the impact and
+   * eases back out. An intended cut (new stage, rematch) sets it outright and is not counted as a jump.
+   */
   private updateCamera(state: GameState): void {
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
+    const now = performance.now();
+    const dt = Math.min(0.05, Math.max(0.001, (now - (this.camMs || now - 16.7)) / 1000));
+    this.camMs = now;
     const b = this.stage.blast;
-    for (const f of state.fighters) {
-      if (f.action === ACT.DEAD) continue;
-      const x = Math.max(b.left + 200, Math.min(b.right - 200, f.x / FX)) * W;
-      const y = Math.max(b.bottom + 200, Math.min(b.top - 150, f.y / FX)) * W;
-      const h = CHARACTERS[f.char].height * W * (f.scale / 100);
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y + h);
-    }
-    if (minX === Infinity) {
-      minX = -3;
-      maxX = 3;
-      minY = 0;
-      maxY = 2;
-    }
-    // Keep some of the stage in frame so players never lose their footing.
-    minX = Math.min(minX, -2.5);
-    maxX = Math.max(maxX, 2.5);
-    minY = Math.min(minY, -0.4);
-    const pad = 1.6;
-    const width = maxX - minX + pad * 2;
-    const height = maxY - minY + pad * 2;
+    const { live, soon } = cameraFighters(state, this.stage.respawn, this.camLaunch);
+    this.camLaunched = new Set(live.flatMap((c, i) => (c.launched ? [state.fighters.filter((f) => f.action !== ACT.DEAD)[i].id] : [])));
     const aspect = this.engine.getAspectRatio(this.camera);
     const tan = Math.tan(this.camera.fov / 2);
-    // Far enough out for fighters at the ends of the widest stages.
-    const dist = Math.max(10, Math.min(40, Math.max(height / (2 * tan), width / (2 * tan * aspect))));
-    const tx = (minX + maxX) / 2;
-    const ty = (minY + maxY) / 2 + 0.3;
+    const world: CamBounds = { left: b.left * W, right: b.right * W, bottom: b.bottom * W, top: b.top * W };
+    // Phone landscape: the controls cover the bottom of the screen, so the fight is framed in what is left above them.
+    const inset = this.shot || this.intro ? 0 : this.touchInsetNow(aspect, now);
+    let { x: cx, y: cy, d: cd } = frameGoal([...live, ...soon], world, aspect, tan, inset);
 
-    const ease = 0.08;
-    this.camTarget.x += (tx - this.camTarget.x) * ease;
-    this.camTarget.y += (ty - this.camTarget.y) * ease;
-    this.camPos.x = this.camTarget.x;
-    this.camPos.y = this.camTarget.y + dist * 0.06;
-    this.camPos.z += (-dist - this.camPos.z) * ease;
+    let smooth = 0.18;
+    let smoothZoom = 0.25;
+    const freeOrScene = !!this.shot || !!this.freeCam;
+    if (this.freeCam) {
+      cx = this.freeCam.x;
+      cy = this.freeCam.y;
+      cd = this.freeCam.d;
+      smooth = 0.12;
+      smoothZoom = 0.14;
+    } else if (this.shot) {
+      // Story scene: ease slower, like a camera operator, onto the speaker or out to the whole stage.
+      smooth = 0.6;
+      smoothZoom = 0.8;
+      const secs = (now - this.shot.since) / 1000;
+      const f = this.shot.focus === null ? undefined : state.fighters[this.shot.focus];
+      if (f && f.action !== ACT.DEAD && !this.offstage.has(f.id)) {
+        const h = CHARACTERS[f.char].height * W * (f.scale / 100);
+        cx = f.x * S + f.facing * h * 0.35;
+        cy = f.y * S + h * 0.62;
+        cd = Math.max(4.5, h * 3.1) - Math.min(0.8, secs * 0.12);
+      } else {
+        cx = 0;
+        cy = 1.5;
+        cd = Math.max(12, Math.min(30, ((b.right - b.left) * W) / (2 * tan * aspect) * 0.62)) - Math.min(2.5, secs * 0.35);
+      }
+    } else if (this.kill) {
+      this.camTraceNote.koUntil = now + KO_TAIL_S * 1000;
+      // The kill cue's punch-in: toward the impact, closer, quickly; then back out as the punch fades.
+      const t = (now - this.kill.at) / 1000;
+      const p = killPunch(t);
+      ({ x: cx, y: cy, d: cd } = punchGoal({ x: cx, y: cy, d: cd }, this.kill, p, KILL_CUE.punchIn));
+      smooth = 0.12 + 0.16 * (1 - p);
+      smoothZoom = 0.1 + 0.3 * (1 - p);
+      if (this.camStats.lastCue && t < 0.3) this.camStats.lastCue.punch = Math.max(this.camStats.lastCue.punch, p);
+    }
 
+    // Commercial-break angles ease too, so the camera never jumps to the new one.
+    const sideGoal = [0, 1, -1][state.angle] ?? 0;
+    const tiltGoal = state.angle === 2 ? 0.1 : 0;
+    const k = 1 - Math.exp(-dt * 3);
+    this.camSide += (sideGoal - this.camSide) * k;
+    this.camTilt += (tiltGoal - this.camTilt) * k;
+
+    const wasCut = this.camCut;
+    if (this.intro) {
+      // The match intro's fly-in: from a wide shot of the stage's far layers to the fight framing, eased both ends,
+      // set outright each frame (it is a scripted move, not a follow), so it lands exactly where the gameplay camera starts.
+      const ms = now - this.intro.t0;
+      const wideD = Math.max(cd + 3, Math.min(30, ((b.right - b.left) * W) / (2 * tan * aspect) * 0.62));
+      const c = flyCamera({ x: cx - 4, y: cy + 1.6, d: wideD }, { x: cx, y: cy, d: cd }, flyProgress(ms, this.intro.plan.flyMs));
+      this.intro.flyMax = Math.max(this.intro.flyMax, (Math.hypot(c.x - this.camRig.x, c.y - this.camRig.y) + Math.abs(c.d - this.camRig.d)) / dt);
+      this.camRig = { x: c.x, y: c.y, d: c.d, vx: 0, vy: 0, vd: 0 };
+      this.intro.lastD = c.d;
+      this.camCut = false;
+    } else if (this.camCut) {
+      this.camRig = { x: cx, y: cy, d: cd, vx: 0, vy: 0, vd: 0 };
+      this.camSide = sideGoal;
+      this.camTilt = tiltGoal;
+      this.camCut = false;
+    } else if (followCamera(this.camRig, { x: cx, y: cy, d: cd }, { smooth, smoothZoom, dt, tan, side: this.camSide, tilt: this.camTilt, aspect, zoomAsym: !freeOrScene, deadZone: !freeOrScene && !this.kill, keep: freeOrScene ? null : { fighters: live, tan, aspect, bottomInset: inset } }) && !freeOrScene) {
+      // A frame that moved or zoomed past the threshold (scaled for a slow frame) is a jump, scenes aside.
+      this.camStats.cameraJumps++;
+    }
+    this.camTraceNote.cut = freeOrScene || !!this.intro || wasCut;
+    this.camTraceNote.ko = !!this.kill || now < this.camTraceNote.koUntil;
+    this.camTarget.x = this.camRig.x;
+    this.camTarget.y = this.camRig.y;
+    this.camDist = this.camRig.d;
+    const d = this.camDist;
+    this.camPos.x = this.camTarget.x + this.camSide * d * 0.12;
+    this.camPos.y = this.camTarget.y + d * (0.06 + this.camTilt);
+    this.camPos.z = -d;
+
+    // Screen shake off (Settings): the camera stays put, whatever the stage or a hit asked for.
+    // Screen shake 0-100% (Settings): every kick, hit, KO and stage event lands in `this.shake`, scaled here; 0 keeps the camera still.
+    const sScale = shakeScale();
+    if (sScale === 0) this.shake = 0;
     this.shake *= 0.86;
-    const jx = (Math.random() - 0.5) * this.shake * 0.4;
-    const jy = (Math.random() - 0.5) * this.shake * 0.4;
+    this.hitStats.shakeApplied = this.shake * sScale;
+    this.hitStats.shakeMax = Math.max(this.hitStats.shakeMax, this.shake * sScale);
+    const jx = (Math.random() - 0.5) * this.shake * sScale * 0.4;
+    const jy = (Math.random() - 0.5) * this.shake * sScale * 0.4;
     this.camera.position.set(this.camPos.x + jx, this.camPos.y + jy, this.camPos.z);
     this.camera.setTarget(new Vector3(this.camTarget.x + jx, this.camTarget.y + jy, 0));
+  }
+
+  /** Where a fighter's head is on the page in CSS pixels (for on-stage prompts), or null when the fighter is off the stage. */
+  fighterScreen(f: Fighter): { x: number; y: number; scale: number } | null {
+    const canvas = this.engine.getRenderingCanvas();
+    if (!canvas || this.offstage.has(f.id) || f.action === ACT.DEAD) return null;
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const head = (f.y + ((CHARACTERS[f.char]?.height ?? 110) * f.scale * FX) / 100) * S;
+    const foot = f.y * S;
+    const top = Vector3.Project(new Vector3(f.x * S, head, 0), Matrix.IdentityReadOnly, m, vp);
+    const bottom = Vector3.Project(new Vector3(f.x * S, foot, 0), Matrix.IdentityReadOnly, m, vp);
+    const k = canvas.clientWidth / w;
+    return { x: top.x * k, y: top.y * k, scale: Math.abs(bottom.y - top.y) * k };
+  }
+
+  /**
+   * Where a sim x is across the view: 0 at the left edge, 1 at the right, beyond that off screen (the stereo pan of a
+   * sound made there, see roomAudio.panFromScreen). 0.5 when there is no view to ask.
+   */
+  screenX01(simX: number): number {
+    const w = this.engine.getRenderWidth();
+    if (!w) return 0.5;
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const p = Vector3.Project(new Vector3(simX * S, 0, 0), Matrix.IdentityReadOnly, this.scene.getTransformMatrix(), vp);
+    return Number.isFinite(p.x) ? p.x / w : 0.5;
+  }
+
+  /**
+   * Where a living fighter's middle is on the page (CSS px), whether it is out of the view (or cut off by its edge), and how far
+   * it is from the nearest blast line (world units). Null while it is away, dead or in a story scene.
+   */
+  fighterEdge(f: Fighter): { x: number; y: number; off: boolean; gap: number } | null {
+    const canvas = this.engine.getRenderingCanvas();
+    if (!canvas || this.shot || this.camCut || this.offstage.has(f.id) || f.action === ACT.DEAD) return null;
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const mid = f.y * S + (CHARACTERS[f.char].height * W * (f.scale / 100)) / 2;
+    const p = Vector3.Project(new Vector3(f.x * S, mid, 0), Matrix.IdentityReadOnly, m, vp);
+    const k = canvas.clientWidth / w;
+    const cw = w * k;
+    const ch = h * k;
+    const x = p.x * k;
+    const y = p.y * k;
+    const edge = 20;
+    const b = this.stage.blast;
+    const gap = Math.min(f.x / FX - b.left, b.right - f.x / FX, b.top - f.y / FX, f.y / FX - b.bottom);
+    return { x, y, off: x < edge || x > cw - edge || y < edge || y > ch - edge, gap: Math.max(0, gap) };
+  }
+
+  /** Replay free camera target (`null` while in follow mode). */
+  private freeCam: { x: number; y: number; d: number } | null = null;
+
+  /** Switches between the automatic follow camera and a user-controlled free camera for replays. */
+  setFreeCamera(on: boolean): { x: number; y: number; d: number } | null {
+    if (on) {
+      if (!this.freeCam) {
+        this.freeCam = {
+          x: this.camRig.x,
+          y: this.camRig.y + 0.4,
+          d: Math.min(28, Math.max(8, this.camRig.d * 1.22)),
+        };
+      }
+      return { ...this.freeCam };
+    }
+    this.freeCam = null;
+    this.camTraceNote.cut = true;
+    return null;
+  }
+
+  /** Pans and zooms the replay free camera within the stage's blast zone. */
+  panFreeCamera(dx: number, dy: number, dd = 0): void {
+    if (!this.freeCam) return;
+    const b = this.stage.blast;
+    const minX = b.left * W * 0.75;
+    const maxX = b.right * W * 0.75;
+    const minY = b.bottom * W * 0.55;
+    const maxY = b.top * W * 0.75;
+    this.freeCam.x = Math.max(minX, Math.min(maxX, this.freeCam.x + dx));
+    this.freeCam.y = Math.max(minY, Math.min(maxY, this.freeCam.y + dy));
+    this.freeCam.d = Math.max(5, Math.min(32, this.freeCam.d + dd));
+  }
+
+  freeCameraState(): { active: boolean; x: number; y: number; d: number } {
+    return {
+      active: this.freeCam !== null,
+      x: this.freeCam?.x ?? this.camRig.x,
+      y: this.freeCam?.y ?? this.camRig.y,
+      d: this.freeCam?.d ?? this.camRig.d,
+    };
+  }
+
+  /** After a render: counts a living fighter whose body is outside the view (the playtest wants none). */
+  private checkFraming(state: GameState): void {
+    const note = this.camTraceNote;
+    if (this.shot || this.camCut || this.intro || this.freeCam || note.cut) {
+      this.camTraceBuf.length = 0;
+      return;
+    }
+    const w = this.engine.getRenderWidth();
+    const h = this.engine.getRenderHeight();
+    const vp = this.camera.viewport.toGlobal(w, h);
+    const m = this.scene.getTransformMatrix();
+    const f2: CamSample['f'] = [];
+    for (const f of state.fighters) {
+      if (f.action === ACT.DEAD || this.offstage.has(f.id)) continue;
+      const wx = f.x * S;
+      const wy = f.y * S;
+      const gone = f.x / FX <= this.stage.blast.left || f.x / FX >= this.stage.blast.right || f.y / FX >= this.stage.blast.top || f.y / FX <= this.stage.blast.bottom;
+      const p = Vector3.Project(new Vector3(wx, wy, 0), Matrix.IdentityReadOnly, m, vp);
+      const hd = Vector3.Project(new Vector3(wx, wy + (CHARACTERS[f.char].height * W * (f.scale / 100)), 0), Matrix.IdentityReadOnly, m, vp);
+      // Launched fighters are the offscreen bubble's job for a moment (the camera lets them fly, then brings them back).
+      f2.push({ x: p.x / w, y: p.y / h, top: hd.y / h, exempt: gone || this.camLaunched.has(f.id) });
+      if (gone || this.camLaunched.has(f.id)) continue;
+      if (p.x < 0 || p.x > w || p.y < 0 || p.y > h) this.camStats.framingMisses++;
+    }
+    const shaking = screenShake() && this.shake > 0.05;
+    this.camTraceBuf.push({ t: performance.now() / 1000, x: this.camRig.x, y: this.camRig.y, d: this.camRig.d, shake: shaking, ko: note.ko, cut: false, f: f2 });
+    if (this.camTraceBuf.length > 60 * 400) this.camTraceBuf.splice(0, 60 * 20);
+  }
+
+  /**
+   * Story-scene camera: `focus` a fighter id for a close-up, null for a wide shot of the stage that slowly
+   * pushes in; `direct(null)` hands the camera back to the fight. The camera always eases, never cuts.
+   */
+  direct(shot: { focus: number | null } | null): void {
+    this.shot = shot ? { focus: shot.focus, since: performance.now() } : null;
+  }
+
+  /** Keeps a fighter off stage (before their arrival in a story scene), or brings them back without one. */
+  holdOffstage(id: number, held: boolean): void {
+    if (held) this.offstage.add(id);
+    else this.offstage.delete(id);
+  }
+
+  /** A fighter's entrance: drops in from above and lands with dust, a thud and a small shake. */
+  arrive(id: number): void {
+    this.offstage.delete(id);
+    this.arriving.set(id, performance.now());
+  }
+
+  /** The speaker of a story line gives a little bounce as they start talking. */
+  cue(id: number): void {
+    this.talking.set(id, performance.now());
+  }
+
+  /** Kicks the camera (slams: ROUND START, GAME!). 0.3 is a medium hit. */
+  kick(amount: number): void {
+    this.shake = Math.max(this.shake, amount);
+  }
+
+  // ---------------------------------------------------------------- the match intro (campaign/intro.ts)
+
+  /** Starts the intro: the fly-in camera and each fighter's entrance run from this moment (until `introEnd`). */
+  introBegin(plan: IntroPlan): void {
+    this.intro = { t0: performance.now(), plan, fired: new Map(), poses: new Map(), beats: 0, flyMax: 0, lastD: 0 };
+    for (const e of plan.entries) this.intro.poses.set(e.slot, entrancePose(e.kind, -1, e.from));
+    this.camMs = 0;
+  }
+
+  /** Ends the intro (it ran out or was skipped): everyone stands where the sim has them and the gameplay camera follows on. */
+  introEnd(): void {
+    this.intro = null;
+    for (const m of this.introProps.values()) m.setEnabled(false);
+    this.camMs = 0;
+  }
+
+  introActive(): boolean {
+    return this.intro !== null;
+  }
+
+  /** Where the intro is, for the playtest: the clock, the camera's distance, the fastest camera move (units per second) and the beats fired. */
+  introStats(): { active: boolean; ms: number; camDist: number; camX: number; maxSpeed: number; beats: number; kinds: string[] } {
+    const i = this.intro;
+    return { active: !!i, ms: i ? Math.round(performance.now() - i.t0) : 0, camDist: this.camRig.d, camX: this.camRig.x, maxSpeed: i?.flyMax ?? 0, beats: i?.beats ?? 0, kinds: i ? i.plan.entries.map((e) => `${e.who}:${e.kind}`) : [] };
+  }
+
+  /** A flat additive material in a colour, for the intro's coloured sparks, rings and spotlights. */
+  private introMat(hex: string, tex?: DynamicTexture): StandardMaterial {
+    const key = `${hex}|${tex?.name ?? ''}`;
+    let m = this.introMats.get(key);
+    if (!m) {
+      m = this.sparkMat.clone(`intro-${key}`);
+      m.emissiveColor = Color3.FromHexString(hex);
+      if (tex) {
+        m.diffuseTexture = tex;
+        m.opacityTexture = tex;
+        m.emissiveTexture = tex;
+      }
+      this.introMats.set(key, m);
+    }
+    return m;
+  }
+
+  /** A small painted prop texture: the skateboard, the cable and the spotlight's cone. */
+  private introTex(kind: 'board' | 'cable' | 'spot'): DynamicTexture {
+    const name = `intro-${kind}`;
+    const found = this.scene.getTextureByName(name);
+    if (found) return found as DynamicTexture;
+    const [w, h] = kind === 'board' ? [128, 32] : kind === 'cable' ? [8, 64] : [64, 128];
+    const t = new DynamicTexture(name, { width: w, height: h }, this.scene, false);
+    const c = t.getContext() as CanvasRenderingContext2D;
+    c.clearRect(0, 0, w, h);
+    if (kind === 'board') {
+      c.fillStyle = '#e8e0d0';
+      for (const x of [28, 100]) {
+        c.beginPath();
+        c.arc(x, 24, 6, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.fillStyle = '#7d7468';
+      c.fillRect(24, 16, 8, 4);
+      c.fillRect(96, 16, 8, 4);
+      c.fillStyle = '#2b2118';
+      c.beginPath();
+      c.roundRect(6, 6, 116, 11, 5);
+      c.fill();
+      c.fillStyle = '#ff5a1f';
+      c.fillRect(14, 9, 100, 3);
+    } else if (kind === 'cable') {
+      c.fillStyle = '#3a3a40';
+      c.fillRect(2, 0, 4, h);
+      c.fillStyle = '#9a9aa6';
+      c.fillRect(3, 0, 1, h);
+    } else {
+      // A cone of light, narrow at the top, wide at the floor, soft at the edges.
+      const g = c.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, 'rgba(255,255,255,0.35)');
+      g.addColorStop(1, 'rgba(255,255,255,0.95)');
+      c.fillStyle = g;
+      c.beginPath();
+      c.moveTo(w * 0.42, 0);
+      c.lineTo(w * 0.58, 0);
+      c.lineTo(w * 0.98, h);
+      c.lineTo(w * 0.02, h);
+      c.closePath();
+      c.fill();
+    }
+    t.hasAlpha = true;
+    t.update();
+    return t;
+  }
+
+  /** The prop mesh of one fighter's entrance (made on first use, then reused). */
+  private introProp(slot: number, kind: 'board' | 'cable' | 'spot', color: string): Mesh {
+    let m = this.introProps.get(slot);
+    const tag = `${kind}|${color}`;
+    if (!m || m.metadata !== tag) {
+      m?.dispose();
+      m = CreatePlane(`intro-prop-${slot}`, { size: 1 }, this.scene);
+      m.isPickable = false;
+      m.metadata = tag;
+      const tex = this.introTex(kind);
+      if (kind === 'spot') m.material = this.introMat(color, tex);
+      else {
+        const mat = this.flatMaterial(`intro-${kind}-${slot}`, '#ffffff');
+        mat.diffuseTexture = tex;
+        mat.emissiveTexture = tex;
+        mat.opacityTexture = tex;
+        mat.disableDepthWrite = true;
+        m.material = mat;
+      }
+      this.glow.addExcludedMesh(m);
+      this.introProps.set(slot, m);
+    }
+    return m;
+  }
+
+  /** One frame of the intro: each entrance's pose, the beats it has passed and its prop. */
+  private introTick(state: GameState): void {
+    const intro = this.intro!;
+    const ms = performance.now() - intro.t0;
+    for (const e of intro.plan.entries) {
+      const f = state.fighters[e.slot];
+      const v = this.views[e.slot];
+      if (!f || !v) continue;
+      const k = (ms - e.startMs) / e.durMs;
+      const pose = entrancePose(e.kind, k, e.from);
+      intro.poses.set(e.slot, pose);
+      const h = CHARACTERS[f.char].height * W * ART_SCALE * (f.scale / 100);
+      const fx = f.x * S + pose.dx * h;
+      const fy = f.y * S + pose.dy * h;
+      const beats = entranceBeats(e.kind);
+      let i = intro.fired.get(e.slot) ?? 0;
+      while (i < beats.length && k >= beats[i].at) {
+        this.introBeat(e.slot, e.who, beats[i], fx, f.y * S, fy, h, e.from, e.color);
+        intro.beats++;
+        i++;
+      }
+      intro.fired.set(e.slot, i);
+      const mesh = pose.prop && k < 1.2 ? this.introProp(e.slot, pose.prop.kind, e.color) : this.introProps.get(e.slot);
+      if (!mesh) continue;
+      if (!pose.prop || pose.hidden) {
+        mesh.setEnabled(false);
+        continue;
+      }
+      const p = pose.prop;
+      mesh.setEnabled(p.alpha > 0.01);
+      const px = f.x * S + p.dx * h;
+      if (p.kind === 'board') {
+        mesh.position.set(px, f.y * S + p.dy * h + h * 0.07, 0.03);
+        mesh.scaling.set(h * 0.75, h * 0.19, 1);
+        (mesh.material as StandardMaterial).alpha = p.alpha;
+      } else if (p.kind === 'cable') {
+        const len = (p.len ?? 4) * h;
+        mesh.position.set(px, f.y * S + p.dy * h + len / 2, 0.02);
+        mesh.scaling.set(0.07, len, 1);
+        (mesh.material as StandardMaterial).alpha = p.alpha;
+      } else {
+        const len = (p.len ?? 4) * h;
+        mesh.position.set(px, f.y * S + len / 2, 0.04);
+        mesh.scaling.set(h * 1.9, len, 1);
+        (mesh.material as StandardMaterial).alpha = p.alpha;
+      }
+      mesh.rotation.z = p.rot;
+    }
+  }
+
+  /** One beat of an entrance: sparks, a shake, the thud of a landing. `fx`/`fy` is where the feet are, `floor` where the ground is. */
+  private introBeat(slot: number, who: string, b: { fx: BeatFx; kick?: number; n?: number }, fx: number, floor: number, fy: number, h: number, from: number, color: string): void {
+    const n = b.n ?? 8;
+    const tint = this.introMat(color);
+    switch (b.fx) {
+      case 'dust':
+        this.burst(fx, floor + 0.02, n, 0.06);
+        break;
+      case 'thud':
+        this.burst(fx, floor + 0.02, n, 0.08);
+        this.onSound?.('land');
+        this.onSynth?.('thud');
+        break;
+      case 'clank':
+        this.burst(fx, fy + h * 0.5, n, 0.05, this.introMat('#ffd9a0'));
+        this.onSound?.('land');
+        break;
+      case 'ring': {
+        const mesh = this.takeSpark(tint);
+        mesh.position.set(fx, floor + 0.05, -0.38);
+        mesh.rotation.z = 0;
+        this.sparks.push({ mesh, vx: 0, vy: 0, life: 20, max: 20, size: 0.7, grow: 5, stretch: 2.2 });
+        break;
+      }
+      case 'spark':
+        this.burst(fx, fy + h * 0.5, n, 0.07, tint);
+        break;
+      case 'streak':
+        for (let i = 0; i < Math.ceil(n * particleShare(this.gfx.quality)); i++) {
+          const mesh = this.takeSpark(tint);
+          mesh.position.set(fx - from * (0.1 + Math.random() * 0.5), fy + h * (0.15 + Math.random() * 0.7), -0.4);
+          mesh.rotation.z = 0;
+          this.sparks.push({ mesh, vx: -from * 0.01, vy: 0, life: 9 + Math.floor(Math.random() * 6), max: 14, size: 0.28 + Math.random() * 0.22, stretch: 4 });
+        }
+        break;
+      case 'flash':
+        // A lightning strike or a flashbulb: the screen whitens for a few frames and sparks fly off the fighter.
+        this.flashScreen(Color3.White(), b.kick ? 0.5 : 0.28);
+        this.burst(fx + (Math.random() - 0.5) * h * 0.8, fy + h * (0.4 + Math.random() * 0.6), n, 0.05, this.introMat('#ffffff'));
+        break;
+      case 'snap':
+        this.burst(fx, fy + h * 1.05, n, 0.06, this.introMat('#fff0a0'));
+        this.onSynth?.('whoosh');
+        break;
+      case 'taunt':
+        break;
+    }
+    if (b.kick) this.kick(b.kick);
+    this.onIntroBeat?.(slot, who, b.fx);
   }
 
   /** A match moment the stage's effects can react to: 'start' when play begins, 'end' at Game! */
@@ -715,12 +2903,14 @@ export class Renderer {
 
   /** Frees the engine (devtools previews come and go). */
   dispose(): void {
+    this.alive?.dispose();
     this.fx?.dispose();
     this.engine.dispose();
   }
 
   /** Points the camera at the stage, for menus that show it behind them. */
   frameStage(): void {
+    this.camCut = true;
     this.camTarget.set(0, 1.4, 0);
     this.camPos.set(0, 1.9, -16);
     this.camera.position.copyFrom(this.camPos);
@@ -740,7 +2930,8 @@ function proceduralPose(f: Fighter, stage: StageDef): [number, number, number, n
   const t = f.frame;
   switch (f.action) {
     case ACT.WALK:
-      return [1, 1, -f.facing * 0.06, Math.abs(Math.sin(t * 0.35)) * 0.04];
+      // The bob follows the ground covered (as fast as the old clock at full walking speed), so a slow walk doesn't skate.
+      return [1, 1, -f.facing * 0.06, Math.abs(Math.sin((f.x * f.facing * 0.35) / ch.walkSpeed)) * 0.04];
     case ACT.CROUCH:
       return [1.08, 0.78, 0, 0];
     case ACT.JUMPSQUAT:
@@ -751,9 +2942,12 @@ function proceduralPose(f: Fighter, stage: StageDef): [number, number, number, n
       return f.vy > 0 ? [0.96, 1.05, 0, 0] : [1.02, 0.98, 0, 0];
     case ACT.ATTACK: {
       const m = ch.moves[f.move];
-      const w = m.hits[0];
+      // Throws, traps and counters have no hit window: they lean in around the moment they take effect.
+      const w = m.hits[0] ?? { start: m.shot?.frame ?? m.counter?.from ?? 4, end: (m.shot?.frame ?? m.counter?.from ?? 4) + 3, boxes: [{ x: 40, y: ch.height * 0.5 }] };
       const b = w.boxes[0];
       const ang = Math.atan2(b.y - ch.height * 0.5, b.x);
+      if (m.kind === 'recovery' && m.helpless && t > w.start) return [1, 1, f.facing * t * 0.5, 0];
+      if (m.kind === 'counter') return t >= w.start ? [1.06, 0.94, 0, 0] : [0.98, 1.03, 0, 0];
       if (f.move === MOVE.UPB && t > w.start) return [1, 1, f.facing * t * 0.5, 0];
       if (t < w.start) {
         // Wind up away from the hit.
@@ -767,6 +2961,14 @@ function proceduralPose(f: Fighter, stage: StageDef): [number, number, number, n
       const speed = Math.hypot(f.kbx, f.kby) / FX;
       return [1, 1, speed > 8 ? f.facing * t * 0.35 : f.facing * 0.25, 0];
     }
+    case ACT.GRAB:
+      return t < GRAB_FIRST ? [1, 1, 0, 0] : [1.1, 1, -f.facing * 0.2, 0];
+    case ACT.GRAB_HOLD:
+      return [1.04, 0.97, -f.facing * 0.12, 0];
+    case ACT.THROW:
+      return [1.08, 1, f.facing * (f.throwKind === 2 ? -0.2 : 0.2), 0];
+    case ACT.GRABBED:
+      return [0.96, 1.02, f.facing * Math.sin(t * 0.8) * 0.12, 0];
     case ACT.HELPLESS:
       return [1, 1, Math.sin(t * 0.3) * 0.15, 0];
     case ACT.DIZZY:
@@ -857,6 +3059,49 @@ function paintProps(ctx: CanvasRenderingContext2D, props: StageDef['theme']['pro
       break;
   }
   ctx.restore();
+}
+
+const prefetched = new Map<string, Promise<void>>();
+
+/**
+ * Starts fetching fighters' art and every clip sheet into the browser cache, with no match or scene
+ * needed: called the moment fighters are picked, so setFighters and the VS card find them ready.
+ * Never throws; a failed fetch is simply retried by the real load.
+ */
+export function prefetchFighters(chars: number[]): Promise<void> {
+  const all = [...new Set(chars)].map((c) => {
+    const id = CHARACTERS[c].id;
+    let p = prefetched.get(id);
+    if (!p) {
+      p = (async () => {
+        const [, anims] = await Promise.all([loadArt(`/characters/large/${id}.webp`).catch(() => null), loadAnimSet(id)]);
+        if (!anims) return;
+        const quality = graphics().quality;
+        await Promise.all(Object.values(anims.clips).map((clip) => new Promise<void>((done) => {
+          const img = new Image();
+          img.onload = img.onerror = () => done();
+          img.src = `${anims.base}${clipSheetFile(clip, quality)}?v=${anims.version}`;
+        })));
+      })();
+      prefetched.set(id, p);
+    }
+    return p;
+  });
+  return Promise.all(all).then(() => undefined, () => undefined);
+}
+
+const prefetchedStages = new Set<number>();
+
+/** Starts fetching a stage's painted layers into the browser cache (on hover/focus in Stage Select, or when a chapter starts), so warmUp doesn't wait on them. */
+export function prefetchStage(stage: number): void {
+  if (prefetchedStages.has(stage)) return;
+  prefetchedStages.add(stage);
+  const st = STAGES[stage];
+  for (const l of st ? layersFor(st, graphics().quality === 'high') : []) {
+    if (l.hidden || !l.image) continue;
+    const img = new Image();
+    img.src = `/${l.image}`;
+  }
 }
 
 const artCache = new Map<string, Promise<HTMLCanvasElement>>();

@@ -48,6 +48,7 @@ the lobby, the match rooms and the leaderboard's store. The public Nostr relays 
 | `pairing.ts` | the pairing rule (pure) |
 | `matchmaker.ts` | the queue: pairing, the handshake, the host's setup |
 | `rollback.ts` | rollback netcode (pure) |
+| `quality.ts` | input delay from the ping and the connection bars (pure) |
 | `fight.ts` | one online fight: the `Match` through the rollback over the link; how it ends |
 | `results.ts` | the match-result event |
 | `profile.ts` | name and picture in localStorage; the profile key (the leaderboard's player id) |
@@ -68,6 +69,25 @@ installed, Hawkes Net unreachable, a menu that throws) goes to `console.error("[
 online; on the dev server, Vite's error overlay for the online chunk is taken down so it can't cover the menus.
 Keep it that way: a new static import of `net/` or `ui/online|leaderboard` from `main.ts` or `dod.ts` brings back
 beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
+
+## Invite a friend
+
+J, 2026-11-14: "Add Online > Invite a friend: it makes a private room on Hawkes Net and offers the link through
+navigator.share with a copy fallback. Opening the link goes past the title straight into that room's lobby. A full or
+closed room says so and offers quick match. No polling: use the room's push events." (`?room=` stays the playtests'
+test lobby.)
+
+- Main menu **Invite a friend** (`ui/online.ts` `inviteFriend`): makes a 6-character code (`net/invite.ts`), opens the
+  Invite panel with the link (`<game page>?invite=CODE`) and, in the same tap, hands it to `navigator.share`; with no
+  share sheet it copies it (or selects it); closing the sheet is "Not shared", never an error. Share and Copy link stay on the panel.
+- The room is a Hawkes Net relay room `i/<code>` (`roomName`; test rooms and beta stay apart from live), two players at
+  most. Both sides say `hi` (id, name, picture, host) on the room's `peer:join` push; nothing polls. A third player's join is refused
+  by Hawkes Net (code 4009 / `full`): "That room is full" with **Quick match**. A guest who hears no host in 7 s, or whose host
+  leaves, gets "That invite has ended" with Quick match.
+- Once both know each other, `Matchmaker.invite(partner, host)` runs the same hello/ok handshake and match room as Find
+  match with no queue (host searches 1, guest 2), then the usual Match found countdown. The invite room is left then.
+- Opening a link (`main.ts`): after Tap to play it goes straight to the main menu and opens that room's panel; the first-visit pilot is skipped.
+- Playtest: scenario `invite` (peers: 2; the test lobby's code is always `TEST42`); `dod:invite` events (open, state, friend, shared, copied, closed).
 
 ## The lobby
 
@@ -173,6 +193,36 @@ beta's "page never exposed window.hawkesPlaytest" (2026-10-18).
   (back to the menu and straight into the queue) or Main menu.
 - Online matches: 3 stocks, 5 minutes, a random Versus stage (its Versus rules), no pause.
 
+## Rematch
+
+After a finished game (the sim's end or time, not a quit, a lost link or a void) the match room stays open
+(`OnlineFight.holdRoom`) and the results offer **Rematch**, Queue again and Main menu (`net/rematch.ts` protocol,
+`ui/rematch.ts` panel, wired in `main.ts` `onlineEnded`). Both press Rematch within 15 s of the result; then a 12 s
+quick pick: a scrollable row of the fighters you have unlocked, defaulting to your last pick, and, if you lost the last
+game, a stage row (the loser picks; a draw or no pick: random from the Versus list). Messages on the room: `rm`
+(`want` / `no`), `rp` (a locked pick), `rn` (the host's new `OnlineSetup`, checked by the guest). Each game is a new
+match id with its own start and result signatures, so ratings and the leaderboard stay per game. Queue again, Main menu,
+the room closing or the clock all end it: the other side sees "<name> left. Queue again?" and Queue again is one tap.
+Check: `src/game/test/rematch.test.ts`; scenario `rematch` (peers: 2, taps only).
+
+## Reconnecting
+
+A dropped connection is not the end of a match (`net/room.ts`, `net/fight.ts`). The **room decides**, with no outside
+watchdog: when the other player's connection goes (they leave the Hawkes Net room, go quiet for 6 s, or tell us their app
+went to the background) or ours does (`reconnecting`, or a cut), the room opens a **10 s rejoin window** (`REJOIN_MS`) and
+emits `away`. The fight stops the sim on both sides (it stands on its last frame; `waiting()` reads
+"Reconnecting… N s", the banner `#net-status.reconnecting`, top centre, clear of the touch controls at the bottom corners)
+and keeps sending inputs. The same player id heard again on a new connection (`~hi`) emits `back`: both sides carry on from
+the last confirmed frame, and the rollback re-runs whatever was guessed past it when the resent inputs arrive, so stocks and
+percents are where they were.
+- A window that runs out ends the match as a **disconnect** (`dropped`, or `self-dropped` if it was ours): the one still
+  there wins, and it is **not rated** (`rate()` returns null).
+- The same player dropping **3 times** in a match (`MAX_DROPS`) forfeits it: a quit, rated. Switching apps (`~away`/`~back`,
+  page visibility) does not count as a drop but has the same 10 s.
+- An explicit goodbye (`~bye`: Leave match) is still a forfeit at once.
+- Playtest: scenario `reconnect` (peers: 2) cuts peer 1's connection for 3 s through `cutLink()`, then for 14 s; the page
+  fires `dod:reconnect` (away / back with frame, stocks, percents).
+
 ## The match-result event (the leaderboard's hook)
 
 Every online match that ends fires once on each player's page, with the same `matchId` on both:
@@ -254,6 +304,16 @@ one they lost (refuse to sign and claim the other left: two claims void). Keys l
 starts a new profile at 1000, and many fresh profiles can farm one another (the pair limit slows it). Results from
 the Nostr days (before 2026-10-26) live only in the players' caches.
 
+## Tonight's Episode (the daily board)
+
+One seeded fight a day, picked from the UTC date (`campaign/daily.ts`, pure, tested in `src/game/test/daily.test.ts`).
+A cleared run's score is a signed Hawkes Net record (kind 30078, `net/daily.ts`): tag `hawkes-dod/daily/<lobby>/<date>`
+(lobby `global` live, `beta`, `test-<room>` for `?room`), `d` = the same per player, so a player has one line a night
+and only a better score is sent. The board is read **once**, when the results open (`RecordsPool.fetchOnce`: no
+subscription, no timer), checked (signature, tag, date, 1..3000) and shown best first with the player's own line even if
+the read missed it. The streak and the night's best are local (`dod.daily`). Scores are client-reported like the rest of
+the board: signed, not provable. Off the live site `?daily=YYYY-MM-DD` plays another date (so two playtest tabs agree).
+
 ## All platforms
 
 - Desktop, phone and tablet in Chrome, Safari and Firefox: WebSocket, WebCrypto and WebRTC data channels are all the
@@ -285,3 +345,19 @@ the Nostr days (before 2026-10-26) live only in the players' caches.
   only reads builds the same table from Hawkes Net's records.
 - The playtest scenario `online` (Hawkes Gen `playtest.run` with `peers: 2`): see AGENTS.md. After the match each
   peer checks its rating change and the Leaderboard (both tabs: winner #1 at 1000 + d, loser #2 at 1000 − d).
+
+
+## Delay and the bars
+
+- **Input delay is measured, not fixed** (`quality.ts` `delayForRtt`: about ping / 2 in frames, clamped 1 to 4). The pair room pings every
+  second, so by the time both pages have loaded the match each side has a round trip (`PairRoom.rttAvg`). The guest's `go`
+  message carries its ping; when both are loaded the host takes the worse of the two (`agreedDelay`), applies it
+  (`Rollback.setDelay`, only before frame 0) and sends it as a reliable `dl` message. The guest does not tick until `dl`
+  arrives, so both sims run the same delay. No reading keeps the old 2. The rollback window stays 8 frames.
+- **Connection bars** (`.conn-bars`, in each HUD card's meta row beside the stocks, so the phone layout, which hides the name,
+  still shows them and they never touch the percent): 1-4 bars lit from the ping (`barsFor`: under 50 ms 4, under 100 3,
+  under 170 2, else 1; a stall in the last 3 s costs one). Our bars use our ping; the other player's use the ping they
+  report (`pg`, every 2 s), falling back to ours.
+- **Playtest**: events `net-delay`, `net-bars`, `net-stats`; metrics `netDelay`, `netPing`, `netRollbacks`, `netRolledFrames`,
+  `netMaxRolled`, `netStalls` (stalled ticks), `netStallShare`. Off the live site `?netlag=150` adds that much to every frame a page
+  sends, and `?netdelay=2` forces the old fixed delay, to compare stalls.

@@ -1,0 +1,28 @@
+# The gate for work going into beta: typecheck and the tests.
+# beta-automerge.yml waits for every other check on a pull request and refuses to merge when one fails,
+# so a change whose tests fail stops here, at the pull request.
+name: Checks
+on:
+  pull_request:
+    branches: [beta]
+  push:
+    branches: [beta]
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test

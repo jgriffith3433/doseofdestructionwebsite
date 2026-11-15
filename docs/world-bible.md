@@ -1,0 +1,609 @@
+# Dose of Destruction: world bible
+
+Dose of Destruction is a midnight TV fight show. The world is the Foundry city and every stage the network can put
+on air. Players do not walk an open map: they drop into a live arena for each bout. "Never more than about 10
+seconds without something to see, hear or do" means on a stage: dressing, a landmark, life that moves on its own,
+ambient sound and several kinds of interaction in every bout. Story is told in the arena (live intro and outro
+scenes with arrivals, camera, voice and crowd), never on a text screen. The campaign bible is `docs/story.md`; this
+file is the place bible agents build to. **The Mechanic is candidate canon only** (origin short, not confirmed): do
+not put him on the card or in episode lines until J confirms.
+
+## Areas
+
+Each area is a broadcast stage the Foundry floor (or a cutaway feed) can become. Size is fight-scale: blast zones
+and platforms a bout fits on, not a city block. You get in by the campaign card, Versus, Training or an online pair
+room; you get out by Game!, Quit, or the season map. Mood and sound below are what a bout should feel like; gaps
+call out where the live build is still thin.
+
+### The Foundry floor — Humans In The Loop
+- **Mood:** home set, sold-out arena, the show that never goes dark.
+- **Look / sound:** truss towers, spot and strobe beams, flight cases, floor wedges, a packed crowd ring, cables in
+  front. Layered bed: arena murmur (`bed: arena`) under `music-foundry` ambience + theme `music-humans-in-the-loop`;
+  lifts on last stock / 100%; final-KO sting. Crowd noise, cheer on every KO (`go-wild`).
+- **Size:** wide main deck with side platforms; the camera opens wide for scene cards then tightens on speakers.
+- **Moves:** the light truss over centre deck drifts across the stage, about 190 units either way over 15 s: a rider crosses high. Layout, not a hazard: Hazards Off keeps it.
+- **In / out:** Season 1 Encore, Season 2 Sponsored, Season 3 Walk-On, Season 5 Clip Show, Season 8 Best in Show,
+  Season 10 First Cut. The city tunes here first every midnight.
+- **Now:** strongest "show" stage (crowd + KO reaction). **Short:** no day/night shift of the house lights outside
+  a bout; booth is heard, not seen as a place you can visit.
+
+### City Top
+- **Mood:** LA rooftops at night, fireworks when someone falls, the first roof of the series.
+- **Look / sound:** skyline backdrop, water tower, fire escape, billboard catwalk, skylight canopy, antenna.
+  Layered bed: night wind/city hum (`bed: city-night`) under `music-rooftop` ambience + theme `music-city-top`;
+  lifts on last stock / 100%; final-KO sting. Fireworks on falls.
+- **Size:** long main roof, side ledges, a high solid perch; blast left/right into the city.
+- **Moves:** the two inner catwalks fade out and back on a steady 10 s timer (flash 1.5 s, gone 3 s, half a cycle apart, so one is always up). Layout, not a hazard: Hazards Off keeps them.
+- **In / out:** Open Mic, Title Defense, Cold Open, Pilot Remake, Series Finale, Teaser, Final Cut (and returns).
+- **Now:** painted and playable. **Short / vertical-slice fix:** add a soft timed beat every ~8–10 s (billboard
+  flicker, distant firework volley, or antenna spark) plus denser night wind and city hum so stalling never leaves a
+  dead roof. Fireworks-on-KO alone is not enough breathing between hits.
+
+### Yo House
+- **Mood:** bright living-room absurdity; the sponsor's living set.
+- **Look / sound:** hardwood, fish tank, sofa, yoga corner, exercise ball, doorway frame, fern. Layered bed: room
+  tone (`bed: indoor`) under a quiet `music-drift` ambience + theme `music-yo-house`; lifts on last stock / 100%;
+  final-KO sting. Vacuum whirr and bubbler events.
+- **Size:** indoor box with tank and furniture platforms.
+- **In / out:** House Heavy, Product Placement, Laugh Track, Best Supporting.
+- **Now:** vacuum and bubbler events keep the floor alive. **Short:** fish are mostly art; they should dart on their
+  own between events.
+
+### Solar Array
+- **Mood:** hard sun, industrial desert, panels that do not care who is standing on them.
+- **Look / sound:** mesa, panel pylons, sun-tracking plates, foreground rocks. Layered bed: sun glare hum
+  (`bed: solar`) under `music-drift` ambience + theme `music-solar-array`; lifts on last stock / 100%; final-KO sting.
+  Panel motors on `sun-tracking`.
+- **Size:** mesa floor under tilting panels.
+- **In / out:** Bad Signal, Hostile Takeover, Dead Air, Red Carpet.
+- **Now:** `sun-tracking` tilts platforms away on a timer. **Quiet routine (Red Carpet, `hazards: 0`):** panels stay
+  still (carpet must not scuff) but motor ticks keep time every few seconds, sun glare shimmers on the plate faces, and
+  desert hush stays dense — a silent carpet that still feels like a lit set, not a stripped stage.
+
+### Dust Devil Mesa (`desert`)
+- **Mood:** salt flats, wind-carved stone, something hunting overhead.
+- **Look / sound:** rock arch, buttes, lakebed, sage, dust wall, circling hawk. Layered bed: dry wind (`bed: desert`)
+  under `music-drift` ambience + theme `music-desert`; lifts on last stock / 100%; final-KO sting. Gusts and hawk dives.
+- **Size:** arch climb over flats with side boulders.
+- **In / out:** Low Pressure, Rerun, Prime Time, Table Read.
+- **Now:** `dust-gust` and `hawk-dive` on timers. **Short:** wind should keep moving dust between storms.
+
+### Watercolor Nebula
+- **Mood:** soft, floaty, a paint sky that never dries.
+- **Look / sound:** spiral puddles, underwash, cloud banks, drift swirls, dripping wisps. Layered bed: soft nebula
+  tone (`bed: nebula`) under `music-drift` ambience + theme `music-watercolor-nebula`; lifts on last stock / 100%;
+  final-KO sting. Pigment rain and drift.
+- **Size:** stacked floating islands with long falls.
+- **In / out:** Turn the Page, Simulcast, Global Feed.
+- **Now:** `pigment-rain` and `nebula-drift`. **Short:** islands should breathe (slow bob) even when no event is up.
+
+### Cursed Town
+- **Mood:** fog streets you do not walk; rooftops only; something below.
+- **Look / sound:** gabled houses, street beam, tentacles, surge fog. Layered bed: fog hush (`bed: fog`) under
+  `music-pit` ambience + theme `music-cursed-town`; lifts on last stock / 100%; final-KO sting. Fog surge and Presence.
+- **Size:** opposing roofs over a lethal street.
+- **In / out:** Sudden Death, Champion's Tax, Cliffhanger.
+- **Now:** `fog-surge` and `presence`. **Short:** tentacles should twitch between surges so the street never reads dead.
+
+### Space Chess
+- **Mood:** cold void, formal board, a king that falls when someone does.
+- **Look / sound:** chessboard, floating squares, drifting pawn, white and black kings. Layered bed: void hum
+  (`bed: void`) under `music-pit` ambience + theme `music-space-chess`; lifts on last stock / 100%; final-KO sting.
+  Kings topple on KO.
+- **Size:** flat board with side floats.
+- **Moves:** the two inner floating squares drift in and out together, 50 units either way over 9 s, never touching the outer pairs. Layout, not a hazard: Hazards Off keeps them.
+- **In / out:** Dead Weight, Cut to Size, Standards and Practices, Lifetime Achievement.
+- **Now:** `king-falls` on KO. **Short:** pawn drift should be constant; board needs more idle motion when nobody falls.
+
+### Rainbow Full Pipe
+- **Mood:** sunny skate park, ramps and decks, a skater who drops in whether you are ready.
+- **Look / sound:** full pipe, grind rail, decks, park trees, Drop In! sign. Layered bed: park chatter tone
+  (`bed: park`) under `music-rooftop` ambience + theme `music-rainbow-full-pipe`; lifts on last stock / 100%;
+  final-KO sting. Drop In! skater (or quiet affiliate riders).
+- **Size:** pipe and decks with vertical play.
+- **In / out:** Drop In, Local Affiliate, Crossover Event, Trailer.
+- **Now:** `drop-in` skater on a timer (can be silenced with `hazards: 0`). **Quiet routine (Local Affiliate,
+  `hazards: 0`):** no Drop In! hitbox, but two silhouette park riders carve the pipe about every 8 s (scenery only),
+  denser park chatter and board-scrape beds so the underfunded affiliate still feels busy.
+
+### The booth (not a selectable stage)
+- **Mood:** live television from above the card.
+- **Look / sound:** announcer calls and Blog Man's too-long headlines as captions and voice; procedural crowd under
+  them. ON AIR bug and Tonight ticker on the menu.
+- **In / out:** every Versus and campaign fight (not Training, not online).
+- **Now:** kinds of call and Blog Man intros exist. **Short:** lines are often caption-only (no take); the booth is
+  not a place you can walk into.
+
+### Tonight's Episode (the main menu's nightly card, not a stage)
+- **Mood:** the schedule at midnight: a one-night special every viewer gets at once.
+- **Look / sound:** a gold-edged card above the campaign with the cast's heads, the rule in one line, Blog Man's own
+  recorded episode intro (a button on the card, and again on air in the fight) and a countdown to the next one.
+- **In / out:** from the main menu into a normal campaign-style fight on any of the nine stages, back to the results
+  with the score, the day streak and the night's board.
+- **Now:** picked from the UTC date (`campaign/daily.ts`), scored, streak in localStorage, board on Hawkes Net.
+  **Short:** the intro reuses an existing episode line (no new take); no dedicated scene.
+
+### Tour (the main menu's six-fight run, not a stage)
+- **Mood:** the network's ladder night: six bouts booked for one fighter, the last against their rival.
+- **Look / sound:** the Tour select is a wall of fighter tiles (cleared ones marked with a gold star line); between
+  fights the arena's own lower third and the next foe's recorded line over a wide shot; the ending is the fighter's
+  win line over the final KO with a gold "<Fighter> clears the Tour" card. The finale is always on the Foundry floor.
+- **In / out:** from the main menu into six campaign-style fights on the nine stages, a Continue or Quit panel after a
+  loss, back to the Tour select with the mark.
+- **Now:** `content/tours.json` (32 routes), `campaign/tour.ts`, `ui/tour.ts`. **Short:** the foes' lines are existing
+  takes (no new recorded reaction per fight); no per-Tour music.
+
+### The rival feed (Season 4 only, cutaway)
+- **Mood:** a second set of lights across town, same hour.
+- **Look / sound:** same stages under a colder grade (cooler grade / second city-light bank in the backdrop or scene
+  wash); Orchestrator's booth voice in intros/outros; Hostile Takeover outro ends on a visible static cut (screen tear
+  + static sting) when the rival feed dies — not a text crawl.
+- **In / out:** Simulcast through Hostile Takeover.
+- **Now:** told in lines and fights. **Build:** paint or grade the rival identity (second light bank / colder wash) and
+  the static cut so the second network is a place on air, not only a booth voice.
+
+## Landmarks
+
+One landmark per area a fighter can read from the far blast and steer by:
+
+| Area | Landmark |
+|---|---|
+| Humans In The Loop | The light truss and packed crowd ring under the spots |
+| City Top | The water tower on the main roof |
+| Yo House | The big fish tank |
+| Solar Array | The sun-tracking panel bank |
+| Dust Devil Mesa | The wind-carved rock arch |
+| Watercolor Nebula | The main paint island at the spiral's center |
+| Cursed Town | The street beam over the fog (and the reach below it) |
+| Space Chess | The oversized kings at the board's ends |
+| Rainbow Full Pipe | The rainbow full pipe and the Drop In! sign |
+| The booth | The ON AIR bug (menu) / lower-third "Tonight" card (scenes) |
+| Rival feed | A second bank of city lights in the Season 4 lines (not a painted prop yet) |
+
+## Who lives here
+
+### On the card (fighters)
+Exit Punk is the champion after Season 1: dry, short-spoken, here for the exit and stuck with the show. The
+Orchestrator runs Season 1, fights as the Encore giant, returns as Walk-On, villain-booths Season 4, then splits into
+host and walk-on for the finale (one man, two roles). Blog Man covers Season 1 from the front row, hosts from Season 2
+on, and sometimes fights (Turn the Page, Clip Show). Walk-ons join the Versus card when their episode clears (`unlock`
+in `content/campaign.json`); Season 8–10 reuse nominees and promoters with no new unlocks.
+
+**Wardrobe (colour looks).** Every fighter has four looks in `content/fighters.json` `looks`, drawn by a palette shader on
+the same sprite sheets (`src/game/looks.ts`, `render/lookPlugin.ts`). In the show's terms this is Wardrobe: the same
+contestant in the network's alternate rig. Look 1 is the fighter as aired; look 2 is open; looks 3 and 4 are earned by
+wins with that fighter in any mode (3 and 10, `dod-wins`) and read "3 wins to unlock" on the select card. Outfit looks
+turn the fighter's main colour band (skin, eyes and outlines stay); the dark, grey fighters tint their mid-tones
+instead. Two of the same fighter in one match never share a look (the second is moved on automatically). Colour is
+cosmetic: it is not in the sim, so it never changes a fight; online it rides in the match setup. The VS card and the
+results name each fighter's look in a chip.
+
+**Signature specials.** A fighter's Special does four different things by stick direction (neutral, side, up, down),
+and a fighter on the card can have its own (`specials` in `content/fighters.json`, `docs/specials.md`). Exit Punk
+is the first, and his kit is the one skateboard he walked on with: **Board throw** (neutral, he lobs the deck down
+the floor like a bowling lane), **Skate dash** (side, he rides it straight through whoever is in the way),
+**Ollie** (up, the pop that gets him back to the ledge) and **Kickflip trap** (down, he flips a board onto the
+floor and walks away from it; whoever steps on it eats it). Dry as ever: no one on the show says what the moves
+are called.
+
+**How a fighter's hands move (archetypes).** The same button reads differently by build, from `content/archetypes.json`
+(every fighter is listed; `archetype` in `fighters.json` overrides; `src/game/sim/fighterDefs.ts` `applyArchetype`). A
+**heavy** (Break, SS Boulder, Shutup Bot, Got Ur Back, Stratabots, TT, Spider Bot, Yo Bot) jabs like a shove: it starts
+later, reaches further and launches harder. A **fast** fighter (Kaelen, Slice, DJ Won't Read, Shark Dude, Try Belt,
+Ball Person) answers one press with a three-hit flurry and pokes with short aerials. A **floaty** fighter (Cel, Evil Blue
+Bird, Uh Me, Slow Rider, Chooser, Small Weather, Yooba) leaves aerials hanging in the air and lands them quickly, softer.
+Everyone else is standard. Smashes and specials are untouched. The show never names any of it; the crowd just flinches
+at a heavy's jab. Scenario `archetype-normals`; `test/archetypes.test.ts`.
+
+The other twelve Season 1 fighters each have their own kit, drawn from their blurb and the show, and no two share
+the same four kinds (neutral / side / up / down): Kaelen (Hi, bye · Gone · Bye · Slip: a flurry, a dash, a straight
+jump, a sidestep counter; gone before the trade lands), Break (Rule one · Hammer fists · House jump · Hold the line:
+the command grab, rule one of the house), DJ Won't Read (Sound wave · Scratch · Drop the bass · Rewind: a thrown
+sound, quick hits, a counter that plays the hit back), Shutup Bot (Mute · Tank charge · Thrusters · Hush: a
+counter, a charge, a command grab; says nothing), Small Weather (Gust · Hailstorm · Front rider · Storm cell: a gust
+projectile and a weather trap), Blog Man (Long headline · Scoop · Stop the presses · No comment: a headline that is
+far too long and slow, a counter), Evil Blue Bird (Peck · Dive · Flap · Egg: pecks, a dive, a glide, an egg trap),
+Got Ur Back (Bear hug · Lean in · Big hop · Got ur back: a hug grab, a shoulder, a protective counter), Slice (Ribbon
+cut · Shred · Slice up · Parry: the fastest flurry and a thin fast cutter), SS Boulder (Hurl rock · Crush · Rock climb
+· Landslide: a slow thrown rock, a grab, a trap), Stratabots (Plate down · Plate stack · Stack up · Plates up: a plate
+trap, a stack of hits, a counter) and the Orchestrator (Baton · Crescendo · Cadenza · Downbeat: a baton counter,
+a crescendo orb, a glide, a downbeat trap). Character select lists them by name with a looping clip.
+
+The other twenty fighters have their own kits too, so all 33 play differently and no two share the same four kinds.
+Each is the blurb turned into four moves (neutral · side · up · down): Ball Person (Free kick · Slide tackle ·
+Bicycle kick · Nutmeg: an arcing ball, a slide, a grab), Cel (Onion skin · Smear · Multiplane · In-betweens: a
+see-through orb, a smear dash, a glide, five drawn frames in a flurry), Chooser (Opt out · Pick a card · Rebound ·
+Pick up: a counter that declines the hit, a card, a glide), Crosser (Cross counter · Red pen · Reshoot · Final cut: a
+slow, heavy counter, three red strokes, a command grab), Crystalline Intelligences (Seed crystal · Refraction ·
+Lattice · Facet storm: a crystal laid on the floor, a bent beam, a flurry), Future Man (Fast forward · Montage ·
+Jump cut · Next season: a dash, a montage of hits, a trap that arms late and does not say what it is), Lapis Man
+(Lapis shard · Planted staff · Vault · Staff parry: the zoner, with a shard, a staff planted in the floor and a
+parry), Not an Old Man Yet (Collar · Lawn chair · Back in the day · Not yet: a collar grab, a lawn chair left in
+the middle, a counter that says not yet), Pyro Singer (Sparkler · High note · Pyro lift · Pyro cue: the opener's
+sparkler flurry, a note thrown across the stage, a flame trap), Shark Dude (Run in · Chomp · Breach · Not a belt: a
+dash, a bite that is a grab, a counter for the belt that is not a belt), Slow Rider (Throttle · Tailpipe · Long haul
+· Oil slick: a long slow dash, a flame, the longest glide, a slick), Spider Bot (Web · Snare · Rappel · Eight legs:
+a web trap, a low grab, an angled climb, a flurry), Susan (Tendril · Drift · Float · Fog patch: a grab from the fog,
+a slow orb that drifts for a long time, a fog trap), TT (Withdraw · Shell roll · Spin up · Spike strip: the shell
+counter, a heavy roll, a trap), Try Belt (Rewrite · Retakes · Cut away · Tape: a counter that rewrites the hit,
+retakes, a tape trap), Uh Me (Hum · Embrace · Drift up · Calm: a hummed orb, a quiet grab, a calm counter), Wallit
+(Tip jar · Bat lunge · Pop fly · Buyout: a jar on the floor, a bat lunge, a command grab called the buyout), Yo Bot
+(Four-leg grapple · Pop-up · Hover legs · Hits back: a four-legged grab, a pop-up thrown at you, the laptop that hits
+back) and Yooba (Gulp · Tongue lash · Squelch · Goo puddle: a long-reach gulp grab, a tongue lash, a puddle). The
+Mechanic (Wrench throw · Ratchet · Lift · Clamp) keeps to his wrench and nothing from the show: his origin short is
+all he has, and he is still not on the card. Bots use them by kind: a thrown special at range, a trap by the ledge
+or on the way in, a dash to close the distance, a counter when the opponent swings, a grab or flurry up close, an
+angled recovery aimed at the ledge; the higher the CPU level, the more often.
+
+Routines through a broadcast night: walk-ons wait off-camera until their card; the champion stays on between defenses;
+the host reads the sheet; the announcer only speaks once the match is live. Reaction to the player: opponents fight;
+hosts and the booth talk about ratings and the card, never "levels" or "the game".
+
+Roster voices in one line each (fighter blurbs are the play feel; story voice stays in `docs/story.md`): Kaelen (Hi.
+Bye.), Break (does not plan to fall off), DJ Won't Read (talks), Shutup Bot (only "Fine." when he loses), Small
+Weather (brings the weather), Evil Blue Bird / Got Ur Back (Season 1 tag team), Slice (sudden death), SS Boulder /
+Stratabots (heavies), Shark Dude (the belt that is not a belt), Pyro Singer (opener and closer), Susan (fog), Wallit
+(bought bat), Cel (three extra jumps), Try Belt (rewritten tapes), Crosser (budget cuts), Crystalline Intelligences
+(network partner), Uh Me / Yo Bot / Spider Bot / Lapis Man / TT (Sweeps), Ball Person / Chooser / Not an Old Man Yet /
+Yooba / Slow Rider (Syndication), Future Man (guest who will not spoil the next season). **The Mechanic:** Foundry
+parts and a fixed board in the origin short only — candidate, unused on the show.
+
+**Match barks (Season 1).** Each of the thirteen Season 1 fighters has its own cast voice for in-bout sound, not a
+shared scream: 3 short attack efforts (smash / special), 2 hurts (medium and heavy hits), 1 KO cry written for the
+character (Break: "Rule one!", Blog Man: a cut-off headline, Shutup Bot: a static burst), and 1 taunt of four words
+or fewer from the blurb or story (T / gamepad D-pad up; no touch button). Lines live in `content/voice.json`
+(`fighter.<id>.effort.*` / `.hurt.*` / `.ko` / `.taunt`) and play through `audio.fighterVoice` with no two lines from
+one fighter overlapping and a 1.5 s effort cooldown. The other twenty fighters keep the shared KO take until their
+kits ship. Cold opens that mark `taunt` also play the bark with the arrival bounce.
+
+### Creatures and set life
+- City Top: distant fireworks crews; no named mascot on the roof yet.
+- Dust Devil Mesa: the hunting hawk (circles, then dives).
+- Cursed Town: the Presence under the street (tentacles).
+- Rainbow Full Pipe: the Drop In! skater.
+- Yo House: robo-vacuum, tank fish, bubbler.
+- Humans In The Loop: the studio crowd (goes wild on KO).
+- Space Chess: drifting pawn; kings that topple.
+- Solar Array: the panels themselves (they track the sun, not the fighters).
+- Watercolor Nebula: pigment weather.
+
+They run on their own clocks or on KO. They do not chat; they shove the fight. When a chapter turns hazards off, the
+area still needs a quieter routine (crowd bed, wind, fish, pawn drift) so it does not die.
+
+### Booth and city
+Narrator (present tense, no jokes), announcer (fight calls), Blog Man (headlines too long), and the city watching
+every screen. Season 4 adds the Orchestrator's rival-booth voice. Online players are visitors on the same card with
+their own picture and name; the lore does not name them.
+
+## What happens
+
+Per area: several kinds of interaction, events that fire on their own, ambient sound, and what changes over a night
+or a season. Fight verbs (move, jump, attack, special, shield, grab, dodge) count as one family; stage life and booth
+calls are the others.
+
+### Humans In The Loop
+- **Interactions:** brawl on the deck; use cases and wedges as cover height; ride the crowd's KO spike; scene arrivals
+  with thud and shake before Ready.
+- **On their own:** crowd beds; `go-wild` on every KO (lights and cheer).
+- **Ambient:** layered bed (arena murmur + foundry underbed + theme); lifts on last stock / 100%; final-KO sting.
+- **Over time:** Encore went quiet once; later seasons light the same floor for defenses, awards and the first finale
+  cut. Ratings lines change who hosts.
+
+### City Top
+- **Interactions:** roof run-outs, fire-escape and catwalk platforms, edge guards into fireworks KO dressing.
+- **On their own:** fireworks on falls; skyline parallax. **Gap:** add a soft timed beat (billboard flicker, distant
+  firework volley, or antenna spark) so the roof matches other stages' 10-second rule when players stall.
+- **Ambient:** layered bed (night wind/city hum + rooftop underbed + theme); lifts on last stock / 100%; final-KO sting.
+- **Over time:** first Open Mic roof returns for title defenses, reboot pilots, the teaser and the last cut of the series.
+
+### Yo House
+- **Interactions:** tank and furniture platforms; dodge or ride the vacuum path; bubbler burst as a vertical threaten.
+- **On their own:** `robo-vacuum`, `bubbler-burst`; fish should idle-swim between them.
+- **Ambient:** layered bed (room tone + quiet drift underbed + house theme); lifts on last stock / 100%; final-KO sting.
+- **Over time:** House Heavy's giant Break; sponsor night (Product Placement quota); laugh-track reboot; awards supporting category.
+
+### Solar Array
+- **Interactions:** stand on panels that will leave; punish landings when a plate tilts; Red Carpet plays the same
+  geometry with hazards off (no scuffed carpet).
+- **On their own:** `sun-tracking` on a timer (unless silenced).
+- **Ambient:** layered bed (sun glare hum + drift underbed + solar theme); lifts on last stock / 100%; final-KO sting.
+- **Over time:** Bad Signal's two-on-one; rival takeover; Dead Air's survive minute; awards carpet with quiet panels.
+
+### Dust Devil Mesa
+- **Interactions:** arch control, edge guards into gusts, react to hawk dive warnings.
+- **On their own:** `dust-gust`, `hawk-dive`.
+- **Ambient:** layered bed (dry wind + drift underbed + desert theme); lifts on last stock / 100%; final-KO sting.
+- **Over time:** low gravity night; rerun Ratings; prime-time quota; table-read Ratings.
+
+### Watercolor Nebula
+- **Interactions:** island hops, recover through soft gravity nights, weather the pigment rain.
+- **On their own:** `pigment-rain`, `nebula-drift`.
+- **Ambient:** layered bed (nebula tone + drift underbed + nebula theme); lifts on last stock / 100%; final-KO sting.
+- **Over time:** 2v2 with Blog Man; heavy-gravity simulcast; global two-on-one feed.
+
+### Cursed Town
+- **Interactions:** stay on roofs; punish anyone who drops to the street; read fog and Presence warnings.
+- **On their own:** `fog-surge`, `presence`.
+- **Ambient:** layered bed (fog hush + pit underbed + town theme); lifts on last stock / 100%; final-KO sting.
+- **Over time:** sudden death at 150%; champion's tax; cliffhanger quota that sets the finale sheets.
+
+### Space Chess
+- **Interactions:** board center control, float squares as recoveries, KO for the checkmate sting.
+- **On their own:** `king-falls` on KO; pawn should drift always.
+- **Ambient:** layered bed (void hum + pit underbed + chess theme); lifts on last stock / 100%; final-KO sting.
+- **Over time:** survive heavies; cut-to-size shrink; censored damage; lifetime quota.
+
+### Rainbow Full Pipe
+- **Interactions:** pipe and deck control, punish off the lip, dodge the Drop In! skater (or play a quiet park when
+  the local affiliate cannot afford effects).
+- **On their own:** `drop-in` (optional).
+- **Ambient:** layered bed (park chatter + rooftop underbed + pipe theme); lifts on last stock / 100%; final-KO sting.
+- **Over time:** Ratings Drop In; quiet affiliate; crossover two-on-one; trailer two-on-one.
+
+### Booth and broadcast shell
+- **Interactions:** read the lower-third card; hear announcer kinds (first blood, KO, comeback, last stock, showdown,
+  self-destruct, big hit, combo, danger, shield break, hazard, stage-event, time-low, lull); Blog Man intro after Go
+  in campaign; pause / settings without leaving the show's voice.
+- **On their own:** calls from sim events; menu ticker lines.
+- **Ambient:** ducked music (~8 dB) under any voice line, restored over 0.4 s; combat/movement SFX use four takes each
+  with no immediate repeat and 5–10% pitch spread; landings follow the stage surface (metal / wood / stone / soft);
+  crowd ooh on heavy hits, roar on KOs, rising cheer on comebacks (never the same reaction twice in a row); layered
+  stage beds already lift to intense on last stock / ≥100% with a final-KO sting. Procedural sting/alarm/thud when a
+  file is missing.
+- **Over time:** Orchestrator hosts S1; Blog Man from S2; rival booth in S4; commentary still needs recorded takes for
+  many lines. Dedicated ambience loops (not reused music) remain a gap listed in `content/stage-beds.json`.
+
+**Where the live world falls short today:** City Top's soft timed beat (vertical-slice #1); hazard-off nights need the
+named quiet routines above (Local Affiliate riders, Red Carpet motor ticks); booth and many Season 3+ episode lines
+still silent (captions only — record takes through Hawkes Gen, cents, no GPU); rival feed needs grade + static cut;
+fish / pawn / tentacle idle motion is thinner than the timed events; no walkable Foundry hub between bouts (by design
+for now — the map and menu are the hub). Vertical slice priority: finish **City Top** to the full bar (landmark already
+there; soft timed beat + denser ambient + keep Open Mic's voiced scene) before new stages.
+
+## Story beats
+
+Every beat below is something the player lives in the arena: gameplay, a live scene (fighters drop in, camera on the
+speaker, voice take, crowd/sting), a stage event, or a booth call. On-screen text is a last resort (story cards are
+one line under the scene, not a text screen). Full episode tables stay in `docs/story.md`; this is the spine agents
+must not flatten into paragraphs alone.
+
+1. **Midnight open (Open Mic, City Top).** Furnace floor / city tunes in (narrator voice). Orchestrator introduces a
+   walk-on. Exit Punk: four words about the exit. Kaelen: "Hi. Bye." Fight teaches damage and launches. After: crowd
+   keeps him on the card (Orchestrator voice + card line).
+2. **House rules (House Heavy → Encore).** Giant Break falls anyway; Bad Signal's silent bot only speaks on loss; low
+   gravity weather; Blog Man tags in; sudden death; survive the heavies; then the Orchestrator steps onto Humans In
+   The Loop as a giant. Broadcast goes quiet — Blog Man and Exit Punk close on voice, not a crawl.
+3. **Season end 1.** Narrator end line under the map after Encore: the card is yours. Heard/seen as the map beat after
+   the outro, not a paragraph.
+4. **Champion defenses (Season 2).** Blog Man hosts with too-long headlines. Title Defense on the clock; Drop In
+   Ratings (KOs before the clock, skater drops in); Champion's Tax starts the champ hurt; Sponsored giant Wallit.
+   Outro sheet read aloud: one baton, no sponsor — Orchestrator returns next.
+5. **Walk-On (Season 3, Humans In The Loop).** Top billing: Exit Punk is the giant; Orchestrator has the extra stock.
+   Baton on the floor; "Same time tomorrow?" spoken. Narrator: the show goes on.
+6. **Rival broadcast (Season 4).** Second lights in the lines; Cel under heavy gravity; Try Belt Ratings rerun; Crosser
+   shrinks the champ; Hostile Takeover two-on-one until the rival feed dies to static in the outro voice. Narrator:
+   the show is still his.
+7. **Sweeps Week (Season 5).** Cold Open float; Product Placement quota chip and sponsor results line; Dead Air survive
+   through signal drop; Clip Show with Blog Man in the fight. Narrator: nobody changed the channel.
+8. **Syndication (Season 6).** Quiet pipe affiliate; censored damage; prime-time quota; global two-on-one. Narrator:
+   the card travels.
+9. **Reboot (Season 7).** Hurt pilots; laugh-track Ratings; crossover heavies; Series Finale clean-streak chip and
+   supercut results line. Narrator: the champion was never recast.
+10. **Awards (Season 8).** Quiet carpet; supporting two-on-one; lifetime quota; Best in Show streak; Exit Punk's four-word
+    speech spoken in the outro. Narrator: the speech was four words.
+11. **Cliffhanger (Season 9).** Teaser sheet; trailer voiceover fight; table-read page in the Orchestrator's hand
+    (spoken); unresolved song into two sheets, same handwriting. Narrator: two names on the sheet.
+12. **Finale (Season 10).** First Cut: host Orchestrator giant on the home set; lights cut to the next shot, not to
+    black. Final Cut: walk-on Orchestrator on City Top, champ starts hurt; baton and the exit line spoken. Narrator
+    series close: the card is yours, and the show is over.
+13. **The finale hijack (every season finale).** Sixty seconds in, or at the player's second-to-last stock, the Orchestrator
+    seizes the broadcast: a one-second RGB-split glitch and a cut sound, his face on the stage's screens and in a
+    picture-in-picture (top left, clear of Pause and the touch controls), three voiced lines (a seize or hot call, a reaction
+    for ahead or behind, the finale's own rule line) and one rule rewritten on the spot (gravity, giant, rig light or start
+    percent) with a NEW RULE chip and sting on the HUD. Season 5 to 9 finales play it as his standing order on the finale
+    feed: he is still not on the card. See `docs/story.md` "The finale hijack".
+14. **Booth through every bout.** Announcer calls from real sim events; Blog Man's campaign intro after Go; story cards
+    as lower thirds during live arrivals — never a wall of text.
+
+Beats still thin in the build (keep as targets, do not paper over with text): Season 3+ and booth voice takes (hear
+them, do not replace with longer captions); City Top soft timed beat; rival-feed colder grade and Hostile Takeover
+static cut; Local Affiliate / Red Carpet quiet routines. Do not invent new seasons here — extend `docs/story.md` first.
+14. **The pilot (first visit, City Top).** Tap to play opens on the cold open's first shot under the logo; Kaelen hops up
+    onto a side platform and poses (the Jump beat), takes a few hits, winds up one slow smash (the Shield beat); the
+    crowd, the stage's flicker and the booth carry on as in any Open Mic. Prompts are glyphs over Exit Punk, never
+    paragraphs. Win: the main menu says "Next episode".
+15. **Tour (every fighter).** Six bouts, the CPU rising, the four twists in the fighter's own order; each foe is heard in
+    the arena before their fight; the rival closes it on the Foundry floor. The fighter's own win line plays over the final
+    KO under "<Fighter> clears the Tour", and the Tour select keeps the mark.
+
+## Square-ups (added with the pre-fight exchanges)
+
+- **Areas:** the match stage itself, in the seconds between the VS card and Ready. No new area.
+- **Landmarks:** the camera push onto each speaker and the lower-third caption (name, one line).
+- **Who lives here:** the 32 rival pairs in `content/intros.json`, plus the announcer and Blog Man for the generic six.
+- **Characters:** no new character; each speaks with their existing Gen voice id (`content/voice.json` `voices`).
+- **What happens:** line, answer, the listener's taunt; crowd ambience and the stage bed play under ducked music.
+- **Story beats:** told by voice and camera, one caption line at a time; never a text screen.
+
+## The broadcast opens (added with the match intro)
+
+- **Areas:** the match stage itself, in the 3 seconds between the VS card and ROUND START, and the Stage Select tiles (each a live 2 s pan of that stage). No new area.
+- **Landmarks:** the lighting rig Shutup Bot drops from, the skateboard Exit Punk leaves rolling, the spotlight cone in each newer fighter's slot colour, the stage-name lower third.
+- **Who lives here:** the 13 Season 1 fighters (each their own entrance), the other 20 (spotlight drop and taunt), the announcer's stage call.
+- **Characters:** no new character. Each keeps their voice and look; entrances are drawn from their story (Exit Punk's skateboard, Kaelen's "Hi. Bye.", Break who doesn't fall off, Shutup Bot's rig, the Orchestrator lowered in silence). The table is in docs/story.md "The broadcast opens".
+- **What happens:** the camera flies from wide on the far layers to the fight, eased; the stage card slides in; fighters enter one by one with dust, sparks, a thud and a camera kick; the crowd and stage bed play under it; any input skips; ROUND START lands as it ends.
+- **Story beats:** told by camera, motion, sound and the announcer's call; one caption (the stage's name) and a name strap, never a text screen.
+
+## Stage light (fighters stand inside each set)
+
+Every stage lights its fighters with its own colours (`light` in `content/stages.json`, drawn by `render/lightPlugin.ts`,
+shadows in `render/fighterLight.ts`). The light is the set's own: City Top's rooftop sunset throws an orange key from the
+left with a cold skyline rim on the far side; Space Chess is a cold blue key with a pale rim and a polished floor; Humans
+in the Loop is amber stage light with a cyan rim over a glossy studio floor; Cursed Town is a dim grey-green overcast;
+the Desert, Solar Array and Rainbow Full Pipe are hard daylight; Watercolor Nebula and Yo House are soft and washed.
+Every fighter casts a soft contact shadow on the platform under them that shrinks and fades as they leave it and is gone
+above 300 units; glossy floors (Humans in the Loop, Space Chess) add a faint 15% mirror image on High. Low keeps the
+ambient tint and the shadow only. No stage is underwater yet; the cold stages are Space Chess and Cursed Town.
+
+## Readability (the fighter and the platform edge, at a glance)
+
+On any stage a player finds their fighter and the edge of every platform without hunting: every fighter wears a **two-tone
+ring** (the dark outline of the art bible inside, the player-colour rim outside) and every platform the stage art draws gets a
+**lit lip** along its top (`render/renderer.ts`, built beside the platform: a bright core in the stage's edge colour, mixed
+toward white, between two dark lines, so it parts from a light picture with the dark line and from a dark one with the core).
+Collision-only platforms without art keep their block and its glowing edge. The bar is 3:1 luminance contrast (WCAG ratio) for
+the ring against the background around it and for the lip against the area just above it, and no fighter more than 30% under
+foreground art unless 60% of that still shows (a faded element or the silhouette). The maths is `src/game/readability.ts`
+(test `src/game/test/readability.test.ts`); scenario `readability` measures it from the rendered frame on all 9 stages (the
+3 busiest on a phone on Low) and reports per-stage numbers.
+
+**Dimmed backdrop:** the pictures behind the play space (not the ones carrying platforms, not the foreground) are dimmed so the
+fighters stand out from the skyline: 14% right behind the play space up to 30% at z 1200 and beyond (`readability.ts`
+`backdropDim`, applied in `render/stageArt.ts`; the stage's own colours and grade are unchanged, only lower).
+
+## Stage depth (every set opens up as the camera moves)
+
+The broadcast camera pans and zooms with the fight, and every stage is built to show it: pictures sit at their own depths
+behind the fighters (`z` in `content/stages.json`, authored as seen from the default camera, so the real perspective gives
+the parallax), a **foreground element** stands at the play area's edge in front of them, and a **distance haze** tinted to
+the stage veils the far layers. The code is `render/stageArt.ts` (layers, haze, the High-only extras), `render/foreground.ts`
+(the fade) and `render/stageLive.ts`; scenario `stage-depth`; test `src/game/test/foreground.test.ts`.
+
+- **Rule:** at least four layers at different depths behind the fighters on High (far sky, far set, mid set, near set),
+  three depths on Low (layers marked `high` are the depth layers cut from the backdrop and are not built there; a layer
+  marked `low` is the whole backdrop picture, built on Low only, because High replaces it with those layers), plus one
+  foreground element.
+- **Foreground element** (`foreground: true`, z below 0, at the main floor's end): turns to 30% opacity while a fighter is
+  behind one of its solid pixels, read from the picture's own alpha along the camera's ray (so the parallax counts), and
+  eases back when they walk out, and shivers on every KO (a `ko` shake react). It stays on Low. The fog layers of Cursed Town stay silhouette occluders (a fighter in
+  the fog shows as a coloured outline), not foreground elements.
+- **Haze** (`haze: { color, strength, z }`, High only, dropped on Low): 2 gradient sheets at depths between the layers, clear
+  at the top and thickest low where the set meets the floor; the nearer one is lighter.
+- **Decks:** every painted platform top lies within 2 units of its collision. `node tools/deck-align.mjs` measures it
+  (and `--fix` slides the art; it moved a few units on every stage); the dome of City Top's skylight is curved and stays
+  about 8 units proud of its flat platform.
+
+| Stage | Depths behind the fighters on High (z) | Foreground element (at the edge) | Haze |
+|---|---|---|---|
+| City Top | sky 20, city sprawl 16, towers and fireworks 12, rooftops 9, left building 5, escape building 3 | rooftop antenna and vent stack, left | night smog violet |
+| Dust Devil Mesa | sky 22, horizon (mesas, dust plume, salt flat) 17, near flat (arch, boulders, cracked playa) 12, hawk 6, dust wall 4 | sagebrush clump, right | dusty ochre |
+| Cursed Town | sky fog 20, far houses 17, far tentacles 15, mid tentacles 13.5, street and houses 11, tentacles 9, gables and tentacles 4 | a tentacle column rising at the left street edge; fog stays in front | grey-green |
+| Humans In The Loop | arena bowl 20, far stage 16, light rig and beams 12, crowd 8, spot beams 6, road cases 5.5, strobes 5, truss 4 | the floor wedges, right | stage-smoke magenta |
+| Rainbow Full Pipe | sky 20, clouds 17, park 14, drifting clouds 10, plaza 9, trees 6 | the round bush, right | sky blue |
+| Solar Array | sky and canyon 20, plain 14, panels 12 / 10.5 / 9 / 7.5, back panels 6 | foreground rock outcrop, right | sand |
+| Space Chess | star field 20, nebula 15, galaxy 11, the board and its pieces 8, the two kings 3 | the lost pawn drifting, left | nebula blue |
+| Watercolor Nebula | cool wash and heart 20, warm clouds 13, underwash 8, cloud banks 6, swirl 4 | the front cloud wisp, right | pigment cream |
+| Yo House | the garden through the windows 22, the room 17, floor, rug and sofa 11, doorway 5, ball and dock light 3 | potted snake plant and monstera, right | morning blue-white |
+
+**The real layers** (all nine stages; eight are Hawkes Gen's `image.layers` split of each backdrop, Watercolor Nebula's is a colour cut) (project
+`org_eb0d5c82e8da8c2d.doseofdestruction`, 5 layers at 1024 px, seed 11), cut by `node tools/depth-layers.mjs`: Gen's picture
+is only 1024 px wide, so each layer's alpha is used as a *cut mask over the full-resolution backdrop* (1568 px), and Gen's own
+inpainted pixels are kept only where a cut reveals what was behind it (the sky behind the towers, the garden behind the
+window, the street behind a tentacle). A band cut from one opaque Gen layer (Dust Devil Mesa's horizon, Solar Array's plain,
+Yo House's furniture, Space Chess's nebula and galaxy) leaves a hole in the layer behind it that the tool fills by diffusion
+(no GPU), so a pan never shows an empty gap; where the hole shows something a smooth blur cannot be (stars, a painting's wash)
+the fill is painted by Hawkes Gen `image.repaint` instead (`--holes` writes the fill and the hole mask, `--repaint` reads
+the painted fill back; Space Chess's star field and Watercolor Nebula's cool wash). The stack at rest differs from the backdrop by an RMS of 2 to 6.5 (of 255). On
+High each stage draws its own stack; Low draws the whole backdrop picture (`low`) and the layers that were already there.
+Jobs: City Top j_de95dbaf4d12, Dust Devil Mesa j_c0b792ce201e, Cursed Town j_baf72867a5f9, Rainbow Full Pipe j_7ec99117dab6,
+Solar Array j_baf31958c811, Space Chess j_81bec11c18e4, Yo House j_0613ca74762a, Humans in the Loop (a second split, 6 layers,
+j_eea1055faada) (about $0.57 of GPU for the nine first splits, $0.30 for the two retries and $0.17 for the repaints below; Gen's
+layers come inpainted and the bottom layer of every stack is opaque). Only two stages' holes were repainted (Space Chess,
+Watercolor Nebula). The holes of Dust Devil Mesa, Solar Array and Yo House lie behind a band that is opaque below its feathered
+top edge, so a pan reveals only a sliver of smooth sky or wall that the diffusion fill already matches; they stay
+diffusion-filled (three more `image.repaint` jobs, about $0.2 with the model load, if wanted). The repainted images are in Hawkes
+Gen's library by the asset ids in `tools/depth-layers.mjs`; `--write` stops if they are not put back for `--repaint`.
+
+- **City Top:** sky and smoke, the amber sprawl, the towers with the fireworks, the lit rooftops with the avenue; the old
+  cut-out skyline band is gone.
+- **Dust Devil Mesa:** the old `far-buttes` take (beige blocks) is replaced by Gen's real mesas, plume and salt flat; the
+  arch and boulders sit nearer, the hawk and the dust wall stay on their depths.
+- **Cursed Town:** the fog, the last houses, two far tentacles and a thicket of tentacles come up the street behind the near
+  houses and cobbles; the animated distant tentacles, gables and the fog occluders keep their depths.
+- **Rainbow Full Pipe:** sky, big clouds, the park, then the plaza around the half-pipe; the scrolling cloud layer and the
+  trees keep theirs.
+- **Solar Array:** the canyon and the sky, the plain with the panel shadows, and four rings of panels sliding past each other.
+- **Space Chess:** the star field, the cobalt nebula, the spiral galaxy and the far end of the board with its pieces. The
+  nebula and galaxy are cut out of Gen's star-field layer; the stars behind them are painted by `image.repaint`
+  (j_a68822e94372, three takes: the first came out as a regular dot lattice, the second invented a nebula streak and
+  drew the guide outline; the third is used, with its stars thinned to 40% of 5 px blocks at random strengths on the CPU
+  (`thin`), because the model draws them as an even lattice 2 to 3 times denser than the sky around them), so a pan keeps a
+  star field instead of a star-free patch. The ghost outlines of the far chess pieces that Gen left in its star-field plate stay
+  (dark on dark, behind the board at rest).
+- **Yo House:** the garden and hills seen through the windows and the skylight slide behind the room; the floor, rug and sofa
+  slide in front of the back wall.
+- **Humans in the Loop:** Gen's first split (5 layers) left the arena in one layer; a retry with a prompt naming the road cases,
+  speaker stacks, trusses, seating and beams (6 layers, seed 23) came back as an empty arena, the lit far stage, the lighting
+  rig with its beams, and the near road cases with the hung speakers. Those four are cut as `arena` 20, `far-stage` 16,
+  `light-rig` 12 and `road-cases` 5.5, in front of the crowd (8) and the nearer haze sheet (6.5), so they stay black and sharp
+  (only the left stack and the hung speakers are cut; the right cases stay in the arena, so the left stack reads nearer); the
+  crowd (8), spot beams (6) and strobes (5) and truss (4) keep their depths. The retry's other two layers
+  (a ghost covering 1.5% of the picture, a haze with no solid pixel) are not used. The arena plate is Gen's own empty arena where
+  the beams and the far stage glow are cut away; the wall lamps and the barrier hairlines Gen cut into two layers are erased from
+  them (`erase` in the plan), so a lamp never shows twice when the camera pans.
+- **Watercolor Nebula:** two Gen splits (j_ee4414382a78, j_568d743c1e78) did not separate the painting: the retry's main layer is
+  the whole painting again (94% of the picture), its clouds are invented shapes that are not in the backdrop, its far wash is a
+  smooth lavender gradient that does not match the pixel-wash painting, and one layer is empty. So it is cut by colour on the CPU
+  (`warm` mask in `tools/depth-layers.mjs`: red over blue, blurred into coherent masses, the heart light kept out): the warm
+  amber and pink clouds are `warm-clouds` 13, the cool teal and navy washes with the heart are `cool-wash` 20 (the holes the
+  cut leaves are painted by `image.repaint`, j_c90b42383a1a: the same teal and navy pixel wash where the clouds were, in place
+  of the flat grey the diffusion fill gave), which closes the gap between the backdrop and the
+  painted underwash 8, cloud banks 6, swirl 4 and the front wisp (all kept).
+
+**Short:** the foregrounds only shake on KOs (and sway where the art already did), and the cut layers add parallax, not new
+things to see: crowd heads, a bird, traffic lights crawling are the next layer of life. No stage has crowd heads, cables or kelp
+painted just for the foreground yet; they use art already on the stage, moved to the edge.
+
+## Room sound (every stage is its own room)
+
+Each stage sounds like the place it is (`room` in `content/stages.json`; the impulse is made in code by `roomAudio.ts`,
+played by `audio.ts`). Effects and voices go 10-25% into the room, never the music or the menus. Humans in the Loop is a
+TV studio (short, bright, 0.6 s); City Top a rooftop (open, a 0.2 s slap); Yo House the fish tank, underwater (long,
+dark, 1.8 s, with a low-pass over everything); Dust Devil Mesa a canyon (a late slap, 0.45 s); Cursed Town a foggy street
+(damp, dark, 0.95 s); Rainbow Full Pipe a half-pipe (bright, metallic, 1.1 s); Solar Array an open field (dry, 0.3 s);
+Space Chess a hollow void (cold, 1.4 s); Watercolor Nebula a dream (soft, 1.5 s). Fighters' hits, swings, jumps, landings
+and barks sit where the fighter stands on screen (left to right, -0.8 to 0.8); a fighter blasted out of the zone loses
+highs and level as they leave, the crowd's roar stays put. The whole match is levelled to -14 LUFS under a limiter.
+
+## The show's stinger
+
+Every screen change is the show cutting between segments: three slanted panels (brand dark, the four player colours, the hot logo panel) sweep across with a light streak and the "Dose of Destruction" logo, a whoosh going in and an impact as the panels meet (0.58 s; if the next screen is still loading the logo holds and pulses, never black). A bout opens on a ROUND START slam (type punches in, camera kicks, hit sound) and ends on a GAME! slam with a half-second freeze on the final KO, just before the announcer's line. Reduced motion gets a 120 ms crossfade and no shake. Code: `src/game/ui/stinger.ts`, `main.ts` `slam()`.
+
+**The announcer's show calls.** The booth's voice also opens and closes the bout: "Choose your fighter!", each fighter's and stage's name on select / pick / VS, "Ready... FIGHT!", "GAME!", "The winner is..." and the winner's name (docs/story.md "The announcer calls the show").
+
+## Character select is a set (the casting wall)
+
+- **Look:** the select is the show's casting wall. Left, the 33 painted portraits (hover lifts a tile and frames it in
+  the slot's colour; a picked fighter keeps its slot's colour; a locked one is a dark silhouette reading "Locked").
+  Right, a spotlit stage in the first stage's light: the hovered fighter large, playing their idle in the colour look
+  being picked, a name lower third with the one-line tagline, and a small "Live · vs dummy" monitor.
+- **The monitor is the sim:** it runs the real fight engine against a training dummy (Wallit, or Ball Person when
+  Wallit is the one shown) in a 3 s loop: neutral special by default, or whichever of the four special buttons is
+  pinned. No video files.
+- **A pick** plays the confirm pose (taunt clip, else win / jump, with a hop and a light ring), the fighter's own
+  recorded taunt (a fighter with none shouts an effort), then the announcer calls their name.
+- **Details** (toggle) opens the stat bars; they are off by default.
+
+
+### Story beat: first blood
+The booth reacts to play. First KO of a bout: the ON AIR bug flashes red under the timer (`.air-flash`, `main.ts` `airFlash`), a sting, and the announcer's first-blood call. Fits phones (top centre, no pointer events).
+
+## Name tags (on-stage identity)
+Every fighter wears the show's name tag: P1-P4 for people, CPU for bots, DUMMY in Training, the profile name online. It sits above the head in the player colour with a dark outline (ui/tags.ts), and rides the edge bubble when the fighter is knocked out of view, so a player knows which fighter is theirs without relying on colour.
+
+## The first bout (the opening beat)
+
+- **Areas:** the stage the first match of a visit is on (Training or a Versus bout); no new area.
+- **Landmarks:** the fly-in from the far layers, the stage-name lower third, the rival's entrance spot.
+- **Who lives here:** whoever stands across from the player: Break, Wallit, Kaelen and the rest each enter as in "The broadcast opens"; the announcer calls the stage.
+- **Characters:** no new character; entrances use each fighter's existing voice and look. **Future Man** (want: to keep the show from surprising him; arc: the one fight he cannot call; moment: his taunts below; words: smug, tired, exact; voice `future-man`, Gen id CwhRBWXzGAHq8TQ4Fs17; idle, walk and talk clips from his own sheet) is the opening rival of the ledge lesson and every bout he is in.
+- **What happens:** the first fight of every page visit, however it starts (the Versus card, Training, a setup shortcut), plays the match intro once (`openingBeatSeen` in `main.ts` `startMatch`): the rival drops in with dust and a thud, the crowd and bed play, then Ready. No input is asked for until Ready; any press skips it. Retry and later bouts go straight to Ready. Lessons, online, Tonight's Episode and episodes with their own scene are unchanged.
+- **Story beats:** told by camera, entrance, crowd and the announcer's call, with one caption line (the stage name).
+- **Future Man talks during the fight, not before it** (`campaign/futureTaunts.ts`, `main.ts` `futureManTaunt`): he has seen how it ends, so his lines answer play. He lands a hit ("Left jab. I counted that one."), he is hit ("Spoiler: that one hurts."), or the other fighter grabs the ledge ("Nice ledge. Hold it. Four seconds."). Nine lines, 10 words or fewer, one at a time, never the same line twice running, 6 s apart. Each shows as one caption under his name and plays his recorded take when `audio` exists for the id (`taunt.future-man.<kind>.<n>`; all nine recorded in his voice, `audio/voice/taunt.future-man.*.mp3`, listed in `content/voice.json` group `taunt`; the event's `take` is the id played). Event `dod:future-taunt`; the `ledge-options` playtest opens on a fight against him and checks it (`future-taunt`).
+
+## The roster screen (the casting wall)
+
+Area: the screen after Press start. Landmark: the wall of 33 head tiles with locked silhouettes. Who lives here: every fighter,
+open or waiting for the episode that casts them. What happens: the player sees how much of the show there is, which fighter is
+next (progress bar), and taps a silhouette to learn the episode that opens them. Story beat: the card is a tease, "the show has
+more than you have seen". No new named characters.

@@ -62,6 +62,17 @@ export class RecordsPool {
     return { close: () => this.subs.splice(this.subs.indexOf(sub), 1) };
   }
 
+  /** One read of a tag's events, now (no subscription, no timer: the daily board reads when results open). */
+  async fetchOnce(tag: string, limit = 500): Promise<NostrEvent[]> {
+    const q = new URLSearchParams({ project: NET_PROJECT, tag, limit: String(limit) });
+    if (!IS_LIVE) q.set('test', '1');
+    const r = await fetch(`${NET_ENDPOINT}/v1/net/records?${q}`, { credentials: 'omit' });
+    if (!r.ok) throw new Error(`Hawkes Net answered ${r.status}`);
+    const j = (await r.json()) as { events?: NostrEvent[] };
+    this.markUp(true);
+    return (j.events ?? []).filter((e) => e && typeof e.id === 'string');
+  }
+
   /** Sends an event (true: it is on its way; a failure keeps it and tries again). */
   publish(event: NostrEvent): boolean {
     void this.put(event);
