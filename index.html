@@ -1,175 +1,68 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dose of Destruction</title>
-  <!--dod:meta-description--><meta name="description" content="A free platform fighter you play in the browser or on your phone. 33 fighters, 9 stages, 39 campaign episodes across 10 seasons, and online matches with a rated leaderboard."><!--/dod:meta-description-->
-  <meta name="theme-color" content="#100e0c">
-  <meta property="og:title" content="Dose of Destruction">
-  <!--dod:og-description--><meta property="og:description" content="A free platform fighter in your browser: 33 fighters, 9 stages, a 10-season story campaign and online matches with ratings. Last stock wins."><!--/dod:og-description-->
-  <meta property="og:image" content="/site/img/lineup-1600.jpg">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="preload" as="image" type="image/webp" imagesrcset="/site/img/lineup-900.webp 900w, /site/img/lineup-1600.webp 1600w, /site/img/lineup-2800.webp 2800w" imagesizes="100vw">
-  <link rel="stylesheet" href="/site/site.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f0d0b">
+<meta name="description" content="One body orbiting a fire, in the well V(r) = L²/2r² − μ/r. Alive is its kinetic energy, safe is being bound, free is never being captured. All three at once is one narrow orbit.">
+<title>Dose of Destruction</title>
+<style>html,body{margin:0;height:100%;background:#0f0d0b;overflow:hidden}canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style>
+<script>(function(){var s=location.search,h=location.hash;if(navigator.webdriver||s.length>1||h.length>1){location.replace('./home.html'+s+h);}})();</script>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:title" content="Dose of Destruction">
+<meta property="og:description" content="One body orbiting a fire. Alive is its kinetic energy, safe is being bound, free is never being captured.">
+<meta property="og:image" content="/site/img/lineup-1600.jpg">
+<script src="/site/build.js"></script>
+<script src="https://hawkesgen.ai/sdk/analytics@1.js" data-product="doseofdestruction" defer></script>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="/">Dose of Destruction</a>
-    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-menu">Menu</button>
-    <nav id="site-menu" class="menu" aria-label="Primary">
-      <a href="/" aria-current="page">Home</a>
-      <a href="/characters.html">Characters</a>
-      <a href="/devtools.html" data-dev-only hidden>Dev tools</a>
-    </nav>
-    <a class="play" href="/Game/"><span class="play-icon" aria-hidden="true"></span>Play</a>
-  </header>
-
-  <main>
-    <section class="landing-hero">
-      <video class="hero-loop" data-hero-loop autoplay muted loop playsinline preload="auto" disablepictureinpicture poster="/site/img/hero-loop.jpg" aria-hidden="true"><source src="/site/img/hero-loop.mp4" type="video/mp4"></video><script>(function(){var v=document.querySelector('[data-hero-loop]');if(v&&window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches){v.removeAttribute('autoplay');v.pause();}})();</script>
-      <div class="hero-loop-shade" aria-hidden="true"></div>
-      <div class="landing-copy">
-        <p class="kicker">Free platform fighter &middot; Plays in your browser</p>
-        <h1 class="logo">Dose of <span>Destruction</span></h1>
-        <p class="tagline">Rack up damage. Launch them past the blast zone. Last stock standing wins.</p>
-        <div class="cta-row">
-          <a class="play play-large" href="/Game/"><span class="play-icon" aria-hidden="true"></span>Play now</a>
-          <a class="ghost" href="#roster">Meet the roster</a>
-        </div>
-        <ul class="facts" aria-label="At a glance">
-          <li>Free, no download</li>
-          <li><!--dod:fighters-->33<!--/dod:fighters--> fighters, <!--dod:stages-->9<!--/dod:stages--> stages</li>
-          <li><!--dod:seasons-->10<!--/dod:seasons-->-season TV-show campaign, <!--dod:episodes-->39<!--/dod:episodes--> voiced episodes</li>
-          <li>Online matches with ratings</li>
-          <li>Phone, keyboard or gamepad</li>
-        </ul>
-      </div>
-      <picture class="lineup">
-        <source type="image/webp" srcset="/site/img/lineup-900.webp 900w, /site/img/lineup-1600.webp 1600w, /site/img/lineup-2800.webp 2800w" sizes="100vw">
-        <img src="/site/img/lineup-1600.jpg" width="1600" height="674" alt="The whole roster lined up in rows. Exit Punk, Break, Evil Blue Bird and Kaelen stand at the front.">
-      </picture>
-    </section>
-
-    <section class="features" aria-label="Features">
-      <article class="feature">
-        <h2>A TV-show campaign</h2>
-        <p><!--dod:episodes-->39<!--/dod:episodes--> episodes across <!--dod:seasons-->10<!--/dod:seasons--> seasons of a nightly broadcast and the man who runs it. The scenes are voiced, and each fight has its own twist.</p>
-      </article>
-      <article class="feature">
-        <h2>Online, with ratings</h2>
-        <p>Press Find match and fight a real player. Rollback netcode keeps hits on time, and a rated leaderboard keeps score.</p>
-      </article>
-      <article class="feature">
-        <h2><!--dod:fighters-->33<!--/dod:fighters--> fighters, <!--dod:stages-->9<!--/dod:stages--> stages</h2>
-        <p>No two play alike, on stages that fight back. Bots from a punching bag to one that waits at the ledge.</p>
-      </article>
-      <article class="feature">
-        <h2>Phone, keyboard or gamepad</h2>
-        <p>It runs in a browser tab. Nothing to install, nothing to sign up for, with touch controls built for a phone.</p>
-      </article>
-    </section>
-
-    <section class="section">
-      <h2>How a match goes</h2>
-      <p class="lede">A stock is a life. Leave the blast zone and that stock is gone. Last one still standing takes the match.</p>
-      <div class="cards">
-        <article class="card">
-          <span class="card-index">01</span>
-          <h3>Take damage</h3>
-          <p>Every hit adds to your percent. The number is how far the next clean hit can send you.</p>
-        </article>
-        <article class="card">
-          <span class="card-index">02</span>
-          <h3>Get launched</h3>
-          <p>The stage has edges. A strong hit at a high percent carries you off them.</p>
-        </article>
-        <article class="card">
-          <span class="card-index">03</span>
-          <h3>Lose a stock</h3>
-          <p>Past the blast zone, that life is gone. Run out of stocks and the match is over.</p>
-        </article>
-      </div>
-    </section>
-
-    <section id="roster" class="section">
-      <h2>Four to start with</h2>
-      <p class="lede">All <!--dod:fighters:word-->thirty-three<!--/dod:fighters:word--> fighters are playable, each with their own weight, speed, jumps and reach. Here are four that play nothing alike.</p>
-      <div class="starters">
-        <a class="starter" href="/characters/exit-punk.html">
-          <img src="/characters/large/exit-punk.webp" alt="" loading="lazy">
-          <span class="starter-role">All-rounder</span>
-          <h3>Exit Punk</h3>
-          <p>Nothing to learn around, nothing to hide behind.</p>
-        </a>
-        <a class="starter" href="/characters/break.html">
-          <img src="/characters/large/break.webp" alt="" loading="lazy">
-          <span class="starter-role">Heavy</span>
-          <h3>Break</h3>
-          <p>Slow hands, huge reach, hard to launch.</p>
-        </a>
-        <a class="starter" href="/characters/evil-blue-bird.html">
-          <img src="/characters/large/evil-blue-bird.webp" alt="" loading="lazy">
-          <span class="starter-role">Floaty</span>
-          <h3>Evil Blue Bird</h3>
-          <p>Two extra jumps and an air game that never lands.</p>
-        </a>
-        <a class="starter" href="/characters/kaelen.html">
-          <img src="/characters/large/kaelen.webp" alt="" loading="lazy">
-          <span class="starter-role">Fast</span>
-          <h3>Kaelen</h3>
-          <p>Quick hits, quick fall, gone before the trade lands.</p>
-        </a>
-      </div>
-      <a class="ghost" href="/characters.html">See all <!--dod:fighters-->33<!--/dod:fighters--> fighters</a>
-    </section>
-
-    <section class="section">
-      <h2>Pick up and play</h2>
-      <p class="lede">On a phone, touch controls are on screen. Plug in a controller or use the keyboard. The full list is on the game&rsquo;s menu.</p>
-      <div class="controls-ref">
-        <dl>
-          <div><dt>Move</dt><dd><kbd>A</kbd><kbd>D</kbd></dd></div>
-          <div><dt>Jump</dt><dd><kbd>Space</kbd></dd></div>
-          <div><dt>Attack</dt><dd><kbd>J</kbd></dd></div>
-          <div><dt>Special</dt><dd><kbd>K</kbd></dd></div>
-          <div><dt>Shield</dt><dd><kbd>L</kbd></dd></div>
-          <div><dt>Smash</dt><dd><kbd>I</kbd> + direction</dd></div>
-        </dl>
-      </div>
-    </section>
-
-    <section class="final-cta">
-      <h2>The stage is lit.</h2>
-      <p>Pick a fighter and send someone off it.</p>
-      <a class="play play-large" href="/Game/"><span class="play-icon" aria-hidden="true"></span>Play now</a>
-    </section>
-  </main>
-
-  <footer class="site-footer">
-    <div class="footer-inner">
-      <p class="footer-brand">Dose of Destruction</p>
-      <p>A platform fighter about damage, launch, and the last stock.</p>
-      <p class="footer-parent">A game from <a href="https://hawkesbiomedical.com" data-hawkes-parent>Hawkes Biomedical</a></p>
-      <nav class="footer-links" aria-label="Footer">
-        <a href="/">Home</a>
-        <a href="/characters.html">Characters</a>
-        <a href="/whatsnew.html">What&rsquo;s new</a>
-        <a href="/privacypolicy.html">Privacy</a>
-        <a href="/Game/">Play</a>
-      </nav>
-      <p class="footer-credit"><a href="https://hawkesgen.ai" data-hawkes-gen>Powered by <strong>HAWKES GEN</strong></a></p>
-      <p class="footer-version"><a href="/whatsnew.html" data-hawkes-version data-prefix="Version " hidden></a></p>
-    </div>
-  </footer>
-  <!-- Hawkes Analytics: anonymous gameplay statistics (see Privacy). build.js is written by the game's build. -->
-  <script src="/site/build.js"></script>
-  <script src="https://hawkesgen.ai/sdk/analytics@1.js" data-product="doseofdestruction" defer></script>
-  <script src="/site/site.js"></script>
-  <script src="/site/hawkes-release.js" data-releases="/releases.json" defer></script>
-  <script src="site/playtest-bridge.js"></script>
+<canvas id="v" aria-hidden="true"></canvas>
+<main class="sr"><h1>Dose of Destruction</h1><p>One body orbiting a fire, in the well V(r) = L²/2r² − μ/r. Alive is its kinetic energy, safe is being bound, free is never being captured. All three at once is one narrow orbit.</p></main>
+<script>
+(function runtime(P, F, make) {
+  var c = document.getElementById('v'), x = c.getContext('2d'), S = make(P, F), M = { x: .5, y: .5, in: false, down: false }, Wd = 0, Ht = 0, last = 0, T = 0;
+  var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function size() { var D = Math.min(2, window.devicePixelRatio || 1); Wd = window.innerWidth; Ht = window.innerHeight; c.width = Math.round(Wd * D); c.height = Math.round(Ht * D); x.setTransform(D, 0, 0, D, 0, 0); S.resize(Wd, Ht); if (still) for (var i = 0; i < 240; i++) S.frame(x, Wd, Ht, i / 30, 1 / 30, M); }
+  function frame(ms) { var dt = Math.min(.05, (ms - last) / 1000 || .016); last = ms; T += dt; S.frame(x, Wd, Ht, T, dt, M); window.requestAnimationFrame(frame); }
+  function pt(e) { M.x = e.clientX / Wd; M.y = e.clientY / Ht; M.in = true; }
+  c.addEventListener('pointermove', pt); c.addEventListener('pointerdown', function (e) { pt(e); M.down = true; });
+  window.addEventListener('pointerup', function () { M.down = false; }); c.addEventListener('pointerleave', function () { M.in = false; M.down = false; });
+  window.addEventListener('resize', size); size(); if (!still) window.requestAnimationFrame(frame);
+})({"bg":"#0f0d0b","fg":"#f5eee3","dim":"#8b8071","rule":"#34302a","a":"#ff5a36","b":"#ffd166","a3":[255,90,54],"b3":[255,209,102],"bg3":[15,13,11]}, {"mono":"ui-monospace,SFMono-Regular,Menlo,Consolas,monospace","serif":"Georgia,\"Times New Roman\",serif","sans":"system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif"}, function well(P, F) {
+  let W = 0, H = 0, px = 0, py = 0, vx = 0, vy = 0, tr = [], S = 1;
+  const MU = 1, RC = 0.16;
+  const start = () => { px = 1; py = 0; vx = 0; vy = 0.62 + Math.random() * 0.16; tr = []; };
+  return {
+    resize(w, h) { W = w; H = h; S = Math.min(W * 0.5, H * 0.62) * 0.36; start(); },
+    frame(x, w, h, T, dt, M) {
+      x.fillStyle = P.bg; x.fillRect(0, 0, W, H);
+      const lean = M.down ? 1.9 : 1; let r = 1;
+      for (let k = 0; k < 8; k++) { r = Math.hypot(px, py); const f = -MU * lean / (r * r * r) - 0.012 / (r * r * r * r * r); vx += px * f * dt * 0.16; vy += py * f * dt * 0.16; px += vx * dt * 0.16; py += vy * dt * 0.16; }
+      r = Math.hypot(px, py); if (r < RC || r > 3.2) start();
+      const Lz = px * vy - py * vx, KE = 0.5 * (vx * vx + vy * vy), E = KE - MU / r;
+      const wide = W > 820, ox = wide ? W * 0.3 : W / 2, oy = wide ? H * 0.5 : H * 0.34;
+      tr.push([ox + px * S, oy + py * S]); if (tr.length > 900) tr.shift();
+      x.strokeStyle = P.fg; x.lineWidth = 1; x.beginPath(); tr.forEach((p, i) => i ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1])); x.globalAlpha = 0.45; x.stroke(); x.globalAlpha = 1;
+      x.strokeStyle = P.a; x.setLineDash([3, 5]); x.beginPath(); x.arc(ox, oy, RC * S, 0, 6.283); x.stroke(); x.setLineDash([]);
+      x.fillStyle = P.a; x.beginPath(); x.arc(ox, oy, RC * S * (0.5 + 0.08 * Math.sin(T * 7)), 0, 6.283); x.fill();
+      x.fillStyle = P.b; x.beginPath(); x.arc(ox + px * S, oy + py * S, 3 + Math.min(6, KE * 5), 0, 6.283); x.fill();
+      // the well itself
+      const gx = wide ? W * 0.58 : 24, gw = wide ? W * 0.38 : W - 48, gy = wide ? H * 0.2 : H * 0.6, gh = wide ? H * 0.42 : H * 0.22, rmax = 3, vmin = -1.6, vmax = 0.9, X = rr => gx + rr / rmax * gw, Y = vv => gy + (vmax - vv) / (vmax - vmin) * gh, V = rr => Lz * Lz / (2 * rr * rr) - MU / rr;
+      x.strokeStyle = P.dim; x.lineWidth = 1; x.beginPath(); x.moveTo(gx, Y(0)); x.lineTo(gx + gw, Y(0)); x.stroke();
+      x.strokeStyle = P.fg; x.lineWidth = 1.8; x.beginPath(); let pen = false; for (let i = 3; i <= 200; i++) { const rr = i / 200 * rmax, vv = V(rr); if (vv > vmax) { pen = false; continue; } pen ? x.lineTo(X(rr), Y(vv)) : x.moveTo(X(rr), Y(vv)); pen = true; } x.stroke();
+      x.strokeStyle = P.b; x.setLineDash([4, 4]); x.beginPath(); x.moveTo(gx, Y(Math.max(vmin, E))); x.lineTo(gx + gw, Y(Math.max(vmin, E))); x.stroke(); x.setLineDash([]);
+      x.fillStyle = P.b; x.beginPath(); x.arc(X(r), Y(Math.max(vmin, Math.min(vmax, V(r)))), 5, 0, 6.283); x.fill();
+      x.strokeStyle = P.a; x.beginPath(); x.moveTo(X(RC), gy); x.lineTo(X(RC), gy + gh); x.stroke();
+      const big = Math.max(15, Math.min(22, W / 56)); x.fillStyle = P.fg; x.textAlign = 'left'; x.font = 'italic ' + big + 'px ' + F.serif; x.fillText('V(r) = L²/2r² − μ/r', gx, gy - 14);
+      x.font = '11px ' + F.mono; x.fillStyle = P.dim; x.fillText('r', gx + gw - 8, Y(0) + 14); x.fillStyle = P.a; x.fillText('rᴄ', X(RC) + 5, gy + 12); x.fillStyle = P.b; x.textAlign = 'right'; x.fillText('E', gx + gw, Y(Math.max(vmin, E)) - 5);
+      // three words, three quantities
+      const my = wide ? gy + gh + 44 : gy + gh + 34, mw = gw, rowH = Math.max(26, big * 1.6), rowsD = [['ALIVE', 'kinetic energy  ½v²', Math.min(1, KE / 1.6), KE.toFixed(2)], ['SAFE', 'bound: E < 0', Math.min(1, Math.max(0, -E) / 1.2), E.toFixed(2)], ['FREE', 'never held: r > rᴄ', Math.min(1, Math.max(0, r - RC) / 1.4), (r - RC).toFixed(2)]];
+      rowsD.forEach((d, i) => { const y = my + i * rowH; x.textAlign = 'left'; x.fillStyle = P.fg; x.font = '700 ' + Math.max(13, big * 0.8) + 'px ' + F.sans; x.fillText(d[0], gx, y); x.fillStyle = P.dim; x.font = '11px ' + F.mono; x.fillText(d[1], gx + 74, y); x.fillStyle = P.rule; x.fillRect(gx + mw * 0.55, y - 8, mw * 0.33, 6); x.fillStyle = i === 0 ? P.b : P.fg; x.fillRect(gx + mw * 0.55, y - 8, mw * 0.33 * d[2], 6); x.textAlign = 'right'; x.fillStyle = P.fg; x.fillText(d[3], gx + mw, y); });
+      x.textAlign = 'left'; x.fillStyle = P.fg; x.font = '600 12px ' + F.mono; x.fillText('DOSE OF DESTRUCTION', 22, 30);
+      x.font = '11px ' + F.mono; x.fillStyle = P.dim; x.fillText('all three at once is one narrow orbit. press to lean toward the fire.', 22, H - 20);
+    }
+  };
+});
+</script>
 </body>
 </html>

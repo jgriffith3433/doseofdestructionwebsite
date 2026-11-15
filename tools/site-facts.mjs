@@ -1,6 +1,6 @@
 /**
  * The landing page's numbers come from the game's own data, never from a hand: this reads content/*.json and writes
- * the fighter, stage, episode and season counts into index.html (facts, feature cards, share card), characters.html
+ * the fighter, stage, episode and season counts into home.html (facts, feature cards, share card), characters.html
  * and whatsnew.html. Run by `npm run build` (package.json) and the pages workflow (via the build); `npm test` runs
  * `--check`, which fails while a page is out of date.
  *
@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const PAGES = ['index.html', 'characters.html', 'whatsnew.html'];
+export const PAGES = ['home.html', 'characters.html', 'whatsnew.html'];
 
 const readJson = (root, file) => JSON.parse(fs.readFileSync(path.join(root, 'content', file), 'utf8'));
 

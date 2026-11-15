@@ -25,7 +25,7 @@ check(stale.length === 0, `pages current with content/*.json${stale.length ? ` (
 
 // Outside the markers, no page types a count of its own, and the old claims are gone.
 const strip = (h) => h.replace(/<!--dod:([A-Za-z:-]+)-->[\s\S]*?<!--\/dod:\1-->/g, '');
-for (const file of ['index.html', 'characters.html', 'whatsnew.html']) {
+for (const file of ['home.html', 'characters.html', 'whatsnew.html']) {
   const text = strip(fs.readFileSync(path.join(root, file), 'utf8')).replace(/<(script|style)[\s\S]*?<\/\1>/g, '');
   const typed = text.match(/\b(33|thirty-three|39|10-season|ten-season)\b/gi) || [];
   check(typed.length === 0, `${file}: no hand-typed counts${typed.length ? ` (${typed.join(', ')})` : ''}`);
