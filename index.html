@@ -4,31 +4,37 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>The Nucleus</title>
-<meta name="description" content="The Nucleus (10⁻¹⁵ m): the heart of an atom · a millionth of a billionth of a meter · uranium-235: 92 protons, 143 neutrons. Explained simply by an AI narrator, with captions. One of nine scales, from the nucleus to the universe.">
+<meta name="description" content="The Nucleus (10⁻¹⁵ m): the heart of an atom · a millionth of a billionth of a meter · uranium-235: 92 protons, 143 neutrons. Explained simply by an AI narrator, with captions. Flip the page for its opposite: a neutron star. One of nine scales, from the nucleus to the universe.">
 <meta name="theme-color" content="#03050b">
 <meta name="color-scheme" content="dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#eef4ff;--dim:rgba(214,228,255,.66);--acc:#8fc2ff}
-html,body{margin:0;height:100%;background:#03050b;overflow:hidden;color:var(--ink);font-family:"Space Grotesk",system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
-canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
-#hud{position:fixed;left:0;right:0;top:0;pointer-events:none;text-align:center;padding:max(14px,env(safe-area-inset-top)) 16px 30px;background:linear-gradient(rgba(3,5,11,.72),rgba(3,5,11,.3) 65%,transparent)}
+:root{--ink:#eef4ff;--dim:rgba(214,228,255,.66)}
+html,body{margin:0;height:100%;overflow:hidden;color:var(--ink);font-family:"Space Grotesk",system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+#hud{position:fixed;left:0;right:0;top:0;pointer-events:none;text-align:center;padding:max(14px,env(safe-area-inset-top)) 16px 30px;background:linear-gradient(rgba(3,5,11,.72),rgba(3,5,11,.3) 65%,transparent);z-index:4}
 .k{font:600 11px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.38em;color:var(--dim);text-transform:uppercase}
-.k b{color:var(--acc);font-weight:600}
+.k b{color:#8fc2ff;font-weight:600}
 .name{font-weight:700;font-size:clamp(30px,6.2vw,76px);line-height:1.02;letter-spacing:.06em;text-transform:uppercase;margin:.18em 0 .12em;color:#fff;text-shadow:0 0 28px rgba(110,165,255,.7),0 0 6px rgba(160,200,255,.55),0 2px 14px rgba(0,0,0,.9);animation:rise 1.1s cubic-bezier(.2,.8,.2,1)}
 @keyframes rise{from{opacity:0;letter-spacing:.3em;filter:blur(6px)}to{opacity:1;letter-spacing:.06em;filter:blur(0)}}
 .sub{font:400 clamp(11px,1.3vw,14px)/1.5 "JetBrains Mono",ui-monospace,monospace;color:var(--dim);letter-spacing:.05em;max-width:920px;margin:0 auto}
-#cc{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(max(12px,env(safe-area-inset-bottom)) + 74px);width:max-content;max-width:min(92vw,820px);text-align:center;pointer-events:none}
+:root{--acc:#8fc2ff}
+body{perspective:2400px;background:#000}
+#page{position:fixed;inset:0;transform-origin:50% 50%;will-change:transform;background:#03050b;overflow:hidden}
+#shade{position:absolute;inset:0;pointer-events:none;opacity:0;z-index:40;background:linear-gradient(90deg,rgba(0,0,0,.8),rgba(0,0,0,.05) 42%,rgba(255,255,255,.22) 52%,rgba(0,0,0,.65))}
+#cc{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(max(12px,env(safe-area-inset-bottom)) + 74px);width:max-content;max-width:min(92vw,820px);text-align:center;pointer-events:none;z-index:6}
 #cc span{display:inline-block;font:500 clamp(16px,2.2vw,25px)/1.4 "Space Grotesk",system-ui,sans-serif;color:#fff;background:rgba(3,6,14,.74);padding:.34em .8em;border-radius:10px;box-shadow:0 0 0 1px rgba(143,194,255,.22),0 8px 30px rgba(0,0,0,.5)}
 #cc span:empty{display:none}
-#snd{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(max(12px,env(safe-area-inset-bottom)) + 132px);font:600 clamp(12px,1.5vw,15px)/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:#03050b;background:linear-gradient(180deg,#d7e9ff,#8fc2ff);padding:.8em 1.2em;border-radius:999px;box-shadow:0 0 30px rgba(143,194,255,.6);cursor:pointer;user-select:none;-webkit-user-select:none;animation:pulse 1.6s ease-in-out infinite;white-space:nowrap}
+#snd{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(max(12px,env(safe-area-inset-bottom)) + 132px);z-index:7;font:600 clamp(12px,1.5vw,15px)/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:#03050b;background:linear-gradient(180deg,#d7e9ff,#8fc2ff);padding:.8em 1.2em;border-radius:999px;box-shadow:0 0 30px rgba(143,194,255,.6);cursor:pointer;user-select:none;-webkit-user-select:none;animation:pulse 1.6s ease-in-out infinite;white-space:nowrap}
 #snd.on{left:auto;right:max(14px,env(safe-area-inset-right));top:max(14px,env(safe-area-inset-top));bottom:auto;transform:none;animation:none;background:rgba(3,6,14,.7);color:var(--acc);box-shadow:0 0 0 1px rgba(143,194,255,.4);font-size:11px;padding:.7em 1em}
 @keyframes pulse{50%{box-shadow:0 0 54px rgba(143,194,255,.95)}}
-#ruler{position:fixed;left:max(52px,env(safe-area-inset-left));right:max(52px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));height:56px}
+#flip{position:fixed;left:max(14px,env(safe-area-inset-left));top:max(14px,env(safe-area-inset-top));z-index:8;cursor:pointer;user-select:none;-webkit-user-select:none;font:600 11px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:#03050b;background:linear-gradient(135deg,#fff 0 46%,#8fc2ff 46% 100%);padding:.9em 1.15em .9em 1em;border-radius:4px 14px 4px 14px;box-shadow:0 0 22px rgba(143,194,255,.55),0 6px 16px rgba(0,0,0,.5);transition:transform .2s;outline:none}
+#flip:hover,#flip:focus-visible{transform:rotate(-3deg) scale(1.06)}
+#ruler{position:fixed;left:max(52px,env(safe-area-inset-left));right:max(52px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));height:56px;z-index:6}
 #ruler:before{content:"";position:absolute;left:0;right:0;top:20px;height:1px;background:linear-gradient(90deg,transparent,rgba(143,194,255,.55) 6%,rgba(143,194,255,.55) 94%,transparent)}
-#ruler a{position:absolute;top:0;transform:translateX(-50%);text-decoration:none;color:var(--dim);font:400 10px/1.25 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.04em;text-align:center;white-space:nowrap;padding-top:30px;outline:none}
+#ruler a{position:absolute;top:0;transform:translateX(-50%);text-decoration:none;color:rgba(214,228,255,.66);font:400 10px/1.25 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.04em;text-align:center;white-space:nowrap;padding-top:30px;outline:none}
 #ruler a:before{content:"";position:absolute;left:50%;top:15px;width:9px;height:9px;margin-left:-5px;border-radius:50%;background:#0b1326;box-shadow:0 0 0 1.5px rgba(143,194,255,.75);transition:transform .2s,background .2s}
 #ruler a:hover,#ruler a:focus-visible{color:#fff}
 #ruler a:hover:before,#ruler a:focus-visible:before{transform:scale(1.5);background:var(--acc)}
@@ -39,34 +45,60 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 #ruler a b{display:block;font-weight:600;color:var(--acc)}
 #ruler .cap{position:absolute;top:-30px;font:400 10px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.2em;text-transform:uppercase;color:rgba(214,228,255,.4)}
 #ruler .cap.l{left:-30px}#ruler .cap.r{right:-30px}
-@media (max-width:760px){#ruler a:not(.me) span{display:none}#ruler a:not(.me) b{font-size:9px}#ruler .cap{display:none}#cc{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 70px)}}
 .nav{position:fixed;top:50%;transform:translateY(-50%);z-index:5;display:flex;flex-direction:column;align-items:center;gap:7px;text-decoration:none;color:rgba(214,228,255,.7);font:400 10px/1.25 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.08em;text-align:center;text-transform:uppercase;padding:14px 8px;outline:none;text-shadow:0 0 8px #000}
 .nav i{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:rgba(3,6,14,.62);box-shadow:0 0 0 1.5px rgba(143,194,255,.55);font:300 28px/1 system-ui,sans-serif;font-style:normal;color:#fff;padding-bottom:3px;box-sizing:border-box;transition:transform .2s,box-shadow .2s,background .2s}
 .nav:hover i,.nav:focus-visible i{transform:scale(1.12);background:rgba(143,194,255,.25);box-shadow:0 0 0 2px #8fc2ff,0 0 24px rgba(143,194,255,.75)}
 .nav.l{left:max(6px,env(safe-area-inset-left))}
 .nav.r{right:max(6px,env(safe-area-inset-right))}
 .nav b{display:block;color:#8fc2ff;font-weight:600}
-@media (max-width:760px){.nav span{display:none}.nav i{width:40px;height:40px;font-size:23px}}
-@media (prefers-reduced-motion:reduce){.name,#snd{animation:none}}
+/* ---- the back of the page: everything the other way round. Ink on paper instead of light on black, a quiet serif
+   instead of loud capitals, the ruler and the arrows reversed. */
+#hud2{display:none;position:fixed;left:0;right:0;top:0;pointer-events:none;text-align:center;padding:max(16px,env(safe-area-inset-top)) 16px 26px;z-index:4}
+.bk{font:400 12px/1 Georgia,"Times New Roman",serif;font-style:italic;letter-spacing:.06em;color:rgba(40,28,16,.7)}
+.bname{font:500 clamp(34px,6.6vw,84px)/1.02 "Playfair Display",Georgia,"Times New Roman",serif;font-style:italic;letter-spacing:-.01em;text-transform:lowercase;margin:.16em 0 .14em;color:#17110a;animation:settle 1.1s cubic-bezier(.2,.8,.2,1)}
+@keyframes settle{from{opacity:0;letter-spacing:-.08em;filter:blur(5px)}to{opacity:1;letter-spacing:-.01em;filter:blur(0)}}
+.bsub{font:400 clamp(12px,1.35vw,15px)/1.5 Georgia,"Times New Roman",serif;font-style:italic;color:rgba(40,28,16,.75);max-width:860px;margin:0 auto}
+body.flip #hud2{display:block}
+body.flip .fronthide{display:none!important}
+body.flip #page{background:#f1eadc}
+body.flip canvas.ink{filter:invert(1) hue-rotate(180deg);mix-blend-mode:multiply}
+#c2{position:fixed;inset:0;width:100%;height:100%;display:none}
+body.flip #c2{display:block}
+body.flip #cc span{font-family:Georgia,"Times New Roman",serif;font-style:italic;font-weight:400;color:#17110a;background:rgba(255,252,244,.9);box-shadow:0 0 0 1px rgba(70,45,20,.28),0 8px 26px rgba(70,45,20,.18)}
+body.flip #snd{color:#f1eadc;background:linear-gradient(180deg,#3a2a18,#17110a);box-shadow:0 0 26px rgba(60,40,20,.45)}
+body.flip #snd.on{background:rgba(255,252,244,.85);color:#7a3d0e;box-shadow:0 0 0 1px rgba(90,60,30,.5)}
+body.flip #flip{color:#f1eadc;background:linear-gradient(315deg,#17110a 0 46%,#7a3d0e 46% 100%);box-shadow:0 6px 16px rgba(60,40,20,.35);border-radius:14px 4px 14px 4px}
+body.flip #ruler:before{background:linear-gradient(90deg,transparent,rgba(70,45,20,.55) 6%,rgba(70,45,20,.55) 94%,transparent)}
+body.flip #ruler a{color:rgba(40,28,16,.7);font-family:Georgia,serif;font-style:italic;font-size:11px}
+body.flip #ruler a:before{background:#f1eadc;box-shadow:0 0 0 1.5px rgba(70,45,20,.8)}
+body.flip #ruler a:hover,body.flip #ruler a:focus-visible{color:#000}
+body.flip #ruler a.me{color:#17110a}
+body.flip #ruler a.me:before{background:#17110a;box-shadow:0 0 0 2px #7a3d0e}
+body.flip #ruler a b{color:#7a3d0e}
+body.flip #ruler .cap{color:rgba(40,28,16,.45);font-family:Georgia,serif;font-style:italic;text-transform:none;letter-spacing:.06em;font-size:11px}
+body.flip .nav{color:rgba(40,28,16,.75);text-shadow:none;font-family:Georgia,serif;font-style:italic;text-transform:none;font-size:11px}
+body.flip .nav i{background:rgba(255,252,244,.82);color:#17110a;box-shadow:0 0 0 1.5px rgba(70,45,20,.6)}
+body.flip .nav:hover i,body.flip .nav:focus-visible i{background:#17110a;color:#f1eadc;box-shadow:0 0 0 2px #7a3d0e}
+body.flip .nav b{color:#7a3d0e}
+@media (max-width:760px){#ruler a:not(.me) span{display:none}#ruler a:not(.me) b{font-size:9px}#ruler .cap{display:none}#cc{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 70px)}.nav span{display:none}.nav i{width:40px;height:40px;font-size:23px}#flip{font-size:10px;padding:.8em .9em}}
+@media (prefers-reduced-motion:reduce){#snd,.bname{animation:none}}
+
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
-<div id="hud">
+<canvas id="c" class="ink"></canvas>
+<div id="hud" class="fronthide">
   <div class="k" id="k"></div>
   <h1 class="name" id="name"></h1>
   <div class="sub" id="sub"></div>
 </div>
-<div id="cc" aria-live="polite"><span id="cap"></span></div>
-<div id="snd" role="button" tabindex="0" aria-label="Turn the narration sound on">&#128266; Tap anywhere to hear it explained</div>
-<nav id="ruler" aria-label="The nine scales, from the nucleus to the universe"></nav>
-<audio id="au" src="./narration.mp3" preload="auto" loop muted autoplay playsinline></audio>
 <script>
 (function () {
 'use strict';
-// One of nine pages, one per scale of the world (10^-15 m to 10^27 m). Each draws its scale from the real numbers and
-// an AI voice explains it; the captions are cut from the voice's own timing. The ruler at the bottom links the nine.
-var D = {"i":0,"scales":[{"exp":-15,"name":"The Nucleus","short":"nucleus","size":"10⁻¹⁵ m","sub":"the heart of an atom · a millionth of a billionth of a meter · uranium-235: 92 protons, 143 neutrons","domain":"doseofdestruction.com"},{"exp":-10,"name":"The Atom","short":"atom","size":"10⁻¹⁰ m","sub":"the building brick of everything · one ten-billionth of a meter · hydrogen's electron clouds, drawn from the real equations","domain":"hawkesgames.com"},{"exp":-5,"name":"The Cell","short":"cell","size":"10⁻⁵ m","sub":"the smallest living thing · a hundredth of a millimeter · you are about 37 trillion of these","domain":"hawkesbiomedical.com"},{"exp":0,"name":"You","short":"you","size":"10⁰ m","sub":"the human scale · about a meter and a bit · 7 × 10²⁷ atoms, 37 trillion cells, 86 billion neurons","domain":"icanbe.ai"},{"exp":7,"name":"The Planet","short":"planet","size":"10⁷ m","sub":"Earth · 12,742 km across · a thin skin of rock and air around a ball of hot stone and metal","domain":"yoobalandgame.com"},{"exp":9,"name":"The Star","short":"star","size":"10⁹ m","sub":"the Sun · 1.39 million km across · a million Earths would fit inside","domain":"imaginelivetv.com"},{"exp":13,"name":"The Solar System","short":"solar system","size":"10¹³ m","sub":"the Sun's neighborhood · 9 billion km across at Neptune · real orbits and real speeds, distances squeezed to fit","domain":"theplacedepartment.com"},{"exp":21,"name":"The Galaxy","short":"galaxy","size":"10²¹ m","sub":"","domain":"phorigins.com"},{"exp":27,"name":"The Universe","short":"universe","size":"10²⁷ m","sub":"everything we could ever see · 93 billion light-years across · 13.8 billion years old","domain":"hawkesgen.ai"}],"cues":[[0,1.02,"Hello."],[1.02,3.48,"I'm the AI that lives in this page,"],[3.48,7.11,"and I'm going to show you one of the smallest things we know."],[7.11,9.5,"This is the middle of an atom."],[9.5,11.66,"It's called the nucleus."],[11.66,13.21,"See the little balls?"],[13.21,17.62,"The warm ones are protons, and the cool ones are neutrons."],[17.62,20.75,"They're squished together like a handful of marbles,"],[20.75,24.07,"stuck with the strongest glue in the universe."],[24.07,25.32,"How small is it?"],[25.32,27.78,"If an atom were as big as a football stadium,"],[27.78,31.71,"the nucleus would be a single pea sitting on the center spot."],[31.71,37.26,"And yet almost all the weight of everything you have ever touched is in those tiny peas."],[37.26,39.78,"Watch what happens when a big one gets hit."],[39.78,42.69,"It wobbles, and then it splits in two."],[42.69,47.21,"That flash is a tiny bit of weight turning into a huge amount of energy."],[47.21,49.97,"Split big ones, and you get a power plant."],[49.97,53.599999999999994,"Squeeze small ones together, and you get a star."]],"dur":53.6};
+// One of nine pages, one per scale of the world (10^-15 m to 10^27 m). The front draws the scale from the real
+// numbers while an AI voice explains it; the back of the page (Flip) is its opposite, told by the other narrator.
+// Captions are cut from the voices' own timing. The ruler and the side arrows link the nine sites.
+var D = {"i":0,"key":"nucleus","title":"The Nucleus","chat":"","scales":[{"exp":-15,"name":"The Nucleus","short":"nucleus","size":"10⁻¹⁵ m","sub":"the heart of an atom · a millionth of a billionth of a meter · uranium-235: 92 protons, 143 neutrons","domain":"doseofdestruction.com"},{"exp":-10,"name":"The Atom","short":"atom","size":"10⁻¹⁰ m","sub":"the building brick of everything · one ten-billionth of a meter · hydrogen's electron clouds, drawn from the real equations","domain":"hawkesgames.com"},{"exp":-5,"name":"The Cell","short":"cell","size":"10⁻⁵ m","sub":"the smallest living thing · a hundredth of a millimeter · you are about 37 trillion of these","domain":"hawkesbiomedical.com"},{"exp":0,"name":"You","short":"you","size":"10⁰ m","sub":"the human scale · about a meter and a bit · 7 × 10²⁷ atoms, 37 trillion cells, 86 billion neurons","domain":"icanbe.ai"},{"exp":7,"name":"The Planet","short":"planet","size":"10⁷ m","sub":"Earth · 12,742 km across · a thin skin of rock and air around a ball of hot stone and metal","domain":"yoobalandgame.com"},{"exp":9,"name":"The Star","short":"star","size":"10⁹ m","sub":"the Sun · 1.39 million km across · a million Earths would fit inside","domain":"imaginelivetv.com"},{"exp":13,"name":"The Solar System","short":"solar system","size":"10¹³ m","sub":"the Sun's neighborhood · 9 billion km across at Neptune · real orbits and real speeds, distances squeezed to fit","domain":"theplacedepartment.com"},{"exp":21,"name":"The Galaxy","short":"galaxy","size":"10²¹ m","sub":"","domain":"phorigins.com"},{"exp":27,"name":"The Universe","short":"universe","size":"10²⁷ m","sub":"everything we could ever see · 93 billion light-years across · 13.8 billion years old","domain":"hawkesgen.ai"}],"sides":[{"cues":[[0,1.02,"Hello."],[1.02,3.48,"I'm the AI that lives in this page,"],[3.48,7.11,"and I'm going to show you one of the smallest things we know."],[7.11,9.5,"This is the middle of an atom."],[9.5,11.66,"It's called the nucleus."],[11.66,13.21,"See the little balls?"],[13.21,17.62,"The warm ones are protons, and the cool ones are neutrons."],[17.62,20.75,"They're squished together like a handful of marbles,"],[20.75,24.07,"stuck with the strongest glue in the universe."],[24.07,25.32,"How small is it?"],[25.32,27.78,"If an atom were as big as a football stadium,"],[27.78,31.71,"the nucleus would be a single pea sitting on the center spot."],[31.71,37.26,"And yet almost all the weight of everything you have ever touched is in those tiny peas."],[37.26,39.78,"Watch what happens when a big one gets hit."],[39.78,42.69,"It wobbles, and then it splits in two."],[42.69,47.21,"That flash is a tiny bit of weight turning into a huge amount of energy."],[47.21,49.97,"Split big ones, and you get a power plant."],[49.97,53.599999999999994,"Squeeze small ones together, and you get a star."]],"dur":53.6},{"name":"a neutron star","size":"10⁴ m","sub":"a nucleus the size of a city · 20 km across, heavier than the Sun · a teaspoon weighs a billion tons","cues":[[0,1.37,"You turned the page."],[1.37,2.51,"I'm the other AI."],[2.51,3.9,"The one on the back."],[3.9,6.53,"You just saw the smallest heavy thing there is."],[6.53,7.84,"Here is the opposite."],[7.84,10.1,"This is a neutron star."],[10.1,13.84,"It is what is left when a giant star collapses."],[13.84,18.03,"It is one single nucleus, the size of a city."],[18.03,22.02,"About twenty kilometers across, and heavier than the Sun."],[22.02,25.16,"One teaspoon of it would weigh a billion tons."],[25.16,27.93,"It spins around many times every second,"],[27.93,32.23,"and sweeps beams of light across space, like a lighthouse."],[32.23,35.31,"It is the same stuff as the tiny pea."],[35.31,38,"Just a whole city of it."]],"dur":38}]};
 var TAU = Math.PI * 2;
 function rng(seed) { var a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 function gauss(r) { var u = 1 - r(), v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v); }
@@ -88,11 +120,13 @@ function label(x, text, px, py, align, col, size) {
 }
 function lead(x, x0, y0, x1, y1, col) { x.save(); x.globalAlpha = 0.6; x.globalCompositeOperation = 'source-over'; x.strokeStyle = col || 'rgba(143,194,255,.7)'; x.lineWidth = 1; x.beginPath(); x.moveTo(x0, y0); x.lineTo(x1, y1); x.stroke(); x.restore(); }
 function scaleBar(x, W, H, px, text) { // a labelled length, bottom-left above the ruler
-  var bx = Math.max(22, W * 0.03), by = H - 150; x.save(); x.globalAlpha = 0.9; x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(bx, by - 5); x.lineTo(bx, by); x.lineTo(bx + px, by); x.lineTo(bx + px, by - 5); x.stroke(); x.restore();
+  var bx = Math.max(64, W * 0.05), by = H - 150; x.save(); x.globalAlpha = 0.9; x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(bx, by - 5); x.lineTo(bx, by); x.lineTo(bx + px, by); x.lineTo(bx + px, by - 5); x.stroke(); x.restore();
   label(x, text, bx, by + 14, 'left', 'rgba(238,244,255,.92)', 12);
 }
 var H3 = { rng: rng, gauss: gauss, clamp: clamp, lerp: lerp, smooth: smooth, dot: dot, label: label, lead: lead, scaleBar: scaleBar, TAU: TAU };
 
+
+// ---------------------------------------------------------------- the front: the scale
 // THE NUCLEUS: uranium-235, drawn nucleon by nucleon (92 protons, 143 neutrons), then split by one neutron:
 //   n + U-235 -> Ba-141 + Kr-92 + 3 n + ~200 MeV      (236 nucleons in, 141 + 92 + 3 out; 56 + 36 = 92 protons)
 // Nucleons pack like drops of liquid: radius R = r0 A^(1/3), r0 = 1.2 fm, so U-235 is about 7.4 fm across the middle.
@@ -167,45 +201,138 @@ var SCENE = (function () {
 })();
 
 
+// ---------------------------------------------------------------- the back: its opposite (drawn light on black, shown as ink on paper)
+// THE OPPOSITE OF THE NUCLEUS: a neutron star. The same nuclear matter at the same density (about 4 x 10^17 kg/m^3),
+// but 20 km across instead of 15 femtometres: one nucleus of about 10^57 neutrons, 1.4 times the Sun's mass.
+// It spins (here 0.7 turns a second; real ones from once every few seconds up to 716 a second), its magnetic axis is
+// tilted from its spin axis, and beams of radiation leave along the magnetic poles: we see a pulse each time one
+// sweeps past, which is why they are called pulsars. Field lines are a true dipole: r = L sin^2(theta).
+var SCENE2 = (function () {
+  var r = H3.rng(9), surf = [], stars = [], sky = [];
+  function init() { var i; for (i = 0; i < 1500; i++) { var y = r() * 2 - 1, q = Math.sqrt(1 - y * y), a = r() * 6.2832; surf.push([Math.cos(a) * q, y, Math.sin(a) * q, r()]); } for (i = 0; i < 240; i++) stars.push([r(), r(), 0.5 + r() * 1.3]);
+    var bx = 0; while (bx < 1) { var w = 0.02 + r() * 0.05; sky.push([bx, w, 0.15 + r() * 0.85]); bx += w + 0.004; } }
+  function draw(x, W, H, t, dt, nt) {
+    var cx = W / 2, cy = H * 0.47, R = Math.min(W, H) * 0.115, i, k;
+    x.fillStyle = '#000'; x.fillRect(0, 0, W, H); x.globalCompositeOperation = 'lighter';
+    for (i = 0; i < stars.length; i++) H3.dot(x, stars[i][0] * W, stars[i][1] * H, stars[i][2], 'rgba(255,255,255,1)', 0.55);
+    var ph = t * 6.2832 * 0.7, tl = 0.61, m = [Math.sin(tl) * Math.cos(ph), Math.cos(tl), Math.sin(tl) * Math.sin(ph)];
+    // the two beams, along the magnetic axis
+    for (k = -1; k <= 1; k += 2) { var dx = m[0] * k, dy = -m[1] * k, len = R * (5.2 + 1.2 * m[2] * k), wd = R * 0.5, near = 0.35 + 0.65 * (0.5 + 0.5 * m[2] * k);
+      var g = x.createLinearGradient(cx, cy, cx + dx * len, cy + dy * len); g.addColorStop(0, 'rgba(190,225,255,' + (0.85 * near) + ')'); g.addColorStop(1, 'rgba(190,225,255,0)'); x.globalAlpha = 1; x.fillStyle = g;
+      x.beginPath(); x.moveTo(cx + dx * R * 0.9, cy + dy * R * 0.9); x.lineTo(cx + dx * len - dy * wd, cy + dy * len + dx * wd); x.lineTo(cx + dx * len + dy * wd, cy + dy * len - dx * wd); x.closePath(); x.fill(); }
+    // dipole field lines in four planes round the magnetic axis
+    var e1 = [m[1], -m[0], 0], l1 = Math.hypot(e1[0], e1[1]) || 1; e1 = [e1[0] / l1, e1[1] / l1, 0]; var e2 = [m[1] * e1[2] - m[2] * e1[1], m[2] * e1[0] - m[0] * e1[2], m[0] * e1[1] - m[1] * e1[0]];
+    x.lineWidth = 1; x.strokeStyle = 'rgba(160,205,255,.5)';
+    for (var az = 0; az < 4; az++) { var ca = Math.cos(az * 0.785), sa = Math.sin(az * 0.785), e = [e1[0] * ca + e2[0] * sa, e1[1] * ca + e2[1] * sa, e1[2] * ca + e2[2] * sa];
+      for (var L = 2.2; L <= 4.6; L += 1.2) for (var sg = -1; sg <= 1; sg += 2) { x.globalAlpha = 0.5; x.beginPath(); for (var th = 0.2; th <= 2.95; th += 0.08) { var rr = L * Math.sin(th) * Math.sin(th); if (rr < 1) continue; var px = rr * (Math.cos(th) * m[0] + Math.sin(th) * e[0] * sg), py = rr * (Math.cos(th) * m[1] + Math.sin(th) * e[1] * sg); x.lineTo(cx + px * R, cy - py * R); } x.stroke(); } }
+    // the star: a hot, glowing ball with its crust turning
+    H3.dot(x, cx, cy, R * 2.6, 'rgba(170,215,255,1)', 0.45); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
+    var sg2 = x.createRadialGradient(cx - R * 0.3, cy - R * 0.3, R * 0.1, cx, cy, R); sg2.addColorStop(0, '#ffffff'); sg2.addColorStop(0.7, '#cfe6ff'); sg2.addColorStop(1, '#7fb0e8'); x.fillStyle = sg2; x.beginPath(); x.arc(cx, cy, R, 0, 7); x.fill();
+    var c = Math.cos(ph), s = Math.sin(ph); for (i = 0; i < surf.length; i++) { var p = surf[i], zx = p[0] * c + p[2] * s, zz = -p[0] * s + p[2] * c; if (zz < 0) continue; x.globalAlpha = 0.35 * zz; x.fillStyle = p[3] > 0.5 ? '#4f86c4' : '#ffffff'; x.fillRect(cx + zx * R - 1, cy - p[1] * R - 1, 2, 2); }
+    x.globalAlpha = 1;
+    // a city, drawn at the same scale: both are about 20 km across
+    var by = cy + R * 2.6, bw = R * 2; x.fillStyle = 'rgba(235,240,255,.92)'; for (i = 0; i < sky.length; i++) { var b = sky[i], hh = R * 0.42 * b[2] * (1 - Math.abs(b[0] + b[1] / 2 - 0.5) * 0.9); x.fillRect(cx - R + b[0] * bw, by - hh, Math.max(1, b[1] * bw - 1), hh); }
+    x.fillRect(cx - R - 6, by, bw + 12, 1.5);
+    H3.label(x, 'a city, drawn at the same scale: 20 km across', cx, by + 16, 'center', '#fff', 12);
+    H3.lead(x, cx + R * 0.75, cy - R * 0.6, cx + R * 2.9, cy - R * 1.5); H3.label(x, 'one nucleus: 10⁵⁷ neutrons, 1.4 Suns of weight', cx + R * 3, cy - R * 1.5, W > 760 ? 'left' : 'center', '#fff', 11);
+    H3.label(x, 'beams along its magnetic poles: a lighthouse', cx - R * 3, cy - R * 1.5, W > 760 ? 'right' : 'center', 'rgba(214,228,255,.9)', 11);
+    // the pulse we would see, each time a beam sweeps past
+    var bx0 = Math.max(64, W * 0.05), bw2 = Math.min(240, W * 0.3), py0 = H - 172; x.strokeStyle = '#fff'; x.lineWidth = 1.4; x.beginPath(); for (i = 0; i <= 120; i++) { var tt = t - (120 - i) / 120 * 3, q2 = (tt * 0.7) % 1, v = Math.exp(-Math.pow((q2 - 0.25) / 0.022, 2)) + 0.5 * Math.exp(-Math.pow((q2 - 0.75) / 0.022, 2)); x.lineTo(bx0 + i / 120 * bw2, py0 - v * 30); } x.stroke();
+    H3.label(x, 'what a telescope hears: tick, tick, tick', bx0, py0 + 14, 'left', 'rgba(238,244,255,.9)', 11);
+  }
+  return { init: init, draw: draw };
+})();
+
+
+// The page itself: captions, the voice, the ruler of nine scales, the side arrows, and the flip.
+// Each page has two sides. The front is the scale; the back is its opposite, with the other narrator. Flipping turns
+// the whole page over in 3D (it swaps sides when it is edge-on) and everything on the back runs the other way:
+// ink on paper instead of light on black, the ruler and arrows reversed.
+function Chrome(D, opt) {
+  opt = opt || {};
+  var doc = document, body = doc.body, page = doc.createElement('div'); page.id = 'page';
+  Array.prototype.slice.call(body.childNodes).forEach(function (n) { if (n.nodeName !== 'SCRIPT') page.appendChild(n); });
+  body.insertBefore(page, body.firstChild);
+  var f = doc.createElement('link'); f.rel = 'stylesheet'; f.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,500&display=swap'; doc.head.appendChild(f);
+  function el(tag, id, html, cls) { var e = doc.createElement(tag); if (id) e.id = id; if (cls) e.className = cls; e.innerHTML = html || ''; page.appendChild(e); return e; }
+  el('div', 'hud2', '<div class="bk" id="bk"></div><div class="bname" id="bname"></div><div class="bsub" id="bsub"></div>');
+  var cc = el('div', 'cc', '<span id="cap"></span>'); cc.setAttribute('aria-live', 'polite');
+  var snd = el('div', 'snd', '&#128266; Tap anywhere to hear it explained'); snd.setAttribute('role', 'button'); snd.tabIndex = 0;
+  var flipB = el('div', 'flip', ''); flipB.setAttribute('role', 'button'); flipB.tabIndex = 0;
+  var ruler = el('nav', 'ruler', ''); ruler.setAttribute('aria-label', 'The nine scales, from the nucleus to the universe');
+  var navL = el('a', '', '', 'nav l'), navR = el('a', '', '', 'nav r'), shade = el('div', 'shade', ''), cap = doc.getElementById('cap');
+  var A = [new Audio('./narration.mp3'), new Audio('./narration-flip.mp3')]; A[0].loop = A[1].loop = false; // each explanation plays once A[0].preload = 'auto'; A[1].preload = 'none'; A[0].muted = A[1].muted = true;
+  var side = 0, started = false, done = false, userMute = false, t0 = performance.now(), shown = -2, turning = false, fresh = false;
+  function nt() { var a = A[side]; if (a.ended || done) return 1e9; if (!a.paused && a.readyState > 1 && isFinite(a.currentTime)) return a.currentTime; var s = (performance.now() - t0) / 1000; if (s > D.sides[side].dur + 1) { done = true; setSnd(); } return s; } // once through, then quiet
+  function over() { return done || A[side].ended; }
+  function setSnd() { if (!started) return; snd.classList.add('on'); snd.innerHTML = over() ? '&#8635; Play again' : userMute ? '&#128263; Sound off' : '&#128266; Sound on'; snd.setAttribute('aria-label', userMute ? 'Turn the sound on' : 'Turn the sound off'); }
+  function playSide() { done = false; A[1 - side].pause(); var a = A[side]; a.muted = !started || userMute; try { a.currentTime = 0; } catch (e) {} t0 = performance.now(); shown = -2; var p = a.play(); if (p && p.catch) p.catch(function () {}); }
+  function begin() { if (started) return; started = true; fresh = true; playSide(); setSnd(); }
+  function render() {
+    var n = D.scales.length, lo = D.scales[0].exp, hi = D.scales[n - 1].exp, back = side === 1, me = D.scales[D.i];
+    body.classList.toggle('flip', back);
+    ruler.innerHTML = '<span class="cap l">' + (back ? '← bigger' : '← smaller') + '</span><span class="cap r">' + (back ? 'smaller →' : 'bigger →') + '</span>' + D.scales.map(function (s, i) {
+      var pct = (s.exp - lo) / (hi - lo) * 100; if (back) pct = 100 - pct;
+      return '<a href="https://' + s.domain + '/" class="' + (i === D.i ? 'me ' : '') + (i % 2 ? 'up' : '') + '" style="left:' + pct.toFixed(2) + '%"' + (i === D.i ? ' aria-current="page"' : '') + ' title="' + s.name + ' · ' + s.size + ' · ' + s.domain + '"><b>' + s.size + '</b><span>' + s.short + '</span></a>';
+    }).join('');
+    var smaller = D.scales[(D.i - 1 + n) % n], bigger = D.scales[(D.i + 1) % n];
+    function nav(a, s, arrow, word) { a.href = 'https://' + s.domain + '/'; a.title = word + ': ' + s.name + ' (' + s.size + ')'; a.setAttribute('aria-label', word + ': ' + s.name); a.innerHTML = '<i>' + arrow + '</i><span>' + word + '<b>' + s.short + '</b></span>'; }
+    var wS = D.i === 0 ? 'biggest' : 'smaller', wB = D.i === n - 1 ? 'smallest' : 'bigger';
+    if (back) { nav(navL, bigger, '‹', wB); nav(navR, smaller, '›', wS); } else { nav(navL, smaller, '‹', wS); nav(navR, bigger, '›', wB); }
+    var b = D.sides[1];
+    doc.getElementById('bk').textContent = 'the other side of ' + me.name.toLowerCase() + '  ·  ' + b.size;
+    doc.getElementById('bname').textContent = b.name; doc.getElementById('bsub').textContent = b.sub;
+    flipB.innerHTML = back ? '↩ Flip back' : 'Flip the page ↪'; flipB.title = back ? 'Back to ' + me.name : 'See the opposite: ' + b.name; flipB.setAttribute('aria-label', flipB.title);
+    doc.title = back ? b.name.charAt(0).toUpperCase() + b.name.slice(1) + ' (the other side of ' + me.name + ')' : D.title;
+    var bn = doc.getElementById('bname'); bn.style.animation = 'none'; void bn.offsetWidth; bn.style.animation = '';
+    if (opt.onSide) opt.onSide(side);
+  }
+  function flip() { // turn the page: to edge-on, swap sides, and on round
+    if (turning) return; turning = true; var start = performance.now(), dur = 1150, swapped = false, dir = side === 0 ? -1 : 1;
+    (function step(now) {
+      var p = Math.min(1, (now - start) / dur), e, ang;
+      if (p < 0.5) { e = p * 2; e = e * e; ang = dir * 90 * e; }
+      else { if (!swapped) { swapped = true; side = 1 - side; render(); playSide(); setSnd(); } e = (p - 0.5) * 2; e = 1 - (1 - e) * (1 - e); ang = -dir * 90 * (1 - e); }
+      page.style.transform = 'rotateY(' + ang.toFixed(2) + 'deg) scale(' + (1 - 0.14 * Math.sin(p * Math.PI)).toFixed(4) + ')'; shade.style.opacity = (Math.sin(p * Math.PI) * 0.9).toFixed(3);
+      if (p < 1) requestAnimationFrame(step); else { page.style.transform = ''; shade.style.opacity = 0; turning = false; }
+    })(start);
+  }
+  addEventListener('pointerdown', function () { if (!started) begin(); }, { passive: true });
+  function sndTap() { if (over()) { userMute = false; playSide(); setSnd(); return; } userMute = !userMute; A[side].muted = userMute; setSnd(); }
+  snd.addEventListener('click', function () { if (fresh) { fresh = false; return; } sndTap(); });
+  A.forEach(function (a) { a.addEventListener('ended', setSnd); });
+  flipB.addEventListener('click', function () { fresh = false; flip(); });
+  addEventListener('click', function (e) { if (e.target !== snd) fresh = false; });
+  addEventListener('keydown', function (e) {
+    if (e.altKey || e.ctrlKey || e.metaKey) return; var first = !started; if (first) begin();
+    if (e.key === 'ArrowLeft') location.href = navL.href; else if (e.key === 'ArrowRight') location.href = navR.href;
+    else if (e.key === 'f' || e.key === 'F' || ((e.key === 'Enter' || e.key === ' ') && e.target === flipB)) { e.preventDefault(); flip(); }
+    else if (!first && (e.key === 'Enter' || e.key === ' ') && e.target === snd) sndTap();
+  });
+  render();
+  var p0 = A[0].play(); if (p0 && p0.catch) p0.catch(function () {});
+  (function tick() { requestAnimationFrame(tick); var n = nt(), cues = D.sides[side].cues, q = -1; for (var j = 0; j < cues.length; j++) { if (n >= cues[j][0] && n < cues[j][1]) { q = j; break; } } if (q !== shown) { shown = q; cap.textContent = q < 0 ? '' : cues[q][2]; } })();
+  return { side: function () { return side; }, nt: nt, flip: flip };
+}
+
+
 // ---------------------------------------------------------------- page
-var cv = document.getElementById('c'), cx = cv.getContext('2d'), W = 0, Hh = 0, dpr = 1;
-function fit() { dpr = Math.min(devicePixelRatio || 1, 2); W = innerWidth; Hh = innerHeight; cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr); cx.setTransform(dpr, 0, 0, dpr, 0, 0); if (SCENE.resize) SCENE.resize(W, Hh); }
-addEventListener('resize', fit);
-var me = D.scales[D.i];
+var cv = document.getElementById('c'), cx = cv.getContext('2d'), W = 0, Hh = 0, dpr = 1, me = D.scales[D.i];
 document.getElementById('k').innerHTML = 'Scale ' + (D.i + 1) + ' of ' + D.scales.length + ' · <b>' + me.size + '</b>';
 document.getElementById('name').textContent = me.name;
 document.getElementById('sub').textContent = me.sub;
-var ruler = document.getElementById('ruler'), lo = D.scales[0].exp, hi = D.scales[D.scales.length - 1].exp;
-ruler.innerHTML = '<span class="cap l">← smaller</span><span class="cap r">bigger →</span>' + D.scales.map(function (s, i) {
-  return '<a href="https://' + s.domain + '/" class="' + (i === D.i ? 'me ' : '') + (i % 2 ? 'up' : '') + '" style="left:' + ((s.exp - lo) / (hi - lo) * 100).toFixed(2) + '%"' + (i === D.i ? ' aria-current="page"' : '') + ' title="' + s.name + ' · ' + s.size + ' · ' + s.domain + '"><b>' + s.size + '</b><span>' + s.short + '</span></a>';
-}).join('');
-
-// the arrows at the sides: one scale smaller, one scale bigger (they wrap round at the ends); the arrow keys do the same
-(function () { var n = D.scales.length, pv = D.scales[(D.i - 1 + n) % n], nx = D.scales[(D.i + 1) % n];
-  function nav(cls, s, arrow, word) { var a = document.createElement('a'); a.className = 'nav ' + cls; a.href = 'https://' + s.domain + '/'; a.title = word + ': ' + s.name + ' (' + s.size + ')'; a.setAttribute('aria-label', word + ': ' + s.name); a.innerHTML = '<i>' + arrow + '</i><span>' + word + '<b>' + s.short + '</b></span>'; document.body.appendChild(a); return a; }
-  var L = nav('l', pv, '‹', D.i === 0 ? 'biggest' : 'smaller'), R = nav('r', nx, '›', D.i === n - 1 ? 'smallest' : 'bigger');
-  addEventListener('keydown', function (e) { if (e.altKey || e.ctrlKey || e.metaKey) return; if (e.key === 'ArrowLeft') location.href = L.href; else if (e.key === 'ArrowRight') location.href = R.href; });
-})();
-
-// the voice: muted until the first tap (browsers require it); the captions and the picture follow its clock either way
-var au = document.getElementById('au'), snd = document.getElementById('snd'), cap = document.getElementById('cap'), started = false, t0 = performance.now(), shown = -2;
-function nt() { return (!au.paused && au.readyState > 1 && isFinite(au.currentTime)) ? au.currentTime : ((performance.now() - t0) / 1000) % (D.dur + 2); }
-function setSnd() { snd.classList.add('on'); snd.innerHTML = au.muted ? '&#128263; Sound off' : '&#128266; Sound on'; snd.setAttribute('aria-label', au.muted ? 'Turn the sound on' : 'Turn the sound off'); }
-function begin() { if (started) return; started = true; au.muted = false; au.currentTime = 0; t0 = performance.now(); var p = au.play(); if (p && p.catch) p.catch(function () {}); setSnd(); }
-addEventListener('pointerdown', function (e) { if (!started) { begin(); return; } if (e.target === snd) { au.muted = !au.muted; setSnd(); } }, { passive: true });
-addEventListener('keydown', function (e) { if (!started) begin(); else if (e.target === snd && (e.key === 'Enter' || e.key === ' ')) { au.muted = !au.muted; setSnd(); } });
-var pp = au.play(); if (pp && pp.catch) pp.catch(function () {});
-
-var last = performance.now(), T = +(new URLSearchParams(location.search).get("t") || 0); // ?t=seconds jumps the picture ahead
-fit(); SCENE.init(W, Hh);
+var CH = Chrome(D, {});
+function fit() { dpr = Math.min(devicePixelRatio || 1, 2); W = innerWidth; Hh = innerHeight; cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr); cx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+addEventListener('resize', fit); fit();
+var last = performance.now(), T = +(new URLSearchParams(location.search).get('t') || 0), Tb = T, inited = [false, false]; // ?t=seconds jumps the picture ahead
+if (new URLSearchParams(location.search).get('flip') != null) CH.flip();
 function frame(now) {
   requestAnimationFrame(frame);
-  var dt = Math.min(0.05, (now - last) / 1000); last = now; T += dt;
-  var n = nt();
+  var dt = Math.min(0.05, (now - last) / 1000); last = now; var s = CH.side(), sc = s ? SCENE2 : SCENE;
+  if (s) Tb += dt; else T += dt;
+  if (!inited[s]) { inited[s] = true; sc.init(W, Hh); }
   cx.globalCompositeOperation = 'source-over'; cx.globalAlpha = 1;
-  SCENE.draw(cx, W, Hh, T, dt, n);
-  var q = -1; for (var j = 0; j < D.cues.length; j++) { if (n >= D.cues[j][0] && n < D.cues[j][1]) { q = j; break; } }
-  if (q !== shown) { shown = q; cap.textContent = q < 0 ? '' : D.cues[q][2]; }
+  sc.draw(cx, W, Hh, s ? Tb : T, dt, CH.nt());
 }
 requestAnimationFrame(frame);
 })();
