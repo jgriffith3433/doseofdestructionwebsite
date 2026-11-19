@@ -4,8 +4,8 @@
 name: Deploy to GitHub Pages
 
 on:
-  push:
-    branches: [main]
+  # J, 2026-11-19: the site is served straight from main as committed (Settings > Pages: Deploy from a branch, main, /),
+  # so this build no longer runs on a push. Run it by hand only if the built site is wanted again.
   workflow_dispatch:
 
 permissions:
