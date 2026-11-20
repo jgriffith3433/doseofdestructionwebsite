@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>The Nucleus</title>
-<meta name="description" content="The Nucleus (10⁻¹⁵ m): the heart of an atom · a millionth of a billionth of a meter · uranium-235: 92 protons, 143 neutrons. Explained simply by an AI narrator, with captions. Flip the page for its opposite: a neutron star. One of nine scales, from the nucleus to the universe.">
+<title>The Token · How an A.I. works, part 1 of 9</title>
+<meta name="description" content="The Token: where every sentence starts · a word, or a piece of a word, swapped for a number · the small model in this page knows 50,257 pieces. Part 1 of nine on how a large language model works, drawn from real numbers and explained simply by an A.I. narrator, with captions. Flip the page for its opposite: a place on a map.">
 <meta name="theme-color" content="#03050b">
+<meta property="og:title" content="The Token · How an A.I. works, part 1 of 9">
+<meta property="og:description" content="The Token: where every sentence starts · a word, or a piece of a word, swapped for a number · the small model in this page knows 50,257 pieces. Part 1 of nine on how a large language model works, drawn from real numbers and explained simply by an A.I. narrator, with captions. Flip the page for its opposite: a place on a map.">
 <meta name="color-scheme" content="dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -80,7 +82,7 @@ body.flip .nav{color:rgba(40,28,16,.75);text-shadow:none;font-family:Georgia,ser
 body.flip .nav i{background:rgba(255,252,244,.82);color:#17110a;box-shadow:0 0 0 1.5px rgba(70,45,20,.6)}
 body.flip .nav:hover i,body.flip .nav:focus-visible i{background:#17110a;color:#f1eadc;box-shadow:0 0 0 2px #7a3d0e}
 body.flip .nav b{color:#7a3d0e}
-@media (max-width:760px){#ruler a:not(.me) span{display:none}#ruler a:not(.me) b{font-size:9px}#ruler .cap{display:none}#cc{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 70px)}.nav span{display:none}.nav i{width:40px;height:40px;font-size:23px}#flip{font-size:10px;padding:.8em .9em}}
+@media (max-width:760px){.nav{top:auto;bottom:calc(max(12px,env(safe-area-inset-bottom)) - 4px);transform:none;padding:4px 2px}.nav.l{left:max(4px,env(safe-area-inset-left))}.nav.r{right:max(4px,env(safe-area-inset-right))}#hud,#hud2{padding-top:calc(max(14px,env(safe-area-inset-top)) + 42px)}.sub,.bsub{font-size:11px;line-height:1.4}#ruler a:not(.me) span{display:none}#ruler a:not(.me) b{font-size:9px}#ruler .cap{display:none}#cc{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 70px)}.nav span{display:none}.nav i{width:40px;height:40px;font-size:23px}#flip{font-size:10px;padding:.8em .9em}}
 @media (prefers-reduced-motion:reduce){#snd,.bname{animation:none}}
 /* ---- talking to the page. Front: a glass panel on the right. Back: paper, on the left, the bubbles swapped. */
 #askb{position:fixed;right:max(14px,env(safe-area-inset-right));top:calc(max(14px,env(safe-area-inset-top)) + 44px);z-index:9;border:0;cursor:pointer;font:600 11px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:#03050b;background:linear-gradient(180deg,#d7e9ff,#8fc2ff);padding:.9em 1.15em;border-radius:999px;box-shadow:0 0 22px rgba(143,194,255,.5),0 6px 16px rgba(0,0,0,.5);transition:transform .2s}
@@ -152,10 +154,11 @@ body.flip #askm{box-shadow:0 0 0 1px rgba(70,45,20,.45)}
 <script>
 (function () {
 'use strict';
-// One of nine pages, one per scale of the world (10^-15 m to 10^27 m). The front draws the scale from the real
-// numbers while an AI voice explains it; the back of the page (Flip) is its opposite, told by the other narrator.
-// Captions are cut from the voices' own timing. The ruler and the side arrows link the nine sites.
-var D = {"i":0,"key":"nucleus","title":"The Nucleus","chat":"https://api.hawkesgen.ai/v1/public/scale-chat","scales":[{"exp":-15,"name":"The Nucleus","short":"nucleus","size":"10⁻¹⁵ m","sub":"the heart of an atom · a millionth of a billionth of a meter · uranium-235: 92 protons, 143 neutrons","domain":"doseofdestruction.com"},{"exp":-10,"name":"The Atom","short":"atom","size":"10⁻¹⁰ m","sub":"the building brick of everything · one ten-billionth of a meter · hydrogen's electron clouds, drawn from the real equations","domain":"hawkesgames.com"},{"exp":-5,"name":"The Cell","short":"cell","size":"10⁻⁵ m","sub":"the smallest living thing · a hundredth of a millimeter · you are about 37 trillion of these","domain":"hawkesbiomedical.com"},{"exp":0,"name":"You","short":"you","size":"10⁰ m","sub":"the human scale · about a meter and a bit · 7 × 10²⁷ atoms, 37 trillion cells, 86 billion neurons","domain":"icanbe.ai"},{"exp":7,"name":"The Planet","short":"planet","size":"10⁷ m","sub":"Earth · 12,742 km across · a thin skin of rock and air around a ball of hot stone and metal","domain":"yoobalandgame.com"},{"exp":9,"name":"The Star","short":"star","size":"10⁹ m","sub":"the Sun · 1.39 million km across · a million Earths would fit inside","domain":"imaginelivetv.com"},{"exp":13,"name":"The Solar System","short":"solar system","size":"10¹³ m","sub":"the Sun's neighborhood · 9 billion km across at Neptune · real orbits and real speeds, distances squeezed to fit","domain":"theplacedepartment.com"},{"exp":21,"name":"The Galaxy","short":"galaxy","size":"10²¹ m","sub":"","domain":"phorigins.com"},{"exp":27,"name":"The Universe","short":"universe","size":"10²⁷ m","sub":"everything we could ever see · 93 billion light-years across · 13.8 billion years old","domain":"hawkesgen.ai"}],"sides":[{"cues":[[0,1.02,"Hello."],[1.02,3.48,"I'm the AI that lives in this page,"],[3.48,7.11,"and I'm going to show you one of the smallest things we know."],[7.11,9.5,"This is the middle of an atom."],[9.5,11.66,"It's called the nucleus."],[11.66,13.21,"See the little balls?"],[13.21,17.62,"The warm ones are protons, and the cool ones are neutrons."],[17.62,20.75,"They're squished together like a handful of marbles,"],[20.75,24.07,"stuck with the strongest glue in the universe."],[24.07,25.32,"How small is it?"],[25.32,27.78,"If an atom were as big as a football stadium,"],[27.78,31.71,"the nucleus would be a single pea sitting on the center spot."],[31.71,37.26,"And yet almost all the weight of everything you have ever touched is in those tiny peas."],[37.26,39.78,"Watch what happens when a big one gets hit."],[39.78,42.69,"It wobbles, and then it splits in two."],[42.69,47.21,"That flash is a tiny bit of weight turning into a huge amount of energy."],[47.21,49.97,"Split big ones, and you get a power plant."],[49.97,53.599999999999994,"Squeeze small ones together, and you get a star."]],"dur":53.6},{"name":"a neutron star","size":"10⁴ m","sub":"a nucleus the size of a city · 20 km across, heavier than the Sun · a teaspoon weighs a billion tons","cues":[[0,1.37,"You turned the page."],[1.37,2.51,"I'm the other AI."],[2.51,3.9,"The one on the back."],[3.9,6.53,"You just saw the smallest heavy thing there is."],[6.53,7.84,"Here is the opposite."],[7.84,10.1,"This is a neutron star."],[10.1,13.84,"It is what is left when a giant star collapses."],[13.84,18.03,"It is one single nucleus, the size of a city."],[18.03,22.02,"About twenty kilometers across, and heavier than the Sun."],[22.02,25.16,"One teaspoon of it would weigh a billion tons."],[25.16,27.93,"It spins around many times every second,"],[27.93,32.23,"and sweeps beams of light across space, like a lighthouse."],[32.23,35.31,"It is the same stuff as the tiny pea."],[35.31,38,"Just a whole city of it."]],"dur":38}]};
+// One of nine pages on how a large language model works, from one piece of a word up to the data center. The front
+// draws one part from real numbers (most of them computed with GPT-2 small, a small open model from 2019) while an AI
+// voice explains it; the back of the page (Flip) is its opposite, told by the other narrator. Each picture is a film
+// timed to its narrator. Captions are cut from the voices' own timing. The ruler and the side arrows link the nine sites.
+var D = {"i":0,"key":"token","title":"The Token · How an A.I. works, part 1 of 9","chat":"https://api.hawkesgen.ai/v1/public/scale-chat","scales":[{"exp":1,"name":"The Token","short":"token","size":"1 piece","sub":"where every sentence starts · a word, or a piece of a word, swapped for a number · the small model in this page knows 50,257 pieces","domain":"doseofdestruction.com"},{"exp":2,"name":"The Neuron","short":"neuron","size":"1 light","sub":"the smallest working part · it multiplies, adds up, and glows or stays dark · this small model has 36,864 of them","domain":"hawkesgames.com"},{"exp":3,"name":"Attention","short":"attention","size":"144 lookers","sub":"how the pieces share what they know · each piece looks back at the ones before it · real looking, from the small model in this page","domain":"hawkesbiomedical.com"},{"exp":4,"name":"The Layers","short":"layers","size":"12 floors","sub":"one piece's trip up through the machine · every layer reads a running note and adds to it · 12 layers here, many more in big models","domain":"icanbe.ai"},{"exp":5,"name":"The Guess","short":"guess","size":"50,257 scores","sub":"what comes out at the top · not one word, but a score for every piece it knows · real scores from the small model in this page","domain":"yoobalandgame.com"},{"exp":6,"name":"The Mistake","short":"mistake","size":"1 surprise","sub":"how a machine finds out it was wrong · hide the next piece, guess, then look · the mistake is how surprised it was","domain":"imaginelivetv.com"},{"exp":7,"name":"Reading","short":"reading","size":"15 trillion pieces","sub":"the first school · guess the next piece of things people wrote, over and over · a tiny model learning from one book, for real","domain":"theplacedepartment.com"},{"exp":8,"name":"What It Knows","short":"what it knows","size":"frozen numbers","sub":"everything it learned, baked in · not one number changes while you talk to it · and it can't always tell knowing from guessing","domain":"phorigins.com"},{"exp":9,"name":"The Data Center","short":"data center","size":"16,000 chips","sub":"where a model gets made · buildings full of chips, all doing the same small sum · numbers from a maker who published them, with the year","domain":"hawkesgen.ai"}],"data":{"token":{"text":"Unbelievably, the cat sat on the strawberry.","pieces":["Un","bel","iev","ably",","," the"," cat"," sat"," on"," the"," strawberry","."],"ids":[3118,6667,11203,1346,11,262,3797,3332,319,262,41236,13],"vocab":50257,"more":{" cat":[[" cat"],[3797]]," dinosaur":[[" dinosaur"],[28257]]," unicorn":[[" unicorn"],[44986]]," strawberries":[[" strawberries"],[36973]],"Supercalifragilistic":[["Super","cal","if","rag","il","istic"],[12442,9948,361,22562,346,2569]]," 12345":[[" 123","45"],[17031,2231]]}},"map":{"dims":768,"groups":["animals","colors","numbers","days","food","family","places","feelings","doing"],"pts":[["dog",0,0.329,0.317],["cat",0,0.305,0.334],["horse",0,0.384,0.276],["cow",0,0.428,0.281],["pig",0,0.479,0.213],["sheep",0,0.489,0.302],["lion",0,0.521,0.427],["tiger",0,0.49,0.43],["bear",0,0.523,0.496],["wolf",0,0.497,0.352],["rabbit",0,0.37,0.214],["mouse",0,0.441,0.114],["bird",0,0.263,0.109],["fish",0,0.236,0.027],["frog",0,0.343,0.111],["duck",0,0.287,0.086],["monkey",0,0.405,0.146],["elephant",0,0.453,0.433],["red",1,0.026,0.956],["blue",1,0.037,0.903],["green",1,-0.02,0.909],["yellow",1,-0.005,0.858],["purple",1,0.045,0.856],["orange",1,0.013,0.808],["pink",1,0.072,0.825],["brown",1,-0.074,0.858],["black",1,-0.132,0.932],["white",1,-0.11,0.943],["one",2,-0.735,0.472],["two",2,-0.768,0.511],["three",2,-0.785,0.552],["four",2,-0.83,0.551],["five",2,-0.816,0.605],["six",2,-0.869,0.584],["seven",2,-0.864,0.631],["eight",2,-0.914,0.616],["nine",2,-0.897,0.665],["ten",2,-0.809,0.684],["Monday",3,0.322,-0.938],["Tuesday",3,0.329,-0.982],["Wednesday",3,0.291,-1],["Thursday",3,0.262,-0.972],["Friday",3,0.248,-0.933],["Saturday",3,0.271,-0.889],["Sunday",3,0.316,-0.879],["apple",4,0.089,0.296],["banana",4,0.113,0.28],["bread",4,-0.13,0.135],["cheese",4,-0.063,0.148],["milk",4,-0.056,0.226],["rice",4,-0.184,0.157],["cake",4,-0.025,0.085],["pizza",4,-0.073,0.101],["egg",4,-0.019,0.271],["soup",4,-0.178,0.078],["butter",4,-0.082,0.197],["sugar",4,-0.19,0.204],["mother",5,0.685,-0.306],["father",5,0.693,-0.332],["sister",5,0.682,-0.454],["brother",5,0.704,-0.442],["baby",5,0.607,-0.288],["uncle",5,0.819,-0.358],["aunt",5,0.797,-0.328],["grandmother",5,0.768,-0.305],["daughter",5,0.611,-0.397],["son",5,0.599,-0.375],["Paris",6,-0.324,-0.814],["London",6,-0.281,-0.844],["Tokyo",6,-0.238,-0.736],["Berlin",6,-0.302,-0.881],["Rome",6,-0.365,-0.87],["Chicago",6,-0.194,-0.858],["Texas",6,-0.16,-0.855],["France",6,-0.339,-0.778],["Japan",6,-0.255,-0.72],["Canada",6,-0.336,-0.722],["happy",7,-0.656,-0.222],["sad",7,-0.623,-0.265],["angry",7,-0.565,-0.217],["scared",7,-0.565,-0.177],["tired",7,-0.518,-0.18],["excited",7,-0.629,-0.169],["proud",7,-0.685,-0.201],["lonely",7,-0.567,-0.274],["run",8,0.027,-0.211],["walk",8,0.052,-0.162],["jump",8,0.077,-0.143],["swim",8,0.214,-0.011],["eat",8,-0.076,-0.015],["sleep",8,-0.09,-0.06],["sing",8,0.199,-0.194],["dance",8,0.183,-0.173],["read",8,-0.003,-0.326],["write",8,0.004,-0.308]],"near":{"Monday":["Tuesday","Thursday","Wednesday","Friday","Sunday","Saturday"],"banana":["mango","pineapple","strawberry","avocado","coconut","peach"],"dog":["canine","puppy","pet","cat","animal","pets"],"seven":["six","eight","five","nine","four","three"],"red":["blue","yellow","green","purple","white","pink"],"happy":["happier","unhappy","pleased","glad","thrilled","happiest"],"Paris":["France","French","London","Copenhagen","Brussels","Montreal"],"king":["queen","prince","monarch","emperor","ruler","royal"]},"vec":[0.01,0.037,0.164,-0.219,0.029,-0.098,-0.336,-0.075,0.113,-0.095,-0.036,-0.197,-0.018,0.034,0.098,-0.175,0.052,-0.065,0.01,0.194,0.268,0.017,0.003,-0.124,-0.04,0.029,0.029,0.049,0.045,-0.158,0.021,0.027,0.125,-0.012,0.069,0.188,-0.315,0.093,0.022,-0.074,-0.033,-0.098,0.045,-0.121,0.008,-0.33,-0.065,-0.035],"nn_same":91,"n":95}},"sides":[{"cues":[[0,0.71,"Hi."],[0.71,2.63,"I'm the A.I. that lives in this page."],[2.63,3.68,"And I have a secret."],[3.68,4.69,"I can't read."],[4.69,5.39,"Not letters."],[5.39,6.29,"Not words."],[6.29,8.19,"I can only do numbers."],[8.19,12.13,"So before I see anything you type, it gets chopped into little pieces."],[12.13,13.58,"Watch this sentence."],[13.58,15.73,"Short, common words stay whole."],[15.73,17.53,"Cat is one piece."],[17.53,21.92,"But a long word, like unbelievably, gets chopped into four."],[21.92,23.91,"Each piece is called a token."],[23.91,26.3,"And every token is swapped for a number."],[26.3,30.2,"Cat is number three thousand, seven hundred and ninety seven."],[30.2,33.05,"Nobody chose these pieces by what they mean."],[33.05,37.35,"They were made by counting which letters turn up together the most."],[37.35,41.41,"The small model in this page knows about fifty thousand pieces."],[41.41,44.42,"With them, it can spell any sentence there is."],[44.42,46.9,"Even a word nobody has ever said before."],[46.9,50.16,"So when you talk to an A.I., it never sees your words."],[50.16,52.58,"It sees a row of numbers."]],"dur":52.58},{"name":"a place on a map","size":"768 numbers","sub":"an embedding · every piece gets a starting spot · pieces that are used the same way end up as neighbors","cues":[[0,1.49,"You turned the page."],[1.49,2.95,"I'm the other A.I."],[2.95,4.32,"The one on the back."],[4.32,6.73,"A number by itself means nothing."],[6.73,11.15,"Number three thousand, seven hundred and ninety seven doesn't purr."],[11.15,14.11,"So the first thing that happens inside is this."],[14.11,16.44,"Every piece is given a place."],[16.44,18.61,"Like a dot on a giant map."],[18.61,20.61,"And look where the dots ended up."],[20.61,22.87,"The days of the week are huddled together."],[22.87,24.2,"The colors are together."],[24.2,26,"The animals are together."],[26,27.6,"Nobody put them there."],[27.6,30.87,"Pieces that get used in the same way drifted close,"],[30.87,32.9,"while the machine was learning."],[32.9,34.12,"One warning."],[34.12,37.72,"The real map doesn't have two directions, like this paper."],[37.72,40.23,"It has seven hundred and sixty eight."],[40.23,42.46,"This is only its shadow."],[42.46,45.21,"And the spot is just where a piece starts."],[45.21,48.08,"Its meaning is still to come."]],"dur":48.08}]};
 var TAU = Math.PI * 2;
 function rng(seed) { var a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 function gauss(r) { var u = 1 - r(), v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v); }
@@ -183,126 +186,263 @@ function scaleBar(x, W, H, px, text) { // a labelled length, bottom-left above t
 var H3 = { rng: rng, gauss: gauss, clamp: clamp, lerp: lerp, smooth: smooth, dot: dot, label: label, lead: lead, scaleBar: scaleBar, TAU: TAU };
 
 
-// ---------------------------------------------------------------- the front: the scale
-// THE NUCLEUS: uranium-235, drawn nucleon by nucleon (92 protons, 143 neutrons), then split by one neutron:
-//   n + U-235 -> Ba-141 + Kr-92 + 3 n + ~200 MeV      (236 nucleons in, 141 + 92 + 3 out; 56 + 36 = 92 protons)
-// Nucleons pack like drops of liquid: radius R = r0 A^(1/3), r0 = 1.2 fm, so U-235 is about 7.4 fm across the middle.
-// Each nucleon is three quarks (the three faint dots).
+// The drawing kit shared by the eighteen pictures. Every picture is a film timed to its narrator: K.at(side, 'words')
+// gives the second at which the caption containing those words starts, and the picture is a function of that clock.
+var K = (function () {
+  var SANS = '"Space Grotesk",system-ui,sans-serif', MONO = '"JetBrains Mono",ui-monospace,monospace';
+  var C = { ink: '#eef4ff', dim: 'rgba(214,228,255,.62)', faint: 'rgba(214,228,255,.28)', acc: '#8fc2ff', warm: '#ffc46b', hot: '#ff7a5c', good: '#7dffb0', vio: '#c9a2ff', bg: '#03050b' };
+  var GROUP = ['#ffc46b', '#ff7a9c', '#8fc2ff', '#7dffb0', '#ff9a5c', '#c9a2ff', '#6fe3e1', '#f5f07a', '#b8c4d9'];
+  function at(side, words) { var cs = D.sides[side].cues, w = words.toLowerCase(); for (var i = 0; i < cs.length; i++) if (cs[i][2].toLowerCase().indexOf(w) >= 0) return cs[i][0]; if (window.console) console.warn('no caption has: ' + words); return 0; }
+  function end(side) { return D.sides[side].dur; }
+  // the narrator's clock; once the explanation is over the picture rests on its last moment (plus a slow idle clock)
+  function clock(side, nt) { return nt > 1e8 ? D.sides[side].dur + 2 : nt; }
+  function cl(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+  function ramp(n, a, d) { return H3.smooth((n - a) / (d || 0.6)); }               // 0 -> 1 starting at second a, over d seconds
+  function span(n, a, b, d) { d = d || 0.5; return Math.min(ramp(n, a, d), 1 - ramp(n, b, d)); }   // on between a and b
+  function bump(n, a, d) { var u = (n - a) / (d || 0.8); return u < 0 || u > 1 ? 0 : Math.sin(u * Math.PI); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function font(size, o) { o = o || {}; return (o.w || 500) + ' ' + size.toFixed(1) + 'px ' + (o.mono ? MONO : SANS); }
+  function text(x, s, px, py, size, o) {
+    o = o || {}; var al = o.al == null ? 1 : o.al; if (al <= 0.003) return 0; x.save(); x.globalAlpha = al; x.globalCompositeOperation = 'source-over'; x.font = font(size, o); x.textAlign = o.a || 'left'; x.textBaseline = o.base || 'middle';
+    if (o.glow) { x.shadowColor = o.glow; x.shadowBlur = size * 0.7; }
+    // a line never runs off the screen: if it would, it is drawn smaller (pictures written for a wide screen stay readable on a phone)
+    var w = x.measureText(s).width, sw = x.canvas.clientWidth || innerWidth, room = (o.a === 'center' ? 2 * Math.min(px, sw - px) : o.a === 'right' ? px : sw - px) - 6;
+    if (!o.free && w > room && room > 20) { var k = Math.max(0.5, room / w); x.font = font(size * k, o); w = x.measureText(s).width; }
+    x.fillStyle = o.c || C.ink; x.fillText(s, px, py); x.restore(); return w;
+  }
+  function width(x, s, size, o) { x.save(); x.font = font(size, o); var w = x.measureText(s).width; x.restore(); return w; }
+  function rr(x, px, py, w, h, r) { r = Math.min(r, w / 2, h / 2); x.beginPath(); x.moveTo(px + r, py); x.arcTo(px + w, py, px + w, py + h, r); x.arcTo(px + w, py + h, px, py + h, r); x.arcTo(px, py + h, px, py, r); x.arcTo(px, py, px + w, py, r); x.closePath(); }
+  function box(x, px, py, w, h, o) { // a rounded panel: o.fill, o.line, o.r, o.al, o.lw
+    o = o || {}; var al = o.al == null ? 1 : o.al; if (al <= 0.003) return; x.save(); x.globalAlpha = al; x.globalCompositeOperation = 'source-over'; rr(x, px, py, w, h, o.r == null ? 8 : o.r);
+    if (o.fill) { x.fillStyle = o.fill; x.fill(); } if (o.line) { x.strokeStyle = o.line; x.lineWidth = o.lw || 1.2; x.stroke(); } x.restore();
+  }
+  // a piece of text in its own little box. Spaces at the front of a piece are shown as a small dot so they can be seen.
+  function chipW(x, s, size, o) { return width(x, show(s), size, o) + size * 0.9; }
+  function show(s) { return s.replace(/^ /, '·').replace(/\n/g, '↵'); }
+  function chip(x, s, px, py, size, o) { // left edge px, centre line py; returns its width
+    o = o || {}; var w = o.wd || chipW(x, s, size, o), h = size * 1.75, al = o.al == null ? 1 : o.al; if (al <= 0.003) return w;
+    box(x, px, py - h / 2, w, h, { fill: o.bg || 'rgba(143,194,255,.10)', line: o.bd || 'rgba(143,194,255,.55)', r: size * 0.38, al: al, lw: o.lw });
+    text(x, o.raw ? s : show(s), px + w / 2, py + size * 0.04, size, { a: 'center', c: o.c || C.ink, mono: o.mono, w: o.w || 500, al: al, glow: o.glow }); return w;
+  }
+  // lay pieces out in centred rows that fit a width; returns [{x, y, w}] and the height used
+  function flow(x, list, size, cx, top, maxW, gap, o) {
+    var ws = list.map(function (s) { return chipW(x, s, size, o); }), rows = [[]], rw = [0], i;
+    for (i = 0; i < list.length; i++) { var r = rows.length - 1; if (rows[r].length && rw[r] + gap + ws[i] > maxW) { rows.push([]); rw.push(0); r++; } rw[r] += (rows[r].length ? gap : 0) + ws[i]; rows[r].push(i); }
+    var out = [], lh = size * ((o && o.lh) || 2.5); rows.forEach(function (row, r) { var px = cx - rw[r] / 2; row.forEach(function (k) { out[k] = { x: px, y: top + r * lh + size, w: ws[k], row: r }; px += ws[k] + gap; }); });
+    out.h = rows.length * lh; out.rows = rows.length; return out;
+  }
+  function bar(x, px, py, w, h, f, col, o) { // a track with a filled part f (0..1)
+    o = o || {}; var al = o.al == null ? 1 : o.al; if (al <= 0.003) return; box(x, px, py, w, h, { fill: o.track || 'rgba(143,194,255,.10)', r: h / 2, al: al }); if (f > 0.002) box(x, px, py, Math.max(h, w * cl(f)), h, { fill: col || C.acc, r: h / 2, al: al });
+  }
+  function line(x, x0, y0, x1, y1, col, lw, al) { if (al != null && al <= 0.003) return; x.save(); x.globalAlpha = al == null ? 1 : al; x.strokeStyle = col || C.acc; x.lineWidth = lw || 1; x.lineCap = 'round'; x.beginPath(); x.moveTo(x0, y0); x.lineTo(x1, y1); x.stroke(); x.restore(); }
+  function arc(x, x0, y0, x1, y1, lift, col, lw, al, f) { // a curved link from one point up and over to another; f draws only the first part of it
+    if (al != null && al <= 0.003) return; x.save(); x.globalAlpha = al == null ? 1 : al; x.strokeStyle = col || C.acc; x.lineWidth = lw || 1; x.lineCap = 'round'; x.beginPath(); var mx = (x0 + x1) / 2, my = Math.min(y0, y1) - lift, n = 28, m = Math.max(1, Math.round(n * (f == null ? 1 : cl(f))));
+    for (var i = 0; i <= m; i++) { var u = i / n, a = (1 - u) * (1 - u), b = 2 * u * (1 - u), c = u * u; x.lineTo(a * x0 + b * mx + c * x1, a * y0 + b * my + c * y1); } x.stroke(); x.restore();
+  }
+  function disc(x, px, py, r, col, al) { if (al != null && al <= 0.003) return; x.save(); x.globalAlpha = al == null ? 1 : al; x.fillStyle = col || C.ink; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill(); x.restore(); }
+  function ring(x, px, py, r, col, lw, al) { if (al != null && al <= 0.003) return; x.save(); x.globalAlpha = al == null ? 1 : al; x.strokeStyle = col || C.ink; x.lineWidth = lw || 1; x.beginPath(); x.arc(px, py, r, 0, 7); x.stroke(); x.restore(); }
+  function glow(x, px, py, r, col, al) { x.save(); x.globalCompositeOperation = 'lighter'; H3.dot(x, px, py, r, col, al); x.restore(); }
+  function clear(x, W, H, col) { x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.fillStyle = col || C.bg; x.fillRect(0, 0, W, H); }
+  // the part of the screen a picture may use: under the title, above the captions, between the side arrows
+  function area(W, H) {
+    var wide = W > 760, top = wide ? Math.max(178, H * 0.235) : Math.max(206, H * 0.25), bot = H - (wide ? 192 : 196), l = wide ? 78 : 14, r = W - (wide ? 78 : 14);
+    return { x: l, y: top, w: r - l, h: Math.max(120, bot - top), cx: (l + r) / 2, cy: (top + bot) / 2, r: r, b: bot, wide: wide, u: Math.max(0.62, Math.min(1.25, Math.min((r - l) / 900, (bot - top) / 430))) };
+  }
+  function credit(x, A, s, al) { // where the numbers come from; on a narrow screen it takes two lines
+    var size = Math.max(9.5, 11 * A.u), o = { a: 'center', c: C.dim, mono: true, w: 400, al: al == null ? 0.85 : al };
+    if (width(x, s, size, o) <= A.w) return void text(x, s, A.cx, A.b + 3, size, o);
+    var mid = s.length / 2, cut = -1, i; for (i = 0; i < s.length; i++) if (s[i] === ' ' && (cut < 0 || Math.abs(i - mid) < Math.abs(cut - mid))) cut = i;
+    text(x, s.slice(0, cut), A.cx, A.b - 4, size, o); text(x, s.slice(cut + 1), A.cx, A.b - 4 + size * 1.25, size, o);
+  } // where the numbers come from
+  function pct(p, d) { var v = p * 100; return (v >= 10 ? v.toFixed(d == null ? 0 : d) : v >= 1 ? v.toFixed(d == null ? 1 : d) : v >= 0.1 ? v.toFixed(2) : v >= 0.001 ? v.toFixed(3) : v.toExponential(0)) + '%'; }
+  function commas(n) { return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function dial(x, px, py, r, ang, col, al) { // a little dial with its mark at an angle
+    if (al != null && al <= 0.003) return; x.save(); x.globalAlpha = al == null ? 1 : al; x.strokeStyle = col || C.acc; x.lineWidth = Math.max(0.8, r * 0.16); x.beginPath(); x.arc(px, py, r, 0, 7); x.stroke(); x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.sin(ang) * r * 0.92, py - Math.cos(ang) * r * 0.92); x.stroke(); x.restore();
+  }
+  function tick(x, px, py, r, ok, al) { // a check mark or a cross
+    if (al != null && al <= 0.003) return; x.save(); x.globalAlpha = al == null ? 1 : al; x.lineWidth = Math.max(1.6, r * 0.3); x.lineCap = 'round'; x.strokeStyle = ok ? C.good : C.hot; x.beginPath();
+    if (ok) { x.moveTo(px - r * 0.6, py); x.lineTo(px - r * 0.15, py + r * 0.5); x.lineTo(px + r * 0.7, py - r * 0.55); } else { x.moveTo(px - r * 0.55, py - r * 0.55); x.lineTo(px + r * 0.55, py + r * 0.55); x.moveTo(px + r * 0.55, py - r * 0.55); x.lineTo(px - r * 0.55, py + r * 0.55); } x.stroke(); x.restore();
+  }
+  return { C: C, GROUP: GROUP, at: at, end: end, clock: clock, cl: cl, ramp: ramp, span: span, bump: bump, lerp: lerp, text: text, width: width, rr: rr, box: box, chip: chip, chipW: chipW, show: show, flow: flow, bar: bar, line: line, arc: arc, disc: disc, ring: ring, glow: glow, clear: clear, area: area, credit: credit, pct: pct, commas: commas, dial: dial, tick: tick };
+})();
+
+
+// ---------------------------------------------------------------- the front
+// THE TOKEN. A real sentence ("Unbelievably, the cat sat on the strawberry.") is cut into the pieces that GPT-2 small
+// (OpenAI, 2019) really cuts it into: common words stay whole (" cat" is one piece, number 3797), the long word
+// "Unbelievably" becomes four pieces (Un, bel, iev, ably). Under each piece is its real number in the model's list of
+// 50,257 pieces. A small strip shows how the list was made (byte-pair encoding: the pairs of letters seen together
+// most often are glued, over and over), all 50,257 pieces are drawn as dots, a made-up long word is spelled from
+// six pieces, and at the end only the row of numbers is left: that row is all the model is given.
 var SCENE = (function () {
-  var r = H3.rng(5), N = 236, P = [], CYC = 17, spr = {};
-  function ball(col, hi, quarks) { // a shaded sphere with its three quarks
-    var s = document.createElement('canvas'); s.width = s.height = 96; var g = s.getContext('2d'), gr = g.createRadialGradient(36, 32, 4, 48, 48, 46);
-    gr.addColorStop(0, hi); gr.addColorStop(0.55, col); gr.addColorStop(1, 'rgba(0,0,0,.92)'); g.fillStyle = gr; g.beginPath(); g.arc(48, 48, 46, 0, 7); g.fill();
-    quarks.forEach(function (q, i) { var a = i * 2.094 + 0.5; g.globalAlpha = 0.5; g.fillStyle = q; g.beginPath(); g.arc(48 + Math.cos(a) * 17, 50 + Math.sin(a) * 17, 6, 0, 7); g.fill(); });
-    return s;
-  }
+  var d = D.data.token, P = d.pieces, ID = d.ids, t = {}, field = null, C = K.C;
+  var SUPER = d.more.Supercalifragilistic, MERGE = [['t', 'h', 'th'], ['th', 'e', 'the'], ['c', 'a', 'ca'], ['ca', 't', 'cat']];
   function init() {
-    spr.p = ball('#d8482a', '#ffd2a8', ['#ffe08a', '#ffe08a', '#9fd0ff']);   // proton: up, up, down
-    spr.n = ball('#3c6ea8', '#cfe6ff', ['#ffe08a', '#9fd0ff', '#9fd0ff']);   // neutron: up, down, down
-    // pack 235 nucleons into a drop (unit = one nucleon diameter, about 1.7 fm); the 236th is the neutron that arrives
-    var Rn = 3.66, i, j, k;
-    for (i = 0; i < 235; i++) { var d; do { d = [r() * 2 - 1, r() * 2 - 1, r() * 2 - 1]; } while (d[0] * d[0] + d[1] * d[1] + d[2] * d[2] > 1); P.push({ x: d[0] * Rn, y: d[1] * Rn, z: d[2] * Rn }); }
-    for (k = 0; k < 40; k++) for (i = 0; i < 235; i++) { var a = P[i]; for (j = i + 1; j < 235; j++) { var b = P[j], dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, q = dx * dx + dy * dy + dz * dz; if (q < 0.94 && q > 1e-6) { var l = Math.sqrt(q), m = (0.97 - l) / l * 0.5; a.x -= dx * m; a.y -= dy * m; a.z -= dz * m; b.x += dx * m; b.y += dy * m; b.z += dz * m; } }
-      var rr = Math.hypot(a.x, a.y, a.z); if (rr > Rn) { a.x *= Rn / rr; a.y *= Rn / rr; a.z *= Rn / rr; } }
-    P.push({ x: 0, y: 0, z: 0, incoming: true });
-    // the split is decided by where each nucleon sits along x: 92 to krypton, 141 to barium, 3 neutrons freed
-    var order = P.slice(0, 235).sort(function (a, b) { return a.x - b.x; });
-    order.forEach(function (p, i) { p.grp = i < 92 ? 0 : i < 94 ? 2 : 1; });
-    P[235].grp = 2;
-    function protons(list, n) { list.forEach(function (p) { p.pr = false; }); var idx = list.map(function (_, i) { return i; }); for (var i = idx.length - 1; i > 0; i--) { var j = Math.floor(r() * (i + 1)), t = idx[i]; idx[i] = idx[j]; idx[j] = t; } for (i = 0; i < n; i++) list[idx[i]].pr = true; }
-    protons(P.filter(function (p) { return p.grp === 0; }), 36); protons(P.filter(function (p) { return p.grp === 1; }), 56);
-    P.forEach(function (p, i) { if (p.grp === 2) p.pr = false; p.ph = r() * 6.28; p.fa = r() * 6.28; p.fb = Math.acos(r() * 2 - 1); p.x0 = p.x; p.y0 = p.y; p.z0 = p.z; });
-    var c0 = cen(0), c1 = cen(1); P.forEach(function (p) { var c = p.grp === 0 ? c0 : c1; p.rx = p.x0 - c[0]; p.ry = p.y0 - c[1]; p.rz = p.z0 - c[2]; }); SCENE.c0 = c0; SCENE.c1 = c1;
+    t.secret = K.at(0, 'I have a secret'); t.cant = K.at(0, "I can't read"); t.nums = K.at(0, 'I can only do numbers'); t.chop = K.at(0, 'chopped into little pieces'); t.watch = K.at(0, 'Watch this sentence');
+    t.whole = K.at(0, 'common words stay whole'); t.cat = K.at(0, 'Cat is one piece'); t.unb = K.at(0, 'like unbelievably'); t.token = K.at(0, 'called a token'); t.swap = K.at(0, 'swapped for a number');
+    t.catn = K.at(0, 'Cat is number'); t.nobody = K.at(0, 'Nobody chose these pieces'); t.count = K.at(0, 'counting which letters'); t.fifty = K.at(0, 'fifty thousand pieces'); t.spell = K.at(0, 'spell any sentence');
+    t.said = K.at(0, 'nobody has ever said'); t.never = K.at(0, 'never sees your words'); t.row = K.at(0, 'row of numbers');
   }
-  function cen(g) { var s = [0, 0, 0], n = 0; P.forEach(function (p) { if (p.grp === g && !p.incoming) { s[0] += p.x0; s[1] += p.y0; s[2] += p.z0; n++; } }); return [s[0] / n, s[1] / n, s[2] / n]; }
-  function draw(x, W, H, t, dt, nt) {
-    var tc = t % CYC, u = Math.min(W, H) * 0.036, cx = W / 2, cy = H * 0.47, rot = t * 0.22;
-    var g = x.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.7); g.addColorStop(0, '#0b1020'); g.addColorStop(1, '#02030a'); x.fillStyle = g; x.fillRect(0, 0, W, H);
-    // phases: 0-6.5 the neutron arrives; 6.5-8 the nucleus wobbles; 8+ it splits and the pieces fly apart
-    var split = H3.clamp((tc - 8) / 6, 0, 1), wob = tc > 6.5 && tc < 8 ? (tc - 6.5) / 1.5 : 0, fadeIn = H3.smooth(tc / 1.2) * (1 - H3.smooth((tc - 15.6) / 1.2));
-    var el = wob > 0 ? 0.42 * wob * wob + 0.07 * Math.sin(wob * 22) * wob : split > 0 ? 0.42 * (1 - H3.smooth(split * 5)) : 0;
-    var push = split > 0 ? (1 - Math.exp(-split * 3.2)) * 9.5 : 0; // Coulomb repulsion flings the fragments apart
-    var list = [], cr = Math.cos(rot), sr = Math.sin(rot), i;
+  // all 50,257 pieces as dots, drawn once at the size they will be shown (c screen pixels a dot)
+  function dots(c) {
+    if (field && field.c === c) return field; field = document.createElement('canvas'); field.c = c; field.width = 251 * c; field.height = 201 * c; var g = field.getContext('2d'), r = H3.rng(5);
+    for (var i = 0; i < d.vocab; i++) { g.fillStyle = 'rgba(143,194,255,' + (0.3 + r() * 0.6).toFixed(2) + ')'; g.fillRect((i % 251) * c, Math.floor(i / 251) * c, Math.max(1, c - 1), Math.max(1, c - 1)); } return field;
+  }
+  function draw(x, W, H, tt, dt, nt) {
+    var n = K.clock(0, nt), A = K.area(W, H), u = A.u, i;
+    K.clear(x, W, H);
+    var size = (A.wide ? 31 : 20) * u, cut = K.ramp(n, t.chop + 0.9, 1.5), gapFull = size * 0.42;
+    // rows are decided for the cut-up sentence, so nothing jumps when the cuts open
+    x.save(); x.font = '500 ' + size + 'px "Space Grotesk",system-ui,sans-serif';
+    var tw = P.map(function (p) { return x.measureText(p).width; }), cw = P.map(function (p) { return K.chipW(x, p, size); }); x.restore();
+    var maxW = A.w * 0.96, rows = [[]], rw = [0];
+    for (i = 0; i < P.length; i++) { var q = rows.length - 1; if (rows[q].length && rw[q] + gapFull + cw[i] > maxW) { rows.push([]); rw.push(0); q++; } rw[q] += (rows[q].length ? gapFull : 0) + cw[i]; rows[q].push(i); }
+    var lh = size * 3.5, top = A.y + size * 1.1 + (rows.length === 1 ? A.h * 0.06 : 0), pos = [];
+    rows.forEach(function (row, q) { var wsum = 0; row.forEach(function (k, j) { wsum += K.lerp(tw[k], cw[k], cut) + (j ? gapFull * cut : 0); }); var px = A.cx - wsum / 2; row.forEach(function (k) { var w = K.lerp(tw[k], cw[k], cut); pos[k] = { x: px, y: top + q * lh, w: w }; px += w + gapFull * cut; }); });
+    var blockB = top + (rows.length - 1) * lh + size * 2.2;
+    // "I can't read": the letters lose their meaning for a moment
+    var blind = K.span(n, t.cant, t.chop, 0.5), fade = 1 - 0.9 * K.ramp(n, t.never + 0.6, 1.4);
+    var swap = K.ramp(n, t.swap, 0.5);
     for (i = 0; i < P.length; i++) {
-      var p = P[i], X, Y, Z, j = 0.045 * Math.sin(t * 9 + p.ph);
-      if (p.incoming) { var k = H3.clamp(tc / 6.5, 0, 1); if (tc < 6.5) { X = -22 + 18.4 * k; Y = 0.4 * (1 - k); Z = 0; } else { X = Math.cos(p.fa) * 0; Y = 0; Z = 0; } }
-      if (!p.incoming || tc >= 6.5) {
-        if (p.grp === 2 && split > 0) { var v = 4 + split * 30; X = (p.incoming ? 0 : p.x0) + Math.sin(p.fb) * Math.cos(p.fa) * v * 0.6; Y = (p.incoming ? 0 : p.y0) + Math.cos(p.fb) * v; Z = (p.incoming ? 0 : p.z0) + Math.sin(p.fb) * Math.sin(p.fa) * v * 0.6; }
-        else if (!p.incoming || split === 0) {
-          var bx = p.incoming ? 0 : p.x0, by = p.incoming ? 0 : p.y0, bz = p.incoming ? 0 : p.z0;
-          X = bx * (1 + el); Y = by / Math.sqrt(1 + el); Z = bz / Math.sqrt(1 + el);
-          if (split > 0) { var c = p.grp === 0 ? SCENE.c0 : SCENE.c1, s = H3.smooth(split * 2.2), dir = p.grp === 0 ? -1 : 1, mass = p.grp === 0 ? 141 / 233 : 92 / 233; // the lighter piece moves faster
-            X = c[0] * (1 + el) + p.rx * (1 - 0.1 * s) + dir * push * mass * 1.9; Y = c[1] + p.ry * (1 - 0.1 * s); Z = c[2] + p.rz * (1 - 0.1 * s); }
-        }
-      }
-      Y += j; var y2 = Y * cr - Z * sr, z2 = Y * sr + Z * cr; // turn about the x axis, so the split stays left and right
-      list.push([X, y2, z2, p]);
+      var p = pos[i], hot = 0, col = C.ink;
+      if (i === 6) hot = Math.max(K.span(n, t.cat, t.unb, 0.3), K.span(n, t.catn, t.nobody, 0.3));
+      if (i < 4) hot = Math.max(hot, K.span(n, t.unb, t.token, 0.3));
+      if (i >= 5 && i <= 9) hot = Math.max(hot, 0.55 * K.span(n, t.whole, t.cat, 0.3));
+      var bd = hot > 0.02 ? C.warm : 'rgba(143,194,255,.55)', bg = hot > 0.02 ? 'rgba(255,196,107,' + (0.22 * hot).toFixed(3) + ')' : 'rgba(143,194,255,.10)';
+      // the plain sentence
+      if (cut < 1) K.text(x, P[i], p.x + (p.w - tw[i]) / 2, p.y, size, { al: (1 - cut) * (1 - 0.55 * blind), c: C.ink });
+      if (blind > 0.02 && cut < 0.05) { var jig = Math.sin(tt * 9 + i * 1.7) * 2 * blind; K.text(x, P[i].replace(/[A-Za-z]/g, '▯'), p.x + (p.w - tw[i]) / 2, p.y + jig, size, { al: 0.5 * blind, c: C.acc }); }
+      // the piece in its box
+      if (cut > 0) K.chip(x, P[i], p.x, p.y, size, { wd: p.w, al: cut * fade, bd: bd, bg: bg, lw: hot > 0.02 ? 2 : 1.2, glow: hot > 0.5 ? C.warm : null });
+      // its number
+      var sw = K.ramp(n, t.swap + i * 0.09, 0.45), big = K.ramp(n, t.never + 0.6, 1.4), ns = size * K.lerp(0.5, 0.62, big);
+      K.text(x, String(ID[i]), p.x + p.w / 2, p.y + size * K.lerp(1.55, 0.9, big), ns, { a: 'center', mono: true, w: 600, al: sw, c: hot > 0.3 ? C.warm : C.acc, glow: big > 0.5 ? C.acc : null });
+      if (sw > 0 && sw < 1) K.line(x, p.x + p.w / 2, p.y + size * 0.9, p.x + p.w / 2, p.y + size * 1.2, C.acc, 1, sw * (1 - sw) * 3);
     }
-    list.sort(function (a, b) { return a[2] - b[2]; });
-    x.globalAlpha = fadeIn;
-    for (i = 0; i < list.length; i++) { var q = list[i], sc = 1 + q[2] * 0.03, px = cx + q[0] * u * sc, py = cy + q[1] * u * sc, sz = u * 1.04 * sc; x.drawImage(q[3].pr ? spr.p : spr.n, px - sz / 2, py - sz / 2, sz, sz); }
-    // the flash: mass turned into energy
-    if (tc > 7.9 && tc < 10.2) { var f = (tc - 7.9) / 2.3, a2 = Math.pow(1 - f, 2); x.globalCompositeOperation = 'lighter'; H3.dot(x, cx, cy, u * (6 + f * 46), 'rgba(255,240,200,1)', a2 * 0.95); H3.dot(x, cx, cy, u * (3 + f * 20), 'rgba(255,255,255,1)', a2);
-      for (i = 0; i < 9; i++) { var an = i * 0.698 + 0.3, r0 = u * (4 + f * 60); x.globalAlpha = a2 * 0.8; x.strokeStyle = '#bfe2ff'; x.lineWidth = 1.5; x.beginPath(); for (var s2 = 0; s2 < 40; s2++) { var rr = r0 + s2 * u * 0.22, wv = Math.sin(s2 * 0.9) * u * 0.25; x.lineTo(cx + Math.cos(an) * rr - Math.sin(an) * wv, cy + Math.sin(an) * rr + Math.cos(an) * wv); } x.stroke(); }
-      x.globalCompositeOperation = 'source-over'; }
-    x.globalAlpha = 1;
-    if (tc < 6.5) { H3.label(x, 'one neutron', cx + (-22 + 18.4 * tc / 6.5) * u, cy - u * 1.4, 'center', 'rgba(190,220,255,.95)'); H3.label(x, 'uranium-235', cx, cy - u * 6.2, 'center', '#fff', 14);
-      H3.lead(x, cx + u * 3.4, cy - u * 3, cx + u * 7.2, cy - u * 4.6); H3.label(x, 'proton (92)', cx + u * 7.5, cy - u * 4.6, 'left', '#ffb08a');
-      H3.lead(x, cx + u * 3.6, cy + u * 2.2, cx + u * 7.2, cy + u * 4.2); H3.label(x, 'neutron (143)', cx + u * 7.5, cy + u * 4.2, 'left', '#9fc8ff'); }
-    if (split > 0.12 && tc < 15.4) { var o = H3.smooth((split - 0.12) * 4); x.globalAlpha = o;
-      H3.label(x, 'barium-141', cx + (SCENE.c1[0] + push * 0.75) * u, cy - u * 5.4, 'center', '#fff', 13); H3.label(x, 'krypton-92', cx + (SCENE.c0[0] - push * 1.15) * u, cy - u * 4.8, 'center', '#fff', 13);
-      H3.label(x, '+ 3 neutrons + 200 MeV', cx, cy + u * 8.4, 'center', '#ffe9a8', 14); H3.label(x, 'E = mc²: 0.09% of the mass became energy', cx, cy + u * 9.7, 'center', 'rgba(214,228,255,.8)'); x.globalAlpha = 1; }
-    H3.scaleBar(x, W, H, u * 5 / 1.7, '5 femtometers (0.000 000 000 000 005 m)');
+    // the cuts themselves, as the blade passes
+    var blade = K.span(n, t.chop + 0.9, t.chop + 2.6, 0.2);
+    if (blade > 0.01) for (i = 1; i < P.length; i++) if (pos[i].y === pos[i - 1].y) { var bx = pos[i].x - gapFull * cut / 2; K.line(x, bx, pos[i].y - size * 1.25, bx, pos[i].y + size * 1.25, C.warm, 1.5, blade * 0.8); }
+    // labels on the sentence
+    var b4 = K.span(n, t.unb + 1.2, t.token, 0.4);
+    if (b4 > 0.01) { var x0 = pos[0].x, x1 = pos[3].x + pos[3].w, by = pos[0].y - size * 1.25; K.line(x, x0, by, x1, by, C.warm, 1.5, b4); K.line(x, x0, by, x0, by + size * 0.3, C.warm, 1.5, b4); K.line(x, x1, by, x1, by + size * 0.3, C.warm, 1.5, b4); K.text(x, 'one word, four pieces', (x0 + x1) / 2, by - size * 0.5, size * 0.44, { a: 'center', c: C.warm, mono: true, al: b4 }); }
+    var b1 = K.span(n, t.cat + 0.3, t.unb, 0.4); if (b1 > 0.01) K.text(x, 'one piece', pos[6].x + pos[6].w / 2, pos[6].y - size * 1.4, size * 0.44, { a: 'center', c: C.warm, mono: true, al: b1 });
+    var bt = K.span(n, t.token, t.swap, 0.4); if (bt > 0.01) K.text(x, 'each box is one token', A.cx, top - size * 1.5, size * 0.5, { a: 'center', c: C.acc, mono: true, al: bt });
+    var bn = K.span(n, t.catn + 0.4, t.nobody, 0.4); if (bn > 0.01) { K.ring(x, pos[6].x + pos[6].w / 2, pos[6].y + size * 1.55, size * 1.05, C.warm, 1.5, bn); }
+    var seen = K.ramp(n, t.never + 0.8, 1); if (seen > 0.01) K.text(x, 'what the machine is given', A.cx, top - size * 1.5, size * 0.5, { a: 'center', c: C.acc, mono: true, al: seen });
+    // ---- the lower part of the picture changes with the story
+    var ly = blockB + size * 1.2, lh2 = Math.max(60, A.b - ly), cy = ly + lh2 / 2, fs = Math.max(11.5, 17 * u);
+    // how the list of pieces was made: glue the commonest pair, again and again
+    var m = K.span(n, t.nobody, t.fifty, 0.5);
+    if (m > 0.01) {
+      K.text(x, 'how the list of pieces was made: count the pairs, glue the commonest, repeat', A.cx, ly + fs * 0.4, fs * 0.82, { a: 'center', c: C.dim, mono: true, al: m, w: 400 });
+      var colW = Math.min(A.w / 4, 210 * u), ms = Math.max(17, 30 * u);
+      for (i = 0; i < 4; i++) {
+        var g = K.ramp(n, t.count + 0.3 + i * 0.85, 0.7), mx = A.cx + (i - 1.5) * colW, my = ly + lh2 * 0.5, a = MERGE[i], sp = ms * 1.5 * (1 - g);
+        if (K.ramp(n, t.nobody + 0.5 + i * 0.3, 0.5) <= 0) continue; var al = m * K.ramp(n, t.nobody + 0.5 + i * 0.3, 0.5);
+        var wa = K.width(x, a[0], ms, { mono: true }), wb = K.width(x, a[1], ms, { mono: true });
+        K.box(x, mx - (wa + wb + sp) / 2 - ms * 0.4, my - ms * 0.9, wa + wb + sp + ms * 0.8, ms * 1.8, { line: g > 0.95 ? C.good : 'rgba(143,194,255,.5)', fill: g > 0.95 ? 'rgba(125,255,176,.10)' : 'rgba(143,194,255,.06)', r: ms * 0.35, al: al });
+        K.text(x, a[0], mx - (wb + sp) / 2, my, ms, { a: 'center', mono: true, al: al }); K.text(x, a[1], mx + (wa + sp) / 2, my, ms, { a: 'center', mono: true, al: al });
+        if (g < 0.9) K.text(x, '+', mx, my, ms * 0.7, { a: 'center', c: C.dim, mono: true, al: al * (1 - g) });
+        K.text(x, g > 0.95 ? 'a new piece' : 'seen together a lot', mx, my + ms * 1.55, fs * 0.72, { a: 'center', c: g > 0.95 ? C.good : C.dim, mono: true, al: al, w: 400 });
+      }
+    }
+    // all 50,257 pieces
+    var f = K.span(n, t.fifty, t.said, 0.6);
+    if (f > 0.01) {
+      var dp = Math.min(devicePixelRatio || 1, 2), cpx = Math.max(2, Math.floor(Math.min(lh2 - fs * 2.2, A.w * 0.5 * 201 / 251) * dp / 201)), fh = 201 * cpx / dp, fw = 251 * cpx / dp, fx = A.cx - fw / 2, fy = ly + fs * 1.6, rev = K.ramp(n, t.fifty, 2.2);
+      x.save(); x.globalAlpha = f; x.beginPath(); x.rect(fx, fy, fw, fh * rev); x.clip(); x.imageSmoothingEnabled = false; x.drawImage(dots(cpx), Math.round(fx * dp) / dp, Math.round(fy * dp) / dp, fw, fh); x.restore();
+      K.text(x, K.commas(Math.round(d.vocab * rev)) + ' pieces: every one a dot', A.cx, ly + fs * 0.4, fs, { a: 'center', c: C.ink, mono: true, al: f });
+      var marks = [[3797, '·cat  3797'], [262, '·the  262'], [41236, '·strawberry  41236']];
+      for (i = 0; i < marks.length; i++) { var id = marks[i][0], dx = fx + ((id % 251) + 0.5) / 251 * fw, dy = fy + (Math.floor(id / 251) + 0.5) / 201 * fh, on = f * K.ramp(n, t.fifty + 2 + i * 0.5, 0.5); if (on <= 0) continue; var right = A.wide, lx = right ? fx + fw + 18 : fx + fw * 0.5, ly2 = right ? fy + fh * (0.2 + i * 0.3) : dy;
+        K.ring(x, dx, dy, 5, C.warm, 1.5, on); if (right) { K.line(x, dx + 5, dy, lx - 4, ly2, C.warm, 1, on * 0.7); K.text(x, marks[i][1], lx, ly2, fs * 0.9, { c: C.warm, mono: true, al: on }); } }
+    }
+    // a word nobody has said before, spelled from pieces it already has
+    var s = K.span(n, t.said, t.never, 0.5);
+    if (s > 0.01) {
+      var ss = Math.min(size * 0.86, A.w / 17), Ls = K.flow(x, SUPER[0], ss, A.cx, cy - ss * 1.2, A.w, ss * 0.36 * K.ramp(n, t.said + 1, 0.9));
+      K.text(x, 'a made-up word: it still fits, as six pieces', A.cx, ly + fs * 0.4, fs * 0.9, { a: 'center', c: C.dim, mono: true, al: s, w: 400 });
+      for (i = 0; i < SUPER[0].length; i++) { K.chip(x, SUPER[0][i], Ls[i].x, Ls[i].y, ss, { al: s }); K.text(x, String(SUPER[1][i]), Ls[i].x + Ls[i].w / 2, Ls[i].y + ss * 1.5, ss * 0.5, { a: 'center', mono: true, w: 600, c: C.acc, al: s * K.ramp(n, t.said + 1.4 + i * 0.1, 0.4) }); }
+    }
+    var e = K.ramp(n, t.row, 1);
+    if (e > 0.01) K.text(x, 'no letters · no words · ' + P.length + ' numbers', A.cx, cy, Math.max(13, 19 * u), { a: 'center', c: C.dim, mono: true, al: e });
+    K.credit(x, A, 'the real pieces and numbers of GPT-2 small (OpenAI, 2019), a small open model');
   }
   return { init: init, draw: draw };
 })();
 
 
 // ---------------------------------------------------------------- the back: its opposite (drawn light on black, shown as ink on paper)
-// THE OPPOSITE OF THE NUCLEUS: a neutron star. The same nuclear matter at the same density (about 4 x 10^17 kg/m^3),
-// but 20 km across instead of 15 femtometres: one nucleus of about 10^57 neutrons, 1.4 times the Sun's mass.
-// It spins (here 0.7 turns a second; real ones from once every few seconds up to 716 a second), its magnetic axis is
-// tilted from its spin axis, and beams of radiation leave along the magnetic poles: we see a pulse each time one
-// sweeps past, which is why they are called pulsars. Field lines are a true dipole: r = L sin^2(theta).
+// THE OPPOSITE OF THE TOKEN: a place on a map (an embedding). The number 3797 (" cat") turns into the first of its
+// 768 real numbers from GPT-2 small's input table, and then into a dot. 95 everyday words are drawn where that table
+// puts them, flattened from 768 directions to two (t-SNE on the cosine distances between their real vectors). The
+// groups are real: days of the week, colors, animals, numbers, foods, family, places, feelings and doing-words each
+// land together; in the full 768 directions, 91 of the 95 words have a nearest neighbor from their own group. The
+// dots first drift in from random places (nobody placed them: they got there during training). A note says the flat
+// map is only a shadow of the real one, and that the spot is only where a piece starts.
 var SCENE2 = (function () {
-  var r = H3.rng(9), surf = [], stars = [], sky = [];
-  function init() { var i; for (i = 0; i < 1500; i++) { var y = r() * 2 - 1, q = Math.sqrt(1 - y * y), a = r() * 6.2832; surf.push([Math.cos(a) * q, y, Math.sin(a) * q, r()]); } for (i = 0; i < 240; i++) stars.push([r(), r(), 0.5 + r() * 1.3]);
-    var bx = 0; while (bx < 1) { var w = 0.02 + r() * 0.05; sky.push([bx, w, 0.15 + r() * 0.85]); bx += w + 0.004; } }
-  function draw(x, W, H, t, dt, nt) {
-    var cx = W / 2, cy = H * 0.47, R = Math.min(W, H) * 0.115, i, k;
-    x.fillStyle = '#000'; x.fillRect(0, 0, W, H); x.globalCompositeOperation = 'lighter';
-    for (i = 0; i < stars.length; i++) H3.dot(x, stars[i][0] * W, stars[i][1] * H, stars[i][2], 'rgba(255,255,255,1)', 0.55);
-    var ph = t * 6.2832 * 0.7, tl = 0.61, m = [Math.sin(tl) * Math.cos(ph), Math.cos(tl), Math.sin(tl) * Math.sin(ph)];
-    // the two beams, along the magnetic axis
-    for (k = -1; k <= 1; k += 2) { var dx = m[0] * k, dy = -m[1] * k, len = R * (5.2 + 1.2 * m[2] * k), wd = R * 0.5, near = 0.35 + 0.65 * (0.5 + 0.5 * m[2] * k);
-      var g = x.createLinearGradient(cx, cy, cx + dx * len, cy + dy * len); g.addColorStop(0, 'rgba(190,225,255,' + (0.85 * near) + ')'); g.addColorStop(1, 'rgba(190,225,255,0)'); x.globalAlpha = 1; x.fillStyle = g;
-      x.beginPath(); x.moveTo(cx + dx * R * 0.9, cy + dy * R * 0.9); x.lineTo(cx + dx * len - dy * wd, cy + dy * len + dx * wd); x.lineTo(cx + dx * len + dy * wd, cy + dy * len - dx * wd); x.closePath(); x.fill(); }
-    // dipole field lines in four planes round the magnetic axis
-    var e1 = [m[1], -m[0], 0], l1 = Math.hypot(e1[0], e1[1]) || 1; e1 = [e1[0] / l1, e1[1] / l1, 0]; var e2 = [m[1] * e1[2] - m[2] * e1[1], m[2] * e1[0] - m[0] * e1[2], m[0] * e1[1] - m[1] * e1[0]];
-    x.lineWidth = 1; x.strokeStyle = 'rgba(160,205,255,.5)';
-    for (var az = 0; az < 4; az++) { var ca = Math.cos(az * 0.785), sa = Math.sin(az * 0.785), e = [e1[0] * ca + e2[0] * sa, e1[1] * ca + e2[1] * sa, e1[2] * ca + e2[2] * sa];
-      for (var L = 2.2; L <= 4.6; L += 1.2) for (var sg = -1; sg <= 1; sg += 2) { x.globalAlpha = 0.5; x.beginPath(); for (var th = 0.2; th <= 2.95; th += 0.08) { var rr = L * Math.sin(th) * Math.sin(th); if (rr < 1) continue; var px = rr * (Math.cos(th) * m[0] + Math.sin(th) * e[0] * sg), py = rr * (Math.cos(th) * m[1] + Math.sin(th) * e[1] * sg); x.lineTo(cx + px * R, cy - py * R); } x.stroke(); } }
-    // the star: a hot, glowing ball with its crust turning
-    H3.dot(x, cx, cy, R * 2.6, 'rgba(170,215,255,1)', 0.45); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
-    var sg2 = x.createRadialGradient(cx - R * 0.3, cy - R * 0.3, R * 0.1, cx, cy, R); sg2.addColorStop(0, '#ffffff'); sg2.addColorStop(0.7, '#cfe6ff'); sg2.addColorStop(1, '#7fb0e8'); x.fillStyle = sg2; x.beginPath(); x.arc(cx, cy, R, 0, 7); x.fill();
-    var c = Math.cos(ph), s = Math.sin(ph); for (i = 0; i < surf.length; i++) { var p = surf[i], zx = p[0] * c + p[2] * s, zz = -p[0] * s + p[2] * c; if (zz < 0) continue; x.globalAlpha = 0.35 * zz; x.fillStyle = p[3] > 0.5 ? '#4f86c4' : '#ffffff'; x.fillRect(cx + zx * R - 1, cy - p[1] * R - 1, 2, 2); }
-    x.globalAlpha = 1;
-    // a city, drawn at the same scale: both are about 20 km across
-    var by = cy + R * 2.6, bw = R * 2; x.fillStyle = 'rgba(235,240,255,.92)'; for (i = 0; i < sky.length; i++) { var b = sky[i], hh = R * 0.42 * b[2] * (1 - Math.abs(b[0] + b[1] / 2 - 0.5) * 0.9); x.fillRect(cx - R + b[0] * bw, by - hh, Math.max(1, b[1] * bw - 1), hh); }
-    x.fillRect(cx - R - 6, by, bw + 12, 1.5);
-    H3.label(x, 'a city, drawn at the same scale: 20 km across', cx, by + 16, 'center', '#fff', 12);
-    H3.lead(x, cx + R * 0.75, cy - R * 0.6, cx + R * 2.9, cy - R * 1.5); H3.label(x, 'one nucleus: 10⁵⁷ neutrons, 1.4 Suns of weight', cx + R * 3, cy - R * 1.5, W > 760 ? 'left' : 'center', '#fff', 11);
-    H3.label(x, 'beams along its magnetic poles: a lighthouse', cx - R * 3, cy - R * 1.5, W > 760 ? 'right' : 'center', 'rgba(214,228,255,.9)', 11);
-    // the pulse we would see, each time a beam sweeps past
-    var bx0 = Math.max(64, W * 0.05), bw2 = Math.min(240, W * 0.3), py0 = H - 172; x.strokeStyle = '#fff'; x.lineWidth = 1.4; x.beginPath(); for (i = 0; i <= 120; i++) { var tt = t - (120 - i) / 120 * 3, q2 = (tt * 0.7) % 1, v = Math.exp(-Math.pow((q2 - 0.25) / 0.022, 2)) + 0.5 * Math.exp(-Math.pow((q2 - 0.75) / 0.022, 2)); x.lineTo(bx0 + i / 120 * bw2, py0 - v * 30); } x.stroke();
-    H3.label(x, 'what a telescope hears: tick, tick, tick', bx0, py0 + 14, 'left', 'rgba(238,244,255,.9)', 11);
+  var d = D.data.map, PT = d.pts, t = {}, C = K.C, r = H3.rng(11), rnd = PT.map(function () { return [r() * 3 - 1.5, r() * 2 - 1]; }), CAT = 0, CEN = [];
+  var NAMES = ['animals', 'colors', 'numbers', 'days of the week', 'food', 'family', 'places', 'feelings', 'doing words'];
+  function init() {
+    t.num = K.at(1, 'A number by itself'); t.purr = K.at(1, "doesn't purr"); t.first = K.at(1, 'the first thing that happens'); t.place = K.at(1, 'Every piece is given a place'); t.dot = K.at(1, 'Like a dot');
+    t.look = K.at(1, 'look where the dots ended up'); t.days = K.at(1, 'days of the week'); t.colors = K.at(1, 'The colors are together'); t.animals = K.at(1, 'The animals are together'); t.nobody = K.at(1, 'Nobody put them there');
+    t.drift = K.at(1, 'drifted close'); t.warn = K.at(1, 'One warning'); t.two = K.at(1, "doesn't have two directions"); t.dims = K.at(1, 'seven hundred and sixty eight'); t.shadow = K.at(1, 'only its shadow'); t.start = K.at(1, 'just where a piece starts'); t.come = K.at(1, 'still to come');
+    for (var i = 0; i < PT.length; i++) if (PT[i][0] === 'cat') CAT = i;
+    // the flattening packs each group very tightly; ease the dots apart (more sideways than up and down, to leave room
+    // for their words) without moving the groups
+    var j, k; PT = PT.map(function (p) { return p.slice(); });
+    for (k = 0; k < 90; k++) for (i = 0; i < PT.length; i++) for (j = i + 1; j < PT.length; j++) { var dx = (PT[j][2] - PT[i][2]) / 2.7, dy = PT[j][3] - PT[i][3], dd = Math.hypot(dx, dy) || 1e-4, min = 0.066; if (dd < min) { var push = (min - dd) / 2 / dd; PT[i][2] -= dx * push * 2.7; PT[i][3] -= dy * push; PT[j][2] += dx * push * 2.7; PT[j][3] += dy * push; } }
+    var mxv = 0; for (i = 0; i < PT.length; i++) mxv = Math.max(mxv, Math.abs(PT[i][2]) / 1.5, Math.abs(PT[i][3])); for (i = 0; i < PT.length; i++) { PT[i][2] /= mxv; PT[i][3] /= mxv; }
+    for (i = 0; i < 9; i++) CEN.push([0, 0, 0]); for (i = 0; i < PT.length; i++) { CEN[PT[i][1]][0] += PT[i][2]; CEN[PT[i][1]][1] += PT[i][3]; CEN[PT[i][1]][2]++; } CEN = CEN.map(function (c) { return [c[0] / c[2], c[1] / c[2]]; });
+  }
+  function draw(x, W, H, tt, dt, nt) {
+    var n = K.clock(1, nt), A = K.area(W, H), u = A.u, i;
+    K.clear(x, W, H, '#000');
+    var R = Math.min(A.w * 0.31, A.h * 0.47), mx = A.cx, my = A.cy + A.h * 0.02, fs = Math.max(10, 13 * u);
+    // the number alone, then its 768 numbers, then a dot
+    var a0 = K.span(n, t.num, t.place + 0.6, 0.5), bs = Math.max(34, 70 * u);
+    if (a0 > 0.01) {
+      K.text(x, '3797', mx, my - bs * 0.2, bs, { a: 'center', mono: true, w: 600, al: a0 * (1 - K.ramp(n, t.first + 0.3, 1)) });
+      K.text(x, 'the number for "cat"', mx, my + bs * 0.75, fs * 1.15, { a: 'center', c: C.dim, mono: true, al: a0 * (1 - K.ramp(n, t.first, 0.8)) });
+      var v = K.ramp(n, t.first + 0.4, 1.2);
+      if (v > 0.01) { var cols = A.wide ? 12 : 6, cw = fs * 4.6, rh = fs * 1.5, rowsN = Math.ceil(48 / cols), x0 = mx - cols * cw / 2, y0 = my - rowsN * rh / 2 - fs;
+        for (i = 0; i < 48; i++) { var on = K.cl(v * 48 - i * 0.9); K.text(x, (d.vec[i] >= 0 ? '+' : '') + d.vec[i].toFixed(3), x0 + (i % cols + 0.5) * cw, y0 + Math.floor(i / cols) * rh, fs * 0.95, { a: 'center', mono: true, w: 400, c: d.vec[i] >= 0 ? C.acc : C.warm, al: a0 * on }); }
+        K.text(x, 'the first 48 of the 768 numbers that stand for "cat" inside the model', mx, y0 + rowsN * rh + fs * 0.9, fs, { a: 'center', c: C.dim, mono: true, w: 400, al: a0 * v }); }
+    }
+    // the map
+    var show = K.ramp(n, t.place + 0.5, 1), drift = n < t.nobody ? K.ramp(n, t.place + 0.5, 2.2) : K.lerp(1 - K.bump(n, t.nobody, t.drift - t.nobody + 3.2) * 0.999, 1, 0), wob = K.span(n, t.two, t.start, 1);
+    // "nobody put them there": the dots go back to random places and drift home again
+    if (n >= t.nobody) { var back = K.ramp(n, t.nobody, 0.8), home = K.ramp(n, t.drift + 0.2, 2.4); drift = n < t.drift + 0.2 ? 1 - back : home; }
+    if (show > 0.01) {
+      // a faint floor, so the flat map reads as a thing
+      var hi = -1; if (n >= t.days && n < t.colors) hi = 3; else if (n >= t.colors && n < t.animals) hi = 1; else if (n >= t.animals && n < t.nobody) hi = 0;
+      // the words of the group being talked about go in two tidy columns beside it, each tied to its dot
+      var slot = {}; if (hi >= 0) { var Lh = [], Rh = [], gap = fs * 1.3; for (i = 0; i < PT.length; i++) if (PT[i][1] === hi) (PT[i][2] < CEN[hi][0] ? Lh : Rh).push(i); [Lh, Rh].forEach(function (col, side) { col.sort(function (p, q) { return PT[p][3] - PT[q][3]; }); col.forEach(function (k, j) { slot[k] = [side, my + CEN[hi][1] * R * 0.94 + (j - (col.length - 1) / 2) * gap]; }); }); var ext = 0; for (i = 0; i < PT.length; i++) if (PT[i][1] === hi) ext = Math.max(ext, Math.abs(PT[i][2] - CEN[hi][0])); slot.x = [mx + (CEN[hi][0] - ext) * R - fs * 1.6, mx + (CEN[hi][0] + ext) * R + fs * 1.6]; }
+      var all = K.ramp(n, t.come - 0.5, 1.2), spin = wob * 0.9 * Math.sin((n - t.two) * 0.9);
+      for (i = 0; i < PT.length; i++) {
+        var p = PT[i], gx = K.lerp(rnd[i][0], p[2], drift), gy = K.lerp(rnd[i][1], p[3], drift);
+        // while the warning is spoken the flat map tilts, to show it is one view of something with far more directions
+        var z = Math.sin(i * 12.9898) * 0.6, cs = Math.cos(spin), sn = Math.sin(spin), px = mx + (gx * cs + z * sn) * R, py = my + gy * R * 0.94;
+        var mine = hi === p[1], dimmed = hi >= 0 && !mine, col = K.GROUP[p[1]], al = show * (dimmed ? 0.22 : 1), rad = (mine ? 6.5 : 5) * u;
+        K.glow(x, px, py, rad * 3.2, col, al * (mine ? 0.9 : 0.5)); K.disc(x, px, py, rad, col, al);
+        var lab = mine ? 1 : i === CAT ? K.ramp(n, t.dot, 0.5) * (hi < 0 ? 1 : 0.2) * (1 - K.span(n, t.start, t.come + 99, 0.4)) : 0;
+        if (mine && slot[i]) { var sx = slot.x[slot[i][0]], sy = slot[i][1]; K.line(x, px, py, sx + (slot[i][0] ? -4 : 4), sy, col, 1, 0.55 * show); K.text(x, p[0], sx, sy, fs * 1.05, { a: slot[i][0] ? 'left' : 'right', c: C.ink, mono: true, w: 600, al: show }); }
+        else if (lab > 0.02 && drift > 0.9) K.text(x, p[0], px + rad + 3, py - rad - 1, fs * 0.95, { c: C.ink, mono: true, w: 500, al: lab * show });
+        if (i === CAT) { var st = K.span(n, t.start, t.come + 1.5, 0.5); if (st > 0.01) { K.ring(x, px, py, rad * 2.6 + Math.sin(tt * 3) * 1.5, C.ink, 1.5, st); K.text(x, 'where "cat" starts', px, py + rad * 2.6 + fs * 1.1, fs, { a: 'center', c: C.ink, mono: true, al: st }); } }
+      }
+      if (hi >= 0) K.text(x, NAMES[hi], mx, A.y + fs * 0.6, fs * 1.5, { a: 'center', c: K.GROUP[hi], w: 600, al: K.span(n, hi === 3 ? t.days : hi === 1 ? t.colors : t.animals, hi === 3 ? t.colors : hi === 1 ? t.animals : t.nobody, 0.3) });
+      var nb = K.span(n, t.nobody, t.warn, 0.4); if (nb > 0.01) K.text(x, drift < 0.5 ? 'before learning: anywhere' : 'after learning: with their kind', mx, A.y + fs * 0.6, fs * 1.25, { a: 'center', c: C.ink, mono: true, al: nb });
+      var w2 = K.span(n, t.two, t.start, 0.4); if (w2 > 0.01) { K.text(x, 'this paper: 2 directions', mx, A.y + fs * 0.3, fs * 1.2, { a: 'center', c: C.ink, mono: true, al: w2 }); K.text(x, 'the real map: 768', mx, A.y + fs * 2, fs * 1.2, { a: 'center', c: C.warm, mono: true, w: 600, al: w2 * K.ramp(n, t.dims, 0.5) }); }
+      // the name of each group, once everything is shown
+      if (all > 0.01) for (i = 0; i < NAMES.length; i++) { var kx = mx + CEN[i][0] * R, ky = my + CEN[i][1] * R * 0.94 - fs * 2.6; var nw = K.width(x, NAMES[i], fs * 1.05, { w: 700 }); K.box(x, kx - nw / 2 - 6, ky - fs * 0.8, nw + 12, fs * 1.6, { fill: 'rgba(0,0,0,.72)', r: 6, al: all }); K.text(x, NAMES[i], kx, ky, fs * 1.05, { a: 'center', c: K.GROUP[i], w: 700, al: all }); }
+    }
+    K.credit(x, A, show > 0.5 ? 'real: 95 words from GPT-2 small’s table of 768 numbers a piece, flattened to 2 · in all 768, ' + d.nn_same + ' of ' + d.n + ' have a nearest neighbor of their own kind' : 'the real numbers GPT-2 small (2019) uses for the piece "cat"', 0.9);
   }
   return { init: init, draw: draw };
 })();
 
 
-// The page itself: captions, the voice, the ruler of nine scales, the side arrows, and the flip.
-// Each page has two sides. The front is the scale; the back is its opposite, with the other narrator. Flipping turns
+// The page itself: captions, the voice, the ruler of the nine parts, the side arrows, and the flip.
+// Each page has two sides. The front is one part of how the machine works; the back is its opposite, with the other narrator. Flipping turns
 // the whole page over in 3D (it swaps sides when it is edge-on) and everything on the back runs the other way:
 // ink on paper instead of light on black, the ruler and arrows reversed.
 function Chrome(D, opt) {
@@ -316,11 +456,11 @@ function Chrome(D, opt) {
   var cc = el('div', 'cc', '<span id="cap"></span>'); cc.setAttribute('aria-live', 'polite');
   var snd = el('div', 'snd', '&#128266; Tap anywhere to hear it explained'); snd.setAttribute('role', 'button'); snd.tabIndex = 0;
   var flipB = el('div', 'flip', ''); flipB.setAttribute('role', 'button'); flipB.tabIndex = 0;
-  var ruler = el('nav', 'ruler', ''); ruler.setAttribute('aria-label', 'The nine scales, from the nucleus to the universe');
+  var ruler = el('nav', 'ruler', ''); ruler.setAttribute('aria-label', 'The nine parts, from one piece of a word to the data center');
   var navL = el('a', '', '', 'nav l'), navR = el('a', '', '', 'nav r'), shade = el('div', 'shade', ''), cap = doc.getElementById('cap');
   var A = [new Audio('./narration.mp3'), new Audio('./narration-flip.mp3')]; A[0].loop = A[1].loop = false; /* each explanation plays once */ A[0].preload = 'auto'; A[1].preload = 'none'; A[0].muted = A[1].muted = true;
   var subs = [], side = 0, started = false, done = false, userMute = false, t0 = performance.now(), shown = -2, turning = false, fresh = false;
-  function nt() { var a = A[side]; if (a.ended || done) return 1e9; if (!a.paused && a.readyState > 1 && isFinite(a.currentTime)) return a.currentTime; var s = (performance.now() - t0) / 1000; if (s > D.sides[side].dur + 1) { done = true; setSnd(); } return s; } // once through, then quiet
+  function nt() { if (opt.fix != null) return opt.fix + (opt.go ? (performance.now() - t0) / 1000 : 0); var a = A[side]; if (a.ended || done) return 1e9; if (!a.paused && a.readyState > 1 && isFinite(a.currentTime)) return a.currentTime; var s = (performance.now() - t0) / 1000; if (s > D.sides[side].dur + 1) { done = true; setSnd(); } return s; } // once through, then quiet
   function over() { return done || A[side].ended; }
   function setSnd() { if (!started) return; snd.classList.add('on'); snd.innerHTML = over() ? '&#8635; Play again' : userMute ? '&#128263; Sound off' : '&#128266; Sound on'; snd.setAttribute('aria-label', userMute ? 'Turn the sound on' : 'Turn the sound off'); }
   function playSide() { done = false; A[1 - side].pause(); var a = A[side]; a.muted = !started || userMute; try { a.currentTime = 0; } catch (e) {} t0 = performance.now(); shown = -2; var p = a.play(); if (p && p.catch) p.catch(function () {}); }
@@ -330,11 +470,11 @@ function Chrome(D, opt) {
     body.classList.toggle('flip', back);
     ruler.innerHTML = '<span class="cap l">' + (back ? '← bigger' : '← smaller') + '</span><span class="cap r">' + (back ? 'smaller →' : 'bigger →') + '</span>' + D.scales.map(function (s, i) {
       var pct = (s.exp - lo) / (hi - lo) * 100; if (back) pct = 100 - pct;
-      return '<a href="https://' + s.domain + '/" class="' + (i === D.i ? 'me ' : '') + (i % 2 ? 'up' : '') + '" style="left:' + pct.toFixed(2) + '%"' + (i === D.i ? ' aria-current="page"' : '') + ' title="' + s.name + ' · ' + s.size + ' · ' + s.domain + '"><b>' + s.size + '</b><span>' + s.short + '</span></a>';
+      return '<a href="https://' + s.domain + '/" class="' + (i === D.i ? 'me ' : '') + (i % 2 ? 'up' : '') + '" style="left:' + pct.toFixed(2) + '%"' + (i === D.i ? ' aria-current="page"' : '') + ' title="Part ' + (i + 1) + ': ' + s.name + ' · ' + s.domain + '"><b>' + (i + 1) + '</b><span>' + s.short + '</span></a>';
     }).join('');
     var smaller = D.scales[(D.i - 1 + n) % n], bigger = D.scales[(D.i + 1) % n];
-    function nav(a, s, arrow, word) { a.href = 'https://' + s.domain + '/'; a.title = word + ': ' + s.name + ' (' + s.size + ')'; a.setAttribute('aria-label', word + ': ' + s.name); a.innerHTML = '<i>' + arrow + '</i><span>' + word + '<b>' + s.short + '</b></span>'; }
-    var wS = D.i === 0 ? 'biggest' : 'smaller', wB = D.i === n - 1 ? 'smallest' : 'bigger';
+    function nav(a, s, arrow, word) { a.href = 'https://' + s.domain + '/'; a.title = word + ': ' + s.name; a.setAttribute('aria-label', word + ': ' + s.name); a.innerHTML = '<i>' + arrow + '</i><span>' + word + '<b>' + s.short + '</b></span>'; }
+    var wS = D.i === 0 ? 'the last part' : 'before this', wB = D.i === n - 1 ? 'back to the start' : 'next';
     if (back) { nav(navL, bigger, '‹', wB); nav(navR, smaller, '›', wS); } else { nav(navL, smaller, '‹', wS); nav(navR, bigger, '›', wB); }
     var b = D.sides[1];
     doc.getElementById('bk').textContent = 'the other side of ' + me.name.toLowerCase() + '  ·  ' + b.size;
@@ -376,7 +516,8 @@ function Chrome(D, opt) {
 
 // Talking to the page. A visitor types or speaks a question; the answer comes back as text and is read aloud in the
 // voice of the side they are on. The server (D.chat) is told which scale and which side, so the page knows what it is
-// showing. Replies are spoken with the browser's own voice (a different one on the back of the page).
+// showing. Replies are spoken with the browser's own voice (a different one on the back of the page). The pictures are
+// timed to the narrator, so opening the chat only quiets the narrator: the film stays where it is.
 function Chat(D, CH, page) {
   var doc = document, API = D.chat.replace(/\/+$/, ''), SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var busy = false, voice = true, hist = [], rec = null, au = null, greeted = [false, false], lastSide = -1;
@@ -397,7 +538,7 @@ function Chat(D, CH, page) {
     btn.textContent = isOpen() ? 'Close the chat' : 'Ask about ' + lc; btn.classList.toggle('open', isOpen());
     $('askwho').textContent = 'The A.I. on this page'; $('askon').textContent = (s ? 'the back: ' : 'the front: ') + lc;
     inp.placeholder = 'Ask about ' + lc + '…';
-    var qs = s ? ['What am I looking at?', 'Why is this the opposite?', 'Is that known for sure?'] : ['What am I looking at?', 'How big is it, really?', 'What is its opposite?'];
+    var qs = s ? ['What am I looking at?', 'Why is this the opposite?', 'Is that known for sure?'] : ['What am I looking at?', 'Are those numbers real?', 'Do you work like this too?'];
     chips.innerHTML = ''; qs.forEach(function (q) { var b = doc.createElement('button'); b.type = 'button'; b.textContent = q; b.onclick = function () { send(q); }; chips.appendChild(b); });
     if (!isOpen()) return;
     if (lastSide >= 0 && lastSide !== s) add('', (s ? 'you turned the page: now ' : 'you turned back: now ') + lc, 'i');
@@ -450,14 +591,14 @@ function Chat(D, CH, page) {
 
 // ---------------------------------------------------------------- page
 var cv = document.getElementById('c'), cx = cv.getContext('2d'), W = 0, Hh = 0, dpr = 1, me = D.scales[D.i];
-document.getElementById('k').innerHTML = 'Scale ' + (D.i + 1) + ' of ' + D.scales.length + ' · <b>' + me.size + '</b>';
+document.getElementById('k').innerHTML = 'Part ' + (D.i + 1) + ' of ' + D.scales.length + ' · <b>' + me.size + '</b>';
 document.getElementById('name').textContent = me.name;
 document.getElementById('sub').textContent = me.sub;
-var CH = Chrome(D, {});
+var QS = new URLSearchParams(location.search), CH = Chrome(D, QS.get('n') != null ? { fix: +QS.get('n'), go: QS.get('go') != null } : {}); // ?n=seconds holds the film at that moment (&go lets it run on from there)
 function fit() { dpr = Math.min(devicePixelRatio || 1, 2); W = innerWidth; Hh = innerHeight; cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr); cx.setTransform(dpr, 0, 0, dpr, 0, 0); }
 addEventListener('resize', fit); fit();
-var last = performance.now(), T = +(new URLSearchParams(location.search).get('t') || 0), Tb = T, inited = [false, false]; // ?t=seconds jumps the picture ahead
-if (new URLSearchParams(location.search).get('flip') != null) CH.flip();
+var last = performance.now(), T = 0, Tb = 0, inited = [false, false];
+if (QS.get('flip') != null) CH.flip();
 function frame(now) {
   requestAnimationFrame(frame);
   var dt = Math.min(0.05, (now - last) / 1000); last = now; var s = CH.side(), sc = s ? SCENE2 : SCENE;
