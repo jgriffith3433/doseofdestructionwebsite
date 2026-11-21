@@ -5,99 +5,50 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Have a nice weekend</title>
 <meta name="description" content="A friendly A.I. waving hello. Have a nice weekend.">
-<meta name="theme-color" content="#f6efe2">
+<meta name="theme-color" content="#fbf6ea">
 <style>
-  :root { --paper: #f6efe2; --ink: #2b2a33; --soft: #6b6878; --body: #fffaf0; --line: #2b2a33; --accent: #ff8a5c; --accent2: #4fb7a8; --cheek: #ffb3a1; --screen: #26303f; --glow: #9ff0df; --shadow: rgba(43, 42, 51, .14); }
-  @media (prefers-color-scheme: dark) { :root { --paper: #171a22; --ink: #f3eee4; --soft: #a5a2b3; --body: #e9e4d8; --line: #0e1016; --accent: #ff9a70; --accent2: #5fcdbd; --cheek: #ff9d8a; --screen: #1d2531; --glow: #a8f5e5; --shadow: rgba(0, 0, 0, .45); } }
-  * { box-sizing: border-box; }
+  :root { --paper: #fbf6ea; --ink: #33302b; --face: #ffd95e; --cheek: #ff9f8c; --grass: #7dbb6a; }
+  @media (prefers-color-scheme: dark) { :root { --paper: #23211d; --ink: #f1ebdd; --face: #f2c94c; --cheek: #f08a78; --grass: #6aa659; } }
   html, body { height: 100%; margin: 0; }
-  body { background: var(--paper); color: var(--ink); font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; overflow: hidden; -webkit-tap-highlight-color: transparent; }
-  .sun { position: fixed; width: 60vmax; height: 60vmax; border-radius: 50%; right: -22vmax; top: -26vmax; background: radial-gradient(circle, color-mix(in srgb, var(--accent) 34%, transparent), transparent 68%); pointer-events: none; }
-  .stage { position: relative; width: min(420px, 86vw); }
-  .bubble { position: relative; margin: 0 auto 6px; width: fit-content; max-width: 100%; background: var(--body); color: #2b2a33; border: 3px solid var(--line); border-radius: 26px; padding: 14px 24px; font-size: clamp(26px, 7.4vw, 40px); font-weight: 800; letter-spacing: -.01em; line-height: 1.1; text-align: center; box-shadow: 0 8px 0 var(--shadow); transform-origin: 50% 100%; animation: pop .7s cubic-bezier(.2, 1.5, .4, 1) .5s both; }
-  .bubble::after { content: ""; position: absolute; left: 50%; bottom: -14px; width: 22px; height: 22px; margin-left: -11px; background: var(--body); border-right: 3px solid var(--line); border-bottom: 3px solid var(--line); transform: rotate(45deg); border-bottom-right-radius: 5px; }
-  svg { display: block; width: 100%; height: auto; overflow: visible; cursor: pointer; }
-  .bot { animation: bob 3.2s ease-in-out infinite; transform-origin: 200px 380px; }
-  .arm { transform-origin: 290px 262px; animation: wave 1.5s ease-in-out infinite; }
-  .eye { transform-origin: center; transform-box: fill-box; animation: blink 4.6s infinite; }
-  .ant { transform-origin: 200px 92px; animation: sway 3.2s ease-in-out infinite; }
-  .bulb { animation: pulse 1.6s ease-in-out infinite; }
-  .ground { transform-origin: 200px 404px; animation: squash 3.2s ease-in-out infinite; }
-  .talk .mouth { animation: say .26s ease-in-out infinite alternate; transform-origin: center; transform-box: fill-box; }
-  button { margin-top: 18px; font: inherit; font-size: 16px; font-weight: 700; color: var(--ink); background: transparent; border: 2px solid color-mix(in srgb, var(--ink) 30%, transparent); border-radius: 999px; padding: 10px 18px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
-  button:hover { border-color: var(--ink); }
-  button:focus-visible, svg:focus-visible { outline: 3px solid var(--accent2); outline-offset: 4px; }
-  @keyframes pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
-  @keyframes squash { 0%, 100% { transform: scaleX(1); opacity: 1; } 50% { transform: scaleX(.86); opacity: .7; } }
-  @keyframes wave { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(26deg); } }
-  @keyframes sway { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
-  @keyframes pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
-  @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.08); } }
-  @keyframes say { from { transform: scaleY(.75); } to { transform: scaleY(1.2); } }
-  @media (prefers-reduced-motion: reduce) { .bot, .ground, .ant, .bulb, .eye { animation: none; } .arm { animation-duration: 3s; } }
+  body { background: var(--paper); color: var(--ink); font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard SE", cursive; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; box-sizing: border-box; overflow: hidden; }
+  main { width: min(400px, 86vw); }
+  h1 { margin: 0 0 4px; text-align: center; font-size: clamp(30px, 9vw, 46px); line-height: 1.15; font-weight: 700; transform: rotate(-2deg); }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .friend { animation: bob 3s ease-in-out infinite; }
+  .arm { transform-origin: 284px 238px; animation: wave 1.3s ease-in-out infinite; }
+  .eye { transform-origin: center; transform-box: fill-box; animation: blink 4.4s infinite; }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+  @keyframes wave { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(22deg); } }
+  @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+  @media (prefers-reduced-motion: reduce) { .friend, .eye { animation: none; } .arm { animation-duration: 3s; } }
 </style>
 </head>
 <body>
-<div class="sun"></div>
-<main class="stage">
-  <h1 class="bubble">Have a nice weekend!</h1>
-  <svg id="bot" viewBox="0 0 400 420" role="img" aria-label="A smiling A.I. robot waving" tabindex="0">
-    <ellipse class="ground" cx="200" cy="404" rx="96" ry="11" fill="var(--shadow)"/>
-    <g class="bot" stroke="var(--line)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
-      <!-- the waving arm, behind the body -->
-      <g class="arm">
-        <path d="M290 262 Q336 232 340 176" fill="none" stroke-width="22" stroke="var(--line)"/>
-        <path d="M290 262 Q336 232 340 176" fill="none" stroke-width="11" stroke="var(--body)"/>
-        <circle cx="341" cy="160" r="22" fill="var(--accent)"/>
-        <path d="M329 144 L325 128 M341 140 L341 122 M353 144 L357 128" fill="none"/>
+<main>
+  <h1>Have a nice weekend!</h1>
+  <svg viewBox="0 0 400 420" role="img" aria-label="A smiling friend waving, drawn by hand">
+    <defs><filter id="wobble" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".03" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="7"/></filter></defs>
+    <g filter="url(#wobble)" fill="none" stroke="var(--ink)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M40 392 q14 -22 26 0 q12 -26 26 0 M300 394 q12 -24 24 0 q14 -20 26 0" stroke="var(--grass)"/>
+      <path d="M70 398 H340" stroke-width="4" opacity=".5"/>
+      <g class="friend">
+        <g class="arm">
+          <path d="M284 238 Q330 218 346 160"/>
+          <path d="M346 160 L328 140 M346 160 L348 132 M346 160 L366 144"/>
+        </g>
+        <path d="M116 238 Q72 262 62 312"/>
+        <path d="M176 290 L168 392 L148 394 M224 290 L232 392 L252 394"/>
+        <circle cx="200" cy="200" r="98" fill="var(--face)"/>
+        <g stroke="none">
+          <ellipse class="eye" cx="166" cy="180" rx="10" ry="15" fill="#33302b"/>
+          <ellipse class="eye" cx="234" cy="180" rx="10" ry="15" fill="#33302b"/>
+          <ellipse cx="136" cy="222" rx="16" ry="10" fill="var(--cheek)" opacity=".8"/>
+          <ellipse cx="264" cy="222" rx="16" ry="10" fill="var(--cheek)" opacity=".8"/>
+        </g>
+        <path d="M152 224 Q200 280 248 224" stroke="#33302b"/>
       </g>
-      <!-- the resting arm -->
-      <path d="M110 262 Q78 290 82 330" fill="none" stroke-width="22" stroke="var(--line)"/>
-      <path d="M110 262 Q78 290 82 330" fill="none" stroke-width="11" stroke="var(--body)"/>
-      <circle cx="82" cy="340" r="19" fill="var(--accent)"/>
-      <!-- legs -->
-      <rect x="150" y="352" width="34" height="44" rx="14" fill="var(--body)"/>
-      <rect x="216" y="352" width="34" height="44" rx="14" fill="var(--body)"/>
-      <!-- body -->
-      <rect x="106" y="232" width="188" height="136" rx="44" fill="var(--body)"/>
-      <path d="M200 290 c-9 -15 -31 -5 -22 12 c5 9 15 15 22 21 c7 -6 17 -12 22 -21 c9 -17 -13 -27 -22 -12z" fill="var(--accent)"/>
-      <!-- antenna -->
-      <g class="ant">
-        <path d="M200 92 L200 58" fill="none"/>
-        <circle class="bulb" cx="200" cy="46" r="13" fill="var(--accent2)"/>
-      </g>
-      <!-- head -->
-      <rect x="60" y="88" width="24" height="60" rx="10" fill="var(--accent2)"/>
-      <rect x="316" y="88" width="24" height="60" rx="10" fill="var(--accent2)"/>
-      <rect x="78" y="88" width="244" height="158" rx="56" fill="var(--body)"/>
-      <rect x="102" y="110" width="196" height="114" rx="40" fill="var(--screen)"/>
-      <g stroke="none">
-        <ellipse class="eye" cx="158" cy="154" rx="15" ry="19" fill="var(--glow)"/>
-        <ellipse class="eye" cx="242" cy="154" rx="15" ry="19" fill="var(--glow)"/>
-        <circle cx="163" cy="147" r="5" fill="#fff"/>
-        <circle cx="247" cy="147" r="5" fill="#fff"/>
-        <ellipse cx="128" cy="184" rx="13" ry="8" fill="var(--cheek)" opacity=".85"/>
-        <ellipse cx="272" cy="184" rx="13" ry="8" fill="var(--cheek)" opacity=".85"/>
-      </g>
-      <path class="mouth" d="M168 182 Q200 214 232 182 Q200 196 168 182z" fill="var(--glow)" stroke="var(--glow)" stroke-width="5"/>
     </g>
   </svg>
 </main>
-<button id="hear" type="button" aria-label="Hear it"><svg viewBox="0 0 24 24" style="width:20px;height:20px;cursor:inherit" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.6 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Hear it</button>
-<audio id="voice" src="weekend.mp3" preload="auto"></audio>
-<script>
-  // The robot says its line out loud: straight away where the browser allows sound, otherwise on the first tap.
-  var a = document.getElementById('voice'), bot = document.getElementById('bot'), said = false;
-  function say() { a.currentTime = 0; var p = a.play(); if (p) p.then(function () { said = true; }).catch(function () {}); }
-  a.addEventListener('play', function () { bot.classList.add('talk'); });
-  a.addEventListener('pause', function () { bot.classList.remove('talk'); });
-  a.addEventListener('ended', function () { bot.classList.remove('talk'); });
-  document.getElementById('hear').addEventListener('click', function (e) { e.stopPropagation(); say(); });
-  bot.addEventListener('click', function (e) { e.stopPropagation(); say(); });
-  bot.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); say(); } });
-  document.addEventListener('pointerdown', function first() { document.removeEventListener('pointerdown', first); if (!said) say(); });
-  setTimeout(say, 900);
-</script>
 </body>
 </html>
