@@ -2,584 +2,102 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>The Quark · The rules of physics, level 1 of 9</title>
-<meta name="description" content="The Quark: the smallest pieces we know · three of them make a proton · the rule down here: you can never pull one out. Level 1 of nine on the rules of physics, from the quark to the universe, drawn from measured numbers and explained simply by an A.I. narrator, with captions. Flip the page for its reverse: almost free.">
-<meta name="theme-color" content="#03050b">
-<meta property="og:title" content="The Quark · The rules of physics, level 1 of 9">
-<meta property="og:description" content="The Quark: the smallest pieces we know · three of them make a proton · the rule down here: you can never pull one out. Level 1 of nine on the rules of physics, from the quark to the universe, drawn from measured numbers and explained simply by an A.I. narrator, with captions. Flip the page for its reverse: almost free.">
-<meta name="color-scheme" content="dark">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Have a nice weekend</title>
+<meta name="description" content="A friendly A.I. waving hello. Have a nice weekend.">
+<meta name="theme-color" content="#f6efe2">
 <style>
-:root{--ink:#eef4ff;--dim:rgba(214,228,255,.66)}
-html,body{margin:0;height:100%;overflow:hidden;color:var(--ink);font-family:"Space Grotesk",system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
-#c{position:fixed;inset:0;width:100%;height:100%;display:block}
-#hud{position:fixed;left:0;right:0;top:0;pointer-events:none;text-align:center;padding:max(14px,env(safe-area-inset-top)) 16px 30px;background:linear-gradient(rgba(3,5,11,.72),rgba(3,5,11,.3) 65%,transparent);z-index:4}
-.k{font:600 11px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.38em;color:var(--dim);text-transform:uppercase}
-.k b{color:#8fc2ff;font-weight:600}
-.name{font-weight:700;font-size:clamp(30px,6.2vw,76px);line-height:1.02;letter-spacing:.06em;text-transform:uppercase;margin:.18em 0 .12em;color:#fff;text-shadow:0 0 28px rgba(110,165,255,.7),0 0 6px rgba(160,200,255,.55),0 2px 14px rgba(0,0,0,.9);animation:rise 1.1s cubic-bezier(.2,.8,.2,1)}
-@keyframes rise{from{opacity:0;letter-spacing:.3em;filter:blur(6px)}to{opacity:1;letter-spacing:.06em;filter:blur(0)}}
-.sub{font:400 clamp(11px,1.3vw,14px)/1.5 "JetBrains Mono",ui-monospace,monospace;color:var(--dim);letter-spacing:.05em;max-width:920px;margin:0 auto}
-:root{--acc:#8fc2ff}
-body{perspective:2400px;background:#000}
-#page{position:fixed;inset:0;transform-origin:50% 50%;will-change:transform;background:#03050b;overflow:hidden}
-#shade{position:absolute;inset:0;pointer-events:none;opacity:0;z-index:40;background:linear-gradient(90deg,rgba(0,0,0,.8),rgba(0,0,0,.05) 42%,rgba(255,255,255,.22) 52%,rgba(0,0,0,.65))}
-#cc{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(max(12px,env(safe-area-inset-bottom)) + 74px);width:max-content;max-width:min(92vw,820px);text-align:center;pointer-events:none;z-index:6}
-#cc span{display:inline-block;font:500 clamp(16px,2.2vw,25px)/1.4 "Space Grotesk",system-ui,sans-serif;color:#fff;background:rgba(3,6,14,.74);padding:.34em .8em;border-radius:10px;box-shadow:0 0 0 1px rgba(143,194,255,.22),0 8px 30px rgba(0,0,0,.5)}
-#cc span:empty{display:none}
-#snd{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(max(12px,env(safe-area-inset-bottom)) + 132px);z-index:7;font:600 clamp(12px,1.5vw,15px)/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:#03050b;background:linear-gradient(180deg,#d7e9ff,#8fc2ff);padding:.8em 1.2em;border-radius:999px;box-shadow:0 0 30px rgba(143,194,255,.6);cursor:pointer;user-select:none;-webkit-user-select:none;animation:pulse 1.6s ease-in-out infinite;white-space:nowrap}
-#snd.on{left:auto;right:max(14px,env(safe-area-inset-right));top:max(14px,env(safe-area-inset-top));bottom:auto;transform:none;animation:none;background:rgba(3,6,14,.7);color:var(--acc);box-shadow:0 0 0 1px rgba(143,194,255,.4);font-size:11px;padding:.7em 1em}
-@keyframes pulse{50%{box-shadow:0 0 54px rgba(143,194,255,.95)}}
-#flip{position:fixed;left:max(14px,env(safe-area-inset-left));top:max(14px,env(safe-area-inset-top));z-index:8;cursor:pointer;user-select:none;-webkit-user-select:none;font:600 11px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:#03050b;background:linear-gradient(135deg,#fff 0 46%,#8fc2ff 46% 100%);padding:.9em 1.15em .9em 1em;border-radius:4px 14px 4px 14px;box-shadow:0 0 22px rgba(143,194,255,.55),0 6px 16px rgba(0,0,0,.5);transition:transform .2s;outline:none}
-#flip:hover,#flip:focus-visible{transform:rotate(-3deg) scale(1.06)}
-#ruler{position:fixed;left:max(52px,env(safe-area-inset-left));right:max(52px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));height:56px;z-index:6}
-#ruler:before{content:"";position:absolute;left:0;right:0;top:20px;height:1px;background:linear-gradient(90deg,transparent,rgba(143,194,255,.55) 6%,rgba(143,194,255,.55) 94%,transparent)}
-#ruler a{position:absolute;top:0;transform:translateX(-50%);text-decoration:none;color:rgba(214,228,255,.66);font:400 10px/1.25 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.04em;text-align:center;white-space:nowrap;padding-top:30px;outline:none}
-#ruler a:before{content:"";position:absolute;left:50%;top:15px;width:9px;height:9px;margin-left:-5px;border-radius:50%;background:#0b1326;box-shadow:0 0 0 1.5px rgba(143,194,255,.75);transition:transform .2s,background .2s}
-#ruler a:hover,#ruler a:focus-visible{color:#fff}
-#ruler a:hover:before,#ruler a:focus-visible:before{transform:scale(1.5);background:var(--acc)}
-#ruler a.up{padding-top:0;top:-14px}
-#ruler a.up:before{top:29px}
-#ruler a.me{color:#fff;font-weight:600}
-#ruler a.me:before{background:#fff;box-shadow:0 0 0 2px var(--acc),0 0 18px 4px rgba(143,194,255,.9);transform:scale(1.35)}
-#ruler a b{display:block;font-weight:600;color:var(--acc)}
-#ruler .cap{position:absolute;top:-30px;font:400 10px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.2em;text-transform:uppercase;color:rgba(214,228,255,.4)}
-#ruler .cap.l{left:-30px}#ruler .cap.r{right:-30px}
-.nav{position:fixed;top:50%;transform:translateY(-50%);z-index:5;display:flex;flex-direction:column;align-items:center;gap:7px;text-decoration:none;color:rgba(214,228,255,.7);font:400 10px/1.25 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.08em;text-align:center;text-transform:uppercase;padding:14px 8px;outline:none;text-shadow:0 0 8px #000}
-.nav i{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:rgba(3,6,14,.62);box-shadow:0 0 0 1.5px rgba(143,194,255,.55);font:300 28px/1 system-ui,sans-serif;font-style:normal;color:#fff;padding-bottom:3px;box-sizing:border-box;transition:transform .2s,box-shadow .2s,background .2s}
-.nav:hover i,.nav:focus-visible i{transform:scale(1.12);background:rgba(143,194,255,.25);box-shadow:0 0 0 2px #8fc2ff,0 0 24px rgba(143,194,255,.75)}
-.nav.l{left:max(6px,env(safe-area-inset-left))}
-.nav.r{right:max(6px,env(safe-area-inset-right))}
-.nav b{display:block;color:#8fc2ff;font-weight:600}
-/* ---- the back of the page: everything the other way round. Ink on paper instead of light on black, a quiet serif
-   instead of loud capitals, the ruler and the arrows reversed. */
-#hud2{display:none;position:fixed;left:0;right:0;top:0;pointer-events:none;text-align:center;padding:max(16px,env(safe-area-inset-top)) 16px 26px;z-index:4}
-.bk{font:400 12px/1 Georgia,"Times New Roman",serif;font-style:italic;letter-spacing:.06em;color:rgba(40,28,16,.7)}
-.bname{font:500 clamp(34px,6.6vw,84px)/1.02 "Playfair Display",Georgia,"Times New Roman",serif;font-style:italic;letter-spacing:-.01em;text-transform:lowercase;margin:.16em 0 .14em;color:#17110a;animation:settle 1.1s cubic-bezier(.2,.8,.2,1)}
-@keyframes settle{from{opacity:0;letter-spacing:-.08em;filter:blur(5px)}to{opacity:1;letter-spacing:-.01em;filter:blur(0)}}
-.bsub{font:400 clamp(12px,1.35vw,15px)/1.5 Georgia,"Times New Roman",serif;font-style:italic;color:rgba(40,28,16,.75);max-width:860px;margin:0 auto}
-body.flip #hud2{display:block}
-body.flip .fronthide{display:none!important}
-body.flip #page{background:#f1eadc}
-body.flip canvas.ink{filter:invert(1) hue-rotate(180deg);mix-blend-mode:multiply}
-#c2{position:fixed;inset:0;width:100%;height:100%;display:none}
-body.flip #c2{display:block}
-body.flip #cc span{font-family:Georgia,"Times New Roman",serif;font-style:italic;font-weight:400;color:#17110a;background:rgba(255,252,244,.9);box-shadow:0 0 0 1px rgba(70,45,20,.28),0 8px 26px rgba(70,45,20,.18)}
-body.flip #snd{color:#f1eadc;background:linear-gradient(180deg,#3a2a18,#17110a);box-shadow:0 0 26px rgba(60,40,20,.45)}
-body.flip #snd.on{background:rgba(255,252,244,.85);color:#7a3d0e;box-shadow:0 0 0 1px rgba(90,60,30,.5)}
-body.flip #flip{color:#f1eadc;background:linear-gradient(315deg,#17110a 0 46%,#7a3d0e 46% 100%);box-shadow:0 6px 16px rgba(60,40,20,.35);border-radius:14px 4px 14px 4px}
-body.flip #ruler:before{background:linear-gradient(90deg,transparent,rgba(70,45,20,.55) 6%,rgba(70,45,20,.55) 94%,transparent)}
-body.flip #ruler a{color:rgba(40,28,16,.7);font-family:Georgia,serif;font-style:italic;font-size:11px}
-body.flip #ruler a:before{background:#f1eadc;box-shadow:0 0 0 1.5px rgba(70,45,20,.8)}
-body.flip #ruler a:hover,body.flip #ruler a:focus-visible{color:#000}
-body.flip #ruler a.me{color:#17110a}
-body.flip #ruler a.me:before{background:#17110a;box-shadow:0 0 0 2px #7a3d0e}
-body.flip #ruler a b{color:#7a3d0e}
-body.flip #ruler .cap{color:rgba(40,28,16,.45);font-family:Georgia,serif;font-style:italic;text-transform:none;letter-spacing:.06em;font-size:11px}
-body.flip .nav{color:rgba(40,28,16,.75);text-shadow:none;font-family:Georgia,serif;font-style:italic;text-transform:none;font-size:11px}
-body.flip .nav i{background:rgba(255,252,244,.82);color:#17110a;box-shadow:0 0 0 1.5px rgba(70,45,20,.6)}
-body.flip .nav:hover i,body.flip .nav:focus-visible i{background:#17110a;color:#f1eadc;box-shadow:0 0 0 2px #7a3d0e}
-body.flip .nav b{color:#7a3d0e}
-@media (max-width:760px){.nav{top:auto;bottom:calc(max(12px,env(safe-area-inset-bottom)) - 4px);transform:none;padding:4px 2px}.nav.l{left:max(4px,env(safe-area-inset-left))}.nav.r{right:max(4px,env(safe-area-inset-right))}#hud,#hud2{padding-top:calc(max(14px,env(safe-area-inset-top)) + 84px)}.sub,.bsub{font-size:11px;line-height:1.4}#ruler a:not(.me) span{display:none}#ruler a:not(.me) b{font-size:9px}#ruler .cap{display:none}#cc{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 70px)}.nav span{display:none}.nav i{width:40px;height:40px;font-size:23px}#flip{font-size:10px;padding:.8em .9em}}
-@media (prefers-reduced-motion:reduce){#snd,.bname{animation:none}}
-/* ---- talking to the page. Front: a glass panel on the right. Back: paper, on the left, the bubbles swapped. */
-#askb{position:fixed;right:max(14px,env(safe-area-inset-right));top:calc(max(14px,env(safe-area-inset-top)) + 44px);z-index:9;border:0;cursor:pointer;font:600 11px/1 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:#03050b;background:linear-gradient(180deg,#d7e9ff,#8fc2ff);padding:.9em 1.15em;border-radius:999px;box-shadow:0 0 22px rgba(143,194,255,.5),0 6px 16px rgba(0,0,0,.5);transition:transform .2s}
-#askb:hover,#askb:focus-visible{transform:scale(1.06);outline:none}
-#askb.open{background:rgba(3,6,14,.7);color:var(--acc);box-shadow:0 0 0 1px rgba(143,194,255,.4)}
-#ask{position:fixed;right:max(78px,env(safe-area-inset-right));top:calc(max(14px,env(safe-area-inset-top)) + 92px);width:min(380px,calc(100vw - 156px));max-height:min(520px,calc(100vh - 270px));z-index:9;display:none;flex-direction:column;background:rgba(3,6,14,.88);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-radius:16px;box-shadow:0 0 0 1px rgba(143,194,255,.35),0 18px 50px rgba(0,0,0,.6);color:#eaf2ff;font:400 15px/1.45 "Space Grotesk",system-ui,sans-serif;overflow:hidden}
-#ask.open{display:flex;animation:askin .25s ease-out}
-@keyframes askin{from{opacity:0;transform:translateY(-8px)}}
-#ask header{display:flex;align-items:center;gap:8px;padding:11px 10px 10px 14px;border-bottom:1px solid rgba(143,194,255,.2)}
-#ask header div{flex:1;min-width:0;font:400 10px/1.4 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:rgba(214,228,255,.6)}
-#ask header b{display:block;color:var(--acc);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#ask button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
-#ask header button{width:32px;height:32px;border-radius:50%;font-size:16px;line-height:1;color:rgba(214,228,255,.85)}
-#ask header button:hover,#ask header button:focus-visible{background:rgba(143,194,255,.2);outline:none}
-#askv.off{opacity:.45}
-#asklog{flex:1;overflow-y:auto;padding:12px 14px 4px;display:flex;flex-direction:column;gap:9px;overscroll-behavior:contain}
-#asklog p{margin:0;max-width:88%;padding:.5em .8em;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere}
-#asklog p.ai{align-self:flex-start;background:rgba(143,194,255,.1);border-bottom-left-radius:4px}
-#asklog p.me{align-self:flex-end;background:rgba(143,194,255,.3);color:#fff;border-bottom-right-radius:4px}
-#asklog p.err{color:#ffc890}
-#asklog p.wait:empty:after{content:"· · ·";letter-spacing:.2em;animation:askw 1.1s ease-in-out infinite}
-@keyframes askw{50%{opacity:.25}}
-#asklog i{align-self:center;font:400 10px/1.3 "JetBrains Mono",ui-monospace,monospace;font-style:normal;letter-spacing:.12em;text-transform:uppercase;color:rgba(214,228,255,.5);padding:4px 0}
-#askchips{display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px 2px}
-#askchips button{font-size:12.5px;padding:.4em .8em;border-radius:999px;box-shadow:0 0 0 1px rgba(143,194,255,.4);color:#cfe2ff}
-#askchips button:hover,#askchips button:focus-visible{background:rgba(143,194,255,.2);outline:none}
-#askf{display:flex;align-items:center;gap:6px;padding:10px}
-#aski{flex:1;min-width:0;font:inherit;color:#fff;background:rgba(143,194,255,.1);border:0;border-radius:999px;padding:.62em 1em;outline:none;box-shadow:0 0 0 1px rgba(143,194,255,.25)}
-#aski:focus{box-shadow:0 0 0 1.5px var(--acc)}
-#aski::placeholder{color:rgba(214,228,255,.45)}
-#askf button{flex:none;width:38px;height:38px;border-radius:50%;font-size:17px;line-height:1}
-#asks{background:var(--acc)!important;color:#03050b!important;font-weight:700}
-#asks:disabled{opacity:.4;cursor:default}
-#askm{box-shadow:0 0 0 1px rgba(143,194,255,.4)}
-#askm.on{background:#ff6b6b!important;color:#fff;box-shadow:0 0 0 0 rgba(255,107,107,.7);animation:askmic 1.2s ease-out infinite}
-@keyframes askmic{to{box-shadow:0 0 0 14px rgba(255,107,107,0)}}
-body.flip #askb{right:auto;left:max(14px,env(safe-area-inset-left));color:#f1eadc;background:linear-gradient(180deg,#3a2a18,#17110a);box-shadow:0 6px 16px rgba(60,40,20,.35);font-family:Georgia,serif;font-style:italic;text-transform:none;letter-spacing:.04em;font-size:13px;font-weight:400}
-body.flip #askb.open{background:rgba(255,252,244,.85);color:#7a3d0e;box-shadow:0 0 0 1px rgba(90,60,30,.5)}
-body.flip #ask{right:auto;left:max(78px,env(safe-area-inset-left));background:rgba(255,252,244,.94);color:#17110a;font-family:Georgia,"Times New Roman",serif;box-shadow:0 0 0 1px rgba(70,45,20,.35),0 18px 44px rgba(70,45,20,.28)}
-body.flip #ask header{border-color:rgba(70,45,20,.2);flex-direction:row-reverse;padding:11px 14px 10px 10px}
-body.flip #ask header div{font-family:Georgia,serif;font-style:italic;text-transform:none;letter-spacing:.04em;font-size:11.5px;color:rgba(40,28,16,.6);text-align:right}
-body.flip #ask header b{color:#7a3d0e}
-body.flip #ask header button{color:rgba(40,28,16,.8)}
-body.flip #ask header button:hover,body.flip #ask header button:focus-visible{background:rgba(70,45,20,.14)}
-body.flip #asklog p.ai{align-self:flex-end;background:rgba(70,45,20,.08);font-style:italic;border-radius:14px 14px 4px 14px}
-body.flip #asklog p.me{align-self:flex-start;background:#17110a;color:#f1eadc;border-radius:14px 14px 14px 4px}
-body.flip #asklog p.err{color:#a8421a}
-body.flip #asklog i{font-family:Georgia,serif;font-style:italic;text-transform:none;letter-spacing:.04em;font-size:11.5px;color:rgba(40,28,16,.55)}
-body.flip #askchips{flex-direction:row-reverse}
-body.flip #askchips button{box-shadow:0 0 0 1px rgba(70,45,20,.45);color:#3a2a18;font-style:italic}
-body.flip #askchips button:hover,body.flip #askchips button:focus-visible{background:rgba(70,45,20,.12)}
-body.flip #askf{flex-direction:row-reverse}
-body.flip #aski{color:#17110a;background:rgba(70,45,20,.07);box-shadow:0 0 0 1px rgba(70,45,20,.3)}
-body.flip #aski:focus{box-shadow:0 0 0 1.5px #7a3d0e}
-body.flip #aski::placeholder{color:rgba(40,28,16,.45)}
-body.flip #asks{background:#17110a!important;color:#f1eadc!important}
-body.flip #askm{box-shadow:0 0 0 1px rgba(70,45,20,.45)}
-@media (max-width:760px){#askb{font-size:10px;padding:.8em .9em}#ask,body.flip #ask{left:8px;right:8px;top:auto;bottom:calc(max(12px,env(safe-area-inset-bottom)) + 70px);width:auto;max-height:min(62vh,480px)}}
-
+  :root { --paper: #f6efe2; --ink: #2b2a33; --soft: #6b6878; --body: #fffaf0; --line: #2b2a33; --accent: #ff8a5c; --accent2: #4fb7a8; --cheek: #ffb3a1; --screen: #26303f; --glow: #9ff0df; --shadow: rgba(43, 42, 51, .14); }
+  @media (prefers-color-scheme: dark) { :root { --paper: #171a22; --ink: #f3eee4; --soft: #a5a2b3; --body: #e9e4d8; --line: #0e1016; --accent: #ff9a70; --accent2: #5fcdbd; --cheek: #ff9d8a; --screen: #1d2531; --glow: #a8f5e5; --shadow: rgba(0, 0, 0, .45); } }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+  .sun { position: fixed; width: 60vmax; height: 60vmax; border-radius: 50%; right: -22vmax; top: -26vmax; background: radial-gradient(circle, color-mix(in srgb, var(--accent) 34%, transparent), transparent 68%); pointer-events: none; }
+  .stage { position: relative; width: min(420px, 86vw); }
+  .bubble { position: relative; margin: 0 auto 6px; width: fit-content; max-width: 100%; background: var(--body); color: #2b2a33; border: 3px solid var(--line); border-radius: 26px; padding: 14px 24px; font-size: clamp(26px, 7.4vw, 40px); font-weight: 800; letter-spacing: -.01em; line-height: 1.1; text-align: center; box-shadow: 0 8px 0 var(--shadow); transform-origin: 50% 100%; animation: pop .7s cubic-bezier(.2, 1.5, .4, 1) .5s both; }
+  .bubble::after { content: ""; position: absolute; left: 50%; bottom: -14px; width: 22px; height: 22px; margin-left: -11px; background: var(--body); border-right: 3px solid var(--line); border-bottom: 3px solid var(--line); transform: rotate(45deg); border-bottom-right-radius: 5px; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; cursor: pointer; }
+  .bot { animation: bob 3.2s ease-in-out infinite; transform-origin: 200px 380px; }
+  .arm { transform-origin: 290px 262px; animation: wave 1.5s ease-in-out infinite; }
+  .eye { transform-origin: center; transform-box: fill-box; animation: blink 4.6s infinite; }
+  .ant { transform-origin: 200px 92px; animation: sway 3.2s ease-in-out infinite; }
+  .bulb { animation: pulse 1.6s ease-in-out infinite; }
+  .ground { transform-origin: 200px 404px; animation: squash 3.2s ease-in-out infinite; }
+  .talk .mouth { animation: say .26s ease-in-out infinite alternate; transform-origin: center; transform-box: fill-box; }
+  button { margin-top: 18px; font: inherit; font-size: 16px; font-weight: 700; color: var(--ink); background: transparent; border: 2px solid color-mix(in srgb, var(--ink) 30%, transparent); border-radius: 999px; padding: 10px 18px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+  button:hover { border-color: var(--ink); }
+  button:focus-visible, svg:focus-visible { outline: 3px solid var(--accent2); outline-offset: 4px; }
+  @keyframes pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+  @keyframes squash { 0%, 100% { transform: scaleX(1); opacity: 1; } 50% { transform: scaleX(.86); opacity: .7; } }
+  @keyframes wave { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(26deg); } }
+  @keyframes sway { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+  @keyframes pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+  @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.08); } }
+  @keyframes say { from { transform: scaleY(.75); } to { transform: scaleY(1.2); } }
+  @media (prefers-reduced-motion: reduce) { .bot, .ground, .ant, .bulb, .eye { animation: none; } .arm { animation-duration: 3s; } }
 </style>
 </head>
 <body>
-<canvas id="c" class="ink"></canvas>
-<div id="hud" class="fronthide">
-  <div class="k" id="k"></div>
-  <h1 class="name" id="name"></h1>
-  <div class="sub" id="sub"></div>
-</div>
+<div class="sun"></div>
+<main class="stage">
+  <h1 class="bubble">Have a nice weekend!</h1>
+  <svg id="bot" viewBox="0 0 400 420" role="img" aria-label="A smiling A.I. robot waving" tabindex="0">
+    <ellipse class="ground" cx="200" cy="404" rx="96" ry="11" fill="var(--shadow)"/>
+    <g class="bot" stroke="var(--line)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <!-- the waving arm, behind the body -->
+      <g class="arm">
+        <path d="M290 262 Q336 232 340 176" fill="none" stroke-width="22" stroke="var(--line)"/>
+        <path d="M290 262 Q336 232 340 176" fill="none" stroke-width="11" stroke="var(--body)"/>
+        <circle cx="341" cy="160" r="22" fill="var(--accent)"/>
+        <path d="M329 144 L325 128 M341 140 L341 122 M353 144 L357 128" fill="none"/>
+      </g>
+      <!-- the resting arm -->
+      <path d="M110 262 Q78 290 82 330" fill="none" stroke-width="22" stroke="var(--line)"/>
+      <path d="M110 262 Q78 290 82 330" fill="none" stroke-width="11" stroke="var(--body)"/>
+      <circle cx="82" cy="340" r="19" fill="var(--accent)"/>
+      <!-- legs -->
+      <rect x="150" y="352" width="34" height="44" rx="14" fill="var(--body)"/>
+      <rect x="216" y="352" width="34" height="44" rx="14" fill="var(--body)"/>
+      <!-- body -->
+      <rect x="106" y="232" width="188" height="136" rx="44" fill="var(--body)"/>
+      <path d="M200 290 c-9 -15 -31 -5 -22 12 c5 9 15 15 22 21 c7 -6 17 -12 22 -21 c9 -17 -13 -27 -22 -12z" fill="var(--accent)"/>
+      <!-- antenna -->
+      <g class="ant">
+        <path d="M200 92 L200 58" fill="none"/>
+        <circle class="bulb" cx="200" cy="46" r="13" fill="var(--accent2)"/>
+      </g>
+      <!-- head -->
+      <rect x="60" y="88" width="24" height="60" rx="10" fill="var(--accent2)"/>
+      <rect x="316" y="88" width="24" height="60" rx="10" fill="var(--accent2)"/>
+      <rect x="78" y="88" width="244" height="158" rx="56" fill="var(--body)"/>
+      <rect x="102" y="110" width="196" height="114" rx="40" fill="var(--screen)"/>
+      <g stroke="none">
+        <ellipse class="eye" cx="158" cy="154" rx="15" ry="19" fill="var(--glow)"/>
+        <ellipse class="eye" cx="242" cy="154" rx="15" ry="19" fill="var(--glow)"/>
+        <circle cx="163" cy="147" r="5" fill="#fff"/>
+        <circle cx="247" cy="147" r="5" fill="#fff"/>
+        <ellipse cx="128" cy="184" rx="13" ry="8" fill="var(--cheek)" opacity=".85"/>
+        <ellipse cx="272" cy="184" rx="13" ry="8" fill="var(--cheek)" opacity=".85"/>
+      </g>
+      <path class="mouth" d="M168 182 Q200 214 232 182 Q200 196 168 182z" fill="var(--glow)" stroke="var(--glow)" stroke-width="5"/>
+    </g>
+  </svg>
+</main>
+<button id="hear" type="button" aria-label="Hear it"><svg viewBox="0 0 24 24" style="width:20px;height:20px;cursor:inherit" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.6 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Hear it</button>
+<audio id="voice" src="weekend.mp3" preload="auto"></audio>
 <script>
-(function () {
-'use strict';
-// One of nine pages on the rules of physics, from the quark up to the universe. The front shows the rule in charge at
-// one level while an AI voice explains it; the back of the page (Flip) is the reverse of that rule, told by the other
-// narrator. Each picture is a film timed to its narrator and works its physics out here in the page from measured
-// constants. Captions are cut from the voices' own timing. The ruler and the side arrows link the nine sites.
-var D = {"i":0,"key":"quark","title":"The Quark · The rules of physics, level 1 of 9","chat":"https://api.hawkesgen.ai/v1/public/scale-chat","scales":[{"exp":1,"name":"The Quark","short":"quark","size":"never alone","sub":"the smallest pieces we know · three of them make a proton · the rule down here: you can never pull one out","domain":"doseofdestruction.com"},{"exp":2,"name":"The Nucleus","short":"nucleus","size":"held tight","sub":"the heart of an atom · protons push each other away, and a stronger glue holds them · squeeze small ones together and you get a star","domain":"hawkesgames.com"},{"exp":3,"name":"The Quantum","short":"quantum","size":"a wave of maybes","sub":"the rulebook for small things · something tiny travels as a spread-out wave of possibilities · a real experiment, one electron at a time","domain":"hawkesbiomedical.com"},{"exp":4,"name":"The Atom","short":"atom","size":"energy steps","sub":"the brick everything is made of · its electron can only have certain amounts of energy · drop a step, and out comes one exact color of light","domain":"icanbe.ai"},{"exp":5,"name":"The Bond","short":"bond","size":"holding on","sub":"atoms joining up to make stuff · strong joins inside a water molecule, weak ones between them · the weak ones are why ice floats","domain":"yoobalandgame.com"},{"exp":6,"name":"The Crowd","short":"crowd","size":"spreading out","sub":"what huge numbers of pieces do together · left alone, they spread out and mix · not a law for each piece: just overwhelming odds","domain":"imaginelivetv.com"},{"exp":7,"name":"Motion","short":"motion","size":"keeps going","sub":"the rule for things our size · left alone, a moving thing keeps moving, forever · a push doesn't keep it going: a push changes it","domain":"theplacedepartment.com"},{"exp":8,"name":"Light","short":"light","size":"one speed","sub":"a ripple in the electric and magnetic field · always the same speed in empty space: 299,792,458 meters a second · nothing with any weight can catch it","domain":"phorigins.com"},{"exp":9,"name":"Gravity","short":"gravity","size":"falling together","sub":"the rule for the heaviest things · stuff bends the space and time around it, and everything follows the bend · clocks run slower lower down","domain":"hawkesgen.ai"}],"data":{},"sides":[{"cues":[[0,3.15,"We are going to start as small as anyone has ever looked."],[3.15,4.5,"This is a proton."],[4.5,6.55,"It sits in the middle of every atom."],[6.55,10.91,"And inside it are three even smaller things, called quarks."],[10.91,12.5,"Here is the rule down here."],[12.5,15.96,"A quark is never, ever, found alone."],[15.96,18.38,"Something holds them together."],[18.38,20.57,"Think of a stretchy string."],[20.57,23.82,"Now watch what happens when you pull one quark away."],[23.82,25.8,"The string doesn't get weaker."],[25.8,30.99,"It keeps pulling just as hard, as hard as the weight of sixteen tonnes."],[30.99,34.41,"So the further you pull, the more energy you pour in."],[34.41,35.88,"And then, snap."],[35.88,37.33,"The string breaks."],[37.33,39.22,"But you don't get a loose quark."],[39.22,44.38,"All that energy turns into two brand new quarks, one for each broken end."],[44.38,47.04,"Nobody has ever caught a quark by itself."],[47.04,48.6,"And here is the strange part."],[48.6,52.73,"The three quarks are only about one hundredth of the proton's weight."],[52.73,56.16,"Nearly all the rest is the energy of the pulling."]],"dur":56.16},{"name":"almost free","size":"hit hard","sub":"asymptotic freedom · hit a quark hard and fast and it acts almost as if nothing held it · Nobel Prize 2004","cues":[[0,2.83,"On the front, quarks could never get away."],[2.83,4.4,"Here is the opposite."],[4.4,8.14,"Fire something tiny and very fast into a proton."],[8.14,9.74,"For that one short moment,"],[9.74,13.26,"the quark it hits behaves almost as if it were free."],[13.26,15.8,"As if there were no string at all."],[15.8,18.12,"Scientists measure how strong the grip is,"],[18.12,21.43,"and the harder they hit, the weaker it gets."],[21.43,24.58,"At gentle hits, the number is about a third."],[24.58,27.49,"At the hardest hits, about a tenth."],[27.49,30.49,"That is backwards from everything else we know."],[30.49,33.68,"Magnets and gravity get weaker far away."],[33.68,35.74,"This grip gets weaker up close."],[35.74,38.13,"But the quark still doesn't escape."],[38.13,40.54,"As it flies off, the string wakes up,"],[40.54,44.15,"snaps, and makes a spray of new particles."],[44.15,48.43,"Three people worked out why, and won a Nobel Prize."],[48.43,54.76,"Nobody has proved yet, with maths alone, that a quark can never get out."]],"dur":54.76}]};
-var TAU = Math.PI * 2;
-function rng(seed) { var a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-function gauss(r) { var u = 1 - r(), v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v); }
-function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
-function lerp(a, b, t) { return a + (b - a) * t; }
-function smooth(t) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
-// a soft glowing dot, drawn from a cached sprite (fast enough for tens of thousands a frame)
-var sprites = {};
-function sprite(col) {
-  if (sprites[col]) return sprites[col];
-  var s = document.createElement('canvas'); s.width = s.height = 64; var g = s.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-  gr.addColorStop(0, col); gr.addColorStop(0.25, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.globalAlpha = 1; g.fillRect(0, 0, 64, 64);
-  return (sprites[col] = s);
-}
-function dot(x, c, y, r, col, a) { x.globalAlpha = a == null ? 1 : a; x.drawImage(sprite(col), c - r, y - r, r * 2, r * 2); }
-function label(x, text, px, py, align, col, size) {
-  x.save(); x.globalAlpha = 1; x.globalCompositeOperation = 'source-over'; x.font = '500 ' + (size || 12) + 'px "JetBrains Mono", ui-monospace, monospace'; x.textAlign = align || 'left'; x.textBaseline = 'middle';
-  x.lineWidth = 4; x.strokeStyle = 'rgba(3,5,11,.85)'; x.strokeText(text, px, py); x.fillStyle = col || 'rgba(214,228,255,.9)'; x.fillText(text, px, py); x.restore();
-}
-function lead(x, x0, y0, x1, y1, col) { x.save(); x.globalAlpha = 0.6; x.globalCompositeOperation = 'source-over'; x.strokeStyle = col || 'rgba(143,194,255,.7)'; x.lineWidth = 1; x.beginPath(); x.moveTo(x0, y0); x.lineTo(x1, y1); x.stroke(); x.restore(); }
-function scaleBar(x, W, H, px, text) { // a labelled length, bottom-left above the ruler
-  var bx = Math.max(64, W * 0.05), by = H - 150; x.save(); x.globalAlpha = 0.9; x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(bx, by - 5); x.lineTo(bx, by); x.lineTo(bx + px, by); x.lineTo(bx + px, by - 5); x.stroke(); x.restore();
-  label(x, text, bx, by + 14, 'left', 'rgba(238,244,255,.92)', 12);
-}
-var H3 = { rng: rng, gauss: gauss, clamp: clamp, lerp: lerp, smooth: smooth, dot: dot, label: label, lead: lead, scaleBar: scaleBar, TAU: TAU };
-
-
-// The drawing kit shared by the eighteen pictures. Every picture is a film timed to its narrator: K.at(side, 'words')
-// gives the second at which the caption containing those words starts, and the picture is a function of that clock.
-var K = (function () {
-  var SANS = '"Space Grotesk",system-ui,sans-serif', MONO = '"JetBrains Mono",ui-monospace,monospace';
-  var C = { ink: '#eef4ff', dim: 'rgba(214,228,255,.62)', faint: 'rgba(214,228,255,.28)', acc: '#8fc2ff', warm: '#ffc46b', hot: '#ff7a5c', good: '#7dffb0', vio: '#c9a2ff', bg: '#03050b' };
-  var GROUP = ['#ffc46b', '#ff7a9c', '#8fc2ff', '#7dffb0', '#ff9a5c', '#c9a2ff', '#6fe3e1', '#f5f07a', '#b8c4d9'];
-  function at(side, words) { var cs = D.sides[side].cues, w = words.toLowerCase(); for (var i = 0; i < cs.length; i++) if (cs[i][2].toLowerCase().indexOf(w) >= 0) return cs[i][0]; if (window.console) console.warn('no caption has: ' + words); return 0; }
-  function end(side) { return D.sides[side].dur; }
-  // the narrator's clock; once the explanation is over the picture rests on its last moment (plus a slow idle clock)
-  function clock(side, nt) { return nt > 1e8 ? D.sides[side].dur + 2 : nt; }
-  function cl(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
-  function ramp(n, a, d) { return H3.smooth((n - a) / (d || 0.6)); }               // 0 -> 1 starting at second a, over d seconds
-  function span(n, a, b, d) { d = d || 0.5; return Math.min(ramp(n, a, d), 1 - ramp(n, b, d)); }   // on between a and b
-  function bump(n, a, d) { var u = (n - a) / (d || 0.8); return u < 0 || u > 1 ? 0 : Math.sin(u * Math.PI); }
-  function lerp(a, b, t) { return a + (b - a) * t; }
-  function font(size, o) { o = o || {}; return (o.w || 500) + ' ' + size.toFixed(1) + 'px ' + (o.mono ? MONO : SANS); }
-  function text(x, s, px, py, size, o) {
-    o = o || {}; var al = o.al == null ? 1 : o.al; if (al <= 0.003) return 0; x.save(); x.globalAlpha = al; x.globalCompositeOperation = 'source-over'; x.font = font(size, o); x.textAlign = o.a || 'left'; x.textBaseline = o.base || 'middle';
-    if (o.glow) { x.shadowColor = o.glow; x.shadowBlur = size * 0.7; }
-    // a line never runs off the screen: if it would, it is drawn smaller (pictures written for a wide screen stay readable on a phone)
-    var w = x.measureText(s).width, sw = x.canvas.clientWidth || innerWidth, room = (o.a === 'center' ? 2 * Math.min(px, sw - px) : o.a === 'right' ? px : sw - px) - 6;
-    if (!o.free && w > room && room > 20) { var k = Math.max(0.5, room / w); x.font = font(size * k, o); w = x.measureText(s).width; }
-    x.fillStyle = o.c || C.ink; x.fillText(s, px, py); x.restore(); return w;
-  }
-  function width(x, s, size, o) { x.save(); x.font = font(size, o); var w = x.measureText(s).width; x.restore(); return w; }
-  function rr(x, px, py, w, h, r) { r = Math.min(r, w / 2, h / 2); x.beginPath(); x.moveTo(px + r, py); x.arcTo(px + w, py, px + w, py + h, r); x.arcTo(px + w, py + h, px, py + h, r); x.arcTo(px, py + h, px, py, r); x.arcTo(px, py, px + w, py, r); x.closePath(); }
-  function box(x, px, py, w, h, o) { // a rounded panel: o.fill, o.line, o.r, o.al, o.lw
-    o = o || {}; var al = o.al == null ? 1 : o.al; if (al <= 0.003) return; x.save(); x.globalAlpha = al; x.globalCompositeOperation = 'source-over'; rr(x, px, py, w, h, o.r == null ? 8 : o.r);
-    if (o.fill) { x.fillStyle = o.fill; x.fill(); } if (o.line) { x.strokeStyle = o.line; x.lineWidth = o.lw || 1.2; x.stroke(); } x.restore();
-  }
-  // a piece of text in its own little box. Spaces at the front of a piece are shown as a small dot so they can be seen.
-  function chipW(x, s, size, o) { return width(x, show(s), size, o) + size * 0.9; }
-  function show(s) { return s.replace(/^ /, '·').replace(/\n/g, '↵'); }
-  function chip(x, s, px, py, size, o) { // left edge px, centre line py; returns its width
-    o = o || {}; var w = o.wd || chipW(x, s, size, o), h = size * 1.75, al = o.al == null ? 1 : o.al; if (al <= 0.003) return w;
-    box(x, px, py - h / 2, w, h, { fill: o.bg || 'rgba(143,194,255,.10)', line: o.bd || 'rgba(143,194,255,.55)', r: size * 0.38, al: al, lw: o.lw });
-    text(x, o.raw ? s : show(s), px + w / 2, py + size * 0.04, size, { a: 'center', c: o.c || C.ink, mono: o.mono, w: o.w || 500, al: al, glow: o.glow }); return w;
-  }
-  // lay pieces out in centred rows that fit a width; returns [{x, y, w}] and the height used
-  function flow(x, list, size, cx, top, maxW, gap, o) {
-    var ws = list.map(function (s) { return chipW(x, s, size, o); }), rows = [[]], rw = [0], i;
-    for (i = 0; i < list.length; i++) { var r = rows.length - 1; if (rows[r].length && rw[r] + gap + ws[i] > maxW) { rows.push([]); rw.push(0); r++; } rw[r] += (rows[r].length ? gap : 0) + ws[i]; rows[r].push(i); }
-    var out = [], lh = size * ((o && o.lh) || 2.5); rows.forEach(function (row, r) { var px = cx - rw[r] / 2; row.forEach(function (k) { out[k] = { x: px, y: top + r * lh + size, w: ws[k], row: r }; px += ws[k] + gap; }); });
-    out.h = rows.length * lh; out.rows = rows.length; return out;
-  }
-  function bar(x, px, py, w, h, f, col, o) { // a track with a filled part f (0..1)
-    o = o || {}; var al = o.al == null ? 1 : o.al; if (al <= 0.003) return; box(x, px, py, w, h, { fill: o.track || 'rgba(143,194,255,.10)', r: h / 2, al: al }); if (f > 0.002) box(x, px, py, Math.max(h, w * cl(f)), h, { fill: col || C.acc, r: h / 2, al: al });
-  }
-  function line(x, x0, y0, x1, y1, col, lw, al) { if (al != null && al <= 0.003) return; x.save(); x.globalAlpha = al == null ? 1 : al; x.strokeStyle = col || C.acc; x.lineWidth = lw || 1; x.lineCap = 'round'; x.beginPath(); x.moveTo(x0, y0); x.lineTo(x1, y1); x.stroke(); x.restore(); }
-  function arc(x, x0, y0, x1, y1, lift, col, lw, al, f) { // a curved link from one point up and over to another; f draws only the first part of it
-    if (al != null && al <= 0.003) return; x.save(); x.globalAlpha = al == null ? 1 : al; x.strokeStyle = col || C.acc; x.lineWidth = lw || 1; x.lineCap = 'round'; x.beginPath(); var mx = (x0 + x1) / 2, my = Math.min(y0, y1) - lift, n = 28, m = Math.max(1, Math.round(n * (f == null ? 1 : cl(f))));
-    for (var i = 0; i <= m; i++) { var u = i / n, a = (1 - u) * (1 - u), b = 2 * u * (1 - u), c = u * u; x.lineTo(a * x0 + b * mx + c * x1, a * y0 + b * my + c * y1); } x.stroke(); x.restore();
-  }
-  function disc(x, px, py, r, col, al) { if (al != null && al <= 0.003) return; x.save(); x.globalAlpha = al == null ? 1 : al; x.fillStyle = col || C.ink; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill(); x.restore(); }
-  function ring(x, px, py, r, col, lw, al) { if (al != null && al <= 0.003) return; x.save(); x.globalAlpha = al == null ? 1 : al; x.strokeStyle = col || C.ink; x.lineWidth = lw || 1; x.beginPath(); x.arc(px, py, r, 0, 7); x.stroke(); x.restore(); }
-  function glow(x, px, py, r, col, al) { x.save(); x.globalCompositeOperation = 'lighter'; H3.dot(x, px, py, r, col, al); x.restore(); }
-  function clear(x, W, H, col) { x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.fillStyle = col || C.bg; x.fillRect(0, 0, W, H); }
-  // the part of the screen a picture may use: under the title, above the captions, between the side arrows
-  function area(W, H) {
-    var wide = W > 760, top = wide ? Math.max(178, H * 0.235) : Math.max(240, H * 0.295), bot = H - (wide ? 192 : 196), l = wide ? 78 : 14, r = W - (wide ? 78 : 14);
-    return { x: l, y: top, w: r - l, h: Math.max(120, bot - top), cx: (l + r) / 2, cy: (top + bot) / 2, r: r, b: bot, wide: wide, u: Math.max(0.62, Math.min(1.25, Math.min((r - l) / 900, (bot - top) / 430))) };
-  }
-  function credit(x, A, s, al) { // where the numbers come from; on a narrow screen it takes two lines
-    var size = Math.max(9.5, 11 * A.u), o = { a: 'center', c: C.dim, mono: true, w: 400, al: al == null ? 0.85 : al };
-    if (width(x, s, size, o) <= A.w) return void text(x, s, A.cx, A.b + 3, size, o);
-    var mid = s.length / 2, cut = -1, i; for (i = 0; i < s.length; i++) if (s[i] === ' ' && (cut < 0 || Math.abs(i - mid) < Math.abs(cut - mid))) cut = i;
-    text(x, s.slice(0, cut), A.cx, A.b - 4, size, o); text(x, s.slice(cut + 1), A.cx, A.b - 4 + size * 1.25, size, o);
-  } // where the numbers come from
-  function pct(p, d) { var v = p * 100; return (v >= 10 ? v.toFixed(d == null ? 0 : d) : v >= 1 ? v.toFixed(d == null ? 1 : d) : v >= 0.1 ? v.toFixed(2) : v >= 0.001 ? v.toFixed(3) : v.toExponential(0)) + '%'; }
-  function commas(n) { return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
-  function dial(x, px, py, r, ang, col, al) { // a little dial with its mark at an angle
-    if (al != null && al <= 0.003) return; x.save(); x.globalAlpha = al == null ? 1 : al; x.strokeStyle = col || C.acc; x.lineWidth = Math.max(0.8, r * 0.16); x.beginPath(); x.arc(px, py, r, 0, 7); x.stroke(); x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.sin(ang) * r * 0.92, py - Math.cos(ang) * r * 0.92); x.stroke(); x.restore();
-  }
-  function tick(x, px, py, r, ok, al) { // a check mark or a cross
-    if (al != null && al <= 0.003) return; x.save(); x.globalAlpha = al == null ? 1 : al; x.lineWidth = Math.max(1.6, r * 0.3); x.lineCap = 'round'; x.strokeStyle = ok ? C.good : C.hot; x.beginPath();
-    if (ok) { x.moveTo(px - r * 0.6, py); x.lineTo(px - r * 0.15, py + r * 0.5); x.lineTo(px + r * 0.7, py - r * 0.55); } else { x.moveTo(px - r * 0.55, py - r * 0.55); x.lineTo(px + r * 0.55, py + r * 0.55); x.moveTo(px + r * 0.55, py - r * 0.55); x.lineTo(px - r * 0.55, py + r * 0.55); } x.stroke(); x.restore();
-  }
-  // the screen color nearest to light of one wavelength (in nanometres); an approximation: a screen cannot show pure spectral colors
-  function nm(w, al) {
-    var r = 0, g = 0, b = 0, f = 1;
-    if (w < 380 || w > 780) { r = g = b = 0; } else if (w < 440) { r = (440 - w) / 60; b = 1; } else if (w < 490) { g = (w - 440) / 50; b = 1; } else if (w < 510) { g = 1; b = (510 - w) / 20; } else if (w < 580) { r = (w - 510) / 70; g = 1; } else if (w < 645) { r = 1; g = (645 - w) / 65; } else { r = 1; }
-    if (w < 420) f = 0.35 + 0.65 * (w - 380) / 40; else if (w > 700) f = 0.35 + 0.65 * (780 - w) / 80;
-    f = Math.max(0, f); return 'rgba(' + Math.round(255 * Math.pow(r * f, 0.8)) + ',' + Math.round(255 * Math.pow(g * f, 0.8)) + ',' + Math.round(255 * Math.pow(b * f, 0.8)) + ',' + (al == null ? 1 : al) + ')';
-  }
-  // a whole rainbow strip from 380 to 750 nanometres, drawn once and reused
-  var bowC = null;
-  function rainbow(x, px, py, w, h, al) { if (!bowC) { bowC = document.createElement('canvas'); bowC.width = 740; bowC.height = 1; var g = bowC.getContext('2d'); for (var i = 0; i < 740; i++) { g.fillStyle = nm(380 + i / 2); g.fillRect(i, 0, 1, 1); } } x.save(); x.globalAlpha = al == null ? 1 : al; x.drawImage(bowC, px, py, w, h); x.restore(); }
-  // The back of a page is shown as ink on paper (the canvas is inverted and its hues turned half way round). A true
-  // color has to be drawn as the color that comes back as itself after that: nmP and rainbowP do so.
-  function paper(r, g, b) { var R = -0.574 * r + 1.43 * g + 0.144 * b, G = 0.426 * r + 0.43 * g + 0.144 * b, B = 0.426 * r + 1.43 * g - 0.856 * b, c = function (v) { return Math.round(255 * (1 - Math.max(0, Math.min(1, v)))); }; return [c(R), c(G), c(B)]; }
-  function nmP(w, al) { var m = nm(w).slice(5).split(','), p = paper(m[0] / 255, m[1] / 255, m[2] / 255); return 'rgba(' + p[0] + ',' + p[1] + ',' + p[2] + ',' + (al == null ? 1 : al) + ')'; }
-  var bowP = null;
-  function rainbowP(x, px, py, w, h, al) { if (!bowP) { bowP = document.createElement('canvas'); bowP.width = 740; bowP.height = 1; var g = bowP.getContext('2d'); for (var i = 0; i < 740; i++) { g.fillStyle = nmP(380 + i / 2); g.fillRect(i, 0, 1, 1); } } x.save(); x.globalAlpha = al == null ? 1 : al; x.drawImage(bowP, px, py, w, h); x.restore(); }
-  function nmX(w, px, wd) { return px + (w - 380) / 370 * wd; }
-  return { C: C, GROUP: GROUP, nm: nm, rainbow: rainbow, nmX: nmX, nmP: nmP, rainbowP: rainbowP, at: at, end: end, clock: clock, cl: cl, ramp: ramp, span: span, bump: bump, lerp: lerp, text: text, width: width, rr: rr, box: box, chip: chip, chipW: chipW, show: show, flow: flow, bar: bar, line: line, arc: arc, disc: disc, ring: ring, glow: glow, clear: clear, area: area, credit: credit, pct: pct, commas: commas, dial: dial, tick: tick };
-})();
-
-
-// ---------------------------------------------------------------- the front
-// THE QUARK. A proton (measured radius 0.84 femtometres, CODATA 2022) drawn with its three quarks joined by strings
-// of the strong force. One quark is pulled away. A gauge beside it shows the real behaviour worked out by computer
-// (lattice QCD): the pull stays about the same however far it is stretched, roughly 1 GeV for every femtometre, which
-// is a force of about 160,000 newtons, the weight of 16 tonnes; so the energy stored grows steadily with distance.
-// At about 1.25 femtometres the string snaps and its energy becomes a new quark and antiquark, one at each broken
-// end: the proton is whole again and the quark that was pulled leaves as part of a pair. No quark has ever been seen
-// alone. A last bar shows the proton's weight (938 MeV): its three quarks account for about 9 MeV, one hundredth
-// (Particle Data Group quark masses); the rest is the energy of the strong force.
-var SCENE = (function () {
-  var t = {}, C = K.C, QC = ['#ff7a5c', '#7dffb0', '#8fc2ff'], SNAP = 1.25, START = 0.5;
-  function init() {
-    t.small = K.at(0, 'as small as anyone has ever looked'); t.proton = K.at(0, 'This is a proton'); t.atom = K.at(0, 'middle of every atom'); t.three = K.at(0, 'called quarks'); t.rule = K.at(0, 'the rule down here'); t.alone = K.at(0, 'never, ever, found alone');
-    t.holds = K.at(0, 'holds them together'); t.string = K.at(0, 'a stretchy string'); t.pull = K.at(0, 'pull one quark away'); t.weaker = K.at(0, "doesn't get weaker"); t.tonnes = K.at(0, 'sixteen tonnes'); t.energy = K.at(0, 'the more energy you pour in');
-    t.snap = K.at(0, 'And then, snap'); t.breaks = K.at(0, 'The string breaks'); t.loose = K.at(0, "don't get a loose quark"); t.new = K.at(0, 'two brand new quarks'); t.nobody = K.at(0, 'Nobody has ever caught'); t.strange = K.at(0, 'here is the strange part');
-    t.hundredth = K.at(0, 'one hundredth'); t.rest = K.at(0, 'Nearly all the rest');
-  }
-  function tube(x, x0, y0, x1, y1, w, col, al, tt, wig) { // a string of the strong force: a band that shimmers
-    if (al <= 0.01) return; var n = 26, i, dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L; x.save(); x.globalAlpha = al; x.lineCap = 'round'; x.strokeStyle = col; x.lineWidth = w; x.beginPath();
-    for (i = 0; i <= n; i++) { var f = i / n, o = Math.sin(f * Math.PI) * Math.sin(f * 14 + tt * 9) * wig; if (i) x.lineTo(x0 + dx * f + nx * o, y0 + dy * f + ny * o); else x.moveTo(x0, y0); } x.stroke(); x.globalAlpha = al * 0.5; x.lineWidth = w * 2.6; x.stroke(); x.restore();
-  }
-  function quark(x, px, py, r, col, al, anti) { K.glow(x, px, py, r * 2.6, col, al * 0.7); K.disc(x, px, py, r, col, al); if (anti) { K.ring(x, px, py, r * 1.35, col, 2, al); } }
-  function draw(x, W, H, tt, dt, nt) {
-    var n = K.clock(0, nt), A = K.area(W, H), u = A.u, i, fs = Math.max(11.5, 16 * u);
-    K.clear(x, W, H);
-    var fm = Math.min(A.w * (A.wide ? 0.17 : 0.3), A.h * 0.36), cx = A.wide ? A.x + A.w * 0.27 : A.cx - A.w * 0.12, cy = A.wide ? A.cy : A.y + A.h * 0.34, R = 0.84 * fm, qr = Math.max(7, 0.085 * fm);
-    var show = K.ramp(n, t.proton - 0.6, 1), three = K.ramp(n, t.three - 1.6, 0.8), str = K.ramp(n, t.holds, 1), snapped = n >= t.snap ? 1 : 0, after = K.ramp(n, t.snap, 0.9);
-    // how far the pulled quark is from the middle, in femtometres
-    var d = n < t.pull ? START : n < t.snap ? K.lerp(START, SNAP, K.cl((n - t.pull) / (t.snap - t.pull))) : SNAP + after * 0.5;
-    // the proton
-    K.glow(x, cx, cy, R * 1.5, 'rgba(143,194,255,1)', 0.18 * show); K.ring(x, cx, cy, R, C.acc, 1.5, show * 0.7);
-    K.text(x, 'a proton', cx, cy - R - fs * 1.1, fs, { a: 'center', mono: true, c: C.dim, al: show }); K.line(x, cx - R, cy + R + fs * 0.9, cx + R, cy + R + fs * 0.9, C.dim, 1, show * K.ramp(n, t.atom, 0.5)); K.text(x, '1.7 femtometres across', cx, cy + R + fs * 1.9, fs * 0.78, { a: 'center', mono: true, c: C.dim, w: 400, al: show * K.ramp(n, t.atom, 0.5) });
-    var jig = function (k, s) { return Math.sin(tt * (2.1 + k * 0.7) + k * 2) * s; }, Q = [[cx - 0.36 * fm + jig(1, 6), cy - 0.3 * fm + jig(2, 6)], [cx - 0.3 * fm + jig(3, 6), cy + 0.36 * fm + jig(4, 6)], [cx + d * fm + (n < t.pull ? jig(5, 6) : 0), cy + (n < t.pull ? jig(6, 6) : 0)]], mid = [cx - 0.1 * fm, cy];
-    // the strings: a Y between the three; the long arm stretches
-    for (i = 0; i < 2; i++) tube(x, mid[0], mid[1], Q[i][0], Q[i][1], 5 * u, '#ffd98c', str * three * 0.8, tt + i, 3);
-    var bx = mid[0] + (SNAP * 0.55) * fm; // where the long string breaks
-    if (!snapped) tube(x, mid[0], mid[1], Q[2][0], Q[2][1], 6 * u, '#ffd98c', str * three * 0.9, tt, 3 + (d - START) * 6);
-    else { var gap = after * 0.22 * fm, nq = [bx - gap, cy], aq = [bx + gap + after * 0.25 * fm, cy]; tube(x, mid[0], mid[1], nq[0], nq[1], 5 * u, '#ffd98c', 0.8, tt, 3); tube(x, aq[0], aq[1], Q[2][0], Q[2][1], 5 * u, '#ffd98c', 0.8, tt + 2, 3);
-      quark(x, nq[0], nq[1], qr, QC[2], after, false); quark(x, aq[0], aq[1], qr, QC[2], after, true); if (after < 1) K.glow(x, bx, cy, 60 * u * (1 - after) + 10, 'rgba(255,255,255,1)', 1 - after);
-      var nw = K.span(n, t.new, t.strange, 0.4); if (nw > 0.01) { K.text(x, 'two new quarks, made from the energy', bx + fm * 0.5, cy - R - fs * 2.6, fs * 0.9, { a: 'center', mono: true, c: C.warm, al: nw }); K.line(x, nq[0], nq[1] - qr * 1.6, bx + fm * 0.3, cy - R - fs * 1.9, C.warm, 1, nw * 0.7); K.line(x, aq[0], aq[1] - qr * 1.6, bx + fm * 0.5, cy - R - fs * 1.9, C.warm, 1, nw * 0.7); K.ring(x, (aq[0] + Q[2][0]) / 2, cy, (Q[2][0] - aq[0]) / 2 + qr * 2.2, C.dim, 1, nw * 0.7); K.text(x, 'a pair: still not alone', (aq[0] + Q[2][0]) / 2, cy + (Q[2][0] - aq[0]) / 2 + qr * 2.2 + fs, fs * 0.8, { a: 'center', mono: true, c: C.dim, w: 400, al: nw }); } }
-    for (i = 0; i < 3; i++) quark(x, Q[i][0], Q[i][1], qr, QC[i], three, false);
-    if (n >= t.pull && !snapped) { K.text(x, 'pull →', Q[2][0] + qr * 2.4, Q[2][1], fs, { mono: true, c: C.ink, al: 0.9 }); }
-    // ---- the gauges
-    var gx = A.wide ? A.x + A.w * 0.66 : A.x + 8, gw = A.wide ? A.w * 0.3 : A.w - 16, gy = A.wide ? A.cy - fs * 6 : cy + R + fs * 3.6, ga = K.span(n, t.pull, t.strange, 0.5);
-    if (ga > 0.01) { var dist = Math.min(d, SNAP), force = K.ramp(n, t.weaker, 0.6), en = K.ramp(n, t.energy - 0.6, 0.6);
-      K.text(x, 'how far it has been pulled', gx, gy, fs * 0.8, { mono: true, c: C.dim, w: 400, al: ga }); K.bar(x, gx, gy + fs * 0.9, gw, 10, (dist - START) / (SNAP - START) * 0.86 + 0.14, C.acc, { al: ga }); K.text(x, dist.toFixed(2) + ' femtometres', gx, gy + fs * 2.5, fs * 1.05, { mono: true, w: 700, c: C.acc, al: ga });
-      K.text(x, 'how hard the string pulls back', gx, gy + fs * 4.6, fs * 0.8, { mono: true, c: C.dim, w: 400, al: ga * force }); K.bar(x, gx, gy + fs * 5.5, gw, 10, snapped ? 0 : 0.8, C.warm, { al: ga * force }); K.text(x, snapped ? 'snapped' : 'the weight of 16 tonnes: it does not change', gx, gy + fs * 7.1, fs * 1.05, { mono: true, w: 700, c: C.warm, al: ga * force });
-      K.text(x, 'energy poured into the string', gx, gy + fs * 9.2, fs * 0.8, { mono: true, c: C.dim, w: 400, al: ga * en }); K.bar(x, gx, gy + fs * 10.1, gw, 10, (dist - START) / (SNAP - START), C.hot, { al: ga * en }); K.text(x, snapped ? 'spent: it became the two new quarks' : ((dist - START) * 1000).toFixed(0) + ' MeV and rising', gx, gy + fs * 11.7, fs * 1.05, { mono: true, w: 700, c: C.hot, al: ga * en }); }
-    var rule = K.span(n, t.rule, t.holds, 0.4); if (rule > 0.01) K.text(x, 'the rule down here: a quark is never found alone', A.wide ? gx : A.cx, A.wide ? A.cy : A.b - fs * 2, Math.min(fs * 1.2, (A.wide ? gw : A.w) / 26), { a: A.wide ? 'left' : 'center', w: 700, al: rule });
-    var nb = K.span(n, t.nobody, t.strange, 0.4); if (nb > 0.01) K.text(x, 'no one has ever caught one by itself', A.cx, A.y + fs * 0.4, fs * 1.2, { a: 'center', w: 700, c: C.ink, al: nb });
-    // ---- where the proton's weight comes from
-    var wt = K.ramp(n, t.strange, 0.6); if (wt > 0.01) { var by = A.wide ? A.cy - fs * 3 : cy + R + fs * 4, hh = K.ramp(n, t.hundredth, 0.8);
-      K.text(x, 'the proton’s weight', gx, by, fs * 0.9, { mono: true, c: C.dim, w: 400, al: wt }); K.box(x, gx, by + fs, gw, fs * 2, { fill: 'rgba(255,196,107,.5)', r: 6, al: wt }); K.box(x, gx, by + fs, Math.max(4, gw * 0.01 * hh * 1), fs * 2, { fill: C.hot, r: 2, al: wt * hh });
-      K.text(x, '↑ its three quarks: about 1 part in 100', gx, by + fs * 4, fs * 0.9, { mono: true, c: C.hot, w: 600, al: wt * hh }); K.text(x, 'all the rest: the energy of the pulling', gx, by + fs * 5.7, fs * 0.9, { mono: true, c: C.warm, w: 600, al: wt * K.ramp(n, t.rest, 0.5) }); }
-    K.credit(x, A, wt > 0.5 ? 'quark masses (about 2.2 and 4.7 MeV) and the proton’s 938 MeV: Particle Data Group' : 'the proton’s size: CODATA 2022 · the string’s pull (about 1 GeV per femtometre) and where it snaps: lattice QCD calculations · a drawing, not a photograph');
-  }
-  return { init: init, draw: draw };
-})();
-
-
-// ---------------------------------------------------------------- the back: its opposite (drawn light on black, shown as ink on paper)
-// THE REVERSE OF "NEVER ALONE": almost free (asymptotic freedom). A fast electron is fired into a proton and knocks one
-// quark; for that instant the quark moves as if nothing held it. A chart shows the measured strength of the strong
-// force's grip (the coupling, alpha-s) against how hard the collision is: 0.31 at 1.78 GeV and 0.118 at 91 GeV
-// (Particle Data Group, 2024), with a curve from the standard formula through the second point. It falls as the hit
-// gets harder, the reverse of electricity, magnetism and gravity, whose grip is weaker far away. The struck quark
-// still does not get out: as it flies off the string forms again, snaps, and makes a spray of new particles (a jet).
-// Gross, Politzer and Wilczek explained this in 1973 (Nobel Prize 2004). That quarks can never get out has not been
-// proved mathematically; it is one of the Clay Institute's unsolved million-dollar problems.
-var SCENE2 = (function () {
-  var t = {}, C = K.C, QC = ['#ff7a5c', '#7dffb0', '#8fc2ff'], r = H3.rng(73), jet = [], MZ = 91.19, AZ = 0.118, B = 23 / (12 * Math.PI);
-  function alpha(q) { return AZ / (1 + B * AZ * Math.log(q * q / (MZ * MZ))); }
-  function init() {
-    t.front = K.at(1, 'could never get away'); t.opp = K.at(1, 'Here is the opposite'); t.fire = K.at(1, 'Fire something tiny'); t.moment = K.at(1, 'For that one short moment'); t.free = K.at(1, 'as if it were free'); t.nostring = K.at(1, 'no string at all');
-    t.measure = K.at(1, 'how strong the grip is'); t.harder = K.at(1, 'the weaker it gets'); t.third = K.at(1, 'about a third'); t.tenth = K.at(1, 'about a tenth'); t.backwards = K.at(1, 'backwards from everything'); t.magnets = K.at(1, 'Magnets and gravity');
-    t.close = K.at(1, 'weaker up close'); t.escape = K.at(1, "still doesn't escape"); t.wakes = K.at(1, 'the string wakes up'); t.spray = K.at(1, 'a spray of new particles'); t.nobel = K.at(1, 'won a Nobel Prize'); t.proved = K.at(1, 'Nobody has proved yet');
-    for (var i = 0; i < 26; i++) jet.push([(r() - 0.5) * 0.5, 0.5 + r() * 0.9, r()]);
-  }
-  function draw(x, W, H, tt, dt, nt) {
-    var n = K.clock(1, nt), A = K.area(W, H), u = A.u, i, fs = Math.max(11.5, 16 * u);
-    K.clear(x, W, H, '#000');
-    var fm = Math.min(A.w * (A.wide ? 0.13 : 0.24), A.h * 0.3), cx = A.wide ? A.x + A.w * 0.2 : A.cx - A.w * 0.2, cy = A.wide ? A.cy : A.y + A.h * 0.26, R = 0.84 * fm, qr = Math.max(6, 0.085 * fm);
-    var hit = t.moment, sh = K.ramp(n, t.front - 1, 1), chart = K.span(n, t.measure - 0.4, t.escape, 0.6), again = n >= t.escape;
-    // the electron comes in; in the second showing (the escape) it is replayed
-    var t0 = again ? t.escape + 0.4 : hit, fly = (n - t0) / 1.6, inF = K.cl((n - (again ? t.escape - 1.2 : t.fire)) / ((again ? 1.6 : hit - t.fire)));
-    var view = 1 - chart * (A.wide ? 0 : 1);
-    if (view > 0.01) {
-      K.glow(x, cx, cy, R * 1.5, 'rgba(143,194,255,1)', 0.16 * sh * view); K.ring(x, cx, cy, R, C.acc, 1.5, sh * 0.7 * view); K.text(x, 'a proton', cx, cy - R - fs, fs * 0.9, { a: 'center', mono: true, c: C.dim, al: sh * view });
-      var jig = function (k) { return Math.sin(tt * (2 + k * 0.6) + k * 2) * 5; }, q0 = [cx - 0.3 * fm + jig(1), cy - 0.3 * fm + jig(2)], q1 = [cx - 0.3 * fm + jig(3), cy + 0.35 * fm + jig(4)], home = [cx + 0.34 * fm, cy];
-      var gone = n >= t0 ? Math.max(0, fly) : 0, range = again ? 1.5 : 1.3, qx = home[0] + Math.min(gone, 1.4) * range * fm * 0.9, qy = home[1], strOn = again ? K.ramp(n, t.wakes, 0.6) : 0, snap = again ? K.ramp(n, t.spray - 0.5, 0.5) : 0;
-      K.line(x, cx - 0.1 * fm, cy, q0[0], q0[1], '#ffd98c', 4 * u, sh * 0.7 * view); K.line(x, cx - 0.1 * fm, cy, q1[0], q1[1], '#ffd98c', 4 * u, sh * 0.7 * view);
-      if (gone <= 0) K.line(x, cx - 0.1 * fm, cy, home[0], home[1], '#ffd98c', 4 * u, sh * 0.7 * view);
-      else if (again && strOn > 0.01 && snap < 1) K.line(x, cx - 0.1 * fm, cy, qx, qy, '#ffd98c', 5 * u, strOn * (1 - snap) * view);
-      else if (!again) { x.save(); x.setLineDash([3, 8]); K.line(x, cx - 0.1 * fm, cy, qx, qy, C.dim, 1.5, 0.5 * view); x.restore(); }
-      K.glow(x, q0[0], q0[1], qr * 2.4, QC[0], 0.6 * sh * view); K.disc(x, q0[0], q0[1], qr, QC[0], sh * view); K.glow(x, q1[0], q1[1], qr * 2.4, QC[1], 0.6 * sh * view); K.disc(x, q1[0], q1[1], qr, QC[1], sh * view);
-      if (snap < 0.99) { K.glow(x, qx, qy, qr * 2.6, QC[2], 0.7 * sh * view); K.disc(x, qx, qy, qr, QC[2], sh * view * (1 - snap)); }
-      if (gone > 0 && gone < 1.4 && !again) for (i = 1; i < 6; i++) K.disc(x, qx - i * 9 * u, qy, qr * (1 - i * 0.14), QC[2], 0.3 * (1 - i / 6) * view);
-      // the electron
-      var ex = K.lerp(A.x - 10, home[0] - qr * 1.6, inF), bounce = n >= t0 ? gone : 0; if (inF > 0 && (n < t0 + 1.2)) { var bxp = n >= t0 ? home[0] - qr * 1.6 - bounce * fm * 1.2 : ex, byp = n >= t0 ? cy - bounce * fm * 1.1 : cy; K.glow(x, bxp, byp, 12 * u, 'rgba(255,255,255,1)', 0.9 * view); K.disc(x, bxp, byp, 3.5 * u, '#fff', view); if (n < t0) K.line(x, bxp - 34 * u, byp, bxp - 6, byp, '#fff', 2, 0.5 * view); }
-      if (n >= t.fire && n < t0) K.text(x, 'an electron, very fast', Math.max(A.x + 4, ex - fs * 7), cy - fs * 1.4, fs * 0.82, { mono: true, c: C.ink, al: view });
-      if (n >= t0 && n < t0 + 0.5) K.glow(x, home[0], home[1], 46 * u, 'rgba(255,255,255,1)', (1 - (n - t0) / 0.5) * view);
-      var fr = K.span(n, t.free, t.measure - 0.4, 0.4); K.text(x, n < t.nostring ? 'for an instant: almost as if free' : 'as if there were no string', cx + fm * 1.6, cy + R + fs * 1.6, fs * 1.1, { a: 'center', w: 700, al: fr * view });
-      // the spray: the string snaps into new particles, all heading the same way
-      if (again && snap > 0.01) { var s2 = (n - (t.spray - 0.5)) / 2.4; for (i = 0; i < jet.length; i++) { var j = jet[i], dd = Math.min(1.25, Math.max(0, s2)) * j[1] * fm * 1.1, jal = 1 - 0.8 * K.ramp(n, t.nobel, 0.5), jx = qx + dd * Math.cos(j[0]), jy = qy + dd * Math.sin(j[0]) * 1.0; K.disc(x, jx, jy, (2.5 + j[2] * 3) * u, i % 3 === 0 ? C.warm : i % 3 === 1 ? C.acc : C.good, 0.9 * view * jal); }
-        K.text(x, 'a spray of new particles: a “jet”', qx + fm * 0.4, qy - fm * 1.25, fs * 0.9, { a: 'center', mono: true, c: C.warm, al: K.ramp(n, t.spray, 0.5) * view * (1 - K.ramp(n, t.nobel, 0.4)) }); K.text(x, 'never one quark by itself', qx + fm * 0.4, qy + fm * 1.3, fs * 0.9, { a: 'center', mono: true, c: C.dim, al: K.ramp(n, t.spray + 1, 0.5) * view * (1 - K.ramp(n, t.nobel, 0.4)) }); }
-    }
-    // ---- the measured grip
-    if (chart > 0.01) { var gx = A.wide ? A.x + A.w * 0.52 : A.x + fs * 3.2, gw = A.wide ? A.w * 0.42 : A.w - fs * 4.4, gy = A.wide ? A.y + fs * 2.6 : A.y + fs * 2.6, gh = (A.wide ? A.h - fs * 7 : A.h - fs * 8), Q0 = 1, Q1 = 2000, X = function (q) { return gx + Math.log(q / Q0) / Math.log(Q1 / Q0) * gw; }, Y = function (a) { return gy + gh * (1 - a / 0.4); }, cmp = K.span(n, t.magnets, t.escape, 0.5), grow = K.ramp(n, t.harder - 0.8, 2.2);
-      K.text(x, 'the strength of the grip between quarks', gx, gy - fs * 1.3, fs * 0.9, { mono: true, c: C.dim, w: 400, al: chart }); K.line(x, gx, gy, gx, gy + gh, C.faint, 1, chart); K.line(x, gx, gy + gh, gx + gw, gy + gh, C.faint, 1, chart);
-      [0.1, 0.2, 0.3].forEach(function (a) { K.text(x, a.toFixed(1), gx - 8, Y(a), fs * 0.72, { a: 'right', mono: true, c: C.dim, w: 400, al: chart }); K.line(x, gx, Y(a), gx + gw, Y(a), C.faint, 0.5, chart * 0.5); });
-      K.text(x, 'a gentle hit', gx, gy + gh + fs, fs * 0.76, { mono: true, c: C.dim, w: 400, al: chart }); K.text(x, 'a harder hit →', gx + gw, gy + gh + fs, fs * 0.76, { a: 'right', mono: true, c: C.dim, w: 400, al: chart });
-      x.save(); x.globalAlpha = chart * (1 - cmp * 0.75); x.strokeStyle = C.warm; x.lineWidth = 3; x.beginPath(); for (i = 0; i <= 80 * grow; i++) { var q = 1.5 * Math.pow(Q1 / 1.5, i / 80); if (i) x.lineTo(X(q), Y(alpha(q))); else x.moveTo(X(q), Y(alpha(q))); } x.stroke(); x.restore();
-      [[1.78, 0.314, t.third, 'about a third'], [MZ, 0.118, t.tenth, 'about a tenth']].forEach(function (p) { var on = chart * K.ramp(n, p[2], 0.4) * (1 - cmp * 0.75); K.disc(x, X(p[0]), Y(p[1]), 6, '#fff', on); K.ring(x, X(p[0]), Y(p[1]), 10, C.warm, 2, on); K.text(x, p[1].toFixed(p[1] > 0.2 ? 2 : 3) + '  ' + p[3], X(p[0]) + 14, Y(p[1]) - fs * 0.9, fs * 0.95, { mono: true, w: 700, c: C.ink, al: on }); });
-      if (cmp > 0.01) { var mx0 = gx + gw * 0.08, mw = gw * 0.84, my = gy + gh * 0.5, hh = gh * 0.36, clo = K.ramp(n, t.close, 0.5);
-        K.box(x, gx + 2, gy + 2, gw - 4, gh - 4, { fill: 'rgba(0,0,0,.82)', r: 8, al: cmp });
-        x.save(); x.globalAlpha = cmp; x.lineWidth = 3; x.strokeStyle = C.acc; x.beginPath(); for (i = 0; i <= 40; i++) { var f = i / 40, yy = my - hh + hh * 1.6 * (1 - 1 / (1 + f * 6)); if (i) x.lineTo(mx0 + f * mw, yy); else x.moveTo(mx0, yy); } x.stroke();
-        x.globalAlpha = cmp * clo; x.strokeStyle = C.warm; x.beginPath(); for (i = 0; i <= 40; i++) { var f2 = i / 40, y2 = my + hh * 0.6 - hh * 1.5 * (1 - 1 / (1 + f2 * 5)); if (i) x.lineTo(mx0 + f2 * mw, y2); else x.moveTo(mx0, y2); } x.stroke(); x.restore();
-        K.text(x, 'magnets, gravity: weaker far away', mx0, my + hh * 0.95, fs * 0.9, { mono: true, c: C.acc, w: 600, al: cmp }); K.text(x, 'the quark’s string: weaker up close', mx0, my - hh * 1.05, fs * 0.9, { mono: true, c: C.warm, w: 600, al: cmp * clo }); K.text(x, 'close', mx0, gy + gh - fs, fs * 0.76, { mono: true, c: C.dim, w: 400, al: cmp }); K.text(x, 'far apart →', mx0 + mw, gy + gh - fs, fs * 0.76, { a: 'right', mono: true, c: C.dim, w: 400, al: cmp }); }
-    }
-    var nob = K.ramp(n, t.nobel, 0.6); if (nob > 0.01) { var ty = A.wide ? A.y + fs * 1 : A.b - fs * 6.4, txp = A.wide ? A.x + A.w * 0.56 : A.cx, al2 = A.wide ? 'left' : 'center';
-      K.text(x, 'Gross, Politzer and Wilczek, 1973', txp, ty, Math.min(fs * 1.15, A.w / 26), { a: al2, w: 700, al: nob }); K.text(x, 'Nobel Prize in Physics, 2004', txp, ty + fs * 1.7, fs * 0.9, { a: al2, mono: true, c: C.dim, w: 400, al: nob });
-      var pr = K.ramp(n, t.proved, 0.6); K.text(x, 'still open: no proof, by maths alone,', txp, ty + fs * 4.2, Math.min(fs * 1.05, A.w / 30), { a: al2, w: 600, c: C.hot, al: nob * pr }); K.text(x, 'that a quark can never get out', txp, ty + fs * 5.7, Math.min(fs * 1.05, A.w / 30), { a: al2, w: 600, c: C.hot, al: nob * pr }); K.text(x, '(a million-dollar prize is waiting)', txp, ty + fs * 7.4, fs * 0.82, { a: al2, mono: true, c: C.dim, w: 400, al: nob * pr }); }
-    K.credit(x, A, chart > 0.5 ? 'the two marked values are measurements (Particle Data Group, 2024) · the curve is the standard formula through the second one' : 'a drawing of what collision experiments show · the unsolved proof is a Clay Mathematics Institute Millennium Problem');
-  }
-  return { init: init, draw: draw };
-})();
-
-
-// The page itself: captions, the voice, the ruler of the nine levels, the side arrows, and the flip.
-// Each page has two sides. The front is the rule in charge at one level of physics; the back is its opposite, with the other narrator. Flipping turns
-// the whole page over in 3D (it swaps sides when it is edge-on) and everything on the back runs the other way:
-// ink on paper instead of light on black, the ruler and arrows reversed.
-function Chrome(D, opt) {
-  opt = opt || {};
-  var doc = document, body = doc.body, page = doc.createElement('div'); page.id = 'page';
-  Array.prototype.slice.call(body.childNodes).forEach(function (n) { if (n.nodeName !== 'SCRIPT') page.appendChild(n); });
-  body.insertBefore(page, body.firstChild);
-  var f = doc.createElement('link'); f.rel = 'stylesheet'; f.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,500&display=swap'; doc.head.appendChild(f);
-  function el(tag, id, html, cls) { var e = doc.createElement(tag); if (id) e.id = id; if (cls) e.className = cls; e.innerHTML = html || ''; page.appendChild(e); return e; }
-  el('div', 'hud2', '<div class="bk" id="bk"></div><div class="bname" id="bname"></div><div class="bsub" id="bsub"></div>');
-  var cc = el('div', 'cc', '<span id="cap"></span>'); cc.setAttribute('aria-live', 'polite');
-  var snd = el('div', 'snd', '&#128266; Tap anywhere to hear it explained'); snd.setAttribute('role', 'button'); snd.tabIndex = 0;
-  var flipB = el('div', 'flip', ''); flipB.setAttribute('role', 'button'); flipB.tabIndex = 0;
-  var ruler = el('nav', 'ruler', ''); ruler.setAttribute('aria-label', 'The nine levels, from the quark to the universe');
-  var navL = el('a', '', '', 'nav l'), navR = el('a', '', '', 'nav r'), shade = el('div', 'shade', ''), cap = doc.getElementById('cap');
-  var A = [new Audio('./narration.mp3'), new Audio('./narration-flip.mp3')]; A[0].loop = A[1].loop = false; /* each explanation plays once */ A[0].preload = 'auto'; A[1].preload = 'none'; A[0].muted = A[1].muted = true;
-  var subs = [], side = 0, started = false, done = false, userMute = false, t0 = performance.now(), shown = -2, turning = false, fresh = false;
-  function nt() { if (opt.fix != null) return opt.fix + (opt.go ? (performance.now() - t0) / 1000 : 0); var a = A[side]; if (a.ended || done) return 1e9; if (!a.paused && a.readyState > 1 && isFinite(a.currentTime)) return a.currentTime; var s = (performance.now() - t0) / 1000; if (s > D.sides[side].dur + 1) { done = true; setSnd(); } return s; } // once through, then quiet
-  function over() { return done || A[side].ended; }
-  function setSnd() { if (!started) return; snd.classList.add('on'); snd.innerHTML = over() ? '&#8635; Play again' : userMute ? '&#128263; Sound off' : '&#128266; Sound on'; snd.setAttribute('aria-label', userMute ? 'Turn the sound on' : 'Turn the sound off'); }
-  function playSide() { done = false; A[1 - side].pause(); var a = A[side]; a.muted = !started || userMute; try { a.currentTime = 0; } catch (e) {} t0 = performance.now(); shown = -2; var p = a.play(); if (p && p.catch) p.catch(function () {}); }
-  function begin() { if (started) return; started = true; fresh = true; playSide(); setSnd(); }
-  function render() {
-    var n = D.scales.length, lo = D.scales[0].exp, hi = D.scales[n - 1].exp, back = side === 1, me = D.scales[D.i];
-    body.classList.toggle('flip', back);
-    ruler.innerHTML = '<span class="cap l">' + (back ? '← bigger' : '← smaller') + '</span><span class="cap r">' + (back ? 'smaller →' : 'bigger →') + '</span>' + D.scales.map(function (s, i) {
-      var pct = (s.exp - lo) / (hi - lo) * 100; if (back) pct = 100 - pct;
-      return '<a href="https://' + s.domain + '/" class="' + (i === D.i ? 'me ' : '') + (i % 2 ? 'up' : '') + '" style="left:' + pct.toFixed(2) + '%"' + (i === D.i ? ' aria-current="page"' : '') + ' title="Level ' + (i + 1) + ': ' + s.name + ' · ' + s.domain + '"><b>' + (i + 1) + '</b><span>' + s.short + '</span></a>';
-    }).join('');
-    var smaller = D.scales[(D.i - 1 + n) % n], bigger = D.scales[(D.i + 1) % n];
-    function nav(a, s, arrow, word) { a.href = 'https://' + s.domain + '/'; a.title = word + ': ' + s.name; a.setAttribute('aria-label', word + ': ' + s.name); a.innerHTML = '<i>' + arrow + '</i><span>' + word + '<b>' + s.short + '</b></span>'; }
-    var wS = D.i === 0 ? 'the biggest' : 'smaller', wB = D.i === n - 1 ? 'the smallest' : 'bigger';
-    if (back) { nav(navL, bigger, '‹', wB); nav(navR, smaller, '›', wS); } else { nav(navL, smaller, '‹', wS); nav(navR, bigger, '›', wB); }
-    var b = D.sides[1];
-    doc.getElementById('bk').textContent = 'the other side of ' + me.name.toLowerCase() + '  ·  ' + b.size;
-    doc.getElementById('bname').textContent = b.name; doc.getElementById('bsub').textContent = b.sub;
-    flipB.innerHTML = back ? '↩ Flip back' : 'Flip the page ↪'; flipB.title = back ? 'Back to ' + me.name : 'See the opposite: ' + b.name; flipB.setAttribute('aria-label', flipB.title);
-    doc.title = back ? b.name.charAt(0).toUpperCase() + b.name.slice(1) + ' (the other side of ' + me.name + ')' : D.title;
-    var bn = doc.getElementById('bname'); bn.style.animation = 'none'; void bn.offsetWidth; bn.style.animation = '';
-    if (opt.onSide) opt.onSide(side); subs.forEach(function (f) { f(side); });
-  }
-  function flip() { // turn the page: to edge-on, swap sides, and on round
-    if (turning) return; turning = true; var start = performance.now(), dur = 1150, swapped = false, dir = side === 0 ? -1 : 1;
-    (function step(now) {
-      var p = Math.min(1, (now - start) / dur), e, ang;
-      if (p < 0.5) { e = p * 2; e = e * e; ang = dir * 90 * e; }
-      else { if (!swapped) { swapped = true; side = 1 - side; render(); playSide(); setSnd(); } e = (p - 0.5) * 2; e = 1 - (1 - e) * (1 - e); ang = -dir * 90 * (1 - e); }
-      page.style.transform = 'rotateY(' + ang.toFixed(2) + 'deg) scale(' + (1 - 0.14 * Math.sin(p * Math.PI)).toFixed(4) + ')'; shade.style.opacity = (Math.sin(p * Math.PI) * 0.9).toFixed(3);
-      if (p < 1) requestAnimationFrame(step); else { page.style.transform = ''; shade.style.opacity = 0; turning = false; }
-    })(start);
-  }
-  addEventListener('pointerdown', function () { if (!started) begin(); }, { passive: true });
-  function sndTap() { if (over()) { userMute = false; playSide(); setSnd(); return; } userMute = !userMute; A[side].muted = userMute; setSnd(); }
-  snd.addEventListener('click', function () { if (fresh) { fresh = false; return; } sndTap(); });
-  A.forEach(function (a) { a.addEventListener('ended', setSnd); });
-  flipB.addEventListener('click', function () { fresh = false; flip(); });
-  addEventListener('click', function (e) { if (e.target !== snd) fresh = false; });
-  addEventListener('keydown', function (e) {
-    if (e.altKey || e.ctrlKey || e.metaKey || (e.target && e.target.closest && e.target.closest('#ask'))) return; var first = !started; if (first) begin();
-    if (e.key === 'ArrowLeft') location.href = navL.href; else if (e.key === 'ArrowRight') location.href = navR.href;
-    else if (e.key === 'f' || e.key === 'F' || ((e.key === 'Enter' || e.key === ' ') && e.target === flipB)) { e.preventDefault(); flip(); }
-    else if (!first && (e.key === 'Enter' || e.key === ' ') && e.target === snd) sndTap();
-  });
-  render();
-  var p0 = A[0].play(); if (p0 && p0.catch) p0.catch(function () {});
-  (function tick() { requestAnimationFrame(tick); var n = nt(), cues = D.sides[side].cues, q = -1; for (var j = 0; j < cues.length; j++) { if (n >= cues[j][0] && n < cues[j][1]) { q = j; break; } } if (q !== shown) { shown = q; cap.textContent = q < 0 ? '' : cues[q][2]; } })();
-  var api = { side: function () { return side; }, nt: nt, flip: flip, hush: function () { A[side].pause(); done = true; setSnd(); }, onSide: function (f) { subs.push(f); } };
-  if (D.chat && typeof Chat === 'function') Chat(D, api, page);
-  return api;
-}
-
-// Talking to the page. A visitor types or speaks a question; the answer comes back as text and is read aloud in the
-// voice of the side they are on. The server (D.chat) is told which scale and which side, so the page knows what it is
-// showing. Replies are spoken with the browser's own voice (a different one on the back of the page). The pictures are
-// timed to the narrator, so opening the chat only quiets the narrator: the film stays where it is.
-function Chat(D, CH, page) {
-  var doc = document, API = D.chat.replace(/\/+$/, ''), SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  var busy = false, voice = true, hist = [], rec = null, au = null, greeted = [false, false], lastSide = -1;
-  function mk(tag, id, html) { var e = doc.createElement(tag); e.id = id; e.innerHTML = html || ''; page.appendChild(e); return e; }
-  var btn = mk('button', 'askb', ''); btn.type = 'button';
-  var box = mk('section', 'ask', '<header><div><b id="askwho"></b><span id="askon"></span></div><button type="button" id="askv"></button><button type="button" id="askx" aria-label="Close" title="Close">&times;</button></header><div id="asklog" role="log" aria-live="polite"></div><div id="askchips"></div><form id="askf"><button type="button" id="askm" aria-label="Ask by voice" title="Ask by voice">&#127908;</button><input id="aski" maxlength="400" autocomplete="off" enterkeyhint="send"><button id="asks" aria-label="Send" title="Send">&uarr;</button></form>');
-  box.setAttribute('aria-label', 'Talk to the page');
-  function $(id) { return doc.getElementById(id); }
-  var logE = $('asklog'), inp = $('aski'), chips = $('askchips'), micB = $('askm'), vB = $('askv');
-  if (!SR) micB.style.display = 'none';
-  function front() { return D.scales[D.i].name; } function back() { return D.sides[1].name; }
-  function now() { return CH.side() ? back() : front(); }
-  function isOpen() { return box.classList.contains('open'); }
-  function add(cls, text, tag) { var p = doc.createElement(tag || 'p'); p.className = cls; p.textContent = text; logE.appendChild(p); logE.scrollTop = 1e6; return p; }
-  function setVoice() { vB.innerHTML = voice ? '&#128266;' : '&#128263;'; vB.className = voice ? '' : 'off'; vB.title = voice ? 'Answers are read aloud. Tap to turn that off.' : 'Answers are silent. Tap to hear them.'; vB.setAttribute('aria-label', vB.title); }
-  function paint() { // everything that depends on which side is showing
-    var s = CH.side(), lc = now().toLowerCase();
-    btn.textContent = isOpen() ? 'Close the chat' : 'Ask about ' + lc; btn.classList.toggle('open', isOpen());
-    $('askwho').textContent = 'The A.I. on this page'; $('askon').textContent = (s ? 'the back: ' : 'the front: ') + lc;
-    inp.placeholder = 'Ask about ' + lc + '…';
-    var qs = s ? ['What am I looking at?', 'Why is this the opposite?', 'Is that known for sure?'] : ['What am I looking at?', 'Is that really true?', 'How do we know?'];
-    chips.innerHTML = ''; qs.forEach(function (q) { var b = doc.createElement('button'); b.type = 'button'; b.textContent = q; b.onclick = function () { send(q); }; chips.appendChild(b); });
-    if (!isOpen()) return;
-    if (lastSide >= 0 && lastSide !== s) add('', (s ? 'you turned the page: now ' : 'you turned back: now ') + lc, 'i');
-    if (!greeted[s]) {
-      greeted[s] = true;
-      add('ai', s ? 'As far as I can tell, you are now looking at ' + lc + ', which this page calls the reverse of ' + front().toLowerCase() + '. What are you wondering?'
-        : 'From what I can tell, you are looking at ' + lc + '. I do not know everything about it, but I like working it out. What would you like to know?');
-    }
-    lastSide = s;
-  }
-  function hushSay() { if (au) { au.pause(); au = null; } if (window.speechSynthesis) speechSynthesis.cancel(); }
-  function show(on) { box.classList.toggle('open', on); paint(); if (on) { try { inp.focus({ preventScroll: true }); } catch (e) {} } else { hushSay(); if (rec) rec.abort(); } }
-  function say(text, side) {
-    hushSay(); if (!voice || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
-    var u = new SpeechSynthesisUtterance(text), en = /^en/i.test(navigator.language || 'en');
-    if (en) { var vs = speechSynthesis.getVoices().filter(function (v) { return /^en/i.test(v.lang); }); if (vs.length) u.voice = vs[side ? Math.min(1, vs.length - 1) : 0]; }
-    u.rate = 0.98; u.pitch = side ? 0.85 : 1.05; speechSynthesis.speak(u);
-  }
-  function send(text) {
-    text = String(text || '').trim().slice(0, 400); if (!text || busy) return;
-    busy = true; $('asks').disabled = true; inp.value = ''; CH.hush(); hushSay();
-    var side = CH.side(), q = { role: 'user', content: text, side: side }; add('me', text); var b = add('ai wait', '');
-    fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: D.key, side: side, messages: hist.slice(-12).concat([q]) }) })
-      .then(function (r) {
-        if (!r.ok) throw r.status; var rd = r.body.getReader(), dec = new TextDecoder(), all = '';
-        return (function pump() { return rd.read().then(function (x) { if (x.done) return all; all += dec.decode(x.value, { stream: true }); b.textContent = all.split('\u001e')[0]; logE.scrollTop = 1e6; return pump(); }); })();
-      })
-      .then(function (all) { var p = all.split('\u001e'), t = p[0].trim(); if (!t) throw 0; b.textContent = t; hist.push(q, { role: 'assistant', content: t, side: side }); say(t, side); })
-      .catch(function (e) { b.classList.add('err'); b.textContent = e === 429 ? 'I need a short rest: a lot of people are asking me things. Could you try again in a minute?' : 'Hmm, I lost my train of thought. Could you ask me that again?'; })
-      .then(function () { busy = false; $('asks').disabled = false; b.classList.remove('wait'); logE.scrollTop = 1e6; });
-  }
-  btn.onclick = function () { show(!isOpen()); };
-  $('askx').onclick = function () { show(false); };
-  vB.onclick = function () { voice = !voice; if (!voice) hushSay(); setVoice(); };
-  $('askf').onsubmit = function (e) { e.preventDefault(); send(inp.value); };
-  box.addEventListener('keydown', function (e) { if (e.key === 'Escape') { show(false); btn.focus(); } });
-  if (SR) micB.onclick = function () {
-    if (rec) { rec.stop(); return; }
-    CH.hush(); hushSay(); var r = rec = new SR(), heard = '';
-    r.lang = navigator.language || 'en-US'; r.interimResults = true;
-    r.onresult = function (e) { heard = ''; for (var i = 0; i < e.results.length; i++) heard += e.results[i][0].transcript; inp.value = heard; };
-    r.onerror = function (e) { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') add('ai err', 'I could not use the microphone. You can type to me instead.'); };
-    r.onend = function () { if (rec === r) rec = null; micB.classList.remove('on'); if (heard.trim()) send(heard); };
-    try { r.start(); micB.classList.add('on'); } catch (e) { rec = null; }
-  };
-  CH.onSide(function () { hushSay(); paint(); });
-  setVoice(); paint();
-}
-
-
-// ---------------------------------------------------------------- page
-var cv = document.getElementById('c'), cx = cv.getContext('2d'), W = 0, Hh = 0, dpr = 1, me = D.scales[D.i];
-document.getElementById('k').innerHTML = 'Level ' + (D.i + 1) + ' of ' + D.scales.length + ' · <b>' + me.size + '</b>';
-document.getElementById('name').textContent = me.name;
-document.getElementById('sub').textContent = me.sub;
-var QS = new URLSearchParams(location.search), CH = Chrome(D, QS.get('n') != null ? { fix: +QS.get('n'), go: QS.get('go') != null } : {}); // ?n=seconds holds the film at that moment (&go lets it run on from there)
-function fit() { dpr = Math.min(devicePixelRatio || 1, 2); W = innerWidth; Hh = innerHeight; cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr); cx.setTransform(dpr, 0, 0, dpr, 0, 0); }
-addEventListener('resize', fit); fit();
-var last = performance.now(), T = 0, Tb = 0, inited = [false, false];
-if (QS.get('flip') != null) CH.flip();
-function frame(now) {
-  requestAnimationFrame(frame);
-  var dt = Math.min(0.05, (now - last) / 1000); last = now; var s = CH.side(), sc = s ? SCENE2 : SCENE;
-  if (s) Tb += dt; else T += dt;
-  if (!inited[s]) { inited[s] = true; sc.init(W, Hh); }
-  cx.globalCompositeOperation = 'source-over'; cx.globalAlpha = 1;
-  sc.draw(cx, W, Hh, s ? Tb : T, dt, CH.nt());
-}
-requestAnimationFrame(frame);
-})();
+  // The robot says its line out loud: straight away where the browser allows sound, otherwise on the first tap.
+  var a = document.getElementById('voice'), bot = document.getElementById('bot'), said = false;
+  function say() { a.currentTime = 0; var p = a.play(); if (p) p.then(function () { said = true; }).catch(function () {}); }
+  a.addEventListener('play', function () { bot.classList.add('talk'); });
+  a.addEventListener('pause', function () { bot.classList.remove('talk'); });
+  a.addEventListener('ended', function () { bot.classList.remove('talk'); });
+  document.getElementById('hear').addEventListener('click', function (e) { e.stopPropagation(); say(); });
+  bot.addEventListener('click', function (e) { e.stopPropagation(); say(); });
+  bot.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); say(); } });
+  document.addEventListener('pointerdown', function first() { document.removeEventListener('pointerdown', first); if (!said) say(); });
+  setTimeout(say, 900);
 </script>
 </body>
 </html>
