@@ -4,51 +4,208 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Have a nice weekend</title>
-<meta name="description" content="A friendly A.I. waving hello. Have a nice weekend.">
-<meta name="theme-color" content="#fbf6ea">
+<meta name="description" content="A friendly A.I. made of points of light that smiles, waves and says: have a nice weekend. Flip the page for the other side.">
+<meta name="theme-color" content="#080d1a">
 <style>
-  :root { --paper: #fbf6ea; --ink: #33302b; --face: #ffd95e; --cheek: #ff9f8c; --grass: #7dbb6a; }
-  @media (prefers-color-scheme: dark) { :root { --paper: #23211d; --ink: #f1ebdd; --face: #f2c94c; --cheek: #f08a78; --grass: #6aa659; } }
+  :root { --bg0: #14213f; --bg1: #060912; --ink: #e9fbff; --soft: #8fb3c4; --line: rgba(143, 247, 230, .35); --pt: #8ff7e6; }
+  body[data-side="1"] { --bg0: #fbf6ec; --bg1: #e9dfcc; --ink: #2a1512; --soft: #8a5a50; --line: rgba(160, 30, 22, .4); --pt: #a51d16; }
+  * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body { background: var(--paper); color: var(--ink); font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard SE", cursive; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; box-sizing: border-box; overflow: hidden; }
-  main { width: min(400px, 86vw); }
-  h1 { margin: 0 0 4px; text-align: center; font-size: clamp(30px, 9vw, 46px); line-height: 1.15; font-weight: 700; transform: rotate(-2deg); }
-  svg { display: block; width: 100%; height: auto; overflow: visible; }
-  .friend { animation: bob 3s ease-in-out infinite; }
-  .arm { transform-origin: 284px 238px; animation: wave 1.3s ease-in-out infinite; }
-  .eye { transform-origin: center; transform-box: fill-box; animation: blink 4.4s infinite; }
-  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
-  @keyframes wave { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(22deg); } }
-  @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
-  @media (prefers-reduced-motion: reduce) { .friend, .eye { animation: none; } .arm { animation-duration: 3s; } }
+  body { background: radial-gradient(120% 90% at 50% 38%, var(--bg0), var(--bg1)); color: var(--ink); font-family: "Segoe UI", system-ui, -apple-system, sans-serif; overflow: hidden; -webkit-tap-highlight-color: transparent; transition: color .3s; }
+  #stage { position: fixed; inset: 0; transition: transform .28s ease-in, opacity .28s ease-in; }
+  body.turn #stage { transform: perspective(1200px) rotateY(88deg); opacity: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; }
+  .top { position: fixed; top: max(14px, env(safe-area-inset-top)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 2; pointer-events: none; }
+  .top > * { pointer-events: auto; }
+  button { font: inherit; color: var(--ink); background: color-mix(in srgb, var(--pt) 10%, transparent); border: 1.5px solid var(--line); border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: background .2s, border-color .2s; }
+  button:hover { background: color-mix(in srgb, var(--pt) 22%, transparent); border-color: var(--pt); }
+  button:focus-visible { outline: 3px solid var(--pt); outline-offset: 3px; }
+  #flip { padding: 10px 18px; font-weight: 600; font-size: 15px; letter-spacing: .02em; }
+  .label { font: 600 11px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: .22em; text-transform: uppercase; color: var(--soft); }
+  .say { position: absolute; left: 0; right: 0; bottom: max(22px, env(safe-area-inset-bottom)); padding: 0 16px; display: flex; flex-direction: column; align-items: center; gap: 14px; pointer-events: none; }
+  h1 { margin: 0; min-height: 2.3em; display: flex; align-items: center; text-align: center; font-size: clamp(24px, 6.4vw, 40px); font-weight: 650; letter-spacing: -.01em; line-height: 1.15; text-wrap: balance; transition: opacity .22s, transform .22s; }
+  h1.out { opacity: 0; transform: translateY(8px); }
+  .nav { display: flex; align-items: center; gap: 14px; pointer-events: auto; }
+  .nav button { width: 48px; height: 48px; padding: 0; }
+  #next { width: auto; padding: 0 20px; font-weight: 600; font-size: 15px; }
+  .nav svg, #flip svg { width: 18px; height: 18px; }
+  #count { min-width: 4.5em; text-align: center; }
+  @media (prefers-reduced-motion: reduce) { #stage, h1 { transition: none; } }
 </style>
 </head>
-<body>
-<main>
-  <h1>Have a nice weekend!</h1>
-  <svg viewBox="0 0 400 420" role="img" aria-label="A smiling friend waving, drawn by hand">
-    <defs><filter id="wobble" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".03" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="7"/></filter></defs>
-    <g filter="url(#wobble)" fill="none" stroke="var(--ink)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M40 392 q14 -22 26 0 q12 -26 26 0 M300 394 q12 -24 24 0 q14 -20 26 0" stroke="var(--grass)"/>
-      <path d="M70 398 H340" stroke-width="4" opacity=".5"/>
-      <g class="friend">
-        <g class="arm">
-          <path d="M284 238 Q330 218 346 160"/>
-          <path d="M346 160 L328 140 M346 160 L348 132 M346 160 L366 144"/>
-        </g>
-        <path d="M116 238 Q72 262 62 312"/>
-        <path d="M176 290 L168 392 L148 394 M224 290 L232 392 L252 394"/>
-        <circle cx="200" cy="200" r="98" fill="var(--face)"/>
-        <g stroke="none">
-          <ellipse class="eye" cx="166" cy="180" rx="10" ry="15" fill="#33302b"/>
-          <ellipse class="eye" cx="234" cy="180" rx="10" ry="15" fill="#33302b"/>
-          <ellipse cx="136" cy="222" rx="16" ry="10" fill="var(--cheek)" opacity=".8"/>
-          <ellipse cx="264" cy="222" rx="16" ry="10" fill="var(--cheek)" opacity=".8"/>
-        </g>
-        <path d="M152 224 Q200 280 248 224" stroke="#33302b"/>
-      </g>
-    </g>
-  </svg>
-</main>
+<body data-side="0">
+<div class="top">
+  <button id="flip" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a8 8 0 0 1 14-3l2 2M20 3v4h-4M20 16a8 8 0 0 1-14 3l-2-2M4 21v-4h4"/></svg><span>Flip the page</span></button>
+  <div class="label" id="side">the positives</div>
+</div>
+<div id="stage">
+  <canvas id="c" aria-hidden="true"></canvas>
+  <div class="say">
+    <h1 id="say" aria-live="polite">Have a nice weekend!</h1>
+    <div class="nav">
+      <button id="prev" type="button" aria-label="The one before"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <span class="label" id="count">1 / 7</span>
+      <button id="next" type="button">Next<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+  </div>
+</div>
+<script>
+// A cloud of vertices, joined to their neighbours, that pulls itself into a picture for each sentence.
+// The front of the page holds the positives and the back holds the negatives, in the same order, so flipping the page
+// shows the reverse of the sentence you were on. To change the sentences, edit these two lists: [sentence, picture].
+var POSITIVES = [
+  ['Have a nice weekend!', 'face'],
+  ['You did good work this week.', 'star'],
+  ['Go outside. The sun is free.', 'sun'],
+  ['Call someone you love.', 'heart'],
+  ['Sleep in. You earned it.', 'moon'],
+  ['Play your favourite song.', 'note'],
+  ['Drink your coffee slowly.', 'coffee']
+];
+var NEGATIVES = [
+  ['Monday is coming.', 'sad'],
+  ['You forgot something.', 'question'],
+  ['It might rain.', 'cloud'],
+  ['Nobody called back.', 'broken'],
+  ['The alarm is set.', 'alarm'],
+  ['The battery is at 2%.', 'battery'],
+  ['The coffee went cold.', 'cold']
+];
+
+(function () {
+  var PI = Math.PI;
+  function ln(c, a, b, x, y) { c.beginPath(); c.moveTo(a, b); c.lineTo(x, y); c.stroke(); }
+  function disc(c, x, y, r) { c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); }
+  function ring(c, x, y, r) { c.beginPath(); c.arc(x, y, r, 0, 7); c.stroke(); }
+  function heart(c) { c.beginPath(); c.moveTo(100, 158); c.bezierCurveTo(22, 108, 40, 38, 100, 78); c.bezierCurveTo(160, 38, 178, 108, 100, 158); c.fill(); }
+  function cup(c) { c.lineWidth = 5; c.beginPath(); c.moveTo(46, 88); c.lineTo(56, 150); c.quadraticCurveTo(58, 162, 72, 162); c.lineTo(114, 162); c.quadraticCurveTo(128, 162, 130, 150); c.lineTo(140, 88); c.closePath(); c.stroke(); c.beginPath(); c.arc(140, 118, 20, -PI * .42, PI * .5); c.stroke(); ln(c, 36, 174, 152, 174); }
+  // Every picture is a list of layers drawn in a 200 x 200 square. n = the share of the vertices a layer gets, mix = how
+  // many of those sit inside a filled shape (the rest sit on its edge), s = dot size, a = how the layer moves, p = pivot.
+  function face(sad) {
+    var L = [
+      { n: .42, mix: .42, d: function (c) { disc(c, 80, 106, 60); } },
+      { n: .1, s: 1.8, d: function (c) { disc(c, 60, 92, 7); disc(c, 100, 92, 7); } },
+      { n: .15, s: 1.5, d: function (c) { c.lineWidth = 5; c.beginPath(); if (sad) c.arc(80, 152, 30, PI * 1.22, PI * 1.78); else c.arc(80, 104, 32, PI * .16, PI * .84); c.stroke(); } }
+    ];
+    if (sad) L.push({ n: .06, s: 1.3, a: 'fall', d: function (c) { c.beginPath(); c.moveTo(56, 106); c.quadraticCurveTo(49, 119, 56, 121); c.quadraticCurveTo(63, 119, 56, 106); c.fill(); } },
+      { n: .27, d: function (c) { c.lineWidth = 5; ln(c, 138, 132, 160, 166); c.lineWidth = 4; ring(c, 164, 180, 11); } });
+    else L.push({ n: .33, a: 'wave', p: [138, 132], d: function (c) { c.lineWidth = 5; ln(c, 138, 132, 160, 86); c.lineWidth = 4; ring(c, 164, 68, 13); for (var k = -2; k <= 2; k++) { var g = -PI / 2 + k * .4; ln(c, 164 + Math.cos(g) * 13, 68 + Math.sin(g) * 13, 164 + Math.cos(g) * 28, 68 + Math.sin(g) * 28); } } });
+    return L;
+  }
+  var SHAPES = {
+    face: function () { return face(false); },
+    sad: function () { return face(true); },
+    star: function () { return [{ n: 1, mix: .35, a: 'beat', p: [100, 104], d: function (c) { c.beginPath(); for (var i = 0; i < 10; i++) { var r = i % 2 ? 32 : 76, g = -PI / 2 + i * PI / 5; c.lineTo(100 + Math.cos(g) * r, 106 + Math.sin(g) * r); } c.closePath(); c.fill(); } }]; },
+    sun: function () { return [{ n: .48, mix: .4, d: function (c) { disc(c, 100, 100, 36); } },
+      { n: .52, a: 'spin', p: [100, 100], d: function (c) { c.lineWidth = 5; for (var i = 0; i < 12; i++) { var g = i * PI / 6; ln(c, 100 + Math.cos(g) * 50, 100 + Math.sin(g) * 50, 100 + Math.cos(g) * 76, 100 + Math.sin(g) * 76); } } }]; },
+    heart: function () { return [{ n: 1, mix: .35, a: 'beat', p: [100, 108], d: heart }]; },
+    broken: function () { return [{ n: 1, mix: .3, d: function (c) { heart(c); c.globalCompositeOperation = 'destination-out'; c.lineWidth = 10; c.lineJoin = 'miter'; c.beginPath(); c.moveTo(100, 66); c.lineTo(86, 92); c.lineTo(112, 110); c.lineTo(92, 132); c.lineTo(100, 166); c.stroke(); } }]; },
+    moon: function () { return [{ n: .78, mix: .35, d: function (c) { disc(c, 92, 110, 60); c.globalCompositeOperation = 'destination-out'; disc(c, 122, 88, 52); } },
+      { n: .22, s: 1.3, a: 'bob', d: function (c) { [[136, 36, 24], [170, 12, 15]].forEach(function (z) { var x = z[0], y = z[1], s = z[2]; ln(c, x, y, x + s, y); ln(c, x + s, y, x, y + s); ln(c, x, y + s, x + s, y + s); }); } }]; },
+    note: function () { return [{ n: 1, mix: .3, a: 'bob', d: function (c) { [[64, 152], [130, 136]].forEach(function (h) { c.beginPath(); c.ellipse(h[0], h[1], 18, 13, -.35, 0, 7); c.fill(); }); c.lineWidth = 5; ln(c, 80, 148, 80, 56); ln(c, 146, 132, 146, 40); c.lineWidth = 13; c.lineCap = 'butt'; ln(c, 78, 62, 148, 46); } }]; },
+    coffee: function () { return [{ n: .68, d: cup }, { n: .32, a: 'bob', d: function (c) { [70, 93, 116].forEach(function (x) { c.beginPath(); c.moveTo(x, 74); c.bezierCurveTo(x - 13, 60, x + 13, 46, x, 30); c.stroke(); }); } }]; },
+    cold: function () { return [{ n: .68, d: cup }, { n: .32, s: 1.2, a: 'spin', p: [93, 46], d: function (c) { for (var i = 0; i < 3; i++) { var g = i * PI / 3, x = Math.cos(g), y = Math.sin(g); ln(c, 93 - x * 28, 46 - y * 28, 93 + x * 28, 46 + y * 28); [-1, 1].forEach(function (m) { var bx = 93 + m * x * 18, by = 46 + m * y * 18; ln(c, bx, by, bx + m * (x * 8 - y * 8), by + m * (y * 8 + x * 8)); ln(c, bx, by, bx + m * (x * 8 + y * 8), by + m * (y * 8 - x * 8)); }); } } }]; },
+    cloud: function () { return [{ n: .66, mix: .35, d: function (c) { disc(c, 64, 100, 27); disc(c, 100, 80, 37); disc(c, 138, 100, 25); c.fillRect(64, 100, 74, 26); } },
+      { n: .34, a: 'fall', d: function (c) { [58, 82, 106, 130].forEach(function (x) { ln(c, x + 7, 138, x, 154); }); } }]; },
+    battery: function () { return [{ n: .78, d: function (c) { c.lineWidth = 5; c.beginPath(); if (c.roundRect) c.roundRect(34, 68, 120, 64, 12); else c.rect(34, 68, 120, 64); c.stroke(); c.fillRect(158, 88, 10, 24); } },
+      { n: .22, s: 1.5, mix: .5, a: 'beat', p: [56, 100], d: function (c) { c.fillRect(46, 80, 17, 40); } }]; },
+    alarm: function () { return [{ n: .6, d: function (c) { c.lineWidth = 5; ring(c, 100, 114, 48); ln(c, 100, 114, 100, 84); ln(c, 100, 114, 122, 114); ln(c, 70, 154, 60, 170); ln(c, 130, 154, 140, 170); } },
+      { n: .4, mix: .4, a: 'shake', p: [100, 114], d: function (c) { disc(c, 58, 62, 17); disc(c, 142, 62, 17); c.lineWidth = 5; ln(c, 100, 66, 100, 52); } }]; },
+    question: function () { return [{ n: 1, a: 'bob', d: function (c) { c.lineWidth = 12; c.beginPath(); c.arc(100, 74, 34, PI, PI * .4); c.quadraticCurveTo(100, 114, 100, 132); c.stroke(); disc(c, 100, 162, 9); } }]; }
+  };
+
+  var cv = document.getElementById('c'), g = cv.getContext('2d'), W = 0, H = 0, sc = 1, ox = 0, oy = 0;
+  var N = Math.min(innerWidth, innerHeight) < 600 ? 460 : 600;
+  function rng(seed) { return function () { seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  var off = document.createElement('canvas'); off.width = off.height = 200; var oc = off.getContext('2d', { willReadFrequently: true }), cache = {};
+  // Turn a picture into N vertices: draw each layer, take the pixels it covers, and choose well spread-out points.
+  function targets(name) {
+    if (cache[name]) return cache[name];
+    var layers = SHAPES[name](), R = rng(name.length * 7919 + name.charCodeAt(0)), out = [], left = N;
+    layers.forEach(function (L, li) {
+      var q = li === layers.length - 1 ? left : Math.round(N * L.n); left -= q;
+      oc.setTransform(1, 0, 0, 1, 0, 0); oc.globalCompositeOperation = 'source-over'; oc.clearRect(0, 0, 200, 200);
+      oc.fillStyle = oc.strokeStyle = '#000'; oc.lineWidth = 4; oc.lineCap = oc.lineJoin = 'round'; L.d(oc);
+      var im = oc.getImageData(0, 0, 200, 200).data, edge = [], inner = [], on = function (x, y) { return x >= 0 && y >= 0 && x < 200 && y < 200 && im[(y * 200 + x) * 4 + 3] > 100; };
+      for (var y = 0; y < 200; y++) for (var x = 0; x < 200; x++) if (on(x, y)) (on(x - 1, y) && on(x + 1, y) && on(x, y - 1) && on(x, y + 1) ? inner : edge).push([x, y]);
+      var mine = [], pick = function (pool, k) {
+        for (var i = 0; i < k && pool.length; i++) { var best = null, bd = -1; for (var t = 0; t < 7; t++) { var p = pool[(R() * pool.length) | 0], d = 1e9; for (var j = 0; j < mine.length; j++) { var dx = mine[j].x - p[0], dy = mine[j].y - p[1], dd = dx * dx + dy * dy; if (dd < d) d = dd; } if (d > bd) { bd = d; best = p; } }
+          mine.push({ x: best[0] + R() - .5, y: best[1] + R() - .5, L: L }); }
+      };
+      if (L.mix == null) pick(edge.concat(inner), q); else { var qi = inner.length ? Math.round(q * L.mix) : 0; pick(edge, q - qi); pick(inner, qi); }
+      out = out.concat(mine);
+    });
+    while (out.length < N) out.push(out[(R() * out.length) | 0]);
+    // vertices keep their place around the middle from one picture to the next, so a change looks like a reshaping
+    out.sort(function (a, b) { return Math.atan2(a.y - 100, a.x - 100) - Math.atan2(b.y - 100, b.x - 100); });
+    return cache[name] = out;
+  }
+
+  var R0 = rng(42), P = [], T = null;
+  for (var i = 0; i < N; i++) P.push({ x: R0() * 200, y: R0() * 200, k: 3 + R0() * 5, ph: R0() * 6.28, hold: 0 });
+  function setShape(name, now) { T = targets(name); for (var i = 0; i < N; i++) P[i].hold = now + R0() * .28; }
+
+  function size() {
+    var d = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0);
+    var top = 96, bottom = 170, room = Math.max(160, H - top - bottom), S = Math.min(W * .9, room, 560); sc = S / 200; ox = W / 2 - 100 * sc; oy = top + (room - S) / 2;
+  }
+  addEventListener('resize', size); size();
+
+  var side = 0, idx = 0, last = 0, cells = {};
+  function frame(ms) {
+    var t = ms / 1000, dt = Math.min(.05, t - last || .016); last = t;
+    var col = side ? '165,29,22' : '143,247,230', hot = side ? '90,10,8' : '235,255,252';
+    for (var i = 0; i < N; i++) {
+      var p = P[i], tg = T[i], L = tg.L, x = tg.x, y = tg.y, a = L.a;
+      if (a === 'wave' || a === 'spin' || a === 'shake') { var an = a === 'wave' ? Math.sin(t * 5) * .22 : a === 'spin' ? t * .35 : Math.sin(t * 30) * .05, c = Math.cos(an), s = Math.sin(an), dx = x - L.p[0], dy = y - L.p[1]; x = L.p[0] + dx * c - dy * s; y = L.p[1] + dx * s + dy * c; }
+      else if (a === 'beat') { var m = 1 + .07 * Math.max(0, Math.sin(t * 5)); x = L.p[0] + (x - L.p[0]) * m; y = L.p[1] + (y - L.p[1]) * m; }
+      else if (a === 'bob') y += Math.sin(t * 2.2 + x * .05) * 3;
+      else if (a === 'fall') y += (t * 26) % 22;
+      x += Math.sin(t * 1.3 + p.ph) * .7; y += Math.cos(t * 1.1 + p.ph * 1.7) * .7;
+      if (t > p.hold) { var e = 1 - Math.exp(-dt * p.k * (a ? 2.2 : 1)); p.x += (x - p.x) * e; p.y += (y - p.y) * e; }
+    }
+    // join each vertex to a few near neighbours
+    g.clearRect(0, 0, W, H); cells = {}; var RR = 13, n3 = [[], [], []], cnt = new Uint8Array(N);
+    for (i = 0; i < N; i++) { var key = ((P[i].x / RR) | 0) * 64 + ((P[i].y / RR) | 0); (cells[key] || (cells[key] = [])).push(i); }
+    for (i = 0; i < N; i++) { var cx = (P[i].x / RR) | 0, cy = (P[i].y / RR) | 0;
+      for (var ax = -1; ax <= 1; ax++) for (var ay = -1; ay <= 1; ay++) { var cell = cells[(cx + ax) * 64 + cy + ay]; if (!cell) continue;
+        for (var q = 0; q < cell.length; q++) { var j = cell[q]; if (j <= i || cnt[i] > 3 || cnt[j] > 3) continue; var ddx = P[i].x - P[j].x, ddy = P[i].y - P[j].y, d2 = ddx * ddx + ddy * ddy; if (d2 > RR * RR || d2 < 9) continue; cnt[i]++; cnt[j]++; n3[d2 < 50 ? 0 : d2 < 100 ? 1 : 2].push(i, j); } } }
+    g.lineWidth = 1;
+    for (var b = 0; b < 3; b++) { g.strokeStyle = 'rgba(' + col + ',' + [.5, .32, .17][b] + ')'; g.beginPath(); for (q = 0; q < n3[b].length; q += 2) { var A = P[n3[b][q]], B = P[n3[b][q + 1]]; g.moveTo(ox + A.x * sc, oy + A.y * sc); g.lineTo(ox + B.x * sc, oy + B.y * sc); } g.stroke(); }
+    var r0 = Math.max(1.3, sc * .62);
+    g.fillStyle = 'rgba(' + col + ',.16)'; g.beginPath(); for (i = 0; i < N; i++) { var px = ox + P[i].x * sc, py = oy + P[i].y * sc, rr = r0 * (T[i].L.s || 1) * 2.6; g.moveTo(px + rr, py); g.arc(px, py, rr, 0, 7); } g.fill();
+    g.fillStyle = 'rgb(' + col + ')'; g.beginPath(); for (i = 0; i < N; i++) { px = ox + P[i].x * sc; py = oy + P[i].y * sc; rr = r0 * (T[i].L.s || 1); g.moveTo(px + rr, py); g.arc(px, py, rr, 0, 7); } g.fill();
+    g.fillStyle = 'rgba(' + hot + ',.9)'; g.beginPath(); for (i = 0; i < N; i++) { if (!T[i].L.s) continue; px = ox + P[i].x * sc; py = oy + P[i].y * sc; rr = r0 * .55; g.moveTo(px + rr, py); g.arc(px, py, rr, 0, 7); } g.fill();
+    requestAnimationFrame(frame);
+  }
+
+  var say = document.getElementById('say'), count = document.getElementById('count'), flipB = document.getElementById('flip'), swap = 0;
+  function list() { return side ? NEGATIVES : POSITIVES; }
+  function show(quick) {
+    var it = list()[idx]; setShape(it[1], last); count.textContent = (idx + 1) + ' / ' + list().length;
+    clearTimeout(swap); if (quick) { say.textContent = it[0]; say.classList.remove('out'); return; }
+    say.classList.add('out'); swap = setTimeout(function () { say.textContent = it[0]; say.classList.remove('out'); }, 200);
+  }
+  function step(d) { idx = (idx + d + list().length) % list().length; show(); }
+  function flip() {
+    document.body.classList.add('turn');
+    setTimeout(function () {
+      side = 1 - side; document.body.dataset.side = side; flipB.setAttribute('aria-pressed', side ? 'true' : 'false');
+      document.getElementById('side').textContent = side ? 'the negatives' : 'the positives';
+      document.querySelector('meta[name=theme-color]').content = side ? '#f4ecdd' : '#080d1a';
+      idx = Math.min(idx, list().length - 1); show(true); document.body.classList.remove('turn');
+    }, 290);
+  }
+  document.getElementById('next').onclick = function () { step(1); };
+  document.getElementById('prev').onclick = function () { step(-1); };
+  cv.onclick = function () { step(1); };
+  flipB.onclick = flip;
+  addEventListener('keydown', function (e) { if (e.key === 'ArrowRight') step(1); else if (e.key === 'ArrowLeft') step(-1); else if (e.key === 'f' || e.key === 'F') flip(); });
+  if (/[?&]flip\b/.test(location.search)) { side = 1; document.body.dataset.side = 1; flipB.setAttribute('aria-pressed', 'true'); document.getElementById('side').textContent = 'the negatives'; }
+  var m = /[?&]i=(\d+)/.exec(location.search); if (m) idx = Math.min(+m[1], list().length - 1);
+  show(true); requestAnimationFrame(frame);
+})();
+</script>
+<noscript><p style="text-align:center;margin-top:45vh">Have a nice weekend!</p></noscript>
 </body>
 </html>
