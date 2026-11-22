@@ -3,74 +3,58 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Have a nice weekend</title>
-<meta name="description" content="A friendly A.I. made of points of light that smiles, waves and says: have a nice weekend. Flip the page for the other side.">
+<title>The Carpenter</title>
+<meta name="description" content="A short narrated story about a carpenter, drawn in points of light and split down the middle: what you see on one side, what it means on the other. With captions.">
 <meta name="theme-color" content="#080d1a">
 <style>
-  :root { --bg0: #14213f; --bg1: #060912; --ink: #e9fbff; --soft: #8fb3c4; --line: rgba(143, 247, 230, .35); --pt: #8ff7e6; }
-  body[data-side="1"] { --bg0: #fbf6ec; --bg1: #e9dfcc; --ink: #2a1512; --soft: #8a5a50; --line: rgba(160, 30, 22, .4); --pt: #a51d16; }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body { background: radial-gradient(120% 90% at 50% 38%, var(--bg0), var(--bg1)); color: var(--ink); font-family: "Segoe UI", system-ui, -apple-system, sans-serif; overflow: hidden; -webkit-tap-highlight-color: transparent; transition: color .3s; }
-  #stage { position: fixed; inset: 0; transition: transform .28s ease-in, opacity .28s ease-in; }
-  body.turn #stage { transform: perspective(1200px) rotateY(88deg); opacity: 0; }
-  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; }
-  .top { position: fixed; top: max(14px, env(safe-area-inset-top)); left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 2; pointer-events: none; }
-  .top > * { pointer-events: auto; }
-  button { font: inherit; color: var(--ink); background: color-mix(in srgb, var(--pt) 10%, transparent); border: 1.5px solid var(--line); border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: background .2s, border-color .2s; }
-  button:hover { background: color-mix(in srgb, var(--pt) 22%, transparent); border-color: var(--pt); }
-  button:focus-visible { outline: 3px solid var(--pt); outline-offset: 3px; }
-  #flip { padding: 10px 18px; font-weight: 600; font-size: 15px; letter-spacing: .02em; }
-  .label { font: 600 11px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: .22em; text-transform: uppercase; color: var(--soft); }
-  .say { position: absolute; left: 0; right: 0; bottom: max(22px, env(safe-area-inset-bottom)); padding: 0 16px; display: flex; flex-direction: column; align-items: center; gap: 14px; pointer-events: none; }
-  h1 { margin: 0; min-height: 2.3em; display: flex; align-items: center; text-align: center; font-size: clamp(24px, 6.4vw, 40px); font-weight: 650; letter-spacing: -.01em; line-height: 1.15; text-wrap: balance; transition: opacity .22s, transform .22s; }
-  h1.out { opacity: 0; transform: translateY(8px); }
-  .nav { display: flex; align-items: center; gap: 14px; pointer-events: auto; }
-  .nav button { width: 48px; height: 48px; padding: 0; }
-  #next { width: auto; padding: 0 20px; font-weight: 600; font-size: 15px; }
-  .nav svg, #flip svg { width: 18px; height: 18px; }
-  #count { min-width: 4.5em; text-align: center; }
-  @media (prefers-reduced-motion: reduce) { #stage, h1 { transition: none; } }
+  body { background: #060912; color: #e9fbff; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .pill { background: rgba(9, 14, 26, .88); color: #e9fbff; border: 1.5px solid rgba(143, 247, 230, .4); border-radius: 999px; }
+  .top { position: fixed; top: max(14px, env(safe-area-inset-top)); left: 0; right: 0; display: flex; justify-content: center; pointer-events: none; z-index: 3; }
+  h1 { margin: 0; padding: 9px 20px; font-size: 16px; font-weight: 650; letter-spacing: .04em; }
+  .label { position: fixed; top: calc(max(14px, env(safe-area-inset-top)) + 56px); font: 600 11px/1.3 ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: .2em; text-transform: uppercase; z-index: 2; pointer-events: none; max-width: 42vw; }
+  #lab0 { left: 16px; color: #8fb3c4; }
+  #lab1 { right: 16px; color: #8a4a40; text-align: right; }
+  #grip { position: fixed; top: 0; bottom: 0; width: 44px; margin-left: -22px; cursor: ew-resize; z-index: 2; touch-action: none; display: flex; align-items: center; justify-content: center; }
+  #grip::before { content: ""; position: absolute; top: 0; bottom: 0; left: 21px; width: 2px; background: linear-gradient(#8ff7e6, #a51d16); opacity: .8; }
+  #grip span { position: relative; width: 36px; height: 36px; border-radius: 50%; background: #0d1424; border: 2px solid #8ff7e6; display: flex; align-items: center; justify-content: center; color: #e9fbff; }
+  #grip:focus-visible span { outline: 3px solid #fff; outline-offset: 3px; }
+  #grip svg { width: 20px; height: 20px; }
+  .bottom { position: fixed; left: 0; right: 0; bottom: max(18px, env(safe-area-inset-bottom)); padding: 0 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; z-index: 3; pointer-events: none; }
+  #cc { min-height: 3.1em; display: flex; align-items: center; }
+  #cc p { margin: 0; padding: 10px 18px; border-radius: 14px; background: rgba(9, 14, 26, .9); color: #fff; font-size: clamp(18px, 4.6vw, 26px); font-weight: 600; line-height: 1.25; text-align: center; text-wrap: balance; max-width: 640px; }
+  #cc p:empty { display: none; }
+  .ctl { display: flex; gap: 10px; pointer-events: auto; }
+  button { font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; height: 46px; padding: 0 18px; display: inline-flex; align-items: center; gap: 8px; }
+  button:hover { border-color: #8ff7e6; }
+  button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  button svg { width: 18px; height: 18px; }
+  #play { background: #8ff7e6; color: #06202a; border-color: #8ff7e6; }
+  button[aria-pressed="false"] { opacity: .6; }
 </style>
 </head>
-<body data-side="0">
-<div class="top">
-  <button id="flip" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a8 8 0 0 1 14-3l2 2M20 3v4h-4M20 16a8 8 0 0 1-14 3l-2-2M4 21v-4h4"/></svg><span>Flip the page</span></button>
-  <div class="label" id="side">the positives</div>
-</div>
-<div id="stage">
-  <canvas id="c" aria-hidden="true"></canvas>
-  <div class="say">
-    <h1 id="say" aria-live="polite">Have a nice weekend!</h1>
-    <div class="nav">
-      <button id="prev" type="button" aria-label="The one before"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
-      <span class="label" id="count">1 / 7</span>
-      <button id="next" type="button">Next<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-    </div>
+<body>
+<canvas id="c" aria-hidden="true"></canvas>
+<div class="top"><h1 class="pill">The Carpenter</h1></div>
+<div class="label" id="lab0">what you see</div>
+<div class="label" id="lab1">what it means</div>
+<div id="grip" role="slider" tabindex="0" aria-label="Move the line between what you see and what it means" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l-5 6 5 6M15 6l5 6-5 6"/></svg></span></div>
+<div class="bottom">
+  <div id="cc" aria-live="off"><p id="cap">Drag the line in the middle. Press play to hear the story.</p></div>
+  <div class="ctl">
+    <button id="play" class="pill" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="pi" d="M7 4l13 8-13 8z" fill="currentColor"/></svg><span id="pl">Play the story</span></button>
+    <button id="ccb" class="pill" type="button" aria-pressed="true" aria-label="Captions">CC</button>
   </div>
 </div>
+<audio id="voice" src="carpenter.mp3" preload="auto"></audio>
 <script>
-// A cloud of vertices, joined to their neighbours, that pulls itself into a picture for each sentence.
-// The front of the page holds the positives and the back holds the negatives, in the same order, so flipping the page
-// shows the reverse of the sentence you were on. To change the sentences, edit these two lists: [sentence, picture].
-var POSITIVES = [
-  ['Have a nice weekend!', 'face'],
-  ['You did good work this week.', 'star'],
-  ['Go outside. The sun is free.', 'sun'],
-  ['Call someone you love.', 'heart'],
-  ['Sleep in. You earned it.', 'moon'],
-  ['Play your favourite song.', 'note'],
-  ['Drink your coffee slowly.', 'coffee']
-];
-var NEGATIVES = [
-  ['Monday is coming.', 'sad'],
-  ['You forgot something.', 'question'],
-  ['It might rain.', 'cloud'],
-  ['Nobody called back.', 'broken'],
-  ['The alarm is set.', 'alarm'],
-  ['The battery is at 2%.', 'battery'],
-  ['The coffee went cold.', 'cold']
-];
+// The Carpenter: one scene at a time, drawn twice with joined vertices. Left of the line is what you see; right of the
+// line is the same scene showing what it means. The line is a mask you can drag. The narration (carpenter.mp3) drives the
+// scenes and the captions: CUES is [start, end, sentence], and each scene lasts three sentences.
+var CUES = [[0,1.87,"A carpenter picks up a board."],[1.87,3.34,"It was a tree once."],[3.34,5.84,"His father planted it the year he was born."],[5.84,7.52,"He measures it twice."],[7.52,9.38,"He is not only measuring wood."],[9.38,11.84,"He is measuring a child he has not met yet."],[11.84,13.66,"He cuts along the line."],[13.66,15.79,"The cut takes four seconds."],[15.79,18.56,"Learning to make it took forty years."],[18.56,21.2,"He joins two pieces with a single nail."],[21.2,24.2,"Two things that were apart now hold each other up."],[24.2,26.57,"That is most of what a carpenter does."],[26.57,28.98,"By evening there is a small chair."],[28.98,30.6,"It is more than a chair."],[30.6,32.86,"It is a place kept for someone."],[32.86,35.32,"He turns off the light and goes home."],[35.32,37.19,"Some of what we make is wood."],[37.19,39.650000000000006,"Most of it is love."]];
+var SCENES = [['board', 'tree'], ['measure', 'child'], ['saw', 'hourglass'], ['nail', 'together'], ['chair', 'kept'], ['home', 'love']];
 
 (function () {
   var PI = Math.PI;
@@ -78,50 +62,41 @@ var NEGATIVES = [
   function disc(c, x, y, r) { c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); }
   function ring(c, x, y, r) { c.beginPath(); c.arc(x, y, r, 0, 7); c.stroke(); }
   function heart(c) { c.beginPath(); c.moveTo(100, 158); c.bezierCurveTo(22, 108, 40, 38, 100, 78); c.bezierCurveTo(160, 38, 178, 108, 100, 158); c.fill(); }
-  function cup(c) { c.lineWidth = 5; c.beginPath(); c.moveTo(46, 88); c.lineTo(56, 150); c.quadraticCurveTo(58, 162, 72, 162); c.lineTo(114, 162); c.quadraticCurveTo(128, 162, 130, 150); c.lineTo(140, 88); c.closePath(); c.stroke(); c.beginPath(); c.arc(140, 118, 20, -PI * .42, PI * .5); c.stroke(); ln(c, 36, 174, 152, 174); }
-  // Every picture is a list of layers drawn in a 200 x 200 square. n = the share of the vertices a layer gets, mix = how
-  // many of those sit inside a filled shape (the rest sit on its edge), s = dot size, a = how the layer moves, p = pivot.
-  function face(sad) {
-    var L = [
-      { n: .42, mix: .42, d: function (c) { disc(c, 80, 106, 60); } },
-      { n: .1, s: 1.8, d: function (c) { disc(c, 60, 92, 7); disc(c, 100, 92, 7); } },
-      { n: .15, s: 1.5, d: function (c) { c.lineWidth = 5; c.beginPath(); if (sad) c.arc(80, 152, 30, PI * 1.22, PI * 1.78); else c.arc(80, 104, 32, PI * .16, PI * .84); c.stroke(); } }
-    ];
-    if (sad) L.push({ n: .06, s: 1.3, a: 'fall', d: function (c) { c.beginPath(); c.moveTo(56, 106); c.quadraticCurveTo(49, 119, 56, 121); c.quadraticCurveTo(63, 119, 56, 106); c.fill(); } },
-      { n: .27, d: function (c) { c.lineWidth = 5; ln(c, 138, 132, 160, 166); c.lineWidth = 4; ring(c, 164, 180, 11); } });
-    else L.push({ n: .33, a: 'wave', p: [138, 132], d: function (c) { c.lineWidth = 5; ln(c, 138, 132, 160, 86); c.lineWidth = 4; ring(c, 164, 68, 13); for (var k = -2; k <= 2; k++) { var g = -PI / 2 + k * .4; ln(c, 164 + Math.cos(g) * 13, 68 + Math.sin(g) * 13, 164 + Math.cos(g) * 28, 68 + Math.sin(g) * 28); } } });
-    return L;
-  }
+  // the things that are the same on both sides of the line
+  function plank(c) { c.lineWidth = 5; c.strokeRect(82, 30, 36, 150); }
+  function ruler(c) { c.lineWidth = 4; c.strokeRect(134, 30, 16, 150); c.lineWidth = 3; for (var y = 43; y < 175; y += 13) ln(c, 134, y, 143, y); }
+  function bench(c) { c.lineWidth = 5; c.strokeRect(20, 124, 160, 22); }
+  function joint(c) { c.lineWidth = 5; c.strokeRect(30, 130, 140, 22); c.strokeRect(89, 152, 22, 38); }
+  function chair(c) { c.lineWidth = 5; ln(c, 70, 48, 70, 180); ln(c, 128, 120, 128, 180); c.lineWidth = 7; ln(c, 66, 120, 134, 120); ln(c, 63, 50, 79, 50); c.lineWidth = 4; ln(c, 70, 156, 128, 156); ln(c, 70, 84, 70, 84); }
+  function house(c) { c.lineWidth = 5; c.strokeRect(55, 96, 90, 80); c.beginPath(); c.moveTo(44, 98); c.lineTo(100, 46); c.lineTo(156, 98); c.stroke(); }
+  function person(c, x, inner) { c.lineWidth = 4; ring(c, x, 62, 11); ln(c, x, 73, x, 104); ln(c, x, 104, x - 9, 130); ln(c, x, 104, x + 9, 130); ln(c, x, 82, x - inner * 16, 100); ln(c, x, 82, 100, 96); }
+  // A picture is a list of layers in a 200 x 200 square: n = its share of the vertices, mix = how many sit inside a filled
+  // shape, s = dot size, a = how it moves, p = the pivot of that movement.
   var SHAPES = {
-    face: function () { return face(false); },
-    sad: function () { return face(true); },
-    star: function () { return [{ n: 1, mix: .35, a: 'beat', p: [100, 104], d: function (c) { c.beginPath(); for (var i = 0; i < 10; i++) { var r = i % 2 ? 32 : 76, g = -PI / 2 + i * PI / 5; c.lineTo(100 + Math.cos(g) * r, 106 + Math.sin(g) * r); } c.closePath(); c.fill(); } }]; },
-    sun: function () { return [{ n: .48, mix: .4, d: function (c) { disc(c, 100, 100, 36); } },
-      { n: .52, a: 'spin', p: [100, 100], d: function (c) { c.lineWidth = 5; for (var i = 0; i < 12; i++) { var g = i * PI / 6; ln(c, 100 + Math.cos(g) * 50, 100 + Math.sin(g) * 50, 100 + Math.cos(g) * 76, 100 + Math.sin(g) * 76); } } }]; },
-    heart: function () { return [{ n: 1, mix: .35, a: 'beat', p: [100, 108], d: heart }]; },
-    broken: function () { return [{ n: 1, mix: .3, d: function (c) { heart(c); c.globalCompositeOperation = 'destination-out'; c.lineWidth = 10; c.lineJoin = 'miter'; c.beginPath(); c.moveTo(100, 66); c.lineTo(86, 92); c.lineTo(112, 110); c.lineTo(92, 132); c.lineTo(100, 166); c.stroke(); } }]; },
-    moon: function () { return [{ n: .78, mix: .35, d: function (c) { disc(c, 92, 110, 60); c.globalCompositeOperation = 'destination-out'; disc(c, 122, 88, 52); } },
-      { n: .22, s: 1.3, a: 'bob', d: function (c) { [[136, 36, 24], [170, 12, 15]].forEach(function (z) { var x = z[0], y = z[1], s = z[2]; ln(c, x, y, x + s, y); ln(c, x + s, y, x, y + s); ln(c, x, y + s, x + s, y + s); }); } }]; },
-    note: function () { return [{ n: 1, mix: .3, a: 'bob', d: function (c) { [[64, 152], [130, 136]].forEach(function (h) { c.beginPath(); c.ellipse(h[0], h[1], 18, 13, -.35, 0, 7); c.fill(); }); c.lineWidth = 5; ln(c, 80, 148, 80, 56); ln(c, 146, 132, 146, 40); c.lineWidth = 13; c.lineCap = 'butt'; ln(c, 78, 62, 148, 46); } }]; },
-    coffee: function () { return [{ n: .68, d: cup }, { n: .32, a: 'bob', d: function (c) { [70, 93, 116].forEach(function (x) { c.beginPath(); c.moveTo(x, 74); c.bezierCurveTo(x - 13, 60, x + 13, 46, x, 30); c.stroke(); }); } }]; },
-    cold: function () { return [{ n: .68, d: cup }, { n: .32, s: 1.2, a: 'spin', p: [93, 46], d: function (c) { for (var i = 0; i < 3; i++) { var g = i * PI / 3, x = Math.cos(g), y = Math.sin(g); ln(c, 93 - x * 28, 46 - y * 28, 93 + x * 28, 46 + y * 28); [-1, 1].forEach(function (m) { var bx = 93 + m * x * 18, by = 46 + m * y * 18; ln(c, bx, by, bx + m * (x * 8 - y * 8), by + m * (y * 8 + x * 8)); ln(c, bx, by, bx + m * (x * 8 + y * 8), by + m * (y * 8 - x * 8)); }); } } }]; },
-    cloud: function () { return [{ n: .66, mix: .35, d: function (c) { disc(c, 64, 100, 27); disc(c, 100, 80, 37); disc(c, 138, 100, 25); c.fillRect(64, 100, 74, 26); } },
-      { n: .34, a: 'fall', d: function (c) { [58, 82, 106, 130].forEach(function (x) { ln(c, x + 7, 138, x, 154); }); } }]; },
-    battery: function () { return [{ n: .78, d: function (c) { c.lineWidth = 5; c.beginPath(); if (c.roundRect) c.roundRect(34, 68, 120, 64, 12); else c.rect(34, 68, 120, 64); c.stroke(); c.fillRect(158, 88, 10, 24); } },
-      { n: .22, s: 1.5, mix: .5, a: 'beat', p: [56, 100], d: function (c) { c.fillRect(46, 80, 17, 40); } }]; },
-    alarm: function () { return [{ n: .6, d: function (c) { c.lineWidth = 5; ring(c, 100, 114, 48); ln(c, 100, 114, 100, 84); ln(c, 100, 114, 122, 114); ln(c, 70, 154, 60, 170); ln(c, 130, 154, 140, 170); } },
-      { n: .4, mix: .4, a: 'shake', p: [100, 114], d: function (c) { disc(c, 58, 62, 17); disc(c, 142, 62, 17); c.lineWidth = 5; ln(c, 100, 66, 100, 52); } }]; },
-    question: function () { return [{ n: 1, a: 'bob', d: function (c) { c.lineWidth = 12; c.beginPath(); c.arc(100, 74, 34, PI, PI * .4); c.quadraticCurveTo(100, 114, 100, 132); c.stroke(); disc(c, 100, 162, 9); } }]; }
+    board: [{ n: .66, d: plank }, { n: .34, s: .8, d: function (c) { c.lineWidth = 2.5; c.beginPath(); c.moveTo(94, 38); c.bezierCurveTo(88, 80, 100, 120, 93, 172); c.moveTo(106, 38); c.bezierCurveTo(112, 90, 100, 130, 108, 172); c.stroke(); ring(c, 100, 96, 5); } }],
+    tree: [{ n: .28, d: function (c) { c.lineWidth = 5; c.strokeRect(82, 104, 36, 76); } }, { n: .62, mix: .45, a: 'sway', d: function (c) { disc(c, 100, 62, 42); disc(c, 64, 84, 27); disc(c, 136, 84, 27); } }, { n: .1, d: function (c) { ln(c, 82, 180, 60, 190); ln(c, 118, 180, 140, 190); } }],
+    measure: [{ n: .5, d: plank }, { n: .5, d: ruler }],
+    child: [{ n: .5, s: 1.3, d: function (c) { c.lineWidth = 5; ring(c, 100, 84, 16); ln(c, 100, 100, 100, 142); ln(c, 100, 142, 86, 180); ln(c, 100, 142, 114, 180); ln(c, 100, 112, 80, 132); ln(c, 100, 112, 120, 132); } }, { n: .4, d: ruler }, { n: .1, s: 1.4, d: function (c) { ln(c, 86, 64, 134, 64); } }],
+    saw: [{ n: .4, d: bench }, { n: .5, a: 'slide', d: function (c) { c.lineWidth = 4; c.beginPath(); c.moveTo(46, 116); c.lineTo(140, 82); c.lineTo(140, 104); for (var i = 0; i < 10; i++) { var x = 140 - i * 9.4, y = 104 + i * 1.2; c.lineTo(x - 4.7, y + 6); c.lineTo(x - 9.4, y + 1.2); } c.closePath(); c.stroke(); c.lineWidth = 6; ring(c, 154, 92, 13); } }, { n: .1, s: .8, d: function (c) { ln(c, 100, 126, 100, 144); } }],
+    hourglass: [{ n: .3, d: bench }, { n: .45, d: function (c) { c.lineWidth = 5; ln(c, 62, 26, 138, 26); ln(c, 62, 114, 138, 114); c.lineWidth = 4; c.beginPath(); c.moveTo(68, 26); c.lineTo(100, 70); c.lineTo(132, 26); c.moveTo(68, 114); c.lineTo(100, 70); c.lineTo(132, 114); c.stroke(); } },
+      { n: .17, mix: .6, s: 1.2, d: function (c) { c.beginPath(); c.moveTo(80, 112); c.lineTo(100, 90); c.lineTo(120, 112); c.closePath(); c.fill(); c.beginPath(); c.moveTo(84, 44); c.lineTo(116, 44); c.lineTo(100, 64); c.closePath(); c.fill(); } }, { n: .08, s: .9, a: 'fall', d: function (c) { ln(c, 100, 70, 100, 74); } }],
+    nail: [{ n: .45, d: joint }, { n: .12, s: 1.3, d: function (c) { c.lineWidth = 4; ln(c, 100, 104, 100, 130); ln(c, 92, 104, 108, 104); } },
+      { n: .43, a: 'tap', p: [164, 40], d: function (c) { c.lineWidth = 6; ln(c, 164, 40, 106, 84); c.lineWidth = 15; c.lineCap = 'butt'; ln(c, 94.6, 70.1, 117.4, 97.9); } }],
+    together: [{ n: .3, d: joint }, { n: .7, s: 1.2, d: function (c) { person(c, 70, 1); person(c, 130, -1); } }],
+    chair: [{ n: 1, d: chair }],
+    kept: [{ n: .55, d: chair }, { n: .45, s: 1.35, d: function (c) { c.lineWidth = 5; ring(c, 100, 72, 13); ln(c, 98, 86, 96, 112); ln(c, 96, 112, 124, 112); ln(c, 124, 112, 126, 148); ln(c, 97, 94, 116, 104); } }],
+    home: [{ n: .7, d: house }, { n: .3, d: function (c) { c.lineWidth = 4; c.strokeRect(90, 138, 20, 38); c.strokeRect(64, 110, 18, 18); c.strokeRect(118, 110, 18, 18); } }],
+    love: [{ n: .55, d: house }, { n: .45, mix: .4, s: 1.2, a: 'beat', p: [100, 136], d: function (c) { c.save(); c.translate(100, 136); c.scale(.44, .44); c.translate(-100, -110); heart(c); c.restore(); } }]
   };
 
-  var cv = document.getElementById('c'), g = cv.getContext('2d'), W = 0, H = 0, sc = 1, ox = 0, oy = 0;
-  var N = Math.min(innerWidth, innerHeight) < 600 ? 460 : 600;
+  var cv = document.getElementById('c'), g = cv.getContext('2d'), W = 0, H = 0, sc = 1, ox = 0, oy = 0, split = .5;
+  var N = Math.min(innerWidth, innerHeight) < 600 ? 400 : 520;
   function rng(seed) { return function () { seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   var off = document.createElement('canvas'); off.width = off.height = 200; var oc = off.getContext('2d', { willReadFrequently: true }), cache = {};
   // Turn a picture into N vertices: draw each layer, take the pixels it covers, and choose well spread-out points.
   function targets(name) {
     if (cache[name]) return cache[name];
-    var layers = SHAPES[name](), R = rng(name.length * 7919 + name.charCodeAt(0)), out = [], left = N;
+    var layers = SHAPES[name], R = rng(name.length * 7919 + name.charCodeAt(0)), out = [], left = N;
     layers.forEach(function (L, li) {
       var q = li === layers.length - 1 ? left : Math.round(N * L.n); left -= q;
       oc.setTransform(1, 0, 0, 1, 0, 0); oc.globalCompositeOperation = 'source-over'; oc.clearRect(0, 0, 200, 200);
@@ -136,76 +111,88 @@ var NEGATIVES = [
       out = out.concat(mine);
     });
     while (out.length < N) out.push(out[(R() * out.length) | 0]);
-    // vertices keep their place around the middle from one picture to the next, so a change looks like a reshaping
     out.sort(function (a, b) { return Math.atan2(a.y - 100, a.x - 100) - Math.atan2(b.y - 100, b.x - 100); });
     return cache[name] = out;
   }
 
-  var R0 = rng(42), P = [], T = null;
-  for (var i = 0; i < N; i++) P.push({ x: R0() * 200, y: R0() * 200, k: 3 + R0() * 5, ph: R0() * 6.28, hold: 0 });
-  function setShape(name, now) { T = targets(name); for (var i = 0; i < N; i++) P[i].hold = now + R0() * .28; }
+  var R0 = rng(42);
+  function cloud() { var P = []; for (var i = 0; i < N; i++) P.push({ x: R0() * 200, y: R0() * 200, k: 3 + R0() * 5, ph: R0() * 6.28, hold: 0 }); return { P: P, T: null }; }
+  var SEEN = cloud(), MEANT = cloud(), last = 0, scene = -1;
+  function setScene(i) { if (i === scene) return; scene = i; [SEEN, MEANT].forEach(function (S, k) { S.T = targets(SCENES[i][k]); for (var j = 0; j < N; j++) S.P[j].hold = last + R0() * .25; }); }
 
+  var gradL, gradR;
   function size() {
     var d = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0);
-    var top = 96, bottom = 170, room = Math.max(160, H - top - bottom), S = Math.min(W * .9, room, 560); sc = S / 200; ox = W / 2 - 100 * sc; oy = top + (room - S) / 2;
+    var top = 104, bottom = 176, room = Math.max(160, H - top - bottom), S = Math.min(W * .92, room, 560); sc = S / 200; ox = W / 2 - 100 * sc; oy = top + (room - S) / 2;
+    gradL = g.createRadialGradient(W / 2, H * .42, 0, W / 2, H * .42, Math.max(W, H) * .8); gradL.addColorStop(0, '#14213f'); gradL.addColorStop(1, '#060912');
+    gradR = g.createRadialGradient(W / 2, H * .42, 0, W / 2, H * .42, Math.max(W, H) * .8); gradR.addColorStop(0, '#fbf6ec'); gradR.addColorStop(1, '#e6dac4');
+    place();
   }
-  addEventListener('resize', size); size();
+  var grip = document.getElementById('grip');
+  function place() { grip.style.left = (split * 100) + '%'; grip.setAttribute('aria-valuenow', Math.round(split * 100)); }
 
-  var side = 0, idx = 0, last = 0, cells = {};
-  function frame(ms) {
-    var t = ms / 1000, dt = Math.min(.05, t - last || .016); last = t;
-    var col = side ? '165,29,22' : '143,247,230', hot = side ? '90,10,8' : '235,255,252';
+  function move(S, t, dt) {
     for (var i = 0; i < N; i++) {
-      var p = P[i], tg = T[i], L = tg.L, x = tg.x, y = tg.y, a = L.a;
-      if (a === 'wave' || a === 'spin' || a === 'shake') { var an = a === 'wave' ? Math.sin(t * 5) * .22 : a === 'spin' ? t * .35 : Math.sin(t * 30) * .05, c = Math.cos(an), s = Math.sin(an), dx = x - L.p[0], dy = y - L.p[1]; x = L.p[0] + dx * c - dy * s; y = L.p[1] + dx * s + dy * c; }
-      else if (a === 'beat') { var m = 1 + .07 * Math.max(0, Math.sin(t * 5)); x = L.p[0] + (x - L.p[0]) * m; y = L.p[1] + (y - L.p[1]) * m; }
-      else if (a === 'bob') y += Math.sin(t * 2.2 + x * .05) * 3;
-      else if (a === 'fall') y += (t * 26) % 22;
-      x += Math.sin(t * 1.3 + p.ph) * .7; y += Math.cos(t * 1.1 + p.ph * 1.7) * .7;
+      var p = S.P[i], tg = S.T[i], L = tg.L, x = tg.x, y = tg.y, a = L.a;
+      if (a === 'tap') { var an = Math.abs(Math.sin(t * 4)) * .26, c = Math.cos(an), s = Math.sin(an), dx = x - L.p[0], dy = y - L.p[1]; x = L.p[0] + dx * c - dy * s; y = L.p[1] + dx * s + dy * c; }
+      else if (a === 'beat') { var m = 1 + .08 * Math.max(0, Math.sin(t * 5)); x = L.p[0] + (x - L.p[0]) * m; y = L.p[1] + (y - L.p[1]) * m; }
+      else if (a === 'slide') { var q = Math.sin(t * 6); x += q * 9; y -= q * 3.2; }
+      else if (a === 'sway') x += Math.sin(t * 1.2 + y * .03) * 2.2;
+      else if (a === 'fall') y += (t * 26) % 20;
+      x += Math.sin(t * 1.3 + p.ph) * .6; y += Math.cos(t * 1.1 + p.ph * 1.7) * .6;
       if (t > p.hold) { var e = 1 - Math.exp(-dt * p.k * (a ? 2.2 : 1)); p.x += (x - p.x) * e; p.y += (y - p.y) * e; }
     }
-    // join each vertex to a few near neighbours
-    g.clearRect(0, 0, W, H); cells = {}; var RR = 13, n3 = [[], [], []], cnt = new Uint8Array(N);
+  }
+  function draw(S, col, hot) {
+    var P = S.P, T = S.T, cells = {}, RR = 13, n3 = [[], [], []], cnt = new Uint8Array(N), i, q;
     for (i = 0; i < N; i++) { var key = ((P[i].x / RR) | 0) * 64 + ((P[i].y / RR) | 0); (cells[key] || (cells[key] = [])).push(i); }
     for (i = 0; i < N; i++) { var cx = (P[i].x / RR) | 0, cy = (P[i].y / RR) | 0;
       for (var ax = -1; ax <= 1; ax++) for (var ay = -1; ay <= 1; ay++) { var cell = cells[(cx + ax) * 64 + cy + ay]; if (!cell) continue;
-        for (var q = 0; q < cell.length; q++) { var j = cell[q]; if (j <= i || cnt[i] > 3 || cnt[j] > 3) continue; var ddx = P[i].x - P[j].x, ddy = P[i].y - P[j].y, d2 = ddx * ddx + ddy * ddy; if (d2 > RR * RR || d2 < 9) continue; cnt[i]++; cnt[j]++; n3[d2 < 50 ? 0 : d2 < 100 ? 1 : 2].push(i, j); } } }
+        for (q = 0; q < cell.length; q++) { var j = cell[q]; if (j <= i || cnt[i] > 3 || cnt[j] > 3) continue; var ddx = P[i].x - P[j].x, ddy = P[i].y - P[j].y, d2 = ddx * ddx + ddy * ddy; if (d2 > RR * RR || d2 < 9) continue; cnt[i]++; cnt[j]++; n3[d2 < 50 ? 0 : d2 < 100 ? 1 : 2].push(i, j); } } }
     g.lineWidth = 1;
     for (var b = 0; b < 3; b++) { g.strokeStyle = 'rgba(' + col + ',' + [.5, .32, .17][b] + ')'; g.beginPath(); for (q = 0; q < n3[b].length; q += 2) { var A = P[n3[b][q]], B = P[n3[b][q + 1]]; g.moveTo(ox + A.x * sc, oy + A.y * sc); g.lineTo(ox + B.x * sc, oy + B.y * sc); } g.stroke(); }
-    var r0 = Math.max(1.3, sc * .62);
-    g.fillStyle = 'rgba(' + col + ',.16)'; g.beginPath(); for (i = 0; i < N; i++) { var px = ox + P[i].x * sc, py = oy + P[i].y * sc, rr = r0 * (T[i].L.s || 1) * 2.6; g.moveTo(px + rr, py); g.arc(px, py, rr, 0, 7); } g.fill();
+    var r0 = Math.max(1.3, sc * .62), px, py, rr;
+    g.fillStyle = 'rgba(' + col + ',.16)'; g.beginPath(); for (i = 0; i < N; i++) { px = ox + P[i].x * sc; py = oy + P[i].y * sc; rr = r0 * (T[i].L.s || 1) * 2.6; g.moveTo(px + rr, py); g.arc(px, py, rr, 0, 7); } g.fill();
     g.fillStyle = 'rgb(' + col + ')'; g.beginPath(); for (i = 0; i < N; i++) { px = ox + P[i].x * sc; py = oy + P[i].y * sc; rr = r0 * (T[i].L.s || 1); g.moveTo(px + rr, py); g.arc(px, py, rr, 0, 7); } g.fill();
-    g.fillStyle = 'rgba(' + hot + ',.9)'; g.beginPath(); for (i = 0; i < N; i++) { if (!T[i].L.s) continue; px = ox + P[i].x * sc; py = oy + P[i].y * sc; rr = r0 * .55; g.moveTo(px + rr, py); g.arc(px, py, rr, 0, 7); } g.fill();
+    g.fillStyle = 'rgba(' + hot + ',.9)'; g.beginPath(); for (i = 0; i < N; i++) { if (!(T[i].L.s > 1)) continue; px = ox + P[i].x * sc; py = oy + P[i].y * sc; rr = r0 * .55; g.moveTo(px + rr, py); g.arc(px, py, rr, 0, 7); } g.fill();
+  }
+
+  var au = document.getElementById('voice'), cap = document.getElementById('cap'), ccOn = true, started = false, shown = null;
+  function frame(ms) {
+    var t = ms / 1000, dt = Math.min(.05, t - last || .016); last = t;
+    // where the story is: the caption and the scene follow the narrator
+    var at = au.currentTime, ci = -1; if (started) for (var i = 0; i < CUES.length; i++) if (at >= CUES[i][0]) ci = i;
+    if (started) { setScene(Math.min(SCENES.length - 1, Math.max(0, ci) / 3 | 0)); var text = ccOn && ci >= 0 && (at < CUES[ci][1] || au.ended) ? CUES[ci][2] : ''; if (text !== shown) { shown = text; cap.textContent = text; } }
+    move(SEEN, t, dt); move(MEANT, t, dt);
+    var sx = Math.round(split * W);
+    g.clearRect(0, 0, W, H);
+    g.save(); g.beginPath(); g.rect(0, 0, sx, H); g.clip(); g.fillStyle = gradL; g.fillRect(0, 0, W, H); draw(SEEN, '143,247,230', '235,255,252'); g.restore();
+    g.save(); g.beginPath(); g.rect(sx, 0, W - sx, H); g.clip(); g.fillStyle = gradR; g.fillRect(0, 0, W, H); draw(MEANT, '165,29,22', '90,10,8'); g.restore();
     requestAnimationFrame(frame);
   }
 
-  var say = document.getElementById('say'), count = document.getElementById('count'), flipB = document.getElementById('flip'), swap = 0;
-  function list() { return side ? NEGATIVES : POSITIVES; }
-  function show(quick) {
-    var it = list()[idx]; setShape(it[1], last); count.textContent = (idx + 1) + ' / ' + list().length;
-    clearTimeout(swap); if (quick) { say.textContent = it[0]; say.classList.remove('out'); return; }
-    say.classList.add('out'); swap = setTimeout(function () { say.textContent = it[0]; say.classList.remove('out'); }, 200);
-  }
-  function step(d) { idx = (idx + d + list().length) % list().length; show(); }
-  function flip() {
-    document.body.classList.add('turn');
-    setTimeout(function () {
-      side = 1 - side; document.body.dataset.side = side; flipB.setAttribute('aria-pressed', side ? 'true' : 'false');
-      document.getElementById('side').textContent = side ? 'the negatives' : 'the positives';
-      document.querySelector('meta[name=theme-color]').content = side ? '#f4ecdd' : '#080d1a';
-      idx = Math.min(idx, list().length - 1); show(true); document.body.classList.remove('turn');
-    }, 290);
-  }
-  document.getElementById('next').onclick = function () { step(1); };
-  document.getElementById('prev').onclick = function () { step(-1); };
-  cv.onclick = function () { step(1); };
-  flipB.onclick = flip;
-  addEventListener('keydown', function (e) { if (e.key === 'ArrowRight') step(1); else if (e.key === 'ArrowLeft') step(-1); else if (e.key === 'f' || e.key === 'F') flip(); });
-  if (/[?&]flip\b/.test(location.search)) { side = 1; document.body.dataset.side = 1; flipB.setAttribute('aria-pressed', 'true'); document.getElementById('side').textContent = 'the negatives'; }
-  var m = /[?&]i=(\d+)/.exec(location.search); if (m) idx = Math.min(+m[1], list().length - 1);
-  show(true); requestAnimationFrame(frame);
+  // the line in the middle is a mask: drag it either way
+  var dragging = false;
+  function setSplit(x) { split = Math.max(.04, Math.min(.96, x / W)); place(); }
+  grip.addEventListener('pointerdown', function (e) { dragging = true; grip.setPointerCapture(e.pointerId); e.preventDefault(); });
+  grip.addEventListener('pointermove', function (e) { if (dragging) setSplit(e.clientX); });
+  grip.addEventListener('pointerup', function () { dragging = false; });
+  grip.addEventListener('pointercancel', function () { dragging = false; });
+  grip.addEventListener('keydown', function (e) { if (e.key === 'ArrowLeft') setSplit(split * W - W * .05); else if (e.key === 'ArrowRight') setSplit(split * W + W * .05); });
+  cv.addEventListener('pointerdown', function (e) { setSplit(e.clientX); });
+
+  var play = document.getElementById('play'), pl = document.getElementById('pl'), pi = document.getElementById('pi');
+  function label() { var on = !au.paused && !au.ended; pi.setAttribute('d', on ? 'M6 4h4v16H6zM14 4h4v16h-4z' : 'M7 4l13 8-13 8z'); pl.textContent = on ? 'Pause' : au.ended ? 'Play again' : started ? 'Play' : 'Play the story'; }
+  play.onclick = function () { if (au.paused || au.ended) { if (au.ended) au.currentTime = 0; started = true; shown = null; au.play().catch(function () {}); } else au.pause(); label(); };
+  ['play', 'pause', 'ended'].forEach(function (n) { au.addEventListener(n, label); });
+  var ccb = document.getElementById('ccb'); ccb.onclick = function () { ccOn = !ccOn; ccb.setAttribute('aria-pressed', ccOn ? 'true' : 'false'); shown = null; if (!started) cap.textContent = ccOn ? 'Drag the line in the middle. Press play to hear the story.' : ''; };
+  addEventListener('keydown', function (e) { if (e.key === ' ' && e.target === document.body) { e.preventDefault(); play.onclick(); } });
+  addEventListener('resize', size); size();
+  var m = /[?&]i=(\d+)/.exec(location.search); setScene(m ? Math.min(+m[1], SCENES.length - 1) : 0);
+  var s0 = /[?&]s=([\d.]+)/.exec(location.search); if (s0) { split = +s0[1]; place(); }
+  requestAnimationFrame(frame);
 })();
 </script>
-<noscript><p style="text-align:center;margin-top:45vh">Have a nice weekend!</p></noscript>
+<noscript><p style="text-align:center;margin-top:40vh;padding:0 16px">The Carpenter: a short story about a carpenter and a chair. This page needs JavaScript to draw it.</p></noscript>
 </body>
 </html>
