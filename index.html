@@ -3,254 +3,82 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Hawk</title>
-<meta name="description" content="A hawk gliding through an endless open world at golden hour: lakes, forests and mountains, drawn live in your browser.">
-<meta name="theme-color" content="#0b1322">
+<title>12.18</title>
+<meta name="description" content="12.18">
+<meta name="theme-color" content="#050000">
 <style>
-  html, body { height: 100%; margin: 0; background: #0b1322; overflow: hidden; }
-  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 2.2s ease; }
-  canvas.on { opacity: 1; }
-  .vig { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(120% 95% at 50% 46%, transparent 55%, rgba(8, 10, 22, .42) 100%); }
-  #glare { position: fixed; left: -60vmax; top: -60vmax; width: 120vmax; height: 120vmax; pointer-events: none; opacity: 0; mix-blend-mode: screen; background: radial-gradient(circle, rgba(255, 226, 170, .85) 0, rgba(255, 180, 100, .34) 9%, rgba(255, 140, 70, .13) 26%, rgba(255, 120, 60, .04) 45%, transparent 62%); will-change: transform, opacity; }
-  #msg { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; text-align: center; color: #dfe8f5; font: 500 17px/1.5 "Segoe UI", system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: #050000; color: #ff2a1a; font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Courier New", monospace; overflow: hidden; display: flex; align-items: center; justify-content: center; -webkit-user-select: none; user-select: none; }
+  /* a slow red breath behind everything, and a hard pulse on every second */
+  .glow { position: fixed; inset: -20%; background: radial-gradient(60% 45% at 50% 50%, rgba(255, 20, 10, .20), rgba(120, 0, 0, .08) 45%, transparent 72%); animation: breathe 6s ease-in-out infinite; }
+  .beat { position: fixed; inset: 0; background: radial-gradient(70% 55% at 50% 50%, rgba(255, 30, 15, .16), transparent 70%); opacity: 0; }
+  .beat.go { animation: beat 1s ease-out; }
+  .lines { position: fixed; inset: 0; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .34) 0 1px, transparent 1px 3px); pointer-events: none; mix-blend-mode: multiply; }
+  .vig { position: fixed; inset: 0; background: radial-gradient(110% 90% at 50% 50%, transparent 38%, rgba(0, 0, 0, .92) 100%); pointer-events: none; }
+  main { position: relative; width: 100%; padding: 0 3vw; text-align: center; }
+  .date { font-size: clamp(12px, 2.2vw, 22px); letter-spacing: .7em; padding-left: .7em; color: #8a140c; margin-bottom: 4vh; }
+  .clock { display: flex; justify-content: center; align-items: flex-start; gap: 1.2vw; font-variant-numeric: tabular-nums; font-weight: 700; line-height: .9; text-shadow: 0 0 .06em #ff2a1a, 0 0 .35em rgba(255, 30, 10, .65), 0 0 1.1em rgba(255, 0, 0, .35); }
+  .unit { display: flex; flex-direction: column; align-items: center; }
+  .num { font-size: clamp(44px, 13.6vw, 250px); letter-spacing: -.04em; }
+  .sep { font-size: clamp(30px, 9vw, 160px); color: #a3150b; padding-top: .12em; animation: blink 1s steps(1) infinite; }
+  .lab { margin-top: 2.2vh; font-size: clamp(9px, 1.25vw, 15px); font-weight: 400; letter-spacing: .5em; padding-left: .5em; color: #7a120a; text-shadow: none; }
+  .ms { margin-top: 5vh; font-size: clamp(16px, 3.4vw, 46px); letter-spacing: .28em; padding-left: .28em; color: #b3190e; font-variant-numeric: tabular-nums; text-shadow: 0 0 .5em rgba(255, 20, 0, .5); }
+  .bar { margin: 5vh auto 0; width: min(86vw, 1100px); height: 3px; background: #2a0503; position: relative; overflow: hidden; }
+  .bar i { position: absolute; inset: 0 auto 0 0; background: #ff2a1a; box-shadow: 0 0 12px #ff2a1a; width: 100%; }
+  body.last .num, body.last .ms { animation: shake .18s linear infinite; }
+  body.zero { animation: flash .5s steps(1) infinite; }
+  body.zero .sep { animation: none; }
+  @keyframes breathe { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.08); } }
+  @keyframes beat { 0% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes blink { 0% { opacity: 1; } 50% { opacity: .18; } }
+  @keyframes shake { 0% { transform: translate(0, 0); } 25% { transform: translate(-1px, 1px); } 50% { transform: translate(1px, -1px); } 75% { transform: translate(-1px, -1px); } 100% { transform: translate(0, 0); } }
+  @keyframes flash { 0% { background: #050000; } 50% { background: #3d0300; } }
+  @media (max-width: 640px) and (orientation: portrait) {
+    .clock { flex-wrap: wrap; gap: 0 3vw; row-gap: 3vh; } .sep { display: none; } .unit { width: 42vw; } .num { font-size: 34vw; }
+  }
+  @media (prefers-reduced-motion: reduce) { .glow, .sep, body.last .num, body.last .ms, body.zero { animation: none; } .beat.go { animation: none; } }
 </style>
 </head>
 <body>
-<canvas id="c" aria-label="A hawk gliding over lakes, forests and mountains at golden hour" role="img"></canvas>
-<div id="glare"></div>
-<div class="vig"></div>
-<div id="msg">This page draws a hawk flying over an open world, and needs WebGL 2 to do it. This browser does not have it turned on.</div>
-<script type="module">
-// Hawk: an endless open world and a hawk gliding through it, flapping now and then.
-// The land is never stored: one flat grid follows the camera and the graphics card lifts every vertex with the same
-// height formula (terrain() below, written once for the GPU and once for the script, so the hawk knows where the
-// ground is). Lakes are the parts of that grid below sea level; forests are one cone drawn thousands of times.
-import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js';
-
-const canvas = document.getElementById('c');
-let renderer;
-try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' }); if (!renderer.capabilities.isWebGL2) throw 0; }
-catch (e) { document.getElementById('msg').style.display = 'flex'; throw e; }
-
-// ---- one table of random numbers, shared by the GPU and the script
-const NS = 256, noiseData = new Uint8Array(NS * NS * 4);
-{ let s = 1337; const r = () => { s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-  for (let i = 0; i < NS * NS; i++) { const v = (r() * 256) | 0; noiseData[i * 4] = v; noiseData[i * 4 + 1] = v; noiseData[i * 4 + 2] = v; noiseData[i * 4 + 3] = 255; } }
-const noiseTex = new THREE.DataTexture(noiseData, NS, NS, THREE.RGBAFormat); noiseTex.magFilter = noiseTex.minFilter = THREE.NearestFilter; noiseTex.needsUpdate = true;
-
-// the same height formula as the GLSL below
-const hsh = (x, y) => noiseData[((x & 255) + (y & 255) * NS) * 4] / 255;
-function vnoise(x, y) { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
-  const a = hsh(ix, iy), b = hsh(ix + 1, iy), c = hsh(ix, iy + 1), d = hsh(ix + 1, iy + 1); return (a + (b - a) * ux) + ((c + (d - c) * ux) - (a + (b - a) * ux)) * uy; }
-function fbm(x, y, n) { let a = .5, s = 0; for (let i = 0; i < n; i++) { s += a * vnoise(x, y); const nx = 1.6 * x - 1.2 * y, ny = 1.2 * x + 1.6 * y; x = nx; y = ny; a *= .5; } return s; }
-const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-function terrain(x, z) { const qx = x * .0009, qz = z * .0009, cont = vnoise(qx * .3 + 31.7, qz * .3 + 11.3), base = fbm(qx + 4.1, qz + 9.7, 5);
-  let r = fbm(qx * 1.9 + 17.3, qz * 1.9 + 3.1, 4); r = 1 - Math.abs(2 * r - 1); r *= r;
-  return (base - .425) * 230 + sstep(.36, .68, cont) * (r * 300 + 70) - (1 - sstep(.16, .36, cont)) * 40; }
-
-const SUN = new THREE.Vector3(-.62, .155, .74).normalize();
-const U = { uNoise: { value: noiseTex }, uSun: { value: SUN }, uTime: { value: 0 } };
-
-const COMMON = `
-uniform sampler2D uNoise; uniform vec3 uSun; uniform float uTime;
-float hsh(ivec2 p){ return texelFetch(uNoise, ivec2(p.x & 255, p.y & 255), 0).r; }
-float vnoise(vec2 x){ vec2 i=floor(x), f=fract(x), u=f*f*(3.-2.*f); ivec2 p=ivec2(i);
-  float a=hsh(p), b=hsh(p+ivec2(1,0)), c=hsh(p+ivec2(0,1)), d=hsh(p+ivec2(1,1)); return mix(mix(a,b,u.x),mix(c,d,u.x),u.y); }
-float fbm(vec2 p, int n){ float a=.5, s=0.; for(int i=0;i<6;i++){ if(i>=n) break; s+=a*vnoise(p); p=vec2(1.6*p.x-1.2*p.y, 1.2*p.x+1.6*p.y); a*=.5; } return s; }
-float terrain(vec2 p){ vec2 q=p*.0009; float cont=vnoise(q*.3+vec2(31.7,11.3)), base=fbm(q+vec2(4.1,9.7),5);
-  float r=fbm(q*1.9+vec2(17.3,3.1),4); r=1.-abs(2.*r-1.); r*=r;
-  return (base-.425)*230. + smoothstep(.36,.68,cont)*(r*300.+70.) - (1.-smoothstep(.16,.36,cont))*40.; }
-float forestMask(vec2 p, float h, float slope){ float f=vnoise(p*.0042+vec2(3.,8.))*.7+vnoise(p*.017)*.3;
-  return smoothstep(.40,.56,f)*smoothstep(9.,17.,h)*(1.-smoothstep(150.,205.,h))*(1.-smoothstep(.10,.22,slope)); }
-const vec3 SUNC=vec3(1.,.60,.32)*4.0, SKYC=vec3(.24,.33,.56);
-vec3 skyBase(vec3 d){ float y=clamp(d.y,0.,1.), s=max(dot(d,uSun),0.);
-  float sh=dot(normalize(vec3(d.x,0.,d.z)+1e-5), normalize(vec3(uSun.x,0.,uSun.z)))*.5+.5;
-  vec3 hor=mix(vec3(.44,.45,.64), vec3(.98,.58,.30), pow(sh,2.2)), mid=mix(vec3(.20,.34,.66), vec3(.52,.50,.64), pow(sh,3.)*.75);
-  vec3 c=mix(hor, mid, smoothstep(0.,.20,y)); c=mix(c, vec3(.05,.15,.42), smoothstep(.10,.85,y));
-  c+=vec3(1.,.52,.22)*pow(s,24.)*.6+vec3(1.,.8,.55)*pow(s,220.)*.7; return c; }
-float cloudShadow(vec2 p){ return 1.-.5*smoothstep(.50,.72,fbm(p*.0011+uTime*vec2(.006,.002),3)); }
-vec3 fogged(vec3 col, vec3 wp){ vec3 v=wp-cameraPosition; float dist=length(v); vec3 d=v/dist;
-  float f=1.-exp(-dist*.00030); f=mix(f,1.,smoothstep(2300.,3050.,dist));
-  return mix(col, skyBase(normalize(vec3(d.x,.02,d.z))), f); }
-vec3 tone(vec3 c){ c*=.92; c=(c*(2.51*c+.03))/(c*(2.43*c+.59)+.14); c=clamp(c,0.,1.); c=mix(vec3(dot(c,vec3(.3,.59,.11))), c, 1.14); c=pow(clamp(c,0.,1.), vec3(1./2.2)); return c*c*(3.-2.*c)*.35+c*.65; }
-`;
-
-const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(52, 1, .4, 9000);
-
-// ---- sky: gradient, sun, clouds
-const sky = new THREE.Mesh(new THREE.SphereGeometry(7000, 24, 16), new THREE.ShaderMaterial({ uniforms: U, side: THREE.BackSide, depthWrite: false,
-  vertexShader: `varying vec3 vDir; void main(){ vDir=position; gl_Position=projectionMatrix*viewMatrix*vec4(position+cameraPosition,1.); gl_Position.z=gl_Position.w*.9999; }`,
-  fragmentShader: COMMON + `varying vec3 vDir;
-  void main(){ vec3 d=normalize(vDir); vec3 c=skyBase(normalize(vec3(d.x,max(d.y,.02),d.z))); float s=max(dot(d,uSun),0.), cov=0.;
-    if(d.y>0.){ vec2 uv=d.xz/(d.y+.11)*1.25+uTime*vec2(.0045,.0016); float den=fbm(uv,5); cov=smoothstep(.44,.72,den)*smoothstep(0.,.14,d.y);
-      float lit=clamp((den-fbm(uv+normalize(uSun.xz)*.16,3))*3.2+.45,0.,1.);
-      vec3 cl=mix(vec3(.27,.27,.44), vec3(1.05,.74,.52), lit); cl+=vec3(1.,.50,.22)*pow(s,6.)*1.1; cl=mix(cl, skyBase(d), .35*(1.-smoothstep(0.,.35,d.y)));
-      c=mix(c, cl, cov*.93); }
-    c+=vec3(1.,.88,.66)*(smoothstep(.99935,.99975,s)*14.+pow(s,900.)*3.)*(1.-cov*.85);
-    gl_FragColor=vec4(tone(c),1.); }` }));
-sky.frustumCulled = false; sky.renderOrder = -10; scene.add(sky);
-
-// ---- land and water: one grid that follows the camera
-const HALF = 3200, SEG = 370, STEP = HALF * 2 / SEG;
-const land = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, HALF * 2, SEG, SEG).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({ uniforms: { ...U, uOrigin: { value: new THREE.Vector2() } },
-  vertexShader: COMMON + `uniform vec2 uOrigin; varying vec3 vW; varying float vH; varying vec3 vN; varying float vSh;
-  void main(){ vec2 w=position.xz+uOrigin; float h=terrain(w), e=7.5; vN=normalize(vec3(h-terrain(w+vec2(e,0.)), e, h-terrain(w+vec2(0.,e))));
-    float sh=1., hh=max(h,0.), sl=uSun.y/length(uSun.xz); vec2 sd=normalize(uSun.xz);
-    for(int i=1;i<=4;i++){ float d=float(i*i)*26.; float ht=max(terrain(w+sd*d),0.); sh=min(sh, clamp(1.-(ht-(hh+sl*d))/(d*.05+5.),0.,1.)); }
-    vSh=sh; vH=h; vW=vec3(w.x,max(h,0.),w.y); gl_Position=projectionMatrix*viewMatrix*vec4(vW,1.); }`,
-  fragmentShader: COMMON + `varying vec3 vW; varying float vH; varying vec3 vN; varying float vSh;
-  float wave(vec2 p){ return vnoise(p*.11+uTime*vec2(.5,.2))+.5*vnoise(p*.31-uTime*vec2(.3,.6)); }
-  void main(){ vec3 V=normalize(cameraPosition-vW); float dist=length(cameraPosition-vW); vec3 N=normalize(vN); vec2 p=vW.xz;
-    float d1=vnoise(p*.16), d2=vnoise(p*.031), cs=cloudShadow(p), sh=vSh*cs; vec3 col; vec3 sand=vec3(.52,.44,.31); float nf=1.-smoothstep(120.,650.,dist);
-    if(vH<0.){ float depth=-vH, e=.7, amp=1.5/(1.+dist*.005), w0=wave(p);
-      vec3 Nw=normalize(vec3((w0-wave(p+vec2(e,0.)))*amp, 1., (w0-wave(p+vec2(0.,e)))*amp));
-      vec3 R=reflect(-V,Nw); R.y=abs(R.y)+.02; R=normalize(R); float fres=.02+.98*pow(1.-max(dot(V,Nw),0.),5.);
-      vec3 body=mix(vec3(.07,.40,.40), vec3(.015,.09,.19), 1.-exp(-depth*.06))*(.35+.75*sh);
-      body=mix(sand*(.25+.6*sh)*vec3(.7,1.,.95), body, 1.-exp(-depth*.45));
-      col=mix(body, skyBase(R), fres)+SUNC*(pow(max(dot(R,uSun),0.),260.)*5.+pow(max(dot(R,uSun),0.),22.)*.10)*sh;
-      float foam=smoothstep(1.5,0.,depth+(vnoise(p*.45+uTime*.3)-.5)*1.6); col=mix(col, vec3(.9,.92,.9)*(.4+.6*sh), foam*.65);
-    } else { float slope=1.-N.y; vec2 bp=p*.9; float b0=vnoise(bp)+.6*vnoise(bp*.31); N=normalize(N+vec3(b0-vnoise(bp+vec2(.6,0.))-.6*vnoise(bp*.31+vec2(.19,0.)),0.,b0-vnoise(bp+vec2(0.,.6))-.6*vnoise(bp*.31+vec2(0.,.19)))*.34*nf);
-      vec3 g=mix(vec3(.13,.27,.06), vec3(.36,.40,.10), d2); g=mix(g, vec3(.56,.47,.20), smoothstep(.5,.85,vnoise(p*.0038+7.))*.65); g*=(.78+.44*d1)*(1.-.22*nf*vnoise(p*1.9));
-      g=mix(g, vec3(.035,.09,.04), forestMask(p,vH,slope)*.92);
-      vec3 rock=mix(vec3(.30,.27,.25), vec3(.50,.45,.41), d1)*(.8+.4*vnoise(p*.02+vH*.05));
-      col=mix(g, rock, smoothstep(.20,.36, slope+max(vH-160.,0.)*.0016));
-      col=mix(col, sand, 1.-smoothstep(1.5,6.5,vH+d1*3.));
-      col=mix(col, vec3(.93,.95,1.), smoothstep(235.,285., vH+d2*70.-slope*170.));
-      float ndl=max(dot(N,uSun),0.);
-      col=col*(SUNC*ndl*sh+SKYC*(.42+.58*N.y)+vec3(.22,.16,.10)*max(dot(N,vec3(-uSun.x,0.,-uSun.z)),0.)); }
-    gl_FragColor=vec4(tone(fogged(col,vW)),1.); }` }));
-land.frustumCulled = false; scene.add(land);
-
-// ---- forests: one tree, drawn in every cell near the camera that the land says is forest
-const CELL = 11, G = 44, TREE_R = CELL * G;
-{ const pos = [], nor = [], cone = (r, y0, y1) => { const n = 5; for (let i = 0; i < n; i++) { const a0 = i / n * 6.2832, a1 = (i + 1) / n * 6.2832, am = (a0 + a1) / 2, k = r / (y1 - y0), nl = Math.hypot(1, k);
-    pos.push(Math.cos(a0) * r, y0, Math.sin(a0) * r, 0, y1, 0, Math.cos(a1) * r, y0, Math.sin(a1) * r);
-    nor.push(Math.cos(a0) / nl, k / nl, Math.sin(a0) / nl, Math.cos(am) / nl, k / nl, Math.sin(am) / nl, Math.cos(a1) / nl, k / nl, Math.sin(a1) / nl); } };
-  cone(2.7, 1.2, 7.5); cone(2.05, 5, 11.5); cone(1.35, 9, 15.5);
-  const cells = []; for (let x = -G; x < G; x++) for (let z = -G; z < G; z++) cells.push(x, z);
-  const geo = new THREE.InstancedBufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-  geo.setAttribute('aCell', new THREE.InstancedBufferAttribute(new Float32Array(cells), 2)); geo.instanceCount = cells.length / 2;
-  var trees = new THREE.Mesh(geo, new THREE.ShaderMaterial({ uniforms: { ...U, uCamCell: { value: new THREE.Vector2() } },
-    vertexShader: COMMON + `attribute vec2 aCell; uniform vec2 uCamCell; varying vec3 vW; varying vec3 vN; varying float vVar; varying float vY;
-    void main(){ vec2 cell=aCell+uCamCell; ivec2 ic=ivec2(cell); float r1=hsh(ic*3+ivec2(11,5)), r2=hsh(ic*5+ivec2(2,91)), r3=hsh(ic*7+ivec2(40,17));
-      vec2 w=(cell+vec2(r1,r2))*${CELL.toFixed(1)}; float h=terrain(w), e=6.; vec3 n=normalize(vec3(h-terrain(w+vec2(e,0.)), e, h-terrain(w+vec2(0.,e))));
-      float keep=step(r3+.004, forestMask(w,h,1.-n.y)*1.1), fade=1.-smoothstep(${(TREE_R * .78).toFixed(1)}, ${(TREE_R * .97).toFixed(1)}, length(w-cameraPosition.xz));
-      float s=keep*fade*(.7+.8*r1), wd=s*(.85+.4*r2);
-      vW=vec3(w.x,h-.6,w.y)+position*vec3(wd,s,wd); vN=normal; vVar=r2; vY=position.y/15.5; gl_Position=projectionMatrix*viewMatrix*vec4(vW,1.); }`,
-    fragmentShader: COMMON + `varying vec3 vW; varying vec3 vN; varying float vVar; varying float vY;
-    void main(){ vec3 N=normalize(vN); vec3 col=mix(vec3(.020,.062,.034), vec3(.058,.125,.044), vVar)*(.5+.85*vY); col=mix(col, vec3(.15,.14,.035), smoothstep(.86,1.,vVar)*.45);
-      float ndl=max(dot(N,uSun),0.)*.85+.15*max(dot(uSun,vec3(0.,1.,0.)),0.);
-      col=col*(SUNC*(ndl*1.3+pow(ndl,3.)*.5)*cloudShadow(vW.xz)+SKYC*(.40+.60*N.y));
-      gl_FragColor=vec4(tone(fogged(col,vW)),1.); }` }));
-  trees.frustumCulled = false; scene.add(trees); }
-
-// ---- the hawk
-const hawk = new THREE.Group(), parts = {};
-{ const HV = `varying vec3 vL; varying vec3 vN; varying vec3 vON; varying vec3 vUp; varying vec3 vW;
-    void main(){ vL=position; vON=normal; vN=normalize(mat3(modelMatrix)*normal); vUp=normalize(mat3(modelMatrix)*vec3(0.,1.,0.)); vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }`;
-  const HF = COMMON + `uniform int uKind; varying vec3 vL; varying vec3 vN; varying vec3 vON; varying vec3 vUp; varying vec3 vW;
-    void main(){ vec3 V=normalize(cameraPosition-vW), N=normalize(vN); bool panel=uKind>=1&&uKind<=3, top=true; float thin=0.;
-      if(panel){ vec3 Uw=normalize(vUp); top=dot(V,Uw)>0.; N=top?Uw:-Uw; thin=1.; }
-      vec3 brown=vec3(.25,.155,.09), dark=vec3(.06,.045,.04), cream=vec3(.88,.81,.68), rufous=vec3(.62,.25,.09), col;
-      float x=vL.x, z=vL.z;
-      if(uKind==0){ col=mix(cream, brown, smoothstep(-.2,.4,vON.y));
-        float st=smoothstep(.5,.9,sin(z*130.+sin(x*95.)*3.))*smoothstep(.14,-.02,z)*smoothstep(-.22,-.08,z)*(1.-smoothstep(-.35,.1,vON.y)); col=mix(col, brown*.75, st*.75); }
-      else if(uKind==4){ col=mix(cream*.96, brown*.95, smoothstep(-.4,.05,vON.y)); }
-      else if(uKind==5){ col=mix(vec3(.90,.68,.14), vec3(.07), smoothstep(-.012,.012,z)); }
-      else if(uKind==6){ col=vec3(.03); }
-      else if(uKind==1){ float fl=smoothstep(.72,1.,abs(sin(x*100.)))*smoothstep(.03,-.05,z);
-        if(top){ col=mix(brown*1.2, brown*.62, smoothstep(.05,-.1,z)); col=mix(col, cream*.6, smoothstep(.6,.95,vnoise(vL.xz*70.))*.35*smoothstep(-.02,.06,z)); col=mix(col, dark, fl*.55); }
-        else { col=cream; col=mix(col, brown*.85, smoothstep(.06,.095,z)*(1.-smoothstep(.27,.33,x))*.9); col*=1.-.2*smoothstep(.55,1.,sin(z*150.))*step(z,.04); col=mix(col, dark, smoothstep(-.105,-.135,z)*.8); col=mix(col, dark*2., fl*.25); } }
-      else if(uKind==2){ float fl=smoothstep(.72,1.,abs(sin((x+z*.35)*100.)))*smoothstep(.05,-.03,z);
-        if(top){ col=mix(brown*.95, dark, smoothstep(.10,.36,x)*.85); col=mix(col, dark, smoothstep(.02,-.1,z)*.4); col=mix(col, dark, fl*.5); }
-        else { col=mix(cream, dark, smoothstep(.20,.31,x-z*.3)); col=mix(col, dark, smoothstep(.075,.03,length(vL.xz-vec2(.045,.085)))*.85); col*=1.-.2*smoothstep(.55,1.,sin(z*150.))*step(z,.04); col=mix(col, dark, smoothstep(-.105,-.135,z)*(1.-smoothstep(.0,.2,x))*.8); col=mix(col, dark*2., fl*.25); } }
-      else { float fl=smoothstep(.75,1.,abs(sin(x/(.12-z)*28.)));
-        if(top){ col=rufous; col=mix(col, dark, smoothstep(-.245,-.26,z)*(1.-smoothstep(-.288,-.300,z))); col=mix(col, cream, smoothstep(-.300,-.312,z)); col=mix(col, col*.55, fl*.5); }
-        else { col=cream*vec3(1.,.90,.82); col=mix(col, brown, smoothstep(-.25,-.265,z)*(1.-smoothstep(-.288,-.300,z))*.5); col=mix(col, col*.7, fl*.4); } }
-      float ndl=max(dot(N,uSun),0.), back=max(dot(-N,uSun),0.), rim=pow(1.-max(dot(N,V),0.),3.);
-      vec3 lit=col*(SUNC*(ndl+thin*back*.34)+SKYC*(.70+.40*N.y)*1.15+SUNC*rim*.16*(1.-thin));
-      gl_FragColor=vec4(tone(lit),1.); }`;
-  const mat = (kind, two) => new THREE.ShaderMaterial({ uniforms: { ...U, uKind: { value: kind } }, vertexShader: HV, fragmentShader: HF, side: two ? THREE.DoubleSide : THREE.FrontSide });
-  const panel = (pts, kind) => { const v = pts.map((p) => new THREE.Vector2(p[0], p[1])), f = THREE.ShapeUtils.triangulateShape(v, []), pos = [], nor = [];
-    for (const t of f) for (const i of t) { pos.push(pts[i][0], 0, pts[i][1]); nor.push(0, 1, 0); }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); return new THREE.Mesh(g, mat(kind, true)); };
-  const body = new THREE.Mesh(new THREE.LatheGeometry([[.001, -.30], [.035, -.24], [.07, -.1], [.088, .04], [.08, .16], [.055, .24], [.001, .29]].map((p) => new THREE.Vector2(p[0], p[1])), 14).rotateX(Math.PI / 2), mat(0)); body.scale.y = .86; hawk.add(body);
-  const head = new THREE.Group(); head.position.set(0, .034, .285); hawk.add(head); parts.head = head;
-  const skull = new THREE.Mesh(new THREE.SphereGeometry(.062, 14, 10), mat(4)); skull.scale.z = 1.15; head.add(skull);
-  const beak = new THREE.Mesh(new THREE.ConeGeometry(.021, .07, 8).rotateX(Math.PI / 2), mat(5)); beak.position.set(0, -.012, .078); beak.rotation.x = .38; head.add(beak);
-  for (const s of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(.012, 8, 6), mat(6)); eye.position.set(s * .046, .016, .034); head.add(eye); }
-  const tail = new THREE.Group(); tail.position.set(0, -.004, -.2); hawk.add(tail); parts.tail = tail;
-  tail.add(panel([[.035, 0], [.105, -.24], [.088, -.30], [.03, -.33], [-.03, -.33], [-.088, -.30], [-.105, -.24], [-.035, 0]], 3));
-  const inner = [[0, .11], [.12, .135], [.33, .13], [.33, -.13], [.16, -.16], [0, -.17]];
-  const outer = [[0, .13], [.13, .125], [.27, .085], [.37, .02], [.41, -.035], [.385, -.05], [.40, -.10], [.36, -.105], [.365, -.155], [.315, -.15], [.31, -.195], [.255, -.18], [.24, -.21], [.17, -.185], [.08, -.16], [0, -.13]];
-  parts.wings = [-1, 1].map((s) => { const side = new THREE.Group(); side.scale.x = s; side.position.set(s * .06, .03, .07); hawk.add(side);
-    const shoulder = new THREE.Group(); side.add(shoulder); shoulder.add(panel(inner, 1));
-    const wrist = new THREE.Group(); wrist.position.x = .33; shoulder.add(wrist); wrist.add(panel(outer, 2)); return { shoulder, wrist }; });
-  hawk.scale.setScalar(1.75); hawk.rotation.order = 'YXZ'; scene.add(hawk); }
-
-// ---- flight
-const st = { x: 0, z: 0, y: 120, psi: .6, vy: 0, roll: 0, pitch: 0, flap: 0, flapLen: 0, nextFlap: 3, phase: 0, speed: 38 };
-{ // start somewhere with land and water both in view
-  let best = -1; for (let i = 0; i < 60; i++) { const x = (i % 10) * 900 - 4000, z = ((i / 10) | 0) * 900 - 2500; let wet = 0, hi = 0; for (let k = 0; k < 9; k++) { const h = terrain(x + (k % 3 - 1) * 400, z + ((k / 3 | 0) - 1) * 400); if (h < 0) wet++; if (h > 150) hi++; } const score = Math.min(wet, 3) + Math.min(hi, 2) * 1.5; if (score > best) { best = score; st.x = x; st.z = z; } }
-  st.y = Math.max(terrain(st.x, st.z), 0) + 60; }
-const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), sunP = new THREE.Vector3(), glare = document.getElementById('glare'); let glareA = 0;
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-
-function fly(t, dt) {
-  const fx = Math.sin(st.psi), fz = Math.cos(st.psi), rx = fz, rz = -fx;
-  const ground = (d, side) => Math.max(terrain(st.x + fx * d + rx * side, st.z + fz * d + rz * side), 0);
-  // steer: wander, and lean away from the higher side when the land ahead rises above the hawk
-  let turn = .20 * Math.sin(t * .11) + .14 * Math.sin(t * .27 + 1.3) + .08 * Math.sin(t * .53 + 4.);
-  const ahead = Math.max(ground(180, 0), ground(340, 0)), left = Math.max(ground(240, -170), ground(120, -90)), right = Math.max(ground(240, 170), ground(120, 90));
-  turn += .11 * Math.sin(Math.atan2(SUN.x, SUN.z) - st.psi);
-  const raw = (d, side) => terrain(st.x + fx * d + rx * side, st.z + fz * d + rz * side);
-  if (raw(350, 0) < -8 && raw(700, 0) < -8) turn += (raw(500, -450) + raw(900, -700) > raw(500, 450) + raw(900, 700) ? -1 : 1) * .4;
-  const press = sstep(-30, 90, ahead - st.y + 40); if (press > 0) turn += (left < right ? -1 : 1) * press * .55;
-  const prev = st.psi; st.psi += turn * dt; const om = (st.psi - prev) / dt;
-  st.x += fx * st.speed * dt; st.z += fz * st.speed * dt;
-  // height: stay above what is coming
-  let want = 0; for (const [d, w] of [[0, 1], [70, 1], [150, .95], [250, .85], [380, .7]]) want = Math.max(want, ground(d, 0) * w);
-  want += 52 + 16 * Math.sin(t * .09) + 10 * Math.sin(t * .23);
-  const vyWant = clamp((want - st.y) * .55, -14, 20); st.vy += (vyWant - st.vy) * (1 - Math.exp(-dt * 1.6)); st.y += st.vy * dt;
-  // flap in short bursts, and whenever it has to climb
-  if (st.flap <= 0 && (t > st.nextFlap || st.vy > 9)) { st.flapLen = 1.2 + Math.random() * 1.4; st.flap = st.flapLen; st.phase = 0; st.nextFlap = t + st.flapLen + 4 + Math.random() * 7; }
-  let env = 0; if (st.flap > 0) { st.flap -= dt; const u = 1 - st.flap / st.flapLen; env = Math.sin(Math.PI * clamp(u, 0, 1)); env = Math.sqrt(env); st.phase += dt * 17; }
-  const sp = Math.sin(st.phase), cp = Math.cos(st.phase), glide = 1 - env;
-  const a1 = glide * (.13 + .03 * Math.sin(t * .8)) + env * (.10 + .78 * sp), a2 = glide * (.07 + .04 * Math.sin(t * 1.1 + 1)) + env * (.42 * Math.sin(st.phase - 1.1) - .32 * Math.max(0, cp)), sweep = env * -.22 * Math.max(0, cp);
-  for (const w of parts.wings) { w.shoulder.rotation.set(0, sweep, a1); w.wrist.rotation.set(0, sweep * .8, a2); }
-  st.roll += (clamp(-om * 1.9, -.75, .75) - st.roll) * (1 - Math.exp(-dt * 2.2)); st.pitch += (clamp(st.vy * .028, -.3, .4) - st.pitch) * (1 - Math.exp(-dt * 2.5));
-  hawk.position.set(st.x, st.y + env * -.05 * sp + .12 * Math.sin(t * .7), st.z); hawk.rotation.set(-st.pitch - env * .04 * cp, st.psi, st.roll + .03 * Math.sin(t * .9));
-  parts.head.rotation.set(st.pitch * .6, .18 * Math.sin(t * .33) + om * .25, -st.roll * .75);
-  parts.tail.rotation.set(-.06 - st.pitch * .3 + env * .08 * cp, 0, st.roll * .35 + om * .15);
-  // camera: drifts slowly around the hawk, mostly behind it
-  const az = .95 * Math.sin(t * .061) + .45 * Math.sin(t * .027 + 2.), el = .17 + .12 * Math.sin(t * .043 + 1.), dist = 5.6 + 1.4 * Math.sin(t * .05 + .5);
-  const bx = -fx * Math.cos(az) + rx * Math.sin(az), bz = -fz * Math.cos(az) + rz * Math.sin(az);
-  const tx = st.x + bx * dist * Math.cos(el), tz = st.z + bz * dist * Math.cos(el); let ty = st.y + dist * Math.sin(el) + .5; ty = Math.max(ty, Math.max(terrain(tx, tz), 0) + 2.5);
-  camera.position.set(tx, ty, tz); camPos.copy(camera.position); camLook.set(st.x + fx * 1.4, st.y + .1, st.z + fz * 1.4); camera.lookAt(camLook);
-  // the sun's glare on the lens, when the land is not in the way
-  sunP.copy(SUN).multiplyScalar(1000).add(camPos).project(camera); let vis = sunP.z < 1 && Math.abs(sunP.x) < 1.6 && Math.abs(sunP.y) < 1.6 ? 1 : 0;
-  if (vis) for (const d of [60, 150, 300, 600, 1100, 1800, 2600]) if (terrain(camPos.x + SUN.x * d, camPos.z + SUN.z * d) > camPos.y + SUN.y * d) { vis = 0; break; }
-  glareA += (vis - glareA) * (1 - Math.exp(-dt * 4)); glare.style.opacity = (glareA * .5).toFixed(3); glare.style.transform = 'translate(' + ((sunP.x * .5 + .5) * innerWidth).toFixed(1) + 'px,' + ((-sunP.y * .5 + .5) * innerHeight).toFixed(1) + 'px)';
-  land.material.uniforms.uOrigin.value.set(Math.round(camPos.x / STEP) * STEP, Math.round(camPos.z / STEP) * STEP);
-  trees.material.uniforms.uCamCell.value.set(Math.floor(camPos.x / CELL), Math.floor(camPos.z / CELL));
-}
-
-// ---- run, and keep it smooth: lower the resolution a little if the frame rate drops
-let pr = Math.min(devicePixelRatio || 1, 1.5), maxPr = pr, acc = 0, frames = 0, last = 0, T = 0;
-function size() { renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.fov = camera.aspect < 1 ? 64 : 52; camera.updateProjectionMatrix(); }
-addEventListener('resize', size); size();
-const q = /[?&]t=([\d.]+)/.exec(location.search); if (q) T = +q[1];
-function frame(ms) {
-  const now = ms / 1000, dt = Math.min(.05, now - last || .016); last = now; T += dt; U.uTime.value = T;
-  fly(T, dt); renderer.render(scene, camera);
-  if (frames === 2) canvas.classList.add('on');
-  acc += dt; frames++; if (frames % 50 === 0) { const fps = 50 / acc; acc = 0; if (fps < 30 && pr > .6) { pr = Math.max(.6, pr * .82); size(); } else if (fps > 56 && pr < maxPr) { pr = Math.min(maxPr, pr * 1.1); size(); } }
-  requestAnimationFrame(frame);
-}
-// let the sim settle before the first frame is shown, so it opens mid-flight
-const ff = /[?&]ff=([\d.]+)/.exec(location.search); for (let i = 0, n = (ff ? +ff[1] : 8) / .033; i < n; i++) { T += .033; fly(T, .033); }
-window.__hawk = { renderer, scene, camera };
-requestAnimationFrame(frame);
+<div class="glow"></div><div class="beat" id="beat"></div>
+<main>
+  <div class="date">12 . 18</div>
+  <div class="clock" role="timer" aria-live="off" id="clock" aria-label="Countdown to December 18">
+    <div class="unit"><span class="num" id="d">00</span><span class="lab">days</span></div><span class="sep">:</span>
+    <div class="unit"><span class="num" id="h">00</span><span class="lab">hours</span></div><span class="sep">:</span>
+    <div class="unit"><span class="num" id="m">00</span><span class="lab">minutes</span></div><span class="sep">:</span>
+    <div class="unit"><span class="num" id="s">00</span><span class="lab">seconds</span></div>
+  </div>
+  <div class="ms" id="ms">000</div>
+  <div class="bar"><i id="bar"></i></div>
+</main>
+<div class="lines"></div><div class="vig"></div>
+<script>
+// Counts down to the start of December 18 (midnight on the visitor's own clock). After the day has passed it counts to
+// the next December 18. The bar is how much of the wait is left, measured from November 22, 2026, when this went up.
+(function () {
+  var now = new Date(), y = now.getFullYear(), end = new Date(y, 11, 18, 0, 0, 0, 0);
+  if (now - end > 864e5) end = new Date(y + 1, 11, 18, 0, 0, 0, 0);
+  var start = new Date(end.getFullYear(), 10, 22, 0, 0, 0, 0), total = end - start;
+  var $ = function (i) { return document.getElementById(i); }, d = $('d'), h = $('h'), m = $('m'), s = $('s'), ms = $('ms'), bar = $('bar'), beat = $('beat'), lastS = -1;
+  function p(n, w) { n = String(n); while (n.length < w) n = '0' + n; return n; }
+  function tick() {
+    var left = Math.max(0, end - Date.now()), sec = Math.floor(left / 1000);
+    ms.textContent = p(left % 1000, 3);
+    if (sec !== lastS) {
+      lastS = sec;
+      d.textContent = p(Math.floor(sec / 86400), 2); h.textContent = p(Math.floor(sec / 3600) % 24, 2); m.textContent = p(Math.floor(sec / 60) % 60, 2); s.textContent = p(sec % 60, 2);
+      bar.style.width = Math.max(0, Math.min(100, left / total * 100)).toFixed(3) + '%';
+      document.body.classList.toggle('last', left > 0 && left < 864e5); document.body.classList.toggle('zero', left === 0);
+      document.title = left ? p(Math.floor(sec / 86400), 2) + ':' + p(Math.floor(sec / 3600) % 24, 2) + ':' + p(Math.floor(sec / 60) % 60, 2) + ':' + p(sec % 60, 2) : '00:00:00:00';
+      beat.classList.remove('go'); void beat.offsetWidth; beat.classList.add('go');
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
 </script>
+<noscript><p style="text-align:center">12.18</p></noscript>
 </body>
 </html>
