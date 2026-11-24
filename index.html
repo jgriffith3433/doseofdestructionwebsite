@@ -34,7 +34,7 @@
   .card { text-align: left; border: 1px solid var(--line); background: rgba(255, 246, 230, .05); border-radius: 16px; padding: 12px 14px; display: grid; grid-template-columns: 44px 1fr; gap: 4px 10px; align-items: start; }
   .card:hover { background: rgba(255, 246, 230, .12); }
   .card[aria-pressed="true"] { border-color: var(--hot); background: rgba(255, 179, 71, .16); }
-  .card { align-items: center; } .card .ico { font-size: 34px; line-height: 1.1; grid-row: span 3; }
+  .card { align-items: center; } .card .ico { font-size: 34px; line-height: 1.1; grid-row: span 2; }
   .card b { font-size: 16px; } .card i { font-style: normal; color: var(--hot); font-size: 13px; } .card span { color: var(--dim); font-size: 13.5px; line-height: 1.4; }
   #hud { position: fixed; left: 0; right: 0; top: 0; display: none; justify-content: space-between; align-items: flex-start; padding: max(12px, env(safe-area-inset-top)) 14px 0; pointer-events: none; }
   #hud .info { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 8px 12px; font-size: 14px; }
@@ -211,7 +211,7 @@ const SHOW_NOTES = false;   // the pop-up notes during play are off; the same no
 let toastT = 0; function toast(html, ms) { if (!SHOW_NOTES) return; const t = $('toast'); t.innerHTML = html; t.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(() => { t.style.opacity = 0; }, ms); }
 function drawPlate(bump) { const el = $('plate'); el.innerHTML = HD.food.map((f, i) => '<div class="' + (plate[i] ? 'got' : '') + (i === bump ? ' pop' : '') + '">' + f[0] + '<small>' + (plate[i] || '') + '</small></div>').join(''); if (bump >= 0) setTimeout(() => { const c = el.children[bump]; if (c) c.classList.remove('pop'); }, 180); }
 function showPick() { $('hName').textContent = HD.name; }
-function buildGrid() { $('grid').innerHTML = HOLIDAYS.map((h, i) => '<button class="card" type="button" data-i="' + i + '" aria-pressed="' + (i === sel) + '"><div class="ico">' + h.ico + '</div><b>' + h.name + '</b><i>' + SHORT[h.id][0] + '</i><span>' + SHORT[h.id][1] + '</span></button>').join(''); }
+function buildGrid() { $('grid').innerHTML = HOLIDAYS.map((h, i) => '<button class="card" type="button" data-i="' + i + '" aria-pressed="' + (i === sel) + '"><div class="ico">' + h.ico + '</div><b>' + h.name + '</b><i>' + SHORT[h.id][0] + '</i></button>').join(''); }
 $('grid').addEventListener('click', (e) => { const c = e.target.closest('.card'); if (!c) return; sel = +c.dataset.i; HD = HOLIDAYS[sel]; try { localStorage.setItem('turkeyfall.holiday', HD.id); } catch (er) {} buildGrid(); showPick(); reset(); });
 function show(which) { $('menu').hidden = which !== 'menu'; $('menu').style.display = which === 'menu' ? 'flex' : 'none'; $('settings').hidden = which !== 'settings'; $('settings').style.display = which === 'settings' ? 'flex' : 'none';
   const play = which === 'play'; $('gear').hidden = !play; $('hud').style.display = play ? 'flex' : 'none'; $('plate').style.display = play ? 'flex' : 'none'; if (!play) $('toast').style.opacity = 0; }
