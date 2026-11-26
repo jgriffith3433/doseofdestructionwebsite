@@ -2,348 +2,331 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Turkey Fall</title>
-<meta name="description" content="A soft toy turkey falls slowly through bubbles of holiday food. Choose one of ten holidays from around the world.">
-<meta name="theme-color" content="#1b1420">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>I Caught The Bitcoin Robber Hacker Time Traveler</title>
+<meta name="description" content="The extended credits. Every fact is real. September 28, 2009 to May 16, 2015.">
 <style>
-  :root { --ink: #fff6e6; --dim: rgba(255, 246, 230, .72); --card: rgba(20, 14, 24, .78); --line: rgba(255, 246, 230, .22); --hot: #ffb347; }
-  html, body { height: 100%; margin: 0; background: #1b1420; overflow: hidden; color: var(--ink); font: 500 16px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
-  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  button { font: inherit; color: inherit; cursor: pointer; }
-  button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
-  .screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
-  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 26px 26px 22px; max-width: 460px; width: 100%; text-align: center; backdrop-filter: blur(8px); box-sizing: border-box; }
-  h1 { margin: 0 0 4px; font-size: 44px; line-height: 1.05; letter-spacing: .01em; }
-  h2 { margin: 0 0 4px; font-size: 24px; }
-  .sub { margin: 0 0 18px; color: var(--dim); }
-  .pick { display: flex; gap: 12px; align-items: center; text-align: left; border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; margin: 0 0 18px; }
-  .pick .ico { font-size: 38px; line-height: 1; }
-  .pick b { display: block; font-size: 17px; } .pick span { color: var(--dim); font-size: 14px; }
-  .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-  .btn { border: 1px solid var(--line); background: rgba(255, 246, 230, .08); border-radius: 999px; padding: 13px 24px; font-weight: 650; }
-  .btn:hover { background: rgba(255, 246, 230, .16); }
-  .btn.go { background: var(--hot); border-color: var(--hot); color: #2a1606; }
-  .btn.go:hover { background: #ffc470; }
-  .how { margin: 16px 0 0; color: var(--dim); font-size: 14px; }
-  #settings .panel { max-width: 860px; max-height: 100%; text-align: left; display: flex; flex-direction: column; }
-  #settings .grid { overflow: auto; flex: 1 1 auto; min-height: 0; padding: 2px; }
-  #settings .foot { flex: none; }
-  #settings .btn.go { min-width: 180px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin: 14px 0; }
-  .card { text-align: left; border: 1px solid var(--line); background: rgba(255, 246, 230, .05); border-radius: 16px; padding: 12px 14px; display: grid; grid-template-columns: 44px 1fr; gap: 4px 10px; align-items: start; }
-  .card:hover { background: rgba(255, 246, 230, .12); }
-  .card[aria-pressed="true"] { border-color: var(--hot); background: rgba(255, 179, 71, .16); }
-  .card { align-items: center; } .card .ico { font-size: 34px; line-height: 1.1; grid-row: span 2; }
-  .card b { font-size: 16px; } .card i { font-style: normal; color: var(--hot); font-size: 13px; } .card span { color: var(--dim); font-size: 13.5px; line-height: 1.4; }
-  #hud { position: fixed; left: 0; right: 0; top: 0; display: none; justify-content: space-between; align-items: flex-start; padding: max(12px, env(safe-area-inset-top)) 14px 0; pointer-events: none; }
-  #hud .info { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 8px 12px; font-size: 14px; }
-  #hud .info b { display: block; font-size: 15px; }
-  #top { position: fixed; right: 14px; top: max(12px, env(safe-area-inset-top)); display: flex; gap: 8px; z-index: 5; }
-  #top button { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 9px 16px; font-weight: 650; font-size: 14px; }
-  #top button:hover { background: rgba(60, 44, 66, .9); }
-  #hud { justify-content: flex-start !important; gap: 8px; z-index: 5; }
-  #hud .info { max-width: calc(100% - 320px); }
-  #switch { pointer-events: auto; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 9px 16px; font-weight: 650; font-size: 14px; }
-  #switch:hover { background: rgba(60, 44, 66, .9); }
-  @media (max-width: 520px) { #hud .info { display: none; } }
-  #plate { position: fixed; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: none; gap: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 8px 10px; pointer-events: none; max-width: calc(100% - 20px); box-sizing: border-box; }
-  #plate div { width: 44px; text-align: center; font-size: 26px; line-height: 1.1; opacity: .3; filter: grayscale(1); transition: opacity .2s, filter .2s, transform .2s; }
-  #plate div.got { opacity: 1; filter: none; } #plate div.pop { transform: scale(1.35); }
-  #plate small { display: block; font-size: 11px; color: var(--dim); }
-  #toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 9px 14px; font-size: 14.5px; max-width: min(520px, calc(100% - 28px)); text-align: center; opacity: 0; transition: opacity .25s; pointer-events: none; box-sizing: border-box; }
-  #toast b { color: var(--hot); }
-  #fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 4; }
-  @media (max-width: 520px) { h1 { font-size: 36px; } .panel { padding: 20px 16px 16px; } #plate div { width: 38px; font-size: 22px; } }
+  :root { --ink: #f2ead8; --dim: #b9b2a2; --gold: #f5c04a; --cyan: #7fe7ff; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #000; color: var(--ink); overflow: hidden; overscroll-behavior: none; }
+  body { font-family: "Courier New", Courier, ui-monospace, monospace; -webkit-font-smoothing: antialiased; touch-action: none; }
+  video#bg { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(1.05) brightness(.62); }
+  #shade { position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.25) 0%, rgba(0,0,0,.62) 70%, rgba(0,0,0,.82) 100%),
+                linear-gradient(to bottom, rgba(0,0,0,.85) 0%, rgba(0,0,0,0) 18%, rgba(0,0,0,0) 82%, rgba(0,0,0,.85) 100%); }
+  #roll { position: fixed; left: 50%; top: 0; width: min(760px, calc(100% - 32px)); transform: translate(-50%, 100vh); will-change: transform; text-align: center; }
+  .rule { color: var(--dim); opacity: .75; letter-spacing: .1em; overflow: hidden; white-space: nowrap; font-size: 12px; margin: 26px 0; }
+  .big { font-size: clamp(26px, 6vw, 46px); font-weight: bold; letter-spacing: .06em; line-height: 1.15; text-shadow: 0 2px 18px #000; }
+  .big em { color: var(--gold); font-style: normal; }
+  .by { margin-top: 14px; font-size: 20px; color: var(--cyan); letter-spacing: .3em; }
+  .dates { font-size: 15px; color: var(--dim); letter-spacing: .25em; margin-top: 10px; }
+  h2 { font-size: 15px; letter-spacing: .28em; color: var(--gold); margin: 70px 0 22px; text-shadow: 0 2px 10px #000; }
+  .row { display: flex; align-items: baseline; gap: 8px; text-align: left; font-size: 15px; line-height: 1.35; margin: 0 0 3px; text-shadow: 0 1px 6px #000, 0 0 2px #000; }
+  .row .what { flex: 0 1 auto; }
+  .row .dots { flex: 1 1 24px; min-width: 24px; border-bottom: 2px dotted rgba(242,234,216,.38); transform: translateY(-4px); }
+  .row .when { flex: 0 0 auto; white-space: nowrap; color: var(--ink); }
+  .quip { text-align: left; font-size: 13px; font-style: italic; color: var(--cyan); opacity: .88; margin: 0 0 14px 22px; text-shadow: 0 1px 6px #000; }
+  .row + .row { margin-top: 0; }
+  .plain .row { margin-bottom: 9px; }
+  .note { font-size: 14px; color: var(--dim); line-height: 1.6; margin: 10px auto; max-width: 560px; text-shadow: 0 1px 6px #000; }
+  .cast .row .what { color: var(--gold); }
+  .end { font-size: 15px; letter-spacing: .12em; line-height: 1.8; margin: 8px 0; }
+  .fin { font-size: clamp(30px, 7vw, 54px); letter-spacing: .4em; margin: 40vh 0 10px; color: var(--gold); }
+  @media (max-width: 560px) {
+    .row { flex-wrap: wrap; font-size: 13.5px; gap: 0 6px; }
+    .row .what { flex-basis: 100%; }
+    .row .dots { flex: 1 1 20px; }
+    .quip { font-size: 12.5px; margin-left: 12px; }
+    h2 { font-size: 13px; letter-spacing: .2em; }
+  }
+
+  /* start card and controls */
+  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+    background: rgba(0,0,0,.55); text-align: center; padding: 16px; z-index: 5; transition: opacity 1.2s; }
+  #start.gone { opacity: 0; pointer-events: none; }
+  #start .big { max-width: 760px; }
+  button { font: inherit; cursor: pointer; }
+  #play { font-size: 20px; letter-spacing: .3em; padding: 14px 38px 14px 46px; color: #111; background: var(--gold); border: 0; border-radius: 4px; box-shadow: 0 6px 30px rgba(245,192,74,.35); }
+  #play:hover { filter: brightness(1.1); }
+  .ctl { position: fixed; top: max(14px, env(safe-area-inset-top)); z-index: 6; font-size: 13px; letter-spacing: .12em; padding: 8px 12px;
+    color: var(--ink); background: rgba(0,0,0,.45); border: 1px solid rgba(242,234,216,.35); border-radius: 4px; }
+  #mute { right: 14px; }
+  #again { left: 14px; display: none; }
+  .hint { font-size: 12px; color: var(--dim); letter-spacing: .1em; }
 </style>
 </head>
 <body>
-<canvas id="c" aria-label="A soft toy falling slowly through bubbles"></canvas>
+<video id="bg" src="bg.mp4" autoplay muted loop playsinline preload="auto"></video>
+<div id="shade"></div>
+<div id="roll"></div>
 
-<div id="hud"><button id="switch" type="button" aria-label="Switch to the next holiday">Switch</button><div class="info"><b id="hName"></b><span id="hStat"></span></div></div>
-<div id="top"><button id="gear" type="button" hidden>Settings</button><button id="mute" type="button" aria-pressed="false">Sound on</button></div>
-<div id="plate" aria-hidden="true"></div>
-<div id="toast" role="status"></div>
-<div id="fade" aria-hidden="true"></div>
-
-<div class="screen" id="menu">
-  <div class="panel">
-    <h1>Turkey Fall</h1>
-    <p class="sub">A slow fall through a sky of holiday dinner.</p>
-    <div class="row"><button class="btn go" id="bStart" type="button">Play</button></div>
-    <p class="how">Bump the bubbles to fill your plate. Drag to pull, or use the arrow keys.</p>
-  </div>
+<div id="start">
+  <div class="big">I CAUGHT THE<br><em>BITCOIN ROBBER HACKER<br>TIME TRAVELER</em></div>
+  <div class="by">BY JK</div>
+  <button id="play">PLAY</button>
+  <div class="hint">the extended credits &middot; every fact is real</div>
 </div>
-
-<div class="screen" id="settings" hidden>
-  <div class="panel">
-    <h2>What kind of holiday would you like?</h2>
-    <div class="grid" id="grid"></div>
-    <div class="row foot"><button class="btn go" id="bGo" type="button">Play</button></div>
-  </div>
-</div>
+<button id="mute" class="ctl">SOUND ON</button>
+<button id="again" class="ctl">FROM THE TOP</button>
 
 <script>
-// Turkey Fall. A rag doll falls slowly down an endless sky; bubbles rise to meet it. Bumping a food bubble pops it and
-// puts that food on your plate; a full plate is a feast. Settings chooses the holiday: ten of them, each with its own
-// doll, its own food, its own sky and its own way of falling. The notes about each holiday are in HOLIDAYS below.
-'use strict';
-const HOLIDAYS = [
-  { id: 'turkey', ico: '🦃', name: 'American Thanksgiving', doll: 'The Turkey', when: 'United States · fourth Thursday of November',
-    about: 'Families gather for roast turkey, stuffing, cranberry sauce and pumpkin pie. Not everyone celebrates: since 1970 many Native people have met in Plymouth that day for a National Day of Mourning.',
-    sky: ['#2a1a2e', '#7a3b2e', '#e08a3c'], g: 500, drag: .982,
-    food: [['🥧', 'Pumpkin pie', 'the end of nearly every Thanksgiving dinner'], ['🌽', 'Corn', 'grown here long before the Pilgrims arrived'], ['🍒', 'Cranberry sauce', 'sharp and red, beside the bird'], ['🥔', 'Mashed potatoes', 'with a well of gravy'], ['🍠', 'Sweet potatoes', 'often baked under marshmallows'], ['🍞', 'Stuffing', 'bread, onion and herbs']] },
-  { id: 'canada', ico: '🍁', name: 'Canadian Thanksgiving', doll: 'The Pumpkin', when: 'Canada · second Monday of October',
-    about: 'Six weeks earlier than the American one, because the harvest comes sooner in the north. A quieter long weekend: turkey, squash, pumpkin pie and butter tarts.',
-    sky: ['#1c2436', '#8e3b2a', '#f0a54a'], g: 500, drag: .982,
-    food: [['🍁', 'Maple syrup', 'boiled down from spring sap'], ['🧈', 'Butter tart', 'a small pastry of butter, sugar and egg'], ['🥧', 'Pumpkin pie', 'spiced, with whipped cream'], ['🦃', 'Roast turkey', 'the same bird, a month and a half early'], ['🥕', 'Roast roots', 'carrots, parsnips and squash'], ['🍎', 'Apples', 'picked in the weeks before']] },
-  { id: 'germany', ico: '🌾', name: 'Erntedankfest', doll: 'The Wheat Sheaf', when: 'Germany · usually the first Sunday of October',
-    about: 'A church harvest festival, not a big family dinner. Altars are piled with fruit, grain and bread, and a crown woven from ears of grain is carried through the village.',
-    sky: ['#1f2a22', '#5c6b2e', '#e2c15a'], g: 500, drag: .982,
-    food: [['🌾', 'Grain', 'wheat, rye, barley and oats woven into the harvest crown'], ['🍞', 'Bread', 'baked from the new flour and laid on the altar'], ['🍎', 'Apples', 'from the orchard baskets'], ['🍇', 'Grapes', 'the wine harvest ends about now'], ['🎃', 'Pumpkin', 'heaped by the church door'], ['🥔', 'Potatoes', 'the last crop out of the ground']] },
-  { id: 'japan', ico: '🍚', name: 'Kinrō Kansha no Hi', doll: 'The Rice Ball', when: 'Japan · 23 November',
-    about: 'Labour Thanksgiving Day. It grew out of Niiname-sai, the ancient rite of offering the first new rice. Today it thanks people for their work. There is no feast and no turkey: a quiet meal of rice, fish and tea.',
-    sky: ['#161c2e', '#3e4a6e', '#d98a7a'], g: 500, drag: .982,
-    food: [['🍚', 'New rice', 'the first rice of the year, offered before it is eaten'], ['🐟', 'Grilled fish', 'with salt, beside the rice'], ['🍵', 'Green tea', 'to finish'], ['🍙', 'Onigiri', 'rice pressed into a ball by hand'], ['🍠', 'Roast sweet potato', 'sold hot from carts in autumn'], ['🌰', 'Chestnuts', 'steamed in with the rice']] },
-  { id: 'korea', ico: '🌕', name: 'Chuseok', doll: 'The Songpyeon', when: 'Korea · 15th day of the 8th lunar month',
-    about: 'Three days when the whole country travels home. Families honour their ancestors, visit graves and share the new harvest under the full moon.',
-    sky: ['#141a33', '#3b3f7a', '#e7b76a'], g: 500, drag: .982,
-    food: [['🥟', 'Songpyeon', 'half-moon rice cakes steamed on pine needles'], ['🍐', 'Pears', 'big and round, set on the ancestors’ table'], ['🌰', 'Chestnuts', 'peeled and stacked high'], ['🥞', 'Jeon', 'savoury pancakes fried the day before'], ['🍚', 'New rice', 'from this year’s harvest'], ['🍶', 'Rice wine', 'poured first for the ancestors']] },
-  { id: 'china', ico: '🥮', name: 'Mid-Autumn Festival', doll: 'The Jade Rabbit', when: 'China and much of East Asia · the same full moon as Chuseok',
-    about: 'Families come together to look at the moon, light lanterns and share mooncakes. In the story a rabbit lives on the moon, pounding medicine.',
-    sky: ['#0e1430', '#2a2f6b', '#c9a54a'], g: 460, drag: .982,
-    food: [['🥮', 'Mooncake', 'cut in wedges, one for each person'], ['🍵', 'Tea', 'to go with something that rich'], ['🏮', 'Lantern', 'carried by children after dark'], ['🍊', 'Pomelo', 'peeled and shared; the rind makes a hat'], ['🦆', 'Duck', 'the dinner in many regions'], ['🌕', 'The moon', 'the reason everyone is outside']] },
-  { id: 'ghana', ico: '🥁', name: 'Homowo', doll: 'The Corn Cob', when: 'Ghana · the Ga people, around August',
-    about: 'The name means hooting at hunger. It remembers a famine that ended in a great harvest. Chiefs sprinkle kpokpoi through the streets, and families argue, forgive and eat.',
-    sky: ['#1f1a12', '#7a4a1e', '#e9b23c'], g: 500, drag: .982,
-    food: [['🌽', 'Kpokpoi', 'steamed corn meal, sprinkled for the ancestors'], ['🥣', 'Palm nut soup', 'red and thick, poured over the kpokpoi'], ['🐟', 'Smoked fish', 'in the soup'], ['🥁', 'Drums', 'silent for a month before, loud now'], ['🍠', 'Yam', 'the other harvest'], ['🌴', 'Palm fruit', 'pounded for the soup']] },
-  { id: 'india', ico: '☀️', name: 'Pongal', doll: 'The Pongal Pot', when: 'Tamil Nadu, India · four days in mid-January',
-    about: 'New rice is boiled with milk and jaggery until the pot overflows, and everyone shouts “Pongalo Pongal!” Thanks go to the sun, and the next day to the cattle.',
-    sky: ['#2b1730', '#b0452a', '#f6c445'], g: 500, drag: .982,
-    food: [['🍚', 'Sweet pongal', 'rice, milk and jaggery, boiled until it spills over'], ['🥛', 'Milk', 'it has to overflow: that is the luck'], ['🎋', 'Sugarcane', 'tall stalks tied by the door'], ['🥥', 'Coconut', 'cracked as an offering'], ['🍌', 'Banana', 'the leaf is the plate'], ['☀️', 'The sun', 'Pongal is cooked outdoors, facing it']] },
-  { id: 'crab', ico: '🦀', name: 'The King Crab’s Day Off', doll: 'King Crab', when: 'The cold sea floor · whenever he likes',
-    about: 'Not a country. The king crab is thankful for one thing: today he is a guest and not the dinner. He falls sideways and bounces well.',
-    sky: ['#06141f', '#0d3b52', '#2aa3a0'], g: 430, drag: .978,
-    food: [['🧈', 'Butter', 'a close call'], ['🍋', 'Lemon', 'another close call'], ['🧄', 'Garlic', 'he does not like where this is going'], ['🦪', 'Oyster', 'a neighbour'], ['🦐', 'Shrimp', 'a cousin, more or less'], ['🐚', 'A nice shell', 'for the collection']] },
-  { id: 'space', ico: '🧑‍🚀', name: 'Thanksgiving in Orbit', doll: 'Space Man', when: 'The Space Station · since 2000',
-    about: 'Astronauts have kept Thanksgiving in orbit since the first station crew. Dinner comes in pouches: smoked turkey, candied yams, green beans and mushrooms, warmed up or mixed with water. Everything falls slowly here.',
-    sky: ['#03040c', '#0c1030', '#2a2360'], g: 190, drag: .9885, stars: true,
-    food: [['🦃', 'Smoked turkey', 'sealed in a foil pouch'], ['🍠', 'Candied yams', 'heated in the pouch'], ['🥫', 'Green beans', 'freeze-dried: add water'], ['🍄', 'Mushrooms', 'also freeze-dried'], ['🧃', 'A drink bag', 'with a straw, so it stays put'], ['⭐', 'The view', 'sixteen sunrises a day']] }
+// Each section: [title, rows, style]. A row is [what, when, quip?]. The facts and dates are real; the quips are the joke.
+const SECTIONS = [
+  ['STARRING', [
+    ['THE BITCOIN ROBBER HACKER TIME TRAVELER', 'AS HIMSELF', 'Name withheld. He keeps changing it, and also the year.'],
+    ['JK', 'AS THE ONE WHO CAUGHT HIM', 'Using no time machine at all. Just patience and a very long list.'],
+  ], 'cast'],
+
+  ['PREVIOUSLY, ON THE TIMELINE', [
+    ['BITCOIN GENESIS BLOCK MINED', 'JANUARY 3, 2009', 'Its first coins can never be spent. The first thing the robber tried to rob.'],
+    ['STEPHEN HAWKING THROWS A PARTY FOR TIME TRAVELERS', 'JUNE 28, 2009', 'He sent the invitations after the party. Nobody came. Our guy was busy.'],
+  ]],
+
+  ['THE CRIME SCENE (CRYPTO & FINANCE DEPARTMENT)', [
+    ['WALL STREET "FLASH CRASH"', 'MAY 6, 2010', 'About a trillion dollars vanished and came back in roughly half an hour. Not him. He checked.'],
+    ['TWO PIZZAS BOUGHT FOR 10,000 BTC', 'MAY 22, 2010', 'Catering. The most expensive pizzas in history, at least on paper.'],
+    ['MT. GOX BITCOIN EXCHANGE LAUNCHES', 'JULY 18, 2010', 'The name came from "Magic: The Gathering Online eXchange." It was a card-trading site first.'],
+    ['A BUG CREATES 184 BILLION BITCOIN IN ONE BLOCK', 'AUGUST 15, 2010', 'Bitcoin is capped at 21 million. Someone fixed the chain within hours. Continuity department, take a bow.'],
+    ['BITCOIN REACHES $1.00 PARITY', 'FEBRUARY 9, 2011', 'One coin, one dollar. The robber bought none. Hindsight is his whole business model and he still missed it.'],
+    ['LITECOIN LAUNCHES', 'OCTOBER 7, 2011'],
+    ['FIRST BITCOIN HALVING (50 -> 25 BTC)', 'NOVEMBER 28, 2012', 'The reward for mining a block was cut in half, on schedule, by math. Math cannot be bribed. He tried.'],
+    ['CYPRUS BANKING CRISIS & BAIL-IN', 'MARCH 2013'],
+    ['A MAN THROWS AWAY A HARD DRIVE HOLDING 7,500 BTC', '2013', 'It went to a landfill in Newport, Wales. The robber has a shovel and no permission.'],
+    ['FBI SHUTS DOWN SILK ROAD', 'OCTOBER 2, 2013'],
+    ['WORLD\'S FIRST BITCOIN ATM OPENS IN VANCOUVER', 'OCTOBER 29, 2013', 'In a coffee shop. It took cash and gave out Bitcoin. He tried it the other way round.'],
+    ['ETHEREUM WHITEPAPER PUBLISHED', 'NOVEMBER 2013'],
+    ['BITCOIN PASSES $1,000', 'NOVEMBER 2013'],
+    ['DOGECOIN LAUNCHES', 'DECEMBER 6, 2013', 'Started as a joke. Outlived several serious things on this list.'],
+    ['A FORUM POST TITLED "I AM HODLING"', 'DECEMBER 18, 2013', 'A typo for "holding." It became a word. Spelling consultant: whisky.'],
+    ['MT. GOX HALTS WITHDRAWALS', 'FEBRUARY 7, 2014'],
+    ['MT. GOX FILES FOR BANKRUPTCY (~850,000 BTC MISSING)', 'FEBRUARY 28, 2014', 'Prime suspect: him. Actual suspect: not him. Annoying for everybody.'],
+    ['NEWSWEEK NAMES DORIAN NAKAMOTO AS BITCOIN\'S CREATOR', 'MARCH 6, 2014', 'He said he was not involved. A car chase with reporters followed. Casting error.'],
+    ['MT. GOX FINDS 200,000 BTC IN AN OLD WALLET', 'MARCH 20, 2014', 'Found in a wallet format nobody was checking. The financial version of a twenty in last winter\'s coat.'],
+    ['ETHEREUM CROWDSALE', 'JULY - SEP 2014'],
+    ['BITSTAMP HACKED (ABOUT 19,000 BTC)', 'JANUARY 2015', 'Also not him. He would like that on the record.'],
+    ['SWISS NATIONAL BANK DROPS THE EURO PEG', 'JANUARY 15, 2015', 'The franc jumped about 30% in minutes. Some currency brokers did not survive the week.'],
+  ]],
+
+  ['CYBERSECURITY & HACKING UNIT', [
+    ['OPERATION AURORA HITS GOOGLE', 'JANUARY 2010'],
+    ['GERMAN BANK CARDS FORGET THAT 2010 EXISTS', 'JANUARY 1, 2010', 'Around 30 million cards stopped working because of a date bug. Time travel is hard even for chips.'],
+    ['STUXNET WORM DISCOVERED', 'JUNE 2010'],
+    ['PLAYSTATION NETWORK DOWN 23 DAYS', 'APRIL 20, 2011'],
+    ['LULZSEC\'S 50-DAY HACKING SPREE', 'MAY - JUNE 2011', 'They announced the end on day 50. Punctual, at least.'],
+    ['FBI SHUTS DOWN MEGAUPLOAD', 'JANUARY 19, 2012'],
+    ['A LEAP SECOND CRASHES REDDIT AND QANTAS CHECK-IN', 'JUNE 30, 2012', 'One extra second at midnight. Servers could not cope. Imagine what a whole extra decade does.'],
+    ['TARGET BREACH (40M+ CARDS)', 'DECEMBER 2013'],
+    ['HEARTBLEED BUG DISCLOSED', 'APRIL 7, 2014', 'Half the internet changed its passwords. The other half wrote theirs on a sticky note again.'],
+    ['SHELLSHOCK BASH VULNERABILITY', 'SEPTEMBER 24, 2014'],
+    ['JPMORGAN CHASE BREACH (76M HOUSEHOLDS)', 'OCTOBER 2014'],
+    ['SONY PICTURES HACKED', 'NOVEMBER 24, 2014'],
+    ['ANTHEM BREACH (78.8M RECORDS)', 'FEBRUARY 4, 2015'],
+  ]],
+
+  ['TIME TRAVEL CONSULTANTS (SCIENCE & SPACE)', [
+    ['LHC ACHIEVES FIRST 7 TeV COLLISIONS', 'MARCH 30, 2010', 'No time machine was found inside. Sources say they looked.'],
+    ['FIRST SYNTHETIC BACTERIAL CELL CREATED', 'MAY 20, 2010', 'Its DNA had a website address and quotations written into it. Even bacteria get credits.'],
+    ['NASA MESSENGER ENTERS MERCURY ORBIT', 'MARCH 18, 2011'],
+    ['SPACEX DRAGON BERTHS WITH THE ISS', 'MAY 25, 2012', 'First commercial spacecraft to do it. The robber had a seat booked in 2009. It did not exist yet.'],
+    ['VOYAGER 1 ENTERS INTERSTELLAR SPACE', 'AUGUST 25, 2012', 'Launched in 1977. Still the farthest anyone has gotten from this story.'],
+    ['FELIX BAUMGARTNER JUMPS FROM 39 KM', 'OCTOBER 14, 2012', 'Broke the sound barrier with his own body. Landed on his feet. Stunt double: none.'],
+    ['CRISPR-Cas9 EDITS HUMAN CELLS', 'JANUARY 2013'],
+    ['CHANG\'E 3 & YUTU LAND ON THE MOON', 'DECEMBER 14, 2013', 'The first soft landing on the Moon since 1976.'],
+    ['INDIA\'S MANGALYAAN ENTERS MARS ORBIT', 'SEPTEMBER 24, 2014', 'First try. Cost less than the movie Gravity. Budget department, take notes.'],
+    ['NASA DAWN ARRIVES AT CERES', 'MARCH 6, 2015'],
+  ]],
+
+  ['TECH & SILICON VALLEY CREW', [
+    ['GOOGLE NEXUS ONE', 'JANUARY 5, 2010'],
+    ['MICROSOFT ANNOUNCES IT WILL BUY SKYPE FOR $8.5B', 'MAY 10, 2011'],
+    ['GOOGLE+ LAUNCHES', 'JUNE 28, 2011', 'You were in its circles. You did not know it.'],
+    ['SNAPCHAT LAUNCHES (FIRST CALLED PICABOO)', 'JULY - SEP 2011', 'Messages that delete themselves. The robber\'s favorite feature, eventually his least.'],
+    ['APPLE INTRODUCES SIRI ON THE iPHONE 4S', 'OCTOBER 4, 2011'],
+    ['RASPBERRY PI MODEL B LAUNCHES', 'FEBRUARY 29, 2012', 'On a leap day. A date that only exists every four years, the closest thing on this list to time travel.'],
+    ['FACEBOOK BUYS INSTAGRAM FOR $1B', 'APRIL 9, 2012', 'Instagram had 13 employees.'],
+    ['TESLA MODEL S DELIVERIES BEGIN', 'JUNE 22, 2012'],
+    ['GOOGLE GLASS UNVEILED AS SKYDIVERS JUMP ONTO THE STAGE', 'JUNE 27, 2012', 'Live-streamed from their faces. A keynote with a stunt team.'],
+    ['VINE LAUNCHES', 'JANUARY 24, 2013', 'Six-second videos. The length of this background clip, give or take two.'],
+    ['TWITTER IPO', 'NOVEMBER 7, 2013'],
+    ['SLACK LAUNCHES PUBLICLY', 'FEBRUARY 2014'],
+    ['FACEBOOK BUYS WHATSAPP FOR $19B', 'FEBRUARY 19, 2014'],
+    ['AMAZON BUYS TWITCH FOR $970M', 'AUGUST 25, 2014'],
+    ['ALIBABA\'S RECORD $25 BILLION IPO', 'SEPTEMBER 19, 2014'],
+    ['iPHONE 6, 6 PLUS & APPLE PAY', 'SEP - OCT 2014', 'Some iPhone 6 Plus phones bent in pockets. Press called it Bendgate.'],
+    ['AMAZON ECHO & ALEXA ANNOUNCED', 'NOVEMBER 6, 2014', 'The robber asked it what year it was. It knew. He did not.'],
+    ['MICROSOFT UNVEILS HOLOLENS', 'JANUARY 21, 2015'],
+  ]],
+
+  ['GAMING & INTERACTIVE DIVISION', [
+    ['LEAGUE OF LEGENDS LAUNCHES', 'OCTOBER 27, 2009'],
+    ['MASS EFFECT 2', 'JANUARY 26, 2010'],
+    ['RED DEAD REDEMPTION', 'MAY 18, 2010', 'A man trying to escape his past. Relatable.'],
+    ['AMNESIA: THE DARK DESCENT', 'SEPTEMBER 8, 2010'],
+    ['MICROSOFT KINECT LAUNCHES', 'NOVEMBER 4, 2010'],
+    ['PORTAL 2', 'APRIL 19, 2011', 'You go in one hole and come out another. Technical advisor to the background video.'],
+    ['DARK SOULS', 'SEPTEMBER 22, 2011', 'Die, go back, try again. The robber\'s whole career.'],
+    ['DIABLO III AND "ERROR 37"', 'MAY 15, 2012', 'Launch-day servers turned players away with error 37. Players had been waiting since 2008.'],
+    ['STEAM GREENLIGHT LAUNCHES', 'AUGUST 30, 2012'],
+    ['NINTENDO WII U LAUNCHES', 'NOVEMBER 18, 2012'],
+    ['BIOSHOCK INFINITE', 'MARCH 26, 2013', 'Alternate timelines, a lighthouse, a coin toss. Too close to home.'],
+    ['THE LAST OF US', 'JUNE 14, 2013'],
+    ['FLAPPY BIRD GOES VIRAL, THEN ITS CREATOR PULLS IT', 'JAN - FEB 2014', 'Phones with it still installed were listed for sale for thousands of dollars.'],
+    ['TWITCH PLAYS POKÉMON', 'FEBRUARY 2014', 'About a million people, one Game Boy game, 16 days. They won. Somehow.'],
+    ['UNREAL ENGINE 4 GOES $19/MONTH (FREE IN MARCH 2015)', 'MARCH 2014'],
+    ['FIVE NIGHTS AT FREDDY\'S', 'AUGUST 8, 2014'],
+    ['DESTINY LAUNCHES', 'SEPTEMBER 9, 2014'],
+    ['MICROSOFT BUYS MOJANG / MINECRAFT ($2.5B)', 'SEPTEMBER 15, 2014', 'Blocks. Sold for billions. Not the kind of blocks he was after.'],
+    ['BLOODBORNE', 'MARCH 24, 2015'],
+  ]],
+
+  ['FILM, TELEVISION & POP CULTURE', [
+    ['INCEPTION IN THEATERS', 'JULY 16, 2010', 'Time moves slower on each level down. Our guy took notes.'],
+    ['THE SOCIAL NETWORK IN THEATERS', 'OCTOBER 1, 2010', 'Features the Winklevoss twins, who later became famous Bitcoin buyers.'],
+    ['GAME OF THRONES PREMIERES ON HBO', 'APRIL 17, 2011'],
+    ['HARRY POTTER FILM SERIES ENDS', 'JULY 15, 2011', 'The series has a literal time-travel necklace. He asked to borrow it. Twice.'],
+    ['THE AVENGERS IN THEATERS', 'MAY 4, 2012'],
+    ['BREAKING BAD SERIES FINALE', 'SEPTEMBER 29, 2013'],
+    ['FROZEN IN THEATERS', 'NOVEMBER 27, 2013'],
+    ['INTERSTELLAR IN THEATERS', 'NOVEMBER 7, 2014', 'One hour on that planet equals seven years on Earth. A physicist, Kip Thorne, checked the math. The robber checked his watch.'],
+    ['MAD MAX: FURY ROAD IN THEATERS', 'MAY 15, 2015', 'One day before these credits end. Mostly one long chase. Like this one.'],
+  ]],
+
+  ['SPORTS & STUNTS', [
+    ['SPAIN WINS THE FIFA WORLD CUP', 'JULY 11, 2010'],
+    ['DALLAS MAVERICKS WIN THE NBA FINALS', 'JUNE 12, 2011'],
+    ['USAIN BOLT DEFENDS 100m & 200m IN LONDON', 'AUGUST 2012', 'The fastest a person has gone on foot. Still slower than the robber leaving a room.'],
+    ['LANCE ARMSTRONG STRIPPED OF 7 TOUR TITLES', 'OCTOBER 22, 2012', 'Removed from history after the fact. The robber was jealous of the technique.'],
+    ['GERMANY BEATS BRAZIL 7-1, THEN WINS THE WORLD CUP', 'JULY 8 - 13, 2014', 'Five German goals in under 20 minutes. Some fans thought the broadcast was a replay.'],
+    ['SUPER BOWL XLIX (BUTLER INTERCEPTION)', 'FEBRUARY 1, 2015'],
+    ['MAYWEATHER VS. PACQUIAO', 'MAY 2, 2015'],
+  ]],
+
+  ['THE WORLD, MEANWHILE', [
+    ['LISBON TREATY ENTERS INTO FORCE', 'DECEMBER 1, 2009'],
+    ['COPENHAGEN CLIMATE SUMMIT (COP15)', 'DECEMBER 7 - 18, 2009'],
+    ['POLISH PRESIDENTIAL PLANE CRASH (SMOLENSK)', 'APRIL 10, 2010'],
+    ['FIRST GREEK EUROZONE BAILOUT', 'MAY 2, 2010'],
+    ['SYRIAN CIVIL WAR BEGINS', 'MARCH 15, 2011'],
+    ['SOUTH SUDAN GAINS INDEPENDENCE', 'JULY 9, 2011'],
+    ['NORWAY ATTACKS IN OSLO & UTØYA', 'JULY 22, 2011'],
+    ['MUAMMAR GADDAFI KILLED IN LIBYA', 'OCTOBER 20, 2011'],
+    ['WORLD POPULATION REACHES 7 BILLION', 'OCTOBER 31, 2011'],
+    ['KIM JONG-IL DIES; KIM JONG-UN TAKES POWER', 'DECEMBER 17, 2011'],
+    ['COSTA CONCORDIA CAPSIZES OFF ITALY', 'JANUARY 13, 2012'],
+    ['BENGHAZI ATTACK IN LIBYA', 'SEPTEMBER 11, 2012'],
+    ['MALALA YOUSAFZAI SURVIVES AN ASSASSINATION ATTEMPT', 'OCTOBER 9, 2012'],
+    ['XI JINPING BECOMES PRESIDENT OF CHINA', 'MARCH 14, 2013'],
+    ['RANA PLAZA COLLAPSE IN BANGLADESH', 'APRIL 24, 2013'],
+    ['U.S. FEDERAL GOVERNMENT SHUTDOWN', 'OCTOBER 1 - 16, 2013'],
+    ['TYPHOON HAIYAN HITS THE PHILIPPINES', 'NOVEMBER 8, 2013'],
+    ['EUROMAIDAN REVOLUTION IN UKRAINE', 'NOV 2013 - FEB 2014'],
+    ['CHIBOK SCHOOLGIRLS KIDNAPPED IN NIGERIA', 'APRIL 14, 2014'],
+    ['MV SEWOL FERRY SINKS IN SOUTH KOREA', 'APRIL 16, 2014'],
+    ['NARENDRA MODI SWORN IN AS INDIAN PM', 'MAY 26, 2014'],
+    ['ISIS DECLARES A CALIPHATE AFTER MOSUL', 'JUNE 29, 2014'],
+    ['FLIGHT MH17 SHOT DOWN OVER UKRAINE', 'JULY 17, 2014'],
+    ['HONG KONG UMBRELLA MOVEMENT', 'SEP - DEC 2014'],
+    ['U.S. & CUBA ANNOUNCE A DIPLOMATIC THAW', 'DECEMBER 17, 2014'],
+    ['YEMEN CIVIL WAR INTERVENTION BEGINS', 'MARCH 26, 2015'],
+    ['BALTIMORE PROTESTS (FREDDIE GRAY)', 'APRIL 2015'],
+  ], 'plain'],
+
+  ['IN MEMORIAM', [
+    ['DENNIS RITCHIE', 'OCTOBER 12, 2011'],
+    ['WHITNEY HOUSTON', 'FEBRUARY 11, 2012'],
+    ['NEIL ARMSTRONG', 'AUGUST 25, 2012'],
+    ['AARON SWARTZ', 'JANUARY 11, 2013'],
+    ['ROGER EBERT', 'APRIL 4, 2013'],
+    ['MARGARET THATCHER', 'APRIL 8, 2013'],
+    ['PAUL WALKER', 'NOVEMBER 30, 2013'],
+    ['PHILIP SEYMOUR HOFFMAN', 'FEBRUARY 2, 2014'],
+    ['GABRIEL GARCÍA MÁRQUEZ', 'APRIL 17, 2014'],
+    ['MAYA ANGELOU', 'MAY 28, 2014'],
+    ['LEONARD NIMOY', 'FEBRUARY 27, 2015'],
+    ['TERRY PRATCHETT', 'MARCH 12, 2015'],
+    ['B.B. KING', 'MAY 14, 2015'],
+  ], 'plain'],
 ];
 
-// what each card says on the selection screen: where and when, then one short line
-const SHORT = { turkey: ['USA · late November', 'Turkey, stuffing and pumpkin pie.'], canada: ['Canada · October', 'An earlier, quieter turkey dinner.'], germany: ['Germany · October', 'A church festival with a crown of grain.'],
-  japan: ['Japan · 23 November', 'Thanks for work and the new rice.'], korea: ['Korea · autumn full moon', 'Everyone goes home for rice cakes.'], china: ['East Asia · autumn full moon', 'Mooncakes and lanterns under the moon.'],
-  ghana: ['Ghana · August', 'The Ga people hoot at hunger.'], india: ['Tamil Nadu · January', 'Sweet rice boiled until it overflows.'], crab: ['The sea floor', 'Today he is a guest, not dinner.'], space: ['In orbit', 'Dinner in pouches, falling slowly.'] };
-const $ = (id) => document.getElementById(id), cv = $('c'), ctx = cv.getContext('2d');
-let Wd = 0, Hd = 0, dpr = 1, SW = 300;
-function resize() { dpr = Math.min(devicePixelRatio || 1, 2); Wd = innerWidth; Hd = innerHeight; cv.width = Math.round(Wd * dpr); cv.height = Math.round(Hd * dpr); SW = Math.min(Wd, 760) / 2; }
-addEventListener('resize', resize); resize();
-const rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-let sel = 0; try { const s = localStorage.getItem('turkeyfall.holiday'); const i = HOLIDAYS.findIndex(h => h.id === s); if (i >= 0) sel = i; } catch (e) {}
-let HD = HOLIDAYS[sel], mode = 'menu';
+const ESC = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const RULE = '<div class="rule">' + '='.repeat(90) + '</div>';
+let html = '<div class="big">I CAUGHT THE<br><em>BITCOIN ROBBER HACKER<br>TIME TRAVELER</em></div>'
+  + '<div class="by">BY JK</div>' + RULE
+  + '<div class="big" style="font-size:clamp(20px,4.4vw,30px)">E X T E N D E D &nbsp; C R E D I T S</div>'
+  + '<div class="dates">SEPTEMBER 28, 2009 &mdash; MAY 16, 2015</div>' + RULE
+  + '<p class="note">Everything below happened. The dates are real. He was there for all of it, and stole none of it successfully.</p>';
+for (const [title, rows, cls] of SECTIONS) {
+  html += `<section class="${cls || ''}"><h2>${ESC(title)}</h2>`;
+  for (const [what, when, quip] of rows) {
+    html += `<div class="row"><span class="what">${ESC(what)}</span><span class="dots"></span><span class="when">${ESC(when)}</span></div>`;
+    if (quip) html += `<div class="quip">${ESC(quip)}</div>`;
+  }
+  html += '</section>';
+}
+html += '<div style="height:80px"></div>' + RULE
+  + '<p class="end">NO BITCOINS WERE RECOVERED IN THE MAKING OF THIS TIMELINE.</p>'
+  + '<p class="end">THE 10,000 BTC PIZZAS WERE EATEN. THEY ARE NOT COMING BACK.</p>'
+  + '<p class="end">NO TIME TRAVELERS ATTENDED STEPHEN HAWKING\'S PARTY.<br>WE HAVE CHECKED THE GUEST LIST. IT IS STILL EMPTY.</p>'
+  + RULE
+  + '<p class="note" style="margin-top:60px">These credits end 158 days before October 21, 2015,<br>the day Marty McFly arrives in <i>Back to the Future Part II</i>.<br>He is late. Everyone in this story is late.</p>'
+  + '<div class="fin">FIN</div><div class="by" style="margin-bottom:45vh">CAUGHT BY JK</div>';
+const roll = document.getElementById('roll');
+roll.innerHTML = html;
 
-// ---- the doll: eleven points held together by sticks
-const HEAD = 0, NECK = 1, PELV = 2, LE = 3, LH = 4, RE = 5, RH = 6, LK = 7, LF = 8, RK = 9, RF = 10;
-let pts = [], sticks = [], mins = [];
-function makeDoll(x, y) { const P = (dx, dy, r) => ({ x: x + dx, y: y + dy, px: x + dx, py: y + dy, r });
-  pts = [P(0, -62, 15), P(0, -44, 7), P(0, 4, 12), P(-22, -34, 7), P(-40, -22, 8), P(22, -34, 7), P(40, -22, 8), P(-10, 30, 7), P(-12, 56, 8), P(10, 30, 7), P(12, 56, 8)];
-  const S = (a, b) => sticks.push([a, b, Math.hypot(pts[a].x - pts[b].x, pts[a].y - pts[b].y)]); sticks = [];
-  S(HEAD, NECK); S(NECK, PELV); S(NECK, LE); S(LE, LH); S(NECK, RE); S(RE, RH); S(PELV, LK); S(LK, LF); S(PELV, RK); S(RK, RF);
-  mins = [[HEAD, PELV, 62], [LE, RE, 22], [LK, RK, 14], [LE, PELV, 30], [RE, PELV, 30], [LK, NECK, 50], [RK, NECK, 50], [LH, HEAD, 16], [RH, HEAD, 16], [LF, PELV, 26], [RF, PELV, 26]];
-  for (const p of pts) { p.px -= rand(-1.5, 1.5); } }
+// ---- the roll: synced to the song, with drag / wheel to scrub ----
+const song = new Audio('song.mp3'); song.loop = false; song.preload = 'auto'; song.volume = .8;
+const SONG_LEN = 337.37;            // seconds; the roll lasts as long as the song
+const LEAD = 4;                     // seconds before the first line enters
+let muted = false, started = false, extra = 0, clock0 = 0, lastNow = 0;
+try { muted = localStorage.getItem('credits-muted') === '1'; } catch (e) {}
+const muteBtn = document.getElementById('mute'), againBtn = document.getElementById('again');
+function showMute() { muteBtn.textContent = muted ? 'SOUND OFF' : 'SOUND ON'; song.muted = muted; }
+showMute();
+muteBtn.onclick = () => { muted = !muted; showMute(); try { localStorage.setItem('credits-muted', muted ? '1' : '0'); } catch (e) {} };
 
-// ---- bubbles
-let bubbles = [], bits = [], nextY = 0, camY = 0, plate = [], feasts = 0, popped = 0, ouch = 0, time = 0;
-function spawn(y) { const k = Math.random(), kind = k < .52 ? 'food' : k < .86 ? 'soap' : 'jelly', r = kind === 'food' ? rand(26, 36) : kind === 'soap' ? rand(14, 30) : rand(46, 70);
-  let fi = (Math.random() * 6) | 0; if (kind === 'food' && Math.random() < .5) { const need = plate.map((n, i) => n ? -1 : i).filter(i => i >= 0); if (need.length) fi = need[(Math.random() * need.length) | 0]; }
-  bubbles.push({ x: rand(-SW + r, SW - r), y, r, kind, fi, vx: 0, vy: 0, rise: rand(16, 44) * (kind === 'jelly' ? .6 : 1), ph: rand(0, 6.28), hp: kind === 'soap' ? 2 : 1, cool: 0, hue: rand(0, 360) }); }
-function reset() { makeDoll(0, 0); bubbles = []; bits = []; nextY = 260; camY = -Hd * .38; plate = [0, 0, 0, 0, 0, 0]; feasts = 0; popped = 0; drawPlate(); }
+function songTime() {                // song position, or a clock if the song could not play
+  if (!song.paused && isFinite(song.currentTime) && song.currentTime > 0) return song.currentTime;
+  return started ? (performance.now() - clock0) / 1000 : 0;
+}
+function distance() { return roll.offsetHeight + innerHeight; }
+function frame(now) {
+  lastNow = now;
+  const vh = innerHeight, total = distance();
+  const speed = total / (SONG_LEN - LEAD - 2);
+  let y = vh - Math.max(0, songTime() - LEAD) * speed - extra;
+  y = Math.min(vh, Math.max(-roll.offsetHeight, y));
+  roll.style.transform = `translate(-50%, ${y}px)`;
+  if (started && y <= -roll.offsetHeight + vh * .5) againBtn.style.display = 'block';
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
 
-// ---- sound
-// THE SONG is song.mp3 beside this page: it starts with Start, loops, and the button at the top right mutes everything.
-let muted = false; try { muted = localStorage.getItem('turkeyfall.muted') === '1'; } catch (e) {}
-const music = new Audio('song.mp3'); music.loop = true; music.preload = 'auto'; music.volume = .7; music.muted = muted;
-function playMusic() { if (!muted) music.play().catch(() => {}); }
-function showMute() { const b = $('mute'); b.textContent = muted ? 'Sound off' : 'Sound on'; b.setAttribute('aria-pressed', muted); }
-$('mute').onclick = () => { muted = !muted; music.muted = muted; try { localStorage.setItem('turkeyfall.muted', muted ? '1' : '0'); } catch (e) {} showMute(); if (muted) music.pause(); else if (mode === 'play') playMusic(); }; showMute();
-function pop() {}   // no sound effects: the song is the only sound
+function begin() {
+  started = true; extra = 0; clock0 = performance.now();
+  song.currentTime = 0; showMute();
+  song.play().catch(() => {});
+  document.getElementById('start').classList.add('gone');
+  const v = document.getElementById('bg'); v.play().catch(() => {});
+  againBtn.style.display = 'none';
+}
+document.getElementById('play').onclick = begin;
+againBtn.onclick = begin;
+song.addEventListener('ended', () => { clock0 = performance.now() - SONG_LEN * 1000; });
 
-// ---- hands on: drag pulls the nearest part of the doll; arrow keys push it sideways
-let grab = -1, gx = 0, gy = 0, keyX = 0; const keys = {};
-const toWorld = (e) => [e.clientX - Wd / 2, e.clientY + camY];
-cv.addEventListener('pointerdown', (e) => { if (mode !== 'play') return; [gx, gy] = toWorld(e); let best = 1e9; grab = PELV; pts.forEach((p, i) => { const d = Math.hypot(p.x - gx, p.y - gy); if (d < best) { best = d; grab = i; } }); try { cv.setPointerCapture(e.pointerId); } catch (er) {} e.preventDefault(); });
-cv.addEventListener('pointermove', (e) => { if (grab >= 0) [gx, gy] = toWorld(e); });
-const drop = () => { grab = -1; }; cv.addEventListener('pointerup', drop); cv.addEventListener('pointercancel', drop);
-addEventListener('keydown', (e) => { keys[e.key] = 1; if (e.key === 'Escape' && mode === 'play') openMenu(); if (mode === 'play' && e.key.startsWith('Arrow')) e.preventDefault(); });
-addEventListener('keyup', (e) => { keys[e.key] = 0; });
+// scrub: wheel and drag move the roll; it keeps rolling from there
+addEventListener('wheel', e => { if (started) extra += e.deltaY * .6; }, { passive: true });
+let dragY = null;
+addEventListener('pointerdown', e => { if (started && e.target.tagName !== 'BUTTON') dragY = e.clientY; });
+addEventListener('pointermove', e => { if (dragY !== null) { extra += dragY - e.clientY; dragY = e.clientY; } });
+addEventListener('pointerup', () => dragY = null);
+addEventListener('pointercancel', () => dragY = null);
+addEventListener('keydown', e => {
+  if (!started) return;
+  if (e.key === 'ArrowDown' || e.key === 'PageDown') extra += e.key === 'PageDown' ? innerHeight * .8 : 60;
+  if (e.key === 'ArrowUp' || e.key === 'PageUp') extra -= e.key === 'PageUp' ? innerHeight * .8 : 60;
+});
 
-// ---- one small step of the world
-const H = 1 / 480, TIME_SCALE = .25;      // the whole world runs at a quarter speed: a long, slow fall
-function step() { const g = HD.g * H * H, d = Math.pow(HD.drag, H * 120), bd = Math.pow(.985, H * 120); keyX = ((keys.ArrowRight || keys.d || keys.D) ? 1 : 0) - ((keys.ArrowLeft || keys.a || keys.A) ? 1 : 0);
-  const ky = ((keys.ArrowDown || keys.s || keys.S) ? 1 : 0) - ((keys.ArrowUp || keys.w || keys.W) ? 1 : 0);
-  for (const p of pts) { const vx = (p.x - p.px) * d, vy = (p.y - p.py) * d; p.px = p.x; p.py = p.y; p.x += vx + keyX * 620 * H * H; p.y += vy + g + ky * 260 * H * H; }
-  // a drag is a soft tug, never a tow: a small push toward the finger, weaker than the fall itself, shared by the whole doll
-  if (grab >= 0 && mode === 'play') { const p = pts[grab], dx = gx - p.x, dy = gy - p.y, L = Math.hypot(dx, dy) || 1, a = Math.min(L * 2.9, 350) * H * H, ax = dx / L * a, ay = dy / L * a;
-    for (const o of pts) { o.x += ax * .55; o.y += ay * .55; } p.x += ax * .6; p.y += ay * .6; }
-  for (let it = 0; it < 4; it++) {
-    for (const [a, b, len] of sticks) { const A = pts[a], B = pts[b], dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1e-6, k = (L - len) / L * .5; A.x += dx * k; A.y += dy * k; B.x -= dx * k; B.y -= dy * k; }
-    for (const [a, b, len] of mins) { const A = pts[a], B = pts[b], dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1e-6; if (L < len) { const k = (L - len) / L * .25; A.x += dx * k; A.y += dy * k; B.x -= dx * k; B.y -= dy * k; } }
-    for (const p of pts) { if (p.x < -SW + p.r) { p.x = -SW + p.r; p.px = p.x - (p.px - p.x) * .5; } else if (p.x > SW - p.r) { p.x = SW - p.r; p.px = p.x - (p.px - p.x) * .5; } } }
-  for (const b of bubbles) { b.y += (b.vy - b.rise) * H; b.x += (b.vx + Math.sin(time * 1.3 + b.ph) * 14) * H; b.vx *= bd; b.vy *= bd; b.cool -= H; b.x = clamp(b.x, -SW + b.r, SW - b.r);
-    if (b.dead) continue;
-    for (const p of pts) { const dx = p.x - b.x, dy = p.y - b.y, rr = b.r + p.r, d2 = dx * dx + dy * dy; if (d2 >= rr * rr) continue;
-      const L = Math.sqrt(d2) || 1e-6, nx = dx / L, ny = dy / L, ov = rr - L; p.x += nx * ov * .8; p.y += ny * ov * .8; b.x -= nx * ov * .2; b.y -= ny * ov * .2;
-      const B = (b.kind === 'jelly' ? 330 : b.kind === 'food' ? 235 : 180) * H, vn = (p.x - p.px) * nx + (p.y - p.py) * ny;
-      if (vn < B) { const add = B - vn; p.px -= nx * add; p.py -= ny * add; for (const o of pts) if (o !== p) { o.px -= nx * add * .38; o.py -= ny * add * .38; } b.vx -= nx * 60; b.vy -= ny * 60; }
-      if (b.cool <= 0) { b.cool = .22; ouch = .35; hit(b); } break; } } }
-function hit(b) { if (b.kind === 'jelly') { pop(150); b.squash = 1; return; }
-  if (--b.hp > 0) { pop(520); b.squash = 1; return; }
-  b.dead = true; popped++; pop(b.kind === 'food' ? 740 + b.fi * 60 : 420);
-  for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283 + rand(0, .5); bits.push({ x: b.x + Math.cos(a) * b.r, y: b.y + Math.sin(a) * b.r, vx: Math.cos(a) * rand(40, 120), vy: Math.sin(a) * rand(40, 120), life: .5, r: rand(2, 4.5) }); }
-  if (b.kind === 'food' && mode === 'play') { const f = HD.food[b.fi]; bits.push({ x: b.x, y: b.y, vx: 0, vy: -70, life: 1.1, emo: f[0], r: b.r });
-    const first = !plate[b.fi]; plate[b.fi]++; drawPlate(b.fi);
-    if (plate.every(n => n > 0)) { feasts++; plate = [0, 0, 0, 0, 0, 0]; toast('<b>A full plate.</b> Feast ' + feasts + ' of ' + HD.name + '. The plate is cleared for the next one.', 4200); setTimeout(drawPlate, 900); pop(990); setTimeout(() => pop(1320), 130); }
-    else if (first) toast('<b>' + f[1] + '</b>: ' + f[2] + '.', 3000); } }
-
-// ---- the page around the game
-const SHOW_NOTES = false;   // the pop-up notes during play are off; the same notes are on the Settings cards
-let toastT = 0; function toast(html, ms) { if (!SHOW_NOTES) return; const t = $('toast'); t.innerHTML = html; t.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(() => { t.style.opacity = 0; }, ms); }
-function drawPlate(bump) { const el = $('plate'); el.innerHTML = HD.food.map((f, i) => '<div class="' + (plate[i] ? 'got' : '') + (i === bump ? ' pop' : '') + '">' + f[0] + '<small>' + (plate[i] || '') + '</small></div>').join(''); if (bump >= 0) setTimeout(() => { const c = el.children[bump]; if (c) c.classList.remove('pop'); }, 180); }
-function showPick() { $('hName').textContent = HD.name; }
-function buildGrid() { $('grid').innerHTML = HOLIDAYS.map((h, i) => '<button class="card" type="button" data-i="' + i + '" aria-pressed="' + (i === sel) + '"><div class="ico">' + h.ico + '</div><b>' + h.name + '</b><i>' + SHORT[h.id][0] + '</i></button>').join(''); }
-$('grid').addEventListener('click', (e) => { const c = e.target.closest('.card'); if (!c) return; sel = +c.dataset.i; HD = HOLIDAYS[sel]; try { localStorage.setItem('turkeyfall.holiday', HD.id); } catch (er) {} buildGrid(); showPick(); reset(); });
-function show(which) { $('menu').hidden = which !== 'menu'; $('menu').style.display = which === 'menu' ? 'flex' : 'none'; $('settings').hidden = which !== 'settings'; $('settings').style.display = which === 'settings' ? 'flex' : 'none';
-  const play = which === 'play'; $('gear').hidden = !play; $('hud').style.display = play ? 'flex' : 'none'; $('plate').style.display = play ? 'flex' : 'none'; if (!play) $('toast').style.opacity = 0; }
-function openMenu() { mode = 'menu'; grab = -1; buildGrid(); show('settings'); }
-$('bStart').onclick = openMenu;
-function fadeIn() { const f = $('fade'); f.style.transition = 'none'; f.style.opacity = 1; void f.offsetWidth; f.style.transition = 'opacity 20s ease-in-out'; f.style.opacity = 0; }
-$('bGo').onclick = () => { fadeIn(); creditT = 0; reset(); mode = 'play'; show('play'); pop(660); playMusic(); toast('<b>' + HD.name + '.</b> ' + HD.about, 6500); };
-$('gear').onclick = openMenu;
-// Switch: the next holiday, its doll, sky and food, without stopping the fall
-$('switch').onclick = () => { sel = (sel + 1) % HOLIDAYS.length; HD = HOLIDAYS[sel]; try { localStorage.setItem('turkeyfall.holiday', HD.id); } catch (er) {} showPick(); plate = [0, 0, 0, 0, 0, 0]; drawPlate(); };
-
-// ---- drawing
-const limb = (a, b, w, c) => { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); };
-const dot = (x, y, r, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill(); };
-const ell = (x, y, rx, ry, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 6.283); ctx.fill(); };
-// in the body's own frame: x across the shoulders, y from the neck (0) down to the hips (len)
-function inBody(f) { const n = pts[NECK], p = pts[PELV], a = Math.atan2(p.y - n.y, p.x - n.x) - Math.PI / 2, len = Math.hypot(p.x - n.x, p.y - n.y); ctx.save(); ctx.translate(n.x, n.y); ctx.rotate(a); f(len); ctx.restore(); }
-function inHead(f) { const n = pts[NECK], h = pts[HEAD]; ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(Math.atan2(h.y - n.y, h.x - n.x) + Math.PI / 2); f(); ctx.restore(); }
-function face(hr, eye) { dot(-hr * .36, -hr * .05, hr * .11, eye || '#22140c'); dot(hr * .36, -hr * .05, hr * .11, eye || '#22140c'); ctx.strokeStyle = '#22140c'; ctx.lineWidth = 1.6; ctx.beginPath();
-  if (ouch > 0) ctx.arc(0, hr * .42, hr * .16, 0, 6.283); else ctx.arc(0, hr * .25, hr * .3, .2, Math.PI - .2); ctx.stroke(); }
-const hair = (hr, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(0, 0, hr + .5, Math.PI * 1.05, Math.PI * 1.95); ctx.closePath(); ctx.fill(); };
-const skirt = (c, top, bot, wt, wb) => inBody((len) => { ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(-wt, len * top); ctx.lineTo(wt, len * top); ctx.lineTo(wb, len * bot); ctx.lineTo(-wb, len * bot); ctx.closePath(); ctx.fill(); });
-// each doll: colours and sizes, then what goes behind it, on its head, and in front
-const SKIN = {
-  turkey: { torso: '#7a4a24', fat: 27, arm: '#5e3819', fore: '#6d4320', aw: 15, leg: '#e0902a', shin: '#e0902a', lw: 5, head: '#b9432e', hr: 11, feet: '#e0902a',
-    back() { inBody((len) => { const cols = ['#8b3d1f', '#c96f2b', '#e8b04a']; for (let i = 0; i < 9; i++) { const a = (i - 4) * .26; ctx.save(); ctx.translate(0, len * .8); ctx.rotate(a); ell(0, 36, 9, 34, cols[i % 3]); ell(0, 60, 6, 9, '#f3e3c0'); ctx.restore(); } }); },
-    hat() { ctx.fillStyle = '#f2b632'; ctx.beginPath(); ctx.moveTo(8, -2); ctx.lineTo(22, 2); ctx.lineTo(8, 6); ctx.closePath(); ctx.fill(); ell(9, 12, 4, 8, '#e0352b'); dot(3, -3, 3.2, '#fff'); dot(4, -3, 1.6, '#111'); }, noFace: true },
-  canada: { whole(len) { ell(0, len * .56, 36, len * .5 + 4, '#e2761b'); ctx.strokeStyle = 'rgba(120,50,5,.45)'; ctx.lineWidth = 2.5; for (const rx of [12, 25]) { ctx.beginPath(); ctx.ellipse(0, len * .56, rx, len * .5 + 3, 0, 0, 6.283); ctx.stroke(); }
-      ctx.strokeStyle = '#5b6b2a'; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(0, len * .08); ctx.quadraticCurveTo(2, -8, 9, -10); ctx.stroke(); }, faceY: .56, limbc: '#c9762a' },
-  germany: { whole(len) { ctx.strokeStyle = '#c99a2a'; ctx.lineWidth = 5; for (let i = -4; i <= 4; i++) { ctx.beginPath(); ctx.moveTo(i * 6.5, len * 1.12); ctx.lineTo(i * 2.2, len * .5); ctx.lineTo(i * 7.5, -2 + Math.abs(i) * 3); ctx.stroke(); }
-      for (let i = -4; i <= 4; i++) { ctx.save(); ctx.translate(i * 7.5, -6 + Math.abs(i) * 3); ctx.rotate(i * .13); ell(0, -8, 4.2, 12, '#e8c04a'); ctx.restore(); }
-      ctx.fillStyle = '#e3b23a'; ctx.beginPath(); ctx.moveTo(-28, len * 1.12); ctx.lineTo(-11, len * .5); ctx.lineTo(-30, 4); ctx.lineTo(30, 4); ctx.lineTo(11, len * .5); ctx.lineTo(28, len * 1.12); ctx.closePath(); ctx.globalAlpha = .55; ctx.fill(); ctx.globalAlpha = 1;
-      ctx.fillStyle = '#b3312c'; ctx.fillRect(-14, len * .46, 28, 8); }, faceY: .26, limbc: '#8a6a1c' },
-  japan: { whole(len) { ctx.fillStyle = '#f7f5ef'; ctx.strokeStyle = '#f7f5ef'; ctx.lineWidth = 22; ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(30, len * 1.0); ctx.lineTo(-30, len * 1.0); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#1d2a22'; ctx.beginPath(); ctx.roundRect(-17, len * .72, 34, len * .44, 4); ctx.fill(); }, faceY: .42, limbc: '#9a958a' },
-  korea: { whole(len) { const c = len * .55; ctx.fillStyle = '#cfe3b4'; ctx.beginPath(); ctx.arc(0, c, 38, Math.PI * .12, Math.PI * .88); ctx.quadraticCurveTo(0, c - 62, 38 * Math.cos(Math.PI * .12), c + 38 * Math.sin(Math.PI * .12)); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = 'rgba(90,120,60,.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, c, 31, Math.PI * .2, Math.PI * .8); ctx.stroke(); for (let i = 0; i < 7; i++) { const a = Math.PI * (.22 + i * .093); ctx.beginPath(); ctx.moveTo(Math.cos(a) * 31, c + Math.sin(a) * 31); ctx.lineTo(Math.cos(a) * 37, c + Math.sin(a) * 37); ctx.stroke(); } }, faceY: .5, limbc: '#7f9a62' },
-  china: { torso: '#f5f2ee', fat: 20, arm: '#f5f2ee', fore: '#f5f2ee', aw: 10, leg: '#f5f2ee', shin: '#f5f2ee', lw: 11, head: '#f5f2ee', hr: 15, feet: '#ece6de', eye: '#b02a3a',
-    back() { inBody((len) => { dot(0, len + 12, 9, '#ffffff'); }); },
-    hat() { for (const s of [-1, 1]) { ctx.save(); ctx.translate(s * 7, -12); ctx.rotate(s * .16); ell(0, -17, 6, 20, '#f5f2ee'); ell(0, -16, 2.8, 14, '#f1b8c0'); ctx.restore(); } dot(0, 3.5, 2.2, '#e58a9a'); } },
-  ghana: { whole(len) { for (const s of [-1, 1]) { ctx.save(); ctx.translate(s * 14, len * .95); ctx.rotate(s * -.5); ell(0, -14, 13, 34, '#5d8f3a'); ctx.restore(); }
-      ell(0, len * .5, 22, len * .58, '#f2c531'); ctx.fillStyle = 'rgba(190,130,10,.55)'; for (let r = 0; r < 9; r++) for (let k = -2; k <= 2; k++) { const y = len * (.02 + r * .115), x = k * 8 + (r % 2 ? 4 : 0); if (Math.abs(x) < 20 - Math.abs(r - 4) * 1.6) { ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 6.283); ctx.fill(); } } }, faceY: .4, plate: true, limbc: '#4c7a30' },
-  india: { whole(len) { ell(0, len * .66, 36, len * .46, '#b5562b'); ctx.fillStyle = '#9c4722'; ctx.beginPath(); ctx.roundRect(-22, len * .12, 44, len * .2, 6); ctx.fill(); ctx.fillStyle = '#c96a3a'; ctx.beginPath(); ctx.roundRect(-27, len * .06, 54, 9, 4); ctx.fill();
-      for (const [x, y, r] of [[-14, .04, 11], [0, -.02, 13], [14, .04, 11], [-26, .16, 7], [27, .2, 8], [28, .34, 5]]) dot(x, len * y, r, '#fbf7ee');
-      for (let i = -3; i <= 3; i++) dot(i * 9, len * (.5 - Math.abs(i) * .012), 2.6, '#f6e7c8'); ctx.strokeStyle = '#e9b21e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-22, len * .3); ctx.lineTo(22, len * .3); ctx.stroke(); }, faceY: .74, limbc: '#d08a58' },
-  crab: { torso: '#c8372d', wide: 38, arm: '#b52f27', fore: '#c8372d', aw: 9, leg: '#b52f27', shin: '#c8372d', lw: 7, head: '#c8372d', hr: 8, noFace: true,
-    back() { inBody((len) => { ctx.strokeStyle = '#a82a23'; ctx.lineWidth = 6; for (const s of [-1, 1]) for (const k of [.35, .7]) { const w = Math.sin(time * 5 + k * 9 + s) * 4; ctx.beginPath(); ctx.moveTo(s * 26, len * k); ctx.lineTo(s * 52, len * k - 8 + w); ctx.lineTo(s * 62, len * k + 18 + w); ctx.stroke(); } }); },
-    front() { for (const [e, h] of [[LE, LH], [RE, RH]]) { const a = pts[e], b = pts[h], an = Math.atan2(b.y - a.y, b.x - a.x), op = .35 + .25 * Math.sin(time * 6 + e); ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(an); ctx.fillStyle = '#d9453a'; ctx.beginPath(); ctx.moveTo(-4, 0); ctx.arc(6, 0, 15, op, 6.283 - op); ctx.closePath(); ctx.fill(); ctx.restore(); }
-      inBody((len) => { ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.beginPath(); ctx.ellipse(-8, len * .36, 16, 8, -.3, 0, 6.283); ctx.fill(); }); },
-    hat() { ctx.strokeStyle = '#c8372d'; ctx.lineWidth = 3; for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(s * 4, 0); ctx.lineTo(s * 8, -13); ctx.stroke(); dot(s * 8, -14, 4.5, '#fff'); dot(s * 8.6, -14.5, 2.1, '#111'); }
-      ctx.fillStyle = '#f3c63a'; ctx.beginPath(); ctx.moveTo(-10, -20); ctx.lineTo(-10, -33); ctx.lineTo(-5, -26); ctx.lineTo(0, -35); ctx.lineTo(5, -26); ctx.lineTo(10, -33); ctx.lineTo(10, -20); ctx.closePath(); ctx.fill(); dot(0, -24, 1.8, '#d43a3a'); } },
-  space: { torso: '#e9edf2', tw: 30, arm: '#e9edf2', fore: '#d9dee6', aw: 14, leg: '#e9edf2', shin: '#d9dee6', lw: 14, head: '#f4f6f9', hr: 18, hands: '#8e99a8', feet: '#8e99a8', noFace: true,
-    back() { inBody((len) => { ctx.fillStyle = '#b8c0cc'; ctx.fillRect(-19, -4, 38, len * .9); }); },
-    front() { inBody((len) => { ctx.fillStyle = '#c9414a'; ctx.fillRect(-9, len * .22, 7, 5); ctx.fillStyle = '#3a6fb0'; ctx.fillRect(2, len * .22, 7, 5); ctx.fillStyle = '#8e99a8'; ctx.fillRect(-15, len * .86, 30, 5); }); },
-    hat() { ctx.fillStyle = '#17233c'; ctx.beginPath(); ctx.ellipse(0, 0, 13, 11, 0, 0, 6.283); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(-1, -1, 8.5, Math.PI * 1.1, Math.PI * 1.55); ctx.stroke(); dot(6, 4, 1.6, 'rgba(255,200,120,.9)'); } }
-};
-// in the whole doll's frame: y runs from the head (0) down to the hips (len)
-function inWhole(f) { const h = pts[HEAD], p = pts[PELV], len = Math.hypot(p.x - h.x, p.y - h.y); ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(Math.atan2(p.y - h.y, p.x - h.x) - Math.PI / 2); f(len); ctx.restore(); }
-function drawDoll() { const S = SKIN[HD.id], P = pts; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (S.whole) { for (const [a, b] of [[NECK, LE], [LE, LH], [NECK, RE], [RE, RH], [PELV, LK], [LK, LF], [PELV, RK], [RK, RF]]) limb(P[a], P[b], 6, S.limbc);
-    for (const i of [LH, RH, LF, RF]) dot(P[i].x, P[i].y, 6.5, S.limbc);
-    inWhole((len) => { S.whole(len); ctx.save(); ctx.translate(0, len * S.faceY); face(26); ctx.restore(); }); return; }
-  if (S.back) S.back();
-  limb(P[NECK], P[LE], S.aw, S.arm); limb(P[LE], P[LH], S.aw - 1, S.fore); limb(P[PELV], P[LK], S.lw, S.leg); limb(P[LK], P[LF], S.lw - 1, S.shin);
-  if (S.fat) inBody((len) => ell(0, len * .52, S.fat, len * .5 + S.fat * .55, S.torso)); else if (S.wide) inBody((len) => ell(0, len * .5, S.wide, len * .5 + 6, S.torso)); else limb(P[NECK], P[PELV], S.tw, S.torso);
-  limb(P[NECK], P[RE], S.aw, S.arm); limb(P[RE], P[RH], S.aw - 1, S.fore); limb(P[PELV], P[RK], S.lw, S.leg); limb(P[RK], P[RF], S.lw - 1, S.shin);
-  if (S.hands) { dot(P[LH].x, P[LH].y, S.aw * .62, S.hands); dot(P[RH].x, P[RH].y, S.aw * .62, S.hands); }
-  if (S.feet) { dot(P[LF].x, P[LF].y, S.lw * .7 + 2, S.feet); dot(P[RF].x, P[RF].y, S.lw * .7 + 2, S.feet); }
-  if (S.front) S.front();
-  if (HD.id === 'turkey' || HD.id === 'crab') limb(P[NECK], P[HEAD], HD.id === 'turkey' ? 8 : 5, S.head);
-  dot(P[HEAD].x, P[HEAD].y, S.hr, S.head); inHead(() => { if (!S.noFace) face(S.hr, S.eye); if (S.hat) S.hat(); }); }
-
-// the sky changes slowly on the way down: its colours swing warmer and cooler, lighter and darker, with the depth
-const toHsl = (hex) => { const r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
-  let h = 0, sa = 0; if (d) { sa = d / (1 - Math.abs(2 * l - 1)); h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; } return [h, sa * 100, l * 100]; };
-function skyAt(depth) { const d = Math.max(depth, 0), hs = 55 * Math.sin(d / 2600) + 25 * Math.sin(d / 7100), ls = .78 + .30 * Math.cos(d / 1900), ss = .9 + .2 * Math.sin(d / 3300);
-  return HD.sky.map((c) => { const [h, s, l] = toHsl(c); return 'hsl(' + ((h + hs + 360) % 360).toFixed(1) + ',' + clamp(s * ss, 0, 100).toFixed(1) + '%,' + clamp(l * ls, 2, 80).toFixed(1) + '%)'; }); }
-// the thanks: faint lines rising slowly behind everything, like the credits of a film
-const THANKS = ['Thank you.', '', 'I am grateful', 'for the people in my life', 'who took time out of their day', 'to give.', '',
-  'For the ones who gave me', 'the time of day.', '', 'For the ones who created with me.', '',
-  'For the ones who explained', 'what I did not understand,', 'and did not mind explaining it twice.', '',
-  'For the ones who did backflips and tricks,', 'just to show it could be done.', '',
-  'For the ones who showed me', 'how people think,', 'and why they think that way.', '',
-  'How society operates.', 'What has failed.', 'What works.', '', 'What we can strive to be.', '',
-  'For the ones who helped me see', 'my blind spots,', 'and let me help with theirs.', '',
-  'For the ones who showed grace', 'when there wasn’t any left.', '',
-  'Time is the one thing', 'anyone really has to give.', 'You gave me yours.', '', 'Thank you.'];
-let creditT = 0;
-function drawThanks() { if (mode !== 'play') return; const fs = Math.min(30, Wd / 16), lh = fs * 1.75, total = THANKS.length * lh + Hd * .6, off = (creditT * 15) % total;
-  ctx.font = 'italic ' + fs.toFixed(1) + 'px Georgia, "Times New Roman", serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff6e6';
-  for (let i = 0; i < THANKS.length; i++) { if (!THANKS[i]) continue; const y = Hd + 30 + i * lh - off; if (y < -30 || y > Hd + 30) continue;
-    const e = Math.min(1, Math.min(y, Hd - y) / (Hd * .22)); ctx.globalAlpha = .26 * Math.max(0, e) * Math.max(0, e) * (3 - 2 * Math.max(0, e)); ctx.fillText(THANKS[i], Wd / 2, y); } ctx.globalAlpha = 1; }
-// the presenter: a small frog in a bow tie on a lily pad in the corner, pointing up at the thanks as they go by
-function drawFrog() { if (mode !== 'play') return; const t = creditT, k = Math.min(1, Wd / 700 + .45), x = Math.max(58 * k, Wd / 2 - SW + 64 * k), y = Hd - 104 - 14 * k, bob = Math.sin(t * 1.6) * 2.2, blink = (t % 4.3) < .14, sw = Math.sin(t * .9) * .22;
-  ctx.save(); ctx.translate(x, y); ctx.scale(k, k); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ell(0, 40, 54, 12, 'rgba(0,0,0,.22)'); ell(0, 36, 52, 12, '#3f8f4a'); ctx.fillStyle = '#2f7a3c'; ctx.beginPath(); ctx.moveTo(0, 36); ctx.lineTo(50, 28); ctx.lineTo(48, 42); ctx.closePath(); ctx.fill();
-  ctx.translate(0, bob);
-  ctx.strokeStyle = '#4fae52'; ctx.lineWidth = 11; ctx.beginPath(); ctx.moveTo(-20, 22); ctx.lineTo(-34, 30); ctx.lineTo(-22, 34); ctx.moveTo(20, 22); ctx.lineTo(34, 30); ctx.lineTo(22, 34); ctx.stroke();   // legs
-  ell(0, 10, 27, 25, '#5cc05e'); ell(0, 15, 17, 17, '#d9f0b8');                                           // body and belly
-  ctx.strokeStyle = '#4fae52'; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(-22, 6); ctx.lineTo(-30, 22); ctx.stroke(); // resting arm
-  ctx.save(); ctx.translate(22, 4); ctx.rotate(-.75 + sw); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(24, 0); ctx.stroke();      // pointing arm and its stick
-  ctx.strokeStyle = '#f3e6c4'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(22, 0); ctx.lineTo(66, 0); ctx.stroke(); dot(67, 0, 3.4, '#ffb347'); ctx.restore();
-  ell(0, -16, 30, 20, '#5cc05e'); for (const sx of [-1, 1]) { dot(sx * 16, -32, 12, '#5cc05e'); if (blink) { ctx.strokeStyle = '#1e4d27'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(sx * 16 - 7, -32); ctx.lineTo(sx * 16 + 7, -32); ctx.stroke(); } else { dot(sx * 16, -33, 8, '#fff'); dot(sx * 16 + 2.5, -34.5, 3.8, '#1b1b1b'); } }
-  ctx.strokeStyle = '#1e4d27'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, -17, 17, .25, Math.PI - .25); ctx.stroke(); dot(-21, -11, 4, 'rgba(240,120,120,.5)'); dot(21, -11, 4, 'rgba(240,120,120,.5)');
-  ctx.fillStyle = '#c8324a'; ctx.beginPath(); ctx.moveTo(0, 3); ctx.lineTo(-13, -4); ctx.lineTo(-13, 10); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(0, 3); ctx.lineTo(13, -4); ctx.lineTo(13, 10); ctx.closePath(); ctx.fill(); dot(0, 3, 3.6, '#8f1f33');
-  ctx.restore(); }
-const stars = Array.from({ length: 140 }, () => [Math.random(), Math.random(), Math.random()]);
-function draw() { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); const sky = skyAt(camY), gr = ctx.createLinearGradient(0, 0, 0, Hd); gr.addColorStop(0, sky[0]); gr.addColorStop(.6, sky[1]); gr.addColorStop(1, sky[2]); ctx.fillStyle = gr; ctx.fillRect(0, 0, Wd, Hd);
-  // far specks drift past slower than the bubbles, so the fall has depth
-  for (const [sx, sy, sz] of stars) { const par = .15 + sz * .35, y = ((sy * 1400 - camY * par) % (Hd + 40) + Hd + 40) % (Hd + 40) - 20; ctx.fillStyle = HD.stars ? 'rgba(255,255,255,' + (.3 + sz * .6) + ')' : 'rgba(255,240,210,' + (.05 + sz * .12) + ')'; ctx.beginPath(); ctx.arc(sx * Wd, y, HD.stars ? .6 + sz * 1.4 : 2 + sz * 9, 0, 6.283); ctx.fill(); }
-  drawThanks();
-  ctx.fillStyle = 'rgba(0,0,0,.16)'; ctx.fillRect(0, 0, Wd / 2 - SW, Hd); ctx.fillRect(Wd / 2 + SW, 0, Wd / 2 - SW, Hd);
-  ctx.translate(Wd / 2, -camY);
-  for (const b of bubbles) { if (b.dead) continue; const sq = b.squash || 0, rx = b.r * (1 + sq * .14), ry = b.r * (1 - sq * .14);
-    ctx.beginPath(); ctx.ellipse(b.x, b.y, rx, ry, 0, 0, 6.283); ctx.fillStyle = b.kind === 'jelly' ? 'hsla(' + b.hue + ',70%,70%,.30)' : 'rgba(255,255,255,.10)'; ctx.fill(); ctx.lineWidth = b.kind === 'jelly' ? 3 : 1.6; ctx.strokeStyle = b.kind === 'jelly' ? 'hsla(' + b.hue + ',80%,82%,.8)' : 'rgba(255,255,255,.55)'; ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * .72, Math.PI * 1.12, Math.PI * 1.42); ctx.stroke();
-    if (b.kind === 'food') { ctx.font = Math.round(b.r * 1.05) + 'px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText(HD.food[b.fi][0], b.x, b.y + b.r * .06); } }
-  drawDoll();
-  if (grab >= 0 && mode === 'play') { ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 5]); ctx.beginPath(); ctx.moveTo(pts[grab].x, pts[grab].y); ctx.lineTo(gx, gy); ctx.stroke(); ctx.setLineDash([]); }
-  for (const p of bits) { ctx.globalAlpha = clamp(p.life * 2, 0, 1); if (p.emo) { ctx.font = Math.round(p.r * 1.2) + 'px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText(p.emo, p.x, p.y); } else dot(p.x, p.y, p.r, 'rgba(255,255,255,.85)'); } ctx.globalAlpha = 1; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); drawFrog(); }
-
-let last = 0, acc = 0;
-function frame(ms) { const real = Math.min(.05, (ms - last) / 1000 || 0), dt = real * TIME_SCALE; last = ms; time += dt; acc += dt; let n = 0; while (acc >= H && n++ < 10) { step(); acc -= H; } if (n >= 10) acc = 0;
-  creditT += real; ouch -= real; for (const b of bubbles) if (b.squash) b.squash = Math.max(0, b.squash - real * 5);
-  for (const p of bits) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; } bits = bits.filter(p => p.life > 0);
-  const want = pts[PELV].y - Hd * .38; camY += (want - camY) * Math.min(1, real * 4.5);
-  while (nextY < camY + Hd + 500) { spawn(nextY); nextY += rand(40, 92) * (760 / (SW * 2)) * (Wd < 520 ? .62 : 1); }
-  bubbles = bubbles.filter(b => !b.dead && b.y > camY - 260);
-  if (mode === 'play') $('hStat').textContent = Math.max(0, Math.round(pts[PELV].y / 40)) + ' m down · ' + popped + ' popped' + (feasts ? ' · ' + feasts + (feasts === 1 ? ' feast' : ' feasts') : '');
-  draw(); requestAnimationFrame(frame); }
-showPick(); reset(); show('menu'); requestAnimationFrame(frame);
-window.__fall = { state: () => ({ muted, music: !music.paused, mode, holiday: HD.id, y: pts[PELV].y, popped, plate, feasts, bubbles: bubbles.length }), pick: (i) => { sel = i; HD = HOLIDAYS[i]; showPick(); reset(); } };
+window.__credits = { state: () => ({ started, t: songTime(), extra, h: roll.offsetHeight }), seek: s => { if (!song.paused) song.currentTime = s; else clock0 = performance.now() - s * 1000; started = true; document.getElementById('start').classList.add('gone'); } };
 </script>
 </body>
 </html>
