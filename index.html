@@ -3,330 +3,38 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>I Caught The Bitcoin Robber Hacker Time Traveler</title>
-<meta name="description" content="The extended credits. Every fact is real. September 28, 2009 to May 16, 2015.">
+<title>Space Dance</title>
+<meta name="description" content="Space Dance.">
 <style>
-  :root { --ink: #f2ead8; --dim: #b9b2a2; --gold: #f5c04a; --cyan: #7fe7ff; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; background: #000; color: var(--ink); overflow: hidden; overscroll-behavior: none; }
-  body { font-family: "Courier New", Courier, ui-monospace, monospace; -webkit-font-smoothing: antialiased; touch-action: none; }
-  video#bg { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(1.05) brightness(.62); }
-  #shade { position: fixed; inset: 0; pointer-events: none;
-    background: radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.25) 0%, rgba(0,0,0,.62) 70%, rgba(0,0,0,.82) 100%),
-                linear-gradient(to bottom, rgba(0,0,0,.85) 0%, rgba(0,0,0,0) 18%, rgba(0,0,0,0) 82%, rgba(0,0,0,.85) 100%); }
-  #roll { position: fixed; left: 50%; top: 0; width: min(760px, calc(100% - 32px)); transform: translate(-50%, 100vh); will-change: transform; text-align: center; }
-  .rule { color: var(--dim); opacity: .75; letter-spacing: .1em; overflow: hidden; white-space: nowrap; font-size: 12px; margin: 26px 0; }
-  .big { font-size: clamp(26px, 6vw, 46px); font-weight: bold; letter-spacing: .06em; line-height: 1.15; text-shadow: 0 2px 18px #000; }
-  .big em { color: var(--gold); font-style: normal; }
-  .by { margin-top: 14px; font-size: 20px; color: var(--cyan); letter-spacing: .3em; }
-  .dates { font-size: 15px; color: var(--dim); letter-spacing: .25em; margin-top: 10px; }
-  h2 { font-size: 15px; letter-spacing: .28em; color: var(--gold); margin: 70px 0 22px; text-shadow: 0 2px 10px #000; }
-  .row { display: flex; align-items: baseline; gap: 8px; text-align: left; font-size: 15px; line-height: 1.35; margin: 0 0 3px; text-shadow: 0 1px 6px #000, 0 0 2px #000; }
-  .row .what { flex: 0 1 auto; }
-  .row .dots { flex: 1 1 24px; min-width: 24px; border-bottom: 2px dotted rgba(242,234,216,.38); transform: translateY(-4px); }
-  .row .when { flex: 0 0 auto; white-space: nowrap; color: var(--ink); }
-  .quip { text-align: left; font-size: 13px; font-style: italic; color: var(--cyan); opacity: .88; margin: 0 0 14px 22px; text-shadow: 0 1px 6px #000; }
-  .row + .row { margin-top: 0; }
-  .plain .row { margin-bottom: 9px; }
-  .note { font-size: 14px; color: var(--dim); line-height: 1.6; margin: 10px auto; max-width: 560px; text-shadow: 0 1px 6px #000; }
-  .cast .row .what { color: var(--gold); }
-  .end { font-size: 15px; letter-spacing: .12em; line-height: 1.8; margin: 8px 0; }
-  .fin { font-size: clamp(30px, 7vw, 54px); letter-spacing: .4em; margin: 40vh 0 10px; color: var(--gold); }
-  @media (max-width: 560px) {
-    .row { flex-wrap: wrap; font-size: 13.5px; gap: 0 6px; }
-    .row .what { flex-basis: 100%; }
-    .row .dots { flex: 1 1 20px; }
-    .quip { font-size: 12.5px; margin-left: 12px; }
-    h2 { font-size: 13px; letter-spacing: .2em; }
-  }
-
-  /* start card and controls */
-  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
-    background: rgba(0,0,0,.55); text-align: center; padding: 16px; z-index: 5; transition: opacity 1.2s; }
+  html, body { height: 100%; background: #000; overflow: hidden; }
+  body { color: #e8f0ff; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+  #start { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,.15) 0%, rgba(0,0,0,.6) 100%); transition: opacity .6s; z-index: 2; }
   #start.gone { opacity: 0; pointer-events: none; }
-  #start .big { max-width: 760px; }
-  button { font: inherit; cursor: pointer; }
-  #play { font-size: 20px; letter-spacing: .3em; padding: 14px 38px 14px 46px; color: #111; background: var(--gold); border: 0; border-radius: 4px; box-shadow: 0 6px 30px rgba(245,192,74,.35); }
-  #play:hover { filter: brightness(1.1); }
-  .ctl { position: fixed; top: max(14px, env(safe-area-inset-top)); z-index: 6; font-size: 13px; letter-spacing: .12em; padding: 8px 12px;
-    color: var(--ink); background: rgba(0,0,0,.45); border: 1px solid rgba(242,234,216,.35); border-radius: 4px; }
-  #mute { right: 14px; }
-  #again { left: 14px; display: none; }
-  .hint { font-size: 12px; color: var(--dim); letter-spacing: .1em; }
+  #play { width: 96px; height: 96px; border-radius: 50%; border: 2px solid rgba(160,200,255,.85); background: rgba(20,60,160,.35);
+    box-shadow: 0 0 40px rgba(80,140,255,.55), inset 0 0 20px rgba(120,170,255,.35); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: transform .2s, background .2s; }
+  #play:hover { transform: scale(1.06); background: rgba(40,90,210,.5); }
+  #play svg { width: 38px; height: 38px; margin-left: 6px; fill: #eaf2ff; }
+  #pause { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 13px; letter-spacing: .2em;
+    color: rgba(232,240,255,.8); pointer-events: none; opacity: 0; transition: opacity .3s; z-index: 1; }
+  #pause.on { opacity: 1; }
 </style>
 </head>
 <body>
-<video id="bg" src="bg.mp4" autoplay muted loop playsinline preload="auto"></video>
-<div id="shade"></div>
-<div id="roll"></div>
-
-<div id="start">
-  <div class="big">I CAUGHT THE<br><em>BITCOIN ROBBER HACKER<br>TIME TRAVELER</em></div>
-  <div class="by">BY JK</div>
-  <button id="play">PLAY</button>
-  <div class="hint">the extended credits &middot; every fact is real</div>
-</div>
-<button id="mute" class="ctl">SOUND ON</button>
-<button id="again" class="ctl">FROM THE TOP</button>
-
+<video id="v" src="video.mp4" poster="poster.jpg" playsinline preload="metadata"></video>
+<div id="pause">PAUSED</div>
+<div id="start"><button id="play" aria-label="Play"><svg viewBox="0 0 24 24"><path d="M6 4l15 8-15 8z"/></svg></button></div>
 <script>
-// Each section: [title, rows, style]. A row is [what, when, quip?]. The facts and dates are real; the quips are the joke.
-const SECTIONS = [
-  ['STARRING', [
-    ['THE BITCOIN ROBBER HACKER TIME TRAVELER', 'AS HIMSELF', 'Name withheld. He keeps changing it, and also the year.'],
-    ['JK', 'AS THE ONE WHO CAUGHT HIM', 'Using no time machine at all. Just patience and a very long list.'],
-  ], 'cast'],
-
-  ['PREVIOUSLY, ON THE TIMELINE', [
-    ['BITCOIN GENESIS BLOCK MINED', 'JANUARY 3, 2009', 'Its first coins can never be spent. The first thing the robber tried to rob.'],
-    ['STEPHEN HAWKING THROWS A PARTY FOR TIME TRAVELERS', 'JUNE 28, 2009', 'He sent the invitations after the party. Nobody came. Our guy was busy.'],
-  ]],
-
-  ['THE CRIME SCENE (CRYPTO & FINANCE DEPARTMENT)', [
-    ['WALL STREET "FLASH CRASH"', 'MAY 6, 2010', 'About a trillion dollars vanished and came back in roughly half an hour. Not him. He checked.'],
-    ['TWO PIZZAS BOUGHT FOR 10,000 BTC', 'MAY 22, 2010', 'Catering. The most expensive pizzas in history, at least on paper.'],
-    ['MT. GOX BITCOIN EXCHANGE LAUNCHES', 'JULY 18, 2010', 'The name came from "Magic: The Gathering Online eXchange." It was a card-trading site first.'],
-    ['A BUG CREATES 184 BILLION BITCOIN IN ONE BLOCK', 'AUGUST 15, 2010', 'Bitcoin is capped at 21 million. Someone fixed the chain within hours. Continuity department, take a bow.'],
-    ['BITCOIN REACHES $1.00 PARITY', 'FEBRUARY 9, 2011', 'One coin, one dollar. The robber bought none. Hindsight is his whole business model and he still missed it.'],
-    ['LITECOIN LAUNCHES', 'OCTOBER 7, 2011'],
-    ['FIRST BITCOIN HALVING (50 -> 25 BTC)', 'NOVEMBER 28, 2012', 'The reward for mining a block was cut in half, on schedule, by math. Math cannot be bribed. He tried.'],
-    ['CYPRUS BANKING CRISIS & BAIL-IN', 'MARCH 2013'],
-    ['A MAN THROWS AWAY A HARD DRIVE HOLDING 7,500 BTC', '2013', 'It went to a landfill in Newport, Wales. The robber has a shovel and no permission.'],
-    ['FBI SHUTS DOWN SILK ROAD', 'OCTOBER 2, 2013'],
-    ['WORLD\'S FIRST BITCOIN ATM OPENS IN VANCOUVER', 'OCTOBER 29, 2013', 'In a coffee shop. It took cash and gave out Bitcoin. He tried it the other way round.'],
-    ['ETHEREUM WHITEPAPER PUBLISHED', 'NOVEMBER 2013'],
-    ['BITCOIN PASSES $1,000', 'NOVEMBER 2013'],
-    ['DOGECOIN LAUNCHES', 'DECEMBER 6, 2013', 'Started as a joke. Outlived several serious things on this list.'],
-    ['A FORUM POST TITLED "I AM HODLING"', 'DECEMBER 18, 2013', 'A typo for "holding." It became a word. Spelling consultant: whisky.'],
-    ['MT. GOX HALTS WITHDRAWALS', 'FEBRUARY 7, 2014'],
-    ['MT. GOX FILES FOR BANKRUPTCY (~850,000 BTC MISSING)', 'FEBRUARY 28, 2014', 'Prime suspect: him. Actual suspect: not him. Annoying for everybody.'],
-    ['NEWSWEEK NAMES DORIAN NAKAMOTO AS BITCOIN\'S CREATOR', 'MARCH 6, 2014', 'He said he was not involved. A car chase with reporters followed. Casting error.'],
-    ['MT. GOX FINDS 200,000 BTC IN AN OLD WALLET', 'MARCH 20, 2014', 'Found in a wallet format nobody was checking. The financial version of a twenty in last winter\'s coat.'],
-    ['ETHEREUM CROWDSALE', 'JULY - SEP 2014'],
-    ['BITSTAMP HACKED (ABOUT 19,000 BTC)', 'JANUARY 2015', 'Also not him. He would like that on the record.'],
-    ['SWISS NATIONAL BANK DROPS THE EURO PEG', 'JANUARY 15, 2015', 'The franc jumped about 30% in minutes. Some currency brokers did not survive the week.'],
-  ]],
-
-  ['CYBERSECURITY & HACKING UNIT', [
-    ['OPERATION AURORA HITS GOOGLE', 'JANUARY 2010'],
-    ['GERMAN BANK CARDS FORGET THAT 2010 EXISTS', 'JANUARY 1, 2010', 'Around 30 million cards stopped working because of a date bug. Time travel is hard even for chips.'],
-    ['STUXNET WORM DISCOVERED', 'JUNE 2010'],
-    ['PLAYSTATION NETWORK DOWN 23 DAYS', 'APRIL 20, 2011'],
-    ['LULZSEC\'S 50-DAY HACKING SPREE', 'MAY - JUNE 2011', 'They announced the end on day 50. Punctual, at least.'],
-    ['FBI SHUTS DOWN MEGAUPLOAD', 'JANUARY 19, 2012'],
-    ['A LEAP SECOND CRASHES REDDIT AND QANTAS CHECK-IN', 'JUNE 30, 2012', 'One extra second at midnight. Servers could not cope. Imagine what a whole extra decade does.'],
-    ['TARGET BREACH (40M+ CARDS)', 'DECEMBER 2013'],
-    ['HEARTBLEED BUG DISCLOSED', 'APRIL 7, 2014', 'Half the internet changed its passwords. The other half wrote theirs on a sticky note again.'],
-    ['SHELLSHOCK BASH VULNERABILITY', 'SEPTEMBER 24, 2014'],
-    ['JPMORGAN CHASE BREACH (76M HOUSEHOLDS)', 'OCTOBER 2014'],
-    ['SONY PICTURES HACKED', 'NOVEMBER 24, 2014'],
-    ['ANTHEM BREACH (78.8M RECORDS)', 'FEBRUARY 4, 2015'],
-  ]],
-
-  ['TIME TRAVEL CONSULTANTS (SCIENCE & SPACE)', [
-    ['LHC ACHIEVES FIRST 7 TeV COLLISIONS', 'MARCH 30, 2010', 'No time machine was found inside. Sources say they looked.'],
-    ['FIRST SYNTHETIC BACTERIAL CELL CREATED', 'MAY 20, 2010', 'Its DNA had a website address and quotations written into it. Even bacteria get credits.'],
-    ['NASA MESSENGER ENTERS MERCURY ORBIT', 'MARCH 18, 2011'],
-    ['SPACEX DRAGON BERTHS WITH THE ISS', 'MAY 25, 2012', 'First commercial spacecraft to do it. The robber had a seat booked in 2009. It did not exist yet.'],
-    ['VOYAGER 1 ENTERS INTERSTELLAR SPACE', 'AUGUST 25, 2012', 'Launched in 1977. Still the farthest anyone has gotten from this story.'],
-    ['FELIX BAUMGARTNER JUMPS FROM 39 KM', 'OCTOBER 14, 2012', 'Broke the sound barrier with his own body. Landed on his feet. Stunt double: none.'],
-    ['CRISPR-Cas9 EDITS HUMAN CELLS', 'JANUARY 2013'],
-    ['CHANG\'E 3 & YUTU LAND ON THE MOON', 'DECEMBER 14, 2013', 'The first soft landing on the Moon since 1976.'],
-    ['INDIA\'S MANGALYAAN ENTERS MARS ORBIT', 'SEPTEMBER 24, 2014', 'First try. Cost less than the movie Gravity. Budget department, take notes.'],
-    ['NASA DAWN ARRIVES AT CERES', 'MARCH 6, 2015'],
-  ]],
-
-  ['TECH & SILICON VALLEY CREW', [
-    ['GOOGLE NEXUS ONE', 'JANUARY 5, 2010'],
-    ['MICROSOFT ANNOUNCES IT WILL BUY SKYPE FOR $8.5B', 'MAY 10, 2011'],
-    ['GOOGLE+ LAUNCHES', 'JUNE 28, 2011', 'You were in its circles. You did not know it.'],
-    ['SNAPCHAT LAUNCHES (FIRST CALLED PICABOO)', 'JULY - SEP 2011', 'Messages that delete themselves. The robber\'s favorite feature, eventually his least.'],
-    ['APPLE INTRODUCES SIRI ON THE iPHONE 4S', 'OCTOBER 4, 2011'],
-    ['RASPBERRY PI MODEL B LAUNCHES', 'FEBRUARY 29, 2012', 'On a leap day. A date that only exists every four years, the closest thing on this list to time travel.'],
-    ['FACEBOOK BUYS INSTAGRAM FOR $1B', 'APRIL 9, 2012', 'Instagram had 13 employees.'],
-    ['TESLA MODEL S DELIVERIES BEGIN', 'JUNE 22, 2012'],
-    ['GOOGLE GLASS UNVEILED AS SKYDIVERS JUMP ONTO THE STAGE', 'JUNE 27, 2012', 'Live-streamed from their faces. A keynote with a stunt team.'],
-    ['VINE LAUNCHES', 'JANUARY 24, 2013', 'Six-second videos. The length of this background clip, give or take two.'],
-    ['TWITTER IPO', 'NOVEMBER 7, 2013'],
-    ['SLACK LAUNCHES PUBLICLY', 'FEBRUARY 2014'],
-    ['FACEBOOK BUYS WHATSAPP FOR $19B', 'FEBRUARY 19, 2014'],
-    ['AMAZON BUYS TWITCH FOR $970M', 'AUGUST 25, 2014'],
-    ['ALIBABA\'S RECORD $25 BILLION IPO', 'SEPTEMBER 19, 2014'],
-    ['iPHONE 6, 6 PLUS & APPLE PAY', 'SEP - OCT 2014', 'Some iPhone 6 Plus phones bent in pockets. Press called it Bendgate.'],
-    ['AMAZON ECHO & ALEXA ANNOUNCED', 'NOVEMBER 6, 2014', 'The robber asked it what year it was. It knew. He did not.'],
-    ['MICROSOFT UNVEILS HOLOLENS', 'JANUARY 21, 2015'],
-  ]],
-
-  ['GAMING & INTERACTIVE DIVISION', [
-    ['LEAGUE OF LEGENDS LAUNCHES', 'OCTOBER 27, 2009'],
-    ['MASS EFFECT 2', 'JANUARY 26, 2010'],
-    ['RED DEAD REDEMPTION', 'MAY 18, 2010', 'A man trying to escape his past. Relatable.'],
-    ['AMNESIA: THE DARK DESCENT', 'SEPTEMBER 8, 2010'],
-    ['MICROSOFT KINECT LAUNCHES', 'NOVEMBER 4, 2010'],
-    ['PORTAL 2', 'APRIL 19, 2011', 'You go in one hole and come out another. Technical advisor to the background video.'],
-    ['DARK SOULS', 'SEPTEMBER 22, 2011', 'Die, go back, try again. The robber\'s whole career.'],
-    ['DIABLO III AND "ERROR 37"', 'MAY 15, 2012', 'Launch-day servers turned players away with error 37. Players had been waiting since 2008.'],
-    ['STEAM GREENLIGHT LAUNCHES', 'AUGUST 30, 2012'],
-    ['NINTENDO WII U LAUNCHES', 'NOVEMBER 18, 2012'],
-    ['BIOSHOCK INFINITE', 'MARCH 26, 2013', 'Alternate timelines, a lighthouse, a coin toss. Too close to home.'],
-    ['THE LAST OF US', 'JUNE 14, 2013'],
-    ['FLAPPY BIRD GOES VIRAL, THEN ITS CREATOR PULLS IT', 'JAN - FEB 2014', 'Phones with it still installed were listed for sale for thousands of dollars.'],
-    ['TWITCH PLAYS POKÉMON', 'FEBRUARY 2014', 'About a million people, one Game Boy game, 16 days. They won. Somehow.'],
-    ['UNREAL ENGINE 4 GOES $19/MONTH (FREE IN MARCH 2015)', 'MARCH 2014'],
-    ['FIVE NIGHTS AT FREDDY\'S', 'AUGUST 8, 2014'],
-    ['DESTINY LAUNCHES', 'SEPTEMBER 9, 2014'],
-    ['MICROSOFT BUYS MOJANG / MINECRAFT ($2.5B)', 'SEPTEMBER 15, 2014', 'Blocks. Sold for billions. Not the kind of blocks he was after.'],
-    ['BLOODBORNE', 'MARCH 24, 2015'],
-  ]],
-
-  ['FILM, TELEVISION & POP CULTURE', [
-    ['INCEPTION IN THEATERS', 'JULY 16, 2010', 'Time moves slower on each level down. Our guy took notes.'],
-    ['THE SOCIAL NETWORK IN THEATERS', 'OCTOBER 1, 2010', 'Features the Winklevoss twins, who later became famous Bitcoin buyers.'],
-    ['GAME OF THRONES PREMIERES ON HBO', 'APRIL 17, 2011'],
-    ['HARRY POTTER FILM SERIES ENDS', 'JULY 15, 2011', 'The series has a literal time-travel necklace. He asked to borrow it. Twice.'],
-    ['THE AVENGERS IN THEATERS', 'MAY 4, 2012'],
-    ['BREAKING BAD SERIES FINALE', 'SEPTEMBER 29, 2013'],
-    ['FROZEN IN THEATERS', 'NOVEMBER 27, 2013'],
-    ['INTERSTELLAR IN THEATERS', 'NOVEMBER 7, 2014', 'One hour on that planet equals seven years on Earth. A physicist, Kip Thorne, checked the math. The robber checked his watch.'],
-    ['MAD MAX: FURY ROAD IN THEATERS', 'MAY 15, 2015', 'One day before these credits end. Mostly one long chase. Like this one.'],
-  ]],
-
-  ['SPORTS & STUNTS', [
-    ['SPAIN WINS THE FIFA WORLD CUP', 'JULY 11, 2010'],
-    ['DALLAS MAVERICKS WIN THE NBA FINALS', 'JUNE 12, 2011'],
-    ['USAIN BOLT DEFENDS 100m & 200m IN LONDON', 'AUGUST 2012', 'The fastest a person has gone on foot. Still slower than the robber leaving a room.'],
-    ['LANCE ARMSTRONG STRIPPED OF 7 TOUR TITLES', 'OCTOBER 22, 2012', 'Removed from history after the fact. The robber was jealous of the technique.'],
-    ['GERMANY BEATS BRAZIL 7-1, THEN WINS THE WORLD CUP', 'JULY 8 - 13, 2014', 'Five German goals in under 20 minutes. Some fans thought the broadcast was a replay.'],
-    ['SUPER BOWL XLIX (BUTLER INTERCEPTION)', 'FEBRUARY 1, 2015'],
-    ['MAYWEATHER VS. PACQUIAO', 'MAY 2, 2015'],
-  ]],
-
-  ['THE WORLD, MEANWHILE', [
-    ['LISBON TREATY ENTERS INTO FORCE', 'DECEMBER 1, 2009'],
-    ['COPENHAGEN CLIMATE SUMMIT (COP15)', 'DECEMBER 7 - 18, 2009'],
-    ['POLISH PRESIDENTIAL PLANE CRASH (SMOLENSK)', 'APRIL 10, 2010'],
-    ['FIRST GREEK EUROZONE BAILOUT', 'MAY 2, 2010'],
-    ['SYRIAN CIVIL WAR BEGINS', 'MARCH 15, 2011'],
-    ['SOUTH SUDAN GAINS INDEPENDENCE', 'JULY 9, 2011'],
-    ['NORWAY ATTACKS IN OSLO & UTØYA', 'JULY 22, 2011'],
-    ['MUAMMAR GADDAFI KILLED IN LIBYA', 'OCTOBER 20, 2011'],
-    ['WORLD POPULATION REACHES 7 BILLION', 'OCTOBER 31, 2011'],
-    ['KIM JONG-IL DIES; KIM JONG-UN TAKES POWER', 'DECEMBER 17, 2011'],
-    ['COSTA CONCORDIA CAPSIZES OFF ITALY', 'JANUARY 13, 2012'],
-    ['BENGHAZI ATTACK IN LIBYA', 'SEPTEMBER 11, 2012'],
-    ['MALALA YOUSAFZAI SURVIVES AN ASSASSINATION ATTEMPT', 'OCTOBER 9, 2012'],
-    ['XI JINPING BECOMES PRESIDENT OF CHINA', 'MARCH 14, 2013'],
-    ['RANA PLAZA COLLAPSE IN BANGLADESH', 'APRIL 24, 2013'],
-    ['U.S. FEDERAL GOVERNMENT SHUTDOWN', 'OCTOBER 1 - 16, 2013'],
-    ['TYPHOON HAIYAN HITS THE PHILIPPINES', 'NOVEMBER 8, 2013'],
-    ['EUROMAIDAN REVOLUTION IN UKRAINE', 'NOV 2013 - FEB 2014'],
-    ['CHIBOK SCHOOLGIRLS KIDNAPPED IN NIGERIA', 'APRIL 14, 2014'],
-    ['MV SEWOL FERRY SINKS IN SOUTH KOREA', 'APRIL 16, 2014'],
-    ['NARENDRA MODI SWORN IN AS INDIAN PM', 'MAY 26, 2014'],
-    ['ISIS DECLARES A CALIPHATE AFTER MOSUL', 'JUNE 29, 2014'],
-    ['FLIGHT MH17 SHOT DOWN OVER UKRAINE', 'JULY 17, 2014'],
-    ['HONG KONG UMBRELLA MOVEMENT', 'SEP - DEC 2014'],
-    ['U.S. & CUBA ANNOUNCE A DIPLOMATIC THAW', 'DECEMBER 17, 2014'],
-    ['YEMEN CIVIL WAR INTERVENTION BEGINS', 'MARCH 26, 2015'],
-    ['BALTIMORE PROTESTS (FREDDIE GRAY)', 'APRIL 2015'],
-  ], 'plain'],
-
-  ['IN MEMORIAM', [
-    ['DENNIS RITCHIE', 'OCTOBER 12, 2011'],
-    ['WHITNEY HOUSTON', 'FEBRUARY 11, 2012'],
-    ['NEIL ARMSTRONG', 'AUGUST 25, 2012'],
-    ['AARON SWARTZ', 'JANUARY 11, 2013'],
-    ['ROGER EBERT', 'APRIL 4, 2013'],
-    ['MARGARET THATCHER', 'APRIL 8, 2013'],
-    ['PAUL WALKER', 'NOVEMBER 30, 2013'],
-    ['PHILIP SEYMOUR HOFFMAN', 'FEBRUARY 2, 2014'],
-    ['GABRIEL GARCÍA MÁRQUEZ', 'APRIL 17, 2014'],
-    ['MAYA ANGELOU', 'MAY 28, 2014'],
-    ['LEONARD NIMOY', 'FEBRUARY 27, 2015'],
-    ['TERRY PRATCHETT', 'MARCH 12, 2015'],
-    ['B.B. KING', 'MAY 14, 2015'],
-  ], 'plain'],
-];
-
-const ESC = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const RULE = '<div class="rule">' + '='.repeat(90) + '</div>';
-let html = '<div class="big">I CAUGHT THE<br><em>BITCOIN ROBBER HACKER<br>TIME TRAVELER</em></div>'
-  + '<div class="by">BY JK</div>' + RULE
-  + '<div class="big" style="font-size:clamp(20px,4.4vw,30px)">E X T E N D E D &nbsp; C R E D I T S</div>'
-  + '<div class="dates">SEPTEMBER 28, 2009 &mdash; MAY 16, 2015</div>' + RULE
-  + '<p class="note">Everything below happened. The dates are real. He was there for all of it, and stole none of it successfully.</p>';
-for (const [title, rows, cls] of SECTIONS) {
-  html += `<section class="${cls || ''}"><h2>${ESC(title)}</h2>`;
-  for (const [what, when, quip] of rows) {
-    html += `<div class="row"><span class="what">${ESC(what)}</span><span class="dots"></span><span class="when">${ESC(when)}</span></div>`;
-    if (quip) html += `<div class="quip">${ESC(quip)}</div>`;
-  }
-  html += '</section>';
-}
-html += '<div style="height:80px"></div>' + RULE
-  + '<p class="end">NO BITCOINS WERE RECOVERED IN THE MAKING OF THIS TIMELINE.</p>'
-  + '<p class="end">THE 10,000 BTC PIZZAS WERE EATEN. THEY ARE NOT COMING BACK.</p>'
-  + '<p class="end">NO TIME TRAVELERS ATTENDED STEPHEN HAWKING\'S PARTY.<br>WE HAVE CHECKED THE GUEST LIST. IT IS STILL EMPTY.</p>'
-  + RULE
-  + '<p class="note" style="margin-top:60px">These credits end 158 days before October 21, 2015,<br>the day Marty McFly arrives in <i>Back to the Future Part II</i>.<br>He is late. Everyone in this story is late.</p>'
-  + '<div class="fin">FIN</div><div class="by" style="margin-bottom:45vh">CAUGHT BY JK</div>';
-const roll = document.getElementById('roll');
-roll.innerHTML = html;
-
-// ---- the roll: synced to the song, with drag / wheel to scrub ----
-const song = new Audio('song.mp3'); song.loop = false; song.preload = 'auto'; song.volume = .8;
-const SONG_LEN = 337.37;            // seconds; the roll lasts as long as the song
-const LEAD = 4;                     // seconds before the first line enters
-let muted = false, started = false, extra = 0, clock0 = 0, lastNow = 0;
-try { muted = localStorage.getItem('credits-muted') === '1'; } catch (e) {}
-const muteBtn = document.getElementById('mute'), againBtn = document.getElementById('again');
-function showMute() { muteBtn.textContent = muted ? 'SOUND OFF' : 'SOUND ON'; song.muted = muted; }
-showMute();
-muteBtn.onclick = () => { muted = !muted; showMute(); try { localStorage.setItem('credits-muted', muted ? '1' : '0'); } catch (e) {} };
-
-function songTime() {                // song position, or a clock if the song could not play
-  if (!song.paused && isFinite(song.currentTime) && song.currentTime > 0) return song.currentTime;
-  return started ? (performance.now() - clock0) / 1000 : 0;
-}
-function distance() { return roll.offsetHeight + innerHeight; }
-function frame(now) {
-  lastNow = now;
-  const vh = innerHeight, total = distance();
-  const speed = total / (SONG_LEN - LEAD - 2);
-  let y = vh - Math.max(0, songTime() - LEAD) * speed - extra;
-  y = Math.min(vh, Math.max(-roll.offsetHeight, y));
-  roll.style.transform = `translate(-50%, ${y}px)`;
-  if (started && y <= -roll.offsetHeight + vh * .5) againBtn.style.display = 'block';
-  requestAnimationFrame(frame);
-}
-requestAnimationFrame(frame);
-
-function begin() {
-  started = true; extra = 0; clock0 = performance.now();
-  song.currentTime = 0; showMute();
-  song.play().catch(() => {});
-  document.getElementById('start').classList.add('gone');
-  const v = document.getElementById('bg'); v.play().catch(() => {});
-  againBtn.style.display = 'none';
-}
-document.getElementById('play').onclick = begin;
-againBtn.onclick = begin;
-song.addEventListener('ended', () => { clock0 = performance.now() - SONG_LEN * 1000; });
-
-// scrub: wheel and drag move the roll; it keeps rolling from there
-addEventListener('wheel', e => { if (started) extra += e.deltaY * .6; }, { passive: true });
-let dragY = null;
-addEventListener('pointerdown', e => { if (started && e.target.tagName !== 'BUTTON') dragY = e.clientY; });
-addEventListener('pointermove', e => { if (dragY !== null) { extra += dragY - e.clientY; dragY = e.clientY; } });
-addEventListener('pointerup', () => dragY = null);
-addEventListener('pointercancel', () => dragY = null);
-addEventListener('keydown', e => {
-  if (!started) return;
-  if (e.key === 'ArrowDown' || e.key === 'PageDown') extra += e.key === 'PageDown' ? innerHeight * .8 : 60;
-  if (e.key === 'ArrowUp' || e.key === 'PageUp') extra -= e.key === 'PageUp' ? innerHeight * .8 : 60;
-});
-
-window.__credits = { state: () => ({ started, t: songTime(), extra, h: roll.offsetHeight }), seek: s => { if (!song.paused) song.currentTime = s; else clock0 = performance.now() - s * 1000; started = true; document.getElementById('start').classList.add('gone'); } };
+const v = document.getElementById('v'), start = document.getElementById('start'), pause = document.getElementById('pause');
+let playing = false;
+function go() { start.classList.add('gone'); pause.classList.remove('on'); v.play().then(() => playing = true).catch(() => start.classList.remove('gone')); }
+start.addEventListener('click', go);
+v.addEventListener('click', () => { if (!playing) return; if (v.paused) { v.play(); pause.classList.remove('on'); } else { v.pause(); pause.classList.add('on'); } });
+v.addEventListener('ended', () => { playing = false; v.currentTime = 0; start.classList.remove('gone'); });
+addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); playing ? v.click() : go(); } });
 </script>
 </body>
 </html>
